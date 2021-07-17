@@ -24,3 +24,4 @@ def test_submit_to_azure_if_needed() -> None:
     Test that submit_to_azure_if_needed can be called.
     """
     submit_to_azure_if_needed()
+
