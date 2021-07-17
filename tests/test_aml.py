@@ -10,12 +10,12 @@ Tests for hi-ml.
 import logging
 
 try:
-    from hi-ml.aml import submit_to_azure_if_needed  # type: ignore
+    from hi_ml.aml import submit_to_azure_if_needed  # type: ignore
 except ImportError:
     logging.info("using local src")
-    from src.hi-ml.aml import submit_to_azure_if_needed  # type: ignore
+    from src.hi_ml.aml import submit_to_azure_if_needed  # type: ignore
 
-logger = logging.getLogger('test_hi-ml')
+logger = logging.getLogger('test_hi_ml')
 logger.setLevel(logging.DEBUG)
 
 
