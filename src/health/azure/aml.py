@@ -6,8 +6,8 @@
 """
 Wrapper functions for running local Python scripts on Azure ML.
 """
-
 import logging
+
 
 logger = logging.getLogger('hi_ml')
 logger.setLevel(logging.DEBUG)
