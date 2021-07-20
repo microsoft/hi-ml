@@ -157,7 +157,7 @@ jobs:
 
       - name: Install test package
         run: |
-          while ! pip install -i https://test.pypi.org/simple/ hi-ml==${{ env.latest_version }} --extra-index-url https://pypi.org/simple
+          while ! pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
           do
             echo waiting for test.pypi
             sleep 10
