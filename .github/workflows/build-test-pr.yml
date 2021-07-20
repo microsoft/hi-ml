@@ -11,7 +11,7 @@ env:
   pythonVersion: 3.7
 
 jobs:
-  build-test-python:
+  test-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,7 +29,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r build_requirements.txt
           pip install -r run_requirements.txt
           pip install -r test_requirements.txt
 
@@ -50,6 +49,26 @@ jobs:
         with:
           name: code-coverage-report
           path: htmlcov/*
+
+  build-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r build_requirements.txt
 
       - name: Build Distribution
         run: python setup.py sdist bdist_wheel
