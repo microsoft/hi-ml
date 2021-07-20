@@ -1,2 +1,1 @@
-azureml-core==1.32.0
 pytest==6.2.2

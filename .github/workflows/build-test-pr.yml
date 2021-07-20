@@ -29,8 +29,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f build_requirements.txt ]; then pip install -r build_requirements.txt; fi
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r build_requirements.txt
+          pip install -r run_requirements.txt
+          pip install -r test_requirements.txt
 
       - name: flake8
         run: flake8 . --count --exit-zero --statistics
@@ -96,7 +97,7 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r test_requirements.txt
 
       - name: Install artifact
         run:
@@ -140,7 +141,7 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r test_requirements.txt
 
       - name: Install test package
         run: pip install -i https://test.pypi.org/simple/ hi-ml
@@ -181,9 +182,10 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r test_requirements.txt
 
       - name: Install package
         run: pip install hi-ml
+
       - name: Test with pytest
         run: pytest tests
