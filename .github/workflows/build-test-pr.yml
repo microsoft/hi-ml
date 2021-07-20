@@ -156,7 +156,12 @@ jobs:
           echo "latest_version=$latest_version" >> $GITHUB_ENV
 
       - name: Install test package
-        run: pip install -i https://test.pypi.org/simple/ hi-ml==${{ env.latest_version }}
+        run: |
+          while ! pip install -i https://test.pypi.org/simple/ hi-ml==${{ env.latest_version }}
+          do
+            echo waiting for test.pypi
+            sleep 10
+          done
 
       - name: Install test dependencies
         run: |
