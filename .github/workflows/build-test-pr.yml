@@ -54,11 +54,11 @@ jobs:
       - name: Build Distribution
         run: python setup.py sdist bdist_wheel
 
-      - name: Get TestPyPI version
-        run: |
-          latest_version=$(cat ./latest_version.txt)
-          echo $latest_version
-          echo "latest_version=$latest_version" >> $GITHUB_ENV
+      - name: Archive TestPyPI version
+        uses: actions/upload-artifact@v2
+        with:
+          name: latest_version
+          path: latest_version.txt
 
       - name: Upload Distribution
         uses: actions/upload-artifact@v2
@@ -149,12 +149,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r test_requirements.txt
 
-      - name: Print test package latest version
+      - name: Download TestPyPI version
+        uses: actions/download-artifact@v2
+        with:
+          name: latest_version
+          path: latest_version.txt
+
+      - name: Get TestPyPI version
         run: |
-          echo "${{ env.latest_version }}"
+          latest_version=$(cat ./latest_version.txt)
+          echo $latest_version
+          echo "latest_version=$latest_version" >> $GITHUB_ENV
 
       - name: Install test package
-        run: pip install -i https://test.pypi.org/simple/ hi-ml
+        run: pip install -i https://test.pypi.org/simple/ hi-ml==${{ env.latest_version }}
+
       - name: Test with pytest
         run: pytest tests
 
