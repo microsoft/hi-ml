@@ -30,6 +30,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f build_requirements.txt ]; then pip install -r build_requirements.txt; fi
+          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
 
       - name: flake8
         run: flake8 . --count --exit-zero --statistics
@@ -92,7 +93,7 @@ jobs:
       - name: Test env
         run: echo $wheel_filename
 
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
@@ -136,7 +137,7 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
@@ -177,7 +178,7 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
