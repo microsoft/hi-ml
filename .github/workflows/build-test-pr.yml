@@ -153,7 +153,6 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
-          path: latest_version.txt
 
       - name: Get TestPyPI version
         run: |
