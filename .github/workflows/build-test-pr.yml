@@ -52,6 +52,7 @@ jobs:
 
   build-python:
     runs-on: ubuntu-latest
+    needs: [test-python]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -87,7 +88,7 @@ jobs:
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
-    needs: [build-test-python]
+    needs: [test-python]
     strategy:
       matrix:
         packageName: [ '*.whl', '*.tar.gz' ]
