@@ -13,7 +13,7 @@ from typing import Optional
 
 from azureml.core import Workspace
 
-from aml_configs import WorkspaceConfig
+from aml_configs import AzureConfig, SourceConfig, WorkspaceConfig
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
