@@ -8,6 +8,11 @@ Tests for hi-ml.
 """
 
 import logging
+import os
+import subprocess
+import sys
+from typing import Dict, List, Tuple
+
 import pytest
 
 
@@ -21,6 +26,29 @@ logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
 
 
+def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
+    """
+    Helper function to spawn and monitor subprocesses.
+    :param process: The name or path of the process to spawn.
+    :param args: The args to the process.
+    :param env: The environment variables for the process (default is the environment variables of the parent).
+    :return: Return code after the process has finished, and the list of lines that were written to stdout by the
+    subprocess.
+    """
+    p = subprocess.Popen(
+        [process] + args,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env
+    )
+
+    # Read and print all the lines that are printed by the subprocess
+    stdout_lines = [line.decode('UTF-8').strip() for line in p.stdout]  # type: ignore
+
+    return p.wait(), stdout_lines
+
+
 def test_submit_to_azure_if_needed() -> None:
     """
     Test that submit_to_azure_if_needed can be called.
@@ -30,3 +58,22 @@ def test_submit_to_azure_if_needed() -> None:
             workspace_config=None,
             workspace_config_path=None)
     assert "We could not find config.json in:" in str(ex)
+
+
+def test_invoking_hello_world() -> None:
+    """
+    Test that invoking hello_world.py elevates itself to AzureML.
+    """
+    score_args = [
+        "tests/health/azure/test_data/simple/hello_world.py",
+        "hello_world"
+    ]
+    env = dict(os.environ.items())
+    env['PYTHONPATH'] = "."
+
+    code, stdout = spawn_and_monitor_subprocess(
+        process=sys.executable,
+        args=score_args,
+        env=env)
+    assert code == 1
+    assert "We could not find config.json in:" in "\n".join(stdout)
