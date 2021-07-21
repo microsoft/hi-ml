@@ -11,7 +11,7 @@ env:
   pythonVersion: 3.7
 
 jobs:
-  build-test-python:
+  test-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,8 +29,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f build_requirements.txt ]; then pip install -r build_requirements.txt; fi
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r run_requirements.txt
+          pip install -r test_requirements.txt
 
       - name: flake8
         run: flake8 . --count --exit-zero --statistics
@@ -50,8 +50,35 @@ jobs:
           name: code-coverage-report
           path: htmlcov/*
 
+  build-python:
+    runs-on: ubuntu-latest
+    needs: [test-python]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r build_requirements.txt
+
       - name: Build Distribution
         run: python setup.py sdist bdist_wheel
+
+      - name: Archive TestPyPI version
+        uses: actions/upload-artifact@v2
+        with:
+          name: latest_version
+          path: latest_version.txt
 
       - name: Upload Distribution
         uses: actions/upload-artifact@v2
@@ -61,7 +88,7 @@ jobs:
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
-    needs: [build-test-python]
+    needs: [build-python]
     strategy:
       matrix:
         packageName: [ '*.whl', '*.tar.gz' ]
@@ -96,7 +123,7 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r test_requirements.txt
 
       - name: Install artifact
         run:
@@ -137,13 +164,30 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
+      - name: Download TestPyPI version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: latest_version
+
+      - name: Get TestPyPI version
+        run: |
+          latest_version=$(cat ./latest_version.txt)
+          echo $latest_version
+          echo "latest_version=$latest_version" >> $GITHUB_ENV
+
+      - name: Install test package
+        run: |
+          while ! pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
+          do
+            echo waiting for test.pypi
+            sleep 10
+          done
+
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r test_requirements.txt
 
-      - name: Install test package
-        run: pip install -i https://test.pypi.org/simple/ hi-ml
       - name: Test with pytest
         run: pytest tests
 
@@ -181,9 +225,10 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+          pip install -r test_requirements.txt
 
       - name: Install package
         run: pip install hi-ml
+
       - name: Test with pytest
         run: pytest tests

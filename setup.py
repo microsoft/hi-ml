@@ -44,6 +44,11 @@ if not version:
     build_number = os.getenv('GITHUB_RUN_NUMBER', "1")
     version = '0.1.0.post' + build_number
 
+(here / 'latest_version.txt').write_text(version)
+
+# Read run_requirements.txt to get install_requires
+install_requires = (here / 'run_requirements.txt').read_text().split("\n")
+
 setup(
     name='hi-ml',
     version=version,
@@ -65,6 +70,5 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
-    install_requires=[
-    ],
+    install_requires=install_requires,
 )
