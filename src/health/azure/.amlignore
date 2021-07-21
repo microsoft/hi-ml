@@ -1,0 +1,14 @@
+.idea
+.git
+.azureml
+.pytest_cache
+.mypy_cache
+.github
+.amlignore
+.coveragerc
+.editorconfig
+.flake8
+.gitattributes
+.gitconfig
+.gitignore
+.gitmodules
