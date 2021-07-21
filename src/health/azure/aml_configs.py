@@ -112,7 +112,7 @@ class SourceConfig:
     Contains all information that is required to submit a script to AzureML: Entry script, arguments, and information to
     set up the Python environment inside of the AzureML virtual machine.
     """
-    root_folder: Path
+    snapshot_root_directory: Path
     entry_script: Path
     conda_environment_file: Path
     script_params: List[str] = field(default_factory=list)
@@ -120,8 +120,8 @@ class SourceConfig:
     environment_variables: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
-        if not self.root_folder.is_dir():
-            raise ValueError(f"root_folder {self.root_folder} is not a directory")
+        if not self.snapshot_root_directory.is_dir():
+            raise ValueError(f"root_folder {self.snapshot_root_directory} is not a directory")
         if not self.entry_script.is_file():
             raise ValueError(f"entry_script {self.entry_script} is not a file")
         if not self.conda_environment_file.is_file():
