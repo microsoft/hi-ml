@@ -130,13 +130,24 @@ class SourceConfig:
 
     def __init__(
             self,
+            conda_dependencies_files: List[Path],
             root_folder: Optional[Path] = None,
             entry_script: Optional[Path] = None,
-            conda_dependencies_files: List[Path] = [],
             script_params: List[str] = [],
             environment_variables: Optional[Dict[str, str]] = None) -> None:
         """
+        Instantiate the class, either from the passed in parameters or from the calling environment when the parameters
+        are not set.
+
+        :params conda_dependencies_files: We cannot safely glean the conda dependencies' files from the users
+        environment because things like pytorch may reference specific local hardware capabilities not available in
+        AzureML, and vice versa. Hence this parameter is not optional. Use it to list the paths to the conda environment
+        files.  # TODO: what if they are using pip, or if the conda file calls on a pip requirements file for
+        dependencies which are not available in conda?
         """
+        self.conda_dependencies_files = conda_dependencies_files
+        self.script_params = script_params
+        self.environment_variables = environment_variables
         if root_folder:
             self.root_folder = root_folder
         else:
