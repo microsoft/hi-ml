@@ -1,0 +1,2 @@
+# Ignore local config files which contain delails of AzureML setup etc. See code documentation for format.
+config.json

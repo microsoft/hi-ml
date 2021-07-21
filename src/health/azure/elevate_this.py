@@ -4,6 +4,9 @@
 #  ------------------------------------------------------------------------------------------
 """
 Simple 'hello world' script to elevate to AML using our `submit_to_azure_if_needed` function.
+
+Invoke like this:
+    python elevate_this.py --message='Hello World' --wor
 """
 from argparse import ArgumentParser
 

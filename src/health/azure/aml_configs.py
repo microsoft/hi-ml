@@ -15,6 +15,13 @@ from typing import Dict, List, Optional
 class WorkspaceConfig:
     """
     Matches the JSON downloaded as config.json from the overview page for the AzureML workspace in the Azure portal.
+
+    The config.json file contains the following JSON (from https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
+    {
+        "subscription_id": "<subscription-id>",
+        "resource_group": "<resource-group>",
+        "workspace_name": "<workspace-name>"
+    }
     """
     workspace_name: str = ""
     subscription_id: str = ""
