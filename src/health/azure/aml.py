@@ -10,20 +10,13 @@ import logging
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional
-from attr import dataclass
 
 from azureml.core import Workspace
 
+from aml_configs import WorkspaceConfig
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
-
-
-@dataclass
-class WorkspaceConfig:
-    workspace_name: str = ""
-    subscription_id: str = ""
-    resource_group: str = ""
 
 
 def submit_to_azure_if_needed(
@@ -37,16 +30,19 @@ def submit_to_azure_if_needed(
     :return: None.
     """
     workspace: Workspace = None
-    if workspace_config is not None:
+    if (workspace_config
+            and workspace_config.workspace_name
+            and workspace_config.subscription_id
+            and workspace_config.resource_group):
         workspace = Workspace.get(
             name=workspace_config.workspace_name,
             subscription_id=workspace_config.subscription_id,
             resource_group=workspace_config.resource_group)
-    else:
+    elif workspace_config_path:
         workspace = Workspace.from_config(path=workspace_config_path)
-
-    if workspace is None:
-        raise ValueError("Unable to get workspace.")
+    else:
+        print("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+        return
 
     print(f"Loaded: {workspace.name}")
 
