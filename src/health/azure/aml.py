@@ -7,13 +7,14 @@
 Wrapper functions for running local Python scripts on Azure ML.
 """
 import logging
+import sys
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional
 
 from azureml.core import Workspace
 
-from aml_configs import AzureConfig, SourceConfig, WorkspaceConfig
+from aml_configs import get_service_principal_auth, SourceConfig, WorkspaceConfig
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -21,30 +22,30 @@ logger.setLevel(logging.DEBUG)
 
 def submit_to_azure_if_needed(
         workspace_config: Optional[WorkspaceConfig],
-        workspace_config_path: Optional[Path]) -> None:
+        workspace_config_path: Optional[Path],
+        snapshot_directory: Path,
+        entry_script: Path,
+        conda_environment: Path) -> None:
     """
     Submit a folder to Azure, if needed and run it.
+
+    Use the flag --azureml to submit to AzureML, and leave it out to run locally.
 
     :param workspace_config: Optional workspace config.
     :param workspace_config_file: Optional path to workspace config file.
     :return: None.
     """
-    workspace: Workspace = None
-    if (workspace_config
-            and workspace_config.workspace_name
-            and workspace_config.subscription_id
-            and workspace_config.resource_group):
-        workspace = Workspace.get(
-            name=workspace_config.workspace_name,
-            subscription_id=workspace_config.subscription_id,
-            resource_group=workspace_config.resource_group)
-    elif workspace_config_path:
-        workspace = Workspace.from_config(path=workspace_config_path)
-    else:
-        print("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+    if "azureml" not in sys.argv:
+        logging.info("The flag azureml is not set, and so not submitting to AzureML")
         return
-
-    print(f"Loaded: {workspace.name}")
+    if workspace_config_path and workspace_config_path.is_file():
+        auth = get_service_principal_auth()
+        workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
+    elif workspace_config:
+        workspace = workspace_config.get_workspace()
+    else:
+        raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+    logging.info(f"Loaded: {workspace.name}")
 
 
 def main() -> None:

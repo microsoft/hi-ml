@@ -17,7 +17,9 @@ from azureml.core.authentication import (InteractiveLoginAuthentication,
                                          ServicePrincipalAuthentication)
 
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
-SERVICE_PRINCIPAL_KEY = "HIML_APPLICATION_KEY"
+SERVICE_PRINCIPAL_ID = "HIML_APPLICATION_ID"
+SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
+TENANT_ID = "HIML_TENANT_ID"
 
 @dataclass
 class WorkspaceConfig:
@@ -35,15 +37,9 @@ class WorkspaceConfig:
     subscription_id: str = ""
     resource_group: str = ""
 
-
-class AzureConfig():
-    """
-    AzureML related configuration settings
-    """
-    workspace_config: WorkspaceConfig = ""
-    service_principal_auth: str = ""
-    tenant_id: str = ""
-    _workspace: Optional[Workspace] = None
+    def __post_init__(self) -> None:
+        if not (self.workspace_name and self.subscription_id and self.resource_group):
+            raise ValueError("All three WorkspaceConfig fields must contain values")
 
     def get_workspace(self) -> Workspace:
         """
@@ -57,61 +53,57 @@ class AzureConfig():
 
         :returns: Azure Machine Learning Workspace
         """
-        if self._workspace:
-            return self._workspace
         run_context = Run.get_context()
         if not hasattr(run_context, 'experiment'):
-            if self.workspace_config.subscription_id and self.workspace_config.resource_group:
-                service_principal_auth = self.get_service_principal_auth()
-                self._workspace = Workspace.get(
-                    name=self.workspace_config.workspace_name,
-                    auth=service_principal_auth,
-                    subscription_id=self.workspace_config.subscription_id,
-                    resource_group=self.workspace_config.resource_group)
-            else:
-                raise ValueError("The values for 'subscription_id' and 'resource_group' were not found. "
-                                 "Was the Azure setup completed?")
+            service_principal_auth = get_service_principal_auth()
+            workspace = Workspace.get(
+                name=self.workspace_name,
+                auth=service_principal_auth,
+                subscription_id=self.subscription_id,
+                resource_group=self.resource_group)
         else:
-            self._workspace = run_context.experiment.workspace
-        return self._workspace
+            workspace = run_context.experiment.workspace
+        return workspace
 
-    def get_service_principal_auth(self) -> Optional[Union[
-            InteractiveLoginAuthentication,
-            ServicePrincipalAuthentication]]:
-        """
-        Creates a service principal authentication object with the application ID stored in the present object. The
-        application key is read from the environment.
+def get_service_principal_auth() -> Union[
+        InteractiveLoginAuthentication,
+        ServicePrincipalAuthentication]:
+    """
+    Creates a service principal authentication object with the application ID stored in the present object. The
+    application key is read from the environment.
 
-        :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
-        present
-        """
-        application_key = self.get_secret_from_environment(SERVICE_PRINCIPAL_KEY, allow_missing=True)
-        if not application_key:
-            logging.info("Using interactive login to Azure. To use Service Principal authentication, "
-                         f"supply the password in in environment variable '{SERVICE_PRINCIPAL_KEY}'.")
-            return InteractiveLoginAuthentication()
+    :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
+    present
+    """
+    service_principal_id = get_secret_from_environment(SERVICE_PRINCIPAL_ID, allow_missing=True)
+    tenant_id = get_secret_from_environment(TENANT_ID, allow_missing=True)
+    service_principal_password = get_secret_from_environment(SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
+    if service_principal_id and tenant_id and service_principal_password:
         return ServicePrincipalAuthentication(
-            tenant_id=self.tenant_id,
-            service_principal_id=self.service_principal_auth,  # TODO: This is "", why pretend otherwise?
-            service_principal_password=application_key)
+            tenant_id=tenant_id,
+            service_principal_id=service_principal_id,
+            service_principal_password=service_principal_password)
+    logging.info("Using interactive login to Azure. To use Service Principal authentication")
+    return InteractiveLoginAuthentication()
 
-    def get_secret_from_environment(self, name: str, allow_missing: bool = False) -> Optional[str]:
-        """
-        Gets a password or key from the secrets file or environment variables.
 
-        :param name: The name of the environment variable to read. It will be converted to uppercase.
-        :param allow_missing: If true, the function returns None if there is no entry of the given name in any of the
-        places searched. If false, missing entries will raise a ValueError.
-        :return: Value of the secret. None, if there is no value and allow_missing is True.
-        """
-        name = name.upper()
-        secrets = {name: os.environ.get(name, None) for name in [name]}
-        if name not in secrets and not allow_missing:
-            raise ValueError(f"There is no secret named '{name}' available.")
-        value = secrets[name]
-        if not value and not allow_missing:
-            raise ValueError(f"There is no value stored for the secret named '{name}'")
-        return value
+def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
+    """
+    Gets a password or key from the secrets file or environment variables.
+
+    :param name: The name of the environment variable to read. It will be converted to uppercase.
+    :param allow_missing: If true, the function returns None if there is no entry of the given name in any of the
+    places searched. If false, missing entries will raise a ValueError.
+    :return: Value of the secret. None, if there is no value and allow_missing is True.
+    """
+    name = name.upper()
+    secrets = {name: os.environ.get(name, None) for name in [name]}
+    if name not in secrets and not allow_missing:
+        raise ValueError(f"There is no secret named '{name}' available.")
+    value = secrets[name]
+    if not value and not allow_missing:
+        raise ValueError(f"There is no value stored for the secret named '{name}'")
+    return value
 
 
 @dataclass
@@ -122,41 +114,16 @@ class SourceConfig:
     """
     root_folder: Path
     entry_script: Path
-    conda_dependencies_files: List[Path]
+    conda_environment_file: Path
     script_params: List[str] = field(default_factory=list)
-    # hyperdrive_config_func: Optional[Callable[[ScriptRunConfig], HyperDriveConfig]] = None  # TODO: Add back hyperdrive support
     upload_timeout_seconds: int = DEFAULT_UPLOAD_TIMEOUT_SECONDS
     environment_variables: Optional[Dict[str, str]] = None
 
-    def __init__(
-            self,
-            conda_dependencies_files: List[Path],
-            root_folder: Optional[Path] = None,
-            entry_script: Optional[Path] = None,
-            script_params: List[str] = [],
-            environment_variables: Optional[Dict[str, str]] = None) -> None:
-        """
-        Instantiate the class, either from the passed in parameters or from the calling environment when the parameters
-        are not set.
-
-        :params conda_dependencies_files: We cannot safely glean the conda dependencies' files from the users
-        environment because things like pytorch may reference specific local hardware capabilities not available in
-        AzureML, and vice versa. Hence this parameter is not optional. Use it to list the paths to the conda environment
-        files.  # TODO: what if they are using pip, or if the conda file calls on a pip requirements file for
-        dependencies which are not available in conda?
-        """
-        self.conda_dependencies_files = conda_dependencies_files
-        self.script_params = script_params
-        self.environment_variables = environment_variables
-        if root_folder:
-            self.root_folder = root_folder
-        else:
-            self.root_folder = Path.cwd()
-            print(f"Using {self.root_folder} as the snapshoot root to upload to AzureML, "
-                    "since no root_folder argument was given.")
-        if entry_script:
-            self.entry_script = entry_script
-        else:
-            self.entry_script = Path(__file__)  # TODO: will this be the path to the calling script or to this file in the package?
-            print(f"Using {self.entry_script} as the entry script to upload to AzureML, "
-                   "since no entry_script argument was given.")
+    def __post_init__(self) -> None:
+        if not self.root_folder.is_dir():
+            raise ValueError(f"root_folder {self.root_folder} is not a directory")
+        if not self.entry_script.is_file():
+            raise ValueError(f"entry_script {self.entry_script} is not a file")
+        if not self.conda_environment_file.is_file():
+            raise ValueError(f"conda_environment_file {self.conda_environment_file} is not a file")
+   
