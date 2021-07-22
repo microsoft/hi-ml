@@ -48,6 +48,8 @@ if not version:
 
 # Read run_requirements.txt to get install_requires
 install_requires = (here / 'run_requirements.txt').read_text().split("\n")
+# Remove any whitespace and blank lines
+install_requires = [line.strip() for line in install_requires if line.strip()]
 
 setup(
     name='hi-ml',
