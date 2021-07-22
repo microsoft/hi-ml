@@ -69,12 +69,13 @@ def submit_to_azure_if_needed(
         # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
         # jobs. We'll do that later if still required.
 
-        entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
+        entry_script_relative_path = \
+            source_config.entry_script.relative_to(source_config.snapshot_root_directory).as_posix()
         run_config = RunConfiguration(
             script=entry_script_relative_path,
             arguments=source_config.script_params)
         script_run_config = ScriptRunConfig(
-            source_directory=str(source_config.root_folder),
+            source_directory=str(source_config.snapshot_root_directory),
             run_config=run_config,
             compute_target=workspace.compute_targets[compute_cluster_name])
 

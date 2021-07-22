@@ -19,7 +19,8 @@ def main() -> None:
     Write out the given message, in an AzureML 'experiment' if required.
     """
     parser = ArgumentParser()
-    parser.add_argument("--azureml", type=bool, required=False, help="Flag to say whether to elevate script to AzureML")
+    parser.add_argument("--azureml", action="store_true", required=False,
+                        help="Flag to say whether to elevate script to AzureML")
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
     parser.add_argument("-w", "--workspace_config_path", type=str, required=True, help="AzureML workspace config file")
     parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML compute cluster to use")
