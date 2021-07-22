@@ -45,44 +45,13 @@ jobs:
           mypy -p tests
 
       - name: Test with pytest
-        run: pytest --cov=src --cov-report=html tests
+        run: pytest --cov=src --cov-report=html --cov-report=term tests
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
         with:
           name: code-coverage-report
           path: htmlcov/*
-
-      - name: Merge requirements file for coverage tool
-        run: cat run_requirements.txt test_requirements.txt > requirements.txt
-
-      - name: pytest
-        id: pytester-cov
-        uses: alexanderdamiani/pytester-cov@v1.2.0
-        with:
-          pytest-root-dir: 'src'
-          pytest-tests-dir: 'tests'
-          requirements-file: 'requirements.txt'
-          cov-omit-list: 'tests/*'
-          cov-threshold-single: ${{ env.COVERAGE_SINGLE }}
-          cov-threshold-total: ${{ env.COVERAGE_TOTAL }}
-
-      - name: Coverage single fail - exit
-        if: ${{ steps.pytester-cov.outputs.cov-threshold-single-fail == 'true' }}
-        run: |
-          echo "cov single fail ${{ steps.pytester-cov.outputs.cov-threshold-single-fail }}"
-          exit 1
-
-      - name: Coverage total fail - exit
-        if: ${{ steps.pytester-cov.outputs.cov-threshold-total-fail == 'true' }}
-        run: |
-          echo "cov single fail ${{ steps.pytester-cov.outputs.cov-threshold-total-fail }}"
-          exit 1
-
-      - name: Commit pytest coverage table
-        uses: peter-evans/commit-comment@v1
-        with:
-          body: ${{ steps.pytester-cov.outputs.output-table }}
 
   build-python:
     runs-on: ubuntu-latest
