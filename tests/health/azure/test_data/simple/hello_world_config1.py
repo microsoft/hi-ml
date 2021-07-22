@@ -22,7 +22,7 @@ logger.setLevel(logging.DEBUG)
 
 submit_to_azure_if_needed(
     workspace_config=None,
-    workspace_config_path=None)
+    workspace_config_path="config.json")
 
 
 def main() -> None:

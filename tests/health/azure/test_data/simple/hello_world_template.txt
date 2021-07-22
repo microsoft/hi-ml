@@ -21,8 +21,8 @@ logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
 submit_to_azure_if_needed(
-    workspace_config=None,
-    workspace_config_path=None)
+    workspace_config={{ workspace_config }},
+    workspace_config_path={{ workspace_config_path }})
 
 
 def main() -> None:
@@ -38,3 +38,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
