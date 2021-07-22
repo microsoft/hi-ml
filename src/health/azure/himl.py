@@ -28,12 +28,12 @@ logger.setLevel(logging.DEBUG)
 def submit_to_azure_if_needed(
         workspace_config: Optional[WorkspaceConfig],
         workspace_config_path: Optional[Path],
-        compute_target_name: str,
+        compute_cluster_name: str,
         snapshot_root_directory: Path,
         entry_script: Path,
         conda_environment_file: Path,
         script_params: List[str] = [],
-        environment_variables: Optional[Dict[str, str]] = {},
+        environment_variables: Dict[str, str] = {},
         ignored_folders: List[Path] = []) -> Run:
     """
     Submit a folder to Azure, if needed and run it.
@@ -81,7 +81,7 @@ def submit_to_azure_if_needed(
         script_run_config = ScriptRunConfig(
             source_directory=str(source_config.root_folder),
             run_config=run_config,
-            compute_target=workspace.compute_targets[compute_target_name])
+            compute_target=workspace.compute_targets[compute_cluster_name])
 
         # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
         experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem))
