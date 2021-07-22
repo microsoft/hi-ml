@@ -27,15 +27,19 @@ def main() -> None:
     parser.add_argument("-e", "--conda_env", type=str, required=True, help="Conda environment YAML file")
     args = parser.parse_args()
 
+    workspace_config_path = (Path(__file__).parent / args.workspace_config_path).relative_to(Path.cwd())
+    entry_script = Path(__file__).relative_to(Path.cwd())
+    conda_environment_file = (Path(__file__).parent / args.conda_env).relative_to(Path.cwd())
+
     # N.B. submit_to_azure_if_needed reads the --azureml flag from sys.argv and so it is not passed in as a parameter.
     submit_to_azure_if_needed(
         workspace_config=None,
-        workspace_config_path=Path(__file__).parent / args.workspace_config_path,
+        workspace_config_path=workspace_config_path,
         compute_cluster_name=args.compute_cluster_name,
         snapshot_root_directory=Path.cwd(),
-        entry_script=Path(__file__),
+        entry_script=entry_script,
         script_params=[f"--message='{args.message}"],
-        conda_environment_file=Path(__file__).parent / args.conda_env)
+        conda_environment_file=conda_environment_file)
     print(args.message)
 
 
