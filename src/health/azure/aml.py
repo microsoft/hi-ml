@@ -66,7 +66,14 @@ def submit_to_azure_if_needed(
         raise ValueError("Unable to get workspace.")
 
     print(f"Loaded: {workspace.name}")
-    return AzureRunInformation()
+    return AzureRunInformation(
+        input_datasets=[],
+        output_datasets=[],
+        run=Run.get_context(),
+        is_running_in_azure=True,
+        output_folder=Path("outputs"),
+        log_folder=Path("logs")
+    )
 
 
 def main() -> None:
