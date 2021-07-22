@@ -11,19 +11,33 @@ import logging
 import os
 import subprocess
 import sys
-from typing import Dict, List, Tuple
+from typing import Dict, Generator, List, Tuple
 
 import pytest
 
 
-try:
-    from health.azure.aml import submit_to_azure_if_needed  # type: ignore
-except ImportError:
-    logging.info("using local src")
-    from src.health.azure.aml import submit_to_azure_if_needed  # type: ignore
-
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
+
+
+@pytest.fixture
+def check_hi_ml_import() -> Generator:
+    """
+    Check if hi-ml has already been imported as a package. If so, do nothing, otherwise,
+    add "src" to the PYTHONPATH.
+    """
+    try:
+        from health.azure.aml import submit_to_azure_if_needed  # type: ignore
+        yield
+    except ImportError:
+        logging.info("using local src")
+        path = sys.path
+
+        # Add src for local version of hi-ml.
+        sys.path.append('src')
+        yield
+        # Restore the path.
+        sys.path = path
 
 
 def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
@@ -49,10 +63,12 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, s
     return p.wait(), stdout_lines
 
 
-def test_submit_to_azure_if_needed() -> None:
+def test_submit_to_azure_if_needed(check_hi_ml_import: Generator) -> None:
     """
     Test that submit_to_azure_if_needed can be called.
     """
+    from health.azure.aml import submit_to_azure_if_needed
+
     with pytest.raises(Exception) as ex:
         submit_to_azure_if_needed(
             workspace_config=None,
