@@ -54,7 +54,7 @@ jobs:
           path: htmlcov/*
 
       - name: Merge requirements file for coverage tool
-        run: cat run_requirements test_requirements > requirements.txt
+        run: cat run_requirements.txt test_requirements.txt > requirements.txt
 
       - name: pytest
         id: pytester-cov
