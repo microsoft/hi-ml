@@ -6,12 +6,12 @@
 Simple 'hello world' script to elevate to AML using our `submit_to_azure_if_needed` function.
 
 Invoke like this:
-    python elevate_this.py -m 'Hello World' --azureml -w 'config.json' -c 'lite-testing-ds2'
+    python elevate_this.py -m 'Hello World' --azureml -w=config.json -c=lite-testing-ds2 -e=environment.yml
 """
 from argparse import ArgumentParser
 from pathlib import Path
 
-from himl import submit_to_azure_if_needed
+from src.health.azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:
@@ -22,6 +22,7 @@ def main() -> None:
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
     parser.add_argument("-w", "--workspace_config_path", type=str, required=True, help="AzureML workspace config file")
     parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML compute cluster to use")
+    parser.add_argument("-e", "--conda_env", type=str, required=True, help="Conda environment YAML file")
     args = parser.parse_args()
 
     submit_to_azure_if_needed(
@@ -30,7 +31,8 @@ def main() -> None:
         args.compute_cluster_name,
         snapshot_root_directory=Path.cwd(),
         entry_script=Path(__file__),
-        script_params=[f"--message='{args.message}"])
+        script_params=[f"--message='{args.message}"],
+        conda_environment_file=args.conda_env)
     print(args.message)
 
 

@@ -18,7 +18,7 @@ from typing import Dict, Generator, List, Optional
 from azureml.core import (Experiment, Run, RunConfiguration, ScriptRunConfig,
                           Workspace)
 
-from himl_configs import (SourceConfig, WorkspaceConfig,
+from src.health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
                           get_service_principal_auth)
 
 logger = logging.getLogger('health.azure')
@@ -31,7 +31,7 @@ def submit_to_azure_if_needed(
         compute_cluster_name: str,
         snapshot_root_directory: Path,
         entry_script: Path,
-        conda_environment_file: Optional[Path],
+        conda_environment_file: Path,
         script_params: List[str] = [],
         environment_variables: Dict[str, str] = {},
         ignored_folders: List[Path] = []) -> Run:
