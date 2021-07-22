@@ -29,13 +29,13 @@ def main() -> None:
 
     # N.B. submit_to_azure_if_needed reads the --azureml flag from sys.argv and so it is not passed in as a parameter.
     submit_to_azure_if_needed(
-        None,
-        args.workspace_config_path,
-        args.compute_cluster_name,
+        workspace_config=None,
+        workspace_config_path=Path(__file__).parent / args.workspace_config_path,
+        compute_cluster_name=args.compute_cluster_name,
         snapshot_root_directory=Path.cwd(),
         entry_script=Path(__file__),
         script_params=[f"--message='{args.message}"],
-        conda_environment_file=args.conda_env)
+        conda_environment_file=Path(__file__).parent / args.conda_env)
     print(args.message)
 
 

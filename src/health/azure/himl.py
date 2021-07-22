@@ -44,7 +44,7 @@ def submit_to_azure_if_needed(
     :param workspace_config_file: Optional path to workspace config file.
     :return: Run object for the submitted AzureML run.
     """
-    if "azureml" not in sys.argv:
+    if all(["azureml" not in arg for arg in sys.argv]):
         logging.info("The flag azureml is not set, and so not submitting to AzureML")
         return
     if workspace_config_path and workspace_config_path.is_file():
