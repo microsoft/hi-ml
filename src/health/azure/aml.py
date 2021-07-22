@@ -9,11 +9,10 @@ Wrapper functions for running local Python scripts on Azure ML.
 import logging
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
+
 from attr import dataclass
-
-from azureml.core import Workspace
-
+from azureml.core import Workspace, Run
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -26,9 +25,27 @@ class WorkspaceConfig:
     resource_group: str = ""
 
 
+@dataclass
+class AzureRunInformation:
+    input_datasets: List[Path]
+    output_datasets: List[Path]
+    run: Run
+    is_running_in_azure: bool
+    # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
+    # The folder that we create here must be added to .amlignore
+    output_folder: Path
+    log_folder: Path
+
+
 def submit_to_azure_if_needed(
         workspace_config: Optional[WorkspaceConfig],
-        workspace_config_path: Optional[Path]) -> None:
+        workspace_config_path: Optional[Path],
+        input_datasets: Optional[List[str]] = None,
+        output_datasets: Optional[List[str]] = None,
+        num_nodes: int = 1,
+        # TODO antonsc: Does the root folder option make sense? Clearly it can't be a folder below the folder where
+        # the script lives. But would it ever be a folder further up?
+        root_folder: Optional[Path] = None) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -49,6 +66,14 @@ def submit_to_azure_if_needed(
         raise ValueError("Unable to get workspace.")
 
     print(f"Loaded: {workspace.name}")
+    return AzureRunInformation(
+        input_datasets=[],
+        output_datasets=[],
+        run=Run.get_context(),
+        is_running_in_azure=True,
+        output_folder=Path("outputs"),
+        log_folder=Path("logs")
+    )
 
 
 def main() -> None:
