@@ -30,7 +30,6 @@ def main() -> None:
         args.compute_cluster_name,
         snapshot_root_directory=Path.cwd(),
         entry_script=Path(__file__),
-        conda_environment_file=  # TODO: make a simple conda file or allow this to be None
         script_params=[f"--message='{args.message}"])
     print(args.message)
 

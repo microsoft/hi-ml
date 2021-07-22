@@ -8,18 +8,18 @@ Wrapper functions for running local Python scripts on Azure ML.
 
 See elevate_this.py for a very simple 'hello world' example of use.
 """
-from contextlib import contextmanager
 import logging
 import re
 import sys
-from argparse import ArgumentParser
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
-from azureml.core import Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import (Experiment, Run, RunConfiguration, ScriptRunConfig,
+                          Workspace)
 
-from himl_configs import get_service_principal_auth, SourceConfig, WorkspaceConfig
-
+from himl_configs import (SourceConfig, WorkspaceConfig,
+                          get_service_principal_auth)
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -31,7 +31,7 @@ def submit_to_azure_if_needed(
         compute_cluster_name: str,
         snapshot_root_directory: Path,
         entry_script: Path,
-        conda_environment_file: Path,
+        conda_environment_file: Optional[Path],
         script_params: List[str] = [],
         environment_variables: Dict[str, str] = {},
         ignored_folders: List[Path] = []) -> Run:
@@ -63,16 +63,11 @@ def submit_to_azure_if_needed(
         script_params=script_params,
         environment_variables=environment_variables)
 
-    with append_to_amlignore(ignored_folders):
+    with append_to_amlignore(
+            dirs_to_append=ignored_folders,
+            snapshot_root_directory=snapshot_root_directory):
         # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
         # jobs. We'll do that later if still required.
-
-        # In our existing code:
-        # runner.submit_to_azureml calls
-        # azure_runner.submit_to_azureml, which calls azure_runner.create_run_config t0 create an 
-        # azureml.core.ScriptRunConfig and then calls
-        # azure_runner.create_and_submit_experiment, which makes an azureml.core.Experiment and then calls
-        # submit on the experiment, passing in the  
 
         entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
         run_config = RunConfiguration(
@@ -89,7 +84,8 @@ def submit_to_azure_if_needed(
 
         run: Run = experiment.submit(script_run_config)
 
-        run.set_tags({"commandline_args": " ".join(source_config.script_params)})
+        if source_config.script_params:
+            run.set_tags({"commandline_args": " ".join(source_config.script_params)})
 
         logging.info("\n==============================================================================")
         logging.info(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
@@ -117,32 +113,3 @@ def append_to_amlignore(dirs_to_append: List[Path], snapshot_root_directory: Pat
             amlignore.write_text("\n".join(lines_to_append))
             yield
             amlignore.unlink()
-
-
-def main() -> None:
-    """
-    Handle submit_to_azure if called from the command line.
-    """
-    parser = ArgumentParser()
-    parser.add_argument("-w", "--workspace_name", type=str, required=False,
-                        help="Azure ML workspace name")
-    parser.add_argument("-s", "--subscription_id", type=str, required=False,
-                        help="AzureML subscription id")
-    parser.add_argument("-r", "--resource_group", type=str, required=False,
-                        help="AzureML resource group")
-    parser.add_argument("-p", "--workspace_config_path", type=str, required=False,
-                        help="AzureML workspace config file")
-
-    args = parser.parse_args()
-    config = WorkspaceConfig(
-        workspace_name=args.workspace_name,
-        subscription_id=args.subscription_id,
-        resource_group=args.resource_group)
-
-    submit_to_azure_if_needed(
-        config,
-        args.workspace_config_path)
-
-
-if __name__ == "__main__":
-    main()

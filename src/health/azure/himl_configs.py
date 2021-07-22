@@ -126,4 +126,3 @@ class SourceConfig:
             raise ValueError(f"entry_script {self.entry_script} is not a file")
         if not self.conda_environment_file.is_file():
             raise ValueError(f"conda_environment_file {self.conda_environment_file} is not a file")
-   
