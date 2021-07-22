@@ -54,13 +54,14 @@ jobs:
           path: htmlcov/*
 
       - name: pytest
-        id: pytest
+        id: pytester-cov
         uses: alexanderdamiani/pytester-cov@v1.2.0
         with:
-          pytest-root-dir: '.'
-          cov-omit-list: 'test/*, temp/main3.py, temp/main4.py'
+          pytest-root-dir: 'tests'
+          cov-omit-list: 'tests/*'
           cov-threshold-single: ${{ env.COVERAGE_SINGLE }}
           cov-threshold-total: ${{ env.COVERAGE_TOTAL }}
+          requirements-file: 'run_requirements.txt'
 
       - name: Coverage single fail - exit
         if: ${{ steps.pytester-cov.outputs.cov-threshold-single-fail == 'true' }}
