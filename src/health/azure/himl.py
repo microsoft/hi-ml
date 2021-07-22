@@ -5,6 +5,8 @@
 
 """
 Wrapper functions for running local Python scripts on Azure ML.
+
+See elevate_this.py for a very simple 'hello world' example of use.
 """
 from contextlib import contextmanager
 import logging
@@ -14,7 +16,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
-from azureml.core import Workspace
+from azureml.core import Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 
 from himl_configs import get_service_principal_auth, SourceConfig, WorkspaceConfig
 
@@ -26,12 +28,13 @@ logger.setLevel(logging.DEBUG)
 def submit_to_azure_if_needed(
         workspace_config: Optional[WorkspaceConfig],
         workspace_config_path: Optional[Path],
+        compute_target_name: str,
         snapshot_root_directory: Path,
         entry_script: Path,
         conda_environment_file: Path,
         script_params: List[str] = [],
         environment_variables: Optional[Dict[str, str]] = {},
-        ignored_folders: List[Path] = []) -> None:
+        ignored_folders: List[Path] = []) -> Run:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -39,7 +42,7 @@ def submit_to_azure_if_needed(
 
     :param workspace_config: Optional workspace config.
     :param workspace_config_file: Optional path to workspace config file.
-    :return: None.
+    :return: Run object for the submitted AzureML run.
     """
     if "azureml" not in sys.argv:
         logging.info("The flag azureml is not set, and so not submitting to AzureML")
@@ -61,20 +64,39 @@ def submit_to_azure_if_needed(
         environment_variables=environment_variables)
 
     with append_to_amlignore(ignored_folders):
-        # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
-        experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem)) 
+        # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
+        # jobs. We'll do that later if still required.
 
         # In our existing code:
         # runner.submit_to_azureml calls
-        # azure_runner.submit_to_azureml, which creates an azureml.cor.ScriptRunConfig and calls
-        # azure_runner.create_and_submit_experiment, which makes an azureml.core.Experiment and calls
+        # azure_runner.submit_to_azureml, which calls azure_runner.create_run_config t0 create an 
+        # azureml.core.ScriptRunConfig and then calls
+        # azure_runner.create_and_submit_experiment, which makes an azureml.core.Experiment and then calls
         # submit on the experiment, passing in the  
 
-        azure_run = submit_to_azureml(self.azure_config, source_config,
-                                        self.lightning_container.all_azure_dataset_ids(),
-                                        self.lightning_container.all_dataset_mountpoints())
-        # TODO: Where have we told it which cluster to use? We should use 'lite-testing-ds2' for 'Hello World' test with
-        # no model training nor inference
+        entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
+        run_config = RunConfiguration(
+            script=entry_script_relative_path,
+            arguments=source_config.script_params)
+        script_run_config = ScriptRunConfig(
+            source_directory=str(source_config.root_folder),
+            run_config=run_config,
+            compute_target=workspace.compute_targets[compute_target_name])
+
+        # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
+        experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem))
+        experiment = Experiment(workspace=workspace, name=experiment_name)
+
+        run: Run = experiment.submit(script_run_config)
+
+        run.set_tags({"commandline_args": " ".join(source_config.script_params)})
+
+        logging.info("\n==============================================================================")
+        logging.info(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
+        logging.info("Experiment URL: {}".format(experiment.get_portal_url()))
+        logging.info("Run URL: {}".format(run.get_portal_url()))
+        logging.info("==============================================================================\n")
+        return run
 
 
 @contextmanager
