@@ -27,7 +27,9 @@ def check_hi_ml_import() -> Generator:
     add "src" to the PYTHONPATH.
     """
     try:
-        from health.azure.aml import submit_to_azure_if_needed  # type: ignore
+        # pragma pylint: disable=import-outside-toplevel, unused-import
+        from health.azure.aml import submit_to_azure_if_needed  # noqa
+        # pragma pylint: enable=import-outside-toplevel, unused-import
         yield
     except ImportError:
         logging.info("using local src")
@@ -63,11 +65,15 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, s
     return p.wait(), stdout_lines
 
 
+# pylint: disable=redefined-outer-name
 def test_submit_to_azure_if_needed(check_hi_ml_import: Generator) -> None:
+# pylint: enable=redefined-outer-name
     """
     Test that submit_to_azure_if_needed can be called.
     """
+    # pragma pylint: disable=import-outside-toplevel, import-error
     from health.azure.aml import submit_to_azure_if_needed
+    # pragma pylint: enable=import-outside-toplevel, import-error
 
     with pytest.raises(Exception) as ex:
         submit_to_azure_if_needed(
