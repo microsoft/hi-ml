@@ -16,7 +16,7 @@ from typing import Dict, Generator, List, Optional
 
 from azureml.core import Workspace
 
-from aml_configs import get_service_principal_auth, SourceConfig, WorkspaceConfig
+from himl_configs import get_service_principal_auth, SourceConfig, WorkspaceConfig
 
 
 logger = logging.getLogger('health.azure')
