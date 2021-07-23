@@ -63,7 +63,7 @@ def is_running_in_azure(run: Run = RUN_CONTEXT) -> bool:
     return hasattr(run, 'experiment')
 
 
-def submit_to_azure_if_needed(entry_script: Path,
+def submit_to_azure_if_needed(entry_script: Path,  # type: ignore
                               compute_cluster_name: str,
                               conda_environment_file: Path,
                               workspace_config: Optional[WorkspaceConfig] = None,
@@ -85,14 +85,14 @@ def submit_to_azure_if_needed(entry_script: Path,
     :param workspace_config_file: Optional path to workspace config file.
     :return: Run object for the submitted AzureML run.
     """
-    input_datasets = datasets._replace_string_datasets(input_datasets or [], default_datastore_name=default_datastore)
-    output_datasets = datasets._replace_string_datasets(output_datasets or [], default_datastore_name=default_datastore)
+    cleaned_input_datasets = datasets._replace_string_datasets(input_datasets or [], default_datastore_name=default_datastore)
+    cleaned_output_datasets = datasets._replace_string_datasets(output_datasets or [], default_datastore_name=default_datastore)
     in_azure = is_running_in_azure()
     if in_azure:
         returned_input_datasets = [RUN_CONTEXT.input_datasets[datasets._input_dataset_key(index)]
-                                   for index in range(len(input_datasets))]
+                                   for index in range(len(cleaned_input_datasets))]
         returned_output_datasets = [RUN_CONTEXT.output_datasets[datasets._output_dataset_key(index)]
-                                    for index in range(len(output_datasets))]
+                                    for index in range(len(cleaned_output_datasets))]
         return AzureRunInformation(
             input_datasets=returned_input_datasets,
             output_datasets=returned_output_datasets,
@@ -103,8 +103,8 @@ def submit_to_azure_if_needed(entry_script: Path,
         )
     if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
         return AzureRunInformation(
-            input_datasets=[d.local_folder or None for d in input_datasets],
-            output_datasets=[d.local_folder or None for d in output_datasets],
+            input_datasets=[d.local_folder for d in cleaned_input_datasets],
+            output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=RUN_CONTEXT,
             is_running_in_azure=False,
             output_folder=Path.cwd() / "outputs",
@@ -127,8 +127,8 @@ def submit_to_azure_if_needed(entry_script: Path,
         environment_variables=environment_variables)
 
     with append_to_amlignore(
-            dirs_to_append=ignored_folders,
-            snapshot_root_directory=snapshot_root_directory):
+            dirs_to_append=ignored_folders or [],
+            snapshot_root_directory=snapshot_root_directory or Path.cwd()):
         # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
         # jobs. We'll do that later if still required.
 
@@ -138,11 +138,11 @@ def submit_to_azure_if_needed(entry_script: Path,
             script=entry_script_relative_path,
             arguments=source_config.script_params)
         inputs = {}
-        for index, d in enumerate(input_datasets):
+        for index, d in enumerate(cleaned_input_datasets):
             consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
             inputs[consumption.name] = consumption
         outputs = {}
-        for index, d in enumerate(output_datasets):
+        for index, d in enumerate(cleaned_output_datasets):
             out = d.to_output_dataset(workspace=workspace, dataset_index=index)
             outputs[out.name] = out
         run_config.data = inputs
@@ -167,6 +167,7 @@ def submit_to_azure_if_needed(entry_script: Path,
         logging.info("Run URL: {}".format(run.get_portal_url()))
         logging.info("==============================================================================\n")
         exit(0)
+
 
 
 @contextmanager
