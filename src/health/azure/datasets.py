@@ -1,14 +1,9 @@
 import logging
 from pathlib import Path
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import List, Optional, Union
 
-from azureml.core import Dataset
-from azureml.core import Datastore
-from azureml.core import Workspace
-from azureml.data import FileDataset
-from azureml.data import OutputFileDatasetConfig
+from azureml.core import Dataset, Datastore, Workspace
+from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 

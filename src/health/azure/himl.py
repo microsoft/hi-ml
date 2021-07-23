@@ -15,22 +15,12 @@ import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
+from typing import Dict, Generator, List, Optional
 
-from azureml.core import Experiment
-from azureml.core import Run
-from azureml.core import RunConfiguration
-from azureml.core import ScriptRunConfig
-from azureml.core import Workspace
+from azureml.core import Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 
-from health.azure import datasets
-from health.azure.datasets import StrOrDatasetConfig
-from src.health.azure.himl_configs import SourceConfig
-from src.health.azure.himl_configs import WorkspaceConfig
-from src.health.azure.himl_configs import get_authentication
+from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
+from src.health.azure.himl_configs import SourceConfig, WorkspaceConfig, get_authentication
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -85,13 +75,15 @@ def submit_to_azure_if_needed(entry_script: Path,  # type: ignore
     :param workspace_config_file: Optional path to workspace config file.
     :return: Run object for the submitted AzureML run.
     """
-    cleaned_input_datasets = datasets._replace_string_datasets(input_datasets or [], default_datastore_name=default_datastore)
-    cleaned_output_datasets = datasets._replace_string_datasets(output_datasets or [], default_datastore_name=default_datastore)
+    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
+                                                      default_datastore_name=default_datastore)
+    cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
+                                                       default_datastore_name=default_datastore)
     in_azure = is_running_in_azure()
     if in_azure:
-        returned_input_datasets = [RUN_CONTEXT.input_datasets[datasets._input_dataset_key(index)]
+        returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
                                    for index in range(len(cleaned_input_datasets))]
-        returned_output_datasets = [RUN_CONTEXT.output_datasets[datasets._output_dataset_key(index)]
+        returned_output_datasets = [RUN_CONTEXT.output_datasets[_output_dataset_key(index)]
                                     for index in range(len(cleaned_output_datasets))]
         return AzureRunInformation(
             input_datasets=returned_input_datasets,
@@ -167,7 +159,6 @@ def submit_to_azure_if_needed(entry_script: Path,  # type: ignore
         logging.info("Run URL: {}".format(run.get_portal_url()))
         logging.info("==============================================================================\n")
         exit(0)
-
 
 
 @contextmanager
