@@ -22,7 +22,10 @@ logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
 submit_to_azure_if_needed(
-    workspace_config=None,
+    workspace_config=WorkspaceConfig(
+        os.getenv("TEST_WORKSPACE_NAME", ""),
+        os.getenv("TEST_SUBSCRIPTION_ID", ""),
+        os.getenv("TEST_RESOURCE_GROUP", "")),
     workspace_config_path=None,
     environment_variables=None)
 

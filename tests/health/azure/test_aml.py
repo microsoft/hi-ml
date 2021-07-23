@@ -7,8 +7,10 @@
 Tests for hi-ml.
 """
 
+import json
 import logging
 import os
+import pathlib
 import subprocess
 import sys
 from typing import Dict, Generator, List, Tuple
@@ -18,6 +20,8 @@ import pytest
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
+
+here = pathlib.Path(__file__).parent.resolve()
 
 
 @pytest.fixture
@@ -83,10 +87,59 @@ def test_submit_to_azure_if_needed(check_hi_ml_import: Generator) -> None:
 
 def test_invoking_hello_world() -> None:
     """
-    Test that invoking hello_world.py elevates itself to AzureML.
+    Test that invoking hello_world.py does not elevate itself to AzureML without any config.
     """
     score_args = [
         "tests/health/azure/test_data/simple/hello_world.py",
+        "hello_world"
+    ]
+    env = dict(os.environ.items())
+    env['PYTHONPATH'] = "."
+
+    code, stdout = spawn_and_monitor_subprocess(
+        process=sys.executable,
+        args=score_args,
+        env=env)
+    assert code == 1
+    assert "We could not find config.json in:" in "\n".join(stdout)
+
+
+def test_invoking_hello_world_config1() -> None:
+    """
+    Test that invoking hello_world.py elevates itself to AzureML with config.json.
+    """
+    config = {
+        "subscription_id": os.getenv("TEST_SUBSCRIPTION_ID", ""),
+        "resource_group": os.getenv("TEST_RESOURCE_GROUP", ""),
+        "workspace_name": os.getenv("TEST_WORKSPACE_NAME", "")
+    }
+    config_path = here / "config.json"
+    with open(str(config_path), 'a', encoding="utf-8") as file:
+        json.dump(config, file)
+
+    score_args = [
+        "tests/health/azure/test_data/simple/hello_world_config1.py",
+        "hello_world"
+    ]
+    env = dict(os.environ.items())
+    env['PYTHONPATH'] = "."
+
+    code, stdout = spawn_and_monitor_subprocess(
+        process=sys.executable,
+        args=score_args,
+        env=env)
+    assert code == 1
+    assert "We could not find config.json in:" in "\n".join(stdout)
+
+    config_path.unlink()
+
+
+def test_invoking_hello_world_config2() -> None:
+    """
+    Test that invoking hello_world.py elevates itself to AzureML with WorkspaceConfig.
+    """
+    score_args = [
+        "tests/health/azure/test_data/simple/hello_world_config2.py",
         "hello_world"
     ]
     env = dict(os.environ.items())

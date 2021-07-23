@@ -18,8 +18,22 @@ hello_world_template = (here / 'simple' / 'hello_world_template.txt').read_text(
 t = Template(hello_world_template)
 
 configs = [
-    ('hello_world.py', {'workspace_config': 'None', 'workspace_config_path': 'None'}),
-    ('hello_world_config1.py', {'workspace_config': 'None', 'workspace_config_path': '"config.json"'})
+    ('hello_world.py', {
+        'workspace_config': 'None',
+        'workspace_config_path': 'None',
+        'environment_variables': 'None'}),
+    ('hello_world_config1.py', {
+        'workspace_config': 'None',
+        'workspace_config_path': '"config.json"',
+        'environment_variables': 'None'}),
+    ('hello_world_config2.py', {
+        'workspace_config': """WorkspaceConfig(
+        os.getenv("TEST_WORKSPACE_NAME", ""),
+        os.getenv("TEST_SUBSCRIPTION_ID", ""),
+        os.getenv("TEST_RESOURCE_GROUP", ""))""",
+        'workspace_config_path': 'None',
+        'environment_variables': 'None'})
+
 ]
 
 for filename, config in configs:

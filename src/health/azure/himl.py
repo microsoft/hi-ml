@@ -9,7 +9,7 @@ Wrapper functions for running local Python scripts on Azure ML.
 import logging
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional, List
+from typing import Dict, Optional, List
 
 from attr import dataclass
 from azureml.core import Workspace, Run
@@ -38,8 +38,11 @@ class AzureRunInformation:
 
 
 def submit_to_azure_if_needed(
-        workspace_config: Optional[WorkspaceConfig],
-        workspace_config_path: Optional[Path],
+        workspace_config: Optional[WorkspaceConfig] = None,
+        workspace_config_path: Optional[Path] = None,
+        conda_environment_files: Optional[List[Path]] = None,
+        script_params: Optional[List[str]] = None,
+        environment_variables: Optional[Dict[str, str]] = None,
         input_datasets: Optional[List[str]] = None,
         output_datasets: Optional[List[str]] = None,
         num_nodes: int = 1,

@@ -21,5 +21,4 @@ build:
 	python setup.py sdist bdist_wheel
 
 clean:
-	rm -rf build
-	rm -rf dist
+	rm -vrf ./build ./dist ./src/*.egg-info
