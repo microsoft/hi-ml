@@ -11,12 +11,5 @@
             "program": "${workspaceFolder}/setup.py",
             "console": "integratedTerminal"
         },
-        {
-            "name": "Python: Make Tests",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/tests/health/azure/test_data/make_tests.py",
-            "console": "integratedTerminal"
-        }
     ]
 }
