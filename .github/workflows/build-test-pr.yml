@@ -42,7 +42,7 @@ jobs:
           mypy -p tests
 
       - name: Test with pytest
-        run: pytest --cov=src --cov-report=html tests
+        run: pytest --cov=src --cov-report=html testhiml
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
@@ -130,7 +130,7 @@ jobs:
           pip install $wheel_filename
 
       - name: Test with pytest
-        run: pytest tests
+        run: pytest testhiml
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
@@ -190,7 +190,7 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: Test with pytest
-        run: pytest tests
+        run: pytest testhiml
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest
@@ -248,4 +248,4 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: Test with pytest
-        run: pytest tests
+        run: pytest testhiml

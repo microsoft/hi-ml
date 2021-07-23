@@ -83,7 +83,7 @@ def main() -> int:
     if not file_list:
         current_dir = Path(".")
         file_list = [str(f) for f in current_dir.glob('*.py')]
-        file_list.extend(["src", "tests"])
+        file_list.extend(["src", "testhiml"])
 
     mypy = args.mypy or which("mypy")
     if not mypy:

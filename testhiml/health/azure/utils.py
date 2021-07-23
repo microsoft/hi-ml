@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Generator
 
 from azureml.core import Workspace
 
@@ -16,17 +15,17 @@ def repository_root() -> Path:
     return Path(__file__).parent.parent.parent.parent
 
 
-def aml_workspace() -> Generator:
+def aml_workspace() -> Workspace:
     """
     Gets the default AzureML workspace that is used for testing.
     """
     config_json = repository_root() / WORKSPACE_CONFIG_JSON
     if config_json.is_file():
-        yield Workspace.from_config()
+        return Workspace.from_config()
     else:
         subscription_id = get_secret_from_environment(SUBSCRIPTION_ID, allow_missing=False)
         auth = get_service_principal_auth()
-        yield Workspace.get(name="InnerEye-DeepLearning",
-                            auth=auth,
-                            subscription_id=subscription_id,
-                            resource_group="InnerEye-DeepLearning")
+        return Workspace.get(name="InnerEye-DeepLearning",
+                             auth=auth,
+                             subscription_id=subscription_id,
+                             resource_group="InnerEye-DeepLearning")
