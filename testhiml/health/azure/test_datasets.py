@@ -86,8 +86,8 @@ def test_dataset_output() -> None:
     aml_dataset = dataset_config.to_output_dataset(workspace=DEFAULT_WORKSPACE, dataset_index=1)
     assert isinstance(aml_dataset, OutputFileDatasetConfig)
     assert isinstance(aml_dataset.destination, tuple)
-    assert aml_dataset.destination[0]["name"] == DEFAULT_DATASTORE
-    assert aml_dataset.destination[1] == name
+    assert aml_dataset.destination[0].name == DEFAULT_DATASTORE
+    assert aml_dataset.destination[1] == name + "/"
     assert aml_dataset.mode == "mount"
     # Use downloading instead of mounting
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=False)
