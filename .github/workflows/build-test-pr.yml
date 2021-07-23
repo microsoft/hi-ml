@@ -39,7 +39,7 @@ jobs:
         run: |
           mypy setup.py
           cd src
-          mypy --install-types --non-interactive -p health
+          mypy --config-file ../mypy.ini --install-types --non-interactive -p health
           cd ..
           mypy --install-types --non-interactive -p testhiml
 
