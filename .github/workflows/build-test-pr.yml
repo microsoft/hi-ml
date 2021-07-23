@@ -38,8 +38,10 @@ jobs:
       - name: mypy
         run: |
           mypy setup.py
-          mypy -p src
-          mypy -p tests
+          cd src
+          mypy --install-types --non-interactive -p health
+          cd ..
+          mypy --install-types --non-interactive -p testhiml
 
       - name: Test with pytest
         run: pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml testhiml

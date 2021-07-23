@@ -33,7 +33,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
         elif file_path.is_dir():
             # There is a bug in recent mypy versions, complaining about duplicate files when telling
             # mypy to scan a directory. Telling it to scan a namespace avoids this bug.
-            mypy_args = ["-p", file.replace(os.path.sep, ".")]
+            mypy_args = ["--install-types", "--non-interactive", "-p", file.replace(os.path.sep, ".")]
         else:
             print("Skipping.")
         if mypy_args:

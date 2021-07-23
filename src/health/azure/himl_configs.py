@@ -33,7 +33,8 @@ class WorkspaceConfig:
     """
     Matches the JSON downloaded as config.json from the overview page for the AzureML workspace in the Azure portal.
 
-    The config.json file contains the following JSON (from https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
+    The config.json file contains the following JSON
+    (see https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
     {
         "subscription_id": "<subscription-id>",
         "resource_group": "<resource-group>",
@@ -62,7 +63,7 @@ class WorkspaceConfig:
         """
         run_context = Run.get_context()
         if not hasattr(run_context, 'experiment'):
-            service_principal_auth = get_service_principal_auth()
+            service_principal_auth = get_authentication()
             workspace = Workspace.get(
                 name=self.workspace_name,
                 auth=service_principal_auth,
@@ -73,9 +74,7 @@ class WorkspaceConfig:
         return workspace
 
 
-def get_service_principal_auth() -> Union[
-    InteractiveLoginAuthentication,
-    ServicePrincipalAuthentication]:
+def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincipalAuthentication]:
     """
     Creates a service principal authentication object with the application ID stored in the present object. The
     application key is read from the environment.

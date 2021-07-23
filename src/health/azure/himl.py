@@ -28,7 +28,7 @@ from azureml.core import Workspace
 from health.azure.datasets import StrOrDatasetConfig
 from src.health.azure.himl_configs import SourceConfig
 from src.health.azure.himl_configs import WorkspaceConfig
-from src.health.azure.himl_configs import get_service_principal_auth
+from src.health.azure.himl_configs import get_authentication
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -88,7 +88,7 @@ def submit_to_azure_if_needed(
         logging.info("The flag azureml is not set, and so not submitting to AzureML")
         return
     if workspace_config_path and workspace_config_path.is_file():
-        auth = get_service_principal_auth()
+        auth = get_authentication()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
     elif workspace_config:
         workspace = workspace_config.get_workspace()

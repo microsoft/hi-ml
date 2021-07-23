@@ -5,7 +5,7 @@ from azureml.core import Workspace
 from health.azure.himl import WORKSPACE_CONFIG_JSON
 from health.azure.himl_configs import SUBSCRIPTION_ID
 from health.azure.himl_configs import get_secret_from_environment
-from health.azure.himl_configs import get_service_principal_auth
+from health.azure.himl_configs import get_authentication
 
 
 def repository_root() -> Path:
@@ -24,7 +24,7 @@ def aml_workspace() -> Workspace:
         return Workspace.from_config()
     else:
         subscription_id = get_secret_from_environment(SUBSCRIPTION_ID, allow_missing=False)
-        auth = get_service_principal_auth()
+        auth = get_authentication()
         return Workspace.get(name="InnerEye-DeepLearning",
                              auth=auth,
                              subscription_id=subscription_id,
