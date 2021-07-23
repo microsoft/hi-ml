@@ -8,22 +8,19 @@ Wrapper functions for running local Python scripts on Azure ML.
 
 See elevate_this.py for a very simple 'hello world' example of use.
 """
-import hashlib
+
 import logging
 import re
 import sys
-import tempfile
+from argparse import ArgumentParser
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Dict, Generator, List, Optional
 
-import conda_merge
-import ruamel.yaml
 from azureml.core import (Experiment, Run, RunConfiguration, ScriptRunConfig,
                           Workspace)
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.environment import Environment
-from health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
+from health.azure.himl_configs import (AzureRunInformation, WorkspaceConfig,
                                        get_service_principal_auth)
 
 logger = logging.getLogger('health.azure')
@@ -38,12 +35,16 @@ def submit_to_azure_if_needed(
         workspace_config: Optional[WorkspaceConfig],
         workspace_config_path: Optional[Path],
         compute_cluster_name: str,
+        # TODO antonsc: Does the snapshot root folder option make sense? Clearly it can't be a folder below the folder
+        # where the script lives. But would it ever be a folder further up?
         snapshot_root_directory: Path,
         entry_script: Path,
         conda_environment_file: Path,
         script_params: List[str] = [],
         environment_variables: Dict[str, str] = {},
-        ignored_folders: List[Path] = []) -> Optional[Run]:
+        ignored_folders: List[Path] = [],
+        input_datasets: Optional[List[str]] = None,
+        output_datasets: Optional[List[str]] = None) -> Optional[Run]:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -55,7 +56,14 @@ def submit_to_azure_if_needed(
     """
     if all(["azureml" not in arg for arg in sys.argv]):
         logging.info("The flag azureml is not set, and so not submitting to AzureML")
-        return
+        return AzureRunInformation(
+            input_datasets=[],
+            output_datasets=[],
+            run=None,
+            is_running_in_azure=False,
+            output_folder=None,
+            log_folder=None
+        )
     if workspace_config_path and workspace_config_path.is_file():
         auth = get_service_principal_auth()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
@@ -98,7 +106,16 @@ def submit_to_azure_if_needed(
     print("Experiment URL: {}".format(experiment.get_portal_url()))
     print("Run URL: {}".format(run.get_portal_url()))
     print("==============================================================================\n")
-    return run
+
+    return AzureRunInformation(
+        input_datasets=[],
+        output_datasets=[],
+        run=Run.get_context(),
+        is_running_in_azure=True,
+        output_folder=Path("outputs"),
+        log_folder=Path("logs")
+    )
+
 
 @contextmanager
 def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generator:
@@ -113,3 +130,41 @@ def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generato
         amlignore.write_text(old_contents)
     else:
         amlignore.unlink()
+
+
+def main() -> None:
+    """
+    Handle submit_to_azure if called from the command line.
+    """
+    parser = ArgumentParser()
+    parser.add_argument("-w", "--workspace_name", type=str, required=False, help="Azure ML workspace name")
+    parser.add_argument("-s", "--subscription_id", type=str, required=False, help="AzureML subscription id")
+    parser.add_argument("-r", "--resource_group", type=str, required=False, help="AzureML resource group")
+    parser.add_argument("-p", "--workspace_config_path", type=str, required=False, help="AzureML workspace config file")
+    parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML cluster name")
+    parser.add_argument("-y", "--snapshot_root_directory", type=str, required=True,
+                        help="Root of snapshot to upload to AzureML")
+    parser.add_argument("-t", "--entry_script", type=str, required=True,
+                        help="The script to run in AzureML")
+    parser.add_argument("-d", "--conda_environment_file", type=str, required=True, help="The environment to use")
+
+    args = parser.parse_args()
+    if args.workspace_config_path:
+        config = None
+    else:
+        config = WorkspaceConfig(
+            workspace_name=args.workspace_name,
+            subscription_id=args.subscription_id,
+            resource_group=args.resource_group)
+
+    submit_to_azure_if_needed(
+        workspace_config=config,
+        workspace_config_path=args.workspace_config_path,
+        compute_cluster_name=args.compute_cluster_name,
+        snapshot_root_directory=args.snapshot_root_directory,
+        entry_script=args.entry_script,
+        conda_environment_file=args.conda_environment_file)
+
+
+if __name__ == "__main__":
+    main()

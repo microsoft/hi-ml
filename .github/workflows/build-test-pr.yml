@@ -42,7 +42,22 @@ jobs:
           mypy -p tests
 
       - name: Test with pytest
-        run: pytest --cov=src --cov-report=html tests
+        run: pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml tests
+
+      - name: Format coverage summary
+        id: get-comment-body
+        run: |
+          pycobertura show coverage.xml > coverage.txt
+          body=$(cat coverage.txt)
+          body="${body//'%'/'%25'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}" 
+          echo ::set-output name=body::$body
+
+      - name: Add coverage as a comment
+        uses: peter-evans/commit-comment@v1
+        with:
+          body: ${{ steps.get-comment-body.outputs.body }}
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2

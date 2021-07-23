@@ -1,7 +1,11 @@
 {
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+        "--max-line-length=120"
+    ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
-        "--config=.flake8",
+        "--config=${workspaceFolder}/.flake8",
     ],
     "python.linting.mypyEnabled": true,
     "python.linting.mypyArgs": [
@@ -11,13 +15,15 @@
     "python.linting.pycodestyleArgs": [
         "--max-line-length=120",
         "--show-source",
-        "--show-pep8",
+        "--show-pep8"
     ],
     "python.formatting.provider": "black",
     "python.formatting.blackArgs": [
-        "--line-length=120",
+        "--line-length=120"
     ],
-    "python.testing.pytestArgs": ["tests"],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true

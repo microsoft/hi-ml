@@ -21,12 +21,26 @@ SERVICE_PRINCIPAL_ID = "HIML_APPLICATION_ID"
 SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 TENANT_ID = "HIML_TENANT_ID"
 
+
+@dataclass
+class AzureRunInformation:
+    input_datasets: List[Path]
+    output_datasets: List[Path]
+    run: Optional[Run]
+    is_running_in_azure: bool
+    # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
+    # The folder that we create here must be added to .amlignore
+    output_folder: Optional[Path]
+    log_folder: Optional[Path]
+
+
 @dataclass
 class WorkspaceConfig:
     """
     Matches the JSON downloaded as config.json from the overview page for the AzureML workspace in the Azure portal.
 
-    The config.json file contains the following JSON (from https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
+    The config.json file contains the following JSON (from
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
     {
         "subscription_id": "<subscription-id>",
         "resource_group": "<resource-group>",
@@ -64,6 +78,7 @@ class WorkspaceConfig:
         else:
             workspace = run_context.experiment.workspace
         return workspace
+
 
 def get_service_principal_auth() -> Union[
         InteractiveLoginAuthentication,
