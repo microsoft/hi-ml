@@ -1,1 +1,1 @@
-azureml-core==1.32.0    
+azureml-core==1.32.0
