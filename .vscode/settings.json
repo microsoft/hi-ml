@@ -1,4 +1,5 @@
 {
+    "python.envFile": "${workspaceFolder}/test.env",
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
         "--max-line-length=120"
@@ -22,7 +23,7 @@
         "--line-length=120"
     ],
     "python.testing.pytestArgs": [
-        "tests"
+        "testhiml"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
