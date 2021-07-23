@@ -2,7 +2,7 @@ from pathlib import Path
 
 from torchvision.datasets import MNIST
 
-from health.azure.aml import submit_to_azure_if_needed
+from health.azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:
