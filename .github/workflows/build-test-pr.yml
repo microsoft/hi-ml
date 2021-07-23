@@ -45,6 +45,8 @@ jobs:
 
       - name: Test with pytest
         run: pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml testhiml
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Format coverage summary
         id: get-comment-body
