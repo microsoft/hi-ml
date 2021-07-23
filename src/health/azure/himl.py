@@ -192,12 +192,12 @@ def get_or_create_python_environment(
 
 def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
     """
-    Creates a CondaDependencies object from the Conda environments specified in one or more files.
-    The resulting object contains the union of the Conda and pip packages in the files, where merging
-    is done via the conda_merge package.
+    Creates a CondaDependencies object from the Conda environments specified in one or more files. The resulting object
+    contains the union of the Conda and pip packages in the files, where merging is done via the conda_merge package.
+
     :param files: The Conda environment files to read.
-    :return: Tuple of (CondaDependencies object that contains packages from all the files,
-    string contents of the merge Conda environment)
+    :return: Tuple of (CondaDependencies object that contains packages from all the files, string contents of the merge
+    Conda environment)
     """
     for file in files:
         _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
