@@ -12,17 +12,52 @@ import logging
 import re
 import sys
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, List, Optional
+from typing import Dict
+from typing import Generator
+from typing import List
+from typing import Optional
 
-from azureml.core import (Experiment, Run, RunConfiguration, ScriptRunConfig,
-                          Workspace)
+from azureml.core import Experiment
+from azureml.core import Run
+from azureml.core import RunConfiguration
+from azureml.core import ScriptRunConfig
+from azureml.core import Workspace
 
-from src.health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
-                          get_service_principal_auth)
+from health.azure.datasets import StrOrDatasetConfig
+from src.health.azure.himl_configs import SourceConfig
+from src.health.azure.himl_configs import WorkspaceConfig
+from src.health.azure.himl_configs import get_service_principal_auth
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
+
+# Re-use the Run object across the package, to avoid repeated and possibly costly calls to create it.
+RUN_CONTEXT = Run.get_context()
+
+WORKSPACE_CONFIG_JSON = "config.json"
+
+
+@dataclass
+class AzureRunInformation:
+    input_datasets: List[Path]
+    output_datasets: List[Path]
+    run: Run
+    is_running_in_azure: bool
+    # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
+    # The folder that we create here must be added to .amlignore
+    output_folder: Path
+    log_folder: Path
+
+
+def is_running_in_azure(run: Run = RUN_CONTEXT) -> bool:
+    """
+    Returns True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    :param run: The run to check. If omitted, use the default run in RUN_CONTEXT
+    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    """
+    return hasattr(run, 'experiment')
 
 
 def submit_to_azure_if_needed(
@@ -34,7 +69,12 @@ def submit_to_azure_if_needed(
         conda_environment_file: Path,
         script_params: List[str] = [],
         environment_variables: Dict[str, str] = {},
-        ignored_folders: List[Path] = []) -> Run:
+        ignored_folders: List[Path] = [],
+        default_datastore: str = "",
+        input_datasets: Optional[List[StrOrDatasetConfig]] = None,
+        output_datasets: Optional[List[StrOrDatasetConfig]] = None,
+        num_nodes: int = 1,
+        ) -> Run:
     """
     Submit a folder to Azure, if needed and run it.
 

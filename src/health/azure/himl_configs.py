@@ -8,18 +8,25 @@ Configs for running local Python scripts on Azure ML.
 """
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
-from azureml.core import Run, Workspace
-from azureml.core.authentication import (InteractiveLoginAuthentication,
-                                         ServicePrincipalAuthentication)
+from azureml.core import Run
+from azureml.core import Workspace
+from azureml.core.authentication import InteractiveLoginAuthentication
+from azureml.core.authentication import ServicePrincipalAuthentication
 
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
 SERVICE_PRINCIPAL_ID = "HIML_APPLICATION_ID"
 SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 TENANT_ID = "HIML_TENANT_ID"
+SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
+
 
 @dataclass
 class WorkspaceConfig:
@@ -65,9 +72,10 @@ class WorkspaceConfig:
             workspace = run_context.experiment.workspace
         return workspace
 
+
 def get_service_principal_auth() -> Union[
-        InteractiveLoginAuthentication,
-        ServicePrincipalAuthentication]:
+    InteractiveLoginAuthentication,
+    ServicePrincipalAuthentication]:
     """
     Creates a service principal authentication object with the application ID stored in the present object. The
     application key is read from the environment.
