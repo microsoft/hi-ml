@@ -123,6 +123,12 @@ def test_get_dataset() -> None:
     # A folder with a single tiny file
     tiny_dataset = "himl-tiny_dataset"
     workspace = default_aml_workspace()
+    # When creating a dataset, we need a non-empty name
+    with pytest.raises(ValueError) as ex:
+        get_or_create_dataset(workspace=workspace,
+                              datastore_name=DEFAULT_DATASTORE,
+                              dataset_name="")
+    assert "No dataset name" in str(ex)
     # Check first that there is no dataset yet of that name. If there is, delete that dataset (it would come
     # from previous runs of this test)
     try:
