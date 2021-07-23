@@ -8,20 +8,23 @@ Wrapper functions for running local Python scripts on Azure ML.
 
 See elevate_this.py for a very simple 'hello world' example of use.
 """
+import hashlib
 import logging
 import re
 import sys
+import tempfile
 from contextlib import contextmanager
-import hashlib
 from pathlib import Path
-from typing import Dict, Generator, List, Optional
+from typing import Dict, Generator, List, Optional, Tuple
 
+import conda_merge
+import ruamel.yaml
 from azureml.core import (Experiment, Run, RunConfiguration, ScriptRunConfig,
                           Workspace)
+from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.environment import Environment
-
 from health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
-                          get_service_principal_auth)
+                                       get_service_principal_auth)
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -37,7 +40,7 @@ def submit_to_azure_if_needed(
         compute_cluster_name: str,
         snapshot_root_directory: Path,
         entry_script: Path,
-        conda_environment_file: Path,
+        conda_environment_files: List[Path],
         script_params: List[str] = [],
         environment_variables: Dict[str, str] = {},
         ignored_folders: List[Path] = []) -> Run:
@@ -64,7 +67,7 @@ def submit_to_azure_if_needed(
 
     source_config = SourceConfig(
         snapshot_root_directory=snapshot_root_directory,
-        conda_environment_file=conda_environment_file,
+        conda_environment_files=conda_environment_files,
         entry_script=entry_script,
         script_params=script_params,
         environment_variables=environment_variables)
@@ -85,7 +88,6 @@ def submit_to_azure_if_needed(
     # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
     experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem))
     experiment = Experiment(workspace=workspace, name=experiment_name)
-
 
     try:
         if ignored_folders:
@@ -144,7 +146,7 @@ def get_or_create_python_environment(
     # if the innereye package is installed. It is necessary when working with an outer project and InnerEye as a git
     # submodule and submitting jobs from the local machine.
     # In case of version conflicts, the package version in the outer project is given priority.
-    conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
+    conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_environment_files)  # type: ignore
     if pip_extra_index_url:
         # When an extra-index-url is supplied, swap the order in which packages are searched for.
         # This is necessary if we need to consume packages from extra-index that clash with names of packages on
@@ -207,3 +209,50 @@ def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]
     merged_file_contents = merged_file_path.read_text()
     temp_merged_file.close()
     return merged_dependencies, merged_file_contents
+
+
+def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
+    """
+    Write number of conda and pip packages to logs.
+    :param conda: A conda dependencies object
+    :param message_prefix: A message to prefix to the log string.
+    """
+    conda_packages_count = len(list(conda.conda_packages))
+    pip_packages_count = len(list(conda.pip_packages))
+    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
+    logging.debug("  Conda packages:")
+    for p in conda.conda_packages:
+        logging.debug(f"    {p}")
+    logging.debug("  Pip packages:")
+    for p in conda.pip_packages:
+        logging.debug(f"    {p}")
+
+
+def merge_conda_files(files: List[Path], result_file: Path) -> None:
+    """
+    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
+    :param files: The Conda environment files to read.
+    :param result_file: The location where the merge results should be written.
+    """
+    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
+    # it defaults to writing to stdout
+    env_definitions = [conda_merge.read_file(str(f)) for f in files]
+    unified_definition = {}
+    NAME = "name"
+    CHANNELS = "channels"
+    DEPENDENCIES = "dependencies"
+    name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
+    if name:
+        unified_definition[NAME] = name
+    try:
+        channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge channel priorities.")
+        raise
+    if channels:
+        unified_definition[CHANNELS] = channels
+    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+    if deps:
+        unified_definition[DEPENDENCIES] = deps
+    with result_file.open("w") as f:
+        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)

@@ -28,9 +28,9 @@ def main() -> None:
     args = parser.parse_args()
 
     snapshot_root_directory = Path.cwd().parent.parent.parent
-    workspace_config_path = Path(args.workspace_config_path)
+    workspace_config_path = Path(args.workspace_config_path).absolute()
     entry_script = Path(__file__).absolute().relative_to(snapshot_root_directory)
-    conda_environment_file = Path(args.conda_env)
+    conda_environment_file = Path(args.conda_env).absolute()
 
     # N.B. submit_to_azure_if_needed reads the --azureml flag from sys.argv and so it is not passed in as a parameter.
     submit_to_azure_if_needed(
@@ -40,7 +40,7 @@ def main() -> None:
         snapshot_root_directory=snapshot_root_directory,
         entry_script=entry_script,
         script_params=[f"--message='{args.message}"],
-        conda_environment_file=conda_environment_file)
+        conda_environment_files=[conda_environment_file])
     print(args.message)
 
 

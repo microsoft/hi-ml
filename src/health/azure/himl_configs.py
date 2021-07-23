@@ -114,7 +114,7 @@ class SourceConfig:
     """
     snapshot_root_directory: Path
     entry_script: Path
-    conda_environment_file: Path
+    conda_environment_files: List[Path]
     script_params: List[str] = field(default_factory=list)
     upload_timeout_seconds: int = DEFAULT_UPLOAD_TIMEOUT_SECONDS
     environment_variables: Optional[Dict[str, str]] = None
@@ -124,5 +124,5 @@ class SourceConfig:
             raise ValueError(f"root_folder {self.snapshot_root_directory} is not a directory")
         if not (self.snapshot_root_directory / self.entry_script).is_file():
             raise ValueError(f"entry_script {self.entry_script} is not a file")
-        if not self.conda_environment_file.is_file():
-            raise ValueError(f"conda_environment_file {self.conda_environment_file} is not a file")
+        if not self.conda_environment_files[0].is_file():
+            raise ValueError(f"conda_environment_files[0] {self.conda_environment_files[0]} is not a file")
