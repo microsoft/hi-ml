@@ -22,7 +22,7 @@ from azureml.core.authentication import InteractiveLoginAuthentication
 from azureml.core.authentication import ServicePrincipalAuthentication
 
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
-SERVICE_PRINCIPAL_ID = "HIML_APPLICATION_ID"
+SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 TENANT_ID = "HIML_TENANT_ID"
 SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
