@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from azureml.core import Workspace
+from cached_property import cached_property
 
 from health.azure.himl import WORKSPACE_CONFIG_JSON
 from health.azure.himl_configs import SUBSCRIPTION_ID
@@ -31,5 +32,24 @@ def aml_workspace() -> Workspace:
                              resource_group="InnerEye-DeepLearning")
 
 
-DEFAULT_WORKSPACE = aml_workspace()
+class DefaultWorkspace:
+    """
+    Wrapper around aml_workspace so that it is lazily loaded, once.
+    """
+    def __init__(self) -> None:
+        """
+        Init.
+        """
+        self._workspace: Workspace = None
+
+    @cached_property
+    def workspace(self) -> Workspace:
+        """
+        Lazily load the aml_workspace.
+        """
+        self._workspace = aml_workspace()
+        return self._workspace
+
+
+DEFAULT_WORKSPACE = DefaultWorkspace()
 DEFAULT_DATASTORE = "innereyedatasets"
