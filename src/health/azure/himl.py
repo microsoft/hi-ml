@@ -9,6 +9,7 @@ Wrapper functions for running local Python scripts on Azure ML.
 See elevate_this.py for a very simple 'hello world' example of use.
 """
 import logging
+import os
 import re
 import sys
 from contextlib import contextmanager
@@ -154,3 +155,20 @@ def append_to_amlignore(dirs_to_append: List[Path], snapshot_root_directory: Pat
             amlignore.write_text("\n".join(lines_to_append))
             yield
             amlignore.unlink()
+
+
+def package_setup_and_hacks() -> None:
+    """
+    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
+    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
+    diagnostics about the model building itself, but not for the underlying libraries.
+    It also adds workarounds for known issues in some packages.
+    """
+    # Urllib3 prints out connection information for each call to write metrics, etc
+    logging.getLogger('urllib3').setLevel(logging.INFO)
+    logging.getLogger('msrest').setLevel(logging.INFO)
+    # AzureML prints too many details about logging metrics
+    logging.getLogger('azureml').setLevel(logging.INFO)
+    # This is working around a spurious error message thrown by MKL, see
+    # https://github.com/pytorch/pytorch/issues/37377
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
