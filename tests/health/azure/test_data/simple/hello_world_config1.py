@@ -12,10 +12,10 @@ import logging
 from argparse import ArgumentParser
 
 try:
-    from health.azure.aml import submit_to_azure_if_needed  # type: ignore
+    from health.azure.himl import submit_to_azure_if_needed  # type: ignore
 except ImportError:
     logging.info("using local src")
-    from src.health.azure.aml import submit_to_azure_if_needed  # type: ignore
+    from src.health.azure.himl import submit_to_azure_if_needed  # type: ignore
 
 logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)

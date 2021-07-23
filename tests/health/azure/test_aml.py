@@ -28,7 +28,7 @@ def check_hi_ml_import() -> Generator:
     """
     try:
         # pragma pylint: disable=import-outside-toplevel, unused-import
-        from health.azure.aml import submit_to_azure_if_needed  # noqa
+        from health.azure.himl import submit_to_azure_if_needed  # noqa
         # pragma pylint: enable=import-outside-toplevel, unused-import
         yield
     except ImportError:
@@ -71,7 +71,7 @@ def test_submit_to_azure_if_needed(check_hi_ml_import: Generator) -> None:
     Test that submit_to_azure_if_needed can be called.
     """
     # pragma pylint: disable=import-outside-toplevel, import-error
-    from health.azure.aml import submit_to_azure_if_needed
+    from health.azure.himl import submit_to_azure_if_needed
     # pragma pylint: enable=import-outside-toplevel, import-error
 
     with pytest.raises(Exception) as ex:
