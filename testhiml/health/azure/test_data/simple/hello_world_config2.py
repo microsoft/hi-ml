@@ -12,20 +12,17 @@ import logging
 import os
 from argparse import ArgumentParser
 
-try:
-    from health.azure.himl import submit_to_azure_if_needed, WorkspaceConfig  # type: ignore
-except ImportError:
-    logging.info("using local src")
-    from src.health.azure.himl import submit_to_azure_if_needed, WorkspaceConfig  # type: ignore
+from health.azure.himl import submit_to_azure_if_needed, WorkspaceConfig  # type: ignore
+
 
 logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
 submit_to_azure_if_needed(
     workspace_config=WorkspaceConfig(
-        os.getenv("TEST_WORKSPACE_NAME", ""),
-        os.getenv("TEST_SUBSCRIPTION_ID", ""),
-        os.getenv("TEST_RESOURCE_GROUP", "")),
+        os.getenv("HIML_WORKSPACE_NAME", ""),
+        os.getenv("HIML_SUBSCRIPTION_ID", ""),
+        os.getenv("HIML_RESOURCE_GROUP", "")),
     workspace_config_path=None,
     environment_variables=None)
 

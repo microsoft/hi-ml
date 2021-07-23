@@ -15,7 +15,7 @@
             "name": "Python: Make Tests",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/tests/health/azure/test_data/make_tests.py",
+            "program": "${workspaceFolder}/testhiml/health/azure/test_data/make_tests.py",
             "console": "integratedTerminal"
         }
     ]
