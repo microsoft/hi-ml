@@ -146,7 +146,7 @@ class DatasetConfig:
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked OUTPUT_{index}
         :return:
         """
-        status = f"Output dDataset {self.name} (index {dataset_index}) will be "
+        status = f"Output dataset {self.name} (index {dataset_index}) will be "
         datastore = get_datastore(workspace, self.datastore)
         dataset = OutputFileDatasetConfig(name=_output_dataset_key(index=dataset_index),
                                           destination=(datastore, self.name + "/"))
@@ -154,7 +154,7 @@ class DatasetConfig:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
         if use_mounting:
-            status += "mounted and uploaded while the job runs."
+            status += "uploaded while the job runs."
             result = dataset.as_mount()
         else:
             status += "uploaded when the job completes."
@@ -164,6 +164,8 @@ class DatasetConfig:
 
 
 StrOrDatasetConfig = Union[str, DatasetConfig]
+
+
 def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
                              default_datastore_name: str) -> List[DatasetConfig]:
     """

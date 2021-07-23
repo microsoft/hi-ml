@@ -29,3 +29,7 @@ def aml_workspace() -> Workspace:
                              auth=auth,
                              subscription_id=subscription_id,
                              resource_group="InnerEye-DeepLearning")
+
+
+DEFAULT_WORKSPACE = aml_workspace()
+DEFAULT_DATASTORE = "innereyedatasets"
