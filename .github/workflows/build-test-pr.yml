@@ -50,8 +50,8 @@ jobs:
       - name: Format coverage summary
         id: get-comment-body
         run: |
-          pycobertura show coverage.xml > coverage.txt
-          body=$(cat coverage.txt)
+          pycobertura show --format html --output coverage.html coverage.xml
+          body=$(cat coverage.html)
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}" 
