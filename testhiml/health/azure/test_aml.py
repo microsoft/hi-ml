@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+<<<<<<< HEAD:tests/health/azure/test_aml.py
 
 """
 Tests for hi-ml.
@@ -17,6 +18,13 @@ from typing import Dict, Generator, List, Tuple
 
 import pytest
 
+=======
+import logging
+
+import pytest
+
+from health.azure.himl import submit_to_azure_if_needed
+>>>>>>> main:testhiml/health/azure/test_aml.py
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -82,6 +90,7 @@ def test_submit_to_azure_if_needed(check_hi_ml_import: Generator) -> None:
         submit_to_azure_if_needed(
             workspace_config=None,
             workspace_config_path=None)
+<<<<<<< HEAD:tests/health/azure/test_aml.py
     assert "We could not find config.json in:" in str(ex)
 
 
@@ -151,3 +160,5 @@ def test_invoking_hello_world_config2() -> None:
         env=env)
     assert code == 1
     assert "We could not find config.json in:" in "\n".join(stdout)
+=======
+>>>>>>> main:testhiml/health/azure/test_aml.py

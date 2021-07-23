@@ -9,6 +9,10 @@ on:
 
 env:
   pythonVersion: 3.7
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
 
 jobs:
   test-python:
@@ -38,11 +42,15 @@ jobs:
       - name: mypy
         run: |
           mypy setup.py
-          mypy -p src
-          mypy -p tests
+          cd src
+          mypy --config-file ../mypy.ini --install-types --non-interactive -p health
+          cd ..
+          mypy --install-types --non-interactive -p testhiml
 
       - name: Test with pytest
-        run: pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml tests
+        run: pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml testhiml
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Format coverage summary
         id: get-comment-body
@@ -52,7 +60,7 @@ jobs:
           body=$'"""\n'${body}$'\n"""'
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}" 
+          body="${body//$'\r'/'%0D'}"
           echo ::set-output name=body::$body
 
       - name: Add coverage as a comment
@@ -146,7 +154,7 @@ jobs:
           pip install $wheel_filename
 
       - name: Test with pytest
-        run: pytest tests
+        run: pytest testhiml
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
@@ -206,7 +214,7 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: Test with pytest
-        run: pytest tests
+        run: pytest testhiml
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest
@@ -264,4 +272,4 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: Test with pytest
-        run: pytest tests
+        run: pytest testhiml
