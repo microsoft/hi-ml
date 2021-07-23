@@ -13,9 +13,6 @@ env:
 jobs:
   test-python:
     runs-on: ubuntu-latest
-    env:
-      COVERAGE_SINGLE: 60
-      COVERAGE_TOTAL: 60
     steps:
       - uses: actions/checkout@v2
         with:
