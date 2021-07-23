@@ -32,16 +32,25 @@ def main() -> None:
     entry_script = Path(__file__).absolute().relative_to(snapshot_root_directory)
     conda_environment_file = Path(args.conda_env).absolute()
 
+    script_params = [
+        f"--message='{args.message}",
+        f"--workspace_config_path={args.workspace_config_path}",
+        f"--compute_cluster_name={args.compute_cluster_name}",
+        f"--conda_env={args.conda_env}",
+    ]
+
     # N.B. submit_to_azure_if_needed reads the --azureml flag from sys.argv and so it is not passed in as a parameter.
-    submit_to_azure_if_needed(
+    run = submit_to_azure_if_needed(
         workspace_config=None,
         workspace_config_path=workspace_config_path,
         compute_cluster_name=args.compute_cluster_name,
         snapshot_root_directory=snapshot_root_directory,
         entry_script=entry_script,
-        script_params=[f"--message='{args.message}"],
-        conda_environment_files=[conda_environment_file])
-    print(args.message)
+        script_params=script_params,
+        conda_environment_file=conda_environment_file)
+    
+    if not run:  # we are not submitting to AzureML
+        print(args.message)
 
 
 if __name__ == "__main__":
