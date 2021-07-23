@@ -1,12 +1,16 @@
 from unittest import mock
 
 import pytest
+from azureml.core import Dataset
+from azureml.data import FileDataset
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 from health.azure.datasets import DatasetConfig
+from health.azure.datasets import _replace_string_datasets
 from health.azure.datasets import get_datastore
+from health.azure.datasets import get_or_create_dataset
 from testhiml.health.azure.utils import DEFAULT_DATASTORE
 from testhiml.health.azure.utils import DEFAULT_WORKSPACE
 
@@ -59,6 +63,7 @@ def test_dataset_input() -> None:
     """
     Test turning a dataset setup object to an actual AML input dataset.
     """
+    # This dataset must exist in the workspace already, or at least in blob storage.
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE)
     aml_dataset = dataset_config.to_input_dataset(workspace=DEFAULT_WORKSPACE, dataset_index=1)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
@@ -91,10 +96,51 @@ def test_dataset_output() -> None:
     assert aml_dataset.mode == "mount"
     # Use downloading instead of mounting
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=False)
-    aml_dataset = dataset_config.to_input_dataset(workspace=DEFAULT_WORKSPACE, dataset_index=1)
-    assert aml_dataset.mode == "download"
+    aml_dataset = dataset_config.to_output_dataset(workspace=DEFAULT_WORKSPACE, dataset_index=1)
+    assert isinstance(aml_dataset, OutputFileDatasetConfig)
+    assert aml_dataset.mode == "upload"
     # Mounting at a fixed folder is not possible
     with pytest.raises(ValueError) as ex:
         dataset_config = DatasetConfig(name=name, datastore=DEFAULT_DATASTORE, target_folder="something")
         dataset_config.to_output_dataset(workspace=DEFAULT_WORKSPACE, dataset_index=1)
     assert "Output datasets can't have a target_folder set" in str(ex)
+
+
+def test_datasets_from_string() -> None:
+    """
+    Test the conversion of datasets that are only specified as strings.
+    """
+    dataset1 = "foo"
+    dataset2 = "bar"
+    store = "store"
+    default_store = "default"
+    datasets = [dataset1, DatasetConfig(name=dataset2, datastore=store)]
+    replaced = _replace_string_datasets(datasets, default_datastore_name=default_store)
+    assert len(replaced) == len(datasets)
+    for d in replaced:
+        assert isinstance(d, DatasetConfig)
+    assert replaced[0].name == dataset1
+    assert replaced[0].datastore == default_store
+    assert replaced[1] == datasets[1]
+
+
+def test_get_dataset() -> None:
+    """
+    Test if a dataset that does not yet exist can be created from a folder in blob storage
+    """
+    # A folder with a single tiny file
+    tiny_dataset = "himl-tiny_dataset"
+    workspace = DEFAULT_WORKSPACE
+    # Check first that there is no dataset yet of that name. If there is, delete that dataset (it would come
+    # from previous runs of this test)
+    try:
+        existing_dataset = Dataset.get_by_name(workspace, name=tiny_dataset)
+        existing_dataset.unregister_all_versions()
+    except Exception as ex:
+        assert "Cannot find dataset registered" in str(ex)
+    dataset = get_or_create_dataset(workspace=workspace, datastore_name=DEFAULT_DATASTORE, dataset_name=tiny_dataset)
+    assert isinstance(dataset, FileDataset)
+    # We should now be able to get that dataset without special means
+    dataset2 = Dataset.get_by_name(workspace, name=tiny_dataset)
+    # Delete the dataset again
+    dataset2.unregister_all_versions()
