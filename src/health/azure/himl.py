@@ -71,7 +71,21 @@ def submit_to_azure_if_needed(
         entry_script=entry_script,
         script_params=script_params,
         environment_variables=environment_variables)
-    environment = get_or_create_python_environment(workspace, source_config)
+
+    # environment = get_or_create_python_environment(workspace, source_config)
+    # environment = Environment.from_conda_specification("simple-env", conda_environment_files[0])
+
+    from azureml.core.conda_dependencies import CondaDependencies
+    conda = CondaDependencies()
+    # add conda packages
+    conda.add_conda_package('python=3.7.3')
+    conda.add_conda_package('pip=20.1.1')
+    # add pip packages
+    conda.add_pip_package('azureml-sdk==1.23.0')
+    conda.add_pip_package('conda-merge==0.1.5')
+    # create environment
+    environment = Environment('simple-env')
+    environment.python.conda_dependencies = conda
 
     # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
     # jobs. We'll do that later if still required.
@@ -79,6 +93,8 @@ def submit_to_azure_if_needed(
     run_config = RunConfiguration(
         script=entry_script,
         arguments=source_config.script_params)
+    run_config.environment = environment
+
     script_run_config = ScriptRunConfig(
         source_directory=str(source_config.snapshot_root_directory),
         run_config=run_config,
