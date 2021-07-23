@@ -16,10 +16,12 @@ from azureml.core import Run, Workspace
 from azureml.core.authentication import (InteractiveLoginAuthentication,
                                          ServicePrincipalAuthentication)
 
+
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
-SERVICE_PRINCIPAL_ID = "HIML_APPLICATION_ID"
+SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 TENANT_ID = "HIML_TENANT_ID"
+SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
 
 
 @dataclass
@@ -39,8 +41,8 @@ class WorkspaceConfig:
     """
     Matches the JSON downloaded as config.json from the overview page for the AzureML workspace in the Azure portal.
 
-    The config.json file contains the following JSON (from
-    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
+    The config.json file contains the following JSON
+    (see https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment)
     {
         "subscription_id": "<subscription-id>",
         "resource_group": "<resource-group>",
@@ -69,7 +71,7 @@ class WorkspaceConfig:
         """
         run_context = Run.get_context()
         if not hasattr(run_context, 'experiment'):
-            service_principal_auth = get_service_principal_auth()
+            service_principal_auth = get_authentication()
             workspace = Workspace.get(
                 name=self.workspace_name,
                 auth=service_principal_auth,
@@ -80,9 +82,7 @@ class WorkspaceConfig:
         return workspace
 
 
-def get_service_principal_auth() -> Union[
-        InteractiveLoginAuthentication,
-        ServicePrincipalAuthentication]:
+def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincipalAuthentication]:
     """
     Creates a service principal authentication object with the application ID stored in the present object. The
     application key is read from the environment.
@@ -129,7 +129,7 @@ class SourceConfig:
     """
     snapshot_root_directory: Path
     entry_script: Path
-    conda_environment_files: List[Path]
+    conda_environment_file: Path
     script_params: List[str] = field(default_factory=list)
     upload_timeout_seconds: int = DEFAULT_UPLOAD_TIMEOUT_SECONDS
     environment_variables: Optional[Dict[str, str]] = None
@@ -137,7 +137,7 @@ class SourceConfig:
     def __post_init__(self) -> None:
         if not self.snapshot_root_directory.is_dir():
             raise ValueError(f"root_folder {self.snapshot_root_directory} is not a directory")
-        if not (self.snapshot_root_directory / self.entry_script).is_file():
+        if not self.entry_script.is_file():
             raise ValueError(f"entry_script {self.entry_script} is not a file")
-        if not self.conda_environment_files[0].is_file():
-            raise ValueError(f"conda_environment_files[0] {self.conda_environment_files[0]} is not a file")
+        if not self.conda_environment_file.is_file():
+            raise ValueError(f"conda_environment_file {self.conda_environment_file} is not a file")

@@ -8,8 +8,8 @@ Wrapper functions for running local Python scripts on Azure ML.
 
 See elevate_this.py for a very simple 'hello world' example of use.
 """
-
 import logging
+import os
 import re
 import sys
 from argparse import ArgumentParser
@@ -17,34 +17,44 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
-from azureml.core import (Experiment, Run, RunConfiguration, ScriptRunConfig,
-                          Workspace)
-from azureml.core.environment import Environment
-from health.azure.himl_configs import (AzureRunInformation, WorkspaceConfig,
-                                       get_service_principal_auth)
+from azureml.core import (Environment, Experiment, Run, RunConfiguration,
+                          ScriptRunConfig, Workspace)
+from health.azure.datasets import AzureRunInformation, StrOrDatasetConfig
+from src.health.azure.himl_configs import WorkspaceConfig, get_authentication
+
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
 
-# The version to use when creating an AzureML Python environment. We create all environments with a unique hashed name,
-# hence version will always be fixed
-ENVIRONMENT_VERSION = "1"
+
+# Re-use the Run object across the package, to avoid repeated and possibly costly calls to create it.
+RUN_CONTEXT = Run.get_context()
+
+
+def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
+    """
+    Returns True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
+    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    """
+    return hasattr(aml_run, 'experiment')
 
 
 def submit_to_azure_if_needed(
         workspace_config: Optional[WorkspaceConfig],
         workspace_config_path: Optional[Path],
         compute_cluster_name: str,
-        # TODO antonsc: Does the snapshot root folder option make sense? Clearly it can't be a folder below the folder
-        # where the script lives. But would it ever be a folder further up?
         snapshot_root_directory: Path,
         entry_script: Path,
         conda_environment_file: Path,
-        script_params: List[str] = [],
-        environment_variables: Dict[str, str] = {},
-        ignored_folders: List[Path] = [],
-        input_datasets: Optional[List[str]] = None,
-        output_datasets: Optional[List[str]] = None) -> Optional[Run]:
+        script_params: Optional[List[str]] = None,
+        environment_variables: Optional[Dict[str, str]] = None,
+        ignored_folders: Optional[List[Path]] = None,
+        default_datastore: str = "",
+        input_datasets: Optional[List[StrOrDatasetConfig]] = None,
+        output_datasets: Optional[List[StrOrDatasetConfig]] = None,
+        num_nodes: int = 1,
+        ) -> Run:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -56,16 +66,9 @@ def submit_to_azure_if_needed(
     """
     if all(["azureml" not in arg for arg in sys.argv]):
         logging.info("The flag azureml is not set, and so not submitting to AzureML")
-        return AzureRunInformation(
-            input_datasets=[],
-            output_datasets=[],
-            run=None,
-            is_running_in_azure=False,
-            output_folder=None,
-            log_folder=None
-        )
+        return
     if workspace_config_path and workspace_config_path.is_file():
-        auth = get_service_principal_auth()
+        auth = get_authentication()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
     elif workspace_config:
         workspace = workspace_config.get_workspace()
@@ -75,8 +78,8 @@ def submit_to_azure_if_needed(
 
     environment = Environment.from_conda_specification("simple-env", conda_environment_file)
 
-    # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
-    # jobs. We'll do that later if still required.
+    # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
+    # We'll do that later if still required.
 
     run_config = RunConfiguration(
         script=entry_script,
@@ -130,6 +133,23 @@ def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generato
         amlignore.write_text(old_contents)
     else:
         amlignore.unlink()
+
+
+def package_setup_and_hacks() -> None:
+    """
+    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
+    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
+    diagnostics about the model building itself, but not for the underlying libraries.
+    It also adds workarounds for known issues in some packages.
+    """
+    # Urllib3 prints out connection information for each call to write metrics, etc
+    logging.getLogger('urllib3').setLevel(logging.INFO)
+    logging.getLogger('msrest').setLevel(logging.INFO)
+    # AzureML prints too many details about logging metrics
+    logging.getLogger('azureml').setLevel(logging.INFO)
+    # This is working around a spurious error message thrown by MKL, see
+    # https://github.com/pytorch/pytorch/issues/37377
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 
 def main() -> None:
