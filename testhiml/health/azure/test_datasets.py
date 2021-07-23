@@ -7,10 +7,8 @@ from azureml.data import OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
+from health.azure import datasets
 from health.azure.datasets import DatasetConfig
-from health.azure.datasets import _replace_string_datasets
-from health.azure.datasets import get_datastore
-from health.azure.datasets import get_or_create_dataset
 from testhiml.health.azure.utils import DEFAULT_DATASTORE
 from testhiml.health.azure.utils import DEFAULT_WORKSPACE
 
@@ -27,7 +25,7 @@ def test_get_datastore_fails() -> None:
     """
     does_not_exist = "does_not_exist"
     with pytest.raises(ValueError) as ex:
-        get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name=does_not_exist)
+        datasets.get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name=does_not_exist)
     assert f"Datastore {does_not_exist} was not found" in str(ex)
 
 
@@ -37,7 +35,7 @@ def test_get_datastore_without_name() -> None:
     """
     assert len(DEFAULT_WORKSPACE.datastores) > 1
     with pytest.raises(ValueError) as ex:
-        get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name="")
+        datasets.get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name="")
     assert "No datastore name provided" in str(ex)
 
 
@@ -46,7 +44,7 @@ def test_get_datastore() -> None:
     Tests getting a datastore by name.
     """
     name = DEFAULT_DATASTORE
-    datastore = get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name=name)
+    datastore = datasets.get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name=name)
     assert isinstance(datastore, AzureBlobDatastore)
     assert datastore.name == name
     assert len(DEFAULT_WORKSPACE.datastores) > 1
@@ -54,7 +52,7 @@ def test_get_datastore() -> None:
     # With that in place, we can get the datastore without the name
     faked_stores = {name: datastore}
     with mock.patch("azureml.core.Workspace.datastores", faked_stores):
-        single_store = get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name="")
+        single_store = datasets.get_datastore(workspace=DEFAULT_WORKSPACE, datastore_name="")
     assert isinstance(single_store, AzureBlobDatastore)
     assert single_store.name == name
 
@@ -115,7 +113,7 @@ def test_datasets_from_string() -> None:
     store = "store"
     default_store = "default"
     datasets = [dataset1, DatasetConfig(name=dataset2, datastore=store)]
-    replaced = _replace_string_datasets(datasets, default_datastore_name=default_store)
+    replaced = datasets._replace_string_datasets(datasets, default_datastore_name=default_store)
     assert len(replaced) == len(datasets)
     for d in replaced:
         assert isinstance(d, DatasetConfig)
@@ -138,9 +136,22 @@ def test_get_dataset() -> None:
         existing_dataset.unregister_all_versions()
     except Exception as ex:
         assert "Cannot find dataset registered" in str(ex)
-    dataset = get_or_create_dataset(workspace=workspace, datastore_name=DEFAULT_DATASTORE, dataset_name=tiny_dataset)
+    dataset = datasets.get_or_create_dataset(workspace=workspace,
+                                             datastore_name=DEFAULT_DATASTORE,
+                                             dataset_name=tiny_dataset)
     assert isinstance(dataset, FileDataset)
     # We should now be able to get that dataset without special means
     dataset2 = Dataset.get_by_name(workspace, name=tiny_dataset)
     # Delete the dataset again
     dataset2.unregister_all_versions()
+
+
+def test_dataset_keys() -> None:
+    """
+    Check that dataset keys are non-empty strings, and that inputs and outputs have different keys.
+    """
+    in1 = datasets._input_dataset_key(1)
+    out1 = datasets._output_dataset_key(1)
+    assert in1
+    assert out1
+    assert in1 != out1

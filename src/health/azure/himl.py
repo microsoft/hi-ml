@@ -26,6 +26,7 @@ from azureml.core import RunConfiguration
 from azureml.core import ScriptRunConfig
 from azureml.core import Workspace
 
+from health.azure import datasets
 from health.azure.datasets import StrOrDatasetConfig
 from src.health.azure.himl_configs import SourceConfig
 from src.health.azure.himl_configs import WorkspaceConfig
@@ -38,12 +39,13 @@ logger.setLevel(logging.DEBUG)
 RUN_CONTEXT = Run.get_context()
 
 WORKSPACE_CONFIG_JSON = "config.json"
+AZUREML_COMMANDLINE_FLAG = "--azureml"
 
 
 @dataclass
 class AzureRunInformation:
-    input_datasets: List[Path]
-    output_datasets: List[Path]
+    input_datasets: List[Optional[Path]]
+    output_datasets: List[Optional[Path]]
     run: Run
     is_running_in_azure: bool
     # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
@@ -61,21 +63,19 @@ def is_running_in_azure(run: Run = RUN_CONTEXT) -> bool:
     return hasattr(run, 'experiment')
 
 
-def submit_to_azure_if_needed(
-        workspace_config: Optional[WorkspaceConfig],
-        workspace_config_path: Optional[Path],
-        compute_cluster_name: str,
-        snapshot_root_directory: Path,
-        entry_script: Path,
-        conda_environment_file: Path,
-        script_params: List[str] = [],
-        environment_variables: Dict[str, str] = {},
-        ignored_folders: List[Path] = [],
-        default_datastore: str = "",
-        input_datasets: Optional[List[StrOrDatasetConfig]] = None,
-        output_datasets: Optional[List[StrOrDatasetConfig]] = None,
-        num_nodes: int = 1,
-        ) -> Run:
+def submit_to_azure_if_needed(entry_script: Path,
+                              compute_cluster_name: str,
+                              conda_environment_file: Path,
+                              workspace_config: Optional[WorkspaceConfig] = None,
+                              workspace_config_path: Optional[Path] = None,
+                              snapshot_root_directory: Optional[Path] = None,
+                              environment_variables: Optional[Dict[str, str]] = None,
+                              ignored_folders: Optional[List[Path]] = None,
+                              default_datastore: str = "",
+                              input_datasets: Optional[List[StrOrDatasetConfig]] = None,
+                              output_datasets: Optional[List[StrOrDatasetConfig]] = None,
+                              num_nodes: int = 1,
+                              ) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -85,9 +85,31 @@ def submit_to_azure_if_needed(
     :param workspace_config_file: Optional path to workspace config file.
     :return: Run object for the submitted AzureML run.
     """
-    if all(["azureml" not in arg for arg in sys.argv]):
-        logging.info("The flag azureml is not set, and so not submitting to AzureML")
-        return
+    input_datasets = datasets._replace_string_datasets(input_datasets or [], default_datastore_name=default_datastore)
+    output_datasets = datasets._replace_string_datasets(output_datasets or [], default_datastore_name=default_datastore)
+    in_azure = is_running_in_azure()
+    if in_azure:
+        returned_input_datasets = [RUN_CONTEXT.input_datasets[datasets._input_dataset_key(index)]
+                                   for index in range(len(input_datasets))]
+        returned_output_datasets = [RUN_CONTEXT.output_datasets[datasets._output_dataset_key(index)]
+                                    for index in range(len(output_datasets))]
+        return AzureRunInformation(
+            input_datasets=returned_input_datasets,
+            output_datasets=returned_output_datasets,
+            run=RUN_CONTEXT,
+            is_running_in_azure=True,
+            output_folder=Path.cwd() / "outputs",
+            log_folder=Path.cwd() / "logs"
+        )
+    if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
+        return AzureRunInformation(
+            input_datasets=[d.local_folder or None for d in input_datasets],
+            output_datasets=[d.local_folder or None for d in output_datasets],
+            run=RUN_CONTEXT,
+            is_running_in_azure=False,
+            output_folder=Path.cwd() / "outputs",
+            log_folder=Path.cwd() / "logs"
+        )
     if workspace_config_path and workspace_config_path.is_file():
         auth = get_authentication()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
@@ -101,7 +123,7 @@ def submit_to_azure_if_needed(
         snapshot_root_directory=snapshot_root_directory,
         conda_environment_file=conda_environment_file,
         entry_script=entry_script,
-        script_params=script_params,
+        script_params=[p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG],
         environment_variables=environment_variables)
 
     with append_to_amlignore(
@@ -115,6 +137,16 @@ def submit_to_azure_if_needed(
         run_config = RunConfiguration(
             script=entry_script_relative_path,
             arguments=source_config.script_params)
+        inputs = {}
+        for index, d in enumerate(input_datasets):
+            consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+            inputs[consumption.name] = consumption
+        outputs = {}
+        for index, d in enumerate(output_datasets):
+            out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+            outputs[out.name] = out
+        run_config.data = inputs
+        run_config.output_data = outputs
         script_run_config = ScriptRunConfig(
             source_directory=str(source_config.snapshot_root_directory),
             run_config=run_config,
@@ -134,7 +166,7 @@ def submit_to_azure_if_needed(
         logging.info("Experiment URL: {}".format(experiment.get_portal_url()))
         logging.info("Run URL: {}".format(run.get_portal_url()))
         logging.info("==============================================================================\n")
-        return run
+        exit(0)
 
 
 @contextmanager
