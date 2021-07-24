@@ -24,7 +24,7 @@
         "--line-length=120"
     ],
     "python.testing.pytestArgs": [
-        "tests"
+        "${workspaceFolder}/testhiml/"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,

@@ -71,7 +71,7 @@ def submit_to_azure_if_needed(
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
-        ) -> AzureRunInformation:
+        ) -> Optional[AzureRunInformation]:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -108,6 +108,10 @@ def submit_to_azure_if_needed(
             output_folder=Path.cwd() / "outputs",
             log_folder=Path.cwd() / "logs"
         )
+
+    if not snapshot_root_directory:
+        raise ValueError("Cannot submit to AzureML without the snapshot_root_directory")
+
     if workspace_config_path and workspace_config_path.is_file():
         auth = get_authentication()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
@@ -139,9 +143,12 @@ def submit_to_azure_if_needed(
         script_params=[p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG],
         environment_variables=environment_variables)
 
+    amlignore_path = snapshot_root_directory or Path.cwd()
+    amlignore_path = amlignore_path / ".amlignore"
+    lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
     with append_to_amlignore(
-            dirs_to_append=ignored_folders or [],
-            snapshot_root_directory=snapshot_root_directory or Path.cwd()):
+            amlignore=amlignore_path,
+            lines_to_append=lines_to_append):
         # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
         # jobs. We'll do that later if still required.
 
@@ -179,7 +186,8 @@ def submit_to_azure_if_needed(
         logging.info("Experiment URL: {}".format(experiment.get_portal_url()))
         logging.info("Run URL: {}".format(run.get_portal_url()))
         logging.info("==============================================================================\n")
-        exit(0)
+
+        return None
 
 
 @contextmanager

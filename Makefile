@@ -10,10 +10,10 @@ test_flake8:
 test_mypy:
 	mypy setup.py
 	mypy -p src
-	mypy -p tests
+	mypy -p testhiml
 
 test_pytest:
-	pytest tests
+	pytest testhiml
 
 test: test_flake8 test_mypy test_pytest
 
