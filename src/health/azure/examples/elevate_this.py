@@ -43,7 +43,7 @@ def main() -> None:
     ]
 
     # N.B. submit_to_azure_if_needed reads the --azureml flag from sys.argv and so it is not passed in as a parameter.
-    run_info = submit_to_azure_if_needed(
+    _ = submit_to_azure_if_needed(
         workspace_config=None,
         workspace_config_path=workspace_config_path,
         compute_cluster_name=args.compute_cluster_name,
@@ -52,7 +52,7 @@ def main() -> None:
         script_params=script_params,
         conda_environment_file=conda_environment_file)
 
-    if run_info:  # we are not submitting to AzureML or are in AzureML
+    if not args.azureml:
         print(args.message)
 
 
