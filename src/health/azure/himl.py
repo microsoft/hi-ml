@@ -23,8 +23,8 @@ from azureml.core import (Environment, Experiment, Run, RunConfiguration,
 from health.azure.datasets import (AzureRunInformation, StrOrDatasetConfig,
                                    _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
-from src.health.azure.himl_configs import (AzureRunInformation, SourceConfig,
-                                           WorkspaceConfig, get_authentication)
+from src.health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
+                                           get_authentication)
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -68,7 +68,7 @@ def submit_to_azure_if_needed(
     :param workspace_config_file: Optional path to workspace config file.
     :return: Run object for the submitted AzureML run.
     """
-    cleaned_input_datasets = _replace_string_datasets(input_datasets or [], 
+    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
                                                       default_datastore_name=default_datastore)
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
