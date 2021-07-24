@@ -18,13 +18,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
-from azureml.core import (Environment, Experiment, Run, RunConfiguration,
-                          ScriptRunConfig, Workspace)
-from health.azure.datasets import (StrOrDatasetConfig, _input_dataset_key,
-                                   _output_dataset_key,
+from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from health.azure.datasets import (StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
-from health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
-                                       get_authentication)
+from health.azure.himl_configs import SourceConfig, WorkspaceConfig, get_authentication
+
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -70,7 +68,7 @@ def submit_to_azure_if_needed(
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
-        ) -> Optional[AzureRunInformation]:
+        ) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -84,6 +82,17 @@ def submit_to_azure_if_needed(
                                                       default_datastore_name=default_datastore)
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
+
+    if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
+        return AzureRunInformation(
+            input_datasets=[d.local_folder for d in cleaned_input_datasets],
+            output_datasets=[d.local_folder for d in cleaned_output_datasets],
+            run=RUN_CONTEXT,
+            is_running_in_azure=False,
+            output_folder=Path.cwd() / "outputs",
+            log_folder=Path.cwd() / "logs"
+        )
+
     in_azure = is_running_in_azure()
     if in_azure:
         returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
@@ -95,15 +104,6 @@ def submit_to_azure_if_needed(
             output_datasets=returned_output_datasets,
             run=RUN_CONTEXT,
             is_running_in_azure=True,
-            output_folder=Path.cwd() / "outputs",
-            log_folder=Path.cwd() / "logs"
-        )
-    if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
-        return AzureRunInformation(
-            input_datasets=[d.local_folder for d in cleaned_input_datasets],
-            output_datasets=[d.local_folder for d in cleaned_output_datasets],
-            run=RUN_CONTEXT,
-            is_running_in_azure=False,
             output_folder=Path.cwd() / "outputs",
             log_folder=Path.cwd() / "logs"
         )
@@ -178,7 +178,14 @@ def submit_to_azure_if_needed(
         print("Run URL: {}".format(run.get_portal_url()))
         print("==============================================================================\n")
 
-        return None
+        return AzureRunInformation(
+            input_datasets=[d.local_folder for d in cleaned_input_datasets],
+            output_datasets=[d.local_folder for d in cleaned_output_datasets],
+            run=RUN_CONTEXT,
+            is_running_in_azure=False,
+            output_folder=Path.cwd() / "outputs",
+            log_folder=Path.cwd() / "logs"
+        )
 
 
 @contextmanager

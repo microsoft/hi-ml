@@ -23,6 +23,7 @@
     "python.formatting.blackArgs": [
         "--line-length=120"
     ],
+    "python.sortImports.args": ["-l", "100"],
     "python.testing.pytestArgs": [
         "${workspaceFolder}/testhiml/"
     ],
