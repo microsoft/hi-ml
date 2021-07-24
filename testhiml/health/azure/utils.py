@@ -4,7 +4,7 @@ from azureml.core import Workspace
 from health.azure.himl_configs import (SUBSCRIPTION_ID, get_authentication,
                                        get_secret_from_environment)
 
-DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
+# const declarations at end of file
 
 
 def repository_root() -> Path:
@@ -14,7 +14,7 @@ def repository_root() -> Path:
     return Path(__file__).parent.parent.parent.parent
 
 
-def aml_workspace() -> Workspace:
+def default_aml_workspace() -> Workspace:
     """
     Gets the default AzureML workspace that is used for testing.
     """
@@ -30,5 +30,6 @@ def aml_workspace() -> Workspace:
                              resource_group="InnerEye-DeepLearning")
 
 
-DEFAULT_WORKSPACE = aml_workspace()
+DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
+DEFAULT_WORKSPACE = default_aml_workspace()
 DEFAULT_DATASTORE = "innereyedatasets"
