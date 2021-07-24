@@ -15,13 +15,14 @@ import re
 import sys
 from argparse import ArgumentParser
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
 from azureml.core import (Environment, Experiment, Run, RunConfiguration,
                           ScriptRunConfig, Workspace)
-from health.azure.datasets import (AzureRunInformation, StrOrDatasetConfig,
-                                   _input_dataset_key, _output_dataset_key,
+from health.azure.datasets import (StrOrDatasetConfig, _input_dataset_key,
+                                   _output_dataset_key,
                                    _replace_string_datasets)
 from src.health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
                                            get_authentication)
@@ -33,6 +34,18 @@ logger.setLevel(logging.DEBUG)
 WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
+
+
+@dataclass
+class AzureRunInformation:
+    input_datasets: List[Optional[Path]]
+    output_datasets: List[Optional[Path]]
+    run: Run
+    is_running_in_azure: bool
+    # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
+    # The folder that we create here must be added to .amlignore
+    output_folder: Path
+    log_folder: Path
 
 
 def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
