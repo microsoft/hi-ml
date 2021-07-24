@@ -1,10 +1,14 @@
+"""
+Test utility functions for tests in the package.
+"""
 from pathlib import Path
 
 from azureml.core import Workspace
 from health.azure.himl_configs import (SUBSCRIPTION_ID, get_authentication,
                                        get_secret_from_environment)
 
-# const declarations at end of file
+DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
+DEFAULT_DATASTORE = "innereyedatasets"
 
 
 def repository_root() -> Path:
@@ -30,6 +34,4 @@ def default_aml_workspace() -> Workspace:
                              resource_group="InnerEye-DeepLearning")
 
 
-DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
 DEFAULT_WORKSPACE = default_aml_workspace()
-DEFAULT_DATASTORE = "innereyedatasets"
