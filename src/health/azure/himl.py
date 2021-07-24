@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 """
 Wrapper functions for running local Python scripts on Azure ML.
 
@@ -24,8 +23,8 @@ from azureml.core import (Environment, Experiment, Run, RunConfiguration,
 from health.azure.datasets import (StrOrDatasetConfig, _input_dataset_key,
                                    _output_dataset_key,
                                    _replace_string_datasets)
-from src.health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
-                                           get_authentication)
+from health.azure.himl_configs import (SourceConfig, WorkspaceConfig,
+                                       get_authentication)
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -127,7 +126,7 @@ def submit_to_azure_if_needed(
     # We'll do that later if still required.
 
     run_config = RunConfiguration(
-        script=entry_script,
+        script=entry_script.relative_to(snapshot_root_directory),
         arguments=script_params)
     run_config.environment = environment
 
@@ -138,10 +137,25 @@ def submit_to_azure_if_needed(
         environment=environment)
     source_config = SourceConfig(
         snapshot_root_directory=snapshot_root_directory,
-        conda_environment_file=conda_environment_file,
-        entry_script=entry_script,
+        conda_environment_file=conda_environment_file.relative_to(snapshot_root_directory),
+        entry_script=entry_script.relative_to(snapshot_root_directory),
         script_params=[p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG],
         environment_variables=environment_variables)
+
+    inputs = {}
+    for index, d in enumerate(cleaned_input_datasets):
+        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        inputs[consumption.name] = consumption
+    outputs = {}
+    for index, d in enumerate(cleaned_output_datasets):
+        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+        outputs[out.name] = out
+    run_config.data = inputs
+    run_config.output_data = outputs
+
+    # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
+    experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem))
+    experiment = Experiment(workspace=workspace, name=experiment_name)
 
     amlignore_path = snapshot_root_directory or Path.cwd()
     amlignore_path = amlignore_path / ".amlignore"
@@ -152,40 +166,17 @@ def submit_to_azure_if_needed(
         # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
         # jobs. We'll do that later if still required.
 
-        entry_script_relative_path = \
-            source_config.entry_script.relative_to(source_config.snapshot_root_directory).as_posix()
-        run_config = RunConfiguration(
-            script=entry_script_relative_path,
-            arguments=source_config.script_params)
-        inputs = {}
-        for index, d in enumerate(cleaned_input_datasets):
-            consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
-            inputs[consumption.name] = consumption
-        outputs = {}
-        for index, d in enumerate(cleaned_output_datasets):
-            out = d.to_output_dataset(workspace=workspace, dataset_index=index)
-            outputs[out.name] = out
-        run_config.data = inputs
-        run_config.output_data = outputs
-        script_run_config = ScriptRunConfig(
-            source_directory=str(source_config.snapshot_root_directory),
-            run_config=run_config,
-            compute_target=workspace.compute_targets[compute_cluster_name])
-
-        # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
-        experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem))
-        experiment = Experiment(workspace=workspace, name=experiment_name)
-
         run: Run = experiment.submit(script_run_config)
 
         if script_params:
             run.set_tags({"commandline_args": " ".join(script_params)})
 
-        logging.info("\n==============================================================================")
-        logging.info(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
-        logging.info("Experiment URL: {}".format(experiment.get_portal_url()))
-        logging.info("Run URL: {}".format(run.get_portal_url()))
-        logging.info("==============================================================================\n")
+        # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+        print("\n==============================================================================")
+        print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
+        print("Experiment URL: {}".format(experiment.get_portal_url()))
+        print("Run URL: {}".format(run.get_portal_url()))
+        print("==============================================================================\n")
 
         return None
 

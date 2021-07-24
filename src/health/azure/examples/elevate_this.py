@@ -7,6 +7,9 @@ Simple 'hello world' script to elevate to AML using our `submit_to_azure_if_need
 
 Invoke like this:
     python elevate_this.py -m 'Hello World' --azureml -w=config.json -c=lite-testing-ds2 -e=environment.yml
+or:
+    python elevate_this.py --message='Hello World :-)' --workspace_config_path=config.json\
+         --compute_cluster_name=lite-testing-ds2 --conda_env=environment.yml --azureml
 """
 from argparse import ArgumentParser
 from pathlib import Path
@@ -29,7 +32,7 @@ def main() -> None:
 
     snapshot_root_directory = Path.cwd().parent.parent.parent
     workspace_config_path = Path(args.workspace_config_path).absolute()
-    entry_script = Path(__file__).absolute().relative_to(snapshot_root_directory)
+    entry_script = Path(__file__).absolute()
     conda_environment_file = Path(args.conda_env).absolute()
 
     script_params = [
@@ -49,7 +52,7 @@ def main() -> None:
         script_params=script_params,
         conda_environment_file=conda_environment_file)
 
-    if not run_info.is_running_in_azure:  # we are not submitting to AzureML
+    if run_info:  # we are not submitting to AzureML or are in AzureML
         print(args.message)
 
 

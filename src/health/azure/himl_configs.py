@@ -125,7 +125,9 @@ class SourceConfig:
     def __post_init__(self) -> None:
         if not self.snapshot_root_directory.is_dir():
             raise ValueError(f"root_folder {self.snapshot_root_directory} is not a directory")
-        if not self.entry_script.is_file():
-            raise ValueError(f"entry_script {self.entry_script} is not a file")
-        if not self.conda_environment_file.is_file():
-            raise ValueError(f"conda_environment_file {self.conda_environment_file} is not a file")
+        resolved_entry_script = self.snapshot_root_directory / self.entry_script
+        if not resolved_entry_script.is_file():
+            raise ValueError(f"entry_script {resolved_entry_script} is not a file")
+        resolved_conda_environment_file = self.snapshot_root_directory / self.conda_environment_file
+        if not resolved_conda_environment_file.is_file():
+            raise ValueError(f"conda_environment_file {resolved_conda_environment_file} is not a file")

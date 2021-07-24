@@ -17,7 +17,7 @@ except ImportError:
     logging.info("using local src")
     from src.health.azure.himl import submit_to_azure_if_needed  # type: ignore
 
-from health.azure.himl_configs import AzureRunInformation
+from health.azure.himl import AzureRunInformation
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
