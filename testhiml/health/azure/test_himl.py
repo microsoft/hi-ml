@@ -7,7 +7,9 @@ Tests for hi-ml.
 """
 import logging
 import shutil
+from uuid import uuid4
 from pathlib import Path
+from subprocess import run
 from unittest import mock
 
 import pytest
@@ -59,6 +61,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
+# @pytest.mark.oh_so_so_slow
 @pytest.mark.parametrize("local", [True, False])
 def test_submit_to_azure_if_needed_runs_hello_world(local: bool, tmp_path: Path) -> None:
     """
@@ -73,3 +76,26 @@ def test_submit_to_azure_if_needed_runs_hello_world(local: bool, tmp_path: Path)
     shutil.copy(
         src=repository_root() / "config.json",
         dst=tmp_path / "health" / "azure" / "examples" / "config.json")
+
+    guid = uuid4().hex
+    sys_args = [
+        "",
+        f"--message={guid}",
+        "--workspace_config_path=config.json",
+        "--compute_cluster_name=lite-testing-ds2",
+        "--conda_env=environment.yml"
+    ]
+    if not local:
+        sys_args.append("--azureml")
+    command_output = run(
+        args=["python elevate_this.py"] + sys_args,
+        cwd=str(tmp_path / "health" / "azure" / "examples"),
+        capture_output=True)
+    stdout = command_output.stdout.decode("utf-8")
+    print(stdout)
+    if local:
+        assert guid in stdout
+        assert "Successfully queued new run" not in stdout
+    else:
+        assert guid not in stdout
+        assert "Successfully queued new run" in stdout
