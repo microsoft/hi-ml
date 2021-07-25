@@ -135,7 +135,7 @@ def submit_to_azure_if_needed(
         run_config=run_config,
         compute_target=workspace.compute_targets[compute_cluster_name],
         environment=environment)
-    source_config = SourceConfig(
+    _ = SourceConfig(
         snapshot_root_directory=snapshot_root_directory,
         conda_environment_file=conda_environment_file.relative_to(snapshot_root_directory),
         entry_script=entry_script.relative_to(snapshot_root_directory),
