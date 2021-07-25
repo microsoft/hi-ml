@@ -68,6 +68,8 @@ def submit_to_azure_if_needed(
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
+        wait_for_completion: bool = False,
+        wait_for_completion_show_output = True,
         ) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
@@ -167,6 +169,8 @@ def submit_to_azure_if_needed(
         # jobs. We'll do that later if still required.
 
         run: Run = experiment.submit(script_run_config)
+        if wait_for_completion:
+            run.wait_for_completion(show_output=wait_for_completion_show_output)
 
         if script_params:
             run.set_tags({"commandline_args": " ".join(script_params)})

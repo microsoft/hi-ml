@@ -101,11 +101,14 @@ def test_submit_to_azure_if_needed_runs_hello_world(
                 compute_cluster_name="lite-testing-ds2",
                 snapshot_root_directory=snapshot_root,
                 entry_script=entry_script,
-                conda_environment_file=conda_env_file)
+                conda_environment_file=conda_env_file,
+                wait_for_completion=True,
+                wait_for_completion_show_output=True)
     assert run_info
     captured = capsys.readouterr().out
-    assert message_guid not in captured
     if local:
         assert "Successfully queued new run" not in captured
+        assert message_guid not in captured
     else:
         assert "Successfully queued new run" in captured
+        assert message_guid in captured
