@@ -39,6 +39,26 @@ jobs:
       - name: flake8
         run: flake8 . --count --exit-zero --statistics
 
+      - name: Test comment output/input
+        id: test-comment-body
+        run: |
+          body=`cat <<EOF
+line1
+        line2-begin     line2-end
+    line3
+EOF`
+          body=$'```\n'${body}$'\n```'
+          body="${body//'%'/'%25'}"
+          body="${body//' '/\u2002}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo ::set-output name=body::$body
+
+      - name: Add test comment
+        uses: peter-evans/commit-comment@v1
+        with:
+          body: ${{ steps.test-comment-body.outputs.body }}
+
   mypy:
     runs-on: ubuntu-latest
     steps:
@@ -245,7 +265,7 @@ jobs:
           body=$(cat coverage.txt)
           body=$'```\n'${body}$'\n```'
           body="${body//'%'/'%25'}"
-          body="${body//' '/'\u2002'}"
+          body="${body//' '/\u2002}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
           echo ::set-output name=body::$body
