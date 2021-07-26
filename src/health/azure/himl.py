@@ -21,13 +21,15 @@ from typing import Dict, Generator, List, Optional
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from health.azure.datasets import (StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
-from health.azure.himl_configs import SourceConfig, WorkspaceConfig, get_authentication
+from health.azure.himl_configs import WorkspaceConfig, get_authentication
+from health.azure.azure_util import create_run_recovery_id
 
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
 
 
+RUN_RECOVERY_FILE = "most_recent_run.txt"
 WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
@@ -54,8 +56,8 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     return hasattr(aml_run, 'experiment')
 
 
-def submit_to_azure_if_needed(
-        entry_script: Path,  # type: ignore
+def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
+        entry_script: Path,
         compute_cluster_name: str,
         conda_environment_file: Path,
         workspace_config: Optional[WorkspaceConfig] = None,
@@ -69,7 +71,7 @@ def submit_to_azure_if_needed(
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
         wait_for_completion: bool = False,
-        wait_for_completion_show_output: bool = True,
+        wait_for_completion_show_output: bool = False,
         ) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
@@ -127,6 +129,9 @@ def submit_to_azure_if_needed(
     # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
     # We'll do that later if still required.
 
+    if not script_params:
+        script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+
     run_config = RunConfiguration(
         script=entry_script.relative_to(snapshot_root_directory),
         arguments=script_params)
@@ -137,12 +142,6 @@ def submit_to_azure_if_needed(
         run_config=run_config,
         compute_target=workspace.compute_targets[compute_cluster_name],
         environment=environment)
-    _ = SourceConfig(
-        snapshot_root_directory=snapshot_root_directory,
-        conda_environment_file=conda_environment_file.relative_to(snapshot_root_directory),
-        entry_script=entry_script.relative_to(snapshot_root_directory),
-        script_params=[p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG],
-        environment_variables=environment_variables)
 
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
@@ -169,27 +168,32 @@ def submit_to_azure_if_needed(
         # jobs. We'll do that later if still required.
 
         run: Run = experiment.submit(script_run_config)
+
+        # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+        wait_msg = "Waiting for completion of AzureML run" if wait_for_completion else "Not waiting for completion of \
+            AzureML run"
+        print("\n==============================================================================")
+        print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
+        print("Experiment URL: {}".format(experiment.get_portal_url()))
+        print("Run URL: {}".format(run.get_portal_url()))
+        print(wait_msg)
+        print("==============================================================================\n")
+
         if wait_for_completion:
             run.wait_for_completion(show_output=wait_for_completion_show_output)
 
         if script_params:
             run.set_tags({"commandline_args": " ".join(script_params)})
 
-        # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
-        print("\n==============================================================================")
-        print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
-        print("Experiment URL: {}".format(experiment.get_portal_url()))
-        print("Run URL: {}".format(run.get_portal_url()))
-        print("==============================================================================\n")
 
-        return AzureRunInformation(
-            input_datasets=[d.local_folder for d in cleaned_input_datasets],
-            output_datasets=[d.local_folder for d in cleaned_output_datasets],
-            run=RUN_CONTEXT,
-            is_running_in_azure=False,
-            output_folder=Path.cwd() / "outputs",
-            log_folder=Path.cwd() / "logs"
-        )
+
+        recovery_id = create_run_recovery_id(run)
+        recovery_file = Path(RUN_RECOVERY_FILE)
+        if recovery_file.exists():
+            recovery_file.unlink()
+        recovery_file.write_text(recovery_id)
+
+    exit(0)
 
 
 @contextmanager

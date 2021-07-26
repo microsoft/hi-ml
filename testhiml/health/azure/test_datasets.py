@@ -14,7 +14,7 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
-from testhiml.health.azure.utils import DEFAULT_DATASTORE, default_aml_workspace
+from testhiml.health.azure.test_utils import DEFAULT_DATASTORE, default_aml_workspace
 
 
 def test_datasetconfig_init() -> None:
