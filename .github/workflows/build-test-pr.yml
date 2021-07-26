@@ -52,7 +52,7 @@ jobs:
           echo "TEST_COMMENT_BODY=${body}" >> "$GITHUB_ENV"
 
       - name: Echo comment
-        run: echo {{ steps.test-comment-body.outputs.body }}
+        run: echo ${{ steps.test-comment-body.outputs.body }}
 
       - name: Add test comment
         uses: peter-evans/commit-comment@v1
