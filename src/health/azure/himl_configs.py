@@ -8,18 +8,14 @@ Configs for running local Python scripts on Azure ML.
 """
 import logging
 import os
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Dict, List, Optional, Union
 
-from azureml.core import Run
-from azureml.core import Workspace
-from azureml.core.authentication import InteractiveLoginAuthentication
-from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.core import Run, Workspace
+from azureml.core.authentication import (InteractiveLoginAuthentication,
+                                         ServicePrincipalAuthentication)
+
 
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
 SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
@@ -131,7 +127,9 @@ class SourceConfig:
     def __post_init__(self) -> None:
         if not self.snapshot_root_directory.is_dir():
             raise ValueError(f"root_folder {self.snapshot_root_directory} is not a directory")
-        if not self.entry_script.is_file():
-            raise ValueError(f"entry_script {self.entry_script} is not a file")
-        if not self.conda_environment_file.is_file():
-            raise ValueError(f"conda_environment_file {self.conda_environment_file} is not a file")
+        resolved_entry_script = self.snapshot_root_directory / self.entry_script
+        if not resolved_entry_script.is_file():
+            raise ValueError(f"entry_script {resolved_entry_script} is not a file")
+        resolved_conda_environment_file = self.snapshot_root_directory / self.conda_environment_file
+        if not resolved_conda_environment_file.is_file():
+            raise ValueError(f"conda_environment_file {resolved_conda_environment_file} is not a file")

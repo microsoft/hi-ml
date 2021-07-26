@@ -1,5 +1,5 @@
 outputs/
-config.json
+config.json*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -131,5 +131,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# VSCode
+# VSCode, but not workspace settings and debug launch settings
 .devcontainer/

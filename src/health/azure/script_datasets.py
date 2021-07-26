@@ -1,9 +1,17 @@
-from pathlib import Path
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 
-from torchvision.datasets import MNIST
+"""
+Simple example showing how to call submit_to_azure_if_needed with data.
+"""
+
+from pathlib import Path
 
 from health.azure.datasets import DatasetConfig
 from health.azure.himl import submit_to_azure_if_needed
+from torchvision.datasets import MNIST
 
 
 def main() -> None:
@@ -14,7 +22,7 @@ def main() -> None:
 
     # Create an example where people download the MNIST data
     run_info = submit_to_azure_if_needed(root_folder=".")
-    mnist_folder = MNIST(download=True)
+    mnist_folder = MNIST(download=True)  # noqa: F841 assigned to but never used
     mnist_bytes = Path("mnist.tar.gz").read_bytes()
     assert mnist_bytes is not None
 
