@@ -4,9 +4,7 @@ from azureml.core import Workspace
 from cached_property import cached_property
 
 from health.azure.himl import WORKSPACE_CONFIG_JSON
-from health.azure.himl_configs import SUBSCRIPTION_ID
-from health.azure.himl_configs import get_secret_from_environment
-from health.azure.himl_configs import get_authentication
+from health.azure.himl_configs import SUBSCRIPTION_ID, get_authentication, get_secret_from_environment
 
 
 def repository_root() -> Path:
@@ -16,7 +14,7 @@ def repository_root() -> Path:
     return Path(__file__).parent.parent.parent.parent
 
 
-def aml_workspace() -> Workspace:
+def default_aml_workspace() -> Workspace:
     """
     Gets the default AzureML workspace that is used for testing.
     """

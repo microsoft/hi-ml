@@ -1,13 +1,9 @@
 import logging
-from typing import List
-from typing import Optional
-from typing import Union
+from pathlib import Path
+from typing import List, Optional, Union
 
-from azureml.core import Dataset
-from azureml.core import Datastore
-from azureml.core import Workspace
-from azureml.data import FileDataset
-from azureml.data import OutputFileDatasetConfig
+from azureml.core import Dataset, Datastore, Workspace
+from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 
@@ -76,7 +72,7 @@ class DatasetConfig:
                  version: Optional[int] = None,
                  use_mounting: Optional[bool] = None,
                  target_folder: str = "",
-                 local_folder: str = ""):
+                 local_folder: Optional[Path] = None):
         """
         Creates a new configuration for using an AzureML dataset.
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
