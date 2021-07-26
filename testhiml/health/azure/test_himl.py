@@ -14,7 +14,6 @@ import pytest
 import subprocess
 import shutil
 import sys
-from uuid import uuid4
 from pathlib import Path
 from typing import Dict, Generator, List, Tuple
 from unittest import mock
@@ -22,12 +21,7 @@ from uuid import uuid4
 
 from _pytest.capture import CaptureFixture
 
-try:
-    from health.azure.himl import submit_to_azure_if_needed  # type: ignore
-except ImportError:
-    logging.info("using local src")
-    from src.health.azure.himl import submit_to_azure_if_needed  # type: ignore
-
+from health.azure.himl import submit_to_azure_if_needed  # type: ignore
 import health.azure.examples.elevate_this as elevate_this
 from health.azure.himl import AzureRunInformation
 from testhiml.health.azure.utils import repository_root
@@ -189,11 +183,11 @@ def test_invoking_hello_world() -> None:
     Test that invoking hello_world.py does not elevate itself to AzureML without any config.
     """
     score_args = [
-        "tests/health/azure/test_data/simple/hello_world.py",
-        "hello_world"
+        "testhiml/health/azure/test_data/simple/hello_world.py",
+        "--message=hello_world"
     ]
     env = dict(os.environ.items())
-    env['PYTHONPATH'] = "."
+    env['PYTHONPATH'] = "src"
 
     code, stdout = spawn_and_monitor_subprocess(
         process=sys.executable,
@@ -217,11 +211,11 @@ def test_invoking_hello_world_config1() -> None:
         json.dump(config, file)
 
     score_args = [
-        "tests/health/azure/test_data/simple/hello_world_config1.py",
-        "hello_world"
+        "testhiml/health/azure/test_data/simple/hello_world_config1.py",
+        "--message=hello_world"
     ]
     env = dict(os.environ.items())
-    env['PYTHONPATH'] = "."
+    env['PYTHONPATH'] = "src"
 
     code, stdout = spawn_and_monitor_subprocess(
         process=sys.executable,
@@ -238,11 +232,11 @@ def test_invoking_hello_world_config2() -> None:
     Test that invoking hello_world.py elevates itself to AzureML with WorkspaceConfig.
     """
     score_args = [
-        "tests/health/azure/test_data/simple/hello_world_config2.py",
-        "hello_world"
+        "testhiml/health/azure/test_data/simple/hello_world_config2.py",
+        "--message=hello_world"
     ]
     env = dict(os.environ.items())
-    env['PYTHONPATH'] = "."
+    env['PYTHONPATH'] = "src"
 
     code, stdout = spawn_and_monitor_subprocess(
         process=sys.executable,

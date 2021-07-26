@@ -19,6 +19,9 @@ logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
 submit_to_azure_if_needed(
+    entry_script=os.sys.argv[0],
+    compute_cluster_name=os.getenv("COMPUTE_CLUSTER_NAME", ""),
+    conda_environment_file=None,
     workspace_config=None,
     workspace_config_path=None,
     environment_variables=None)

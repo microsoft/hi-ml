@@ -11,9 +11,9 @@ import pathlib
 
 from jinja2 import Template
 
-from health.azure.himl_configs import RESOURCE_GROUP
-from health.azure.himl_configs import SUBSCRIPTION_ID
-from health.azure.himl_configs import WORKSPACE_NAME
+from testhiml.health.azure.test_himl import INEXPENSIVE_TESTING_CLUSTER_NAME
+
+from health.azure.himl_configs import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -41,5 +41,9 @@ configs = [
 ]
 
 for filename, config in configs:
+    entry_script = here / 'simple' / filename
+    config['entry_script'] = "os.sys.argv[0]"
+    config['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
+    config['conda_environment_file'] = 'None'
     r = t.render(config)
-    (here / 'simple' / filename).write_text(r)
+    entry_script.write_text(r)
