@@ -54,7 +54,7 @@ jobs:
       - name: Echo comment
         run: |
           body=${{ steps.test-comment-body.outputs.body }}
-          echo $body
+          echo "${body}"
 
       - name: Add test comment
         uses: peter-evans/commit-comment@v1
