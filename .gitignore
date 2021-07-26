@@ -133,3 +133,4 @@ dmypy.json
 
 # VSCode, but not workspace settings and debug launch settings
 .devcontainer/
+!.vscode/.env

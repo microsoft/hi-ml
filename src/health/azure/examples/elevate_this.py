@@ -14,10 +14,10 @@ or:
 from argparse import ArgumentParser
 from pathlib import Path
 
-from health.azure.himl import submit_to_azure_if_needed
+from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
 
 
-def main() -> None:
+def main() -> AzureRunInformation:
     """
     Write out the given message, in an AzureML 'experiment' if required.
     """
@@ -43,7 +43,7 @@ def main() -> None:
     ]
 
     # N.B. submit_to_azure_if_needed reads the --azureml flag from sys.argv and so it is not passed in as a parameter.
-    _ = submit_to_azure_if_needed(
+    run_info = submit_to_azure_if_needed(
         workspace_config=None,
         workspace_config_path=workspace_config_path,
         compute_cluster_name=args.compute_cluster_name,
@@ -54,6 +54,8 @@ def main() -> None:
 
     if not args.azureml:
         print(args.message)
+
+    return run_info  # Useful return value for unit testing
 
 
 if __name__ == "__main__":

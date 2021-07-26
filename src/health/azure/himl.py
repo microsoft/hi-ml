@@ -69,7 +69,7 @@ def submit_to_azure_if_needed(
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
         wait_for_completion: bool = False,
-        wait_for_completion_show_output = True,
+        wait_for_completion_show_output: bool = True,
         ) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.

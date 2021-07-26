@@ -10,14 +10,17 @@ import json
 import logging
 import os
 import pathlib
+import pytest
 import subprocess
+import shutil
 import sys
-from typing import Dict, Generator, List, Tuple
 from uuid import uuid4
 from pathlib import Path
+from typing import Dict, Generator, List, Tuple
 from unittest import mock
+from uuid import uuid4
+
 from _pytest.capture import CaptureFixture
-import pytest
 
 try:
     from health.azure.himl import submit_to_azure_if_needed  # type: ignore
@@ -25,9 +28,11 @@ except ImportError:
     logging.info("using local src")
     from src.health.azure.himl import submit_to_azure_if_needed  # type: ignore
 
+import health.azure.examples.elevate_this as elevate_this
 from health.azure.himl import AzureRunInformation
-from health.azure.himl_configs import WorkspaceConfig
-from testhiml.health.azure.utils import default_aml_workspace
+from testhiml.health.azure.utils import repository_root
+
+INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -114,50 +119,38 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
-# @pytest.mark.oh_so_so_slow
 @pytest.mark.parametrize("local", [True, False])
 def test_submit_to_azure_if_needed_runs_hello_world(
         local: bool,
         tmp_path: Path,
         capsys: CaptureFixture) -> None:
     """
-    Test that we can run a simple script which prints out a given guid
+    Test we can run a simple script, which prints out a given guid. We use one of the examples to do this so this unit
+    test is also a test of that example.
     """
     message_guid = uuid4().hex
-    workspace = default_aml_workspace()
+    # workspace = default_aml_workspace()
     snapshot_root = tmp_path / uuid4().hex
     snapshot_root.mkdir(exist_ok=False)
-    # shutil.copy(src=repository_root() / "config.json", dst=snapshot_root / "config.json")
-    conda_env_file = snapshot_root / "environment.yml"
-    dependencies_txt = """
-        name: simple-env
-        dependencies:
-        - python=3.7.3
-        - pip:
-            - azureml-sdk==1.23.0
-            - conda-merge==0.1.5
-    """
-    conda_env_file.write_text(dependencies_txt)
-    entry_script = snapshot_root / "print_guid.py"
-    script_text = f"print('{message_guid}')\n"
-    entry_script.write_text(script_text)
-    sys_args = [""] if local else ["", "--azureml"]
+    repo_root = repository_root()
+    shutil.copy(src=repo_root / "src", dst=snapshot_root)
+    example_root = snapshot_root / "health" / "azure" / "examples"
+    shutil.copy(src=repo_root / "config.json", dst=example_root / "config.json")
+    conda_env_file = example_root / "environment.yml"
+    # entry_script = example_root / "elevate_this.py"
+    sys_args = [
+        "",
+        f"--message={message_guid}",
+        f"--workspace_config_path={example_root / 'config.json'}",
+        f"--compute_cluster_name={INEXPENSIVE_TESTING_CLUSTER_NAME}",
+        f"--conda_env={conda_env_file}"
+    ]
+    if not local:
+        sys_args.append("--azureml")
     with mock.patch("sys.argv", sys_args):
-        with mock.patch(
-                "health.azure.himl_configs.WorkspaceConfig.get_workspace",
-                return_value=workspace):
-            run_info = submit_to_azure_if_needed(
-                workspace_config=WorkspaceConfig(
-                    subscription_id="a",
-                    resource_group="b",
-                    workspace_name="c"),
-                workspace_config_path=None,
-                compute_cluster_name="lite-testing-ds2",
-                snapshot_root_directory=snapshot_root,
-                entry_script=entry_script,
-                conda_environment_file=conda_env_file,
-                wait_for_completion=True,
-                wait_for_completion_show_output=True)
+        run_info = elevate_this.main()
+        # with mock.patch(
+        #         "health.azure.himl_configs.WorkspaceConfig.get_workspace",
     assert run_info
     captured = capsys.readouterr().out
     if local:
@@ -165,8 +158,14 @@ def test_submit_to_azure_if_needed_runs_hello_world(
         assert message_guid not in captured
     else:
         assert "Successfully queued new run" in captured
+        log_root = snapshot_root / "logs"
+        log_root.mkdir(exist_ok=False)
+        logs = run_info.run.get_all_logs(destination=log_root)
+        print(logs)
+        driver_log = log_root / "70_driver_log.txt"
+        log_text = driver_log.read_text()
+        assert message_guid in log_text
         assert message_guid in captured
-
 
 
 # pylint: disable=redefined-outer-name

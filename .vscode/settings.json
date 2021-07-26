@@ -39,4 +39,8 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
     },
+    "[python]": {
+        "editor.rulers": [120],
+        "rewrap.autoWrap.enabled": true,
+    },
 }
