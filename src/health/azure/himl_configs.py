@@ -44,10 +44,10 @@ class WorkspaceConfig:
 
     def get_workspace(self) -> Workspace:
         """
-        Return a workspace object for an existing Azure Machine Learning Workspace. When running inside AzureML, the
-        workspace that is retrieved is always the one in the current run context. When running outside AzureML, it is
-        created or accessed with the service principal. This function will read the workspace only in the first call to
-        this method, subsequent calls will return a cached value.
+        Return a workspace object for an existing AzureML Workspace. When running inside AzureML, the workspace that is
+        retrieved is always the one in the current run context. When running outside AzureML, it is created or accessed
+        with the service principal. This function will read the workspace only in the first call to this method,
+        subsequent calls will return a cached value.
 
         Throws an exception if the workspace doesn't exist or the required fields don't lead to a uniquely identifiable
         workspace.

@@ -60,6 +60,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         entry_script: Path,
         compute_cluster_name: str,
         conda_environment_file: Path,
+        workspace: Optional[Workspace] = None,
         workspace_config: Optional[WorkspaceConfig] = None,
         workspace_config_path: Optional[Path] = None,
         snapshot_root_directory: Optional[Path] = None,
@@ -78,9 +79,42 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     Use the flag --azureml to submit to AzureML, and leave it out to run locally.
 
-    :param workspace_config: Optional workspace config.
-    :param workspace_config_file: Optional path to workspace config file.
-    :return: Run object for the submitted AzureML run.
+    :param entry_script: The script that should be run in AzureML
+    :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
+    CPU or GPU machines.
+    :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
+    script to run.
+
+    :param workspace: There are three optional parameters used to glean an existing AzureML Workspace. The simplest is
+    to pass it in as a parameter.
+    :param workspace_config: The second option is to pass in a WorkspaceConfig from which the existing Workspace can be
+    retrieved.
+    :param workspace_config_file: The third option is to apecify the path to the config.json file downloaded from the
+    Azure portal from which we can retrieve the existing Workspace.
+
+    :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
+    All Python code that the script uses must be copied over.
+    :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
+    default) these will be copied over from sys.argv.
+    :param environment_variables: An optional dictionary of environment varaible that the script relies on.
+
+    :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
+    storage. This is described in more detail in the README.
+    :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
+    exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
+    also register the data in this folder as an AzureML dataset.  
+    :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
+    data to that folder, upload it to blob storage, in the data store.
+
+    :param num_nodes: The number of nodes to use in distributed training on AzureML.
+    :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
+    the completion of this run (if True).
+    :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
+    run output on sys.stdout.
+
+    :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
+    otherwise we return a AzureRunInformation object.
     """
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
                                                       default_datastore_name=default_datastore)
@@ -184,8 +218,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
         if script_params:
             run.set_tags({"commandline_args": " ".join(script_params)})
-
-
 
         recovery_id = create_run_recovery_id(run)
         recovery_file = Path(RUN_RECOVERY_FILE)
