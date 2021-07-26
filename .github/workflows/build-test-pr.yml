@@ -89,33 +89,10 @@ jobs:
           pip install -r run_requirements.txt
           pip install -r test_requirements.txt
 
-      - name: Test with pytest
-        run: pytest --cov=src --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
+      - name: Test with pytest, fast only
+        run: pytest -m fast testhiml
         env:
           PYTHONPATH: ${{ github.workspace }}/src
-
-      - name: Format coverage summary
-        id: get-comment-body
-        run: |
-          pycobertura show --format text --output coverage.txt coverage.xml
-          body=$(cat coverage.txt)
-          body=$'```\n'${body}$'\n```'
-          body="${body//'%'/'%25'}"
-          body="${body//' '/'%20'}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
-          echo ::set-output name=body::$body
-
-      - name: Add coverage as a comment
-        uses: peter-evans/commit-comment@v1
-        with:
-          body: ${{ steps.get-comment-body.outputs.body }}
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v2
-        with:
-          name: code-coverage-report
-          path: htmlcov/*
 
   build-python:
     runs-on: ubuntu-latest
@@ -196,8 +173,8 @@ jobs:
         run:
           pip install $wheel_filename
 
-      - name: Test with pytest
-        run: pytest testhiml
+      - name: Test with pytest, fast only
+        run: pytest -m fast testhiml
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
@@ -257,7 +234,32 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: Test with pytest
-        run: pytest testhiml
+        run: pytest --cov=src --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+
+      - name: Format coverage summary
+        id: get-comment-body
+        run: |
+          pycobertura show --format text --output coverage.txt coverage.xml
+          body=$(cat coverage.txt)
+          body=$'```\n'${body}$'\n```'
+          body="${body//'%'/'%25'}"
+          body="${body//' '/'%20'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo ::set-output name=body::$body
+
+      - name: Add coverage as a comment
+        uses: peter-evans/commit-comment@v1
+        with:
+          body: ${{ steps.get-comment-body.outputs.body }}
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v2
+        with:
+          name: code-coverage-report
+          path: htmlcov/*
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest
@@ -314,5 +316,5 @@ jobs:
         run: |
           pip install -r test_requirements.txt
 
-      - name: Test with pytest
-        run: pytest testhiml
+      - name: Test with pytest, fast only
+        run: pytest -m fast testhiml
