@@ -42,11 +42,7 @@ jobs:
       - name: Test comment output/input
         id: test-comment-body
         run: |
-          body=`cat <<EOF
-line1
-        line2-begin     line2-end
-    line3
-EOF`
+          body=$(cat test_escaping.txt)
           body=$'```\n'${body}$'\n```'
           body="${body//'%'/'%25'}"
           body="${body//' '/\u2002}"
