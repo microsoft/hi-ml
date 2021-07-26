@@ -45,7 +45,7 @@ class DefaultWorkspace:
         """
         Lazily load the aml_workspace.
         """
-        self._workspace = aml_workspace()
+        self._workspace = default_aml_workspace()
         return self._workspace
 
 
