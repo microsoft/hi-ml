@@ -48,9 +48,7 @@ jobs:
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
           echo ::set-output name=body::$body
-          body=$(cat test_escaping.txt)
-          body=$'```\n'${body}$'\n```'
-          echo "TEST_COMMENT_BODY=$body" >> "$GITHUB_ENV"
+          echo "TEST_COMMENT_BODY=${body}" >> "$GITHUB_ENV"
 
       - name: Add test comment
         uses: peter-evans/commit-comment@v1
