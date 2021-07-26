@@ -33,6 +33,8 @@ RUN_RECOVERY_FILE = "most_recent_run.txt"
 WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
+OUTPUT_FOLDER = "outputs"
+LOG_FOLDER = "logs"
 
 
 @dataclass
@@ -127,8 +129,8 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=RUN_CONTEXT,
             is_running_in_azure=False,
-            output_folder=Path.cwd() / "outputs",
-            log_folder=Path.cwd() / "logs"
+            output_folder=Path.cwd() / OUTPUT_FOLDER,
+            log_folder=Path.cwd() / LOG_FOLDER
         )
 
     in_azure = is_running_in_azure()
@@ -142,8 +144,8 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             output_datasets=returned_output_datasets,
             run=RUN_CONTEXT,
             is_running_in_azure=True,
-            output_folder=Path.cwd() / "outputs",
-            log_folder=Path.cwd() / "logs"
+            output_folder=Path.cwd() / OUTPUT_FOLDER,
+            log_folder=Path.cwd() / LOG_FOLDER
         )
 
     if not snapshot_root_directory:
