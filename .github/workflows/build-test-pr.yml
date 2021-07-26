@@ -57,7 +57,7 @@ jobs:
         run: |
           pycobertura show --format text --output coverage.txt coverage.xml
           body=$(cat coverage.txt)
-          body=$'"""\n'${body}$'\n"""'
+          body=$'```\n'${body}$'\n```'
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
