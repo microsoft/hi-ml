@@ -45,7 +45,6 @@ jobs:
           body=$(cat test_escaping.txt)
           body=$'```\n'${body}$'\n```'
           body="${body//'%'/'%25'}"
-          body="${body//' '/\u2002}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
           echo ::set-output name=body::$body
