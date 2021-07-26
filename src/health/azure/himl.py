@@ -168,11 +168,15 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if not script_params:
         script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
 
+    entry_script_relative = entry_script.relative_to(snapshot_root_directory)
     run_config = RunConfiguration(
-        script=entry_script.relative_to(snapshot_root_directory),
+        script=entry_script_relative,
         arguments=script_params)
     run_config.environment = environment
 
+    if compute_cluster_name not in workspace.compute_targets:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
+                         f"{list(workspace.compute_targets.keys())}")
     script_run_config = ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
         run_config=run_config,
