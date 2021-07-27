@@ -67,8 +67,11 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_submit_to_azure_if_needed_runs_hello_world(
+# @pytest.mark.parametrize("local", [True, False])
+# def test_submit_to_azure_if_needed_runs_hello_world(
+#         local: bool,
+#         tmp_path: Path) -> None:
+def saved_for_later(
         local: bool,
         tmp_path: Path) -> None:
     """
