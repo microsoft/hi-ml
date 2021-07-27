@@ -48,7 +48,7 @@
             "name": "Python: Setup",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/src/setup.py",
             "console": "integratedTerminal"
         },
         {

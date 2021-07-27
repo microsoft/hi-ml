@@ -12,7 +12,6 @@ from azureml.core import Dataset
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-
 from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
 from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, default_aml_workspace
@@ -95,8 +94,8 @@ def test_dataset_output() -> None:
     assert aml_dataset.mode == "mount"
     # Use downloading instead of mounting
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=False)
-    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
-    assert aml_dataset.mode == "download"
+    aml_dataset = dataset_config.to_output_dataset(workspace=workspace, dataset_index=1)
+    assert aml_dataset.mode == "upload"
     # Mounting at a fixed folder is not possible
     with pytest.raises(ValueError) as ex:
         dataset_config = DatasetConfig(name=name, datastore=DEFAULT_DATASTORE, target_folder="something")
