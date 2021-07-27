@@ -9,6 +9,8 @@ Invoke like this:
     python elevate_this.py -m 'Hello World' --azureml
 or:
     python elevate_this.py --message='Hello World' --azureml
+
+N.B. The --azureml flag mus match the constant AZUREML_COMMANDLINE_FLAG in health.azure.himl
 """
 from argparse import ArgumentParser
 from pathlib import Path
