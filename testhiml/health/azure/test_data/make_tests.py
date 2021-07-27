@@ -27,15 +27,7 @@ configs = [
     ('hello_world_config1.py', {
         'workspace_config': 'None',
         'workspace_config_path': '"config.json"',
-        'environment_variables': 'None'}),
-    ('hello_world_config2.py', {
-        'workspace_config': f"""WorkspaceConfig(
-        os.getenv("{WORKSPACE_NAME}", ""),
-        os.getenv("{SUBSCRIPTION_ID}", ""),
-        os.getenv("{RESOURCE_GROUP}", ""))""",
-        'workspace_config_path': 'None',
         'environment_variables': 'None'})
-
 ]
 
 for filename, config in configs:

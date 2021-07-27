@@ -12,7 +12,7 @@ import logging
 import os
 from argparse import ArgumentParser
 
-from health.azure.himl import submit_to_azure_if_needed, WorkspaceConfig  # type: ignore
+from health.azure.himl import submit_to_azure_if_needed
 
 
 logger = logging.getLogger('test.health.azure.test_data')

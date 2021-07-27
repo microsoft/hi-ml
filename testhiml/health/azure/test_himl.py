@@ -21,12 +21,13 @@ from uuid import uuid4
 
 from _pytest.capture import CaptureFixture
 
-from health.azure.himl import submit_to_azure_if_needed  # type: ignore
+from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed  # type: ignore
 import health.azure.examples.elevate_this as elevate_this
-from health.azure.himl import AzureRunInformation
-from testhiml.health.azure.utils import repository_root
+from testhiml.health.azure.util import repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
+EXAMPLE_SCRIPT = "elevate_this.py"
+ENVIRONMENT_FILE = "environment.yml"
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -87,7 +88,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             submit_to_azure_if_needed(
-                workspace_config=None,
+                aml_workspace=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
@@ -96,7 +97,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             submit_to_azure_if_needed(
-                workspace_config=None,
+                aml_workspace=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
@@ -113,8 +114,11 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_submit_to_azure_if_needed_runs_hello_world(
+# @pytest.mark.parametrize("local", [True, False])
+# def test_submit_to_azure_if_needed_runs_hello_world(
+#         local: bool,
+#         tmp_path: Path) -> None:
+def saved_for_later(
         local: bool,
         tmp_path: Path,
         capsys: CaptureFixture) -> None:
@@ -123,11 +127,9 @@ def test_submit_to_azure_if_needed_runs_hello_world(
     test is also a test of that example.
     """
     message_guid = uuid4().hex
-    # workspace = default_aml_workspace()
     snapshot_root = tmp_path / uuid4().hex
-    snapshot_root.mkdir(exist_ok=False)
     repo_root = repository_root()
-    shutil.copy(src=repo_root / "src", dst=snapshot_root)
+    shutil.copytree(src=repo_root / "src", dst=snapshot_root)
     example_root = snapshot_root / "health" / "azure" / "examples"
     shutil.copy(src=repo_root / "config.json", dst=example_root / "config.json")
     conda_env_file = example_root / "environment.yml"
@@ -160,22 +162,6 @@ def test_submit_to_azure_if_needed_runs_hello_world(
         log_text = driver_log.read_text()
         assert message_guid in log_text
         assert message_guid in captured
-
-
-# pylint: disable=redefined-outer-name
-def test_submit_to_azure_if_needed(check_hi_ml_import: Generator) -> None:
-    """
-    Test that submit_to_azure_if_needed can be called, and returns immediately.
-    """
-    # pragma pylint: disable=import-outside-toplevel, import-error
-    from health.azure.himl import submit_to_azure_if_needed
-    # pragma pylint: enable=import-outside-toplevel, import-error
-
-    with pytest.raises(Exception) as ex:
-        submit_to_azure_if_needed(
-            workspace_config=None,
-            workspace_config_path=None)
-    assert "We could not find config.json in:" in str(ex)
 
 
 def test_invoking_hello_world() -> None:
@@ -225,22 +211,3 @@ def test_invoking_hello_world_config1() -> None:
     assert "We could not find config.json in:" in "\n".join(stdout)
 
     config_path.unlink()
-
-
-def test_invoking_hello_world_config2() -> None:
-    """
-    Test that invoking hello_world.py elevates itself to AzureML with WorkspaceConfig.
-    """
-    score_args = [
-        "testhiml/health/azure/test_data/simple/hello_world_config2.py",
-        "--message=hello_world"
-    ]
-    env = dict(os.environ.items())
-    env['PYTHONPATH'] = "src"
-
-    code, stdout = spawn_and_monitor_subprocess(
-        process=sys.executable,
-        args=score_args,
-        env=env)
-    assert code == 1
-    assert "We could not find config.json in:" in "\n".join(stdout)
