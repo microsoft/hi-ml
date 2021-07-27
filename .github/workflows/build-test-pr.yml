@@ -30,13 +30,24 @@ jobs:
 
             console.log(context)
 
-            const contents = await fs.readFile('test_escaping.txt', 'utf8')
+            await github.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: "test script createCommitComment #1"
+            })
+
+            console.log("Reading file")
+
+            const contents = await fs.readFile('./test_escaping.txt', 'utf8')
+
+            console.log(contents)
 
             await github.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: "test script createCommitComment\n" + contents
+              body: "test script createCommitComment #2:\n" + contents
             })
 
   flake8:
@@ -62,7 +73,6 @@ jobs:
 
       - name: flake8
         run: flake8 . --count --exit-zero --statistics
-
 
   mypy:
     runs-on: ubuntu-latest
@@ -260,8 +270,6 @@ jobs:
 
       - name: Test with pytest
         run: pytest --cov=src --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Format coverage summary
         id: get-comment-body
