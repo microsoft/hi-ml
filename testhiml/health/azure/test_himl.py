@@ -5,7 +5,6 @@
 """
 Tests for hi-ml.
 """
-
 import json
 import logging
 import os
@@ -21,9 +20,11 @@ from uuid import uuid4
 
 from _pytest.capture import CaptureFixture
 
-from health.azure.himl import AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON, submit_to_azure_if_needed  # type: ignore
-import health.azure.examples.elevate_this as elevate_this
+from health.azure.himl import (AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON,
+                               submit_to_azure_if_needed)
+from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
 from testhiml.health.azure.util import get_most_recent_run, repository_root
+
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
@@ -36,26 +37,27 @@ logger.setLevel(logging.DEBUG)
 here = pathlib.Path(__file__).parent.resolve()
 
 
-@pytest.fixture
-def check_hi_ml_import() -> Generator:
+@pytest.fixture(autouse=True, scope='session')
+def check_config_json() -> Generator:
     """
-    Check if hi-ml has already been imported as a package. If so, do nothing, otherwise,
-    add "src" to the PYTHONPATH.
+    Check config.json exists. If so, do nothing, otherwise,
+    create one using environment variables.
     """
-    try:
-        # pragma pylint: disable=import-outside-toplevel, unused-import
-        from health.azure.himl import submit_to_azure_if_needed  # noqa
-        # pragma pylint: enable=import-outside-toplevel, unused-import
+    config_path = here / "config.json"
+    if config_path.exists():
         yield
-    except ImportError:
-        logging.info("using local src")
-        path = sys.path
+    else:
+        with open(str(config_path), 'a', encoding="utf-8") as file:
+            config = {
+                "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
+                "resource_group": os.getenv(RESOURCE_GROUP, ""),
+                "workspace_name": os.getenv(WORKSPACE_NAME, "")
+            }
+            json.dump(config, file)
 
-        # Add src for local version of hi-ml.
-        sys.path.append('src')
         yield
-        # Restore the path.
-        sys.path = path
+
+        config_path.unlink()
 
 
 def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
@@ -186,15 +188,6 @@ def test_invoking_hello_world_config1() -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     """
-    config = {
-        "subscription_id": os.getenv("TEST_SUBSCRIPTION_ID", ""),
-        "resource_group": os.getenv("TEST_RESOURCE_GROUP", ""),
-        "workspace_name": os.getenv("TEST_WORKSPACE_NAME", "")
-    }
-    config_path = here / "config.json"
-    with open(str(config_path), 'a', encoding="utf-8") as file:
-        json.dump(config, file)
-
     score_args = [
         "testhiml/health/azure/test_data/simple/hello_world_config1.py",
         "--message=hello_world"
@@ -208,5 +201,3 @@ def test_invoking_hello_world_config1() -> None:
         env=env)
     assert code == 1
     assert "We could not find config.json in:" in "\n".join(stdout)
-
-    config_path.unlink()

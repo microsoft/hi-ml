@@ -14,7 +14,7 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
-from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, default_aml_workspace
+from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
 
 
 def test_datasetconfig_init() -> None:
@@ -128,7 +128,7 @@ def test_get_dataset() -> None:
     """
     # A folder with a single tiny file
     tiny_dataset = "himl-tiny_dataset"
-    workspace = default_aml_workspace()
+    workspace = DEFAULT_WORKSPACE.workspace
     # When creating a dataset, we need a non-empty name
     with pytest.raises(ValueError) as ex:
         get_or_create_dataset(workspace=workspace,

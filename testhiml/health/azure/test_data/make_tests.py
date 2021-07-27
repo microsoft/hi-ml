@@ -11,8 +11,6 @@ import pathlib
 
 from jinja2 import Template
 
-from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
-
 here = pathlib.Path(__file__).parent.resolve()
 
 hello_world_template = (here / 'simple' / 'hello_world_template.txt').read_text()
@@ -32,7 +30,7 @@ configs = [
 
 for filename, config in configs:
     entry_script = here / 'simple' / filename
-    config['entry_script'] = "os.sys.argv[0]"
+    config['entry_script'] = "sys.argv[0]"
     config['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
     config['conda_environment_file'] = 'None'
     r = t.render(config)

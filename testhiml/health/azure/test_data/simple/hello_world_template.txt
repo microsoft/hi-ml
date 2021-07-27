@@ -10,6 +10,7 @@ Simple 'hello world' script to elevate to AML using our `submit_to_azure_if_need
 """
 import logging
 import os
+import sys
 from argparse import ArgumentParser
 
 from health.azure.himl import submit_to_azure_if_needed
