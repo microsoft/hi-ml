@@ -41,6 +41,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             submit_to_azure_if_needed(
+                aml_workspace=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
@@ -49,6 +50,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             submit_to_azure_if_needed(
+                aml_workspace=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
@@ -68,8 +70,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
 @pytest.mark.parametrize("local", [True, False])
 def test_submit_to_azure_if_needed_runs_hello_world(
         local: bool,
-        tmp_path: Path,
-        capsys: CaptureFixture) -> None:
+        tmp_path: Path) -> None:
     """
     Test we can run a simple script, which prints out a given guid. We use one of the examples to do this so this unit
     test is also a test of that example.
@@ -108,4 +109,3 @@ def test_submit_to_azure_if_needed_runs_hello_world(
     driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
     log_text = driver_log.read_text()
     assert f"The message was: {message_guid}" in log_text
-    # Check run.status
