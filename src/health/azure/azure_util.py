@@ -8,12 +8,17 @@ Utility functions for interacting with AzureML runs
 import logging
 import os
 import re
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 from azureml.core import Experiment, Run, Workspace, get_run
-
+from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 
 EXPERIMENT_RUN_SEPARATOR = ":"
+DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
+SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
+SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
+TENANT_ID = "HIML_TENANT_ID"
+SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -89,3 +94,42 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
         raise (Exception(
             "Run {} not found for experiment: {}. Available runs are: {}".format(
                 run_id, experiment_to_recover.name, available_ids)))
+
+
+def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincipalAuthentication]:
+    """
+    Creates a service principal authentication object with the application ID stored in the present object. The
+    application key is read from the environment.
+
+    :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
+    present
+    """
+    service_principal_id = get_secret_from_environment(SERVICE_PRINCIPAL_ID, allow_missing=True)
+    tenant_id = get_secret_from_environment(TENANT_ID, allow_missing=True)
+    service_principal_password = get_secret_from_environment(SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
+    if service_principal_id and tenant_id and service_principal_password:
+        return ServicePrincipalAuthentication(
+            tenant_id=tenant_id,
+            service_principal_id=service_principal_id,
+            service_principal_password=service_principal_password)
+    logging.info("Using interactive login to Azure. To use Service Principal authentication")
+    return InteractiveLoginAuthentication()
+
+
+def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
+    """
+    Gets a password or key from the secrets file or environment variables.
+
+    :param name: The name of the environment variable to read. It will be converted to uppercase.
+    :param allow_missing: If true, the function returns None if there is no entry of the given name in any of the
+    places searched. If false, missing entries will raise a ValueError.
+    :return: Value of the secret. None, if there is no value and allow_missing is True.
+    """
+    name = name.upper()
+    secrets = {name: os.environ.get(name, None) for name in [name]}
+    if name not in secrets and not allow_missing:
+        raise ValueError(f"There is no secret named '{name}' available.")
+    value = secrets[name]
+    if not value and not allow_missing:
+        raise ValueError(f"There is no value stored for the secret named '{name}'")
+    return value

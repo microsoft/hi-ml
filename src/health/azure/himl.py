@@ -62,8 +62,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         entry_script: Path,
         compute_cluster_name: str,
         conda_environment_file: Path,
-        workspace: Optional[Workspace] = None,
-        workspace_config: Optional[WorkspaceConfig] = None,
+        aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[Path] = None,
         snapshot_root_directory: Optional[Path] = None,
         script_params: Optional[List[str]] = None,
@@ -87,11 +86,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
     script to run.
 
-    :param workspace: There are three optional parameters used to glean an existing AzureML Workspace. The simplest is
+    :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
     to pass it in as a parameter.
-    :param workspace_config: The second option is to pass in a WorkspaceConfig from which the existing Workspace can be
-    retrieved.
-    :param workspace_config_file: The third option is to apecify the path to the config.json file downloaded from the
+    :param workspace_config_file: The 2nd option is to apecify the path to the config.json file downloaded from the
     Azure portal from which we can retrieve the existing Workspace.
 
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
@@ -154,12 +151,12 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if workspace_config_path and workspace_config_path.is_file():
         auth = get_authentication()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
-    elif workspace_config:
-        workspace = workspace_config.get_workspace()
+    elif aml_workspace:
+        workspace = aml_workspace
     else:
         raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
-    logging.info(f"Loaded: {workspace.name}")
 
+    logging.info(f"Loaded: {workspace.name}")
     environment = Environment.from_conda_specification("simple-env", conda_environment_file)
 
     # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
@@ -283,16 +280,8 @@ def main() -> None:
     parser.add_argument("-d", "--conda_environment_file", type=str, required=True, help="The environment to use")
 
     args = parser.parse_args()
-    if args.workspace_config_path:
-        config = None
-    else:
-        config = WorkspaceConfig(
-            workspace_name=args.workspace_name,
-            subscription_id=args.subscription_id,
-            resource_group=args.resource_group)
 
     submit_to_azure_if_needed(
-        workspace_config=config,
         workspace_config_path=args.workspace_config_path,
         compute_cluster_name=args.compute_cluster_name,
         snapshot_root_directory=args.snapshot_root_directory,
