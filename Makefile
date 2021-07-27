@@ -19,3 +19,6 @@ test: test_flake8 test_mypy test_pytest
 
 build:
 	python setup.py sdist bdist_wheel
+
+clean:
+	rm -vrf ./build ./dist ./src/*.egg-info
