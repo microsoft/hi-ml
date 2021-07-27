@@ -49,7 +49,7 @@ def check_config_json(root: Path) -> Generator:
         yield
     else:
         try:
-            logging.info("creating config.json")
+            logging.info(f"creating {str(config_path)}")
 
             with open(str(config_path), 'a', encoding="utf-8") as file:
                 config = {
@@ -62,7 +62,7 @@ def check_config_json(root: Path) -> Generator:
             yield
         finally:
             if config_path.exists():
-                logging.info("deleting config.json")
+                logging.info(f"deleting {str(config_path)}")
 
                 config_path.unlink()
 
@@ -86,6 +86,10 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, s
 
     # Read and print all the lines that are printed by the subprocess
     stdout_lines = [line.decode('UTF-8').strip() for line in p.stdout]  # type: ignore
+
+    logging.info("~~~~~~~~~~~~~~")
+    logging.info("\n".join(stdout_lines))
+    logging.info("~~~~~~~~~~~~~~")
 
     return p.wait(), stdout_lines
 
