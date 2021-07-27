@@ -15,14 +15,6 @@ env:
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
 
 jobs:
-  test_commit_comments:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-
   flake8:
     runs-on: ubuntu-latest
     steps:
@@ -104,7 +96,7 @@ jobs:
 
   build-python:
     runs-on: ubuntu-latest
-    needs: [test_commit_comments, flake8, mypy, pytest]
+    needs: [flake8, mypy, pytest]
     steps:
       - uses: actions/checkout@v2
         with:
