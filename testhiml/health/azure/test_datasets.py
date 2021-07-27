@@ -1,3 +1,10 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+"""
+Test the data input and output functionality
+"""
 from unittest import mock
 
 import pytest
@@ -5,10 +12,9 @@ from azureml.core import Dataset
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-
-from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   get_datastore, get_or_create_dataset)
-from testhiml.health.azure.utils import DEFAULT_DATASTORE, default_aml_workspace
+from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
+                                   _replace_string_datasets, get_datastore, get_or_create_dataset)
+from testhiml.health.azure.util import DEFAULT_DATASTORE, default_aml_workspace
 
 
 def test_datasetconfig_init() -> None:

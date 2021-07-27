@@ -1,7 +1,9 @@
 {
+    "python.envFile": "${workspaceFolder}/.vscode/.env",
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
-        "--max-line-length=120"
+        "--max-line-length=120",
+        "--rcfile=${workspaceFolder}/.vscode/.pylintrc"
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
@@ -21,10 +23,15 @@
     "python.formatting.blackArgs": [
         "--line-length=120"
     ],
+    "python.sortImports.args": ["-l", "120"],
     "python.testing.pytestArgs": [
-        "tests"
+        "${workspaceFolder}/testhiml/"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "[python]": {
+        "editor.rulers": [120],
+        "rewrap.autoWrap.enabled": true,
+    },
 }
