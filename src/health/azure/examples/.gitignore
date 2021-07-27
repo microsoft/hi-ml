@@ -1,4 +1,4 @@
 # Ignore local config files which contain delails of AzureML setup etc. See the
 # code documentation for WorkspaceConfig in himl_configs.py for the format and
 # source of the config.json file.
-!config.json
+config.json
