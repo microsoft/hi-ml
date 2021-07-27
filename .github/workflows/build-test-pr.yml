@@ -253,42 +253,30 @@ jobs:
           script: |
             const { promises: fs } = require('fs')
 
-            if (context.eventName == 'pull_request') {
-              sha = context.payload.pull_request.head.sha
-            } else {
-              sha = context.sha
-            }
+            const sha = context.eventName == 'pull_request' ? context.payload.pull_request.head.sha : context.sha
 
-            const contents = await fs.readFile('./coverage.txt', 'utf8')
-            const esc_contents = "```\n" + contents + "\n```"
+            const coverage = await fs.readFile('./coverage.txt', 'utf8')
 
-            await github.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: sha,
-              body: esc_contents
-            })
-
-            var outputTable = ""
-            const split_contents = contents.split("\n")
-            for (var i = 0; i < split_contents.length; i++)
+            var table = ""
+            const coverage_lines = coverage.split("\n")
+            for (var i = 0; i < coverage_lines.length; i++)
             {
-              const line = split_contents[i].split(" ")
+              const cells = coverage_lines[i].split(" ")
               var row = ""
-              for (var j = 0; j < line.length; j++)
+              for (var j = 0; j < cells.length; j++)
               {
-                if (line[j] != "")
+                if (cells[j] != "")
                 {
                   if (row.length != "")
                   {
-                    row = row + "|"
+                    row += "|"
                   }
-                  row = row + line[j]
+                  row += cells[j]
                 }
               }
               if (row != "")
               {
-                outputTable = outputTable + row + "\n"
+                table += row + "\n"
               }
             }
 
@@ -296,7 +284,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: sha,
-              body: outputTable
+              body: table
             })
 
       - name: Archive code coverage results
