@@ -95,6 +95,7 @@ def test_dataset_output() -> None:
     # Use downloading instead of mounting
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=False)
     aml_dataset = dataset_config.to_output_dataset(workspace=workspace, dataset_index=1)
+    assert isinstance(aml_dataset, OutputFileDatasetConfig)
     assert aml_dataset.mode == "upload"
     # Mounting at a fixed folder is not possible
     with pytest.raises(ValueError) as ex:

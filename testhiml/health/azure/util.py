@@ -8,6 +8,7 @@ Test utility functions for tests in the package.
 from pathlib import Path
 
 from azureml.core import Run, Workspace
+from cached_property import cached_property
 from health.azure.azure_util import SUBSCRIPTION_ID, fetch_run, get_authentication, get_secret_from_environment
 from health.azure.himl import RUN_RECOVERY_FILE
 
@@ -39,7 +40,26 @@ def default_aml_workspace() -> Workspace:
                              resource_group="InnerEye-DeepLearning")
 
 
-DEFAULT_WORKSPACE = default_aml_workspace()
+class DefaultWorkspace:
+    """
+    Wrapper around aml_workspace so that it is lazily loaded, once.
+    """
+    def __init__(self) -> None:
+        """
+        Init.
+        """
+        self._workspace: Workspace = None
+
+    @cached_property
+    def workspace(self) -> Workspace:
+        """
+        Lazily load the aml_workspace.
+        """
+        self._workspace = default_aml_workspace()
+        return self._workspace
+
+
+DEFAULT_WORKSPACE = DefaultWorkspace()
 
 
 def get_most_recent_run_id(run_recovery_file: Path = Path(RUN_RECOVERY_FILE)) -> str:
