@@ -202,8 +202,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         # jobs. We'll do that later if still required.
 
         run: Run = experiment.submit(script_run_config)
-        if wait_for_completion:
-            run.wait_for_completion(show_output=wait_for_completion_show_output)
 
         # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
         wait_msg = "Waiting for completion of AzureML run" if wait_for_completion else "Not waiting for completion of \

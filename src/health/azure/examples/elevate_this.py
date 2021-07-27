@@ -18,7 +18,7 @@ from pathlib import Path
 from health.azure.himl import submit_to_azure_if_needed
 
 
-def main() -> AzureRunInformation:
+def main() -> None:
     """
     Write out the given message, in an AzureML 'experiment' if required.
 
