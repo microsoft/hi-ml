@@ -190,9 +190,11 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     experiment_name = to_azure_friendly_string(entry_script.stem)
     experiment = Experiment(workspace=workspace, name=experiment_name)
 
-    amlignore_path = snapshot_root_directory or Path.cwd()
-    amlignore_path = amlignore_path / ".amlignore"
-    lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
+    lines_to_append: List[str] = []
+    if ignored_folders:
+        amlignore_path = snapshot_root_directory or Path.cwd()
+        amlignore_path = amlignore_path / ".amlignore"
+        lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
@@ -231,11 +233,12 @@ def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generato
     """
     Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
     """
-    old_contents = amlignore.read_text() if amlignore.exists() else ""
+    amlignore_exists_already = amlignore.exists()
+    old_contents = amlignore.read_text() if amlignore_exists_already else ""
     new_contents = old_contents.splitlines() + lines_to_append
     amlignore.write_text("\n".join(new_contents))
     yield
-    if old_contents:
+    if amlignore_exists_already:
         amlignore.write_text(old_contents)
     else:
         amlignore.unlink()
