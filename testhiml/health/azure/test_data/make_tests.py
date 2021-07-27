@@ -11,9 +11,7 @@ import pathlib
 
 from jinja2 import Template
 
-from testhiml.health.azure.test_himl import INEXPENSIVE_TESTING_CLUSTER_NAME
-
-from health.azure.himl_configs import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
+from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
 
 here = pathlib.Path(__file__).parent.resolve()
 

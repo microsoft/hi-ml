@@ -48,7 +48,11 @@
             "name": "Python: Setup",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/src/setup.py",
+            "program": "${workspaceFolder}/setup.py",
+            "args": [
+                "sdist",
+                "bdist_wheel"
+            ],
             "console": "integratedTerminal"
         },
         {
