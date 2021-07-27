@@ -15,7 +15,73 @@
             "name": "Python: Setup",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/setup.py",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Elevate: Local",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
+            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
+            "cwd": "${workspaceFolder}/src/health/azure/examples/",
+            "args": 
+            [
+                "--message='Hello World :-)'",
+                "--workspace_config_path=config.json",
+                "--compute_cluster_name=lite-testing-ds2",
+                "--conda_env=environment.yml"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Elevate: AML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
+            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
+            "cwd": "${workspaceFolder}/src/health/azure/examples/",
+            "args": 
+            [
+                "--message='Hello World :-)'",
+                "--workspace_config_path=config.json",
+                "--compute_cluster_name=lite-testing-ds2",
+                "--conda_env=environment.yml",
+                "--azureml"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Elevate: Local",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
+            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
+            "cwd": "${workspaceFolder}/src/health/azure/examples/",
+            "args": 
+            [
+                "--message='Hello World :-)'",
+                "--workspace_config_path=config.json",
+                "--compute_cluster_name=lite-testing-ds2",
+                "--conda_env=environment.yml"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Elevate: AML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
+            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
+            "cwd": "${workspaceFolder}/src/health/azure/examples/",
+            "args": 
+            [
+                "--message='Hello World :-)'",
+                "--workspace_config_path=config.json",
+                "--compute_cluster_name=lite-testing-ds2",
+                "--conda_env=environment.yml",
+                "--azureml"
+            ],
             "console": "integratedTerminal"
         },
         {

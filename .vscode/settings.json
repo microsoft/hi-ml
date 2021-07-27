@@ -23,22 +23,13 @@
     "python.formatting.blackArgs": [
         "--line-length=120"
     ],
-    "python.sortImports.args": ["-l", "100"],
+    "python.sortImports.args": ["-l", "120"],
     "python.testing.pytestArgs": [
         "${workspaceFolder}/testhiml/"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true,
-    "terminal.integrated.env.linux": {
-        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-    },
-    "terminal.integrated.env.osx": {
-        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-    },
-    "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-    },
     "[python]": {
         "editor.rulers": [120],
         "rewrap.autoWrap.enabled": true,
