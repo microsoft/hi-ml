@@ -30,10 +30,18 @@ jobs:
 
             console.log(context)
 
+            if (context.eventName == 'pull_request') {
+              sha = context.payload.pull_request.head.sha
+            } else {
+              sha = context.sha
+            }
+
+            console.log("Using sha: " + sha)
+
             await github.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: context.sha,
+              commit_sha: sha,
               body: "test script createCommitComment #1"
             })
 
@@ -43,18 +51,10 @@ jobs:
 
             console.log(contents)
 
-            if (context.eventName == 'pull_request') {
-              sha = context.payload.pull_request.head.sha
-            } else {
-              sha = github.context.sha
-            }
-
-            console.log("Using sha: " + sha)
-
             await github.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: context.sha,
+              commit_sha: sha,
               body: "test script createCommitComment #2:\n" + contents
             })
 
