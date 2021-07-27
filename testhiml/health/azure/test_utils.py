@@ -8,9 +8,8 @@ Test utility functions for tests in the package.
 from pathlib import Path
 
 from azureml.core import Run, Workspace
-from health.azure.azure_util import fetch_run
+from health.azure.azure_util import SUBSCRIPTION_ID, fetch_run, get_authentication, get_secret_from_environment
 from health.azure.himl import RUN_RECOVERY_FILE
-from health.azure.himl_configs import SUBSCRIPTION_ID, get_authentication, get_secret_from_environment
 
 DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
 DEFAULT_DATASTORE = "innereyedatasets"

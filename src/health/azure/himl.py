@@ -19,11 +19,8 @@ from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
-from health.azure.datasets import (StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
-                                   _replace_string_datasets)
-from health.azure.himl_configs import WorkspaceConfig, get_authentication
-from health.azure.azure_util import create_run_recovery_id
-
+from health.azure.azure_util import create_run_recovery_id, get_authentication
+from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
