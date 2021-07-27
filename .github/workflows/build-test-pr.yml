@@ -28,8 +28,6 @@ jobs:
           script: |
             const { promises: fs } = require('fs')
 
-            console.log(context)
-
             if (context.eventName == 'pull_request') {
               sha = context.payload.pull_request.head.sha
             } else {
@@ -38,16 +36,9 @@ jobs:
 
             console.log("Using sha: " + sha)
 
-            await github.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: sha,
-              body: "test script createCommitComment #1"
-            })
-
-            console.log("Reading file")
-
             const contents = await fs.readFile('./test_escaping.txt', 'utf8')
+
+            const esc_contents = "```\n" + contents + "\n```"
 
             console.log(contents)
 
@@ -55,7 +46,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: sha,
-              body: "test script createCommitComment #2:\n" + contents
+              body: "test script createCommitComment #2:\n\n" + esc_contents
             })
 
   flake8:
