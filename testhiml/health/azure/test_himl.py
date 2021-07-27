@@ -21,13 +21,14 @@ from uuid import uuid4
 
 from _pytest.capture import CaptureFixture
 
-from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed  # type: ignore
+from health.azure.himl import AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON, submit_to_azure_if_needed  # type: ignore
 import health.azure.examples.elevate_this as elevate_this
-from testhiml.health.azure.util import repository_root
+from testhiml.health.azure.util import get_most_recent_run, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
 ENVIRONMENT_FILE = "environment.yml"
+
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -131,37 +132,35 @@ def saved_for_later(
     repo_root = repository_root()
     shutil.copytree(src=repo_root / "src", dst=snapshot_root)
     example_root = snapshot_root / "health" / "azure" / "examples"
-    shutil.copy(src=repo_root / "config.json", dst=example_root / "config.json")
-    conda_env_file = example_root / "environment.yml"
-    # entry_script = example_root / "elevate_this.py"
-    sys_args = [
-        "",
-        f"--message={message_guid}",
-        f"--workspace_config_path={example_root / 'config.json'}",
-        f"--compute_cluster_name={INEXPENSIVE_TESTING_CLUSTER_NAME}",
-        f"--conda_env={conda_env_file}"
-    ]
+    shutil.copy(src=repo_root / WORKSPACE_CONFIG_JSON, dst=example_root / WORKSPACE_CONFIG_JSON)
+
+    cmd = f"export PYTHONPATH={snapshot_root} "
+    cmd = cmd + f"&& python {EXAMPLE_SCRIPT} "
+    cmd = cmd + f"--message={message_guid} "
     if not local:
-        sys_args.append("--azureml")
-    with mock.patch("sys.argv", sys_args):
-        run_info = elevate_this.main()
-        # with mock.patch(
-        #         "health.azure.himl_configs.WorkspaceConfig.get_workspace",
-    assert run_info
-    captured = capsys.readouterr().out
+        cmd = cmd + "--azureml "
+
+    result = subprocess.run(
+        cmd,
+        shell=True,
+        capture_output=True,
+        cwd=example_root)
+    captured = result.stdout.decode('utf-8')
+
     if local:
         assert "Successfully queued new run" not in captured
-        assert message_guid not in captured
-    else:
-        assert "Successfully queued new run" in captured
-        log_root = snapshot_root / "logs"
-        log_root.mkdir(exist_ok=False)
-        logs = run_info.run.get_all_logs(destination=log_root)
-        print(logs)
-        driver_log = log_root / "70_driver_log.txt"
-        log_text = driver_log.read_text()
-        assert message_guid in log_text
-        assert message_guid in captured
+        assert f"The message was: {message_guid}" in captured
+        return
+
+    assert "Successfully queued new run" in captured
+    run = get_most_recent_run(run_recovery_file=example_root / RUN_RECOVERY_FILE)
+    assert run.status in ["Finalizing", "Completed"]
+    log_root = snapshot_root / "logs"
+    log_root.mkdir(exist_ok=False)
+    run.get_all_logs(destination=log_root)
+    driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+    log_text = driver_log.read_text()
+    assert f"The message was: {message_guid}" in log_text
 
 
 def test_invoking_hello_world() -> None:
