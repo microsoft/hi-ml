@@ -16,12 +16,12 @@ from torchvision.datasets import MNIST
 
 def main() -> None:
     # Data on local disk: We expect that the data lives under the root folder
-    run_info = submit_to_azure_if_needed(root_folder=".")
+    run_info = submit_to_azure_if_needed(snapshot_root_directory=".")
     file_contents = Path("dataset.csv").read_text()
     assert file_contents == "some_contents"
 
     # Create an example where people download the MNIST data
-    run_info = submit_to_azure_if_needed(root_folder=".")
+    run_info = submit_to_azure_if_needed(snapshot_root_directory=".")
     mnist_folder = MNIST(download=True)  # noqa: F841 assigned to but never used
     mnist_bytes = Path("mnist.tar.gz").read_bytes()
     assert mnist_bytes is not None

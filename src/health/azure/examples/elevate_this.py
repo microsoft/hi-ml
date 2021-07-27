@@ -13,17 +13,16 @@ or:
 from argparse import ArgumentParser
 from pathlib import Path
 
-from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
+from health.azure.himl import submit_to_azure_if_needed
 
 
-def main() -> AzureRunInformation:
+def main() -> None:
     """
     Write out the given message, in an AzureML 'experiment' if required.
 
     First call submit_to_azure_if_needed.
     """
     _ = submit_to_azure_if_needed(
-        workspace_config=None,
         workspace_config_path=Path("config.json").absolute(),
         compute_cluster_name="lite-testing-ds2",
         snapshot_root_directory=Path.cwd().parent.parent.parent,
