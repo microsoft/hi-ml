@@ -27,6 +27,7 @@ jobs:
             await github.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
+              commit_sha: context.sha,
               body: "test scriot createCommitComment"
             })
 
