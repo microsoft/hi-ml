@@ -18,17 +18,17 @@ jobs:
   test_commit_comments:
     runs-on: ubuntu-latest
     steps:
-    - name: Test script
-      uses: actions/github-script@v4
-      with:
-        script: |
-          console.log(context)
+      - name: Test script
+        uses: actions/github-script@v4
+        with:
+          script: |
+            console.log(context)
 
-          await github.repos.createCommitComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: "test scriot createCommitComment"
-          })
+            await github.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "test scriot createCommitComment"
+            })
 
       - name: Test comment output/input
         id: test-comment-body
