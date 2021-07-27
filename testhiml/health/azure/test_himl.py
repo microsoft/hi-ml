@@ -14,7 +14,7 @@ import subprocess
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, Generator, List, Tuple
+from typing import ContextManager, Dict, Generator, List, Tuple
 from unittest import mock
 from uuid import uuid4
 
@@ -47,17 +47,19 @@ def check_config_json() -> Generator:
     if config_path.exists():
         yield
     else:
-        with open(str(config_path), 'a', encoding="utf-8") as file:
-            config = {
-                "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
-                "resource_group": os.getenv(RESOURCE_GROUP, ""),
-                "workspace_name": os.getenv(WORKSPACE_NAME, "")
-            }
-            json.dump(config, file)
+        try:
+            with open(str(config_path), 'a', encoding="utf-8") as file:
+                config = {
+                    "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
+                    "resource_group": os.getenv(RESOURCE_GROUP, ""),
+                    "workspace_name": os.getenv(WORKSPACE_NAME, "")
+                }
+                json.dump(config, file)
 
-        yield
-
-        config_path.unlink()
+            yield
+        finally:
+            if config_path.exists():
+                config_path.unlink()
 
 
 def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
@@ -171,17 +173,24 @@ def test_invoking_hello_world() -> None:
     """
     score_args = [
         "testhiml/health/azure/test_data/simple/hello_world.py",
+        "--azureml",
         "--message=hello_world"
     ]
     env = dict(os.environ.items())
-    env['PYTHONPATH'] = "src"
+    try:
+        # pragma pylint: disable=import-outside-toplevel, unused-import
+        from health.azure.himl import submit_to_azure_if_needed  # noqa
+        # pragma pylint: enable=import-outside-toplevel, unused-import
+    except ImportError:
+        logging.info("using local src")
+        env['PYTHONPATH'] = "src"
 
     code, stdout = spawn_and_monitor_subprocess(
         process=sys.executable,
         args=score_args,
         env=env)
     assert code == 1
-    assert "We could not find config.json in:" in "\n".join(stdout)
+    assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in "\n".join(stdout)
 
 
 def test_invoking_hello_world_config1() -> None:
@@ -190,14 +199,22 @@ def test_invoking_hello_world_config1() -> None:
     """
     score_args = [
         "testhiml/health/azure/test_data/simple/hello_world_config1.py",
+        "--azureml",
         "--message=hello_world"
     ]
     env = dict(os.environ.items())
-    env['PYTHONPATH'] = "src"
+    env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
+    try:
+        # pragma pylint: disable=import-outside-toplevel, unused-import
+        from health.azure.himl import submit_to_azure_if_needed  # noqa
+        # pragma pylint: enable=import-outside-toplevel, unused-import
+    except ImportError:
+        logging.info("using local src")
+        env['PYTHONPATH'] = "src"
 
     code, stdout = spawn_and_monitor_subprocess(
         process=sys.executable,
         args=score_args,
         env=env)
     assert code == 1
-    assert "We could not find config.json in:" in "\n".join(stdout)
+    assert "UnboundLocalError:" in "\n".join(stdout)

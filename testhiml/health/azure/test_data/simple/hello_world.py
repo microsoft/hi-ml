@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser
+from pathlib import Path
 
 from health.azure.himl import submit_to_azure_if_needed
 
@@ -20,11 +21,12 @@ logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
 submit_to_azure_if_needed(
-    entry_script=sys.argv[0],
+    entry_script=Path(sys.argv[0]),
     compute_cluster_name=os.getenv("COMPUTE_CLUSTER_NAME", ""),
     conda_environment_file=None,
-    workspace_config=None,
+    aml_workspace=None,
     workspace_config_path=None,
+    snapshot_root_directory=Path(__file__).parent,
     environment_variables=None)
 
 

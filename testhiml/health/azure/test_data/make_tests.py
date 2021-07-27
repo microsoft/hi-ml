@@ -19,18 +19,16 @@ t = Template(hello_world_template)
 
 configs = [
     ('hello_world.py', {
-        'workspace_config': 'None',
         'workspace_config_path': 'None',
         'environment_variables': 'None'}),
     ('hello_world_config1.py', {
-        'workspace_config': 'None',
-        'workspace_config_path': '"config.json"',
+        'workspace_config_path': 'Path("config.json")',
         'environment_variables': 'None'})
 ]
 
 for filename, config in configs:
     entry_script = here / 'simple' / filename
-    config['entry_script'] = "sys.argv[0]"
+    config['entry_script'] = "Path(sys.argv[0])"
     config['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
     config['conda_environment_file'] = 'None'
     r = t.render(config)
