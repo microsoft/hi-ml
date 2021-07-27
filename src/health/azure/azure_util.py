@@ -133,3 +133,14 @@ def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optio
     if not value and not allow_missing:
         raise ValueError(f"There is no value stored for the secret named '{name}'")
     return value
+
+
+def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
+    """
+    Given a string, ensure it can be used in Azure by replacing everything apart from a-zA-Z0-9_ with _,
+    and replace multiple _ with a single _.
+    """
+    if x is None:
+        return x
+    else:
+        return re.sub('_+', '_', re.sub(r'\W+', '_', x))

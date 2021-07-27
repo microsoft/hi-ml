@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
-from health.azure.azure_util import create_run_recovery_id, get_authentication
+from health.azure.azure_util import create_run_recovery_id, get_authentication, to_azure_friendly_string
 from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
 
 logger = logging.getLogger('health.azure')
@@ -188,8 +188,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     run_config.data = inputs
     run_config.output_data = outputs
 
-    # replacing everything apart from a-zA-Z0-9_ with _, and replace multiple _ with a single _.
-    experiment_name = re.sub('_+', '_', re.sub(r'\W+', '_', entry_script.stem))
+    experiment_name = to_azure_friendly_string(entry_script.stem)
     experiment = Experiment(workspace=workspace, name=experiment_name)
 
     amlignore_path = snapshot_root_directory or Path.cwd()
