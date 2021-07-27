@@ -234,7 +234,7 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: Test with pytest
-        run: pytest --cov=src --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
+        run: pytest --cov=hi-ml --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
 
       - name: Format coverage summary
         run: pycobertura show --format text --output coverage.txt coverage.xml
