@@ -41,7 +41,6 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             submit_to_azure_if_needed(
-                workspace_config=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
@@ -50,7 +49,6 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             submit_to_azure_if_needed(
-                workspace_config=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
