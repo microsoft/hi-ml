@@ -269,6 +269,36 @@ jobs:
               body: esc_contents
             })
 
+            var outputTable = ""
+            const split_contents = contents.split("\n")
+            for (var i = 0; i < split_contents.length; i++)
+            {
+              const line = split_contents[i].split(" ")
+              var row = ""
+              for (var j = 0; j < line.length; j++)
+              {
+                if (line[j] != "")
+                {
+                  if (row.length != "")
+                  {
+                    row = row + "|"
+                  }
+                  row = row + line[j]
+                }
+              }
+              if (row != "")
+              {
+                outputTable = outputTable + row + "\n"
+              }
+            }
+
+            await github.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha,
+              body: outputTable
+            })
+
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
         with:
