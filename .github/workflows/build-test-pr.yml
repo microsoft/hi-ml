@@ -36,35 +36,8 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: "test scriot createCommitComment"
+              body: "test script createCommitComment\n" + contents
             })
-
-      - name: Test comment output/input
-        id: test-comment-body
-        run: |
-          body=$(cat test_escaping.txt)
-          body=$'```\n'${body}$'\n```'
-          body="${body//'%'/'%25'}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
-          echo "${body}"
-          echo ::set-output name=body::$body
-          echo "TEST_COMMENT_BODY=${body}" >> "$GITHUB_ENV"
-
-      - name: Echo comment
-        run: |
-          body="${{ steps.test-comment-body.outputs.body }}"
-          echo "${body}"
-
-      - name: Add test comment
-        uses: peter-evans/commit-comment@v1
-        with:
-          body: ${{ steps.test-comment-body.outputs.body }}
-
-      - name: Add test comment2
-        uses: peter-evans/commit-comment@v1
-        with:
-          body: ${{ env.TEST_COMMENT_BODY }}
 
   flake8:
     runs-on: ubuntu-latest
