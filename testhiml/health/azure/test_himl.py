@@ -5,6 +5,7 @@
 """
 Tests for hi-ml.
 """
+from contextlib import contextmanager
 import json
 import logging
 import os
@@ -14,7 +15,7 @@ import subprocess
 import shutil
 import sys
 from pathlib import Path
-from typing import ContextManager, Dict, Generator, List, Tuple
+from typing import Dict, Generator, List, Tuple
 from unittest import mock
 from uuid import uuid4
 
@@ -37,17 +38,19 @@ logger.setLevel(logging.DEBUG)
 here = pathlib.Path(__file__).parent.resolve()
 
 
-@pytest.fixture(autouse=True, scope='session')
-def check_config_json() -> Generator:
+@contextmanager
+def check_config_json(root: Path) -> Generator:
     """
     Check config.json exists. If so, do nothing, otherwise,
     create one using environment variables.
     """
-    config_path = here / "config.json"
+    config_path = root / "config.json"
     if config_path.exists():
         yield
     else:
         try:
+            logging.info("creating config.json")
+
             with open(str(config_path), 'a', encoding="utf-8") as file:
                 config = {
                     "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
@@ -59,6 +62,8 @@ def check_config_json() -> Generator:
             yield
         finally:
             if config_path.exists():
+                logging.info("deleting config.json")
+
                 config_path.unlink()
 
 
@@ -197,24 +202,25 @@ def test_invoking_hello_world_config1() -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     """
-    score_args = [
-        "testhiml/health/azure/test_data/simple/hello_world_config1.py",
-        "--azureml",
-        "--message=hello_world"
-    ]
-    env = dict(os.environ.items())
-    env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
-    try:
-        # pragma pylint: disable=import-outside-toplevel, unused-import
-        from health.azure.himl import submit_to_azure_if_needed  # noqa
-        # pragma pylint: enable=import-outside-toplevel, unused-import
-    except ImportError:
-        logging.info("using local src")
-        env['PYTHONPATH'] = "src"
+    with check_config_json(Path(".")):
+        score_args = [
+            "testhiml/health/azure/test_data/simple/hello_world_config1.py",
+            "--azureml",
+            "--message=hello_world"
+        ]
+        env = dict(os.environ.items())
+        env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
+        try:
+            # pragma pylint: disable=import-outside-toplevel, unused-import
+            from health.azure.himl import submit_to_azure_if_needed  # noqa
+            # pragma pylint: enable=import-outside-toplevel, unused-import
+        except ImportError:
+            logging.info("using local src")
+            env['PYTHONPATH'] = "src"
 
-    code, stdout = spawn_and_monitor_subprocess(
-        process=sys.executable,
-        args=score_args,
-        env=env)
-    assert code == 1
-    assert "UnboundLocalError:" in "\n".join(stdout)
+        code, stdout = spawn_and_monitor_subprocess(
+            process=sys.executable,
+            args=score_args,
+            env=env)
+        assert code == 1
+        assert "UnboundLocalError:" in "\n".join(stdout)
