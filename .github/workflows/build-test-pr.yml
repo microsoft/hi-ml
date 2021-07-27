@@ -22,32 +22,6 @@ jobs:
         with:
           lfs: true
 
-      - name: Test script
-        uses: actions/github-script@v4
-        with:
-          script: |
-            const { promises: fs } = require('fs')
-
-            if (context.eventName == 'pull_request') {
-              sha = context.payload.pull_request.head.sha
-            } else {
-              sha = context.sha
-            }
-
-            console.log("Using sha: " + sha)
-
-            const contents = await fs.readFile('./test_escaping.txt', 'utf8')
-
-            const esc_contents = "```\n" + contents + "\n```"
-
-            console.log(contents)
-
-            await github.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: sha,
-              body: "test script createCommitComment #2:\n\n" + esc_contents
-            })
 
   flake8:
     runs-on: ubuntu-latest
@@ -271,21 +245,29 @@ jobs:
         run: pytest --cov=src --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
 
       - name: Format coverage summary
-        id: get-comment-body
-        run: |
-          pycobertura show --format text --output coverage.txt coverage.xml
-          body=$(cat coverage.txt)
-          body=$'```\n'${body}$'\n```'
-          body="${body//'%'/'%25'}"
-          body="${body//' '/\u2002}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
-          echo ::set-output name=body::$body
+        run: pycobertura show --format text --output coverage.txt coverage.xml
 
-      - name: Add coverage as a comment
-        uses: peter-evans/commit-comment@v1
+      - name: Add coverage as a commit comment
+        uses: actions/github-script@v4
         with:
-          body: ${{ steps.get-comment-body.outputs.body }}
+          script: |
+            const { promises: fs } = require('fs')
+
+            if (context.eventName == 'pull_request') {
+              sha = context.payload.pull_request.head.sha
+            } else {
+              sha = context.sha
+            }
+
+            const contents = await fs.readFile('./coverage.txt', 'utf8')
+            const esc_contents = "```\n" + contents + "\n```"
+
+            await github.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha,
+              body: esc_contents
+            })
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
