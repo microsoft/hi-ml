@@ -10,7 +10,6 @@ See examples/elevate_this.py for a very simple 'hello world' example of use.
 
 import logging
 import os
-import re
 import sys
 from argparse import ArgumentParser
 from contextlib import contextmanager
@@ -99,7 +98,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     storage. This is described in more detail in the README.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
     exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
-    also register the data in this folder as an AzureML dataset.  
+    also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
     data to that folder, upload it to blob storage, in the data store.
 
