@@ -13,12 +13,13 @@ import subprocess
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, Generator, List, Tuple
+from typing import Dict, List, Tuple
 from unittest import mock
 from uuid import uuid4
 
 from _pytest.capture import CaptureFixture
 
+from conftest import check_config_json
 from health.azure.himl import (AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON,
                                submit_to_azure_if_needed)
 from testhiml.health.azure.util import get_most_recent_run, repository_root
@@ -149,7 +150,7 @@ def test_invoking_hello_world() -> None:
     Test that invoking hello_world.py does not elevate itself to AzureML without any config.
     """
     score_args = [
-        "testhiml/health/azure/test_data/simple/hello_world.py",
+        str(repository_root() / "testhiml/health/azure/test_data/simple/hello_world.py"),
         "--azureml",
         "--message=hello_world"
     ]
@@ -170,12 +171,12 @@ def test_invoking_hello_world() -> None:
     assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in "\n".join(stdout)
 
 
-def test_invoking_hello_world_config1(check_config_json: Generator) -> None:
+def test_invoking_hello_world_config1() -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     """
     score_args = [
-        "testhiml/health/azure/test_data/simple/hello_world_config1.py",
+        str(repository_root() / "testhiml/health/azure/test_data/simple/hello_world_config1.py"),
         "--azureml",
         "--message=hello_world"
     ]
@@ -189,9 +190,10 @@ def test_invoking_hello_world_config1(check_config_json: Generator) -> None:
         logging.info("using local src")
         env['PYTHONPATH'] = "src"
 
-    code, stdout = spawn_and_monitor_subprocess(
-        process=sys.executable,
-        args=score_args,
-        env=env)
-    assert code == 1
-    assert "UnboundLocalError:" in "\n".join(stdout)
+    with check_config_json(Path("testhiml/health/azure/test_data/simple")):
+        code, stdout = spawn_and_monitor_subprocess(
+            process=sys.executable,
+            args=score_args,
+            env=env)
+        assert code == 0
+        assert "ActivityFailedException:" in "\n".join(stdout)

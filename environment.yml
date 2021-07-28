@@ -1,0 +1,6 @@
+name: hi-ml
+channels:
+  - defaults
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3

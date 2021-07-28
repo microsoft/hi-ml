@@ -22,7 +22,7 @@ configs = [
         'workspace_config_path': 'None',
         'environment_variables': 'None'}),
     ('hello_world_config1.py', {
-        'workspace_config_path': 'Path("config.json")',
+        'workspace_config_path': 'here / "config.json"',
         'environment_variables': 'None'})
 ]
 
@@ -30,6 +30,7 @@ for filename, config in configs:
     entry_script = here / 'simple' / filename
     config['entry_script'] = "Path(sys.argv[0])"
     config['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
-    config['conda_environment_file'] = 'None'
+    config['conda_environment_file'] = 'here / "environment.yml"'
+    config['wait_for_completion'] = 'True'
     r = t.render(config)
     entry_script.write_text(r)
