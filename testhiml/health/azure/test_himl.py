@@ -13,7 +13,7 @@ import subprocess
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Generator, List, Tuple
 from unittest import mock
 from uuid import uuid4
 
@@ -170,7 +170,7 @@ def test_invoking_hello_world() -> None:
     assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in "\n".join(stdout)
 
 
-def test_invoking_hello_world_config1() -> None:
+def test_invoking_hello_world_config1(check_config_json: Generator) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     """

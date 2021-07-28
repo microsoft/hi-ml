@@ -20,7 +20,7 @@ def test_suite_setup() -> Generator:
     yield
 
 
-@pytest.fixture(autouse=True, scope='session')
+@pytest.fixture()
 def check_config_json() -> Generator:
     """
     Check config.json exists. If so, do nothing, otherwise,
