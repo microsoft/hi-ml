@@ -5,8 +5,6 @@
 """
 Tests for hi-ml.
 """
-from contextlib import contextmanager
-import json
 import logging
 import os
 import pathlib
@@ -15,7 +13,7 @@ import subprocess
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, Generator, List, Tuple
+from typing import Dict, List, Tuple
 from unittest import mock
 from uuid import uuid4
 
@@ -23,7 +21,6 @@ from _pytest.capture import CaptureFixture
 
 from health.azure.himl import (AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON,
                                submit_to_azure_if_needed)
-from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
 from testhiml.health.azure.util import get_most_recent_run, repository_root
 
 
@@ -36,35 +33,6 @@ logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
 
 here = pathlib.Path(__file__).parent.resolve()
-
-
-@contextmanager
-def check_config_json(root: Path) -> Generator:
-    """
-    Check config.json exists. If so, do nothing, otherwise,
-    create one using environment variables.
-    """
-    config_path = root / "config.json"
-    if config_path.exists():
-        yield
-    else:
-        try:
-            logging.info(f"creating {str(config_path)}")
-
-            with open(str(config_path), 'a', encoding="utf-8") as file:
-                config = {
-                    "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
-                    "resource_group": os.getenv(RESOURCE_GROUP, ""),
-                    "workspace_name": os.getenv(WORKSPACE_NAME, "")
-                }
-                json.dump(config, file)
-
-            yield
-        finally:
-            if config_path.exists():
-                logging.info(f"deleting {str(config_path)}")
-
-                config_path.unlink()
 
 
 def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
@@ -206,25 +174,24 @@ def test_invoking_hello_world_config1() -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     """
-    with check_config_json(Path(".")):
-        score_args = [
-            "testhiml/health/azure/test_data/simple/hello_world_config1.py",
-            "--azureml",
-            "--message=hello_world"
-        ]
-        env = dict(os.environ.items())
-        env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
-        try:
-            # pragma pylint: disable=import-outside-toplevel, unused-import
-            from health.azure.himl import submit_to_azure_if_needed  # noqa
-            # pragma pylint: enable=import-outside-toplevel, unused-import
-        except ImportError:
-            logging.info("using local src")
-            env['PYTHONPATH'] = "src"
+    score_args = [
+        "testhiml/health/azure/test_data/simple/hello_world_config1.py",
+        "--azureml",
+        "--message=hello_world"
+    ]
+    env = dict(os.environ.items())
+    env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
+    try:
+        # pragma pylint: disable=import-outside-toplevel, unused-import
+        from health.azure.himl import submit_to_azure_if_needed  # noqa
+        # pragma pylint: enable=import-outside-toplevel, unused-import
+    except ImportError:
+        logging.info("using local src")
+        env['PYTHONPATH'] = "src"
 
-        code, stdout = spawn_and_monitor_subprocess(
-            process=sys.executable,
-            args=score_args,
-            env=env)
-        assert code == 1
-        assert "UnboundLocalError:" in "\n".join(stdout)
+    code, stdout = spawn_and_monitor_subprocess(
+        process=sys.executable,
+        args=score_args,
+        env=env)
+    assert code == 1
+    assert "UnboundLocalError:" in "\n".join(stdout)

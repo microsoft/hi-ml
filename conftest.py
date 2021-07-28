@@ -1,7 +1,16 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+import json
+import logging
+import os
+from pathlib import Path
 from typing import Generator
 
 import pytest
 
+from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
 from health.azure.himl import package_setup_and_hacks
 
 
@@ -9,3 +18,32 @@ from health.azure.himl import package_setup_and_hacks
 def test_suite_setup() -> Generator:
     package_setup_and_hacks()
     yield
+
+
+@pytest.fixture(autouse=True, scope='session')
+def check_config_json() -> Generator:
+    """
+    Check config.json exists. If so, do nothing, otherwise,
+    create one using environment variables.
+    """
+    config_path = Path("config.json")
+    if config_path.exists():
+        yield
+    else:
+        try:
+            logging.info(f"creating {str(config_path)}")
+
+            with open(str(config_path), 'a', encoding="utf-8") as file:
+                config = {
+                    "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
+                    "resource_group": os.getenv(RESOURCE_GROUP, ""),
+                    "workspace_name": os.getenv(WORKSPACE_NAME, "")
+                }
+                json.dump(config, file)
+
+            yield
+        finally:
+            if config_path.exists():
+                logging.info(f"deleting {str(config_path)}")
+
+                config_path.unlink()
