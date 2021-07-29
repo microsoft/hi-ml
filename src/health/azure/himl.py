@@ -190,11 +190,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     experiment_name = to_azure_friendly_string(entry_script.stem)
     experiment = Experiment(workspace=workspace, name=experiment_name)
 
-    lines_to_append: List[str] = []
-    if ignored_folders:
-        amlignore_path = snapshot_root_directory or Path.cwd()
-        amlignore_path = amlignore_path / ".amlignore"
-        lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
+    amlignore_path = snapshot_root_directory or Path.cwd()
+    amlignore_path = amlignore_path / ".amlignore"
+    lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):

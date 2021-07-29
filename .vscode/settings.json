@@ -34,4 +34,13 @@
         "editor.rulers": [120],
         "rewrap.autoWrap.enabled": true,
     },
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+    },
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+    },
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+    },
 }
