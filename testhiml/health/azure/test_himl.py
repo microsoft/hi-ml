@@ -22,6 +22,7 @@ from _pytest.capture import CaptureFixture
 from conftest import check_config_json
 from health.azure.himl import (AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON,
                                submit_to_azure_if_needed)
+from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
 from testhiml.health.azure.util import get_most_recent_run, repository_root
 
 
@@ -47,7 +48,6 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, s
     """
     p = subprocess.Popen(
         [process] + args,
-        shell=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env
@@ -145,28 +145,56 @@ def saved_for_later(
     assert f"The message was: {message_guid}" in log_text
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world(local: bool) -> None:
+def render_test_scripts(path: Path, local: bool,
+                        extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[int, List[str]]:
     """
-    Test invoking hello_world.py.and
+    Prepare test scripts, submit them, and return response.
 
-    If running in AzureML - does not elevate itself to AzureML without any config.
-    Else runs locally.
-
-    :param local: Test running loca
+    :param path: Where to build the test scripts.
+    :param local: Local execution if True, else in AzureML.
+    :param extra_options: Extra options for template rendering.
+    :param extra_args: Extra command line arguments for calling script.
+    :return: Response from spawn_and_monitor_subprocess.
     """
-    score_args = [
-        str(repository_root() / "testhiml/health/azure/test_data/simple/hello_world.py"),
-        "--message=hello_world"
-    ]
+    snapshot_root = path / uuid4().hex
+    snapshot_root.mkdir(parents=True, exist_ok=False)
+
+    environment_yaml_path = snapshot_root / "environment.yml"
+    render_environment_yaml(environment_yaml_path, "")
+
+    entry_script_path = snapshot_root / "test_script.py"
+    render_test_script(entry_script_path, extra_options, environment_yaml_path)
+
+    score_args = [str(entry_script_path)]
     if not local:
         score_args.append("--azureml")
-    env = dict(os.environ.items())
+    score_args.extend(extra_args)
 
-    code, stdout = spawn_and_monitor_subprocess(
-        process=sys.executable,
-        args=score_args,
-        env=env)
+    env = dict(os.environ.items())
+    env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
+
+    with check_config_json(snapshot_root):
+        return spawn_and_monitor_subprocess(
+            process=sys.executable,
+            args=score_args,
+            env=env)
+
+
+@pytest.mark.parametrize("local", [True, False])
+def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
+    """
+    Test invoking hello_world.py.and
+    If running in AzureML - does not elevate itself to AzureML without any config.
+    Else runs locally.
+    :param local: Local execution if True, else in AzureML.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    extra_options = {
+        'workspace_config_path': 'None',
+        'environment_variables': 'None'
+    }
+    extra_args = ["--message=hello_world"]
+    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
     if local:
         assert code == 0
         assert 'The message was: hello_world' in "\n".join(stdout)
@@ -175,27 +203,21 @@ def test_invoking_hello_world(local: bool) -> None:
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in "\n".join(stdout)
 
 
-def test_invoking_hello_world_config1(tmp_path: Path) -> None:
+@pytest.mark.parametrize("local", [True, False])
+def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
+    :param local: Local execution if True, else in AzureML.
+    :param tmp_path: PyTest test fixture for temporary path.
     """
-    snapshot_root = tmp_path / uuid4().hex
-    shutil.copy(
-        src=repository_root() / "testhiml/health/azure/test_data/simple/environment.yml",
-        dst=snapshot_root / "environment.yml")
-
-    score_args = [
-        str(snapshot_root / "test_script.py"),
-        "--azureml",
-        "--message=hello_world"
-    ]
-    env = dict(os.environ.items())
-    env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
-
-    with check_config_json(Path("testhiml/health/azure/test_data/simple")):
-        code, stdout = spawn_and_monitor_subprocess(
-            process=sys.executable,
-            args=score_args,
-            env=env)
-        assert code == 0
-        assert "Successfully queued new run hello_world_config1_" in "\n".join(stdout)
+    extra_options = {
+        'workspace_config_path': 'here / "config.json"',
+        'environment_variables': 'None'
+    }
+    extra_args = ["--message=hello_world"]
+    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    assert code == 0
+    if local:
+        assert 'The message was: hello_world' in "\n".join(stdout)
+    else:
+        assert "Successfully queued new run test_script_" in "\n".join(stdout)

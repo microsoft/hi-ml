@@ -7,31 +7,54 @@
 Transform the templates into valid Python test code.
 """
 
-import pathlib
+from pathlib import Path
+from typing import Dict
 
 from jinja2 import Template
 
-here = pathlib.Path(__file__).parent.resolve()
+here = Path(__file__).parent.resolve()
 
-hello_world_template = (here / 'simple' / 'hello_world_template.txt').read_text()
 
-t = Template(hello_world_template)
+def render_environment_yaml(environment_yaml_path: Path, version: str) -> None:
+    """
+    Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
-configs = [
-    ('hello_world.py', {
-        'workspace_config_path': 'None',
-        'environment_variables': 'None'}),
-    ('hello_world_config1.py', {
-        'workspace_config_path': 'here / "config.json"',
-        'environment_variables': 'None'})
-]
+    :param environment_yaml_path: Where to save environment.yml.
+    :param version: hi-ml package version.
+    :return: None
+    """
+    environment_yaml_template = (here / 'simple' / 'environment.yml.template').read_text()
 
-for filename, config in configs:
-    entry_script = here / 'simple' / filename
-    config['entry_script'] = "Path(sys.argv[0])"
-    config['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
-    config['conda_environment_file'] = 'here / "environment.yml"'
-    config['wait_for_completion'] = 'True'
-    config['wait_for_completion_show_output'] = 'True'
-    r = t.render(config)
-    entry_script.write_text(r)
+    t = Template(environment_yaml_template)
+
+    options = {'hi_ml_version': version}
+
+    r = t.render(options)
+    environment_yaml_path.write_text(r)
+
+
+def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
+                       environment_yaml_path: Path) -> None:
+    """
+    Rewrite the template with standard options, and extra options into a file at entry_script_path.
+
+    :param entry_script_path: Where to save script file.
+    :param extra_options: Extra options for rendering.
+    :param environment_yaml_path: Path to environment.yml.
+    :return: None
+    """
+    hello_world_template = (here / 'simple' / 'hello_world_template.txt').read_text()
+
+    t = Template(hello_world_template)
+
+    default_options = {}
+    default_options['entry_script'] = "Path(sys.argv[0])"
+    default_options['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
+    default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
+    default_options['wait_for_completion'] = 'True'
+    default_options['wait_for_completion_show_output'] = 'True'
+
+    all_options = dict(default_options, **extra_options)
+
+    r = t.render(all_options)
+    entry_script_path.write_text(r)
