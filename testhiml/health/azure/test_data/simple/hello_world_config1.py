@@ -16,6 +16,14 @@ from pathlib import Path
 
 from health.azure.himl import submit_to_azure_if_needed
 
+try:
+    print(f"path: {sys.path}")
+
+    import health.azure.himl
+    print(f"hi-ml location: {health.azure.himl.__file__}")
+except ImportError as e:
+    print(f"Import error: {e}")
+
 logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
