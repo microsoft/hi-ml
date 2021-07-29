@@ -196,4 +196,4 @@ def test_invoking_hello_world_config1() -> None:
             args=score_args,
             env=env)
         assert code == 0
-        assert "ActivityFailedException:" in "\n".join(stdout)
+        assert "Successfully queued new run hello_world_config1_" in "\n".join(stdout)

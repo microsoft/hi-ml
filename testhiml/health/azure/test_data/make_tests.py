@@ -32,5 +32,6 @@ for filename, config in configs:
     config['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
     config['conda_environment_file'] = 'here / "environment.yml"'
     config['wait_for_completion'] = 'True'
+    config['wait_for_completion_show_output'] = 'True'
     r = t.render(config)
     entry_script.write_text(r)
