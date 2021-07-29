@@ -145,15 +145,22 @@ def saved_for_later(
     assert f"The message was: {message_guid}" in log_text
 
 
-def test_invoking_hello_world() -> None:
+@pytest.mark.parametrize("local", [True, False])
+def test_invoking_hello_world(local: bool) -> None:
     """
-    Test that invoking hello_world.py does not elevate itself to AzureML without any config.
+    Test invoking hello_world.py.and
+
+    If running in AzureML - does not elevate itself to AzureML without any config.
+    Else runs locally.
+
+    :param local: Test running loca
     """
     score_args = [
         str(repository_root() / "testhiml/health/azure/test_data/simple/hello_world.py"),
-        "--azureml",
         "--message=hello_world"
     ]
+    if not local:
+        score_args.append("--azureml")
     env = dict(os.environ.items())
     try:
         # pragma pylint: disable=import-outside-toplevel, unused-import
@@ -161,14 +168,18 @@ def test_invoking_hello_world() -> None:
         # pragma pylint: enable=import-outside-toplevel, unused-import
     except ImportError:
         logging.info("using local src")
-        env['PYTHONPATH'] = "src"
+        # env['PYTHONPATH'] = "src"
 
     code, stdout = spawn_and_monitor_subprocess(
         process=sys.executable,
         args=score_args,
         env=env)
-    assert code == 1
-    assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in "\n".join(stdout)
+    if local:
+        assert code == 0
+        assert 'The message was: hello_world' == stdout[0]
+    else:
+        assert code == 1
+        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in "\n".join(stdout)
 
 
 def test_invoking_hello_world_config1() -> None:
@@ -188,7 +199,7 @@ def test_invoking_hello_world_config1() -> None:
         # pragma pylint: enable=import-outside-toplevel, unused-import
     except ImportError:
         logging.info("using local src")
-        env['PYTHONPATH'] = "src"
+        # env['PYTHONPATH'] = "src"
 
     with check_config_json(Path("testhiml/health/azure/test_data/simple")):
         code, stdout = spawn_and_monitor_subprocess(

@@ -41,7 +41,7 @@ def main() -> None:
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
     args = parser.parse_args()
 
-    print(args.message)
+    print(f"The message was: {args.message}")
 
 
 if __name__ == "__main__":
