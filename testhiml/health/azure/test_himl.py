@@ -163,7 +163,7 @@ def render_test_scripts(path: Path, local: bool,
     render_environment_yaml(environment_yaml_path, "")
 
     entry_script_path = snapshot_root / "test_script.py"
-    render_test_script(entry_script_path, extra_options, environment_yaml_path)
+    render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
 
     score_args = [str(entry_script_path)]
     if not local:
@@ -171,7 +171,6 @@ def render_test_scripts(path: Path, local: bool,
     score_args.extend(extra_args)
 
     env = dict(os.environ.items())
-    env["COMPUTE_CLUSTER_NAME"] = INEXPENSIVE_TESTING_CLUSTER_NAME
 
     with check_config_json(snapshot_root):
         return spawn_and_monitor_subprocess(

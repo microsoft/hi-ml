@@ -34,12 +34,13 @@ def render_environment_yaml(environment_yaml_path: Path, version: str) -> None:
 
 
 def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
-                       environment_yaml_path: Path) -> None:
+                       compute_cluster_name: str, environment_yaml_path: Path) -> None:
     """
     Rewrite the template with standard options, and extra options into a file at entry_script_path.
 
     :param entry_script_path: Where to save script file.
     :param extra_options: Extra options for rendering.
+    :param compute_cluster_name: Compute cluster name for testing.
     :param environment_yaml_path: Path to environment.yml.
     :return: None
     """
@@ -49,7 +50,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
 
     default_options = {}
     default_options['entry_script'] = "Path(sys.argv[0])"
-    default_options['compute_cluster_name'] = 'os.getenv("COMPUTE_CLUSTER_NAME", "")'
+    default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
     default_options['wait_for_completion'] = 'True'
     default_options['wait_for_completion_show_output'] = 'True'
