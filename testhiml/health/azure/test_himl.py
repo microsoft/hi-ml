@@ -164,8 +164,10 @@ def render_test_scripts(path: Path, local: bool,
     latest_version_path = repo_root / "latest_version.txt"
     if latest_version_path.exists():
         latest_version = f"=={latest_version_path.read_text()}"
+        logging.debug(f"pinning hi-ml to: {latest_version}")
     else:
         latest_version = ""
+        logging.debug("not pinning hi-ml")
     render_environment_yaml(environment_yaml_path, latest_version)
 
     entry_script_path = snapshot_root / "test_script.py"
