@@ -34,7 +34,7 @@ def main() -> None:
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
-    args, _ = parser.parse_known_args()
+    args = parser.parse_args()
 
     print(f"The message was: {args.message}")
 
