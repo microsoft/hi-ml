@@ -1,1 +1,2 @@
 azureml-sdk==1.32.0
+ruamel.yaml==0.16.12

@@ -18,12 +18,15 @@ from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
-from health.azure.azure_util import create_run_recovery_id, get_authentication, to_azure_friendly_string
+from azureml.core.runconfig import MpiConfiguration
+
+from health.azure.azure_util import (create_run_recovery_id, get_authentication, get_or_create_python_environment,
+                                     get_or_register_environment, run_duration_string_to_seconds,
+                                     to_azure_friendly_string)
 from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
-
 
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 WORKSPACE_CONFIG_JSON = "config.json"
@@ -31,6 +34,7 @@ AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
 OUTPUT_FOLDER = "outputs"
 LOG_FOLDER = "logs"
+AML_IGNORE_FILE = ".amlignore"
 
 
 @dataclass
@@ -57,12 +61,17 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
 def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         entry_script: Path,
         compute_cluster_name: str,
-        conda_environment_file: Path,
         aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[Path] = None,
         snapshot_root_directory: Optional[Path] = None,
         script_params: Optional[List[str]] = None,
+        conda_environment_file: Optional[Path] = None,
+        aml_environment: str = "",
+        experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
+        pip_extra_index_url: str = "",
+        docker_base_image: str = "",
+        docker_shm_size: str = "",
         ignored_folders: Optional[List[Path]] = None,
         default_datastore: str = "",
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
@@ -70,12 +79,18 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         num_nodes: int = 1,
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
-        ) -> AzureRunInformation:
+        max_run_duration: str = "") -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
     Use the flag --azureml to submit to AzureML, and leave it out to run locally.
 
+    :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
+    provided, an environment will be created from the arguments to this function.
+    :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
+    floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
+    :param experiment_name: The name of the AzureML experiment in which the run should be submitted. If omitted,
+    this is created based on the name of the current script.
     :param entry_script: The script that should be run in AzureML
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
     CPU or GPU machines.
@@ -84,16 +99,20 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
     to pass it in as a parameter.
-    :param workspace_config_file: The 2nd option is to apecify the path to the config.json file downloaded from the
+    :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
     Azure portal from which we can retrieve the existing Workspace.
 
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
     All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-    default) these will be copied over from sys.argv.
-    :param environment_variables: An optional dictionary of environment varaible that the script relies on.
-
+    default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
+    :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
+    the Docker image.
+    :param conda_environment_file: The file that contains the Conda environment definition.
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
     storage. This is described in more detail in the README.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
@@ -150,31 +169,42 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     elif aml_workspace:
         workspace = aml_workspace
     else:
-        raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+        raise ValueError("Cannot glean workspace config from parameters. Use 'workspace_config_path' to point to a "
+                         "config.json file, or 'aml_workspace' to pass a Workspace object.")
 
-    logging.info(f"Loaded: {workspace.name}")
-    environment = Environment.from_conda_specification("simple-env", conda_environment_file)
-
-    # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
-    # We'll do that later if still required.
-
+    logging.info(f"Loaded AzureML workspace {workspace.name}")
     if not script_params:
         script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
-
     entry_script_relative = entry_script.relative_to(snapshot_root_directory)
+
+    if compute_cluster_name not in workspace.compute_targets:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+                         f"Existing clusters: {list(workspace.compute_targets.keys())}")
+
+    if aml_environment:
+        # TODO: Split off version
+        environment = Environment.get(workspace, aml_environment)
+    else:
+        environment = get_or_create_python_environment(conda_environment_file=conda_environment_file,
+                                                       pip_extra_index_url=pip_extra_index_url,
+                                                       docker_shm_size=docker_shm_size,
+                                                       docker_base_image=docker_base_image,
+                                                       environment_variables=environment_variables)
+        environment = get_or_register_environment(workspace, environment)
+
     run_config = RunConfiguration(
         script=entry_script_relative,
         arguments=script_params)
     run_config.environment = environment
-
-    if compute_cluster_name not in workspace.compute_targets:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
-                         f"{list(workspace.compute_targets.keys())}")
-    script_run_config = ScriptRunConfig(
-        source_directory=str(snapshot_root_directory),
-        run_config=run_config,
-        compute_target=workspace.compute_targets[compute_cluster_name],
-        environment=environment)
+    run_config.target = compute_cluster_name
+    if max_run_duration:
+        run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+    if num_nodes > 1:
+        distributed_job_config = MpiConfiguration(node_count=num_nodes)
+        run_config.mpi = distributed_job_config
+        run_config.framework = "Python"
+        run_config.communicator = "IntelMpi"
+        run_config.node_count = distributed_job_config.node_count
 
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
@@ -187,43 +217,43 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     run_config.data = inputs
     run_config.output_data = outputs
 
-    experiment_name = to_azure_friendly_string(entry_script.stem)
-    experiment = Experiment(workspace=workspace, name=experiment_name)
+    script_run_config = ScriptRunConfig(
+        source_directory=str(snapshot_root_directory),
+        run_config=run_config)
 
-    lines_to_append: List[str] = []
-    if ignored_folders:
-        amlignore_path = snapshot_root_directory or Path.cwd()
-        amlignore_path = amlignore_path / ".amlignore"
-        lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
+    cleaned_experiment_name = to_azure_friendly_string(experiment_name)
+    if not cleaned_experiment_name:
+        cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
+    experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
+
+    amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
+    lines_to_append = [str(path) for path in (ignored_folders or [])]
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
-        # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
-        # jobs. We'll do that later if still required.
-
         run: Run = experiment.submit(script_run_config)
 
-        # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
-        wait_msg = "Waiting for completion of AzureML run" if wait_for_completion else "Not waiting for completion of \
-            AzureML run"
-        print("\n==============================================================================")
-        print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
-        print("Experiment URL: {}".format(experiment.get_portal_url()))
-        print("Run URL: {}".format(run.get_portal_url()))
-        print(wait_msg)
-        print("==============================================================================\n")
+    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    wait_msg = "Waiting for completion of AzureML run" if wait_for_completion else \
+        "Not waiting for completion of AzureML run"
+    print("\n==============================================================================")
+    print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
+    print("Experiment URL: {}".format(experiment.get_portal_url()))
+    print("Run URL: {}".format(run.get_portal_url()))
+    print(wait_msg)
+    print("==============================================================================\n")
 
-        if wait_for_completion:
-            run.wait_for_completion(show_output=wait_for_completion_show_output)
+    if wait_for_completion:
+        run.wait_for_completion(show_output=wait_for_completion_show_output)
 
-        if script_params:
-            run.set_tags({"commandline_args": " ".join(script_params)})
+    if script_params:
+        run.set_tags({"commandline_args": " ".join(script_params)})
 
-        recovery_id = create_run_recovery_id(run)
-        recovery_file = Path(RUN_RECOVERY_FILE)
-        if recovery_file.exists():
-            recovery_file.unlink()
-        recovery_file.write_text(recovery_id)
+    recovery_id = create_run_recovery_id(run)
+    recovery_file = Path(RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
+    recovery_file.write_text(recovery_id)
 
     exit(0)
 
