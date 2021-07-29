@@ -13,7 +13,7 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
-from _pytest.capture import CaptureFixture
+
 
 try:
     from health.azure.himl import submit_to_azure_if_needed  # type: ignore

@@ -5,47 +5,107 @@
 """
 Tests for the functions in health.azure.azure_util
 """
+import os
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import health.azure.azure_util as util
 import pytest
-from azureml.core import Run
 
 RUN_ID = uuid4().hex
+RUN_NUMBER = 42
 EXPERIMENT_NAME = "fancy-experiment"
 
 
-@pytest.fixture
-def mocked_run() -> Run:
-    mock_run = mock.patch("health.azure.azure_util.Run")
-    mock_experiment = mock.patch("health.azure.azure_util.Experiment")
-    mock_run.id = RUN_ID  # type: ignore
-    mock_run.experiment = mock_experiment  # type: ignore
-    mock_experiment.name = EXPERIMENT_NAME  # type: ignore
-    return mock_run
+def oh_no() -> None:
+    """
+    Raise a simple exception. To be used as a side_effect for mocks.
+    """
+    raise ValueError("Throwing an exception")
 
 
-def test_create_run_recovery_id(mocked_run: Run) -> None:
+@patch("health.azure.azure_util.Experiment")
+@patch("health.azure.azure_util.Run")
+def test_create_run_recovery_id(mock_run: MagicMock, mock_experiment: MagicMock) -> None:
     """
     The recovery id created for a run
     """
-    recovery_id = util.create_run_recovery_id(mocked_run)
+    mock_run.id = RUN_ID
+    mock_run.experiment = mock_experiment
+    mock_experiment.name = EXPERIMENT_NAME
+    recovery_id = util.create_run_recovery_id(mock_run)
     assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
 
 
-def test_fetch_run_for_experiment(mocked_run: Run) -> None:
-    """
-    Tests fetch_run, and thus test_fetch_run_for_experiment and split_recovery_id
-    """
-    assert True
+@pytest.mark.parametrize("on_azure", [True, False])
+def test_is_running_on_azure_agent(on_azure: bool) -> None:
+    with mock.patch.dict(os.environ, {"AGENT_OS": "LINUX" if on_azure else None}):
+        assert on_azure == util.is_running_on_azure_agent()
 
 
-def test_is_running_on_azure_agent() -> None:
-    """
-    """
-    assert True
+@patch("health.azure.azure_util.Workspace")
+@patch("health.azure.azure_util.Experiment")
+@patch("health.azure.azure_util.Run")
+def test_fetch_run(mock_run: MagicMock, mock_experiment: MagicMock, mock_workspace: MagicMock) -> None:
+    mock_run.id = RUN_ID
+    mock_run.experiment = mock_experiment
+    mock_experiment.name = EXPERIMENT_NAME
+    recovery_id = EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
+    mock_run.number = RUN_NUMBER
+    with mock.patch("health.azure.azure_util.get_run", return_value=mock_run):
+        run_to_recover = util.fetch_run(mock_workspace, recovery_id)
+        # TODO: should we assert that the correct string is logged?
+        assert run_to_recover.number == RUN_NUMBER
+    mock_experiment.side_effect = oh_no
+    with pytest.raises(Exception) as e:
+        util.fetch_run(mock_workspace, recovery_id)
+    assert str(e.value).startswith(f"Unable to retrieve run {RUN_ID}")
+
+
+@patch("health.azure.azure_util.Run")
+@patch("health.azure.azure_util.Experiment")
+@patch("health.azure.azure_util.get_run")
+def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock, mock_run: MagicMock) -> None:
+    get_run.side_effect = oh_no
+    mock_run.id = RUN_ID
+    mock_experiment.get_runs = lambda: [mock_run, mock_run, mock_run]
+    mock_experiment.name = EXPERIMENT_NAME
+    with pytest.raises(Exception) as e:
+        util.fetch_run_for_experiment(mock_experiment, RUN_ID)
+    exp = f"Run {RUN_ID} not found for experiment: {EXPERIMENT_NAME}. Available runs are: {RUN_ID}, {RUN_ID}, {RUN_ID}"
+    assert str(e.value) == exp
+
+
+@patch("health.azure.azure_util.InteractiveLoginAuthentication")
+def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
+    util.get_authentication()
+    assert mock_interactive_authentication.called
+    service_principal_id = "1"
+    tenant_id = "2"
+    service_principal_password = "3"
+    with mock.patch.dict(
+            os.environ,
+            {
+                util.SERVICE_PRINCIPAL_ID: service_principal_id,
+                util.TENANT_ID: tenant_id,
+                util.SERVICE_PRINCIPAL_PASSWORD: service_principal_password
+            }):
+        spa = util.get_authentication()
+        assert spa._service_principal_id == service_principal_id
+        assert spa._tenant_id == tenant_id
+        assert spa._service_principal_password == service_principal_password
+
+
+def test_get_secret_from_environment() -> None:
+    env_variable_name = uuid4().hex.upper()
+    env_variable_value = "42"
+    with pytest.raises(ValueError) as e:
+        util.get_secret_from_environment(env_variable_name)
+    assert str(e.value) == f"There is no value stored for the secret named '{env_variable_name}'"
+    assert util.get_secret_from_environment(env_variable_name, allow_missing=True) is None
+    with mock.patch.dict(os.environ, {env_variable_name: env_variable_value}):
+        assert util.get_secret_from_environment(env_variable_name) == env_variable_value
 
 
 def test_to_azure_friendly_string() -> None:
