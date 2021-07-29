@@ -160,7 +160,13 @@ def render_test_scripts(path: Path, local: bool,
     snapshot_root.mkdir(parents=True, exist_ok=False)
 
     environment_yaml_path = snapshot_root / "environment.yml"
-    render_environment_yaml(environment_yaml_path, "")
+    repo_root = repository_root()
+    latest_version_path = repo_root / "latest_version.txt"
+    if latest_version_path.exists():
+        latest_version = f"=={latest_version_path.read_text()}"
+    else:
+        latest_version = ""
+    render_environment_yaml(environment_yaml_path, latest_version)
 
     entry_script_path = snapshot_root / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
