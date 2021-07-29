@@ -14,6 +14,8 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
+from health.azure.himl import submit_to_azure_if_needed
+
 logger = logging.getLogger('test.health.azure.test_data')
 logger.setLevel(logging.DEBUG)
 
@@ -24,24 +26,20 @@ def main() -> None:
     """
     Write out the given message, in an AzureML 'experiment' if required.
     """
-    try:
-        from health.azure.himl import submit_to_azure_if_needed
-        _ = submit_to_azure_if_needed(
-            entry_script=Path(sys.argv[0]),
-            compute_cluster_name=os.getenv("COMPUTE_CLUSTER_NAME", ""),
-            conda_environment_file=here / "environment.yml",
-            aml_workspace=None,
-            workspace_config_path=None,
-            snapshot_root_directory=here,
-            environment_variables=None,
-            wait_for_completion=True,
-            wait_for_completion_show_output=True)
-    except ImportError:
-        logging.info("Cannot find 'health.azure.himl', are we running in AzureML?")
+    _ = submit_to_azure_if_needed(
+        entry_script=Path(sys.argv[0]),
+        compute_cluster_name=os.getenv("COMPUTE_CLUSTER_NAME", ""),
+        conda_environment_file=here / "environment.yml",
+        aml_workspace=None,
+        workspace_config_path=None,
+        snapshot_root_directory=here,
+        environment_variables=None,
+        wait_for_completion=True,
+        wait_for_completion_show_output=True)
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
-    args, _ = parser.parse_known_args()
+    args = parser.parse_args()
 
     print(args.message)
 
