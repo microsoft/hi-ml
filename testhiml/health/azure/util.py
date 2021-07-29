@@ -8,12 +8,15 @@ Test utility functions for tests in the package.
 from pathlib import Path
 
 from azureml.core import Run, Workspace
+
 from health.azure.azure_util import SUBSCRIPTION_ID, fetch_run, get_authentication, get_secret_from_environment
 from health.azure.himl import RUN_RECOVERY_FILE
 
 DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
 DEFAULT_DATASTORE = "innereyedatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
+
+TEST_OUTPUTS_PATH = "outputs"
 
 
 def repository_root() -> Path:
