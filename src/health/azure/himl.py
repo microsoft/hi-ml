@@ -15,10 +15,11 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, List, Optional
+from typing import Dict, Generator, List, Optional, Union
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import MpiConfiguration
+
 from health.azure.azure_util import (create_run_recovery_id, get_authentication, get_or_create_python_environment,
                                      get_or_register_environment, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
@@ -35,12 +36,15 @@ OUTPUT_FOLDER = "outputs"
 LOG_FOLDER = "logs"
 AML_IGNORE_FILE = ".amlignore"
 
+PathOrString = Union[Path, str]
+
 
 @dataclass
 class AzureRunInformation:
     input_datasets: List[Optional[Path]]
     output_datasets: List[Optional[Path]]
     run: Run
+    # If True, the present code is running inside of AzureML.
     is_running_in_azure: bool
     # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
     # The folder that we create here must be added to .amlignore
@@ -57,12 +61,18 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     return hasattr(aml_run, 'experiment')
 
 
+def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
+    if isinstance(s, str):
+        return Path(s)
+    return s
+
+
 def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
-        entry_script: Path,
+        entry_script: PathOrString,
         compute_cluster_name: str,
         aml_workspace: Optional[Workspace] = None,
-        workspace_config_path: Optional[Path] = None,
-        snapshot_root_directory: Optional[Path] = None,
+        workspace_config_path: Optional[PathOrString] = None,
+        snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
         conda_environment_file: Optional[Path] = None,
         aml_environment: str = "",
@@ -71,19 +81,22 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         pip_extra_index_url: str = "",
         docker_base_image: str = "",
         docker_shm_size: str = "",
-        ignored_folders: Optional[List[Path]] = None,
+        ignored_folders: Optional[List[PathOrString]] = None,
         default_datastore: str = "",
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
+        exit_after_submission: bool = True,
         max_run_duration: str = "") -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
     Use the flag --azureml to submit to AzureML, and leave it out to run locally.
 
+    :param exit_after_submission: If True, the function calls exit(0) after a successful submission to AzureML.
+    If False, it returns an AzureRunInformation object to the caller, where the submitted run can be read out.
     :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
     provided, an environment will be created from the arguments to this function.
     :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
@@ -129,21 +142,17 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
     otherwise we return a AzureRunInformation object.
     """
+    if isinstance(entry_script, str):
+        entry_script = Path(entry_script)
+    workspace_config_path = _str_to_path(workspace_config_path)
+    snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
                                                       default_datastore_name=default_datastore)
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
-
-    if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
-        return AzureRunInformation(
-            input_datasets=[d.local_folder for d in cleaned_input_datasets],
-            output_datasets=[d.local_folder for d in cleaned_output_datasets],
-            run=RUN_CONTEXT,
-            is_running_in_azure=False,
-            output_folder=Path.cwd() / OUTPUT_FOLDER,
-            log_folder=Path.cwd() / LOG_FOLDER
-        )
-
+    # The present function will most likely be called from the script once it is running in AzureML.
+    # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
+    # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure()
     if in_azure:
         returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
@@ -159,14 +168,27 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             log_folder=Path.cwd() / LOG_FOLDER
         )
 
-    if not snapshot_root_directory:
-        raise ValueError("Cannot submit to AzureML without the snapshot_root_directory")
+    # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
+    # is necessary. If not, return to the caller for local execution.
+    local_run_info = AzureRunInformation(
+        input_datasets=[d.local_folder for d in cleaned_input_datasets],
+        output_datasets=[d.local_folder for d in cleaned_output_datasets],
+        run=RUN_CONTEXT,
+        is_running_in_azure=False,
+        output_folder=Path.cwd() / OUTPUT_FOLDER,
+        log_folder=Path.cwd() / LOG_FOLDER
+    )
+    if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
+        return local_run_info
+    if snapshot_root_directory is None:
+        logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
+        snapshot_root_directory = Path.cwd()
 
     if aml_workspace:
         workspace = aml_workspace
     elif workspace_config_path and workspace_config_path.is_file():
         auth = get_authentication()
-        workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
+        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
     else:
         raise ValueError("Cannot glean workspace config from parameters. Use 'workspace_config_path' to point to a "
                          "config.json file, or 'aml_workspace' to pass a Workspace object.")
@@ -255,15 +277,25 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if recovery_file.exists():
         recovery_file.unlink()
     recovery_file.write_text(recovery_id)
-
-    exit(0)
+    if exit_after_submission:
+        exit(0)
+    else:
+        local_run_info.run = run
+        return local_run_info
 
 
 @contextmanager
-def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generator:
+def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = None) -> Generator:
     """
-    Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
+    Context manager that appends lines to the .amlignore file, and reverts to the previous contents after leaving
+    the context.
+    If the file does not exist yet, it will be created, the contents written, and deleted when leaving the context.
+    :param lines_to_append: The text lines that should be added at the end of the .amlignore file
+    :param amlignore: The path of the .amlignore file that should be modified. If not given, the function
+    looks for a file in the current working directory.
     """
+    if amlignore is None:
+        amlignore = Path.cwd() / AML_IGNORE_FILE
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
     new_contents = old_contents.splitlines() + lines_to_append

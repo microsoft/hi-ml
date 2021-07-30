@@ -5,6 +5,7 @@
 """
 Tests for the functions in health.azure.azure_util
 """
+import os
 import time
 from pathlib import Path
 from typing import Optional
@@ -13,6 +14,7 @@ import pytest
 
 from health.azure.azure_util import (merge_conda_dependencies, merge_conda_files, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
+from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testhiml.health.azure.util import repository_root
 
 
@@ -111,3 +113,21 @@ def test_run_duration_fails() -> None:
 def test_repository_root() -> None:
     root = repository_root()
     assert (root / "SECURITY.md").is_file()
+
+
+def test_nonexisting_amlignore(random_folder: Path) -> None:
+    """
+    Test that we can create an .AMLignore file, and it gets deleted after use.
+    """
+    folder1 = "Added1"
+    added_folders = [folder1]
+    cwd = Path.cwd()
+    amlignore = random_folder / AML_IGNORE_FILE
+    assert not amlignore.is_file()
+    os.chdir(random_folder)
+    with append_to_amlignore(added_folders):
+        new_contents = amlignore.read_text()
+        for f in added_folders:
+            assert f in new_contents
+    assert not amlignore.is_file()
+    os.chdir(cwd)
