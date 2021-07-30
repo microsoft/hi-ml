@@ -163,11 +163,11 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if not snapshot_root_directory:
         raise ValueError("Cannot submit to AzureML without the snapshot_root_directory")
 
-    if workspace_config_path and workspace_config_path.is_file():
+    if aml_workspace:
+        workspace = aml_workspace
+    elif workspace_config_path and workspace_config_path.is_file():
         auth = get_authentication()
         workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
-    elif aml_workspace:
-        workspace = aml_workspace
     else:
         raise ValueError("Cannot glean workspace config from parameters. Use 'workspace_config_path' to point to a "
                          "config.json file, or 'aml_workspace' to pass a Workspace object.")
