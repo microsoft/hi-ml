@@ -90,11 +90,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r run_requirements.txt
           pip install -r test_requirements.txt
+          pip install -e .
 
       - name: Test with pytest, fast only
         run: pytest -m fast testhiml
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
   build-python:
     runs-on: ubuntu-latest
