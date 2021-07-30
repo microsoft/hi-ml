@@ -12,12 +12,11 @@ import pytest
 import subprocess
 import shutil
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Tuple
 from unittest import mock
 from uuid import uuid4
-
-from _pytest.capture import CaptureFixture
 
 from conftest import check_config_json
 from health.azure.himl import (AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON,
@@ -35,6 +34,11 @@ logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
 
 here = pathlib.Path(__file__).parent.resolve()
+
+
+class RunTarget(Enum):
+    LOCAL = 1
+    AZUREML = 2
 
 
 def spawn_and_monitor_subprocess(process: str, args: List[str],
@@ -99,14 +103,11 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
-# @pytest.mark.parametrize("local", [True, False])
-# def test_submit_to_azure_if_needed_runs_hello_world(
-#         local: bool,
-#         tmp_path: Path) -> None:
-def saved_for_later(
-        local: bool,
-        tmp_path: Path,
-        capsys: CaptureFixture) -> None:
+@pytest.mark.skip()
+@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_submit_to_azure_if_needed_runs_hello_world(
+        runTarget: RunTarget,
+        tmp_path: Path) -> None:
     """
     Test we can run a simple script, which prints out a given guid. We use one of the examples to do this so this unit
     test is also a test of that example.
@@ -121,7 +122,7 @@ def saved_for_later(
     cmd = f"export PYTHONPATH={snapshot_root} "
     cmd = cmd + f"&& python {EXAMPLE_SCRIPT} "
     cmd = cmd + f"--message={message_guid} "
-    if not local:
+    if runTarget == RunTarget.AZUREML:
         cmd = cmd + "--azureml "
 
     result = subprocess.run(
@@ -131,7 +132,7 @@ def saved_for_later(
         cwd=example_root)
     captured = result.stdout.decode('utf-8')
 
-    if local:
+    if runTarget == RunTarget.LOCAL:
         assert "Successfully queued new run" not in captured
         assert f"The message was: {message_guid}" in captured
         return
@@ -147,13 +148,13 @@ def saved_for_later(
     assert f"The message was: {message_guid}" in log_text
 
 
-def render_test_scripts(path: Path, local: bool,
+def render_test_scripts(path: Path, runTarget: RunTarget,
                         extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[int, List[str]]:
     """
     Prepare test scripts, submit them, and return response.
 
     :param path: Where to build the test scripts.
-    :param local: Local execution if True, else in AzureML.
+    :param runTarget: Where to run the script.
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
     :return: snapshot_root and response from spawn_and_monitor_subprocess.
@@ -174,7 +175,7 @@ def render_test_scripts(path: Path, local: bool,
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
 
     score_args = [str(entry_script_path)]
-    if not local:
+    if runTarget == RunTarget.AZUREML:
         score_args.append("--azureml")
     score_args.extend(extra_args)
 
@@ -188,49 +189,57 @@ def render_test_scripts(path: Path, local: bool,
             env=env)
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
+@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_no_config(runTarget: RunTarget, tmp_path: Path) -> None:
     """
     Test invoking hello_world.py.and
     If running in AzureML - does not elevate itself to AzureML without any config.
     Else runs locally.
-    :param local: Local execution if True, else in AzureML.
+    :param runTarget: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
+    message_guid = uuid4().hex
     extra_options = {
         'workspace_config_path': 'None',
-        'environment_variables': 'None'
+        'environment_variables': 'None',
+        'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
+        'body': 'print(f"The message was: {args.message}")'
     }
-    extra_args = ["--message=hello_world"]
-    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    extra_args = [f"--message={message_guid}"]
+    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
     captured = "\n".join(stdout)
-    if local:
+    if runTarget == RunTarget.LOCAL:
         assert code == 0
+        expected_output = f"The message was: {message_guid}"
         assert "Successfully queued new run" not in captured
-        assert 'The message was: hello_world' in captured
+        assert expected_output in captured
     else:
         assert code == 1
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in captured
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
+@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
-    :param local: Local execution if True, else in AzureML.
+    :param runTarget: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
+    message_guid = uuid4().hex
     extra_options = {
         'workspace_config_path': 'here / "config.json"',
-        'environment_variables': 'None'
+        'environment_variables': 'None',
+        'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
+        'body': 'print(f"The message was: {args.message}")'
     }
-    extra_args = ["--message=hello_world"]
-    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    extra_args = [f"--message={message_guid}"]
+    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
     captured = "\n".join(stdout)
     assert code == 0
-    if local:
+    expected_output = f"The message was: {message_guid}"
+    if runTarget == RunTarget.LOCAL:
         assert "Successfully queued new run" not in captured
-        assert 'The message was: hello_world' in captured
+        assert expected_output in captured
     else:
         assert "Successfully queued new run test_script_" in captured
 
@@ -241,4 +250,40 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         run.get_all_logs(destination=log_root)
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
         log_text = driver_log.read_text()
-        assert "The message was: hello_world" in log_text
+        assert expected_output in log_text
+
+
+@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> None:
+    """
+    Test that invoking hello_world.py elevates itself to AzureML with config.json,
+    and that environment variables are passed through.
+    :param runTarget: Where to run the script.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    message_guid = uuid4().hex
+    extra_options = {
+        'workspace_config_path': 'here / "config.json"',
+        'environment_variables': {'message_guid': message_guid},
+        'args': '',
+        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
+    }
+    extra_args = []
+    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
+    captured = "\n".join(stdout)
+    assert code == 0
+    expected_output = f"The message_guid env var was: {message_guid}"
+    if runTarget == RunTarget.LOCAL:
+        assert "Successfully queued new run" not in captured
+        assert expected_output in captured
+    else:
+        assert "Successfully queued new run test_script_" in captured
+
+        run = get_most_recent_run(run_recovery_file=tmp_path / RUN_RECOVERY_FILE)
+        assert run.status in ["Finalizing", "Completed"]
+        log_root = tmp_path / "logs"
+        log_root.mkdir(exist_ok=False)
+        run.get_all_logs(destination=log_root)
+        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+        log_text = driver_log.read_text()
+        assert expected_output in log_text
