@@ -48,14 +48,20 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
 
     t = Template(hello_world_template)
 
-    default_options = {}
-    default_options['entry_script'] = "Path(sys.argv[0])"
-    default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
-    default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
-    default_options['wait_for_completion'] = 'True'
-    default_options['wait_for_completion_show_output'] = 'True'
+    options = {}
 
-    all_options = dict(default_options, **extra_options)
+    options['entry_script'] = extra_options.get('entry_script', "Path(sys.argv[0])")
+    options['compute_cluster_name'] = extra_options.get('compute_cluster_name', f'"{compute_cluster_name}"')
+    options['conda_environment_file'] = extra_options.get('conda_environment_file',
+                                                          f'Path("{str(environment_yaml_path)}")')
+    options['workspace_config_path'] = extra_options.get('workspace_config_path', 'None')
+    options['environment_variables'] = extra_options.get('environment_variables', 'None')
+    options['input_datasets'] = extra_options.get('input_datasets', 'None')
+    options['output_datasets'] = extra_options.get('output_datasets', 'None')
+    options['wait_for_completion'] = extra_options.get('wait_for_completion', 'True')
+    options['wait_for_completion_show_output'] = extra_options.get('wait_for_completion_show_output', 'True')
+    options['args'] = extra_options.get('args', '')
+    options['body'] = extra_options.get('body', '')
 
-    r = t.render(all_options)
+    r = t.render(options)
     entry_script_path.write_text(r)

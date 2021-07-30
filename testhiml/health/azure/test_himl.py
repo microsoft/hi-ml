@@ -201,7 +201,6 @@ def test_invoking_hello_world_no_config(runTarget: RunTarget, tmp_path: Path) ->
     message_guid = uuid4().hex
     extra_options = {
         'workspace_config_path': 'None',
-        'environment_variables': 'None',
         'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
         'body': 'print(f"The message was: {args.message}")'
     }
@@ -228,7 +227,6 @@ def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> No
     message_guid = uuid4().hex
     extra_options = {
         'workspace_config_path': 'here / "config.json"',
-        'environment_variables': 'None',
         'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
         'body': 'print(f"The message was: {args.message}")'
     }
@@ -265,7 +263,6 @@ def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> N
     extra_options: Dict[str, str] = {
         'workspace_config_path': 'here / "config.json"',
         'environment_variables': f"{{'message_guid': '{message_guid}'}}",
-        'args': '',
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
     extra_args: List[str] = []
@@ -287,3 +284,42 @@ def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> N
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
         log_text = driver_log.read_text()
         assert expected_output in log_text
+
+
+@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_datasets(runTarget: RunTarget, tmp_path: Path) -> None:
+    """
+    Test that invoking hello_world.py elevates itself to AzureML with config.json,
+    and that environment variables are passed through.
+    :param runTarget: Where to run the script.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    extra_options: Dict[str, str] = {
+        'workspace_config_path': 'here / "config.json"',
+        'input_datasets': '["images123"]',
+        'output_datasets': '["images123_resized"]',
+        'body': """
+    input_folder = run_info.input_datasets[0] or Path("/tmp/my_dataset")
+    output_folder = run_info.output_datasets[0] or Path("/tmp/my_output")
+    for file in input_folder.glob("*.jpg"):
+        contents = read_image(file)
+        resized = contents.resize(0.5)
+        write_image(output_folder / file.name)
+        """
+    }
+    extra_args: List[str] = []
+    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
+    captured = "\n".join(stdout)
+    assert code == 0
+    if runTarget == RunTarget.LOCAL:
+        assert "Successfully queued new run" not in captured
+    else:
+        assert "Successfully queued new run test_script_" in captured
+
+        run = get_most_recent_run(run_recovery_file=tmp_path / RUN_RECOVERY_FILE)
+        assert run.status in ["Finalizing", "Completed"]
+        log_root = tmp_path / "logs"
+        log_root.mkdir(exist_ok=False)
+        run.get_all_logs(destination=log_root)
+        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+        log_text = driver_log.read_text()
