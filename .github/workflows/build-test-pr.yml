@@ -39,7 +39,7 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: flake8
-        run: flake8 . --count --exit-zero --statistics
+        run: flake8 --count --statistics --config=.flake8 .
 
   mypy:
     runs-on: ubuntu-latest

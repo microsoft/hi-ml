@@ -232,6 +232,7 @@ def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generato
     Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
     """
     deliberate_mistake: str = 1
+    deliberate_mistake_deliberate_mistake_deliberate_mistake_deliberate_mistake_deliberate_mistake_deliberate_mistake_deliberate_mistake = "long_line"
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
     new_contents = old_contents.splitlines() + lines_to_append
