@@ -18,9 +18,10 @@ from pathlib import Path
 from typing import Dict, Generator, List, Optional, Union
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
-from azureml.core.runconfig import MpiConfiguration
+from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 
-from health.azure.azure_util import (create_run_recovery_id, get_authentication, get_or_create_python_environment,
+from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_run_recovery_id, get_authentication,
+                                     get_or_create_python_environment,
                                      get_or_register_environment, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
 from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
@@ -239,10 +240,13 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         outputs[out.name] = out
     run_config.data = inputs
     run_config.output_data = outputs
-
+    run_config.docker = DockerConfiguration(use_docker=True,
+                                            shm_size=(docker_shm_size or DEFAULT_DOCKER_SHM_SIZE))
     script_run_config = ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
         run_config=run_config)
+    # 2021-07-30T17:04:44Z WARNING  If 'run_config' is specified, the following parameters will be ignored:
+    # 'compute_target', 'environment', 'distributed_job_config', 'max_run_duration_seconds', and 'docker_runtime_config'.
 
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     if not cleaned_experiment_name:
