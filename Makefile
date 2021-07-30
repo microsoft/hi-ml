@@ -3,6 +3,7 @@ pip:
 	pip install -r build_requirements.txt
 	pip install -r run_requirements.txt
 	pip install -r test_requirements.txt
+	pip install -e .
 
 conda:
 	conda env update --file environment.yml
