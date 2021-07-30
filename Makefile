@@ -23,6 +23,10 @@ pytest:
 	pip install -e .
 	pytest testhiml
 
+testfast:
+	pip install -e .
+	pytest -m fast testhiml
+
 test: flake8 mypy pytest
 
 build:

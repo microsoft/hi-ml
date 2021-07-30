@@ -77,15 +77,6 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
-                conda_environment_file=Path("env.yaml"))
-        assert "Cannot submit to AzureML without the snapshot_root_directory" in str(ex)
-    with mock.patch("sys.argv", ["", "--azureml"]):
-        with pytest.raises(Exception) as ex:
-            submit_to_azure_if_needed(
-                aml_workspace=None,
-                workspace_config_path=None,
-                entry_script=Path(__file__),
-                compute_cluster_name="foo",
                 conda_environment_file=Path("env.yaml"),
                 snapshot_root_directory=Path(__file__).parent)
         assert "Cannot glean workspace config from parameters" in str(ex)
@@ -97,6 +88,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
             )
         assert isinstance(result, AzureRunInformation)
         assert not result.is_running_in_azure
+        assert result.run is not None
 
 
 # @pytest.mark.parametrize("local", [True, False])
