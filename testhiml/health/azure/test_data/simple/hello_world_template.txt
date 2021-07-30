@@ -10,22 +10,15 @@ Simple 'hello world' script to elevate to AML using our `submit_to_azure_if_need
 """
 import logging
 import os
+import pkg_resources
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
 from health.azure.himl import submit_to_azure_if_needed
 
-try:
-    print(f"path: {sys.path}")
-
-    import health.azure.himl
-    print(f"hi-ml location: {health.azure.himl.__file__}")
-except ImportError as e:
-    print(f"Import error: {e}")
-
-logger = logging.getLogger('test.health.azure.test_data')
-logger.setLevel(logging.DEBUG)
+hi_ml_dist = pkg_resources.get_distribution("hi-ml")
+print(f"hi_ml_dist, location: {hi_ml_dist.location}, version: {hi_ml_dist.version}")
 
 here = Path(__file__).parent.resolve()
 

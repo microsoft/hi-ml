@@ -3,6 +3,7 @@ init:
 	pip install -r build_requirements.txt
 	pip install -r run_requirements.txt
 	pip install -r test_requirements.txt
+	pip install -e .
 
 test_flake8:
 	flake8 . --statistics
