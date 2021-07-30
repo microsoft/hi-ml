@@ -10,7 +10,9 @@ on:
 env:
   pythonVersion: 3.7
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
 
@@ -223,7 +225,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
 
-          while ! pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -232,6 +234,11 @@ jobs:
       - name: Install test dependencies
         run: |
           pip install -r test_requirements.txt
+
+      - name: Download PyPI version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: latest_version
 
       - name: Test with pytest
         run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml

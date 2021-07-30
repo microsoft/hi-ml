@@ -19,7 +19,6 @@ from typing import Dict, Generator, List, Optional
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import MpiConfiguration
-
 from health.azure.azure_util import (create_run_recovery_id, get_authentication, get_or_create_python_environment,
                                      get_or_register_environment, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
