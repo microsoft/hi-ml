@@ -183,13 +183,15 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if aml_environment:
         # TODO: Split off version
         environment = Environment.get(workspace, aml_environment)
-    else:
+    elif conda_environment_file:
         environment = get_or_create_python_environment(conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
                                                        docker_shm_size=docker_shm_size,
                                                        docker_base_image=docker_base_image,
                                                        environment_variables=environment_variables)
         environment = get_or_register_environment(workspace, environment)
+    else:
+        raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
 
     run_config = RunConfiguration(
         script=entry_script_relative,

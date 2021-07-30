@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
 import ruamel.yaml
-from azureml.core import Environment, Experiment, Run, RunConfiguration, Workspace, get_run
+from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 
@@ -281,6 +281,7 @@ def get_or_create_python_environment(conda_environment_file: Path,
     overall_hash = sha1.hexdigest()[:32]
     unique_env_name = f"HealthML-{overall_hash}"
     env = Environment(name=unique_env_name)
+    env.docker
     env.docker.enabled = True
     env.docker.shm_size = docker_shm_size or DEFAULT_DOCKER_SHM_SIZE
     env.python.conda_dependencies = conda_dependencies

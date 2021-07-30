@@ -1,21 +1,28 @@
-init:
+pip:
 	python -m pip install --upgrade pip
 	pip install -r build_requirements.txt
 	pip install -r run_requirements.txt
 	pip install -r test_requirements.txt
 
-test_flake8:
+conda:
+	conda env update --file environment.yml
+	conda activate himl
+
+flake8:
 	flake8 . --statistics
 
-test_mypy:
+mypy:
 	mypy setup.py
 	mypy -p src
 	mypy -p testhiml
 
-test_pytest:
+check: flake8 mypy
+
+pytest:
+	pip install -e .
 	pytest testhiml
 
-test: test_flake8 test_mypy test_pytest
+test: flake8 mypy pytest
 
 build:
 	python setup.py sdist bdist_wheel

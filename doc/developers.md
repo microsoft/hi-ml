@@ -32,3 +32,11 @@ dependencies:
       - --extra-index-url https://test.pypi.org/simple/
       - hi-ml==0.1.0.post165
 ```
+
+## Common things to do
+
+The repository contains a makefile with definitions for common operations. 
+* `make check`: Run `flake8` and `mypy` on the repository.
+* `make test`: Run `flake8` and `mypy` on the repository, then all tests via `pytest`
+* `make pip`: Install all packages for running and testing in the current interpreter.
+* `make conda`: Update the hi-ml Conda environment and activate it

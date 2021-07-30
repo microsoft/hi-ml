@@ -5,17 +5,23 @@
 import json
 import logging
 import os
+import pytest
 import shutil
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-import pytest
 from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
 from health.azure.himl import package_setup_and_hacks
+from testhiml.health.azure.util import DEFAULT_WORKSPACE_CONFIG_JSON, repository_root
 
-from testhiml.health.azure.util import DEFAULT_WORKSPACE_CONFIG_JSON, TEST_OUTPUTS_PATH, repository_root
+
+def outputs_for_tests() -> Path:
+    """
+    Gets the folder that will hold all temporary results for tests.
+    """
+    return repository_root() / "outputs"
 
 
 def remove_and_create_folder(folder: Path) -> None:
@@ -33,7 +39,7 @@ def remove_and_create_folder(folder: Path) -> None:
 def test_suite_setup() -> Generator:
     package_setup_and_hacks()
     # create a default outputs root for all tests
-    remove_and_create_folder(TEST_OUTPUTS_PATH)
+    remove_and_create_folder(outputs_for_tests())
     # run the entire test suite
     yield
 
@@ -73,7 +79,7 @@ def random_folder() -> Generator:
     removing this directory after the test has been executed.
     """
     # create dirs before executing the test
-    folder = repository_root() / TEST_OUTPUTS_PATH / str(uuid.uuid4().hex)
+    folder = outputs_for_tests() / str(uuid.uuid4().hex)
     remove_and_create_folder(folder)
     print(f"Created temporary folder for test: {folder}")
     yield folder
