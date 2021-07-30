@@ -227,7 +227,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
 
 @contextmanager
-def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generator:
+def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> GeneratorMistake:
     """
     Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
     """

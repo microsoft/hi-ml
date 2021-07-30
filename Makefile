@@ -8,9 +8,7 @@ test_flake8:
 	flake8 . --statistics
 
 test_mypy:
-	mypy setup.py
-	mypy -p src
-	mypy -p testhiml
+	python mypy_runner.py
 
 test_pytest:
 	pytest testhiml
