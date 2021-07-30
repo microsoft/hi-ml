@@ -13,9 +13,9 @@ flake8:
 	flake8 . --statistics
 
 mypy:
-	mypy setup.py
 	mypy -p src
 	mypy -p testhiml
+	mypy setup.py
 
 check: flake8 mypy
 
