@@ -92,7 +92,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
     default) these will be copied over from sys.argv.
-    :param environment_variables: An optional dictionary of environment varaible that the script relies on.
+    :param environment_variables: An optional dictionary of environment variables that the script relies on.
 
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
     storage. This is described in more detail in the README.
@@ -154,6 +154,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     logging.info(f"Loaded: {workspace.name}")
     environment = Environment.from_conda_specification("simple-env", conda_environment_file)
+    environment.environment_variables = environment_variables
 
     # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
     # We'll do that later if still required.
