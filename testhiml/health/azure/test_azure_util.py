@@ -40,7 +40,7 @@ def test_create_run_recovery_id(mock_run: MagicMock, mock_experiment: MagicMock)
 
 @pytest.mark.parametrize("on_azure", [True, False])
 def test_is_running_on_azure_agent(on_azure: bool) -> None:
-    with mock.patch.dict(os.environ, {"AGENT_OS": "LINUX" if on_azure else None}):
+    with mock.patch.dict(os.environ, {"AGENT_OS": "LINUX" if on_azure else ""}):
         assert on_azure == util.is_running_on_azure_agent()
 
 
