@@ -255,28 +255,26 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
         run: Run = experiment.submit(script_run_config)
+    run.set_tags({"commandline_args": " ".join(script_params)})
 
-    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
-    wait_msg = "Waiting for completion of AzureML run" if wait_for_completion else \
-        "Not waiting for completion of AzureML run"
-    print("\n==============================================================================")
-    print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
-    print("Experiment URL: {}".format(experiment.get_portal_url()))
-    print("Run URL: {}".format(run.get_portal_url()))
-    print(wait_msg)
-    print("==============================================================================\n")
-
-    if wait_for_completion:
-        run.wait_for_completion(show_output=wait_for_completion_show_output)
-
-    if script_params:
-        run.set_tags({"commandline_args": " ".join(script_params)})
-
+    print(f"Writing the run recovery ID has been written to this file: {RUN_RECOVERY_FILE}")
     recovery_id = create_run_recovery_id(run)
     recovery_file = Path(RUN_RECOVERY_FILE)
     if recovery_file.exists():
         recovery_file.unlink()
     recovery_file.write_text(recovery_id)
+
+    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    print("\n==============================================================================")
+    print(f"Successfully queued run {run.id} in experiment {experiment.name}")
+    print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
+    print(f"Experiment URL: {experiment.get_portal_url()}")
+    print(f"Run URL: {run.get_portal_url()}")
+    print("==============================================================================\n")
+    if wait_for_completion:
+        print("Waiting for the completion of the AzureML run.")
+        run.wait_for_completion(show_output=wait_for_completion_show_output)
+
     if exit_after_submission:
         exit(0)
     else:
