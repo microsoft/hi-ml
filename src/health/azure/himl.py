@@ -227,10 +227,11 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
 
 @contextmanager
-def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> GeneratorMistake:
+def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generator:
     """
     Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
     """
+    deliberate_mistake: str = 1
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
     new_contents = old_contents.splitlines() + lines_to_append
