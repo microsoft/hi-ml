@@ -119,3 +119,14 @@ def test_to_azure_friendly_string() -> None:
     good_string = "Not_Full_0f_Rubbish"
     good_version = util.to_azure_friendly_string(good_string)
     assert good_version == good_string
+
+
+def test_split_recovery_id() -> None:
+    """
+    Other tests test most of the functionality provided by split_recovery_id, but they do not test the exception when
+    there are too many splits
+    """
+    with pytest.raises(ValueError) as e:
+        id = util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
+        util.split_recovery_id(id)
+    assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
