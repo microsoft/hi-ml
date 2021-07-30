@@ -262,13 +262,13 @@ def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> N
     :param tmp_path: PyTest test fixture for temporary path.
     """
     message_guid = uuid4().hex
-    extra_options = {
+    extra_options: Dict[str, str] = {
         'workspace_config_path': 'here / "config.json"',
-        'environment_variables': {'message_guid': message_guid},
+        'environment_variables': f"{{'message_guid': '{message_guid}'}}",
         'args': '',
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
-    extra_args = []
+    extra_args: List[str] = []
     code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
     captured = "\n".join(stdout)
     assert code == 0
