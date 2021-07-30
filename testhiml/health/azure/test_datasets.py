@@ -14,7 +14,7 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
-from testhiml.health.azure.util import DEFAULT_DATASTORE, default_aml_workspace
+from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
 
 
 def test_datasetconfig_init() -> None:
@@ -29,7 +29,7 @@ def test_get_datastore() -> None:
     """
     # Retrieving a datastore that does not exist should fail
     does_not_exist = "does_not_exist"
-    workspace = default_aml_workspace()
+    workspace = DEFAULT_WORKSPACE.workspace
     with pytest.raises(ValueError) as ex:
         get_datastore(workspace=workspace, datastore_name=does_not_exist)
     assert f"Datastore {does_not_exist} was not found" in str(ex)
@@ -59,7 +59,7 @@ def test_dataset_input() -> None:
     """
     Test turning a dataset setup object to an actual AML input dataset.
     """
-    workspace = default_aml_workspace()
+    workspace = DEFAULT_WORKSPACE.workspace
     # This dataset must exist in the workspace already, or at least in blob storage.
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE)
     aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
@@ -84,7 +84,7 @@ def test_dataset_output() -> None:
     Test turning a dataset setup object to an actual AML output dataset.
     """
     name = "new_dataset"
-    workspace = default_aml_workspace()
+    workspace = DEFAULT_WORKSPACE.workspace
     dataset_config = DatasetConfig(name=name, datastore=DEFAULT_DATASTORE)
     aml_dataset = dataset_config.to_output_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, OutputFileDatasetConfig)
@@ -128,7 +128,7 @@ def test_get_dataset() -> None:
     """
     # A folder with a single tiny file
     tiny_dataset = "himl-tiny_dataset"
-    workspace = default_aml_workspace()
+    workspace = DEFAULT_WORKSPACE.workspace
     # When creating a dataset, we need a non-empty name
     with pytest.raises(ValueError) as ex:
         get_or_create_dataset(workspace=workspace,

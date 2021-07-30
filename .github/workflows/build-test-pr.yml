@@ -10,12 +10,14 @@ on:
 env:
   pythonVersion: 3.7
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
 
 jobs:
-  test-python:
+  flake8:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -39,6 +41,27 @@ jobs:
       - name: flake8
         run: flake8 . --count --exit-zero --statistics
 
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r run_requirements.txt
+          pip install -r test_requirements.txt
+
       - name: mypy
         run: |
           mypy setup.py
@@ -47,35 +70,35 @@ jobs:
           cd ..
           mypy --install-types --non-interactive -p testhiml
 
-      - name: Test with pytest
-        run: pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml testhiml
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r run_requirements.txt
+          pip install -r test_requirements.txt
+
+      - name: Test with pytest, fast only
+        run: pytest -m fast testhiml
         env:
           PYTHONPATH: ${{ github.workspace }}/src
 
-      - name: Format coverage summary
-        id: get-comment-body
-        run: |
-          pycobertura show coverage.xml > coverage.txt
-          body=$(cat coverage.txt)
-          body="${body//'%'/'%25'}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
-          echo ::set-output name=body::$body
-
-      - name: Add coverage as a comment
-        uses: peter-evans/commit-comment@v1
-        with:
-          body: ${{ steps.get-comment-body.outputs.body }}
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v2
-        with:
-          name: code-coverage-report
-          path: htmlcov/*
-
   build-python:
     runs-on: ubuntu-latest
-    needs: [test-python]
+    needs: [flake8, mypy, pytest]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -152,8 +175,8 @@ jobs:
         run:
           pip install $wheel_filename
 
-      - name: Test with pytest
-        run: pytest testhiml
+      - name: Test with pytest, fast only
+        run: pytest -m fast testhiml
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
@@ -202,7 +225,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
 
-          while ! pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -212,8 +235,62 @@ jobs:
         run: |
           pip install -r test_requirements.txt
 
+      - name: Download PyPI version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: latest_version
+
       - name: Test with pytest
-        run: pytest testhiml
+        run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
+
+      - name: Format coverage summary
+        run: pycobertura show --format text --output coverage.txt coverage.xml
+
+      - name: Add coverage as a commit comment
+        uses: actions/github-script@v4
+        with:
+          script: |
+            const { promises: fs } = require('fs')
+
+            const sha = context.eventName == 'pull_request' ? context.payload.pull_request.head.sha : context.sha
+
+            const coverage = await fs.readFile('./coverage.txt', 'utf8')
+
+            var table = ""
+            const coverage_lines = coverage.split("\n")
+            for (var i = 0; i < coverage_lines.length; i++)
+            {
+              const cells = coverage_lines[i].split(" ")
+              var row = ""
+              for (var j = 0; j < cells.length; j++)
+              {
+                if (cells[j] != "")
+                {
+                  if (row.length != "")
+                  {
+                    row += "|"
+                  }
+                  row += cells[j]
+                }
+              }
+              if (row != "")
+              {
+                table += row + "\n"
+              }
+            }
+
+            await github.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha,
+              body: table
+            })
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v2
+        with:
+          name: code-coverage-report
+          path: htmlcov/*
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest
@@ -270,5 +347,5 @@ jobs:
         run: |
           pip install -r test_requirements.txt
 
-      - name: Test with pytest
-        run: pytest testhiml
+      - name: Test with pytest, fast only
+        run: pytest -m fast testhiml
