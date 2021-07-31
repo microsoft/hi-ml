@@ -19,7 +19,7 @@ from typing import Dict, Generator, List, Optional
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from health.azure.azure_util import create_run_recovery_id, get_authentication, to_azure_friendly_string
-from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
+from health.azure.datasets import DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -128,18 +128,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     in_azure = is_running_in_azure()
     if in_azure:
-        returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
-                                   for index in range(len(cleaned_input_datasets))]
-        returned_output_datasets = [RUN_CONTEXT.output_datasets[_output_dataset_key(index)]
-                                    for index in range(len(cleaned_output_datasets))]
-        return AzureRunInformation(
-            input_datasets=returned_input_datasets,
-            output_datasets=returned_output_datasets,
-            run=RUN_CONTEXT,
-            is_running_in_azure=True,
-            output_folder=Path.cwd() / OUTPUT_FOLDER,
-            log_folder=Path.cwd() / LOG_FOLDER
-        )
+        return generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
 
     if not snapshot_root_directory:
         raise ValueError("Cannot submit to AzureML without the snapshot_root_directory")
@@ -224,6 +213,26 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         recovery_file.write_text(recovery_id)
 
     exit(0)
+
+
+def generate_azure_datasets(
+        cleaned_input_datasets: List[DatasetConfig],
+        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInformation:
+    """
+    Generate returned datasets when running in AzumreML
+    """
+    returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
+                               for index in range(len(cleaned_input_datasets))]
+    returned_output_datasets = [RUN_CONTEXT.output_datasets[_output_dataset_key(index)]
+                                for index in range(len(cleaned_output_datasets))]
+    return AzureRunInformation(
+            input_datasets=returned_input_datasets,
+            output_datasets=returned_output_datasets,
+            run=RUN_CONTEXT,
+            is_running_in_azure=True,
+            output_folder=Path.cwd() / OUTPUT_FOLDER,
+            log_folder=Path.cwd() / LOG_FOLDER
+        )
 
 
 @contextmanager

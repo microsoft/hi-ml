@@ -8,25 +8,23 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
-import pytest
-import subprocess
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 from unittest import mock
+from unittest.mock import patch
 from uuid import uuid4
 
+from azureml.core import run
+
+from health.azure.datasets import _input_dataset_key, _output_dataset_key
+import health.azure.himl as himl
 import pytest
-
-from _pytest.capture import CaptureFixture
-
 from conftest import check_config_json
-from health.azure.himl import (AzureRunInformation, RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON,
-                               submit_to_azure_if_needed)
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
 from testhiml.health.azure.util import get_most_recent_run, repository_root
-
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
@@ -70,11 +68,11 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
 @pytest.mark.fast
 def test_submit_to_azure_if_needed_returns_immediately() -> None:
     """
-    Test that submit_to_azure_if_needed can be called, and returns immediately.
+    Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
-            submit_to_azure_if_needed(
+            himl.submit_to_azure_if_needed(
                 aml_workspace=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
@@ -83,7 +81,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert "Cannot submit to AzureML without the snapshot_root_directory" in str(ex)
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
-            submit_to_azure_if_needed(
+            himl.submit_to_azure_if_needed(
                 aml_workspace=None,
                 workspace_config_path=None,
                 entry_script=Path(__file__),
@@ -92,61 +90,109 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
                 snapshot_root_directory=Path(__file__).parent)
         assert "Cannot glean workspace config from parameters" in str(ex)
     with mock.patch("sys.argv", [""]):
-        result = submit_to_azure_if_needed(
+        result = himl.submit_to_azure_if_needed(
             entry_script=Path(__file__),
             compute_cluster_name="foo",
-            conda_environment_file=Path("env.yml"),
-            )
-        assert isinstance(result, AzureRunInformation)
+            conda_environment_file=Path("env.yml"))
+        assert isinstance(result, himl.AzureRunInformation)
         assert not result.is_running_in_azure
+
+@patch("health.azure.himl.Run")
+@patch("health.azure.himl.Workspace")
+@patch("health.azure.himl.generate_azure_datasets")
+@patch("health.azure.himl.is_running_in_azure")
+def test_submit_to_azure_if_needed_azure_return(
+        mock_is_running_in_azure: mock.MagicMock,
+        mock_generate_azure_datasets: mock.MagicMock,
+        mock_workspace: mock.MagicMock,
+        mock_run: mock.MagicMock) -> None:
+    mock_is_running_in_azure.return_value = True
+    expected_run_info = himl.AzureRunInformation(
+        run=mock_run,
+        input_datasets=None,
+        output_datasets=None,
+        is_running_in_azure=True,
+        output_folder=Path.cwd(),
+        log_folder=Path.cwd())
+    mock_generate_azure_datasets.return_value = expected_run_info
+    with mock.patch("sys.argv", ["", "--azureml"]):
+        run_info = himl.submit_to_azure_if_needed(
+            aml_workspace=mock_workspace,
+            entry_script=Path(__file__),
+            compute_cluster_name="foo",
+            conda_environment_file=Path("env.yml"))
+    assert run_info == expected_run_info
+
+
+@patch("health.azure.himl.DatasetConfig")
+@patch("health.azure.himl.RUN_CONTEXT")
+def test_generate_azure_datasets(
+        mock_run_context: mock.MagicMock,
+        mock_dataset_config: mock.MagicMock) -> None:
+    mock_run_context.input_datasets = {}
+    mock_run_context.output_datasets = {}
+    for i in range(4):
+        mock_run_context.input_datasets[_input_dataset_key(i)] = f"input_{i}"
+        mock_run_context.output_datasets[_output_dataset_key(i)] = f"output_{i}"
+    run_info = himl.generate_azure_datasets(
+        cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
+        cleaned_output_datasets=[mock_dataset_config, mock_dataset_config, mock_dataset_config])
+    assert run_info.is_running_in_azure
+    for i in range(2):
+        assert f"input_{i}" in run_info.input_datasets
+        assert f"output_{i}" in run_info.output_datasets
+    assert "input_2" not in run_info.input_datasets
+    assert "output_2" in run_info.output_datasets
+    assert "input_3" not in run_info.input_datasets
+    assert "output_3" not in run_info.output_datasets
 
 
 # @pytest.mark.parametrize("local", [True, False])
-# def test_submit_to_azure_if_needed_runs_hello_world(
+# def test_himl.submit_to_azure_if_needed_runs_hello_world(
 #         local: bool,
 #         tmp_path: Path) -> None:
-def saved_for_later(
-        local: bool,
-        tmp_path: Path,
-        capsys: CaptureFixture) -> None:
-    """
-    Test we can run a simple script, which prints out a given guid. We use one of the examples to do this so this unit
-    test is also a test of that example.
-    """
-    message_guid = uuid4().hex
-    snapshot_root = tmp_path / uuid4().hex
-    repo_root = repository_root()
-    shutil.copytree(src=repo_root / "src", dst=snapshot_root)
-    example_root = snapshot_root / "health" / "azure" / "examples"
-    shutil.copy(src=repo_root / WORKSPACE_CONFIG_JSON, dst=example_root / WORKSPACE_CONFIG_JSON)
+# def saved_for_later(
+#         local: bool,
+#         tmp_path: Path,
+#         capsys: CaptureFixture) -> None:
+#     """
+#     Test we can run a simple script, which prints out a given guid. We use one of the examples to do this so this unit
+#     test is also a test of that example.
+#     """
+#     message_guid = uuid4().hex
+#     snapshot_root = tmp_path / uuid4().hex
+#     repo_root = repository_root()
+#     shutil.copytree(src=repo_root / "src", dst=snapshot_root)
+#     example_root = snapshot_root / "health" / "azure" / "examples"
+#     shutil.copy(src=repo_root / WORKSPACE_CONFIG_JSON, dst=example_root / WORKSPACE_CONFIG_JSON)
 
-    cmd = f"export PYTHONPATH={snapshot_root} "
-    cmd = cmd + f"&& python {EXAMPLE_SCRIPT} "
-    cmd = cmd + f"--message={message_guid} "
-    if not local:
-        cmd = cmd + "--azureml "
+#     cmd = f"export PYTHONPATH={snapshot_root} "
+#     cmd = cmd + f"&& python {EXAMPLE_SCRIPT} "
+#     cmd = cmd + f"--message={message_guid} "
+#     if not local:
+#         cmd = cmd + "--azureml "
 
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        capture_output=True,
-        cwd=example_root)
-    captured = result.stdout.decode('utf-8')
+#     result = subprocess.run(
+#         cmd,
+#         shell=True,
+#         capture_output=True,
+#         cwd=example_root)
+#     captured = result.stdout.decode('utf-8')
 
-    if local:
-        assert "Successfully queued new run" not in captured
-        assert f"The message was: {message_guid}" in captured
-        return
+#     if local:
+#         assert "Successfully queued new run" not in captured
+#         assert f"The message was: {message_guid}" in captured
+#         return
 
-    assert "Successfully queued new run" in captured
-    run = get_most_recent_run(run_recovery_file=example_root / RUN_RECOVERY_FILE)
-    assert run.status in ["Finalizing", "Completed"]
-    log_root = snapshot_root / "logs"
-    log_root.mkdir(exist_ok=False)
-    run.get_all_logs(destination=log_root)
-    driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
-    log_text = driver_log.read_text()
-    assert f"The message was: {message_guid}" in log_text
+#     assert "Successfully queued new run" in captured
+#     run = get_most_recent_run(run_recovery_file=example_root / RUN_RECOVERY_FILE)
+#     assert run.status in ["Finalizing", "Completed"]
+#     log_root = snapshot_root / "logs"
+#     log_root.mkdir(exist_ok=False)
+#     run.get_all_logs(destination=log_root)
+#     driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+#     log_text = driver_log.read_text()
+#     assert f"The message was: {message_guid}" in log_text
 
 
 def render_test_scripts(path: Path, local: bool,
@@ -243,7 +289,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
     else:
         assert "Successfully queued new run test_script_" in captured
 
-        run = get_most_recent_run(run_recovery_file=snapshot_root / RUN_RECOVERY_FILE)
+        run = get_most_recent_run(run_recovery_file=snapshot_root / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
         log_root = snapshot_root / "logs"
         log_root.mkdir(exist_ok=False)
