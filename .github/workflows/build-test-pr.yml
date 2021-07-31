@@ -203,7 +203,7 @@ jobs:
         run: |
           latest_version=$(cat ./latest_version.txt)
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://pypi.org/simple hi-ml==$latest_version"
+          echo "pip install --extra-index-url https://test.pypi.org/simple hi-ml==$latest_version"
 
   test-testpypi-pkg:
     runs-on: ubuntu-latest
