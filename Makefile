@@ -7,7 +7,6 @@ pip:
 
 conda:
 	conda env update --file environment.yml
-	conda activate himl
 
 flake8:
 	flake8 . --statistics
