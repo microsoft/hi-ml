@@ -153,7 +153,7 @@ def test_get_workspace(
 
 @patch("health.azure.himl.Run")
 @patch("health.azure.himl.Workspace")
-@patch("health.azure.himl.generate_azure_datasets")
+@patch("health.azure.himl._generate_azure_datasets")
 @patch("health.azure.himl.is_running_in_azure")
 def test_submit_to_azure_if_needed_azure_return(
         mock_is_running_in_azure: mock.MagicMock,
