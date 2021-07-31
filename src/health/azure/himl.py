@@ -91,12 +91,15 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         wait_for_completion_show_output: bool = False,
         exit_after_submission: bool = True,
         max_run_duration: str = "",
-        submit_to_azureml: Optional[bool] = None) -> AzureRunInformation:
+        submit_to_azureml: Optional[bool] = None,
+        tags: Optional[Dict[str, str]] = None) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
     Use the flag --azureml to submit to AzureML, and leave it out to run locally.
 
+    :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
+    a default metadata field will be added that only contains the commandline arguments that started the run.
     :param exit_after_submission: If True, the function calls exit(0) after a successful submission to AzureML.
     If False, it returns an AzureRunInformation object to the caller, where the submitted run can be read out.
     :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
@@ -143,6 +146,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :param submit_to_azureml: If True, the codepath to create an AzureML run will be executed. If False, the codepath
     for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
     will be triggered if the commandline flag '--azureml' is present in sys.argv
+
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
     otherwise we return a AzureRunInformation object.
     """
@@ -158,7 +162,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
     # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure()
-    print(f"in_azure={in_azure}")
     if in_azure:
         returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
                                    for index in range(len(cleaned_input_datasets))]
@@ -185,7 +188,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     )
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
-    print(f"submit_to_azureml={submit_to_azureml}")
     if not submit_to_azureml:
         return local_run_info
     if snapshot_root_directory is None:
@@ -263,7 +265,8 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
         run: Run = experiment.submit(script_run_config)
-    run.set_tags({"commandline_args": " ".join(script_params)})
+    tags = tags or {"commandline_args": " ".join(script_params)}
+    run.set_tags(tags)
 
     recovery_id = create_run_recovery_id(run)
     recovery_file = Path(RUN_RECOVERY_FILE)
