@@ -239,7 +239,6 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
 
 def get_or_create_python_environment(conda_environment_file: Path,
                                      pip_extra_index_url: str,
-                                     docker_shm_size: str,
                                      docker_base_image: str,
                                      environment_variables: Optional[Dict[str, str]]) -> Environment:
     """
@@ -248,7 +247,6 @@ def get_or_create_python_environment(conda_environment_file: Path,
     exists, it is retrieved, otherwise created afresh.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
-    :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
     :param conda_environment_file: The file that contains the Conda environment definition.
@@ -276,7 +274,7 @@ def get_or_create_python_environment(conda_environment_file: Path,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
     # hash function gives different results for the same string in different python instances.
-    hash_string = "\n".join([yaml_contents, docker_shm_size, docker_base_image, str(environment_variables)])
+    hash_string = "\n".join([yaml_contents, docker_base_image, str(environment_variables)])
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
     overall_hash = sha1.hexdigest()[:32]
     unique_env_name = f"HealthML-{overall_hash}"

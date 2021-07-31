@@ -209,7 +209,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     elif conda_environment_file:
         environment = get_or_create_python_environment(conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
-                                                       docker_shm_size=docker_shm_size,
                                                        docker_base_image=docker_base_image,
                                                        environment_variables=environment_variables)
         environment = get_or_register_environment(workspace, environment)
@@ -259,7 +258,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         run: Run = experiment.submit(script_run_config)
     run.set_tags({"commandline_args": " ".join(script_params)})
 
-    print(f"Writing the run recovery ID has been written to this file: {RUN_RECOVERY_FILE}")
     recovery_id = create_run_recovery_id(run)
     recovery_file = Path(RUN_RECOVERY_FILE)
     if recovery_file.exists():
