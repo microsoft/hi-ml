@@ -128,12 +128,12 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     in_azure = is_running_in_azure()
     if in_azure:
-        return generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
+        return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
 
     if not snapshot_root_directory:
         raise ValueError("Cannot submit to AzureML without the snapshot_root_directory")
 
-    workspace = get_workspace(aml_workspace, workspace_config_path)
+    workspace = _get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded: {workspace.name}")
     environment = Environment.from_conda_specification("simple-env", conda_environment_file)
@@ -141,13 +141,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
     # We'll do that later if still required.
 
-    script_params = get_script_params(script_params)
+    script_params = _get_script_params(script_params)
 
-    entry_script_relative = entry_script.relative_to(snapshot_root_directory)
-    run_config = RunConfiguration(
-        script=entry_script_relative,
-        arguments=script_params)
-    run_config.environment = environment
+    run_config = _get_run_config(entry_script, snapshot_root_directory, script_params, environment)
 
     if compute_cluster_name not in workspace.compute_targets:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
@@ -175,7 +171,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     amlignore_path = snapshot_root_directory or Path.cwd()
     amlignore_path = amlignore_path / ".amlignore"
     lines_to_append = [str(path) for path in ignored_folders] if ignored_folders else []
-    with append_to_amlignore(
+    with _append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
         # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted
@@ -208,7 +204,28 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     exit(0)
 
 
-def get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
+def _get_run_config(
+        entry_script: Path,
+        snapshot_root_directory: Path,
+        script_params: List[str],
+        environment: Environment) -> RunConfiguration:
+    """
+    Return the RunConfiguration built from the inputs, rewriting the entry_script path to be relative to the
+    snapshot_root directory.
+    :param entry_script: Path to the entry script to run on AzureML
+    :param snapshot_root_directory: Path to the snapshot to upload to AzureML
+    :param script_rarams: A list of parameters to pass to the script in AzureML
+    :return: The run config.
+    """
+    entry_script_relative = entry_script.relative_to(snapshot_root_directory)
+    run_config = RunConfiguration(
+        script=entry_script_relative,
+        arguments=script_params)
+    run_config.environment = environment
+    return run_config
+
+
+def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     """
     If script parameters are given then return them, otherwise derive them from sys.argv
     :param script_params: The optional script parameters
@@ -219,7 +236,7 @@ def get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
 
 
-def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+def _get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
     """
     Obtain the AzureML workspace from either the passed in value or the passed in path
     :param aml_workspace: If provided this is returned as the AzureML Workspace
@@ -237,7 +254,7 @@ def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Opt
     return workspace
 
 
-def generate_azure_datasets(
+def _generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInformation:
     """
@@ -260,7 +277,7 @@ def generate_azure_datasets(
 
 
 @contextmanager
-def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generator:
+def _append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generator:
     """
     Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
     """
@@ -275,7 +292,7 @@ def append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generato
         amlignore.unlink()
 
 
-def package_setup_and_hacks() -> None:
+def _package_setup_and_hacks() -> None:
     """
     Set up the Python packages where needed. In particular, reduce the logging level for some of the used
     libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want

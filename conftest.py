@@ -12,13 +12,13 @@ from typing import Generator
 import pytest
 
 from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
-from health.azure.himl import package_setup_and_hacks
+from health.azure.himl import _package_setup_and_hacks
 from testhiml.health.azure.util import DEFAULT_WORKSPACE_CONFIG_JSON
 
 
 @pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
-    package_setup_and_hacks()
+    _package_setup_and_hacks()
     yield
 
 

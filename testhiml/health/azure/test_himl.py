@@ -18,6 +18,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from azureml.core import run
+from azureml.core.environment import Environment
 
 from health.azure.datasets import _input_dataset_key, _output_dataset_key
 import health.azure.himl as himl
@@ -98,13 +99,42 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
+@patch("health.azure.himl.Environment")
+def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> None:
+    snapshot_dir = tmp_path / uuid4().hex
+    snapshot_dir.mkdir(exist_ok=False)
+    ok_entry_script = snapshot_dir / "entry_script.py"
+    ok_entry_script.write_text("print('hello world')\n")
+
+    run_config = himl._get_run_config(
+        entry_script= ok_entry_script,
+        snapshot_root_directory=snapshot_dir,
+        script_params=[],
+        environment=mock_environment)
+    assert run_config.script == ok_entry_script.relative_to(snapshot_dir) 
+
+    problem_entry_script_dir = tmp_path / uuid4().hex
+    problem_entry_script_dir.mkdir(exist_ok=False)
+    problem_entry_script = problem_entry_script_dir / "entry_script.py"
+    problem_entry_script.write_text("print('hello world')\n")
+
+    with pytest.raises(ValueError) as e:
+        run_config = himl._get_run_config(
+            entry_script= problem_entry_script,
+            snapshot_root_directory=snapshot_dir,
+            script_params=[],
+            environment=mock_environment)
+    expected = f"'{problem_entry_script}' does not start with '{snapshot_dir}"
+    assert str(e.value).startswith(expected)
+
+
 def test_get_script_params() -> None:
     expected_params = ["a string"]
-    assert expected_params == himl.get_script_params(expected_params)
+    assert expected_params == himl._get_script_params(expected_params)
     with mock.patch("sys.argv", ["", "a string", "--azureml"]):
-        assert expected_params == himl.get_script_params()
+        assert expected_params == himl._get_script_params()
     with mock.patch("sys.argv", ["", "a string"]):
-        assert expected_params == himl.get_script_params()
+        assert expected_params == himl._get_script_params()
 
 
 @patch("health.azure.himl.Workspace.from_config")
@@ -114,10 +144,10 @@ def test_get_workspace(
         mock_workspace: mock.MagicMock,
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock) -> None:
-    workspace = himl.get_workspace(mock_workspace, None)
+    workspace = himl._get_workspace(mock_workspace, None)
     assert workspace == mock_workspace
     mock_get_authentication.return_value = None
-    _ = himl.get_workspace(None, Path(__file__))
+    _ = himl._get_workspace(None, Path(__file__))
     assert mock_from_config.called
 
 
@@ -158,7 +188,7 @@ def test_generate_azure_datasets(
     for i in range(4):
         mock_run_context.input_datasets[_input_dataset_key(i)] = f"input_{i}"
         mock_run_context.output_datasets[_output_dataset_key(i)] = f"output_{i}"
-    run_info = himl.generate_azure_datasets(
+    run_info = himl._generate_azure_datasets(
         cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
         cleaned_output_datasets=[mock_dataset_config, mock_dataset_config, mock_dataset_config])
     assert run_info.is_running_in_azure
