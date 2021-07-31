@@ -90,7 +90,8 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
         exit_after_submission: bool = True,
-        max_run_duration: str = "") -> AzureRunInformation:
+        max_run_duration: str = "",
+        submit_to_azureml: Optional[bool] = None) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -139,7 +140,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
     run output on sys.stdout.
-
+    :param submit_to_azureml: If True, the codepath to create an AzureML run will be executed. If False, the codepath
+    for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
+    will be triggered if the commandline flag '--azureml' is present in sys.argv
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
     otherwise we return a AzureRunInformation object.
     """
@@ -179,7 +182,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         output_folder=Path.cwd() / OUTPUT_FOLDER,
         log_folder=Path.cwd() / LOG_FOLDER
     )
-    if AZUREML_COMMANDLINE_FLAG not in sys.argv[1:]:
+    if submit_to_azureml is None:
+        submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
+    if not submit_to_azureml:
         return local_run_info
     if snapshot_root_directory is None:
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
