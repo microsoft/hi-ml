@@ -97,6 +97,30 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert isinstance(result, himl.AzureRunInformation)
         assert not result.is_running_in_azure
 
+
+def test_get_script_params() -> None:
+    expected_params = ["a string"]
+    assert expected_params == himl.get_script_params(expected_params)
+    with mock.patch("sys.argv", ["", "a string", "--azureml"]):
+        assert expected_params == himl.get_script_params()
+    with mock.patch("sys.argv", ["", "a string"]):
+        assert expected_params == himl.get_script_params()
+
+
+@patch("health.azure.himl.Workspace.from_config")
+@patch("health.azure.himl.get_authentication")
+@patch("health.azure.himl.Workspace")
+def test_get_workspace(
+        mock_workspace: mock.MagicMock,
+        mock_get_authentication: mock.MagicMock,
+        mock_from_config: mock.MagicMock) -> None:
+    workspace = himl.get_workspace(mock_workspace, None)
+    assert workspace == mock_workspace
+    mock_get_authentication.return_value = None
+    _ = himl.get_workspace(None, Path(__file__))
+    assert mock_from_config.called
+
+
 @patch("health.azure.himl.Run")
 @patch("health.azure.himl.Workspace")
 @patch("health.azure.himl.generate_azure_datasets")

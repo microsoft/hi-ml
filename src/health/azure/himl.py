@@ -133,13 +133,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if not snapshot_root_directory:
         raise ValueError("Cannot submit to AzureML without the snapshot_root_directory")
 
-    if workspace_config_path and workspace_config_path.is_file():
-        auth = get_authentication()
-        workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
-    elif aml_workspace:
-        workspace = aml_workspace
-    else:
-        raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+    workspace = get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded: {workspace.name}")
     environment = Environment.from_conda_specification("simple-env", conda_environment_file)
@@ -147,8 +141,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     # TODO: InnerEye.azure.azure_runner.submit_to_azureml does work here with interupt handlers to kill interupted jobs.
     # We'll do that later if still required.
 
-    if not script_params:
-        script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+    script_params = get_script_params(script_params)
 
     entry_script_relative = entry_script.relative_to(snapshot_root_directory)
     run_config = RunConfiguration(
@@ -215,11 +208,43 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     exit(0)
 
 
+def get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
+    """
+    If script parameters are given then return them, otherwise derive them from sys.argv
+    :param script_params: The optional script parameters
+    :return: The given script parameters or ones derived from sys.argv
+    """
+    if script_params:
+        return script_params
+    return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+
+
+def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+    """
+    Obtain the AzureML workspace from either the passed in value or the passed in path
+    :param aml_workspace: If provided this is returned as the AzureML Workspace
+    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
+    config
+    :param return: The AzureML Workspace
+    """
+    if aml_workspace:
+        workspace = aml_workspace
+    elif workspace_config_path and workspace_config_path.is_file():
+        auth = get_authentication()
+        workspace = Workspace.from_config(path=workspace_config_path, auth=auth)
+    else:
+        raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+    return workspace
+
+
 def generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInformation:
     """
     Generate returned datasets when running in AzumreML
+    :param cleaned_input_datasets: The list of input dataset configs
+    :param cleaned_output_datasets: The list of output dataset configs
+    :return: The AzureRunInformation containing the AzureML input and output dataset lists etc.
     """
     returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
                                for index in range(len(cleaned_input_datasets))]
@@ -231,8 +256,7 @@ def generate_azure_datasets(
             run=RUN_CONTEXT,
             is_running_in_azure=True,
             output_folder=Path.cwd() / OUTPUT_FOLDER,
-            log_folder=Path.cwd() / LOG_FOLDER
-        )
+            log_folder=Path.cwd() / LOG_FOLDER)
 
 
 @contextmanager
