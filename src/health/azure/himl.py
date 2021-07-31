@@ -158,6 +158,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
     # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure()
+    print(f"in_azure={in_azure}")
     if in_azure:
         returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
                                    for index in range(len(cleaned_input_datasets))]
@@ -184,6 +185,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     )
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
+    print(f"submit_to_azureml={submit_to_azureml}")
     if not submit_to_azureml:
         return local_run_info
     if snapshot_root_directory is None:
