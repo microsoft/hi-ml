@@ -245,8 +245,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     script_run_config = ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
         run_config=run_config)
-    # 2021-07-30T17:04:44Z WARNING  If 'run_config' is specified, the following parameters will be ignored:
-    # 'compute_target', 'environment', 'distributed_job_config', 'max_run_duration_seconds', and 'docker_runtime_config'.
 
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     if not cleaned_experiment_name:
