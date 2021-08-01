@@ -11,6 +11,7 @@ See examples/elevate_this.py for a very simple 'hello world' example of use.
 import logging
 import os
 import sys
+import warnings
 from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -191,6 +192,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
     otherwise we return a AzureRunInformation object.
     """
+    package_setup()
     if isinstance(entry_script, str):
         entry_script = Path(entry_script)
     workspace_config_path = _str_to_path(workspace_config_path)
@@ -347,21 +349,24 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
         amlignore.unlink()
 
 
-def package_setup_and_hacks() -> None:
+def package_setup() -> None:
     """
     Set up the Python packages where needed. In particular, reduce the logging level for some of the used
     libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
     diagnostics about the model building itself, but not for the underlying libraries.
     It also adds workarounds for known issues in some packages.
     """
+    # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
+    logging.getLogger('adal-python').setLevel(logging.WARNING)
+    # Azure core prints full HTTP requests even in INFO mode
+    logging.getLogger('azure').setLevel(logging.WARNING)
+    # PyJWT prints out warnings that are beyond our control
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="jwt")
     # Urllib3 prints out connection information for each call to write metrics, etc
     logging.getLogger('urllib3').setLevel(logging.INFO)
     logging.getLogger('msrest').setLevel(logging.INFO)
     # AzureML prints too many details about logging metrics
     logging.getLogger('azureml').setLevel(logging.INFO)
-    # This is working around a spurious error message thrown by MKL, see
-    # https://github.com/pytorch/pytorch/issues/37377
-    os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 
 def main() -> None:

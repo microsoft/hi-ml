@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Generator
 
 from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
-from health.azure.himl import package_setup_and_hacks
+from health.azure.himl import package_setup
 from testhiml.health.azure.util import DEFAULT_WORKSPACE_CONFIG_JSON, repository_root
 
 
@@ -37,7 +37,7 @@ def remove_and_create_folder(folder: Path) -> None:
 
 @pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
-    package_setup_and_hacks()
+    package_setup()
     # create a default outputs root for all tests
     remove_and_create_folder(outputs_for_tests())
     # run the entire test suite
