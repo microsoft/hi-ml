@@ -12,9 +12,9 @@ flake8:
 	flake8 . --statistics
 
 mypy:
-	mypy -p src
-	mypy -p testhiml
-	mypy setup.py
+	cd src; mypy --install-types --non-interactive --config=../mypy.ini -p health
+	mypy --install-types --non-interactive --config=mypy.ini -p testhiml
+	mypy --install-types --non-interactive --config=mypy.ini setup.py
 
 check: flake8 mypy
 
