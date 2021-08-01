@@ -15,7 +15,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Union
+from typing import Callable, Dict, Generator, List, Optional, Union
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
@@ -34,7 +34,7 @@ WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
 OUTPUT_FOLDER = "outputs"
-LOG_FOLDER = "logs"
+LOGS_FOLDER = "logs"
 AML_IGNORE_FILE = ".amlignore"
 
 PathOrString = Union[Path, str]
@@ -44,13 +44,13 @@ PathOrString = Union[Path, str]
 class AzureRunInformation:
     input_datasets: List[Optional[Path]]
     output_datasets: List[Optional[Path]]
-    run: Run
+    run: Optional[Run]
     # If True, the present code is running inside of AzureML.
     is_running_in_azure: bool
     # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
     # The folder that we create here must be added to .amlignore
     output_folder: Path
-    log_folder: Path
+    logs_folder: Path
 
 
 def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
@@ -60,6 +60,46 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     """
     return hasattr(aml_run, 'experiment')
+
+
+def get_or_create_environment(workspace: Workspace,
+                              aml_environment: str,
+                              conda_environment_file: Optional[Path],
+                              environment_variables: Optional[Dict[str, str]],
+                              pip_extra_index_url: str,
+                              docker_base_image: str,
+                              ) -> Environment:
+    """
+    Gets an existing AzureML environment from the workspace (choosing by name), or get one based on the contents
+    of a Conda environment file, environment variables, pip and docker settings. Either one of the arguments
+    `aml_environment` and `conda_environment_file` must be provided.
+    :param workspace: The AzureML workspace to work in.
+    :param aml_environment: The name of an existing AzureML environment that should be read. If this is empty, the
+    environment is created based on conda_environment_file.
+    :param conda_environment_file: The Conda environment.yml file that should be used for environment creation. If this
+    is empty, an existing environment is retrieved via the name given in aml_environment.
+    :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
+    This is only used if conda_environment_file is given.
+    :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
+    :param docker_base_image: The Docker base image to use. If not given, use DEFAULT_DOCKER_BASE_IMAGE.
+    :return: An AzureML Environment object.
+    """
+    if aml_environment:
+        # TODO: Split off version
+        return Environment.get(workspace, aml_environment)
+    elif conda_environment_file:
+        environment = get_or_create_python_environment(conda_environment_file=conda_environment_file,
+                                                       pip_extra_index_url=pip_extra_index_url,
+                                                       docker_base_image=docker_base_image,
+                                                       environment_variables=environment_variables)
+        return get_or_register_environment(workspace, environment)
+    else:
+        raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
+
+
+def _submit_run(workspace: Workspace, experiment_name: str, script_run_config: ScriptRunConfig) -> Run:
+    experiment = Experiment(workspace=workspace, name=experiment_name)
+    return experiment.submit(script_run_config)
 
 
 def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
@@ -89,19 +129,20 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         num_nodes: int = 1,
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
-        exit_after_submission: bool = True,
         max_run_duration: str = "",
         submit_to_azureml: Optional[bool] = None,
-        tags: Optional[Dict[str, str]] = None) -> AzureRunInformation:
+        tags: Optional[Dict[str, str]] = None,
+        after_submission: Optional[Callable[[Run], None]] = None) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
     Use the flag --azureml to submit to AzureML, and leave it out to run locally.
 
+    :param after_submission: A function that will be called directly after submitting the job to AzureML. The only
+    argument to this function is the run that was just submitted. Use this to, for example, add additional tags
+    or print information about the run.
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
     a default metadata field will be added that only contains the commandline arguments that started the run.
-    :param exit_after_submission: If True, the function calls exit(0) after a successful submission to AzureML.
-    If False, it returns an AzureRunInformation object to the caller, where the submitted run can be read out.
     :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
     provided, an environment will be created from the arguments to this function.
     :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
@@ -173,23 +214,22 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             run=RUN_CONTEXT,
             is_running_in_azure=True,
             output_folder=Path.cwd() / OUTPUT_FOLDER,
-            log_folder=Path.cwd() / LOG_FOLDER
+            logs_folder=Path.cwd() / LOGS_FOLDER
         )
 
     # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
     # is necessary. If not, return to the caller for local execution.
-    local_run_info = AzureRunInformation(
-        input_datasets=[d.local_folder for d in cleaned_input_datasets],
-        output_datasets=[d.local_folder for d in cleaned_output_datasets],
-        run=RUN_CONTEXT,
-        is_running_in_azure=False,
-        output_folder=Path.cwd() / OUTPUT_FOLDER,
-        log_folder=Path.cwd() / LOG_FOLDER
-    )
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
-        return local_run_info
+        return AzureRunInformation(
+            input_datasets=[d.local_folder for d in cleaned_input_datasets],
+            output_datasets=[d.local_folder for d in cleaned_output_datasets],
+            run=None,
+            is_running_in_azure=False,
+            output_folder=Path.cwd() / OUTPUT_FOLDER,
+            logs_folder=Path.cwd() / LOGS_FOLDER
+        )
     if snapshot_root_directory is None:
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
@@ -208,26 +248,15 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
     entry_script_relative = entry_script.relative_to(snapshot_root_directory)
 
-    if compute_cluster_name not in workspace.compute_targets:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                         f"Existing clusters: {list(workspace.compute_targets.keys())}")
-
-    if aml_environment:
-        # TODO: Split off version
-        environment = Environment.get(workspace, aml_environment)
-    elif conda_environment_file:
-        environment = get_or_create_python_environment(conda_environment_file=conda_environment_file,
-                                                       pip_extra_index_url=pip_extra_index_url,
-                                                       docker_base_image=docker_base_image,
-                                                       environment_variables=environment_variables)
-        environment = get_or_register_environment(workspace, environment)
-    else:
-        raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
-
     run_config = RunConfiguration(
         script=entry_script_relative,
         arguments=script_params)
-    run_config.environment = environment
+    run_config.environment = get_or_create_environment(workspace=workspace,
+                                                       aml_environment=aml_environment,
+                                                       conda_environment_file=conda_environment_file,
+                                                       pip_extra_index_url=pip_extra_index_url,
+                                                       environment_variables=environment_variables,
+                                                       docker_base_image=docker_base_image)
     run_config.target = compute_cluster_name
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
@@ -257,14 +286,19 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     if not cleaned_experiment_name:
         cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
-    experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
-        run: Run = experiment.submit(script_run_config)
+        run = _submit_run(workspace=workspace,
+                          experiment_name=cleaned_experiment_name,
+                          script_run_config=script_run_config)
+        # TODO: Catch incorrect cluster name, rather than checking beforehand
+        # if compute_cluster_name not in workspace.compute_targets:
+        #     raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+        #                      f"Existing clusters: {list(workspace.compute_targets.keys())}")
     tags = tags or {"commandline_args": " ".join(script_params)}
     run.set_tags(tags)
 
@@ -276,20 +310,18 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
-    print(f"Successfully queued run {run.id} in experiment {experiment.name}")
+    print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
     print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
-    print(f"Experiment URL: {experiment.get_portal_url()}")
+    print(f"Experiment URL: {run.experiment.get_portal_url()}")
     print(f"Run URL: {run.get_portal_url()}")
     print("==============================================================================\n")
     if wait_for_completion:
         print("Waiting for the completion of the AzureML run.")
         run.wait_for_completion(show_output=wait_for_completion_show_output)
 
-    if exit_after_submission:
-        exit(0)
-    else:
-        local_run_info.run = run
-        return local_run_info
+    if after_submission is not None:
+        after_submission(run)
+    exit(0)
 
 
 @contextmanager
