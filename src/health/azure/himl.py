@@ -15,11 +15,13 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, List, Optional
+from typing import Dict, Generator, List, Optional, Tuple
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from health.azure.azure_util import create_run_recovery_id, get_authentication, to_azure_friendly_string
-from health.azure.datasets import DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
+from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
+                                   _replace_string_datasets)
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -147,14 +149,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     script_run_config = _get_script_run_config(compute_cluster_name, snapshot_root_directory, workspace, environment, run_config)
 
-    inputs = {}
-    for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
-        inputs[consumption.name] = consumption
-    outputs = {}
-    for index, d in enumerate(cleaned_output_datasets):
-        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
-        outputs[out.name] = out
+    inputs, outputs = _to_datasets(cleaned_input_datasets, cleaned_output_datasets, workspace)
     run_config.data = inputs
     run_config.output_data = outputs
 
@@ -195,6 +190,31 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         recovery_file.write_text(recovery_id)
 
     exit(0)
+
+
+def _to_datasets(
+        cleaned_input_datasets: List[DatasetConfig],
+        cleaned_output_datasets: List[DatasetConfig],
+        workspace: Workspace) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, DatasetConsumptionConfig]]:
+    """
+    Convert the cleaned input and output datasets into the lists of DatasetConsumptionConfigs required for an AzureML
+    RunConfiguration 
+
+    :param cleaned_input_datasets: The list of input DatasetConfigs
+    :param cleaned_output_datasets: The list of output DatasetConfigs
+    :param workspace: The AzureML workspace
+    :return: The input and output lists of DatasetConsumptionConfigs required for an AzureML RunConfiguration
+    """
+    inputs = {}
+    for index, d in enumerate(cleaned_input_datasets):
+        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        inputs[consumption.name] = consumption
+    outputs = {}
+    for index, d in enumerate(cleaned_output_datasets):
+        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+        outputs[out.name] = out
+    return inputs, outputs
+
 
 def _get_script_run_config(
         compute_cluster_name: str,

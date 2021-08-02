@@ -17,8 +17,8 @@ from unittest import mock
 from unittest.mock import patch
 from uuid import uuid4
 
-from azureml.core import run
-from azureml.core.environment import Environment
+from azureml.core import Workspace
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 from health.azure.datasets import _input_dataset_key, _output_dataset_key
 import health.azure.himl as himl
@@ -97,6 +97,38 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
             conda_environment_file=Path("env.yml"))
         assert isinstance(result, himl.AzureRunInformation)
         assert not result.is_running_in_azure
+
+
+@patch("azureml.data.OutputFileDatasetConfig")
+@patch("health.azure.himl.DatasetConsumptionConfig")
+@patch("health.azure.himl.Workspace")
+@patch("health.azure.himl.DatasetConfig")
+def test_to_datasets(
+        mock_dataset_config: mock.MagicMock,
+        mock_workspace: mock.MagicMock,
+        mock_dataset_consumption_config: mock.MagicMock,
+        mock_output_file_dataset_config) -> None:
+
+    def to_input_dataset(workspace: Workspace, dataset_index: int, ) -> DatasetConsumptionConfig:
+        return mock_dataset_consumption_config
+
+    def to_output_dataset(workspace: Workspace, dataset_index: int, ) -> DatasetConsumptionConfig:
+        return mock_output_file_dataset_config
+
+    mock_dataset_consumption_config.name = "A Consumption Config"
+    mock_output_file_dataset_config.name = "An Output File Dataset Config"
+    mock_dataset_config.to_input_dataset = to_input_dataset
+    mock_dataset_config.to_output_dataset = to_output_dataset
+    cleaned_input_datasets = [mock_dataset_config]
+    cleaned_output_datasets = [mock_dataset_config, mock_dataset_config]
+    inputs, outputs = himl._to_datasets(
+        cleaned_input_datasets=cleaned_input_datasets,
+        cleaned_output_datasets=cleaned_output_datasets,
+        workspace=mock_workspace)
+    assert len(inputs) == 1
+    assert len(outputs) == 1
+    assert inputs[mock_dataset_consumption_config.name] == mock_dataset_consumption_config
+    assert outputs[mock_output_file_dataset_config.name] == mock_output_file_dataset_config
 
 
 @patch("azureml.core.ComputeTarget")
