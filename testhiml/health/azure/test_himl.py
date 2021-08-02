@@ -19,6 +19,7 @@ from uuid import uuid4
 
 from azureml.core import Workspace
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR
 
 from health.azure.datasets import _input_dataset_key, _output_dataset_key
 import health.azure.himl as himl
@@ -99,6 +100,18 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert isinstance(result, himl.AzureRunInformation)
         assert not result.is_running_in_azure
 
+
+@patch("health.azure.himl.Experiment")
+@patch("health.azure.himl.Run")
+def test_write_run_recovery_file(mock_run: mock.MagicMock, mock_experiment: mock.MagicMock) -> None:
+    mock_run.id = uuid4().hex
+    mock_run.experiment = mock_experiment
+    mock_experiment.id = uuid4().hex
+    expected_run_recovery_id = str(mock_run.experiment.name + EXPERIMENT_RUN_SEPARATOR + mock_run.id)
+    # Note that the expected_run_recovery_id is odd using mocks like this, e.g.  
+    himl._write_run_recovery_file(mock_run)
+    recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
+    assert str(expected_run_recovery_id) == recovery_file_text
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])

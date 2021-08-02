@@ -175,13 +175,22 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         if script_params:
             run.set_tags({"commandline_args": " ".join(script_params)})
 
-        recovery_id = create_run_recovery_id(run)
-        recovery_file = Path(RUN_RECOVERY_FILE)
-        if recovery_file.exists():
-            recovery_file.unlink()
-        recovery_file.write_text(recovery_id)
+        _write_run_recovery_file(run)
 
     exit(0)
+
+
+def _write_run_recovery_file(run: Run):
+    """
+    Write the run recovery file
+
+    :param run: The AzureML run to save as a recovery checkpoint.
+    """
+    recovery_id = create_run_recovery_id(run)
+    recovery_file = Path(RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
+    recovery_file.write_text(recovery_id)
 
 
 def _print_run_info(wait_for_completion: bool, experiment: Experiment, run: Run) -> None:
