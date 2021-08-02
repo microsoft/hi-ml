@@ -3,14 +3,13 @@ init:
 	pip install -r build_requirements.txt
 	pip install -r run_requirements.txt
 	pip install -r test_requirements.txt
+	pip install -e .
 
 test_flake8:
 	flake8 . --statistics
 
 test_mypy:
-	mypy setup.py
-	mypy -p src
-	mypy -p testhiml
+	python mypy_runner.py
 
 test_pytest:
 	pytest testhiml

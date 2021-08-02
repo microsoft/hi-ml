@@ -335,7 +335,7 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
 
 
 def render_test_scripts(path: Path, local: bool,
-                        extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[Path, Tuple[int, List[str]]]:
+                        extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[int, List[str]]:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -347,14 +347,7 @@ def render_test_scripts(path: Path, local: bool,
     """
     repo_root = repository_root()
 
-    snapshot_root = path / uuid4().hex
-
-    shutil.copytree(src=repo_root / "src", dst=snapshot_root)
-
-    test_root = snapshot_root / "test_script"
-    test_root.mkdir()
-
-    environment_yaml_path = test_root / "environment.yml"
+    environment_yaml_path = path / "environment.yml"
     latest_version_path = repo_root / "latest_version.txt"
     if latest_version_path.exists():
         latest_version = f"=={latest_version_path.read_text()}"
@@ -364,7 +357,7 @@ def render_test_scripts(path: Path, local: bool,
         logging.debug("not pinning hi-ml")
     render_environment_yaml(environment_yaml_path, latest_version)
 
-    entry_script_path = test_root / "test_script.py"
+    entry_script_path = path / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
 
     score_args = [str(entry_script_path)]
@@ -374,12 +367,12 @@ def render_test_scripts(path: Path, local: bool,
 
     env = dict(os.environ.items())
 
-    with check_config_json(test_root):
-        return (snapshot_root, spawn_and_monitor_subprocess(
+    with check_config_json(path):
+        return spawn_and_monitor_subprocess(
             process=sys.executable,
             args=score_args,
-            cwd=snapshot_root,
-            env=env))
+            cwd=path,
+            env=env)
 
 
 @pytest.mark.parametrize("local", [True, False])
@@ -396,7 +389,7 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
         'environment_variables': 'None'
     }
     extra_args = ["--message=hello_world"]
-    _, (code, stdout) = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
     captured = "\n".join(stdout)
     if local:
         assert code == 0
@@ -419,7 +412,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         'environment_variables': 'None'
     }
     extra_args = ["--message=hello_world"]
-    snapshot_root, (code, stdout) = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
     captured = "\n".join(stdout)
     assert code == 0
     if local:
@@ -427,10 +420,9 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         assert 'The message was: hello_world' in captured
     else:
         assert "Successfully queued new run test_script_" in captured
-
         run = get_most_recent_run(run_recovery_file=snapshot_root / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
-        log_root = snapshot_root / "logs"
+        log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
         run.get_all_logs(destination=log_root)
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"

@@ -16,7 +16,6 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
-            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
             "cwd": "${workspaceFolder}/src/health/azure/examples/",
             "args": 
             [
@@ -29,7 +28,6 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
-            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
             "cwd": "${workspaceFolder}/src/health/azure/examples/",
             "args": 
             [
