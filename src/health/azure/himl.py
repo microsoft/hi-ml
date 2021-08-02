@@ -56,7 +56,8 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     return hasattr(aml_run, 'experiment')
 
 
-def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
+def submit_to_azure_if_needed(  # type: ignore
+        # ignore missing return statement since we 'exit' instead when submitting to AzureML
         entry_script: Path,
         compute_cluster_name: str,
         conda_environment_file: Path,
@@ -72,8 +73,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         num_nodes: int = 1,
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
-        ) -> AzureRunInformation:
-        # pragma: no cover
+        ) -> AzureRunInformation:  # pragma: no cover
+        # This cannot be unit-tested outside AzureML, so submit_to_azure_if_needed is broken into simple small functions
+        # that are called with their own unit tests.
     """
     Submit a folder to Azure, if needed and run it.
 

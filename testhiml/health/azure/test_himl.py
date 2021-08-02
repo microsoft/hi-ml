@@ -334,54 +334,6 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert "0th line" == amlignore_text
 
 
-# @pytest.mark.parametrize("local", [True, False])
-# def test_himl.submit_to_azure_if_needed_runs_hello_world(
-#         local: bool,
-#         tmp_path: Path) -> None:
-# def saved_for_later(
-#         local: bool,
-#         tmp_path: Path,
-#         capsys: CaptureFixture) -> None:
-#     """
-#     Test we can run a simple script, which prints out a given guid. We use one of the examples to do this so this unit
-#     test is also a test of that example.
-#     """
-#     message_guid = uuid4().hex
-#     snapshot_root = tmp_path / uuid4().hex
-#     repo_root = repository_root()
-#     shutil.copytree(src=repo_root / "src", dst=snapshot_root)
-#     example_root = snapshot_root / "health" / "azure" / "examples"
-#     shutil.copy(src=repo_root / WORKSPACE_CONFIG_JSON, dst=example_root / WORKSPACE_CONFIG_JSON)
-
-#     cmd = f"export PYTHONPATH={snapshot_root} "
-#     cmd = cmd + f"&& python {EXAMPLE_SCRIPT} "
-#     cmd = cmd + f"--message={message_guid} "
-#     if not local:
-#         cmd = cmd + "--azureml "
-
-#     result = subprocess.run(
-#         cmd,
-#         shell=True,
-#         capture_output=True,
-#         cwd=example_root)
-#     captured = result.stdout.decode('utf-8')
-
-#     if local:
-#         assert "Successfully queued new run" not in captured
-#         assert f"The message was: {message_guid}" in captured
-#         return
-
-#     assert "Successfully queued new run" in captured
-#     run = get_most_recent_run(run_recovery_file=example_root / RUN_RECOVERY_FILE)
-#     assert run.status in ["Finalizing", "Completed"]
-#     log_root = snapshot_root / "logs"
-#     log_root.mkdir(exist_ok=False)
-#     run.get_all_logs(destination=log_root)
-#     driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
-#     log_text = driver_log.read_text()
-#     assert f"The message was: {message_guid}" in log_text
-
-
 def render_test_scripts(path: Path, local: bool,
                         extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[Path, Tuple[int, List[str]]]:
     """
@@ -501,4 +453,3 @@ def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock)
     assert mock_submit_to_azure_if_needed.call_args[1]["snapshot_root_directory"] == PosixPath("3")
     assert mock_submit_to_azure_if_needed.call_args[1]["entry_script"] == PosixPath("4")
     assert mock_submit_to_azure_if_needed.call_args[1]["conda_environment_file"] == PosixPath("5")
-
