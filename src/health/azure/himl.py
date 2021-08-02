@@ -73,6 +73,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
         ) -> AzureRunInformation:
+        # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
 
