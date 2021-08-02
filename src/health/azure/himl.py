@@ -22,8 +22,8 @@ from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptR
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 
 from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_run_recovery_id, get_authentication,
-                                     get_or_create_python_environment,
-                                     get_or_register_environment, run_duration_string_to_seconds,
+                                     create_python_environment,
+                                     register_environment, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
 from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
 
@@ -89,11 +89,11 @@ def get_or_create_environment(workspace: Workspace,
         # TODO: Split off version
         return Environment.get(workspace, aml_environment)
     elif conda_environment_file:
-        environment = get_or_create_python_environment(conda_environment_file=conda_environment_file,
-                                                       pip_extra_index_url=pip_extra_index_url,
-                                                       docker_base_image=docker_base_image,
-                                                       environment_variables=environment_variables)
-        return get_or_register_environment(workspace, environment)
+        environment = create_python_environment(conda_environment_file=conda_environment_file,
+                                                pip_extra_index_url=pip_extra_index_url,
+                                                docker_base_image=docker_base_image,
+                                                environment_variables=environment_variables)
+        return register_environment(workspace, environment)
     else:
         raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
 
@@ -250,9 +250,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
     entry_script_relative = entry_script.relative_to(snapshot_root_directory)
 
-    run_config = RunConfiguration(
-        script=entry_script_relative,
-        arguments=script_params)
+    run_config = RunConfiguration()
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment=aml_environment,
                                                        conda_environment_file=conda_environment_file,
@@ -283,6 +281,8 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
                                             shm_size=(docker_shm_size or DEFAULT_DOCKER_SHM_SIZE))
     script_run_config = ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
+        script=entry_script_relative,
+        arguments=script_params,
         run_config=run_config)
 
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)

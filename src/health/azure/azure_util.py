@@ -237,10 +237,10 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
 
 
-def get_or_create_python_environment(conda_environment_file: Path,
-                                     pip_extra_index_url: str,
-                                     docker_base_image: str,
-                                     environment_variables: Optional[Dict[str, str]]) -> Environment:
+def create_python_environment(conda_environment_file: Path,
+                              pip_extra_index_url: str,
+                              docker_base_image: str,
+                              environment_variables: Optional[Dict[str, str]]) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
@@ -285,7 +285,15 @@ def get_or_create_python_environment(conda_environment_file: Path,
     return env
 
 
-def get_or_register_environment(workspace: Workspace, environment: Environment) -> Environment:
+def register_environment(workspace: Workspace, environment: Environment) -> Environment:
+    """
+    Try to get the AzureML environment by name and version from the AzureML workspace. If that fails, register the
+    environment on the workspace.
+    :param workspace: The AzureML workspace to use.
+    :param environment: An AzureML execution environment.
+    :return: An AzureML execution environment. If the environment did already exist on the workspace, the return value
+    is the environment as registered on the workspace, otherwise it is equal to the environment argument.
+    """
     try:
         env = Environment.get(workspace, name=environment.name, version=environment.version)
         logging.info(f"Using existing Python environment '{env.name}'.")
@@ -324,7 +332,6 @@ def set_environment_variables_for_multi_node() -> None:
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
-
     if ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ:
         # For AML BATCHAI
         os.environ[ENV_MASTER_ADDR] = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
