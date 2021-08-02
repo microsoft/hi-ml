@@ -167,15 +167,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
         run: Run = experiment.submit(script_run_config)
 
-        # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
-        wait_msg = "Waiting for completion of AzureML run" if wait_for_completion else "Not waiting for completion of \
-            AzureML run"
-        print("\n==============================================================================")
-        print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
-        print("Experiment URL: {}".format(experiment.get_portal_url()))
-        print("Run URL: {}".format(run.get_portal_url()))
-        print(wait_msg)
-        print("==============================================================================\n")
+        _print_run_info(wait_for_completion, experiment, run)
 
         if wait_for_completion:
             run.wait_for_completion(show_output=wait_for_completion_show_output)
@@ -190,6 +182,27 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         recovery_file.write_text(recovery_id)
 
     exit(0)
+
+
+def _print_run_info(wait_for_completion: bool, experiment: Experiment, run: Run) -> None:
+    """
+    Print useful data about the current run.
+
+    :param wait_for_completion: Wait for the AzureML run to finish
+    :param experiment: The AzureML experiment
+    :param run: The run on AzureML
+    """
+    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    if wait_for_completion:
+        wait_msg = "Waiting for completion of AzureML run"
+    else:
+        wait_msg = "Not waiting for completion of AzureML run"
+    print("\n==============================================================================")
+    print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
+    print("Experiment URL: {}".format(experiment.get_portal_url()))
+    print("Run URL: {}".format(run.get_portal_url()))
+    print(wait_msg)
+    print("==============================================================================\n")
 
 
 def _to_datasets(

@@ -22,6 +22,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 from health.azure.datasets import _input_dataset_key, _output_dataset_key
 import health.azure.himl as himl
+from _pytest.capture import CaptureFixture
 import pytest
 from conftest import check_config_json
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
@@ -97,6 +98,33 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
             conda_environment_file=Path("env.yml"))
         assert isinstance(result, himl.AzureRunInformation)
         assert not result.is_running_in_azure
+
+
+
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+@patch("health.azure.himl.Run")
+@patch("health.azure.himl.Experiment")
+def test_print_run_info(
+        mock_experiment: mock.MagicMock,
+        mock_run: mock.MagicMock,
+        wait_for_completion: bool,
+        capsys: CaptureFixture) -> None:
+    mock_experiment.name = uuid4().hex
+    mock_run.id = uuid4().hex
+    portal_url = uuid4().hex
+    mock_experiment.get_portal_url = lambda: portal_url
+    himl._print_run_info(
+        wait_for_completion=wait_for_completion,
+        experiment=mock_experiment,
+        run=mock_run)
+    out, err = capsys.readouterr()
+    assert not err
+    assert f"Successfully queued new run {mock_run.id} in experiment: {mock_experiment.name}" in out
+    assert portal_url in out
+    if wait_for_completion:
+        assert "Waiting for completion of AzureML run" in out
+    else:
+        assert "Not waiting for completion of AzureML run" in out
 
 
 @patch("azureml.data.OutputFileDatasetConfig")
