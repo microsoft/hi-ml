@@ -108,13 +108,14 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock, mock_experiment: mock
     mock_run.experiment = mock_experiment
     mock_experiment.name = uuid4().hex
     expected_run_recovery_id = mock_run.experiment.name + EXPERIMENT_RUN_SEPARATOR + mock_run.id
-    old_run_recovery_id = "old"
-    recovery_file = Path(himl.RUN_RECOVERY_FILE)
-    recovery_file.write_text(old_run_recovery_id)
     himl._write_run_recovery_file(mock_run)
-    recovery_file_text = recovery_file.read_text()
-    assert old_run_recovery_id != recovery_file_text
+    recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id == recovery_file_text
+    mock_run.id = uuid4().hex
+    mock_experiment.name = uuid4().hex
+    himl._write_run_recovery_file(mock_run)
+    recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
+    assert expected_run_recovery_id != recovery_file_text
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
@@ -303,6 +304,33 @@ def test_generate_azure_datasets(
     assert "output_2" in run_info.output_datasets
     assert "input_3" not in run_info.input_datasets
     assert "output_3" not in run_info.output_datasets
+
+
+def test_append_to_amlignore(tmp_path: Path) -> None:
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    with himl._append_to_amlignore(
+        amlignore=amlignore_path,
+        lines_to_append=["1st line", "2nd line"]):
+        amlignore_text = amlignore_path.read_text()
+    assert "1st line\n2nd line" == amlignore_text
+    assert not amlignore_path.exists()
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    amlignore_path.touch()
+    with himl._append_to_amlignore(
+        amlignore=amlignore_path,
+        lines_to_append=["1st line", "2nd line"]):
+        amlignore_text = amlignore_path.read_text()
+    assert "1st line\n2nd line" == amlignore_text
+    assert amlignore_path.exists()
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    amlignore_path.write_text("0th line")
+    with himl._append_to_amlignore(
+        amlignore=amlignore_path,
+        lines_to_append=["1st line", "2nd line"]):
+        amlignore_text = amlignore_path.read_text()
+    assert "0th line\n1st line\n2nd line" == amlignore_text
+    amlignore_text = amlignore_path.read_text()
+    assert "0th line" == amlignore_text
 
 
 # @pytest.mark.parametrize("local", [True, False])
