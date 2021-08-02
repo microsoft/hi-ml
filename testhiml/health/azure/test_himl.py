@@ -11,7 +11,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Dict, List, Tuple
 from unittest import mock
 from unittest.mock import patch
@@ -451,3 +451,21 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
         log_text = driver_log.read_text()
         assert "The message was: hello_world" in log_text
+
+
+@patch("health.azure.himl.submit_to_azure_if_needed")
+def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock) -> None:
+    with mock.patch("sys.argv", [
+            "",
+            "--workspace_config_path", "1",
+            "--compute_cluster_name", "2",
+            "--snapshot_root_directory", "3",
+            "--entry_script", "4",
+            "--conda_environment_file", "5"]):
+        himl.main()
+    assert mock_submit_to_azure_if_needed.call_args[1]["workspace_config_path"] == PosixPath("1")
+    assert mock_submit_to_azure_if_needed.call_args[1]["compute_cluster_name"] == "2"
+    assert mock_submit_to_azure_if_needed.call_args[1]["snapshot_root_directory"] == PosixPath("3")
+    assert mock_submit_to_azure_if_needed.call_args[1]["entry_script"] == PosixPath("4")
+    assert mock_submit_to_azure_if_needed.call_args[1]["conda_environment_file"] == PosixPath("5")
+

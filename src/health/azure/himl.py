@@ -377,9 +377,6 @@ def main() -> None:
     Handle submit_to_azure if called from the command line.
     """
     parser = ArgumentParser()
-    parser.add_argument("-w", "--workspace_name", type=str, required=False, help="Azure ML workspace name")
-    parser.add_argument("-s", "--subscription_id", type=str, required=False, help="AzureML subscription id")
-    parser.add_argument("-r", "--resource_group", type=str, required=False, help="AzureML resource group")
     parser.add_argument("-p", "--workspace_config_path", type=str, required=False, help="AzureML workspace config file")
     parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML cluster name")
     parser.add_argument("-y", "--snapshot_root_directory", type=str, required=True,
@@ -391,11 +388,11 @@ def main() -> None:
     args = parser.parse_args()
 
     submit_to_azure_if_needed(
-        workspace_config_path=args.workspace_config_path,
+        workspace_config_path=Path(args.workspace_config_path),
         compute_cluster_name=args.compute_cluster_name,
-        snapshot_root_directory=args.snapshot_root_directory,
-        entry_script=args.entry_script,
-        conda_environment_file=args.conda_environment_file)
+        snapshot_root_directory=Path(args.snapshot_root_directory),
+        entry_script=Path(args.entry_script),
+        conda_environment_file=Path(args.conda_environment_file))
 
 
 if __name__ == "__main__":
