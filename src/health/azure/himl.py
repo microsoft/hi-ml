@@ -360,6 +360,11 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     if not cleaned_experiment_name:
         cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
 
+    existing_compute_clusters = workspace.compute_targets
+    if compute_cluster_name not in existing_compute_clusters:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
+
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
     with append_to_amlignore(
@@ -368,10 +373,6 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         run = submit_run(workspace=workspace,
                          experiment_name=cleaned_experiment_name,
                          script_run_config=script_run_config)
-        # TODO: Catch incorrect cluster name, rather than checking beforehand
-        # if compute_cluster_name not in workspace.compute_targets:
-        #     raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-        #                      f"Existing clusters: {list(workspace.compute_targets.keys())}")
     tags = tags or {"commandline_args": " ".join(script_params)}
     run.set_tags(tags)
 
