@@ -99,6 +99,34 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
+@patch("azureml.core.ComputeTarget")
+@patch("health.azure.himl.RunConfiguration")
+@patch("health.azure.himl.Environment")
+@patch("health.azure.himl.Workspace")
+def test_get_script_run_config(
+        mock_workspace: mock.MagicMock,
+        mock_environment: mock.MagicMock,
+        mock_run_configuration: mock.MagicMock,
+        mock_compute_target) -> None:
+    snapshot_root_directory = Path.cwd()
+    mock_workspace.compute_targets = {"a":  mock_compute_target}
+    script_run_config = himl._get_script_run_config(
+        compute_cluster_name="a",
+        snapshot_root_directory=snapshot_root_directory,
+        workspace=mock_workspace,
+        environment=mock_environment,
+        run_config=mock_run_configuration)
+    assert script_run_config
+    with pytest.raises(ValueError) as e:
+        script_run_config = himl._get_script_run_config(
+            compute_cluster_name="b",
+            snapshot_root_directory=snapshot_root_directory,
+            workspace=mock_workspace,
+            environment=mock_environment,
+            run_config=mock_run_configuration)
+    assert "Could not find the compute target b in the AzureML workspaces" in str(e.value)
+
+
 @patch("health.azure.himl.Environment")
 def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> None:
     snapshot_dir = tmp_path / uuid4().hex

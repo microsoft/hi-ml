@@ -145,14 +145,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
 
     run_config = _get_run_config(entry_script, snapshot_root_directory, script_params, environment)
 
-    if compute_cluster_name not in workspace.compute_targets:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
-                         f"{list(workspace.compute_targets.keys())}")
-    script_run_config = ScriptRunConfig(
-        source_directory=str(snapshot_root_directory),
-        run_config=run_config,
-        compute_target=workspace.compute_targets[compute_cluster_name],
-        environment=environment)
+    script_run_config = _get_script_run_config(compute_cluster_name, snapshot_root_directory, workspace, environment, run_config)
 
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
@@ -202,6 +195,34 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         recovery_file.write_text(recovery_id)
 
     exit(0)
+
+def _get_script_run_config(
+        compute_cluster_name: str,
+        snapshot_root_directory: Path,
+        workspace: Workspace,
+        environment: Environment,
+        run_config: RunConfiguration) -> ScriptRunConfig:
+    """
+    Glean the ScriptRunConfig from the required elements, raising a ValueError if the specified cluser name is not
+    available in the workspace.
+    
+    :param compute_cluster_name: The name of the computer cluster in the AzureML workspace
+    :param snapshot_root_directory: Path to the snapshot to upload to AzureML
+    :param workspace: The AzureML Workspace
+    :param environment: The Python environment for the AzureML 'experiment'
+    :param run_config: The AzureML RunConfiguration
+    :return: A ScriptRunConfig containing information needed to run a script as an expeiment in AzureML
+    """
+    if compute_cluster_name not in workspace.compute_targets:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
+                         f"{list(workspace.compute_targets.keys())}")
+    script_run_config = ScriptRunConfig(
+        source_directory=str(snapshot_root_directory),
+        run_config=run_config,
+        compute_target=workspace.compute_targets[compute_cluster_name],
+        environment=environment)
+        
+    return script_run_config
 
 
 def _get_run_config(
