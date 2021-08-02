@@ -9,7 +9,6 @@ See examples/elevate_this.py for a very simple 'hello world' example of use.
 """
 
 import logging
-import os
 import sys
 import warnings
 from argparse import ArgumentParser
@@ -21,9 +20,8 @@ from typing import Callable, Dict, Generator, List, Optional, Union
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 
-from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_run_recovery_id, get_authentication,
-                                     create_python_environment,
-                                     register_environment, run_duration_string_to_seconds,
+from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_python_environment, create_run_recovery_id,
+                                     get_authentication, register_environment, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
 from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
 
@@ -98,8 +96,95 @@ def get_or_create_environment(workspace: Workspace,
         raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
 
 
-def _submit_run(workspace: Workspace, experiment_name: str, script_run_config: ScriptRunConfig) -> Run:
-    experiment = Experiment(workspace=workspace, name=experiment_name)
+def create_run_configuration(workspace: Workspace,
+                             compute_cluster_name: str,
+                             conda_environment_file: Optional[Path] = None,
+                             aml_environment: str = "",
+                             environment_variables: Optional[Dict[str, str]] = None,
+                             pip_extra_index_url: str = "",
+                             docker_base_image: str = "",
+                             docker_shm_size: str = "",
+                             num_nodes: int = 1,
+                             max_run_duration: str = "",
+                             default_datastore: str = "",
+                             input_datasets: Optional[List[StrOrDatasetConfig]] = None,
+                             output_datasets: Optional[List[StrOrDatasetConfig]] = None,
+                             ) -> RunConfiguration:
+    """
+    Creates an
+    :param workspace: The AzureML Workspace to use.
+    :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
+    provided, an environment will be created from the arguments to this function.
+    :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
+    floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
+    :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
+    CPU or GPU machines.
+    :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
+    script to run.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
+    :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
+    the Docker image.
+    :param conda_environment_file: The file that contains the Conda environment definition.
+    :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
+    storage. This is described in more detail in the README.
+    :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
+    exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
+    also register the data in this folder as an AzureML dataset.
+    :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
+    data to that folder, upload it to blob storage, in the data store.
+
+    :param num_nodes: The number of nodes to use in distributed training on AzureML.
+    :return:
+    """
+    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
+                                                      default_datastore_name=default_datastore)
+    cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
+                                                       default_datastore_name=default_datastore)
+    run_config = RunConfiguration()
+    run_config.environment = get_or_create_environment(workspace=workspace,
+                                                       aml_environment=aml_environment,
+                                                       conda_environment_file=conda_environment_file,
+                                                       pip_extra_index_url=pip_extra_index_url,
+                                                       environment_variables=environment_variables,
+                                                       docker_base_image=docker_base_image)
+    run_config.target = compute_cluster_name
+    if max_run_duration:
+        run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+    if num_nodes > 1:
+        distributed_job_config = MpiConfiguration(node_count=num_nodes)
+        run_config.mpi = distributed_job_config
+        run_config.framework = "Python"
+        run_config.communicator = "IntelMpi"
+        run_config.node_count = distributed_job_config.node_count
+
+    inputs = {}
+    for index, d in enumerate(cleaned_input_datasets):
+        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        inputs[consumption.name] = consumption
+    outputs = {}
+    for index, d in enumerate(cleaned_output_datasets):
+        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+        outputs[out.name] = out
+    run_config.data = inputs
+    run_config.output_data = outputs
+    run_config.docker = DockerConfiguration(use_docker=True,
+                                            shm_size=(docker_shm_size or DEFAULT_DOCKER_SHM_SIZE))
+    return run_config
+
+
+def submit_run(workspace: Workspace, experiment_name: str, script_run_config: ScriptRunConfig) -> Run:
+    """
+    Starts an AzureML run on a given workspace, via the script_run_config.
+    :param workspace: The AzureML workspace to use.
+    :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
+    characters that are not valid in Azure, those will be removed.
+    :param script_run_config: The settings that describe which script should be run.
+    :return: An AzureML Run object.
+    """
+    cleaned_experiment_name = to_azure_friendly_string(experiment_name)
+    experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
     return experiment.submit(script_run_config)
 
 
@@ -206,9 +291,10 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure()
     if in_azure:
-        returned_input_datasets = [RUN_CONTEXT.input_datasets[_input_dataset_key(index)]
+        # TODO: Test that the paths come out as Path objects
+        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
                                    for index in range(len(cleaned_input_datasets))]
-        returned_output_datasets = [RUN_CONTEXT.output_datasets[_output_dataset_key(index)]
+        returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                     for index in range(len(cleaned_output_datasets))]
         return AzureRunInformation(
             input_datasets=returned_input_datasets,
@@ -246,39 +332,24 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
                          "config.json file, or 'aml_workspace' to pass a Workspace object.")
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
+    run_config = create_run_configuration(
+        workspace=workspace,
+        compute_cluster_name=compute_cluster_name,
+        aml_environment=aml_environment,
+        conda_environment_file=conda_environment_file,
+        environment_variables=environment_variables,
+        pip_extra_index_url=pip_extra_index_url,
+        docker_base_image=docker_base_image,
+        docker_shm_size=docker_shm_size,
+        num_nodes=num_nodes,
+        max_run_duration=max_run_duration,
+        input_datasets=cleaned_input_datasets,
+        output_datasets=cleaned_output_datasets,
+    )
     if not script_params:
         script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
     entry_script_relative = entry_script.relative_to(snapshot_root_directory)
 
-    run_config = RunConfiguration()
-    run_config.environment = get_or_create_environment(workspace=workspace,
-                                                       aml_environment=aml_environment,
-                                                       conda_environment_file=conda_environment_file,
-                                                       pip_extra_index_url=pip_extra_index_url,
-                                                       environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image)
-    run_config.target = compute_cluster_name
-    if max_run_duration:
-        run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
-    if num_nodes > 1:
-        distributed_job_config = MpiConfiguration(node_count=num_nodes)
-        run_config.mpi = distributed_job_config
-        run_config.framework = "Python"
-        run_config.communicator = "IntelMpi"
-        run_config.node_count = distributed_job_config.node_count
-
-    inputs = {}
-    for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
-        inputs[consumption.name] = consumption
-    outputs = {}
-    for index, d in enumerate(cleaned_output_datasets):
-        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
-        outputs[out.name] = out
-    run_config.data = inputs
-    run_config.output_data = outputs
-    run_config.docker = DockerConfiguration(use_docker=True,
-                                            shm_size=(docker_shm_size or DEFAULT_DOCKER_SHM_SIZE))
     script_run_config = ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
         script=entry_script_relative,
@@ -294,9 +365,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
-        run = _submit_run(workspace=workspace,
-                          experiment_name=cleaned_experiment_name,
-                          script_run_config=script_run_config)
+        run = submit_run(workspace=workspace,
+                         experiment_name=cleaned_experiment_name,
+                         script_run_config=script_run_config)
         # TODO: Catch incorrect cluster name, rather than checking beforehand
         # if compute_cluster_name not in workspace.compute_targets:
         #     raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
