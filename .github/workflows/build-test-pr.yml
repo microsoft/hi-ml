@@ -92,7 +92,7 @@ jobs:
 
   build-python:
     runs-on: ubuntu-latest
-    needs: [pytest]
+    # needs: [pytest]
     steps:
       - uses: actions/checkout@v2
         with:
