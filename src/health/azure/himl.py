@@ -19,6 +19,7 @@ from typing import Callable, Dict, Generator, List, Optional, Union
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
+from azureml.train.hyperdrive import HyperDriveConfig
 
 from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_python_environment, create_run_recovery_id,
                                      get_authentication, register_environment, run_duration_string_to_seconds,
@@ -176,10 +177,10 @@ def create_run_configuration(workspace: Workspace,
 
 def submit_run(workspace: Workspace,
                experiment_name: str,
-               script_run_config: ScriptRunConfig,
+               script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
                tags: Optional[Dict[str, str]] = None,
                wait_for_completion: bool = False,
-               wait_for_completion_show_output: bool = False,) -> Run:
+               wait_for_completion_show_output: bool = False, ) -> Run:
     """
     Starts an AzureML run on a given workspace, via the script_run_config.
     :param workspace: The AzureML workspace to use.
@@ -219,7 +220,6 @@ def submit_run(workspace: Workspace,
     return run
 
 
-
 def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     if isinstance(s, str):
         return Path(s)
@@ -250,7 +250,8 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         max_run_duration: str = "",
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
-        after_submission: Optional[Callable[[Run], None]] = None) -> AzureRunInformation:
+        after_submission: Optional[Callable[[Run], None]] = None,
+        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInformation:
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -305,7 +306,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :param submit_to_azureml: If True, the codepath to create an AzureML run will be executed. If False, the codepath
     for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
     will be triggered if the commandline flag '--azureml' is present in sys.argv
-
+    :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
     otherwise we return a AzureRunInformation object.
     """
@@ -388,6 +389,12 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         arguments=script_params,
         run_config=run_config)
 
+    if hyperdrive_config:
+        config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
+        config_to_submit._run_config = script_run_config
+    else:
+        config_to_submit = script_run_config
+
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     if not cleaned_experiment_name:
         cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
@@ -404,7 +411,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             lines_to_append=lines_to_append):
         run = submit_run(workspace=workspace,
                          experiment_name=cleaned_experiment_name,
-                         script_run_config=script_run_config,
+                         script_run_config=config_to_submit,
                          tags=tags,
                          wait_for_completion=wait_for_completion,
                          wait_for_completion_show_output=wait_for_completion_show_output)
