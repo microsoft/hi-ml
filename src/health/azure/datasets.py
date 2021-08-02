@@ -146,6 +146,8 @@ class DatasetConfig:
         datastore = get_datastore(workspace, self.datastore)
         dataset = OutputFileDatasetConfig(name=_output_dataset_key(index=dataset_index),
                                           destination=(datastore, self.name + "/"))
+        # TODO: Can we get tags into here too?
+        dataset = dataset.register_on_complete(name=self.name)
         if self.target_folder:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
