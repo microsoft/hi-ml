@@ -174,18 +174,50 @@ def create_run_configuration(workspace: Workspace,
     return run_config
 
 
-def submit_run(workspace: Workspace, experiment_name: str, script_run_config: ScriptRunConfig) -> Run:
+def submit_run(workspace: Workspace,
+               experiment_name: str,
+               script_run_config: ScriptRunConfig,
+               tags: Optional[Dict[str, str]] = None,
+               wait_for_completion: bool = False,
+               wait_for_completion_show_output: bool = False,) -> Run:
     """
     Starts an AzureML run on a given workspace, via the script_run_config.
     :param workspace: The AzureML workspace to use.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
     characters that are not valid in Azure, those will be removed.
     :param script_run_config: The settings that describe which script should be run.
+    :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
+    a default metadata field will be added that only contains the commandline arguments that started the run.
+    :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
+    the completion of this run (if True).
+    :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
+    run output on sys.stdout.
     :return: An AzureML Run object.
     """
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
-    return experiment.submit(script_run_config)
+    run = experiment.submit(script_run_config)
+    tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
+    run.set_tags(tags)
+
+    recovery_id = create_run_recovery_id(run)
+    recovery_file = Path(RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
+    recovery_file.write_text(recovery_id)
+
+    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    print("\n==============================================================================")
+    print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
+    print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
+    print(f"Experiment URL: {run.experiment.get_portal_url()}")
+    print(f"Run URL: {run.get_portal_url()}")
+    print("==============================================================================\n")
+    if wait_for_completion:
+        print("Waiting for the completion of the AzureML run.")
+        run.wait_for_completion(show_output=wait_for_completion_show_output)
+    return run
+
 
 
 def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
@@ -372,26 +404,10 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
             lines_to_append=lines_to_append):
         run = submit_run(workspace=workspace,
                          experiment_name=cleaned_experiment_name,
-                         script_run_config=script_run_config)
-    tags = tags or {"commandline_args": " ".join(script_params)}
-    run.set_tags(tags)
-
-    recovery_id = create_run_recovery_id(run)
-    recovery_file = Path(RUN_RECOVERY_FILE)
-    if recovery_file.exists():
-        recovery_file.unlink()
-    recovery_file.write_text(recovery_id)
-
-    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
-    print("\n==============================================================================")
-    print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
-    print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
-    print(f"Experiment URL: {run.experiment.get_portal_url()}")
-    print(f"Run URL: {run.get_portal_url()}")
-    print("==============================================================================\n")
-    if wait_for_completion:
-        print("Waiting for the completion of the AzureML run.")
-        run.wait_for_completion(show_output=wait_for_completion_show_output)
+                         script_run_config=script_run_config,
+                         tags=tags,
+                         wait_for_completion=wait_for_completion,
+                         wait_for_completion_show_output=wait_for_completion_show_output)
 
     if after_submission is not None:
         after_submission(run)
