@@ -86,4 +86,4 @@ def get_most_recent_run(run_recovery_file: Path = Path(RUN_RECOVERY_FILE)) -> Ru
     :return: The run
     """
     run_recovery_id = get_most_recent_run_id(run_recovery_file)
-    return fetch_run(workspace=DEFAULT_WORKSPACE, run_recovery_id=run_recovery_id)
+    return fetch_run(workspace=DEFAULT_WORKSPACE.workspace, run_recovery_id=run_recovery_id)
