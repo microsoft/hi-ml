@@ -77,19 +77,20 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
 
 
 def test_get_authentication() -> None:
-    with mock.patch.dict("health.azure.azure_util.os.environ", {}):
+    with mock.patch.dict(os.environ, {}, clear=True):
         spa = util.get_authentication()
         assert isinstance(spa, InteractiveLoginAuthentication)
     service_principal_id = "1"
     tenant_id = "2"
     service_principal_password = "3"
     with mock.patch.dict(
-            "health.azure.azure_util.os.environ",
+            os.environ,
             {
                 util.SERVICE_PRINCIPAL_ID: service_principal_id,
                 util.TENANT_ID: tenant_id,
                 util.SERVICE_PRINCIPAL_PASSWORD: service_principal_password
-            }):
+            },
+            clear=True):
         spa = util.get_authentication()
         assert isinstance(spa, ServicePrincipalAuthentication)
         assert spa._service_principal_id == service_principal_id
