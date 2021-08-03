@@ -74,10 +74,10 @@ def submit_to_azure_if_needed(  # type: ignore
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
         ) -> AzureRunInformation:  # pragma: no cover
-        # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
-        # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
-        # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
-        # called with their own unit tests. 
+    # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
+    # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
+    # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
+    # called with their own unit tests.
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -152,7 +152,8 @@ def submit_to_azure_if_needed(  # type: ignore
 
     run_config = _get_run_config(entry_script, snapshot_root_directory, script_params, environment)
 
-    script_run_config = _get_script_run_config(compute_cluster_name, snapshot_root_directory, workspace, environment, run_config)
+    script_run_config = _get_script_run_config(compute_cluster_name, snapshot_root_directory, workspace, environment,
+                                               run_config)
 
     inputs, outputs = _to_datasets(cleaned_input_datasets, cleaned_output_datasets, workspace)
     run_config.data = inputs
@@ -225,7 +226,7 @@ def _to_datasets(
         workspace: Workspace) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, DatasetConsumptionConfig]]:
     """
     Convert the cleaned input and output datasets into the lists of DatasetConsumptionConfigs required for an AzureML
-    RunConfiguration 
+    RunConfiguration
 
     :param cleaned_input_datasets: The list of input DatasetConfigs
     :param cleaned_output_datasets: The list of output DatasetConfigs
@@ -252,7 +253,7 @@ def _get_script_run_config(
     """
     Glean the ScriptRunConfig from the required elements, raising a ValueError if the specified cluser name is not
     available in the workspace.
-    
+
     :param compute_cluster_name: The name of the computer cluster in the AzureML workspace
     :param snapshot_root_directory: Path to the snapshot to upload to AzureML
     :param workspace: The AzureML Workspace
@@ -268,7 +269,7 @@ def _get_script_run_config(
         run_config=run_config,
         compute_target=workspace.compute_targets[compute_cluster_name],
         environment=environment)
-        
+
     return script_run_config
 
 

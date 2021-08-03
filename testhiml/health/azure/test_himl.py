@@ -8,7 +8,6 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
 from pathlib import Path, PosixPath
@@ -213,11 +212,11 @@ def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> Non
     ok_entry_script.write_text("print('hello world')\n")
 
     run_config = himl._get_run_config(
-        entry_script= ok_entry_script,
+        entry_script=ok_entry_script,
         snapshot_root_directory=snapshot_dir,
         script_params=[],
         environment=mock_environment)
-    assert run_config.script == ok_entry_script.relative_to(snapshot_dir) 
+    assert run_config.script == ok_entry_script.relative_to(snapshot_dir)
 
     problem_entry_script_dir = tmp_path / uuid4().hex
     problem_entry_script_dir.mkdir(exist_ok=False)
@@ -226,7 +225,7 @@ def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> Non
 
     with pytest.raises(ValueError) as e:
         run_config = himl._get_run_config(
-            entry_script= problem_entry_script,
+            entry_script=problem_entry_script,
             snapshot_root_directory=snapshot_dir,
             script_params=[],
             environment=mock_environment)
@@ -310,24 +309,24 @@ def test_generate_azure_datasets(
 def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_path = tmp_path / Path(uuid4().hex)
     with himl._append_to_amlignore(
-        amlignore=amlignore_path,
-        lines_to_append=["1st line", "2nd line"]):
+            amlignore=amlignore_path,
+            lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
     assert "1st line\n2nd line" == amlignore_text
     assert not amlignore_path.exists()
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.touch()
     with himl._append_to_amlignore(
-        amlignore=amlignore_path,
-        lines_to_append=["1st line", "2nd line"]):
+            amlignore=amlignore_path,
+            lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
     assert "1st line\n2nd line" == amlignore_text
     assert amlignore_path.exists()
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.write_text("0th line")
     with himl._append_to_amlignore(
-        amlignore=amlignore_path,
-        lines_to_append=["1st line", "2nd line"]):
+            amlignore=amlignore_path,
+            lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
     assert "0th line\n1st line\n2nd line" == amlignore_text
     amlignore_text = amlignore_path.read_text()
@@ -420,7 +419,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         assert 'The message was: hello_world' in captured
     else:
         assert "Successfully queued new run test_script_" in captured
-        run = get_most_recent_run(run_recovery_file=snapshot_root / himl.RUN_RECOVERY_FILE)
+        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
