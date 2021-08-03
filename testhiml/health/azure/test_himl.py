@@ -287,6 +287,7 @@ def test_generate_azure_datasets(
 
 @pytest.mark.fast
 def test_append_to_amlignore(tmp_path: Path) -> None:
+    # If there is no .amlignore file before the test, there should be none afterwards
     amlignore_path = tmp_path / Path(uuid4().hex)
     with himl._append_to_amlignore(
             amlignore=amlignore_path,
@@ -294,6 +295,18 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
         amlignore_text = amlignore_path.read_text()
     assert "1st line\n2nd line" == amlignore_text
     assert not amlignore_path.exists()
+
+    # If there is no .amlignore file before the test, and there are no lines to append, then there should be no
+    # .amlignore file during the test
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    with himl._append_to_amlignore(
+            amlignore=amlignore_path,
+            lines_to_append=[]):
+        amlignore_exists_during_test = amlignore_path.exists()
+    assert not amlignore_exists_during_test
+    assert not amlignore_path.exists()
+
+    # If there is an empty .amlignore file before the test, it should be there afterwards
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.touch()
     with himl._append_to_amlignore(
@@ -302,6 +315,8 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
         amlignore_text = amlignore_path.read_text()
     assert "1st line\n2nd line" == amlignore_text
     assert amlignore_path.exists()
+
+    # If there is a .amlignore file before the test, it should be identical afterwards
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.write_text("0th line")
     with himl._append_to_amlignore(
