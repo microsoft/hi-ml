@@ -450,6 +450,8 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
     else:
         assert "Successfully queued new run test_script_" in captured
         print(f"tmp_path = {str(tmp_path.absolute())}")
+        logging.debug(f"tmp_path = {str(tmp_path.absolute())}")
+        logging.info(f"tmp_path = {str(tmp_path.absolute())}")
         run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
