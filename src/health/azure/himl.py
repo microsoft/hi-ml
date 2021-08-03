@@ -74,8 +74,10 @@ def submit_to_azure_if_needed(  # type: ignore
         wait_for_completion: bool = False,
         wait_for_completion_show_output: bool = False,
         ) -> AzureRunInformation:  # pragma: no cover
-        # This cannot be unit-tested outside AzureML, so submit_to_azure_if_needed is broken into simple small functions
-        # that are called with their own unit tests.
+        # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
+        # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
+        # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
+        # called with their own unit tests. 
     """
     Submit a folder to Azure, if needed and run it.
 
