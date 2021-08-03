@@ -194,6 +194,7 @@ def _write_run_recovery_file(run: Run) -> None:
     """
     recovery_id = create_run_recovery_id(run)
     recovery_file = Path(RUN_RECOVERY_FILE)
+    print(f"recovery_file.absolute() = {str(recovery_file.absolute())}")
     if recovery_file.exists():
         recovery_file.unlink()
     recovery_file.write_text(recovery_id)
