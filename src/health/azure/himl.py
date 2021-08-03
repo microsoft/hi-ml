@@ -353,12 +353,14 @@ def _append_to_amlignore(amlignore: Path, lines_to_append: List[str]) -> Generat
     """
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
-    new_contents = old_contents.splitlines() + lines_to_append
-    amlignore.write_text("\n".join(new_contents))
+    new_lines = old_contents.splitlines() + lines_to_append
+    new_text = "\n".join(new_lines)
+    if new_text:
+        amlignore.write_text(new_text)
     yield
     if amlignore_exists_already:
         amlignore.write_text(old_contents)
-    else:
+    elif new_text:
         amlignore.unlink()
 
 
