@@ -152,7 +152,7 @@ def test_to_datasets(
         mock_dataset_config: mock.MagicMock,
         mock_workspace: mock.MagicMock,
         mock_dataset_consumption_config: mock.MagicMock,
-        mock_output_file_dataset_config) -> None:
+        mock_output_file_dataset_config: mock.MagicMock) -> None:
 
     def to_input_dataset(workspace: Workspace, dataset_index: int, ) -> DatasetConsumptionConfig:
         return mock_dataset_consumption_config
@@ -184,7 +184,7 @@ def test_get_script_run_config(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
         mock_run_configuration: mock.MagicMock,
-        mock_compute_target) -> None:
+        mock_compute_target: mock.MagicMock) -> None:
     snapshot_root_directory = Path.cwd()
     mock_workspace.compute_targets = {"a":  mock_compute_target}
     script_run_config = himl._get_script_run_config(

@@ -186,7 +186,7 @@ def submit_to_azure_if_needed(  # type: ignore
     exit(0)
 
 
-def _write_run_recovery_file(run: Run):
+def _write_run_recovery_file(run: Run) -> None:
     """
     Write the run recovery file
 
