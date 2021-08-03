@@ -75,15 +75,16 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
 @pytest.mark.fast
 @patch("health.azure.himl.Run")
 def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
+    # recovery file does not exist:
     mock_run.id = uuid4().hex
     mock_run.experiment.name = uuid4().hex
     expected_run_recovery_id = mock_run.experiment.name + EXPERIMENT_RUN_SEPARATOR + mock_run.id
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id == recovery_file_text
+    # recovery file exists from above:
     mock_run.id = uuid4().hex
     mock_run.experiment.name = uuid4().hex
-    Path(himl.RUN_RECOVERY_FILE).unlink()
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id != recovery_file_text
