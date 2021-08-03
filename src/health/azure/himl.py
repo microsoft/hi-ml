@@ -15,16 +15,18 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Union
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_python_environment, create_run_recovery_id,
                                      get_authentication, register_environment, run_duration_string_to_seconds,
                                      to_azure_friendly_string)
-from health.azure.datasets import StrOrDatasetConfig, _input_dataset_key, _output_dataset_key, _replace_string_datasets
+from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
+                                   _replace_string_datasets)
 
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
@@ -226,7 +228,8 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
-def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
+def submit_to_azure_if_needed(  # type: ignore
+        # ignore missing return statement since we 'exit' instead when submitting to AzureML
         entry_script: PathOrString,
         compute_cluster_name: str,
         aml_workspace: Optional[Workspace] = None,
@@ -251,7 +254,11 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInformation:
+        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInformation:  # pragma: no cover
+    # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
+    # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
+    # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
+    # called with their own unit tests.
     """
     Submit a folder to Azure, if needed and run it.
 
@@ -310,7 +317,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
     otherwise we return a AzureRunInformation object.
     """
-    package_setup()
+    _package_setup()
     if isinstance(entry_script, str):
         entry_script = Path(entry_script)
     workspace_config_path = _str_to_path(workspace_config_path)
@@ -324,19 +331,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure()
     if in_azure:
-        # TODO: Test that the paths come out as Path objects
-        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                   for index in range(len(cleaned_input_datasets))]
-        returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                    for index in range(len(cleaned_output_datasets))]
-        return AzureRunInformation(
-            input_datasets=returned_input_datasets,
-            output_datasets=returned_output_datasets,
-            run=RUN_CONTEXT,
-            is_running_in_azure=True,
-            output_folder=Path.cwd() / OUTPUT_FOLDER,
-            logs_folder=Path.cwd() / LOGS_FOLDER
-        )
+        return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
 
     # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
     # is necessary. If not, return to the caller for local execution.
@@ -355,14 +350,7 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    if aml_workspace:
-        workspace = aml_workspace
-    elif workspace_config_path and workspace_config_path.is_file():
-        auth = get_authentication()
-        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-    else:
-        raise ValueError("Cannot glean workspace config from parameters. Use 'workspace_config_path' to point to a "
-                         "config.json file, or 'aml_workspace' to pass a Workspace object.")
+    workspace = _get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
@@ -379,8 +367,9 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
         input_datasets=cleaned_input_datasets,
         output_datasets=cleaned_output_datasets,
     )
-    if not script_params:
-        script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+    script_params = _get_script_params(script_params)
+    # TODO: Add diagnostics about which folder will be uploaded, which script started
+    # (relative path) and args
     entry_script_relative = entry_script.relative_to(snapshot_root_directory)
 
     script_run_config = ScriptRunConfig(
@@ -395,6 +384,11 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
     else:
         config_to_submit = script_run_config
 
+    if compute_cluster_name not in workspace.compute_targets:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
+                         f"{list(workspace.compute_targets.keys())}")
+
+    # TODO: Move cleaning into submit_run
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     if not cleaned_experiment_name:
         cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
@@ -416,9 +410,119 @@ def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
                          wait_for_completion=wait_for_completion,
                          wait_for_completion_show_output=wait_for_completion_show_output)
 
-    if after_submission is not None:
-        after_submission(run)
-    exit(0)
+        if after_submission is not None:
+            after_submission(run)
+        exit(0)
+
+
+def _write_run_recovery_file(run: Run) -> None:
+    """
+    Write the run recovery file
+
+    :param run: The AzureML run to save as a recovery checkpoint.
+    """
+    recovery_id = create_run_recovery_id(run)
+    recovery_file = Path(RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
+    recovery_file.write_text(recovery_id)
+
+
+def _print_run_info(wait_for_completion: bool, experiment: Experiment, run: Run) -> None:
+    """
+    Print useful data about the current run.
+
+    :param wait_for_completion: Wait for the AzureML run to finish
+    :param experiment: The AzureML experiment
+    :param run: The run on AzureML
+    """
+    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    if wait_for_completion:
+        wait_msg = "Waiting for completion of AzureML run"
+    else:
+        wait_msg = "Not waiting for completion of AzureML run"
+    print("\n==============================================================================")
+    print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
+    print("Experiment URL: {}".format(experiment.get_portal_url()))
+    print("Run URL: {}".format(run.get_portal_url()))
+    print(wait_msg)
+    print("==============================================================================\n")
+
+
+def _to_datasets(
+        cleaned_input_datasets: List[DatasetConfig],
+        cleaned_output_datasets: List[DatasetConfig],
+        workspace: Workspace) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, DatasetConsumptionConfig]]:
+    """
+    Convert the cleaned input and output datasets into the lists of DatasetConsumptionConfigs required for an AzureML
+    RunConfiguration
+
+    :param cleaned_input_datasets: The list of input DatasetConfigs
+    :param cleaned_output_datasets: The list of output DatasetConfigs
+    :param workspace: The AzureML workspace
+    :return: The input and output lists of DatasetConsumptionConfigs required for an AzureML RunConfiguration
+    """
+    inputs = {}
+    for index, d in enumerate(cleaned_input_datasets):
+        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        inputs[consumption.name] = consumption
+    outputs = {}
+    for index, d in enumerate(cleaned_output_datasets):
+        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+        outputs[out.name] = out
+    return inputs, outputs
+
+
+def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
+    """
+    If script parameters are given then return them, otherwise derive them from sys.argv
+    :param script_params: The optional script parameters
+    :return: The given script parameters or ones derived from sys.argv
+    """
+    if script_params:
+        return script_params
+    return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+
+
+def _get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+    """
+    Obtain the AzureML workspace from either the passed in value or the passed in path
+    :param aml_workspace: If provided this is returned as the AzureML Workspace
+    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
+    config
+    :param return: The AzureML Workspace
+    """
+    if aml_workspace:
+        workspace = aml_workspace
+    elif workspace_config_path and workspace_config_path.is_file():
+        auth = get_authentication()
+        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
+    else:
+        raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
+    return workspace
+
+
+def _generate_azure_datasets(
+        cleaned_input_datasets: List[DatasetConfig],
+        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInformation:
+    """
+    Generate returned datasets when running in AzumreML
+    :param cleaned_input_datasets: The list of input dataset configs
+    :param cleaned_output_datasets: The list of output dataset configs
+    :return: The AzureRunInformation containing the AzureML input and output dataset lists etc.
+    """
+    # TODO: Test that the paths come out as Path objects
+    returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                               for index in range(len(cleaned_input_datasets))]
+    returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                for index in range(len(cleaned_output_datasets))]
+    return AzureRunInformation(
+        input_datasets=returned_input_datasets,
+        output_datasets=returned_output_datasets,
+        run=RUN_CONTEXT,
+        is_running_in_azure=True,
+        output_folder=Path.cwd() / OUTPUT_FOLDER,
+        logs_folder=Path.cwd() / LOGS_FOLDER)
 
 
 @contextmanager
@@ -435,16 +539,18 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
         amlignore = Path.cwd() / AML_IGNORE_FILE
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
-    new_contents = old_contents.splitlines() + lines_to_append
-    amlignore.write_text("\n".join(new_contents))
+    new_lines = old_contents.splitlines() + lines_to_append
+    new_text = "\n".join(new_lines)
+    if new_text:
+        amlignore.write_text(new_text)
     yield
     if amlignore_exists_already:
         amlignore.write_text(old_contents)
-    else:
+    elif new_text:
         amlignore.unlink()
 
 
-def package_setup() -> None:
+def _package_setup() -> None:
     """
     Set up the Python packages where needed. In particular, reduce the logging level for some of the used
     libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
@@ -469,9 +575,6 @@ def main() -> None:
     Handle submit_to_azure if called from the command line.
     """
     parser = ArgumentParser()
-    parser.add_argument("-w", "--workspace_name", type=str, required=False, help="Azure ML workspace name")
-    parser.add_argument("-s", "--subscription_id", type=str, required=False, help="AzureML subscription id")
-    parser.add_argument("-r", "--resource_group", type=str, required=False, help="AzureML resource group")
     parser.add_argument("-p", "--workspace_config_path", type=str, required=False, help="AzureML workspace config file")
     parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML cluster name")
     parser.add_argument("-y", "--snapshot_root_directory", type=str, required=True,
@@ -483,12 +586,12 @@ def main() -> None:
     args = parser.parse_args()
 
     submit_to_azure_if_needed(
-        workspace_config_path=args.workspace_config_path,
+        workspace_config_path=Path(args.workspace_config_path),
         compute_cluster_name=args.compute_cluster_name,
-        snapshot_root_directory=args.snapshot_root_directory,
-        entry_script=args.entry_script,
-        conda_environment_file=args.conda_environment_file)
+        snapshot_root_directory=Path(args.snapshot_root_directory),
+        entry_script=Path(args.entry_script),
+        conda_environment_file=Path(args.conda_environment_file))
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover

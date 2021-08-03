@@ -1,0 +1,10 @@
+name: dev-hi-ml
+channels:
+  - defaults
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pip:
+    - -r file:build_requirements.txt
+    - -r file:run_requirements.txt
+    - -r file:test_requirements.txt

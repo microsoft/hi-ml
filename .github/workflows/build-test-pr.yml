@@ -249,7 +249,7 @@ jobs:
           name: latest_version
 
       - name: Test with pytest
-        run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
+        run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testhiml
 
       - name: Format coverage summary
         run: pycobertura show --format text --output coverage.txt coverage.xml
