@@ -19,6 +19,7 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
+from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
@@ -58,6 +59,7 @@ class AzureRunInformation:
 def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     """
     Returns True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    When called without arguments, this functions returns True if the present code is running in AzureML.
     :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     """
@@ -65,7 +67,7 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
 
 
 def get_or_create_environment(workspace: Workspace,
-                              aml_environment: str,
+                              aml_environment_name: str,
                               conda_environment_file: Optional[Path],
                               environment_variables: Optional[Dict[str, str]],
                               pip_extra_index_url: str,
@@ -76,7 +78,7 @@ def get_or_create_environment(workspace: Workspace,
     of a Conda environment file, environment variables, pip and docker settings. Either one of the arguments
     `aml_environment` and `conda_environment_file` must be provided.
     :param workspace: The AzureML workspace to work in.
-    :param aml_environment: The name of an existing AzureML environment that should be read. If this is empty, the
+    :param aml_environment_name: The name of an existing AzureML environment that should be read. If this is empty, the
     environment is created based on conda_environment_file.
     :param conda_environment_file: The Conda environment.yml file that should be used for environment creation. If this
     is empty, an existing environment is retrieved via the name given in aml_environment.
@@ -86,9 +88,9 @@ def get_or_create_environment(workspace: Workspace,
     :param docker_base_image: The Docker base image to use. If not given, use DEFAULT_DOCKER_BASE_IMAGE.
     :return: An AzureML Environment object.
     """
-    if aml_environment:
+    if aml_environment_name:
         # TODO: Split off version
-        return Environment.get(workspace, aml_environment)
+        return Environment.get(workspace, aml_environment_name)
     elif conda_environment_file:
         environment = create_python_environment(conda_environment_file=conda_environment_file,
                                                 pip_extra_index_url=pip_extra_index_url,
@@ -102,7 +104,7 @@ def get_or_create_environment(workspace: Workspace,
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
                              conda_environment_file: Optional[Path] = None,
-                             aml_environment: str = "",
+                             aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
                              pip_extra_index_url: str = "",
                              docker_base_image: str = "",
@@ -116,8 +118,9 @@ def create_run_configuration(workspace: Workspace,
     """
     Creates an
     :param workspace: The AzureML Workspace to use.
-    :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
-    provided, an environment will be created from the arguments to this function.
+    :param aml_environment_name: The name of an AzureML environment that should be used to submit the script. If not
+    provided, an environment will be created from the arguments to this function (conda_environment_file,
+    pip_extra_index_url, environment_variables, docker_base_image)
     :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
     floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
@@ -141,13 +144,14 @@ def create_run_configuration(workspace: Workspace,
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
     :return:
     """
-    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
-                                                      default_datastore_name=default_datastore)
-    cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
-                                                       default_datastore_name=default_datastore)
+    existing_compute_clusters = workspace.compute_targets
+    if compute_cluster_name not in existing_compute_clusters:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
+
     run_config = RunConfiguration()
     run_config.environment = get_or_create_environment(workspace=workspace,
-                                                       aml_environment=aml_environment,
+                                                       aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
                                                        environment_variables=environment_variables,
@@ -162,19 +166,56 @@ def create_run_configuration(workspace: Workspace,
         run_config.communicator = "IntelMpi"
         run_config.node_count = distributed_job_config.node_count
 
-    inputs = {}
-    for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
-        inputs[consumption.name] = consumption
-    outputs = {}
-    for index, d in enumerate(cleaned_output_datasets):
-        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
-        outputs[out.name] = out
+    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
+                                                      default_datastore_name=default_datastore)
+    cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
+                                                       default_datastore_name=default_datastore)
+    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets, cleaned_output_datasets,
+                                                       workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
     run_config.docker = DockerConfiguration(use_docker=True,
                                             shm_size=(docker_shm_size or DEFAULT_DOCKER_SHM_SIZE))
     return run_config
+
+
+def create_script_run(snapshot_root_directory: Optional[Path] = None,
+                      entry_script: Optional[PathOrString] = None,
+                      script_params: Optional[List[str]] = None) -> ScriptRunConfig:
+    """
+    Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
+    its arguments.
+    :param entry_script: The script that should be run in AzureML.
+    :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
+    All Python code that the script uses must be copied over.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
+    default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :return:
+    """
+    if snapshot_root_directory is None:
+        print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
+        snapshot_root_directory = Path.cwd()
+    else:
+        print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
+    if entry_script is None:
+        entry_script = Path(sys.argv[0])
+        print("No entry script given. The current main Python file will be executed in AzureML.")
+    elif isinstance(entry_script, str):
+        entry_script = Path(entry_script)
+    if entry_script.is_absolute():
+        try:
+            entry_script_relative = entry_script.relative_to(snapshot_root_directory).as_posix()
+        except ValueError:
+            raise ValueError("The entry script must be inside of the snapshot root directory. "
+                             f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
+    else:
+        entry_script_relative = entry_script
+    script_params = _get_script_params(script_params)
+    print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
+    return ScriptRunConfig(
+        source_directory=str(snapshot_root_directory),
+        script=str(entry_script_relative),
+        arguments=script_params)
 
 
 def submit_run(workspace: Workspace,
@@ -203,11 +244,7 @@ def submit_run(workspace: Workspace,
     tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
     run.set_tags(tags)
 
-    recovery_id = create_run_recovery_id(run)
-    recovery_file = Path(RUN_RECOVERY_FILE)
-    if recovery_file.exists():
-        recovery_file.unlink()
-    recovery_file.write_text(recovery_id)
+    _write_run_recovery_file(run)
 
     # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
@@ -237,7 +274,7 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
         conda_environment_file: Optional[Path] = None,
-        aml_environment: str = "",
+        aml_environment_name: str = "",
         experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
@@ -269,7 +306,7 @@ def submit_to_azure_if_needed(  # type: ignore
     or print information about the run.
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
     a default metadata field will be added that only contains the commandline arguments that started the run.
-    :param aml_environment: The name of an AzureML environment that should be used to submit the script. If not
+    :param aml_environment_name: The name of an AzureML environment that should be used to submit the script. If not
     provided, an environment will be created from the arguments to this function.
     :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
     floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
@@ -318,8 +355,6 @@ def submit_to_azure_if_needed(  # type: ignore
     otherwise we return a AzureRunInformation object.
     """
     _package_setup()
-    if isinstance(entry_script, str):
-        entry_script = Path(entry_script)
     workspace_config_path = _str_to_path(workspace_config_path)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
@@ -356,7 +391,7 @@ def submit_to_azure_if_needed(  # type: ignore
     run_config = create_run_configuration(
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,
-        aml_environment=aml_environment,
+        aml_environment_name=aml_environment_name,
         conda_environment_file=conda_environment_file,
         environment_variables=environment_variables,
         pip_extra_index_url=pip_extra_index_url,
@@ -367,36 +402,19 @@ def submit_to_azure_if_needed(  # type: ignore
         input_datasets=cleaned_input_datasets,
         output_datasets=cleaned_output_datasets,
     )
-    script_params = _get_script_params(script_params)
-    # TODO: Add diagnostics about which folder will be uploaded, which script started
-    # (relative path) and args
-    entry_script_relative = entry_script.relative_to(snapshot_root_directory)
-
-    script_run_config = ScriptRunConfig(
-        source_directory=str(snapshot_root_directory),
-        script=entry_script_relative,
-        arguments=script_params,
-        run_config=run_config)
-
+    script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
+                                          entry_script=entry_script,
+                                          script_params=script_params)
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
         config_to_submit._run_config = script_run_config
     else:
         config_to_submit = script_run_config
 
-    if compute_cluster_name not in workspace.compute_targets:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspaces ",
-                         f"{list(workspace.compute_targets.keys())}")
-
     # TODO: Move cleaning into submit_run
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     if not cleaned_experiment_name:
         cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
-
-    existing_compute_clusters = workspace.compute_targets
-    if compute_cluster_name not in existing_compute_clusters:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
@@ -428,39 +446,16 @@ def _write_run_recovery_file(run: Run) -> None:
     recovery_file.write_text(recovery_id)
 
 
-def _print_run_info(wait_for_completion: bool, experiment: Experiment, run: Run) -> None:
-    """
-    Print useful data about the current run.
-
-    :param wait_for_completion: Wait for the AzureML run to finish
-    :param experiment: The AzureML experiment
-    :param run: The run on AzureML
-    """
-    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
-    if wait_for_completion:
-        wait_msg = "Waiting for completion of AzureML run"
-    else:
-        wait_msg = "Not waiting for completion of AzureML run"
-    print("\n==============================================================================")
-    print(f"Successfully queued new run {run.id} in experiment: {experiment.name}")
-    print("Experiment URL: {}".format(experiment.get_portal_url()))
-    print("Run URL: {}".format(run.get_portal_url()))
-    print(wait_msg)
-    print("==============================================================================\n")
-
-
-def _to_datasets(
+def convert_himl_to_azureml_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig],
-        workspace: Workspace) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, DatasetConsumptionConfig]]:
+        workspace: Workspace) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
-    Convert the cleaned input and output datasets into the lists of DatasetConsumptionConfigs required for an AzureML
-    RunConfiguration
-
+    Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
     :param cleaned_input_datasets: The list of input DatasetConfigs
     :param cleaned_output_datasets: The list of output DatasetConfigs
     :param workspace: The AzureML workspace
-    :return: The input and output lists of DatasetConsumptionConfigs required for an AzureML RunConfiguration
+    :return: The input and output dictionaries of DatasetConsumptionConfigs.
     """
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
@@ -511,7 +506,6 @@ def _generate_azure_datasets(
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInformation containing the AzureML input and output dataset lists etc.
     """
-    # TODO: Test that the paths come out as Path objects
     returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
                                for index in range(len(cleaned_input_datasets))]
     returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])

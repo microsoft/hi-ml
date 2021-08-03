@@ -13,12 +13,11 @@ import sys
 from pathlib import Path, PosixPath
 from typing import Dict, List, Tuple
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from _pytest.capture import CaptureFixture
-from azureml.core import Workspace
+from azureml.core import RunConfiguration, Workspace
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 import health.azure.himl as himl
@@ -60,7 +59,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
             conda_environment_file=Path("env.yml"))
         assert isinstance(result, himl.AzureRunInformation)
         assert not result.is_running_in_azure
-        assert result.run is not None
+        assert result.run is None
 
 
 @pytest.mark.fast
@@ -79,33 +78,6 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id != recovery_file_text
-
-
-@pytest.mark.fast
-@pytest.mark.parametrize("wait_for_completion", [True, False])
-@patch("health.azure.himl.Run")
-@patch("health.azure.himl.Experiment")
-def test_print_run_info(
-        mock_experiment: mock.MagicMock,
-        mock_run: mock.MagicMock,
-        wait_for_completion: bool,
-        capsys: CaptureFixture) -> None:
-    mock_experiment.name = uuid4().hex
-    mock_run.id = uuid4().hex
-    portal_url = uuid4().hex
-    mock_experiment.get_portal_url = lambda: portal_url
-    himl._print_run_info(
-        wait_for_completion=wait_for_completion,
-        experiment=mock_experiment,
-        run=mock_run)
-    out, err = capsys.readouterr()
-    assert not err
-    assert f"Successfully queued new run {mock_run.id} in experiment: {mock_experiment.name}" in out
-    assert portal_url in out
-    if wait_for_completion:
-        assert "Waiting for completion of AzureML run" in out
-    else:
-        assert "Not waiting for completion of AzureML run" in out
 
 
 @pytest.mark.fast
@@ -133,7 +105,7 @@ def test_to_datasets(
     # we should check if the names are unique. In practice, this is unlikely to happen because the names are
     # INPUT_0, INPUT_1, etc
     cleaned_output_datasets = [mock_dataset_config, mock_dataset_config]
-    inputs, outputs = himl._to_datasets(
+    inputs, outputs = himl.convert_himl_to_azureml_datasets(
         cleaned_input_datasets=cleaned_input_datasets,
         cleaned_output_datasets=cleaned_output_datasets,
         workspace=mock_workspace)
@@ -144,48 +116,73 @@ def test_to_datasets(
 
 
 @pytest.mark.fast
-@patch("azureml.core.ComputeTarget")
-@patch("health.azure.himl.RunConfiguration")
-@patch("health.azure.himl.Environment")
 @patch("health.azure.himl.Workspace")
-def test_get_script_run_config(
-        mock_workspace: mock.MagicMock,
-        mock_environment: mock.MagicMock,
-        mock_run_configuration: mock.MagicMock,
-        mock_compute_target: mock.MagicMock) -> None:
-    snapshot_root_directory = Path.cwd()
-    mock_workspace.compute_targets = {"a": mock_compute_target}
-    script_run_config = himl._get_script_run_config(
-        compute_cluster_name="a",
-        snapshot_root_directory=snapshot_root_directory,
-        workspace=mock_workspace,
-        environment=mock_environment,
-        run_config=mock_run_configuration)
-    assert script_run_config
+def test_create_run_configuration_fails(
+        mock_workspace: mock.MagicMock) -> None:
+    existing_compute_target = "this_does_exist"
+    mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
-        script_run_config = himl._get_script_run_config(
+        himl.create_run_configuration(
             compute_cluster_name="b",
-            snapshot_root_directory=snapshot_root_directory,
-            workspace=mock_workspace,
-            environment=mock_environment,
-            run_config=mock_run_configuration)
-    assert "Could not find the compute target b in the AzureML workspaces" in str(e.value)
+            workspace=mock_workspace)
+    assert "Could not find the compute target b in the AzureML workspace" in str(e)
+    assert existing_compute_target in str(e)
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.Environment")
-def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> None:
+@patch("health.azure.datasets.DatasetConfig.to_output_dataset")
+@patch("health.azure.datasets.DatasetConfig.to_input_dataset")
+@patch("health.azure.himl.Environment.get")
+@patch("health.azure.himl.Workspace")
+def test_create_run_configuration(
+        mock_workspace: mock.MagicMock,
+        mock_environment_get: mock.MagicMock,
+        mock_to_input_dataset: mock.MagicMock,
+        mock_to_output_dataset: mock.MagicMock,
+) -> None:
+    existing_compute_target = "this_does_exist"
+    mock_env_name = "Mock Env"
+    mock_environment_get.return_value = mock_env_name
+    mock_workspace.compute_targets = {existing_compute_target: 123}
+    aml_input_dataset = MagicMock()
+    aml_input_dataset.name = "dataset_in"
+    aml_output_dataset = MagicMock()
+    aml_output_dataset.name = "dataset_out"
+    mock_to_input_dataset.return_value = aml_input_dataset
+    mock_to_output_dataset.return_value = aml_output_dataset
+    datastore_name = "storename"
+    run_config = himl.create_run_configuration(
+        workspace=mock_workspace,
+        compute_cluster_name=existing_compute_target,
+        aml_environment_name="foo",
+        num_nodes=10,
+        max_run_duration="1h",
+        default_datastore=datastore_name,
+        input_datasets=["input1"],
+        output_datasets=["output1"]
+    )
+    assert isinstance(run_config, RunConfiguration)
+    assert run_config.target == existing_compute_target
+    assert run_config.environment == mock_env_name
+    assert run_config.node_count == 10
+    assert run_config.mpi.node_count == 10
+    assert run_config.max_run_duration_seconds == 60 * 60
+    assert run_config.data == {"dataset_in": aml_input_dataset}
+    assert run_config.output_data == {"dataset_out": aml_output_dataset}
+
+
+@pytest.mark.fast
+def test_invalid_entry_script(tmp_path: Path) -> None:
     snapshot_dir = tmp_path / uuid4().hex
     snapshot_dir.mkdir(exist_ok=False)
     ok_entry_script = snapshot_dir / "entry_script.py"
     ok_entry_script.write_text("print('hello world')\n")
 
-    run_config = himl._get_run_config(
+    run_config = himl.create_script_run(
         entry_script=ok_entry_script,
         snapshot_root_directory=snapshot_dir,
-        script_params=[],
-        environment=mock_environment)
-    assert run_config.script == ok_entry_script.relative_to(snapshot_dir)
+        script_params=[])
+    assert run_config.script == str(ok_entry_script.relative_to(snapshot_dir))
 
     problem_entry_script_dir = tmp_path / uuid4().hex
     problem_entry_script_dir.mkdir(exist_ok=False)
@@ -193,13 +190,22 @@ def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> Non
     problem_entry_script.write_text("print('hello world')\n")
 
     with pytest.raises(ValueError) as e:
-        run_config = himl._get_run_config(
+        himl.create_script_run(
             entry_script=problem_entry_script,
             snapshot_root_directory=snapshot_dir,
-            script_params=[],
-            environment=mock_environment)
-    expected = f"'{problem_entry_script}' does not start with '{snapshot_dir}"
-    assert str(e.value).startswith(expected)
+            script_params=[])
+    assert "entry script must be inside of the snapshot root directory" in str(e)
+
+    with mock.patch("sys.argv", ["foo"]):
+        script_run = himl.create_script_run()
+        assert script_run.source_directory == str(Path.cwd())
+        assert script_run.script == "foo"
+        assert script_run.arguments == []
+
+    # Entry scripts where the path is not absolute should be left unchanged
+    script_run = himl.create_script_run(entry_script="some_string", script_params=["--foo"])
+    assert script_run.script == "some_string"
+    assert script_run.arguments == ["--foo"]
 
 
 @pytest.mark.fast
@@ -240,11 +246,11 @@ def test_submit_to_azure_if_needed_azure_return(
     mock_is_running_in_azure.return_value = True
     expected_run_info = himl.AzureRunInformation(
         run=mock_run,
-        input_datasets=None,
-        output_datasets=None,
+        input_datasets=[],
+        output_datasets=[],
         is_running_in_azure=True,
         output_folder=Path.cwd(),
-        log_folder=Path.cwd())
+        logs_folder=Path.cwd())
     mock_generate_azure_datasets.return_value = expected_run_info
     with mock.patch("sys.argv", ["", "--azureml"]):
         run_info = himl.submit_to_azure_if_needed(
@@ -267,23 +273,24 @@ def test_generate_azure_datasets(
         mock_run_context.input_datasets[_input_dataset_key(i)] = f"input_{i}"
         mock_run_context.output_datasets[_output_dataset_key(i)] = f"output_{i}"
     run_info = himl._generate_azure_datasets(
-        cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
-        cleaned_output_datasets=[mock_dataset_config, mock_dataset_config, mock_dataset_config])
+        cleaned_input_datasets=[mock_dataset_config] * 2,
+        cleaned_output_datasets=[mock_dataset_config] * 3)
     assert run_info.is_running_in_azure
-    for i in range(2):
-        assert f"input_{i}" in run_info.input_datasets
-        assert f"output_{i}" in run_info.output_datasets
-    assert "input_2" not in run_info.input_datasets
-    assert "output_2" in run_info.output_datasets
-    assert "input_3" not in run_info.input_datasets
-    assert "output_3" not in run_info.output_datasets
+    assert len(run_info.input_datasets) == 2
+    assert len(run_info.output_datasets) == 3
+    for i, d in enumerate(run_info.input_datasets):
+        assert isinstance(d, Path)
+        assert str(d) == f"input_{i}"
+    for i, d in enumerate(run_info.output_datasets):
+        assert isinstance(d, Path)
+        assert str(d) == f"output_{i}"
 
 
 @pytest.mark.fast
 def test_append_to_amlignore(tmp_path: Path) -> None:
     # If there is no .amlignore file before the test, there should be none afterwards
     amlignore_path = tmp_path / Path(uuid4().hex)
-    with himl._append_to_amlignore(
+    with himl.append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
@@ -293,7 +300,7 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     # If there is no .amlignore file before the test, and there are no lines to append, then there should be no
     # .amlignore file during the test
     amlignore_path = tmp_path / Path(uuid4().hex)
-    with himl._append_to_amlignore(
+    with himl.append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=[]):
         amlignore_exists_during_test = amlignore_path.exists()
@@ -303,17 +310,18 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     # If there is an empty .amlignore file before the test, it should be there afterwards
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.touch()
-    with himl._append_to_amlignore(
+    with himl.append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
     assert "1st line\n2nd line" == amlignore_text
     assert amlignore_path.exists()
+    assert amlignore_path.read_text() == ""
 
     # If there is a .amlignore file before the test, it should be identical afterwards
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.write_text("0th line")
-    with himl._append_to_amlignore(
+    with himl.append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
@@ -448,7 +456,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
-        run.get_all_logs(destination=log_root)
+        run.get_all_logs(destination=str(log_root))
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
         log_text = driver_log.read_text()
         assert "The message was: hello_world" in log_text

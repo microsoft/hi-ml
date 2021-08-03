@@ -6,7 +6,6 @@
 Test utility functions for tests in the package.
 """
 from azureml.core import Run, Workspace
-from cached_property import cached_property
 from pathlib import Path
 
 from health.azure.azure_util import (RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME, fetch_run, get_authentication,
@@ -43,7 +42,7 @@ def default_aml_workspace() -> Workspace:
                              resource_group=resource_group)
 
 
-class DefaultWorkspace:
+class WorkspaceWrapper:
     """
     Wrapper around aml_workspace so that it is lazily loaded, once.
     """
@@ -54,16 +53,17 @@ class DefaultWorkspace:
         """
         self._workspace: Workspace = None
 
-    @cached_property
+    @property
     def workspace(self) -> Workspace:
         """
         Lazily load the aml_workspace.
         """
-        self._workspace = default_aml_workspace()
+        if self._workspace is None:
+            self._workspace = default_aml_workspace()
         return self._workspace
 
 
-DEFAULT_WORKSPACE = DefaultWorkspace()
+DEFAULT_WORKSPACE = WorkspaceWrapper()
 
 
 def get_most_recent_run_id(run_recovery_file: Path = Path(RUN_RECOVERY_FILE)) -> str:
