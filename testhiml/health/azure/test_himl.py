@@ -37,7 +37,7 @@ logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
 
 
-# region Small *Local* Unit Tests
+# region Small fast local unit tests
 
 @pytest.mark.fast
 def test_submit_to_azure_if_needed_returns_immediately() -> None:
@@ -72,6 +72,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert not result.is_running_in_azure
 
 
+@pytest.mark.fast
 @patch("health.azure.himl.Run")
 def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     mock_run.id = uuid4().hex
@@ -88,6 +89,7 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     assert expected_run_recovery_id != recovery_file_text
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("wait_for_completion", [True, False])
 @patch("health.azure.himl.Run")
 @patch("health.azure.himl.Experiment")
@@ -114,6 +116,7 @@ def test_print_run_info(
         assert "Not waiting for completion of AzureML run" in out
 
 
+@pytest.mark.fast
 @patch("azureml.data.OutputFileDatasetConfig")
 @patch("health.azure.himl.DatasetConsumptionConfig")
 @patch("health.azure.himl.Workspace")
@@ -146,6 +149,7 @@ def test_to_datasets(
     assert outputs[mock_output_file_dataset_config.name] == mock_output_file_dataset_config
 
 
+@pytest.mark.fast
 @patch("azureml.core.ComputeTarget")
 @patch("health.azure.himl.RunConfiguration")
 @patch("health.azure.himl.Environment")
@@ -174,6 +178,7 @@ def test_get_script_run_config(
     assert "Could not find the compute target b in the AzureML workspaces" in str(e.value)
 
 
+@pytest.mark.fast
 @patch("health.azure.himl.Environment")
 def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> None:
     snapshot_dir = tmp_path / uuid4().hex
@@ -203,6 +208,7 @@ def test_get_run_config(mock_environment: mock.MagicMock, tmp_path: Path) -> Non
     assert str(e.value).startswith(expected)
 
 
+@pytest.mark.fast
 def test_get_script_params() -> None:
     expected_params = ["a string"]
     assert expected_params == himl._get_script_params(expected_params)
@@ -212,6 +218,7 @@ def test_get_script_params() -> None:
         assert expected_params == himl._get_script_params()
 
 
+@pytest.mark.fast
 @patch("health.azure.himl.Workspace.from_config")
 @patch("health.azure.himl.get_authentication")
 @patch("health.azure.himl.Workspace")
@@ -226,6 +233,7 @@ def test_get_workspace(
     assert mock_from_config.called
 
 
+@pytest.mark.fast
 @patch("health.azure.himl.Run")
 @patch("health.azure.himl.Workspace")
 @patch("health.azure.himl._generate_azure_datasets")
@@ -253,6 +261,7 @@ def test_submit_to_azure_if_needed_azure_return(
     assert run_info == expected_run_info
 
 
+@pytest.mark.fast
 @patch("health.azure.himl.DatasetConfig")
 @patch("health.azure.himl.RUN_CONTEXT")
 def test_generate_azure_datasets(
@@ -276,6 +285,7 @@ def test_generate_azure_datasets(
     assert "output_3" not in run_info.output_datasets
 
 
+@pytest.mark.fast
 def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_path = tmp_path / Path(uuid4().hex)
     with himl._append_to_amlignore(
@@ -302,10 +312,10 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_text = amlignore_path.read_text()
     assert "0th line" == amlignore_text
 
-# endregion Small *Local* Unit Tests
+# endregion Small fast local unit tests
 
 
-# region Elevate to AzureML Unit Tests
+# region Elevate to AzureML unit tests
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -450,4 +460,4 @@ def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock)
     assert mock_submit_to_azure_if_needed.call_args[1]["entry_script"] == PosixPath("4")
     assert mock_submit_to_azure_if_needed.call_args[1]["conda_environment_file"] == PosixPath("5")
 
-# endregion Elevate to AzureML Unit Tests
+# endregion Elevate to AzureML unit tests
