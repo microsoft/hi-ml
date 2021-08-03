@@ -129,7 +129,6 @@ def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optio
     """
     name = name.upper()
     value = os.environ.get(name, None)
-    print(f"Got {value} for {name} from os.environ = {os.environ}")
     if not value and not allow_missing:
         raise ValueError(f"There is no value stored for the secret named '{name}'")
     return value

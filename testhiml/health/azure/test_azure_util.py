@@ -76,10 +76,11 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
     assert str(e.value) == exp
 
 
-def test_get_authentication() -> None:
+@patch("health.azure.azure_util.InteractiveLoginAuthentication")
+def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
     with mock.patch.dict(os.environ, {}, clear=True):
-        spa = util.get_authentication()
-        assert isinstance(spa, InteractiveLoginAuthentication)
+        util.get_authentication()
+        assert mock_interactive_authentication.called
     service_principal_id = "1"
     tenant_id = "2"
     service_principal_password = "3"
