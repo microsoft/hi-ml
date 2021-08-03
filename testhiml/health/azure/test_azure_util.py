@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import health.azure.azure_util as util
 import pytest
-from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
+from azureml.core.authentication import ServicePrincipalAuthentication
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
