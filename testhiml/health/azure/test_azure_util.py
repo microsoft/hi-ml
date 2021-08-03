@@ -25,15 +25,13 @@ def oh_no() -> None:
     raise ValueError("Throwing an exception")
 
 
-@patch("health.azure.azure_util.Experiment")
 @patch("health.azure.azure_util.Run")
-def test_create_run_recovery_id(mock_run: MagicMock, mock_experiment: MagicMock) -> None:
+def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     """
     The recovery id created for a run
     """
     mock_run.id = RUN_ID
-    mock_run.experiment = mock_experiment
-    mock_experiment.name = EXPERIMENT_NAME
+    mock_run.experiment.name = EXPERIMENT_NAME
     recovery_id = util.create_run_recovery_id(mock_run)
     assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
 
