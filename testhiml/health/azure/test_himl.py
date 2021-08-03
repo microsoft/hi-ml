@@ -37,7 +37,7 @@ logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
 
 
-#region Small *Local* Unit Tests
+# region Small *Local* Unit Tests
 
 @pytest.mark.fast
 def test_submit_to_azure_if_needed_returns_immediately() -> None:
@@ -302,10 +302,10 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_text = amlignore_path.read_text()
     assert "0th line" == amlignore_text
 
-#endregion Small *Local* Unit Tests
+# endregion Small *Local* Unit Tests
 
 
-#region Elevate to AzureML Unit Tests
+# region Elevate to AzureML Unit Tests
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -450,4 +450,4 @@ def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock)
     assert mock_submit_to_azure_if_needed.call_args[1]["entry_script"] == PosixPath("4")
     assert mock_submit_to_azure_if_needed.call_args[1]["conda_environment_file"] == PosixPath("5")
 
-#endregion Elevate to AzureML Unit Tests
+# endregion Elevate to AzureML Unit Tests
