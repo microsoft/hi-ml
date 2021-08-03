@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import health.azure.azure_util as util
 import pytest
+from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -75,10 +76,10 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
     assert str(e.value) == exp
 
 
-@patch("health.azure.azure_util.InteractiveLoginAuthentication")
-def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
-    util.get_authentication()
-    assert mock_interactive_authentication.called
+def test_get_authentication() -> None:
+    with mock.patch.dict(os.environ, {}):
+        spa = util.get_authentication()
+        assert isinstance(spa, InteractiveLoginAuthentication)
     service_principal_id = "1"
     tenant_id = "2"
     service_principal_password = "3"
@@ -90,6 +91,7 @@ def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
                 util.SERVICE_PRINCIPAL_PASSWORD: service_principal_password
             }):
         spa = util.get_authentication()
+        assert isinstance(spa, ServicePrincipalAuthentication)
         assert spa._service_principal_id == service_principal_id
         assert spa._tenant_id == tenant_id
         assert spa._service_principal_password == service_principal_password
