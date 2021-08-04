@@ -15,11 +15,12 @@ from uuid import uuid4
 
 import pytest
 from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.core.conda_dependencies import CondaDependencies
+from testhiml.health.azure.util import repository_root
 
 import health.azure.azure_util as util
-from health.azure.azure_util import (merge_conda_dependencies, merge_conda_files, run_duration_string_to_seconds)
+from health.azure.azure_util import (merge_conda_files, run_duration_string_to_seconds)
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from testhiml.health.azure.util import repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -215,7 +216,7 @@ dependencies:
   - bar==2.0
   - foo==1.0
 """.splitlines()
-    conda_dep, _ = merge_conda_dependencies(files)
+    conda_dep = CondaDependencies(merged_file)
     # We expect to see the union of channels.
     assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
     # Package version conflicts are not resolved, both versions are retained.

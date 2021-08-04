@@ -169,7 +169,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
 
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
     """
-    Writes the number of conda and pip packages to logs.
+    Write number of conda and pip packages to logs.
     :param conda: A conda dependencies object
     :param message_prefix: A message to prefix to the log string.
     """
@@ -184,33 +184,14 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
-    """
-    Creates a CondaDependencies object from the Conda environments specified in one or more files.
-    The resulting object contains the union of the Conda and pip packages in the files, where merging
-    is done via the conda_merge package.
-    :param files: The Conda environment files to read.
-    :return: Tuple of (CondaDependencies object that contains packages from all the files,
-    string contents of the merge Conda environment)
-    """
-    for file in files:
-        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    temp_merged_file = tempfile.NamedTemporaryFile(delete=False)
-    merged_file_path = Path(temp_merged_file.name)
-    merge_conda_files(files, result_file=merged_file_path)
-    merged_dependencies = CondaDependencies(temp_merged_file.name)
-    _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
-    merged_file_contents = merged_file_path.read_text()
-    temp_merged_file.close()
-    return merged_dependencies, merged_file_contents
-
-
 def merge_conda_files(files: List[Path], result_file: Path) -> None:
     """
     Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
     :param files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     """
+    for file in files:
+        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
     # This code is a slightly modified version of conda_merge. That code can't be re-used easily
     # it defaults to writing to stdout
     env_definitions = [conda_merge.read_file(str(f)) for f in files]
@@ -233,6 +214,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         unified_definition[DEPENDENCIES] = deps
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
 def create_python_environment(conda_environment_file: Path,
