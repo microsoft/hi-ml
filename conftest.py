@@ -46,31 +46,30 @@ def test_suite_setup() -> Generator:
 
 
 @contextmanager
-def check_config_json(root: Path) -> Generator:
+def check_config_json(script_folder: Path) -> Generator:
     """
-    Check config.json exists. If so, do nothing, otherwise,
-    create one using environment variables.
+    Create a workspace config.json file in the folder where we expect the test scripts. This is either copied
+    from the repository root folder (this should be the case when executing a test on a dev machine), or create
+    it from environment variables (this should trigger in builds on the github agents).
     """
-    config_json = root / WORKSPACE_CONFIG_JSON
-    if config_json.exists():
-        yield
+    shared_config_json = repository_root() / WORKSPACE_CONFIG_JSON
+    target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+    if shared_config_json.exists():
+        logging.info(f"Copying {WORKSPACE_CONFIG_JSON} from repository root to folder {script_folder}")
+        shutil.copy(shared_config_json, target_config_json)
     else:
-        try:
-            logging.info(f"creating {str(config_json)}")
-
-            with open(str(config_json), 'a', encoding="utf-8") as file:
-                config = {
-                    "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
-                    "resource_group": os.getenv(RESOURCE_GROUP, ""),
-                    "workspace_name": os.getenv(WORKSPACE_NAME, "")
-                }
-                json.dump(config, file)
-
-            yield
-        finally:
-            if config_json.exists():
-                logging.info(f"deleting {str(config_json)}")
-                config_json.unlink()
+        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        with open(str(target_config_json), 'w', encoding="utf-8") as file:
+            config = {
+                "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
+                "resource_group": os.getenv(RESOURCE_GROUP, ""),
+                "workspace_name": os.getenv(WORKSPACE_NAME, "")
+            }
+            json.dump(config, file)
+    try:
+        yield
+    finally:
+        target_config_json.unlink()
 
 
 @pytest.fixture

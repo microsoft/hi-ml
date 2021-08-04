@@ -236,10 +236,6 @@ jobs:
             sleep 10
           done
 
-      - name: Create config.json file from environment variables
-        run: |
-          echo "{\"subscription_id\": \"$HIML_SUBSCRIPTION_ID\", \"resource_group\": \"$HIML_RESOURCE_GROUP\", \"workspace_name\": \"$HIML_WORKSPACE_NAME\"}" > config.json
-
       - name: Install test dependencies
         run: |
           pip install -r test_requirements.txt

@@ -437,11 +437,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
     :param local: Local execution if True, else in AzureML.
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    config_json = repository_root() / himl.WORKSPACE_CONFIG_JSON
-    if not config_json.is_file():
-        raise ValueError("No workspace configuration file found in the repository root.")
     extra_options = {
-        'workspace_config_path': f"'{str(config_json)}'",
         'environment_variables': 'None'
     }
     extra_args = ["--message=hello_world"]
