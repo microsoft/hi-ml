@@ -444,11 +444,13 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
     code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
     captured = "\n".join(stdout)
     assert code == 0
+    queuing_message = "Successfully queued run"
+    execution_message = 'The message was: hello_world'
     if local:
-        assert "Successfully queued new run" not in captured
-        assert 'The message was: hello_world' in captured
+        assert queuing_message not in captured
+        assert execution_message in captured
     else:
-        assert "Successfully queued new run test_script_" in captured
+        assert queuing_message in captured
         run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
@@ -456,7 +458,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
         run.get_all_logs(destination=str(log_root))
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
         log_text = driver_log.read_text()
-        assert "The message was: hello_world" in log_text
+        assert execution_message in log_text
 
 
 @patch("health.azure.himl.submit_to_azure_if_needed")
