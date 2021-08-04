@@ -45,7 +45,7 @@ PathOrString = Union[Path, str]
 
 
 @dataclass
-class AzureRunInformation:
+class AzureRunInfo:
     input_datasets: List[Optional[Path]]
     output_datasets: List[Optional[Path]]
     run: Optional[Run]
@@ -297,7 +297,7 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInformation:  # pragma: no cover
+        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInfo:  # pragma: no cover
     # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
     # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
     # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
@@ -379,7 +379,7 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
-        return AzureRunInformation(
+        return AzureRunInfo(
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=None,
@@ -504,7 +504,7 @@ def _get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Op
 
 def _generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
-        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInformation:
+        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
     """
     Generate returned datasets when running in AzumreML
     :param cleaned_input_datasets: The list of input dataset configs
@@ -515,7 +515,7 @@ def _generate_azure_datasets(
                                for index in range(len(cleaned_input_datasets))]
     returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                 for index in range(len(cleaned_output_datasets))]
-    return AzureRunInformation(
+    return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
         run=RUN_CONTEXT,
