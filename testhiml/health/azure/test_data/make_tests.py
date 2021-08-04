@@ -50,6 +50,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
 
     default_options = {}
     default_options['entry_script'] = "Path(sys.argv[0])"
+    default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
     default_options['wait_for_completion'] = 'True'

@@ -92,7 +92,7 @@ jobs:
 
   build-python:
     runs-on: ubuntu-latest
-    needs: [pytest]
+    needs: [flake8, mypy, pytest]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -190,6 +190,17 @@ jobs:
           password: ${{ secrets.TEST_PIPY_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
           verbose: true
+
+      - name: Download TestPyPI version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: latest_version
+
+      - name: Show published TestPyPI package version
+        run: |
+          latest_version=$(cat ./latest_version.txt)
+          echo "Install this package version via:"
+          echo "pip install --extra-index-url https://test.pypi.org/simple hi-ml==$latest_version"
 
   test-testpypi-pkg:
     runs-on: ubuntu-latest
