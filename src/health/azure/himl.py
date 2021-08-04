@@ -258,7 +258,7 @@ def submit_run(workspace: Workspace,
     print("==============================================================================\n")
     if wait_for_completion:
         print("Waiting for the completion of the AzureML run.")
-        run.wait_for_completion(show_output=wait_for_completion_show_output)
+        run.wait_for_completion(show_output=wait_for_completion_show_output, raise_on_error=True)
         if not is_run_and_child_runs_completed(run):
             raise ValueError(f"Run {run.id} in experiment {run.experiment.name} or one of its child "
                              "runs failed.")
