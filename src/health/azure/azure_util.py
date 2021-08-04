@@ -30,8 +30,6 @@ WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
 # The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
 # name, hence version will always be fixed
 ENVIRONMENT_VERSION = "1"
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
-DEFAULT_DOCKER_SHM_SIZE = "10g"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"

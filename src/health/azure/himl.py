@@ -176,8 +176,8 @@ def create_run_configuration(workspace: Workspace,
                                                        workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
-    if use_docker:
-        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+    # if use_docker:
+    run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     return run_config
 
 
