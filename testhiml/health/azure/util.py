@@ -10,9 +10,8 @@ from pathlib import Path
 
 from health.azure.azure_util import (RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME, fetch_run, get_authentication,
                                      get_secret_from_environment)
-from health.azure.himl import RUN_RECOVERY_FILE
+from health.azure.himl import RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON
 
-DEFAULT_WORKSPACE_CONFIG_JSON = "config.json"
 DEFAULT_DATASTORE = "innereyedatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 
@@ -28,7 +27,7 @@ def default_aml_workspace() -> Workspace:
     """
     Gets the default AzureML workspace that is used for testing.
     """
-    config_json = repository_root() / DEFAULT_WORKSPACE_CONFIG_JSON
+    config_json = repository_root() / WORKSPACE_CONFIG_JSON
     if config_json.is_file():
         return Workspace.from_config()
     else:

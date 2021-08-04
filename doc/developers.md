@@ -40,3 +40,12 @@ The repository contains a makefile with definitions for common operations.
 * `make test`: Run `flake8` and `mypy` on the repository, then all tests via `pytest`
 * `make pip`: Install all packages for running and testing in the current interpreter.
 * `make conda`: Update the hi-ml Conda environment and activate it
+
+
+## Setting up your AzureML workspace
+
+* In the browser, navigate to the AzureML workspace that you want to use for running your tests. 
+* In the top right section, there will be a dropdown menu showing the name of your AzureML workspace. Expand that.
+* In the panel, there is a link "Download config file". Click that.
+* This will download a file `config.json`. Move that file to the root folder of your `hi-ml` repository. The file name
+is already present in `.gitignore`, and will hence not be checked in.

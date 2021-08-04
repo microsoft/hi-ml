@@ -14,8 +14,8 @@ from typing import Generator
 import pytest
 
 from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
-from health.azure.himl import _package_setup
-from testhiml.health.azure.util import DEFAULT_WORKSPACE_CONFIG_JSON, repository_root
+from health.azure.himl import WORKSPACE_CONFIG_JSON, _package_setup
+from testhiml.health.azure.util import repository_root
 
 
 def outputs_for_tests() -> Path:
@@ -51,7 +51,7 @@ def check_config_json(root: Path) -> Generator:
     Check config.json exists. If so, do nothing, otherwise,
     create one using environment variables.
     """
-    config_json = root / DEFAULT_WORKSPACE_CONFIG_JSON
+    config_json = root / WORKSPACE_CONFIG_JSON
     if config_json.exists():
         yield
     else:
