@@ -23,7 +23,7 @@ from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
-from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_python_environment, create_run_recovery_id,
+from health.azure.azure_util import (create_python_environment, create_run_recovery_id,
                                      get_authentication, is_run_and_child_runs_completed, register_environment,
                                      run_duration_string_to_seconds,
                                      to_azure_friendly_string)
@@ -86,7 +86,7 @@ def get_or_create_environment(workspace: Workspace,
     :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
     This is only used if conda_environment_file is given.
     :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
-    :param docker_base_image: The Docker base image to use. If not given, use DEFAULT_DOCKER_BASE_IMAGE.
+    :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
     :return: An AzureML Environment object.
     """
     if aml_environment_name:
@@ -147,7 +147,13 @@ def create_run_configuration(workspace: Workspace,
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
-
+    if docker_shm_size and docker_base_image:
+        use_docker = True
+    elif docker_shm_size or docker_base_image:
+        raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
+                         "'docker_base_image'")
+    else:
+        use_docker = False
     run_config = RunConfiguration()
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
@@ -170,8 +176,8 @@ def create_run_configuration(workspace: Workspace,
                                                        workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
-    run_config.docker = DockerConfiguration(use_docker=True,
-                                            shm_size=(docker_shm_size or DEFAULT_DOCKER_SHM_SIZE))
+    if use_docker:
+        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     return run_config
 
 

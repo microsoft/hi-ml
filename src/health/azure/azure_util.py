@@ -278,7 +278,8 @@ def create_python_environment(conda_environment_file: Path,
     unique_env_name = f"HealthML-{overall_hash}"
     env = Environment(name=unique_env_name)
     env.python.conda_dependencies = conda_dependencies
-    env.docker.base_image = docker_base_image or DEFAULT_DOCKER_BASE_IMAGE
+    if docker_base_image:
+        env.docker.base_image = docker_base_image
     env.environment_variables = environment_variables
     return env
 
