@@ -24,7 +24,8 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health.azure.azure_util import (DEFAULT_DOCKER_SHM_SIZE, create_python_environment, create_run_recovery_id,
-                                     get_authentication, register_environment, run_duration_string_to_seconds,
+                                     get_authentication, is_run_and_child_runs_completed, register_environment,
+                                     run_duration_string_to_seconds,
                                      to_azure_friendly_string)
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
@@ -256,6 +257,9 @@ def submit_run(workspace: Workspace,
     if wait_for_completion:
         print("Waiting for the completion of the AzureML run.")
         run.wait_for_completion(show_output=wait_for_completion_show_output)
+        if not is_run_and_child_runs_completed(run):
+            raise ValueError(f"Run {run.id} in experiment {run.experiment.name} or one of its child "
+                             "runs failed.")
     return run
 
 
@@ -267,8 +271,8 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 def submit_to_azure_if_needed(  # type: ignore
         # ignore missing return statement since we 'exit' instead when submitting to AzureML
-        entry_script: PathOrString,
         compute_cluster_name: str,
+        entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[PathOrString] = None,
         snapshot_root_directory: Optional[PathOrString] = None,

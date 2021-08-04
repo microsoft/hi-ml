@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
 import ruamel.yaml
+from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
@@ -346,3 +347,23 @@ def set_environment_variables_for_multi_node() -> None:
         os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
     env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
     print(f"Distributed training: {env_vars}")
+
+
+def is_run_and_child_runs_completed(run: Run) -> bool:
+    """
+    Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
+    completed successfully.
+    :param run: The AzureML run to check.
+    :return: True if the run and all child runs completed successfully.
+    """
+
+    def is_completed(run: Run) -> bool:
+        status = run.get_status()
+        if run.status == RunStatus.COMPLETED or run.status == RunStatus.FINALIZING:
+            return True
+        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
+        return False
+
+    runs = list(run.get_children())
+    runs.append(run)
+    return all(is_completed(run) for run in runs)
