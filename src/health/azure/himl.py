@@ -112,12 +112,12 @@ def create_run_configuration(workspace: Workspace,
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
                              max_run_duration: str = "",
-                             default_datastore: str = "",
-                             input_datasets: Optional[List[StrOrDatasetConfig]] = None,
-                             output_datasets: Optional[List[StrOrDatasetConfig]] = None,
+                             input_datasets: Optional[List[DatasetConfig]] = None,
+                             output_datasets: Optional[List[DatasetConfig]] = None,
                              ) -> RunConfiguration:
     """
-    Creates an
+    Creates an AzureML run configuration, that contains information about environment, multi node execution, and
+    Docker.
     :param workspace: The AzureML Workspace to use.
     :param aml_environment_name: The name of an AzureML environment that should be used to submit the script. If not
     provided, an environment will be created from the arguments to this function (conda_environment_file,
@@ -134,8 +134,6 @@ def create_run_configuration(workspace: Workspace,
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
     :param conda_environment_file: The file that contains the Conda environment definition.
-    :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
-    storage. This is described in more detail in the README.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
     exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
     also register the data in this folder as an AzureML dataset.
@@ -167,11 +165,8 @@ def create_run_configuration(workspace: Workspace,
         run_config.communicator = "IntelMpi"
         run_config.node_count = distributed_job_config.node_count
 
-    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
-                                                      default_datastore_name=default_datastore)
-    cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
-                                                       default_datastore_name=default_datastore)
-    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets, cleaned_output_datasets,
+    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
+                                                       cleaned_output_datasets=output_datasets or [],
                                                        workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
@@ -205,17 +200,18 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
         entry_script = Path(entry_script)
     if entry_script.is_absolute():
         try:
+            # The entry script always needs to use Linux path separators, even when submitting from Windows
             entry_script_relative = entry_script.relative_to(snapshot_root_directory).as_posix()
         except ValueError:
             raise ValueError("The entry script must be inside of the snapshot root directory. "
                              f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
     else:
-        entry_script_relative = entry_script
+        entry_script_relative = str(entry_script)
     script_params = _get_script_params(script_params)
     print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
     return ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
-        script=str(entry_script_relative),
+        script=entry_script_relative,
         arguments=script_params)
 
 
@@ -417,10 +413,7 @@ def submit_to_azure_if_needed(  # type: ignore
     else:
         config_to_submit = script_run_config
 
-    # TODO: Move cleaning into submit_run
-    cleaned_experiment_name = to_azure_friendly_string(experiment_name)
-    if not cleaned_experiment_name:
-        cleaned_experiment_name = to_azure_friendly_string(entry_script.stem)
+    effective_experiment_name = experiment_name or Path(script_run_config.script).stem
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
@@ -428,7 +421,7 @@ def submit_to_azure_if_needed(  # type: ignore
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
         run = submit_run(workspace=workspace,
-                         experiment_name=cleaned_experiment_name,
+                         experiment_name=effective_experiment_name,
                          script_run_config=config_to_submit,
                          tags=tags,
                          wait_for_completion=wait_for_completion,
@@ -517,8 +510,8 @@ def _generate_azure_datasets(
     returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                 for index in range(len(cleaned_output_datasets))]
     return AzureRunInformation(
-        input_datasets=returned_input_datasets,
-        output_datasets=returned_output_datasets,
+        input_datasets=returned_input_datasets,  # type: ignore
+        output_datasets=returned_output_datasets,  # type: ignore
         run=RUN_CONTEXT,
         is_running_in_azure=True,
         output_folder=Path.cwd() / OUTPUT_FOLDER,

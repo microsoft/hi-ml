@@ -23,7 +23,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 import health.azure.himl as himl
 from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR
-from health.azure.datasets import _input_dataset_key, _output_dataset_key
+from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
 from testhiml.health.azure.util import get_most_recent_run, repository_root
 
@@ -150,16 +150,14 @@ def test_create_run_configuration(
     aml_output_dataset.name = "dataset_out"
     mock_to_input_dataset.return_value = aml_input_dataset
     mock_to_output_dataset.return_value = aml_output_dataset
-    datastore_name = "storename"
     run_config = himl.create_run_configuration(
         workspace=mock_workspace,
         compute_cluster_name=existing_compute_target,
         aml_environment_name="foo",
         num_nodes=10,
         max_run_duration="1h",
-        default_datastore=datastore_name,
-        input_datasets=["input1"],
-        output_datasets=["output1"]
+        input_datasets=[DatasetConfig(name="input1")],
+        output_datasets=[DatasetConfig(name="output1")]
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -464,13 +462,12 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
 
 @patch("health.azure.himl.submit_to_azure_if_needed")
 def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock) -> None:
-    with mock.patch("sys.argv", [
-        "",
-        "--workspace_config_path", "1",
-        "--compute_cluster_name", "2",
-        "--snapshot_root_directory", "3",
-        "--entry_script", "4",
-        "--conda_environment_file", "5"]):
+    with mock.patch("sys.argv", ["",
+                                 "--workspace_config_path", "1",
+                                 "--compute_cluster_name", "2",
+                                 "--snapshot_root_directory", "3",
+                                 "--entry_script", "4",
+                                 "--conda_environment_file", "5"]):
         himl.main()
     assert mock_submit_to_azure_if_needed.call_args[1]["workspace_config_path"] == PosixPath("1")
     assert mock_submit_to_azure_if_needed.call_args[1]["compute_cluster_name"] == "2"
