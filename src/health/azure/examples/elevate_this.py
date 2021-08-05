@@ -30,7 +30,9 @@ def main() -> None:
         snapshot_root_directory=Path.cwd().parent.parent.parent,
         entry_script=Path(__file__).absolute(),
         conda_environment_file=Path("environment.yml").absolute(),
-        wait_for_completion=True)
+        wait_for_completion=True,
+        wait_for_completion_show_output=True)
+
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
