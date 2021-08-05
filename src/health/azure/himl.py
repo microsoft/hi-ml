@@ -72,7 +72,7 @@ def get_or_create_environment(workspace: Workspace,
                               conda_environment_file: Optional[Path],
                               environment_variables: Optional[Dict[str, str]],
                               pip_extra_index_url: str,
-                              docker_base_image: str,
+                              docker_base_image: str = "",
                               ) -> Environment:
     """
     Gets an existing AzureML environment from the workspace (choosing by name), or get one based on the contents
