@@ -28,8 +28,6 @@ from testhiml.health.azure.test_data.make_tests import render_environment_yaml, 
 from testhiml.health.azure.util import get_most_recent_run, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
-EXAMPLE_SCRIPT = "elevate_this.py"
-ENVIRONMENT_FILE = "environment.yml"
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
