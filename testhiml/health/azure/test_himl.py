@@ -431,7 +431,7 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
+def test_invoking_hello_world_config(local: bool, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     :param local: Local execution if True, else in AzureML.
