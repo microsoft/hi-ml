@@ -8,3 +8,4 @@ dependencies:
     - -r file:build_requirements.txt
     - -r file:run_requirements.txt
     - -r file:test_requirements.txt
+    - -e .

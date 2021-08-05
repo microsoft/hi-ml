@@ -12,6 +12,7 @@ import re
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
+from uuid import uuid4
 
 import conda_merge
 import ruamel.yaml
@@ -275,7 +276,9 @@ def create_python_environment(conda_environment_file: Path,
     hash_string = "\n".join([yaml_contents, docker_base_image, str(environment_variables)])
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
     overall_hash = sha1.hexdigest()[:32]
-    unique_env_name = f"HealthML-{overall_hash}"
+    # TODO: swap back
+    # unique_env_name = f"HealthML-{overall_hash}"
+    unique_env_name = f"Tim-Testing-HealthML-{overall_hash}-{uuid4().hex}"
     env = Environment(name=unique_env_name)
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
