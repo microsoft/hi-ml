@@ -72,7 +72,7 @@ def get_or_create_environment(workspace: Workspace,
                               conda_environment_file: Optional[Path],
                               environment_variables: Optional[Dict[str, str]],
                               pip_extra_index_url: str,
-                              docker_base_image: str = "",
+                              docker_base_image: str,
                               ) -> Environment:
     """
     Gets an existing AzureML environment from the workspace (choosing by name), or get one based on the contents
@@ -160,7 +160,7 @@ def create_run_configuration(workspace: Workspace,
                                                        conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
                                                        environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image)
+                                                       docker_base_image=docker_base_image if use_docker else "")
     run_config.target = compute_cluster_name
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
