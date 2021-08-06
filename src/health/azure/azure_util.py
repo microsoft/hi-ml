@@ -276,10 +276,13 @@ def create_python_environment(conda_environment_file: Path,
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
     overall_hash = sha1.hexdigest()[:32]
     unique_env_name = f"HealthML-{overall_hash}"
-    env = Environment(name=unique_env_name)
     if docker_base_image:
+        env = Environment(name=unique_env_name)
         env.docker.base_image = docker_base_image
-    env.python.conda_dependencies = conda_dependencies
+        env.python.conda_dependencies = conda_dependencies
+    else:
+        conda_file = conda_dependencies.save(f"{unique_env_name}.yml")
+        env = Environment.from_conda_specification(name=unique_env_name, file_path=conda_file)
     env.environment_variables = environment_variables
     return env
 
