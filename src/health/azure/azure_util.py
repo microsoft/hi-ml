@@ -259,7 +259,6 @@ def create_python_environment(conda_environment_file: Path,
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # By default, define several environment variables that work around known issues in the software stack
     environment_variables = {
-        "TIM_IS": "fantastic",
         "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": "3600",
         # Occasionally uploading data during the run takes too long, and makes the job fail. Default is 300.
         "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC": "900",
