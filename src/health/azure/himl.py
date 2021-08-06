@@ -149,20 +149,21 @@ def create_run_configuration(workspace: Workspace,
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
+    run_config = RunConfiguration()
     if docker_shm_size and docker_base_image:
-        use_docker = True
+        run_config.docker.use_docker = True
     elif docker_shm_size or docker_base_image:
         raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
                          "'docker_base_image'")
     else:
-        use_docker = False
-    run_config = RunConfiguration()
+        run_config.docker.use_docker = False
+        docker_base_image = ""
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
                                                        environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image if use_docker else "")
+                                                       docker_base_image=docker_base_image)
     run_config.target = compute_cluster_name
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
