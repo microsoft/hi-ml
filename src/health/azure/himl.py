@@ -73,6 +73,7 @@ def get_or_create_environment(workspace: Workspace,
                               environment_variables: Optional[Dict[str, str]],
                               pip_extra_index_url: str,
                               docker_base_image: str,
+                              register: bool = True,
                               ) -> Environment:
     """
     Gets an existing AzureML environment from the workspace (choosing by name), or get one based on the contents
@@ -98,7 +99,7 @@ def get_or_create_environment(workspace: Workspace,
                                                 pip_extra_index_url=pip_extra_index_url,
                                                 docker_base_image=docker_base_image,
                                                 environment_variables=environment_variables)
-        if docker_base_image:
+        if register:
             return register_environment(workspace, environment)
         return environment
     else:
@@ -150,7 +151,7 @@ def create_run_configuration(workspace: Workspace,
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
-    
+
     run_config = RunConfiguration()
     if docker_shm_size and docker_base_image:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
@@ -168,7 +169,8 @@ def create_run_configuration(workspace: Workspace,
                                                        conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
                                                        environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image)
+                                                       docker_base_image=docker_base_image,
+                                                       register=run_config.docker.use_docker)
     run_config.target = compute_cluster_name
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
