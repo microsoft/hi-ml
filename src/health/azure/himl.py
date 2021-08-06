@@ -160,6 +160,7 @@ def create_run_configuration(workspace: Workspace,
                          "'docker_base_image'")
     else:
         docker_base_image = ""
+        run_config.docker.use_docker = False
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,
