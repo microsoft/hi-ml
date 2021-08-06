@@ -97,8 +97,8 @@ def get_or_create_environment(workspace: Workspace,
                                                 pip_extra_index_url=pip_extra_index_url,
                                                 docker_base_image=docker_base_image,
                                                 environment_variables=environment_variables)
-        # TODO: swap back to registering
-        # return register_environment(workspace, environment)
+        if docker_base_image:
+            return register_environment(workspace, environment)
         return environment
     else:
         raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
