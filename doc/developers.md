@@ -49,3 +49,11 @@ The repository contains a makefile with definitions for common operations.
 * In the panel, there is a link "Download config file". Click that.
 * This will download a file `config.json`. Move that file to the root folder of your `hi-ml` repository. The file name
 is already present in `.gitignore`, and will hence not be checked in.
+
+## Creating and Deleting Docker Environments in AzureML
+
+* Passing a `docker_base_image` into `submit_to_azure_if_needed` causes a new image to be built and registered in your
+workspace (see [docs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-use-environments) for more
+information).
+* To remove an environment use the [az ml environment delete](https://docs.microsoft.com/en-us/cli/azure/ml/environment?view=azure-cli-latest#az_ml_environment_delete)
+function in the AzureML CLI (note that all the parameters need to be set, none are optional).
