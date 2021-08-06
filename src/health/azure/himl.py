@@ -151,7 +151,7 @@ def create_run_configuration(workspace: Workspace,
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
     run_config = RunConfiguration()
     if docker_shm_size and docker_base_image:
-        run_config.docker.use_docker = True
+        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     elif docker_shm_size or docker_base_image:
         raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
                          "'docker_base_image'")
@@ -179,8 +179,6 @@ def create_run_configuration(workspace: Workspace,
                                                        workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
-    if use_docker:
-        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     return run_config
 
 
