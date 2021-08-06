@@ -87,7 +87,9 @@ def get_or_create_environment(workspace: Workspace,
     :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
     This is only used if conda_environment_file is given.
     :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
-    :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
+    :param docker_base_image: The Docker base image to use. If not given, docker will not be used. Use the fully
+    qualified image locator, e.g. "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04", without the
+    trailing ":<version number>"
     :return: An AzureML Environment object.
     """
     if aml_environment_name:
