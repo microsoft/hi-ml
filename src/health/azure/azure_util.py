@@ -283,8 +283,9 @@ def create_python_environment(conda_environment_file: Path,
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
         env.docker.base_image = docker_base_image
-        # TODO: Unindent the next line
-        env.environment_variables = environment_variables
+    else:
+        env.docker.enabled = False  # DEPRECATED in favour of azureml.core.runconfig.DockerConfiguration class
+    env.environment_variables = environment_variables
     return env
 
 
