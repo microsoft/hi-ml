@@ -93,7 +93,8 @@ def get_or_create_environment(workspace: Workspace,
         # TODO: Split off version
         return Environment.get(workspace, aml_environment_name)
     elif conda_environment_file:
-        environment = create_python_environment(conda_environment_file=conda_environment_file,
+        environment = create_python_environment(workspace=workspace,
+                                                conda_environment_file=conda_environment_file,
                                                 pip_extra_index_url=pip_extra_index_url,
                                                 docker_base_image=docker_base_image,
                                                 environment_variables=environment_variables)
@@ -149,15 +150,19 @@ def create_run_configuration(workspace: Workspace,
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
+    
     run_config = RunConfiguration()
     if docker_shm_size and docker_base_image:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
-    elif docker_shm_size or docker_base_image:
-        raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
-                         "'docker_base_image'")
+    # elif docker_shm_size or docker_base_image:
+    #     raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
+    #                      "'docker_base_image'")
     else:
-        run_config.docker.use_docker = False
-        docker_base_image = ""
+        if docker_base_image and docker_shm_size:
+            run_config.docker = DockerConfiguration(use_docker=False, shm_size=docker_shm_size)
+        else:
+            run_config.docker.use_docker = False
+        # docker_base_image = ""
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,

@@ -31,8 +31,8 @@ def main() -> None:
         entry_script=Path(__file__).absolute(),
         conda_environment_file=Path("environment.yml").absolute(),
         wait_for_completion=True,
-        wait_for_completion_show_output=True)
-
+        wait_for_completion_show_output=True,
+        docker_base_image="AzureML-sklearn-0.24.1-ubuntu18.04-py37-cpu-inference")
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
