@@ -235,8 +235,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
 
 
-def create_python_environment(workspace: Workspace,
-                              conda_environment_file: Path,
+def create_python_environment(conda_environment_file: Path,
                               pip_extra_index_url: str,
                               docker_base_image: str,
                               environment_variables: Optional[Dict[str, str]]) -> Environment:
@@ -279,12 +278,7 @@ def create_python_environment(workspace: Workspace,
     unique_env_name = f"HealthML-{overall_hash}"
     env = Environment(name=unique_env_name)
     if docker_base_image:
-        environments = workspace.environments
-        if docker_base_image in environments:
-            env.docker.base_image = docker_base_image
-            env.docker.base_image_registry = environments[docker_base_image].docker.base_image_registry
-        else:
-            env.docker.base_image = docker_base_image
+        env.docker.base_image = docker_base_image
     env.python.conda_dependencies = conda_dependencies
     env.environment_variables = environment_variables
     return env
