@@ -155,22 +155,17 @@ def create_run_configuration(workspace: Workspace,
     run_config = RunConfiguration()
     if docker_shm_size and docker_base_image:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
-    # elif docker_shm_size or docker_base_image:
-    #     raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
-    #                      "'docker_base_image'")
+    elif docker_shm_size or docker_base_image:
+        raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
+                         "'docker_base_image'")
     else:
-        if docker_base_image and docker_shm_size:
-            run_config.docker = DockerConfiguration(use_docker=False, shm_size=docker_shm_size)
-        else:
-            run_config.docker.use_docker = False
-        # docker_base_image = ""
+        docker_base_image = ""
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
                                                        environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image,
-                                                       register=run_config.docker.use_docker)
+                                                       docker_base_image=docker_base_image)
     run_config.target = compute_cluster_name
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
