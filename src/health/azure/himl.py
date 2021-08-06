@@ -147,13 +147,6 @@ def create_run_configuration(workspace: Workspace,
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
-    if docker_shm_size and docker_base_image:
-        use_docker = True
-    elif docker_shm_size or docker_base_image:
-        raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
-                         "'docker_base_image'")
-    else:
-        use_docker = False
     run_config = RunConfiguration()
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
@@ -176,7 +169,6 @@ def create_run_configuration(workspace: Workspace,
                                                        workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
-    # if use_docker:
     run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     return run_config
 
