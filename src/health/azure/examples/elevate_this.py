@@ -31,8 +31,7 @@ def main() -> None:
         entry_script=Path(__file__).absolute(),
         conda_environment_file=Path("environment.yml").absolute(),
         wait_for_completion=True,
-        wait_for_completion_show_output=True,
-        docker_base_image="mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04")
+        wait_for_completion_show_output=True)
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
