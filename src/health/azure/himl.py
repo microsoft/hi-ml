@@ -95,8 +95,7 @@ def get_or_create_environment(workspace: Workspace,
         # TODO: Split off version
         return Environment.get(workspace, aml_environment_name)
     elif conda_environment_file:
-        environment = create_python_environment(workspace=workspace,
-                                                conda_environment_file=conda_environment_file,
+        environment = create_python_environment(conda_environment_file=conda_environment_file,
                                                 pip_extra_index_url=pip_extra_index_url,
                                                 docker_base_image=docker_base_image,
                                                 environment_variables=environment_variables)
