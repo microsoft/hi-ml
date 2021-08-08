@@ -161,12 +161,13 @@ def create_run_configuration(workspace: Workspace,
     else:
         docker_base_image = ""
         run_config.docker.use_docker = False
-    run_config.environment = get_or_create_environment(workspace=workspace,
-                                                       aml_environment_name=aml_environment_name,
-                                                       conda_environment_file=conda_environment_file,
-                                                       pip_extra_index_url=pip_extra_index_url,
-                                                       environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image)
+    run_config.environment = Environment.from_conda_specification("simple-env", conda_environment_file)
+    # run_config.environment = get_or_create_environment(workspace=workspace,
+    #                                                    aml_environment_name=aml_environment_name,
+    #                                                    conda_environment_file=conda_environment_file,
+    #                                                    pip_extra_index_url=pip_extra_index_url,
+    #                                                    environment_variables=environment_variables,
+    #                                                    docker_base_image=docker_base_image)
     run_config.target = compute_cluster_name
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
@@ -275,7 +276,7 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
-def submit_to_azure_if_neededNEW(  # type: ignore
+def submit_to_azure_if_needed(  # type: ignore
         # ignore missing return statement since we 'exit' instead when submitting to AzureML
         compute_cluster_name: str,
         entry_script: Optional[PathOrString] = None,
@@ -441,7 +442,7 @@ def submit_to_azure_if_neededNEW(  # type: ignore
         exit(0)
 
 
-def submit_to_azure_if_needed(  # type: ignore # missing return since we exit
+def submit_to_azure_if_neededOLD(  # type: ignore # missing return since we exit
         entry_script: Path,
         compute_cluster_name: str,
         conda_environment_file: Path,
