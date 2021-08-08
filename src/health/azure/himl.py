@@ -106,7 +106,8 @@ def get_or_create_environment(workspace: Workspace,
         raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
 
 
-def create_run_configuration(workspace: Workspace,
+def create_run_configuration(run_config: RunConfiguration,
+                             workspace: Workspace,
                              compute_cluster_name: str,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
@@ -152,7 +153,7 @@ def create_run_configuration(workspace: Workspace,
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
 
-    run_config = RunConfiguration()
+    # run_config = RunConfiguration()
     if docker_shm_size and docker_base_image:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     elif docker_shm_size or docker_base_image:
@@ -399,7 +400,11 @@ def submit_to_azure_if_needed(  # type: ignore
     workspace = _get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
+    run_config = RunConfiguration(
+        script=Path(entry_script).relative_to(snapshot_root_directory),
+        arguments=script_params)
     run_config = create_run_configuration(
+        run_config=run_config,
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,
         aml_environment_name=aml_environment_name,
