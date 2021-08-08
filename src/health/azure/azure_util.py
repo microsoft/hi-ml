@@ -282,7 +282,7 @@ def create_python_environment(conda_environment_file: Path,
         env.python.conda_dependencies = conda_dependencies
     else:
         conda_file = conda_dependencies.save(f"{unique_env_name}.yml")
-        env = Environment.from_conda_specification(name="simple_env", file_path=conda_file)
+        env = Environment.from_conda_specification(name="simple_env", file_path=conda_environment_file)
     # env.environment_variables = environment_variables
     return env
 
