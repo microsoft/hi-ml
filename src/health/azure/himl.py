@@ -400,24 +400,70 @@ def submit_to_azure_if_needed(  # type: ignore
     workspace = _get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
+
+    # From old verion
+    environment = Environment.from_conda_specification("simple-env", conda_environment_file)
+    if not script_params:
+        script_params = [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+    entry_script_relative = Path(entry_script).relative_to(snapshot_root_directory)
     run_config = RunConfiguration(
-        script=Path(entry_script).relative_to(snapshot_root_directory),
+        script=entry_script_relative,
         arguments=script_params)
-    run_config = create_run_configuration(
-        run_config=run_config,
-        workspace=workspace,
-        compute_cluster_name=compute_cluster_name,
-        aml_environment_name=aml_environment_name,
-        conda_environment_file=conda_environment_file,
-        environment_variables=environment_variables,
-        pip_extra_index_url=pip_extra_index_url,
-        docker_base_image=docker_base_image,
-        docker_shm_size=docker_shm_size,
-        num_nodes=num_nodes,
-        max_run_duration=max_run_duration,
-        input_datasets=cleaned_input_datasets,
-        output_datasets=cleaned_output_datasets,
-    )
+    run_config.environment = environment
+
+    # run_config = create_run_configuration(
+    #     run_config=run_config,
+    #     workspace=workspace,
+    #     compute_cluster_name=compute_cluster_name,
+    #     aml_environment_name=aml_environment_name,
+    #     conda_environment_file=conda_environment_file,
+    #     environment_variables=environment_variables,
+    #     pip_extra_index_url=pip_extra_index_url,
+    #     docker_base_image=docker_base_image,
+    #     docker_shm_size=docker_shm_size,
+    #     num_nodes=num_nodes,
+    #     max_run_duration=max_run_duration,
+    #     input_datasets=cleaned_input_datasets,
+    #     output_datasets=cleaned_output_datasets,
+    # )
+
+    existing_compute_clusters = workspace.compute_targets
+    if compute_cluster_name not in existing_compute_clusters:
+        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
+    run_config.target = compute_cluster_name
+
+    # run_config = RunConfiguration()
+    if docker_shm_size and docker_base_image:
+        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+    elif docker_shm_size or docker_base_image:
+        raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
+                         "'docker_base_image'")
+    # else:
+    #     docker_base_image = ""
+    #     run_config.docker.use_docker = False
+    # run_config.environment = get_or_create_environment(workspace=workspace,
+    #                                                    aml_environment_name=aml_environment_name,
+    #                                                    conda_environment_file=conda_environment_file,
+    #                                                    pip_extra_index_url=pip_extra_index_url,
+    #                                                    environment_variables=environment_variables,
+    #                                                    docker_base_image=docker_base_image)
+
+    if max_run_duration:
+        run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+    if num_nodes > 1:
+        distributed_job_config = MpiConfiguration(node_count=num_nodes)
+        run_config.mpi = distributed_job_config
+        run_config.framework = "Python"
+        run_config.communicator = "IntelMpi"
+        run_config.node_count = distributed_job_config.node_count
+
+    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
+                                                       cleaned_output_datasets=output_datasets or [],
+                                                       workspace=workspace)
+    run_config.data = inputs
+    run_config.output_data = outputs
+
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
                                           script_params=script_params)
