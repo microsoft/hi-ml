@@ -427,11 +427,11 @@ def submit_to_azure_if_needed(  # type: ignore
     #     output_datasets=cleaned_output_datasets,
     # )
 
-    existing_compute_clusters = workspace.compute_targets
-    if compute_cluster_name not in existing_compute_clusters:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
-    run_config.target = compute_cluster_name
+    # existing_compute_clusters = workspace.compute_targets
+    # if compute_cluster_name not in existing_compute_clusters:
+    #     raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+    #                      f"Existing clusters: {list(existing_compute_clusters.keys())}")
+    # run_config.target = compute_cluster_name
 
     # run_config = RunConfiguration()
     # if docker_shm_size and docker_base_image:
@@ -449,20 +449,20 @@ def submit_to_azure_if_needed(  # type: ignore
     #                                                    environment_variables=environment_variables,
     #                                                    docker_base_image=docker_base_image)
 
-    if max_run_duration:
-        run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
-    if num_nodes > 1:
-        distributed_job_config = MpiConfiguration(node_count=num_nodes)
-        run_config.mpi = distributed_job_config
-        run_config.framework = "Python"
-        run_config.communicator = "IntelMpi"
-        run_config.node_count = distributed_job_config.node_count
+    # if max_run_duration:
+    #     run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+    # if num_nodes > 1:
+    #     distributed_job_config = MpiConfiguration(node_count=num_nodes)
+    #     run_config.mpi = distributed_job_config
+    #     run_config.framework = "Python"
+    #     run_config.communicator = "IntelMpi"
+    #     run_config.node_count = distributed_job_config.node_count
 
-    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
-                                                       cleaned_output_datasets=output_datasets or [],
-                                                       workspace=workspace)
-    run_config.data = inputs
-    run_config.output_data = outputs
+    # inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
+    #                                                    cleaned_output_datasets=output_datasets or [],
+    #                                                    workspace=workspace)
+    # run_config.data = inputs
+    # run_config.output_data = outputs
 
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
