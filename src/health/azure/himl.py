@@ -106,8 +106,7 @@ def get_or_create_environment(workspace: Workspace,
         raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
 
 
-def create_run_configuration(run_config: RunConfiguration,
-                             workspace: Workspace,
+def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
