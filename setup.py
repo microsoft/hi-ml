@@ -73,4 +73,5 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
+    scripts=['scripts/run_tensorboard.py']
 )
