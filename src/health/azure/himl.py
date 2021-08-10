@@ -45,7 +45,7 @@ PathOrString = Union[Path, str]
 
 
 @dataclass
-class AzureRunInformation:
+class AzureRunInfo:
     input_datasets: List[Optional[Path]]
     output_datasets: List[Optional[Path]]
     run: Optional[Run]
@@ -86,9 +86,7 @@ def get_or_create_environment(workspace: Workspace,
     :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
     This is only used if conda_environment_file is given.
     :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
-    :param docker_base_image: The Docker base image to use. If not given, docker will not be used. Use the fully
-    qualified image locator, e.g. "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04", without the
-    trailing ":<version number>"
+    :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
     :return: An AzureML Environment object.
     """
     if aml_environment_name:
@@ -99,9 +97,7 @@ def get_or_create_environment(workspace: Workspace,
                                                 pip_extra_index_url=pip_extra_index_url,
                                                 docker_base_image=docker_base_image,
                                                 environment_variables=environment_variables)
-        if docker_base_image:
-            return register_environment(workspace, environment)
-        return environment
+        return register_environment(workspace, environment)
     else:
         raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
 
@@ -151,16 +147,7 @@ def create_run_configuration(workspace: Workspace,
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
-
     run_config = RunConfiguration()
-    if docker_shm_size and docker_base_image:
-        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
-    elif docker_shm_size or docker_base_image:
-        raise ValueError("To enable docker, you need to provide both arguments 'docker_shm_size' and "
-                         "'docker_base_image'")
-    else:
-        docker_base_image = ""
-        run_config.docker.use_docker = False
     run_config.environment = get_or_create_environment(workspace=workspace,
                                                        aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,
@@ -182,6 +169,7 @@ def create_run_configuration(workspace: Workspace,
                                                        workspace=workspace)
     run_config.data = inputs
     run_config.output_data = outputs
+    run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
     return run_config
 
 
@@ -262,10 +250,13 @@ def submit_run(workspace: Workspace,
     print("==============================================================================\n")
     if wait_for_completion:
         print("Waiting for the completion of the AzureML run.")
-        run.wait_for_completion(show_output=wait_for_completion_show_output)
+        run.wait_for_completion(show_output=wait_for_completion_show_output,
+                                wait_post_processing=True,
+                                raise_on_error=True)
         if not is_run_and_child_runs_completed(run):
             raise ValueError(f"Run {run.id} in experiment {run.experiment.name} or one of its child "
-                             f"runs failed. Run status: {run.status}.")
+                             "runs failed.")
+        print("AzureML completed.")
     return run
 
 
@@ -301,7 +292,7 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInformation:  # pragma: no cover
+        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInfo:  # pragma: no cover
     # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
     # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
     # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
@@ -383,7 +374,7 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
-        return AzureRunInformation(
+        return AzureRunInfo(
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=None,
@@ -396,8 +387,8 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory = Path.cwd()
 
     workspace = _get_workspace(aml_workspace, workspace_config_path)
-    logging.info(f"Loaded AzureML workspace {workspace.name}")
 
+    logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,
@@ -412,10 +403,10 @@ def submit_to_azure_if_needed(  # type: ignore
         input_datasets=cleaned_input_datasets,
         output_datasets=cleaned_output_datasets,
     )
-
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
                                           script_params=script_params)
+    # TODO: Test that run_config is really set and used when submitting
     script_run_config.run_config = run_config
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
@@ -437,9 +428,9 @@ def submit_to_azure_if_needed(  # type: ignore
                          wait_for_completion=wait_for_completion,
                          wait_for_completion_show_output=wait_for_completion_show_output)
 
-        if after_submission is not None:
-            after_submission(run)
-        exit(0)
+    if after_submission is not None:
+        after_submission(run)
+    exit(0)
 
 
 def _write_run_recovery_file(run: Run) -> None:
@@ -508,7 +499,7 @@ def _get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Op
 
 def _generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
-        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInformation:
+        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
     """
     Generate returned datasets when running in AzumreML
     :param cleaned_input_datasets: The list of input dataset configs
@@ -519,7 +510,7 @@ def _generate_azure_datasets(
                                for index in range(len(cleaned_input_datasets))]
     returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                 for index in range(len(cleaned_output_datasets))]
-    return AzureRunInformation(
+    return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
         run=RUN_CONTEXT,
