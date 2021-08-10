@@ -303,7 +303,9 @@ jobs:
       - name: Set up conda environment
         run: |
           $CONDA/bin/conda env create --file test_environment.yml
-          source activate test-env
+          $CONDA/bin/conda activate test-env
+          which -a pip
+          which -a python
 
       - name: Download TestPyPI version artifact
         uses: actions/download-artifact@v2
