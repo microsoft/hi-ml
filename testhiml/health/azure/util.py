@@ -63,27 +63,3 @@ class WorkspaceWrapper:
 
 
 DEFAULT_WORKSPACE = WorkspaceWrapper()
-
-
-def get_most_recent_run_id(run_recovery_file: Path = Path(RUN_RECOVERY_FILE)) -> str:
-    """
-    Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
-    file when running on the cloud.
-    :param run_recovery_file: The path of the run recovery file
-    :return: The run id
-    """
-    assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous \
-                                         training run"
-    run_id = run_recovery_file.read_text().strip()
-    print(f"Read this run ID from file: {run_id}")
-    return run_id
-
-
-def get_most_recent_run(run_recovery_file: Path = Path(RUN_RECOVERY_FILE)) -> Run:
-    """
-    Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
-    :param run_recovery_file: The path of the run recovery file
-    :return: The run
-    """
-    run_recovery_id = get_most_recent_run_id(run_recovery_file)
-    return fetch_run(workspace=DEFAULT_WORKSPACE.workspace, run_recovery_id=run_recovery_id)

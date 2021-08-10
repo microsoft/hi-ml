@@ -22,10 +22,10 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 import health.azure.himl as himl
 from conftest import check_config_json
-from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR
+from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import get_most_recent_run, repository_root
+from testhiml.health.azure.util import repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
