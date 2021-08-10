@@ -55,7 +55,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
             entry_script=Path(__file__),
             compute_cluster_name="foo",
             conda_environment_file=Path("env.yml"))
-        assert isinstance(result, himl.AzureRunInformation)
+        assert isinstance(result, himl.AzureRunInfo)
         assert not result.is_running_in_azure
         assert result.run is None
 
@@ -240,7 +240,7 @@ def test_submit_to_azure_if_needed_azure_return(
         mock_workspace: mock.MagicMock,
         mock_run: mock.MagicMock) -> None:
     mock_is_running_in_azure.return_value = True
-    expected_run_info = himl.AzureRunInformation(
+    expected_run_info = himl.AzureRunInfo(
         run=mock_run,
         input_datasets=[],
         output_datasets=[],

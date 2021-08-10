@@ -129,7 +129,7 @@ def create_run_configuration(workspace: Workspace,
         existing_compute_clusters = workspace.compute_targets
         if compute_cluster_name not in existing_compute_clusters:
             raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                            f"Existing clusters: {list(existing_compute_clusters.keys())}")
+                             f"Existing clusters: {list(existing_compute_clusters.keys())}")
         run_config.target = compute_cluster_name
 
     if max_run_duration:
