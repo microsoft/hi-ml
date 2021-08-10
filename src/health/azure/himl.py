@@ -103,7 +103,7 @@ def get_or_create_environment(workspace: Workspace,
 
 
 def create_run_configuration(workspace: Workspace,
-                             compute_cluster_name: str,
+                             compute_cluster_name: Optional[str] = None,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -143,20 +143,32 @@ def create_run_configuration(workspace: Workspace,
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
     :return:
     """
-    existing_compute_clusters = workspace.compute_targets
-    if compute_cluster_name not in existing_compute_clusters:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
     run_config = RunConfiguration()
-    run_config.environment = get_or_create_environment(workspace=workspace,
-                                                       aml_environment_name=aml_environment_name,
-                                                       conda_environment_file=conda_environment_file,
-                                                       pip_extra_index_url=pip_extra_index_url,
-                                                       environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image)
-    run_config.target = compute_cluster_name
+
+    if docker_base_image:
+        run_config.environment = get_or_create_environment(
+            workspace=workspace,
+            aml_environment_name=aml_environment_name,
+            conda_environment_file=conda_environment_file,
+            pip_extra_index_url=pip_extra_index_url,
+            environment_variables=environment_variables,
+            docker_base_image=docker_base_image)
+        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+    elif conda_environment_file:
+        run_config.environment = Environment.from_conda_specification(
+            name="simple-env",
+            file_path=conda_environment_file)
+
+    if compute_cluster_name:
+        existing_compute_clusters = workspace.compute_targets
+        if compute_cluster_name not in existing_compute_clusters:
+            raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
+                            f"Existing clusters: {list(existing_compute_clusters.keys())}")
+        run_config.target = compute_cluster_name
+
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+
     if num_nodes > 1:
         distributed_job_config = MpiConfiguration(node_count=num_nodes)
         run_config.mpi = distributed_job_config
@@ -164,12 +176,13 @@ def create_run_configuration(workspace: Workspace,
         run_config.communicator = "IntelMpi"
         run_config.node_count = distributed_job_config.node_count
 
-    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
-                                                       cleaned_output_datasets=output_datasets or [],
-                                                       workspace=workspace)
-    run_config.data = inputs
-    run_config.output_data = outputs
-    run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+    if input_datasets or output_datasets:
+        inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
+                                                           cleaned_output_datasets=output_datasets or [],
+                                                           workspace=workspace)
+        run_config.data = inputs
+        run_config.output_data = outputs
+
     return run_config
 
 
@@ -268,7 +281,7 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 def submit_to_azure_if_needed(  # type: ignore
         # ignore missing return statement since we 'exit' instead when submitting to AzureML
-        compute_cluster_name: str,
+        compute_cluster_name: Optional[PathOrString] = None,
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[PathOrString] = None,
@@ -315,7 +328,7 @@ def submit_to_azure_if_needed(  # type: ignore
     this is created based on the name of the current script.
     :param entry_script: The script that should be run in AzureML
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
-    CPU or GPU machines.
+    CPU or GPU machines. If omitted the default string "local" will be used.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
     script to run.
 

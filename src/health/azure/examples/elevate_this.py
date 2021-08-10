@@ -26,7 +26,6 @@ def main() -> None:
     """
     _ = submit_to_azure_if_needed(
         workspace_config_path=Path("config.json").absolute(),
-        compute_cluster_name="lite-testing-ds2",
         snapshot_root_directory=Path.cwd().parent.parent.parent,
         entry_script=Path(__file__).absolute(),
         conda_environment_file=Path("environment.yml").absolute(),
