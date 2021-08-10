@@ -67,43 +67,8 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     return hasattr(aml_run, 'experiment')
 
 
-def get_or_create_environment(workspace: Workspace,
-                              aml_environment_name: str,
-                              conda_environment_file: Optional[Path],
-                              environment_variables: Optional[Dict[str, str]],
-                              pip_extra_index_url: str,
-                              docker_base_image: str,
-                              ) -> Environment:
-    """
-    Gets an existing AzureML environment from the workspace (choosing by name), or get one based on the contents
-    of a Conda environment file, environment variables, pip and docker settings. Either one of the arguments
-    `aml_environment` and `conda_environment_file` must be provided.
-    :param workspace: The AzureML workspace to work in.
-    :param aml_environment_name: The name of an existing AzureML environment that should be read. If this is empty, the
-    environment is created based on conda_environment_file.
-    :param conda_environment_file: The Conda environment.yml file that should be used for environment creation. If this
-    is empty, an existing environment is retrieved via the name given in aml_environment.
-    :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
-    This is only used if conda_environment_file is given.
-    :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
-    :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
-    :return: An AzureML Environment object.
-    """
-    if aml_environment_name:
-        # TODO: Split off version
-        return Environment.get(workspace, aml_environment_name)
-    elif conda_environment_file:
-        environment = create_python_environment(conda_environment_file=conda_environment_file,
-                                                pip_extra_index_url=pip_extra_index_url,
-                                                docker_base_image=docker_base_image,
-                                                environment_variables=environment_variables)
-        return register_environment(workspace, environment)
-    else:
-        raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
-
-
 def create_run_configuration(workspace: Workspace,
-                             compute_cluster_name: Optional[str] = None,
+                             compute_cluster_name: str,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -145,19 +110,20 @@ def create_run_configuration(workspace: Workspace,
     """
     run_config = RunConfiguration()
 
-    if docker_base_image:
-        run_config.environment = get_or_create_environment(
-            workspace=workspace,
-            aml_environment_name=aml_environment_name,
+    if aml_environment_name:
+        run_config.environment = Environment.get(workspace, aml_environment_name)
+    elif conda_environment_file:
+        run_config.environment = create_python_environment(
             conda_environment_file=conda_environment_file,
             pip_extra_index_url=pip_extra_index_url,
-            environment_variables=environment_variables,
-            docker_base_image=docker_base_image)
+            docker_base_image=docker_base_image,
+            environment_variables=environment_variables)
+        register_environment(workspace, run_config.environment)
+    else:
+        raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
+
+    if docker_base_image and docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
-    elif conda_environment_file:
-        run_config.environment = Environment.from_conda_specification(
-            name="simple-env",
-            file_path=conda_environment_file)
 
     if compute_cluster_name:
         existing_compute_clusters = workspace.compute_targets
@@ -281,7 +247,7 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 def submit_to_azure_if_needed(  # type: ignore
         # ignore missing return statement since we 'exit' instead when submitting to AzureML
-        compute_cluster_name: Optional[PathOrString] = None,
+        compute_cluster_name: str,
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[PathOrString] = None,
@@ -328,7 +294,8 @@ def submit_to_azure_if_needed(  # type: ignore
     this is created based on the name of the current script.
     :param entry_script: The script that should be run in AzureML
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
-    CPU or GPU machines. If omitted the default string "local" will be used.
+    CPU or GPU machines. If the empty string is passed in, then "local" will be used and your script will run locally
+    (with run information still available in AzureML)
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
     script to run.
 
