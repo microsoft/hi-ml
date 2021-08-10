@@ -302,8 +302,7 @@ jobs:
 
       - name: Set up conda environment
         run: |
-          $CONDA/bin/conda env create --file test_environment.yml
-          $CONDA/bin/conda activate test-env
+          $CONDA/bin/conda env update --file test_environment.yml --name base
           which -a pip
           which -a python
 
