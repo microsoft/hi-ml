@@ -305,6 +305,7 @@ jobs:
           $CONDA/bin/conda env update --file test_environment.yml --name base
           which -a pip
           which -a python
+          echo $CONDA
 
       - name: Download TestPyPI version artifact
         uses: actions/download-artifact@v2
@@ -319,15 +320,14 @@ jobs:
 
       - name: Install test package
         run: |
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
+          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.latest_version }}
           do
             echo waiting for test.pypi
             sleep 10
           done
 
       - name: Test with pytest
-        shell: bash -l {0}
-        run: pytest testhiml
+        run: $CONDA/bin/pytest testhiml
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest
