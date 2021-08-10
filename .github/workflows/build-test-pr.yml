@@ -202,7 +202,7 @@ jobs:
           echo "Install this package version via:"
           echo "pip install --extra-index-url https://test.pypi.org/simple hi-ml==$latest_version"
 
-  test-testpypi-pkg:
+  test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
     needs: [publish-testpypi-pkg]
     steps:
@@ -292,7 +292,7 @@ jobs:
           name: code-coverage-report
           path: htmlcov/*
 
-  test-conda-testpypi-pkg:
+  test-testpypi-pkg-conda:
     runs-on: ubuntu-latest
     needs: [publish-testpypi-pkg]
     steps:
@@ -303,9 +303,6 @@ jobs:
       - name: Set up conda environment
         run: |
           $CONDA/bin/conda env update --file test_environment.yml --name base
-          which -a pip
-          which -a python
-          echo $CONDA
 
       - name: Download TestPyPI version artifact
         uses: actions/download-artifact@v2

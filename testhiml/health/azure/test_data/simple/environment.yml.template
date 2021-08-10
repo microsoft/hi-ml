@@ -2,11 +2,3 @@ name: simple-env
 dependencies:
   - pip=20.1.1
   - python=3.7.3
-  - pip:
-    - azureml-sdk==1.23.0
-    - conda-merge==0.1.5
-  - pip:
-    - --index-url https://test.pypi.org/simple/
-    - --extra-index-url https://pypi.org/simple
-    - hi-ml{{ hi_ml_version }}
-

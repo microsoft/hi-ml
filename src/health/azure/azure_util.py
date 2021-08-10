@@ -8,6 +8,7 @@ Utility functions for interacting with AzureML runs
 import hashlib
 import logging
 import os
+import pkg_resources
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -214,7 +215,8 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
-def create_python_environment(conda_environment_file: Path,
+def create_python_environment(workspace: Workspace,
+                              conda_environment_file: Path,
                               pip_extra_index_url: str,
                               docker_base_image: str,
                               environment_variables: Optional[Dict[str, str]]) -> Environment:
@@ -222,11 +224,13 @@ def create_python_environment(conda_environment_file: Path,
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
     exists, it is retrieved, otherwise created afresh.
-    :param environment_variables: The environment variables that should be set when running in AzureML.
-    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param workspace: The AzureML workspace to work in.
+    :param conda_environment_file: The file that contains the Conda environment definition.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
-    :param conda_environment_file: The file that contains the Conda environment definition.
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
+    :return: AzureML environment.
     """
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
     yaml_contents = conda_environment_file.read_text()
@@ -247,6 +251,10 @@ def create_python_environment(conda_environment_file: Path,
         "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
         **(environment_variables or {})
     }
+    # Find this package and register it with AzureML
+    hi_ml_dist = pkg_resources.get_distribution("hi-ml")
+    whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=hi_ml_dist.location)
+    conda_dependencies.add_pip_package(whl_url)
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
