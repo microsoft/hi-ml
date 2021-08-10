@@ -1,5 +1,4 @@
 {
-    "python.envFile": "${workspaceFolder}/.vscode/.env",
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
         "--max-line-length=120",

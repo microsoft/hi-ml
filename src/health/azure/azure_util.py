@@ -8,7 +8,6 @@ Utility functions for interacting with AzureML runs
 import hashlib
 import logging
 import os
-import pkg_resources
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -41,6 +40,10 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
+
+here = Path(__file__).parent.resolve()
+root = here.parent.parent.parent.resolve()
+dist_folder = root.joinpath('dist')
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -251,10 +254,11 @@ def create_python_environment(workspace: Workspace,
         "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
         **(environment_variables or {})
     }
-    # Find this package and register it with AzureML
-    hi_ml_dist = pkg_resources.get_distribution("hi-ml")
-    whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=hi_ml_dist.location)
-    conda_dependencies.add_pip_package(whl_url)
+    # See if this package as a whl exists, and if so, register it with AzureML
+    whls = sorted(list(dist_folder.glob('*.whl')))
+    if len(whls) > 0:
+        whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=whls[-1])
+        conda_dependencies.add_pip_package(whl_url)
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
