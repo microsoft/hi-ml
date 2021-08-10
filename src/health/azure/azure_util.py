@@ -9,7 +9,6 @@ import hashlib
 import logging
 import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -31,8 +30,6 @@ WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
 # The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
 # name, hence version will always be fixed
 ENVIRONMENT_VERSION = "1"
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
-DEFAULT_DOCKER_SHM_SIZE = "10g"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
@@ -169,7 +166,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
 
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
     """
-    Writes the number of conda and pip packages to logs.
+    Write number of conda and pip packages to logs.
     :param conda: A conda dependencies object
     :param message_prefix: A message to prefix to the log string.
     """
@@ -184,33 +181,14 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
-    """
-    Creates a CondaDependencies object from the Conda environments specified in one or more files.
-    The resulting object contains the union of the Conda and pip packages in the files, where merging
-    is done via the conda_merge package.
-    :param files: The Conda environment files to read.
-    :return: Tuple of (CondaDependencies object that contains packages from all the files,
-    string contents of the merge Conda environment)
-    """
-    for file in files:
-        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    temp_merged_file = tempfile.NamedTemporaryFile(delete=False)
-    merged_file_path = Path(temp_merged_file.name)
-    merge_conda_files(files, result_file=merged_file_path)
-    merged_dependencies = CondaDependencies(temp_merged_file.name)
-    _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
-    merged_file_contents = merged_file_path.read_text()
-    temp_merged_file.close()
-    return merged_dependencies, merged_file_contents
-
-
 def merge_conda_files(files: List[Path], result_file: Path) -> None:
     """
     Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
     :param files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     """
+    for file in files:
+        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
     # This code is a slightly modified version of conda_merge. That code can't be re-used easily
     # it defaults to writing to stdout
     env_definitions = [conda_merge.read_file(str(f)) for f in files]
@@ -233,6 +211,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         unified_definition[DEPENDENCIES] = deps
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
 def create_python_environment(conda_environment_file: Path,
@@ -276,14 +255,11 @@ def create_python_environment(conda_environment_file: Path,
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
     overall_hash = sha1.hexdigest()[:32]
     unique_env_name = f"HealthML-{overall_hash}"
+    env = Environment(name=unique_env_name)
+    env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
-        env = Environment(name=unique_env_name)
         env.docker.base_image = docker_base_image
-        env.python.conda_dependencies = conda_dependencies
-    else:
-        conda_file = conda_dependencies.save(f"{unique_env_name}.yml")
-        env = Environment.from_conda_specification(name="simple_env", file_path=conda_environment_file)
-    # env.environment_variables = environment_variables
+    env.environment_variables = environment_variables
     return env
 
 
@@ -363,7 +339,7 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
 
     def is_completed(run: Run) -> bool:
         status = run.get_status()
-        if run.status == RunStatus.COMPLETED or run.status == RunStatus.FINALIZING:
+        if run.status == RunStatus.COMPLETED:
             return True
         logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
         return False
