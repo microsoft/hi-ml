@@ -351,6 +351,24 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert "0th line" == amlignore_text
 
 
+@pytest.mark.fast
+@patch("health.azure.himl.ScriptRunConfig")
+@patch("health.azure.himl.Workspace")
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+def test_submit_run(
+    wait_for_completion: bool,
+    mock_workspace: mock.MagicMock,
+    mock_script_run_config: mock.MagicMock,
+    ) -> None:
+    an_experiment_name = "an experiment"
+    run = himl.submit_run(
+        workspace=mock_workspace,
+        experiment_name=an_experiment_name,
+        script_run_config=mock_script_run_config,
+        wait_for_completion=wait_for_completion,
+        wait_for_completion_show_output=True,
+    )
+
 # endregion Small fast local unit tests
 
 
