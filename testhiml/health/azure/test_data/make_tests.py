@@ -15,19 +15,18 @@ from jinja2 import Template
 here = Path(__file__).parent.resolve()
 
 
-def render_environment_yaml(environment_yaml_path: Path, version: str) -> None:
+def render_environment_yaml(environment_yaml_path: Path) -> None:
     """
     Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
     :param environment_yaml_path: Where to save environment.yml.
-    :param version: hi-ml package version.
     :return: None
     """
     environment_yaml_template = (here / 'simple' / 'environment.yml.template').read_text()
 
     t = Template(environment_yaml_template)
 
-    options = {'hi_ml_version': version}
+    options: Dict[str, str] = {}
 
     r = t.render(options)
     environment_yaml_path.write_text(r)

@@ -25,7 +25,7 @@ from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import get_most_recent_run, repository_root
+from testhiml.health.azure.util import get_most_recent_run
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
@@ -375,17 +375,8 @@ def render_test_scripts(path: Path, local: bool,
     :param extra_args: Extra command line arguments for calling script.
     :return: snapshot_root and response from spawn_and_monitor_subprocess.
     """
-    repo_root = repository_root()
-
     environment_yaml_path = path / "environment.yml"
-    latest_version_path = repo_root / "latest_version.txt"
-    if latest_version_path.exists():
-        latest_version = f"=={latest_version_path.read_text()}"
-        logging.debug(f"pinning hi-ml to: {latest_version}")
-    else:
-        latest_version = ""
-        logging.debug("not pinning hi-ml")
-    render_environment_yaml(environment_yaml_path, latest_version)
+    render_environment_yaml(environment_yaml_path)
 
     entry_script_path = path / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)

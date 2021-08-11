@@ -226,6 +226,12 @@ jobs:
           echo $latest_version
           echo "latest_version=$latest_version" >> $GITHUB_ENV
 
+      - name: Download Distribution
+        uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
+
       - name: Install test package
         run: |
           python -m pip install --upgrade pip
@@ -314,6 +320,12 @@ jobs:
           latest_version=$(cat ./latest_version.txt)
           echo $latest_version
           echo "latest_version=$latest_version" >> $GITHUB_ENV
+
+      - name: Download Distribution
+        uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
 
       - name: Install test package
         run: |
