@@ -91,8 +91,10 @@ def get_or_create_environment(workspace: Workspace,
     """
     if aml_environment_name:
         # TODO: Split off version
+        print(f"Loading environment: {aml_environment_name}")
         return Environment.get(workspace, aml_environment_name)
     elif conda_environment_file:
+        print("Creating new environment")
         environment = create_python_environment(workspace=workspace,
                                                 conda_environment_file=conda_environment_file,
                                                 pip_extra_index_url=pip_extra_index_url,
