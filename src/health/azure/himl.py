@@ -72,7 +72,7 @@ def get_or_create_environment(workspace: Workspace,
                               conda_environment_file: Optional[Path],
                               environment_variables: Optional[Dict[str, str]],
                               pip_extra_index_url: str,
-                              private_pip_wheel_path: Path,
+                              private_pip_wheel_path: Optional[Path],
                               docker_base_image: str,
                               ) -> Environment:
     """
@@ -93,10 +93,8 @@ def get_or_create_environment(workspace: Workspace,
     """
     if aml_environment_name:
         # TODO: Split off version
-        print(f"Loading environment: {aml_environment_name}")
         return Environment.get(workspace, aml_environment_name)
     elif conda_environment_file:
-        print("Creating new environment")
         environment = create_python_environment(workspace=workspace,
                                                 conda_environment_file=conda_environment_file,
                                                 pip_extra_index_url=pip_extra_index_url,
@@ -114,7 +112,7 @@ def create_run_configuration(workspace: Workspace,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
                              pip_extra_index_url: str = "",
-                             private_pip_wheel_path: Path = None,
+                             private_pip_wheel_path: Optional[Path] = None,
                              docker_base_image: str = "",
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
@@ -288,7 +286,7 @@ def submit_to_azure_if_needed(  # type: ignore
         experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
-        private_pip_wheel_path: Path = None,
+        private_pip_wheel_path: Optional[Path] = None,
         docker_base_image: str = "",
         docker_shm_size: str = "",
         ignored_folders: Optional[List[PathOrString]] = None,

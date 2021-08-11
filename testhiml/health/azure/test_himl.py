@@ -375,8 +375,31 @@ def render_test_scripts(path: Path, local: bool,
     :param extra_args: Extra command line arguments for calling script.
     :return: snapshot_root and response from spawn_and_monitor_subprocess.
     """
+    version = ""
+
+    himl_wheel_filename = os.getenv('HIML_WHEEL_FILENAME')
+    print(f"himl_wheel_filename: {himl_wheel_filename}")
+    himl_test_pypi_version = os.getenv('HIML_TEST_PYPI_VERSION')
+    print(f"himl_test_pypi_version: {himl_test_pypi_version}")
+    himl_pypi_version = os.getenv('HIML_PYPI_VERSION')
+    print(f"himl_pypi_version: {himl_pypi_version}")
+    if himl_wheel_filename is not None:
+        himl_wheel_filename_path = Path(himl_wheel_filename)
+        if himl_wheel_filename_path.exists():
+            extra_options['private_pip_wheel_path'] = himl_wheel_filename_path
+            print(f"Added HIML_WHEEL_FILENAME: {himl_wheel_filename} option")
+        else:
+            print(f"HIML_WHEEL_FILENAME: {himl_wheel_filename}, specified but does not exist")
+    elif himl_test_pypi_version is not None:
+        extra_options['pip_extra_index_url'] = "https://test.pypi.org/simple/"
+        version = himl_test_pypi_version
+        print(f"Added test.pypi {himl_test_pypi_version} option")
+    elif himl_pypi_version is not None:
+        version = himl_pypi_version
+        print(f"Added pypi {himl_pypi_version} option")
+
     environment_yaml_path = path / "environment.yml"
-    render_environment_yaml(environment_yaml_path)
+    render_environment_yaml(environment_yaml_path, version)
 
     entry_script_path = path / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
