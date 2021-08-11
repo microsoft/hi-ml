@@ -41,10 +41,6 @@ ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
 
-here = Path(__file__).parent.resolve()
-root = here.parent.parent.parent.resolve()
-dist_folder = root.joinpath('dist')
-
 
 def create_run_recovery_id(run: Run) -> str:
     """
@@ -255,6 +251,7 @@ def create_python_environment(workspace: Workspace,
         **(environment_variables or {})
     }
     # See if this package as a whl exists, and if so, register it with AzureML
+    dist_folder = Path.cwd().joinpath('dist')
     whls = sorted(list(dist_folder.glob('*.whl')))
     if len(whls) > 0:
         last_whl = whls[-1]
