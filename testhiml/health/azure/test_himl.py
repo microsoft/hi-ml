@@ -384,9 +384,11 @@ def render_test_scripts(path: Path, local: bool,
     himl_pypi_version = os.getenv('HIML_PYPI_VERSION')
     print(f"himl_pypi_version: {himl_pypi_version}")
     if himl_wheel_filename is not None:
-        if Path(himl_wheel_filename).exists():
-            extra_options['private_pip_wheel_path'] = f'Path("{himl_wheel_filename}")'
-            print(f"Added HIML_WHEEL_FILENAME: {himl_wheel_filename} option")
+        himl_wheel_filename_path = Path(himl_wheel_filename).resolve()
+        if himl_wheel_filename_path.exists():
+            himl_wheel_filename_full_path = str(himl_wheel_filename_path)
+            extra_options['private_pip_wheel_path'] = f'Path("{himl_wheel_filename_full_path}")'
+            print(f"Added HIML_WHEEL_FILENAME: {himl_wheel_filename_full_path} option")
         else:
             print(f"HIML_WHEEL_FILENAME: {himl_wheel_filename}, specified but does not exist")
     elif himl_test_pypi_version is not None:
