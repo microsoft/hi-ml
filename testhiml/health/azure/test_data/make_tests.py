@@ -61,8 +61,8 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
-    default_options['pip_extra_index_url'] = '"http://test_my_pip_extra_index_url"'
-    default_options['private_pip_wheel_path'] = 'Path("test_my_private_pip_wheel_path")'
+    default_options['pip_extra_index_url'] = 'None'
+    default_options['private_pip_wheel_path'] = 'None'
     default_options['wait_for_completion'] = 'True'
     default_options['wait_for_completion_show_output'] = 'True'
 
