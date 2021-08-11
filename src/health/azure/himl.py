@@ -122,7 +122,7 @@ def create_run_configuration(workspace: Workspace,
     else:
         raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
 
-    if docker_base_image and docker_shm_size:
+    if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
 
     if compute_cluster_name:

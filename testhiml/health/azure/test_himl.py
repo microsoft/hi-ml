@@ -119,8 +119,9 @@ def test_to_datasets(
 @patch("health.azure.himl.Workspace")
 def test_create_run_configuration_fails(
         mock_workspace: mock.MagicMock,
-        mock_create_python_environment: mock.MagicMock,
-        mock_register_environment: mock.MagicMock) -> None:
+        _: mock.MagicMock,
+        __: mock.MagicMock,
+        ) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
@@ -138,6 +139,7 @@ def test_create_run_configuration_fails(
 
 
 @pytest.mark.fast
+@patch("health.azure.himl.DockerConfiguration")
 @patch("health.azure.datasets.DatasetConfig.to_output_dataset")
 @patch("health.azure.datasets.DatasetConfig.to_input_dataset")
 @patch("health.azure.himl.Environment.get")
@@ -147,6 +149,7 @@ def test_create_run_configuration(
         mock_environment_get: mock.MagicMock,
         mock_to_input_dataset: mock.MagicMock,
         mock_to_output_dataset: mock.MagicMock,
+        mock_docker_configuration: mock.MagicMock,
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_env_name = "Mock Env"
@@ -165,7 +168,8 @@ def test_create_run_configuration(
         num_nodes=10,
         max_run_duration="1h",
         input_datasets=[DatasetConfig(name="input1")],
-        output_datasets=[DatasetConfig(name="output1")]
+        output_datasets=[DatasetConfig(name="output1")],
+        docker_shm_size="2g"
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -175,6 +179,7 @@ def test_create_run_configuration(
     assert run_config.max_run_duration_seconds == 60 * 60
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
+    mock_docker_configuration.assert_called_once()
 
 
 @pytest.mark.fast
