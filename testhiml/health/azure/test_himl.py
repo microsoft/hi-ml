@@ -8,6 +8,7 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 from pathlib import Path, PosixPath
@@ -380,6 +381,10 @@ def render_test_scripts(path: Path, local: bool,
 
     entry_script_path = path / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
+
+    dist_folder = Path.cwd().joinpath('dist')
+    if dist_folder.exists():
+        shutil.copytree(dist_folder, path / 'dist')
 
     score_args = [str(entry_script_path)]
     if not local:
