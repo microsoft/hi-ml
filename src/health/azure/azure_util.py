@@ -217,6 +217,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
 def create_python_environment(workspace: Workspace,
                               conda_environment_file: Path,
                               pip_extra_index_url: str,
+                              private_pip_wheel_path: Path,
                               docker_base_image: str,
                               environment_variables: Optional[Dict[str, str]]) -> Environment:
     """
@@ -227,6 +228,7 @@ def create_python_environment(workspace: Workspace,
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param private_pip_wheel_path: If provided, use this wheel as a private package.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :return: AzureML environment.
@@ -250,7 +252,14 @@ def create_python_environment(workspace: Workspace,
         "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
         **(environment_variables or {})
     }
-    # See if this package as a whl exists, and if so, register it with AzureML
+    # See if this package as a whl exists, and if so, register it with AzureML environment.
+    if private_pip_wheel_path is not None and private_pip_wheel_path.exists():
+        whl_url = Environment.add_private_pip_wheel(workspace=workspace,
+                                                    file_path=private_pip_wheel_path,
+                                                    exist_ok=True)
+        conda_dependencies.add_pip_package(whl_url)
+        print(f"Added {private_pip_wheel_path} to AzureML environment")
+
     pip_package_set = False
     himl_wheel_filename = os.getenv('HIML_WHEEL_FILENAME')
     print(f"himl_wheel_filename: {himl_wheel_filename}")

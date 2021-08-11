@@ -72,6 +72,7 @@ def get_or_create_environment(workspace: Workspace,
                               conda_environment_file: Optional[Path],
                               environment_variables: Optional[Dict[str, str]],
                               pip_extra_index_url: str,
+                              private_pip_wheel_path: Path,
                               docker_base_image: str,
                               ) -> Environment:
     """
@@ -86,6 +87,7 @@ def get_or_create_environment(workspace: Workspace,
     :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
     This is only used if conda_environment_file is given.
     :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
+    :param private_pip_wheel_path: If provided, use this wheel as a private package.
     :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
     :return: An AzureML Environment object.
     """
@@ -98,6 +100,7 @@ def get_or_create_environment(workspace: Workspace,
         environment = create_python_environment(workspace=workspace,
                                                 conda_environment_file=conda_environment_file,
                                                 pip_extra_index_url=pip_extra_index_url,
+                                                private_pip_wheel_path=private_pip_wheel_path,
                                                 docker_base_image=docker_base_image,
                                                 environment_variables=environment_variables)
         return register_environment(workspace, environment)
@@ -111,6 +114,7 @@ def create_run_configuration(workspace: Workspace,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
                              pip_extra_index_url: str = "",
+                             private_pip_wheel_path: Path = None,
                              docker_base_image: str = "",
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
@@ -136,6 +140,7 @@ def create_run_configuration(workspace: Workspace,
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param private_pip_wheel_path: If provided, use this wheel as a private package.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
     exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
@@ -155,6 +160,7 @@ def create_run_configuration(workspace: Workspace,
                                                        aml_environment_name=aml_environment_name,
                                                        conda_environment_file=conda_environment_file,
                                                        pip_extra_index_url=pip_extra_index_url,
+                                                       private_pip_wheel_path=private_pip_wheel_path,
                                                        environment_variables=environment_variables,
                                                        docker_base_image=docker_base_image)
     run_config.target = compute_cluster_name
@@ -282,6 +288,7 @@ def submit_to_azure_if_needed(  # type: ignore
         experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
+        private_pip_wheel_path: Path = None,
         docker_base_image: str = "",
         docker_shm_size: str = "",
         ignored_folders: Optional[List[PathOrString]] = None,
@@ -337,6 +344,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param private_pip_wheel_path: If provided, use this wheel as a private package.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
     storage. This is described in more detail in the README.
@@ -399,6 +407,7 @@ def submit_to_azure_if_needed(  # type: ignore
         conda_environment_file=conda_environment_file,
         environment_variables=environment_variables,
         pip_extra_index_url=pip_extra_index_url,
+        private_pip_wheel_path=private_pip_wheel_path,
         docker_base_image=docker_base_image,
         docker_shm_size=docker_shm_size,
         num_nodes=num_nodes,

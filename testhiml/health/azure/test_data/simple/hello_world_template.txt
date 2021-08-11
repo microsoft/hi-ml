@@ -35,6 +35,8 @@ def main() -> None:
         workspace_config_path={{ workspace_config_path }},
         snapshot_root_directory=here,
         environment_variables={{ environment_variables }},
+        pip_extra_index_url={{ pip_extra_index_url }},
+        private_pip_wheel_path={{ private_pip_wheel_path }},
         wait_for_completion={{ wait_for_completion }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }})
 
