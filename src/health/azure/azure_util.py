@@ -225,13 +225,12 @@ def create_python_environment(workspace: Workspace,
     definition files that are specified in `source_config`. If such environment with this Conda environment already
     exists, it is retrieved, otherwise created afresh.
     :param workspace: The AzureML workspace to work in.
-    :param conda_environment_file: The file that contains the Conda environment definition.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
     :param private_pip_wheel_path: If provided, use this wheel as a private package.
-    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
-    :param environment_variables: The environment variables that should be set when running in AzureML.
-    :return: AzureML environment.
+    :param conda_environment_file: The file that contains the Conda environment definition.
     """
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
     yaml_contents = conda_environment_file.read_text()
