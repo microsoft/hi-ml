@@ -180,6 +180,16 @@ def test_create_run_configuration(
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
     mock_docker_configuration.assert_called_once()
+    run_config = himl.create_run_configuration(
+        workspace=mock_workspace,
+        compute_cluster_name=existing_compute_target,
+        aml_environment_name="foo",
+        num_nodes=10,
+        input_datasets=[DatasetConfig(name="input1")],
+        output_datasets=[DatasetConfig(name="output1")],
+        docker_shm_size="2g"
+    )
+    assert run_config.max_run_duration_seconds is None
 
 
 @pytest.mark.fast
