@@ -114,17 +114,27 @@ def test_to_datasets(
 
 
 @pytest.mark.fast
+@patch("health.azure.himl.register_environment")
+@patch("health.azure.himl.create_python_environment")
 @patch("health.azure.himl.Workspace")
 def test_create_run_configuration_fails(
-        mock_workspace: mock.MagicMock) -> None:
+        mock_workspace: mock.MagicMock,
+        mock_create_python_environment: mock.MagicMock,
+        mock_register_environment: mock.MagicMock) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             compute_cluster_name="b",
             workspace=mock_workspace)
-    assert "Could not find the compute target b in the AzureML workspace" in str(e)
-    assert existing_compute_target in str(e)
+    assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
+    with pytest.raises(ValueError) as e:
+        himl.create_run_configuration(
+            conda_environment_file=Path(__file__),
+            compute_cluster_name="b",
+            workspace=mock_workspace)
+    assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
+    assert existing_compute_target in str(e.value)
 
 
 @pytest.mark.fast
