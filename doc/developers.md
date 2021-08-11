@@ -57,3 +57,15 @@ workspace (see [docs](https://docs.microsoft.com/en-us/azure/machine-learning/ho
 information).
 * To remove an environment use the [az ml environment delete](https://docs.microsoft.com/en-us/cli/azure/ml/environment?view=azure-cli-latest#az_ml_environment_delete)
 function in the AzureML CLI (note that all the parameters need to be set, none are optional).
+
+## Testing
+
+For all of the tests to work locally you will need to cache your AzureML credentials. One simple way to do this is to
+set run the example in `src/health/azure/examples` (`python elevate_this.py --message='Hello World' --azureml`) after
+editing `elevate_this.py` to reference your compute cluster.
+
+### WSL
+
+You may need to install the ASP.NET Core Runtime in WSL. Follow the instructions 
+[here](https://docs.microsoft.com/en-us/dotnet/core/install/linux-ubuntu#2104-), replacing the latest version number 
+when you get to `sudo apt-get install -y aspnetcore-runtime-x.x` with `2.1`.
