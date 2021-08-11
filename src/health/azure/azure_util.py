@@ -251,15 +251,41 @@ def create_python_environment(workspace: Workspace,
         **(environment_variables or {})
     }
     # See if this package as a whl exists, and if so, register it with AzureML
-    dist_folder = Path.cwd().joinpath('dist')
-    whls = sorted(list(dist_folder.glob('*.whl')))
-    if len(whls) > 0:
-        last_whl = whls[-1]
-        whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=last_whl, exist_ok=True)
-        conda_dependencies.add_pip_package(whl_url)
-        print(f"Added {last_whl} to AzureML environment")
-    else:
-        print(f"No local whl to add to AzureML environment found in folder: {dist_folder.resolve()}")
+    pip_package_set = False
+    wheel_filename = os.getenv('wheel_filename')
+    himl_test_pypi_version = os.getenv('himl_test_pypi_version')
+    himl_pypi_version = os.getenv('himl_pypi_version')
+    if wheel_filename is not None:
+        wheel_filename_path = Path(wheel_filename)
+        if wheel_filename_path.exists():
+            whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=wheel_filename_path,
+                                                        exist_ok=True)
+            conda_dependencies.add_pip_package(whl_url)
+            pip_package_set = True
+            print(f"Added {wheel_filename} to AzureML environment #1")
+            logging.debug(f"Added {wheel_filename} to AzureML environment #2")
+            print(f"Added {wheel_filename} to AzureML environment #3")
+    elif himl_test_pypi_version is not None:
+        conda_dependencies.add_pip_package(f'hi-ml=={himl_test_pypi_version}')
+        conda_dependencies.set_pip_option("--index-url https://test.pypi.org/simple/")
+        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
+        pip_package_set = True
+        print(f"Added test.pypi {himl_test_pypi_version} to AzureML environment #1")
+        logging.debug(f"Added test.pypi {himl_test_pypi_version} to AzureML environment #2")
+        print(f"Added test.pypi  {himl_test_pypi_version} to AzureML environment #3")
+    elif himl_pypi_version is not None:
+        conda_dependencies.add_pip_package(f'hi-ml=={himl_pypi_version}')
+        pip_package_set = True
+        print(f"Added pypi {himl_pypi_version} to AzureML environment #1")
+        logging.debug(f"Added pypi {himl_pypi_version} to AzureML environment #2")
+        print(f"Added pypi  {himl_pypi_version} to AzureML environment #3")
+
+    if not pip_package_set:
+        print("Not pinning hi-ml package")
+        logging.debug("Using pypi package #2")
+        print("Using pypi package #3")
+        logging.debug("Using pypi package #4")
+        conda_dependencies.add_pip_package('hi-ml')
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
