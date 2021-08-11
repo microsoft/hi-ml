@@ -257,8 +257,12 @@ def create_python_environment(workspace: Workspace,
     # See if this package as a whl exists, and if so, register it with AzureML
     whls = sorted(list(dist_folder.glob('*.whl')))
     if len(whls) > 0:
-        whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=whls[-1])
+        last_whl = whls[-1]
+        whl_url = Environment.add_private_pip_wheel(workspace=workspace, file_path=last_whl, exist_ok=True)
         conda_dependencies.add_pip_package(whl_url)
+        logging.debug(f"Added {last_whl} to AzureML environment")
+    else:
+        logging.debug("No local whl to add to AzureML environment")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
