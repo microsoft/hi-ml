@@ -22,6 +22,10 @@ pytest:
 	pip install -e .
 	pytest testhiml
 
+coverage:
+	pip install -e .
+	pytest --quiet --log-cli-level=critical --cov=src/health --cov-branch --cov-report=term-missing testhiml
+
 testfast:
 	pip install -e .
 	pytest -m fast testhiml
