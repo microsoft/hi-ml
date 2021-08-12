@@ -13,14 +13,15 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import conda_merge
+import health.azure.azure_util as util
 import pytest
+from _pytest.capture import CaptureFixture
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
-from testhiml.health.azure.util import repository_root
-
-import health.azure.azure_util as util
-from health.azure.azure_util import (merge_conda_files, run_duration_string_to_seconds)
+from health.azure.azure_util import merge_conda_files, run_duration_string_to_seconds
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from testhiml.health.azure.util import repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -165,10 +166,16 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
-def test_merge_conda(random_folder: Path) -> None:
+@patch("health.azure.azure_util.conda_merge.merge_names")
+def test_merge_conda(
+        mock_merge_names: mock.MagicMock,
+        random_folder: Path,
+        caplog: CaptureFixture,
+        ) -> None:
     """
     Tests the logic for merging Conda environment files.
     """
+    mock_merge_names.return_value = ""
     env1 = """
 channels:
   - defaults
@@ -222,6 +229,21 @@ dependencies:
     # Package version conflicts are not resolved, both versions are retained.
     assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda1=1.1", "conda2=2.0", "conda_both=3.0"]
     assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
+    # Are names merged correctly?
+    mock_merge_names.assert_called_once()
+    merged_name = "my environment"
+    mock_merge_names.return_value = merged_name
+    merge_conda_files(files, merged_file)
+    assert f"name: {merged_name}" in merged_file.read_text()
+
+    def raise_a_merge_error() -> None:
+        raise conda_merge.MergeError("raising an exception")
+
+    with mock.patch("health.azure.azure_util.conda_merge.merge_channels") as mock_merge_channels:
+        mock_merge_channels.side_effect = lambda _: raise_a_merge_error()
+        with pytest.raises(conda_merge.MergeError):
+            merge_conda_files(files, merged_file)
+    assert "Failed to merge channel priorities" in caplog.text  # type: ignore
 
 
 @pytest.mark.parametrize(["s", "expected"],
