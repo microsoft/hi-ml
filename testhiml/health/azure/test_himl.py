@@ -11,9 +11,9 @@ import pathlib
 import subprocess
 import sys
 from pathlib import Path, PosixPath
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 from unittest import mock
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
