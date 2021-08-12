@@ -9,6 +9,7 @@ See examples/elevate_this.py for a very simple 'hello world' example of use.
 """
 
 import logging
+import os
 import sys
 import warnings
 from argparse import ArgumentParser
@@ -383,6 +384,10 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
+        if environment_variables is not None:
+            for k, v in environment_variables.items():
+                os.environ[k] = v
+
         return AzureRunInfo(
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],

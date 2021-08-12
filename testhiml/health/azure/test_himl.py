@@ -8,6 +8,7 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
+from re import A
 import subprocess
 import sys
 from enum import Enum
@@ -31,6 +32,8 @@ from testhiml.health.azure.util import get_most_recent_run
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
 ENVIRONMENT_FILE = "environment.yml"
+expected_queued = "This command will be run in AzureML: test_script_"
+
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -371,7 +374,8 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
 
 
 def render_test_scripts(path: Path, runTarget: RunTarget,
-                        extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[int, List[str]]:
+                        extra_options: Dict[str, str], extra_args: List[str],
+                        expected_pass: bool) -> Tuple[str, str]:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -379,7 +383,8 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
     :param runTarget: Where to run the script.
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
-    :return: snapshot_root and response from spawn_and_monitor_subprocess.
+    :param expected_pass: Whether this call to subprocess is expected to be successful.
+    :return: response from spawn_and_monitor_subprocess and run output if in AzureML.
     """
     # target hi-ml package version, if specified in an environment variable.
     version = ""
@@ -425,11 +430,29 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
     env = dict(os.environ.items())
 
     with check_config_json(path):
-        return spawn_and_monitor_subprocess(
+        code, stdout = spawn_and_monitor_subprocess(
             process=sys.executable,
             args=score_args,
             cwd=path,
             env=env)
+    assert code == 0 if expected_pass else 1
+    captured = "\n".join(stdout)
+    if runTarget == RunTarget.LOCAL or not expected_pass:
+        assert expected_queued not in captured
+
+        log_text = ""
+    else:
+        assert expected_queued in captured
+
+        run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE)
+        assert run.status == "Completed"
+        log_root = path / "logs"
+        log_root.mkdir(exist_ok=False)
+        run.get_all_logs(destination=log_root)
+        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+        log_text = driver_log.read_text()
+
+    return captured, log_text
 
 
 @pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -448,15 +471,12 @@ def test_invoking_hello_world_no_config(runTarget: RunTarget, tmp_path: Path) ->
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
-    captured = "\n".join(stdout)
+    captured, _ = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, runTarget == RunTarget.LOCAL)
+    expected_output = f"The message was: {message_guid}"
+    assert expected_queued not in captured
     if runTarget == RunTarget.LOCAL:
-        assert code == 0
-        expected_output = f"The message was: {message_guid}"
-        assert "Successfully queued new run" not in captured
         assert expected_output in captured
     else:
-        assert code == 1
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in captured
 
 
@@ -473,23 +493,11 @@ def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> No
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    assert code == 0
+    captured, log_text = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
     expected_output = f"The message was: {message_guid}"
     if runTarget == RunTarget.LOCAL:
-        assert "Successfully queued new run" not in captured
         assert expected_output in captured
     else:
-        assert "Successfully queued new run test_script_" in captured
-
-        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
-        assert run.status in ["Finalizing", "Completed"]
-        log_root = tmp_path / "logs"
-        log_root.mkdir(exist_ok=False)
-        run.get_all_logs(destination=log_root)
-        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
-        log_text = driver_log.read_text()
         assert expected_output in log_text
 
 
@@ -508,23 +516,11 @@ def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> N
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
     extra_args: List[str] = []
-    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    assert code == 0
+    captured, log_text = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
     expected_output = f"The message_guid env var was: {message_guid}"
     if runTarget == RunTarget.LOCAL:
-        assert "Successfully queued new run" not in captured
         assert expected_output in captured
     else:
-        assert "Successfully queued new run test_script_" in captured
-
-        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
-        assert run.status in ["Finalizing", "Completed"]
-        log_root = tmp_path / "logs"
-        log_root.mkdir(exist_ok=False)
-        run.get_all_logs(destination=log_root)
-        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
-        log_text = driver_log.read_text()
         assert expected_output in log_text
 
 
@@ -550,23 +546,11 @@ def test_invoking_hello_world_datasets(runTarget: RunTarget, tmp_path: Path) -> 
         """
     }
     extra_args: List[str] = []
-    code, stdout = render_test_scripts(tmp_path, runTarget, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    assert code == 0
-    queuing_message = "Successfully queued run"
+    captured, log_text = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
     execution_message = 'The message was: hello_world'
     if runTarget == RunTarget.LOCAL:
-        assert queuing_message not in captured
         assert execution_message in captured
     else:
-        assert queuing_message in captured
-        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
-        assert run.status in ["Finalizing", "Completed"]
-        log_root = tmp_path / "logs"
-        log_root.mkdir(exist_ok=False)
-        run.get_all_logs(destination=str(log_root))
-        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
-        log_text = driver_log.read_text()
         assert execution_message in log_text
 
 
@@ -594,9 +578,7 @@ def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     extra_options: Dict[str, str] = {}
     extra_args: List[str] = []
     with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": 'not_a_known_file.whl'}):
-        code, stdout = render_test_scripts(tmp_path, RunTarget.AZUREML, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    assert code == 1
+        captured, _ = render_test_scripts(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
     error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
     error_message_end = "not_a_known_file.whl, it is not a file."
 
