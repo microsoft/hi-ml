@@ -27,7 +27,6 @@ def main() -> None:
     """
     Write out the given message, in an AzureML 'experiment' if required.
     """
-
     run_info = submit_to_azure_if_needed(
         compute_cluster_name={{ compute_cluster_name }},
         entry_script={{ entry_script }},

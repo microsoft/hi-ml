@@ -469,7 +469,6 @@ def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> No
     """
     message_guid = uuid4().hex
     extra_options = {
-        'workspace_config_path': 'here / "config.json"',
         'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
         'body': 'print(f"The message was: {args.message}")'
     }
