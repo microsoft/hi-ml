@@ -229,7 +229,7 @@ def create_python_environment(conda_environment_file: Path,
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
     :param workspace: The AzureML workspace to work in, required if private_pip_wheel_path is supplied.
-    :param private_pip_wheel_path: If provided, use this wheel as a private package.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     """
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)

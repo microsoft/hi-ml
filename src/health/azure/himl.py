@@ -87,7 +87,7 @@ def get_or_create_environment(workspace: Workspace,
     :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
     This is only used if conda_environment_file is given.
     :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
-    :param private_pip_wheel_path: If provided, use this wheel as a private package.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
     :return: An AzureML Environment object.
     """
@@ -138,7 +138,7 @@ def create_run_configuration(workspace: Workspace,
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
-    :param private_pip_wheel_path: If provided, use this wheel as a private package.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
     exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
@@ -342,7 +342,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
-    :param private_pip_wheel_path: If provided, use this wheel as a private package.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
     storage. This is described in more detail in the README.
