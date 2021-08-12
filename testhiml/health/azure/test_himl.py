@@ -404,6 +404,11 @@ def test_submit_run(
         assert "AzureML completed" not in out
 
 
+@pytest.mark.fast
+def test_str_to_path(tmp_path: Path) -> None:
+    assert himl._str_to_path(tmp_path) == tmp_path
+    assert himl._str_to_path(str(tmp_path)) == tmp_path
+
 # endregion Small fast local unit tests
 
 
