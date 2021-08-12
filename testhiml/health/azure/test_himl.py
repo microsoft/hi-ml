@@ -69,6 +69,9 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     mock_run.id = uuid4().hex
     mock_run.experiment.name = uuid4().hex
     expected_run_recovery_id = mock_run.experiment.name + EXPERIMENT_RUN_SEPARATOR + mock_run.id
+    recovery_file = Path(himl.RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id == recovery_file_text
