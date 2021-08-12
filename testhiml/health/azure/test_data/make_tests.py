@@ -57,10 +57,13 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     t = Template(hello_world_template)
 
     default_options = {}
-    default_options['entry_script'] = "Path(sys.argv[0])"
-    default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
+    default_options['entry_script'] = "Path(sys.argv[0])"
+    default_options['aml_workspace'] = 'None'
+    default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
+    default_options['snapshot_root_directory'] = 'here'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
+    default_options['environment_variables'] = 'None'
     default_options['pip_extra_index_url'] = 'None'
     default_options['private_pip_wheel_path'] = 'None'
     default_options['wait_for_completion'] = 'True'

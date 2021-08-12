@@ -430,8 +430,7 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
     :param tmp_path: PyTest test fixture for temporary path.
     """
     extra_options = {
-        'workspace_config_path': 'None',
-        'environment_variables': 'None'
+        'workspace_config_path': 'None'
     }
     extra_args = ["--message=hello_world"]
     code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
@@ -452,9 +451,7 @@ def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
     :param local: Local execution if True, else in AzureML.
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    extra_options = {
-        'environment_variables': 'None'
-    }
+    extra_options: Dict[str, str] = {}
     extra_args = ["--message=hello_world"]
     code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
     captured = "\n".join(stdout)
