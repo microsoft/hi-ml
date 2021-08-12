@@ -189,7 +189,6 @@ def test_create_run_configuration(
         workspace=mock_workspace,
         compute_cluster_name=existing_compute_target,
         aml_environment_name="foo",
-        docker_shm_size="2g"
     )
     assert run_config.max_run_duration_seconds is None
     assert run_config.mpi.node_count == 1
