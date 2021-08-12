@@ -8,7 +8,6 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
-from re import A
 import subprocess
 import sys
 from enum import Enum
