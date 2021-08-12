@@ -369,3 +369,25 @@ def test_register_environment(
     mock_environment.get.side_effect = oh_no
     _ = util.register_environment(mock_workspace, mock_environment)
     assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
+
+
+def test_set_environment_variables_for_multi_node(
+        caplog: CaptureFixture,
+        capsys: CaptureFixture,
+        ) -> None:
+    util.set_environment_variables_for_multi_node()
+    assert "No settings for the MPI central node found" in caplog.text  # type: ignore
+    assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
+
+    with mock.patch.dict(
+            os.environ,
+            {
+                util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: "here",
+                util.ENV_MASTER_PORT: "there",
+                util.ENV_NODE_RANK: "everywhere",
+                util.ENV_MASTER_ADDR: "else",
+            },
+            clear=True):
+        util.set_environment_variables_for_multi_node()
+    out, _ = capsys.readouterr()
+    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = there, NODE_RANK = everywhere" in out
