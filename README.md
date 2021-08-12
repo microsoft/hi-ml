@@ -1,4 +1,4 @@
-# hi-ml Microsoft Health Intelligence Toolbox
+# Microsoft Health Intelligence Machine Learning Toolbox
 
 ## Overview
 
