@@ -15,7 +15,7 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from health.azure.himl import submit_to_azure_if_needed
+from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
 
 hi_ml_dist = pkg_resources.get_distribution("hi-ml")
 print(f"hi_ml_dist, location: {hi_ml_dist.location}, version: {hi_ml_dist.version}")

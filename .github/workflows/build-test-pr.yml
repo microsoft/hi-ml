@@ -92,7 +92,7 @@ jobs:
 
   build-python:
     runs-on: ubuntu-latest
-    needs: [pytest]
+    needs: [flake8, mypy, pytest]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -191,6 +191,17 @@ jobs:
           repository_url: https://test.pypi.org/legacy/
           verbose: true
 
+      - name: Download TestPyPI version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: latest_version
+
+      - name: Show published TestPyPI package version
+        run: |
+          latest_version=$(cat ./latest_version.txt)
+          echo "Install this package version via:"
+          echo "pip install --extra-index-url https://test.pypi.org/simple hi-ml==$latest_version"
+
   test-testpypi-pkg:
     runs-on: ubuntu-latest
     needs: [publish-testpypi-pkg]
@@ -235,7 +246,7 @@ jobs:
           name: latest_version
 
       - name: Test with pytest
-        run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term --cov-report=xml testhiml
+        run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testhiml
 
       - name: Format coverage summary
         run: pycobertura show --format text --output coverage.txt coverage.xml

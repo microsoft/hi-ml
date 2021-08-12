@@ -5,13 +5,19 @@
 """
 Utility functions for interacting with AzureML runs
 """
+import hashlib
 import logging
 import os
 import re
-from typing import Optional, Tuple, Union
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
 
-from azureml.core import Experiment, Run, Workspace, get_run
+import conda_merge
+import ruamel.yaml
+from azureml._restclient.constants import RunStatus
+from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
+from azureml.core.conda_dependencies import CondaDependencies
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -21,6 +27,19 @@ TENANT_ID = "HIML_TENANT_ID"
 RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
 SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
 WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
+# The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
+# name, hence version will always be fixed
+ENVIRONMENT_VERSION = "1"
+
+# Environment variables used for multi-node training
+ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
+ENV_MASTER_ADDR = "MASTER_ADDR"
+ENV_MASTER_IP = "MASTER_IP"
+ENV_MASTER_PORT = "MASTER_PORT"
+ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
+ENV_NODE_RANK = "NODE_RANK"
+ENV_GLOBAL_RANK = "GLOBAL_RANK"
+ENV_LOCAL_RANK = "LOCAL_RANK"
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -128,10 +147,7 @@ def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optio
     :return: Value of the secret. None, if there is no value and allow_missing is True.
     """
     name = name.upper()
-    secrets = {name: os.environ.get(name, None) for name in [name]}
-    if name not in secrets and not allow_missing:
-        raise ValueError(f"There is no secret named '{name}' available.")
-    value = secrets[name]
+    value = os.environ.get(name, None)
     if not value and not allow_missing:
         raise ValueError(f"There is no value stored for the secret named '{name}'")
     return value
@@ -146,3 +162,188 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
         return x
     else:
         return re.sub('_+', '_', re.sub(r'\W+', '_', x))
+
+
+def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
+    """
+    Write number of conda and pip packages to logs.
+    :param conda: A conda dependencies object
+    :param message_prefix: A message to prefix to the log string.
+    """
+    conda_packages_count = len(list(conda.conda_packages))
+    pip_packages_count = len(list(conda.pip_packages))
+    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
+    logging.debug("  Conda packages:")
+    for p in conda.conda_packages:
+        logging.debug(f"    {p}")
+    logging.debug("  Pip packages:")
+    for p in conda.pip_packages:
+        logging.debug(f"    {p}")
+
+
+def merge_conda_files(files: List[Path], result_file: Path) -> None:
+    """
+    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
+    :param files: The Conda environment files to read.
+    :param result_file: The location where the merge results should be written.
+    """
+    for file in files:
+        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
+    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
+    # it defaults to writing to stdout
+    env_definitions = [conda_merge.read_file(str(f)) for f in files]
+    unified_definition = {}
+    NAME = "name"
+    CHANNELS = "channels"
+    DEPENDENCIES = "dependencies"
+    name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
+    if name:
+        unified_definition[NAME] = name
+    try:
+        channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge channel priorities.")
+        raise
+    if channels:
+        unified_definition[CHANNELS] = channels
+    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+    if deps:
+        unified_definition[DEPENDENCIES] = deps
+    with result_file.open("w") as f:
+        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
+
+
+def create_python_environment(conda_environment_file: Path,
+                              pip_extra_index_url: str,
+                              docker_base_image: str,
+                              environment_variables: Optional[Dict[str, str]]) -> Environment:
+    """
+    Creates a description for the Python execution environment in AzureML, based on the Conda environment
+    definition files that are specified in `source_config`. If such environment with this Conda environment already
+    exists, it is retrieved, otherwise created afresh.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
+    the Docker image.
+    :param conda_environment_file: The file that contains the Conda environment definition.
+    """
+    conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
+    yaml_contents = conda_environment_file.read_text()
+    if pip_extra_index_url:
+        # When an extra-index-url is supplied, swap the order in which packages are searched for.
+        # This is necessary if we need to consume packages from extra-index that clash with names of packages on
+        # pypi
+        conda_dependencies.set_pip_option(f"--index-url {pip_extra_index_url}")
+        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
+    # By default, define several environment variables that work around known issues in the software stack
+    environment_variables = {
+        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": "3600",
+        # Occasionally uploading data during the run takes too long, and makes the job fail. Default is 300.
+        "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC": "900",
+        "MKL_SERVICE_FORCE_INTEL": "1",
+        # Switching to a new software stack in AML for mounting datasets
+        "RSLEX_DIRECT_VOLUME_MOUNT": "true",
+        "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
+        **(environment_variables or {})
+    }
+    # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
+    # and will re-use existing environments even if they don't have the same name.
+    # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
+    # hash function gives different results for the same string in different python instances.
+    hash_string = "\n".join([yaml_contents, docker_base_image, str(environment_variables)])
+    sha1 = hashlib.sha1(hash_string.encode("utf8"))
+    overall_hash = sha1.hexdigest()[:32]
+    unique_env_name = f"HealthML-{overall_hash}"
+    env = Environment(name=unique_env_name)
+    env.python.conda_dependencies = conda_dependencies
+    if docker_base_image:
+        env.docker.base_image = docker_base_image
+    env.environment_variables = environment_variables
+    return env
+
+
+def register_environment(workspace: Workspace, environment: Environment) -> Environment:
+    """
+    Try to get the AzureML environment by name and version from the AzureML workspace. If that fails, register the
+    environment on the workspace.
+    :param workspace: The AzureML workspace to use.
+    :param environment: An AzureML execution environment.
+    :return: An AzureML execution environment. If the environment did already exist on the workspace, the return value
+    is the environment as registered on the workspace, otherwise it is equal to the environment argument.
+    """
+    try:
+        env = Environment.get(workspace, name=environment.name, version=environment.version)
+        logging.info(f"Using existing Python environment '{env.name}'.")
+    except Exception:
+        logging.info(f"Python environment '{environment.name}' does not yet exist, creating and registering it.")
+        environment.register(workspace)
+    return environment
+
+
+def run_duration_string_to_seconds(s: str) -> Optional[int]:
+    """
+    Parse a string that represents a timespan, and returns it converted into seconds. The string is expected to be
+    floating point number with a single character suffix s, m, h, d for seconds, minutes, hours, day.
+    Examples: '3.5h', '2d'. If the argument is an empty string, None is returned.
+    :param s: The string to parse.
+    :return: The timespan represented in the string converted to seconds.
+    """
+    s = s.strip()
+    if not s:
+        return None
+    suffix = s[-1]
+    if suffix == "s":
+        multiplier = 1
+    elif suffix == "m":
+        multiplier = 60
+    elif suffix == "h":
+        multiplier = 60 * 60
+    elif suffix == "d":
+        multiplier = 24 * 60 * 60
+    else:
+        raise ValueError("s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")  # type: ignore
+    return int(float(s[:-1]) * multiplier)
+
+
+def set_environment_variables_for_multi_node() -> None:
+    """
+    Sets the environment variables that PyTorch Lightning needs for multi-node training.
+    """
+    if ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ:
+        # For AML BATCHAI
+        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+    elif ENV_MASTER_IP in os.environ:
+        # AKS
+        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_MASTER_IP]
+    else:
+        logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
+        return
+
+    if ENV_MASTER_PORT not in os.environ:
+        os.environ[ENV_MASTER_PORT] = "6105"
+
+    if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
+    env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
+    print(f"Distributed training: {env_vars}")
+
+
+def is_run_and_child_runs_completed(run: Run) -> bool:
+    """
+    Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
+    completed successfully.
+    :param run: The AzureML run to check.
+    :return: True if the run and all child runs completed successfully.
+    """
+
+    def is_completed(run: Run) -> bool:
+        status = run.get_status()
+        if run.status == RunStatus.COMPLETED:
+            return True
+        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
+        return False
+
+    runs = list(run.get_children())
+    runs.append(run)
+    return all(is_completed(run) for run in runs)

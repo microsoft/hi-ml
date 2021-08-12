@@ -1,4 +1,4 @@
-# hi-ml Microsoft Health Intelligence Toolbox
+# Microsoft Health Intelligence Machine Learning Toolbox
 
 ## Overview
 
@@ -45,16 +45,25 @@ if __name__ == '__main__':
                                           compute_cluster_name="preprocess-ds12",
                                           conda_environment_file=Path("environment.yml"),
                                           input_datasets=["images123"],
+                                          # Omit this line if you don't create an output dataset (for example, in
+                                          # model training scripts)
                                           output_datasets=["images123_resized"],)
     # When running in AzureML, run_info.input_datasets and run_info.output_datasets will be populated,
     # and point to the data coming from blob storage. For runs outside AML, the paths will be None.
     # Replace the None with a meaningful path, so that we can still run the script easily outside AML.
-    input_folder = run_info.input_datasets[0] or Path("/tmp/my_dataset")
-    output_folder = run_info.output_datasets[0] or Path("/tmp/my_output")
-    for file in input_folder.glob("*.jpg"):
+    input_dataset = run_info.input_datasets[0] or Path("/tmp/my_dataset")
+    output_dataset = run_info.output_datasets[0] or Path("/tmp/my_output")
+    files_processed = []
+    for file in input_dataset.glob("*.jpg"):
         contents = read_image(file)
         resized = contents.resize(0.5)
-        write_image(output_folder / file.name)
+        write_image(output_dataset / file.name)
+        files_processed.append(file.name)
+    # Any other files that you would not consider an "output dataset", like metrics, etc, should be written to
+    # a folder "./outputs". Any files written into that folder will later be visible in the AzureML UI.
+    # run_info.output_folder already points to the correct folder.
+    stats_file = run_info.output_folder / "processed_files.txt"
+    stats_file.write_text("\n".join(files_processed))
 ```
 
 Once these changes are in place, you can submit the script to AzureML by supplying an additional `--azureml` flag
