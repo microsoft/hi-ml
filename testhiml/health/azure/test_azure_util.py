@@ -391,3 +391,15 @@ def test_set_environment_variables_for_multi_node(
         util.set_environment_variables_for_multi_node()
     out, _ = capsys.readouterr()
     assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = there, NODE_RANK = everywhere" in out
+
+    with mock.patch.dict(
+            os.environ,
+            {
+                util.ENV_MASTER_IP: "here",
+                util.ENV_NODE_RANK: "everywhere",
+                util.ENV_MASTER_ADDR: "else",
+            },
+            clear=True):
+        util.set_environment_variables_for_multi_node()
+    out, _ = capsys.readouterr()
+    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
