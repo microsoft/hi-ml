@@ -165,16 +165,13 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
-@patch("health.azure.azure_util.conda_merge.merge_names")
 def test_merge_conda(
-        mock_merge_names: mock.MagicMock,
         random_folder: Path,
         caplog: CaptureFixture,
         ) -> None:
     """
     Tests the logic for merging Conda environment files.
     """
-    mock_merge_names.return_value = ""
     env1 = """
 channels:
   - defaults
@@ -208,7 +205,8 @@ dependencies:
     files = [file1, file2]
     merged_file = random_folder / "merged.yml"
     util.merge_conda_files(files, merged_file)
-    assert merged_file.read_text().splitlines() == """channels:
+    merged_file_text = merged_file.read_text()
+    assert merged_file_text.splitlines() == """channels:
 - defaults
 - pytorch
 dependencies:
@@ -232,11 +230,13 @@ dependencies:
     assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
 
     # Are names merged correctly?
-    mock_merge_names.assert_called_once()
-    merged_name = "my environment"
-    mock_merge_names.return_value = merged_name
+    assert "name:" not in merged_file_text
+    env1 = "name: env1\n" + env1
+    file1.write_text(env1)
+    env2 = "name: env2\n" + env2
+    file2.write_text(env2)
     util.merge_conda_files(files, merged_file)
-    assert f"name: {merged_name}" in merged_file.read_text()
+    assert "name: env2" in merged_file.read_text()
 
     def raise_a_merge_error() -> None:
         raise conda_merge.MergeError("raising an exception")

@@ -196,9 +196,11 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     NAME = "name"
     CHANNELS = "channels"
     DEPENDENCIES = "dependencies"
+
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
         unified_definition[NAME] = name
+
     try:
         channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
@@ -206,6 +208,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         raise
     if channels:
         unified_definition[CHANNELS] = channels
+
     try:
         deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
     except conda_merge.MergeError:
@@ -215,6 +218,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         unified_definition[DEPENDENCIES] = deps
     else:
         raise ValueError("No dependencies found in any of the conda files.")
+
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
