@@ -11,12 +11,14 @@ import pathlib
 import subprocess
 import sys
 from pathlib import Path, PosixPath
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 
 import pytest
+from _pytest.capture import CaptureFixture
+from azureml._restclient.constants import RunStatus
 from azureml.core import RunConfiguration, Workspace
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
@@ -352,22 +354,55 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.ScriptRunConfig")
-@patch("health.azure.himl.Workspace")
 @pytest.mark.parametrize("wait_for_completion", [True, False])
+@patch("health.azure.himl.Run")
+@patch("health.azure.himl.ScriptRunConfig")
+@patch("health.azure.himl.Experiment")
+@patch("health.azure.himl.Workspace")
 def test_submit_run(
-    wait_for_completion: bool,
-    mock_workspace: mock.MagicMock,
-    mock_script_run_config: mock.MagicMock,
-    ) -> None:
+        mock_workspace: mock.MagicMock,
+        mock_experiment: mock.MagicMock,
+        mock_script_run_config: mock.MagicMock,
+        mock_run: mock.MagicMock,
+        wait_for_completion: bool,
+        capsys: CaptureFixture,
+        ) -> None:
+    mock_experiment.return_value.submit.return_value = mock_run
+    mock_run.get_status.return_value = RunStatus.COMPLETED
+    mock_run.status = RunStatus.COMPLETED
+    mock_run.get_children.return_value = []
     an_experiment_name = "an experiment"
-    run = himl.submit_run(
+    _ = himl.submit_run(
         workspace=mock_workspace,
         experiment_name=an_experiment_name,
         script_run_config=mock_script_run_config,
         wait_for_completion=wait_for_completion,
         wait_for_completion_show_output=True,
     )
+    out, err = capsys.readouterr()
+    assert not err
+    assert "Successfully queued run" in out
+    assert "Experiment name and run ID are available" in out
+    assert "Experiment URL" in out
+    assert "Run URL" in out
+    if wait_for_completion:
+        assert "Waiting for the completion of the AzureML run" in out
+        assert "AzureML completed" in out
+        mock_run.get_status.return_value = RunStatus.UNAPPROVED
+        mock_run.status = RunStatus.UNAPPROVED
+        with pytest.raises(ValueError) as e:
+            _ = himl.submit_run(
+                workspace=mock_workspace,
+                experiment_name=an_experiment_name,
+                script_run_config=mock_script_run_config,
+                wait_for_completion=wait_for_completion,
+                wait_for_completion_show_output=True,
+            )
+        error_msg = str(e.value)
+        out, err = capsys.readouterr()
+        assert "runs failed" in error_msg
+        assert "AzureML completed" not in out
+
 
 # endregion Small fast local unit tests
 
