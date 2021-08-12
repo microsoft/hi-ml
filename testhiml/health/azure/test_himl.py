@@ -463,7 +463,7 @@ def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> No
     else:
         assert "Successfully queued new run test_script_" in captured
 
-        run = get_most_recent_run(run_recovery_file=tmp_path / RUN_RECOVERY_FILE)
+        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
@@ -498,7 +498,7 @@ def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> N
     else:
         assert "Successfully queued new run test_script_" in captured
 
-        run = get_most_recent_run(run_recovery_file=tmp_path / RUN_RECOVERY_FILE)
+        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
