@@ -351,3 +351,21 @@ def test_create_python_environment(
     assert env.name != just_conda_str_env_name
     assert env.docker.base_image == docker_base_image
 
+
+@patch("health.azure.azure_util.Environment")
+@patch("health.azure.azure_util.Workspace")
+def test_register_environment(
+        mock_workspace: mock.MagicMock,
+        mock_environment: mock.MagicMock,
+        caplog: CaptureFixture,
+        ) -> None:
+    env_name = "an environment"
+    env_version = "an environment"
+    mock_environment.get.return_value = mock_environment
+    mock_environment.name = env_name
+    mock_environment.version = env_version
+    _ = util.register_environment(mock_workspace, mock_environment)
+    assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
+    mock_environment.get.side_effect = oh_no
+    _ = util.register_environment(mock_workspace, mock_environment)
+    assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
