@@ -214,9 +214,9 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
-def create_python_environment(workspace: Workspace,
-                              conda_environment_file: Path,
+def create_python_environment(conda_environment_file: Path,
                               pip_extra_index_url: str,
+                              workspace: Optional[Workspace],
                               private_pip_wheel_path: Optional[Path],
                               docker_base_image: str,
                               environment_variables: Optional[Dict[str, str]]) -> Environment:
@@ -224,11 +224,11 @@ def create_python_environment(workspace: Workspace,
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
     exists, it is retrieved, otherwise created afresh.
-    :param workspace: The AzureML workspace to work in.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param workspace: The AzureML workspace to work in, required if private_pip_wheel_path is supplied.
     :param private_pip_wheel_path: If provided, use this wheel as a private package.
     :param conda_environment_file: The file that contains the Conda environment definition.
     """
@@ -252,16 +252,15 @@ def create_python_environment(workspace: Workspace,
         **(environment_variables or {})
     }
     # See if this package as a whl exists, and if so, register it with AzureML environment.
-    if private_pip_wheel_path is not None and private_pip_wheel_path.exists():
-        whl_url = Environment.add_private_pip_wheel(workspace=workspace,
-                                                    file_path=private_pip_wheel_path,
-                                                    exist_ok=True)
-        conda_dependencies.add_pip_package(whl_url)
-        print(f"Added {private_pip_wheel_path} to AzureML environment")
-    elif private_pip_wheel_path is not None:
-        print(f"Cannot add {private_pip_wheel_path}, it does not exist")
-    else:
-        print("private_pip_wheel_path not specified")
+    if workspace is not None and private_pip_wheel_path is not None:
+        if private_pip_wheel_path.is_file():
+            whl_url = Environment.add_private_pip_wheel(workspace=workspace,
+                                                        file_path=private_pip_wheel_path,
+                                                        exist_ok=True)
+            conda_dependencies.add_pip_package(whl_url)
+            print(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        else:
+            raise FileNotFoundError(f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}, it is not a file.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
