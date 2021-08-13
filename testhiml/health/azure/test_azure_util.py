@@ -387,7 +387,7 @@ def test_set_environment_variables_for_multi_node(
             {
                 util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: "here",
                 util.ENV_MASTER_PORT: "there",
-                util.ENV_NODE_RANK: "everywhere",
+                util.ENV_OMPI_COMM_WORLD_RANK: "everywhere",
                 util.ENV_MASTER_ADDR: "else",
             },
             clear=True):
