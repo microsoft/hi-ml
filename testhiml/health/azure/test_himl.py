@@ -31,7 +31,7 @@ from testhiml.health.azure.util import get_most_recent_run
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
 ENVIRONMENT_FILE = "environment.yml"
-expected_queued = "This command will be run in AzureML: test_script_"
+expected_queued = "This command will be run in AzureML:"
 
 
 logger = logging.getLogger('test.health.azure')
