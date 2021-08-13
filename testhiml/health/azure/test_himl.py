@@ -19,14 +19,16 @@ from uuid import uuid4
 
 import pytest
 from azureml.core import RunConfiguration, Workspace
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 import health.azure.himl as himl
 from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR
-from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
+from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import get_most_recent_run
+from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, get_most_recent_run
+
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXAMPLE_SCRIPT = "elevate_this.py"
@@ -547,7 +549,7 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     assert expected_output in output
 
 
-@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL])
 def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
@@ -555,21 +557,55 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
+    # Create a dummy text file
+    dummy_data_folder = tmp_path / "dummy_data"
+    dummy_data_folder.mkdir()
+
+    dummy_txt_file = dummy_data_folder / "dummy.txt"
+    message_guid = uuid4().hex
+    dummy_txt_file.write_text(f"some test data: {message_guid}")
+
+    # Upload dummy text file to blob storage
+    datastore: AzureBlobDatastore = get_datastore(workspace=DEFAULT_WORKSPACE.workspace,
+                                                  datastore_name=DEFAULT_DATASTORE)
+    datastore.upload_files(
+        [str(dummy_txt_file.resolve())],
+        relative_root=str(dummy_data_folder),
+        target_path="hello_world/",
+        overwrite=True,
+        show_progress=True)
+
+    target_folder = tmp_path / "hello_world_input"
+    target_folder.mkdir()
+
+    # Check it can be downloaded again
+    downloaded = datastore.download(
+        target_path=target_folder,
+        prefix="hello_world/dummy.txt",
+        overwrite=True,
+        show_progress=True)
+    assert downloaded == 1
+
+    downloaded_dummy_txt_file = target_folder / "hello_world" / "dummy.txt"
+    assert dummy_txt_file.read_text() == downloaded_dummy_txt_file.read_text()
+
+    output_folder = tmp_path / "hello_world_output"
+    output_folder.mkdir()
+
     extra_options: Dict[str, str] = {
-        'input_datasets': '["images123"]',
+        'input_datasets': '["hello_world/dummy.txt"]',
         'output_datasets': '["images123_resized"]',
         'body': """
-    input_folder = run_info.input_datasets[0] or Path("/tmp/my_dataset")
-    output_folder = run_info.output_datasets[0] or Path("/tmp/my_output")
-    for file in input_folder.glob("*.jpg"):
-        contents = read_image(file)
-        resized = contents.resize(0.5)
-        write_image(output_folder / file.name)
+    input_folder = run_info.input_datasets[0] or Path("hello_world_input") / "hello_world"
+    output_folder = run_info.output_datasets[0] or Path("hello_world_output")
+    for file in input_folder.iterdir():
+        shutil.copy(file, output_folder)
         """
     }
     extra_args: List[str] = []
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
-    execution_message = 'The message was: hello_world'
-    assert execution_message in output
+    _ = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+
+    output_dummy_txt_file = output_folder / "dummy.txt"
+    assert dummy_txt_file.read_text() == output_dummy_txt_file.read_text()
 
 # endregion Elevate to AzureML unit tests
