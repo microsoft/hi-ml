@@ -6,6 +6,7 @@
 Tests for the functions in health.azure.azure_util
 """
 import os
+import logging
 import time
 from pathlib import Path
 from typing import Optional
@@ -364,11 +365,12 @@ def test_register_environment(
     mock_environment.get.return_value = mock_environment
     mock_environment.name = env_name
     mock_environment.version = env_version
-    _ = util.register_environment(mock_workspace, mock_environment)
-    assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
-    mock_environment.get.side_effect = oh_no
-    _ = util.register_environment(mock_workspace, mock_environment)
-    assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
+    with caplog.at_level(logging.INFO):  # type: ignore
+        _ = util.register_environment(mock_workspace, mock_environment)
+        assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
+        mock_environment.get.side_effect = oh_no
+        _ = util.register_environment(mock_workspace, mock_environment)
+        assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
 
 
 def test_set_environment_variables_for_multi_node(
