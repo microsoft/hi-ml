@@ -373,8 +373,8 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
 
 
 def render_and_run_test_script(path: Path, run_target: RunTarget,
-                        extra_options: Dict[str, str], extra_args: List[str],
-                        expected_pass: bool) -> str:
+                               extra_options: Dict[str, str], extra_args: List[str],
+                               expected_pass: bool) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
