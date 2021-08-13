@@ -1,0 +1,46 @@
+pr:
+  branches:
+    include:
+    - '*'
+
+name: PR-$(Date:yyyyMMdd)$(Rev:-r)
+
+jobs:
+  - job: Windows
+
+    pool:
+      vmImage: 'windows-2019'
+
+    steps:
+      - checkout: self
+
+      - bash: |
+          subdir=Scripts
+          echo "Adding this directory to PATH: $CONDA/$subdir"
+          echo "##vso[task.prependpath]$CONDA/$subdir"
+        displayName: Add conda to PATH
+        condition: succeeded()
+
+      - bash: |
+          conda install conda=4.10.3 -y
+          conda --version
+          conda list
+        displayName: Print conda version and initial package list
+
+      - task: CredScan@3
+        condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
+
+      - task: PostAnalysis@1
+        condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
+        displayName: 'Post Analysis'
+        inputs:
+          CredScan: true
+
+      - task: ComponentGovernanceComponentDetection@0
+        condition: succeeded()
+        inputs:
+          scanType: 'Register'
+          verbosity: 'Normal'
+          alertWarningLevel: 'High'
+          failOnAlert: true
+          failOnStderr: true

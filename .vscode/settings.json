@@ -1,4 +1,19 @@
 {
+    "fileHeaderComment.parameter":{
+        "*":{
+            "line": "-------------------------------------------------------------------------------------------",
+            "commentprefix": "#",
+            "company": "Microsoft Corporation"
+        }
+    },
+    "fileHeaderComment.template":{
+        "*":[
+            "${commentprefix}  ${line}",
+            "${commentprefix}  Copyright (c) ${company}. All rights reserved.",
+            "${commentprefix}  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.",
+            "${commentprefix}  ${line}"
+        ]
+    },
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
         "--max-line-length=120",
