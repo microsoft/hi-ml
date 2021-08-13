@@ -377,9 +377,10 @@ def test_set_environment_variables_for_multi_node(
         caplog: CaptureFixture,
         capsys: CaptureFixture,
         ) -> None:
-    util.set_environment_variables_for_multi_node()
-    assert "No settings for the MPI central node found" in caplog.text  # type: ignore
-    assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
+    with caplog.at_level(logging.INFO):  # type: ignore
+        util.set_environment_variables_for_multi_node()
+        assert "No settings for the MPI central node found" in caplog.text  # type: ignore
+        assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
 
     with mock.patch.dict(
             os.environ,
