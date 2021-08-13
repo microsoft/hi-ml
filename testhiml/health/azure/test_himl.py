@@ -372,14 +372,14 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     return p.wait(), stdout_lines
 
 
-def render_test_scripts(path: Path, runTarget: RunTarget,
+def render_and_run_test_script(path: Path, run_target: RunTarget,
                         extra_options: Dict[str, str], extra_args: List[str],
                         expected_pass: bool) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
     :param path: Where to build the test scripts.
-    :param runTarget: Where to run the script.
+    :param run_target: Where to run the script.
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
@@ -422,7 +422,7 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
 
     score_args = [str(entry_script_path)]
-    if runTarget == RunTarget.AZUREML:
+    if run_target == RunTarget.AZUREML:
         score_args.append("--azureml")
     score_args.extend(extra_args)
 
@@ -436,7 +436,7 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
             env=env)
     assert code == 0 if expected_pass else 1
     captured = "\n".join(stdout)
-    if runTarget == RunTarget.LOCAL or not expected_pass:
+    if run_target == RunTarget.LOCAL or not expected_pass:
         assert expected_queued not in captured
 
         return captured
@@ -453,13 +453,13 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
         return log_text
 
 
-@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
-def test_invoking_hello_world_no_config(runTarget: RunTarget, tmp_path: Path) -> None:
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -> None:
     """
-    Test invoking hello_world.py.and
+    Test invoking rendered 'simple' / 'hello_world_template.txt'.and
     If running in AzureML - does not elevate itself to AzureML without any config.
     Else runs locally.
-    :param runTarget: Where to run the script.
+    :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     message_guid = uuid4().hex
@@ -469,19 +469,19 @@ def test_invoking_hello_world_no_config(runTarget: RunTarget, tmp_path: Path) ->
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, runTarget == RunTarget.LOCAL)
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL)
     expected_output = f"The message was: {message_guid}"
-    if runTarget == RunTarget.LOCAL:
+    if run_target == RunTarget.LOCAL:
         assert expected_output in output
     else:
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in output
 
 
-@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
-def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> None:
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_config(run_target: RunTarget, tmp_path: Path) -> None:
     """
-    Test that invoking hello_world.py elevates itself to AzureML with config.json.
-    :param runTarget: Where to run the script.
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json.
+    :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     message_guid = uuid4().hex
@@ -490,56 +490,9 @@ def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> No
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     expected_output = f"The message was: {message_guid}"
     assert expected_output in output
-
-
-@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
-def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> None:
-    """
-    Test that invoking hello_world.py elevates itself to AzureML with config.json,
-    and that environment variables are passed through.
-    :param runTarget: Where to run the script.
-    :param tmp_path: PyTest test fixture for temporary path.
-    """
-    message_guid = uuid4().hex
-    extra_options: Dict[str, str] = {
-        'workspace_config_path': 'here / "config.json"',
-        'environment_variables': f"{{'message_guid': '{message_guid}'}}",
-        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
-    }
-    extra_args: List[str] = []
-    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
-    expected_output = f"The message_guid env var was: {message_guid}"
-    assert expected_output in output
-
-
-@pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
-def test_invoking_hello_world_datasets(runTarget: RunTarget, tmp_path: Path) -> None:
-    """
-    Test that invoking hello_world.py elevates itself to AzureML with config.json,
-    and that environment variables are passed through.
-    :param runTarget: Where to run the script.
-    :param tmp_path: PyTest test fixture for temporary path.
-    """
-    extra_options: Dict[str, str] = {
-        'workspace_config_path': 'here / "config.json"',
-        'input_datasets': '["images123"]',
-        'output_datasets': '["images123_resized"]',
-        'body': """
-    input_folder = run_info.input_datasets[0] or Path("/tmp/my_dataset")
-    output_folder = run_info.output_datasets[0] or Path("/tmp/my_output")
-    for file in input_folder.glob("*.jpg"):
-        contents = read_image(file)
-        resized = contents.resize(0.5)
-        write_image(output_folder / file.name)
-        """
-    }
-    extra_args: List[str] = []
-    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
-    execution_message = 'The message was: hello_world'
-    assert execution_message in output
 
 
 @patch("health.azure.himl.submit_to_azure_if_needed")
@@ -560,17 +513,63 @@ def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock)
 
 def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     """
-    Test that invoking hello_world.py raises an FileNotFoundError on invalid private_pip_wheel_path.
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' raises a FileNotFoundError on
+    invalid private_pip_wheel_path.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     extra_options: Dict[str, str] = {}
     extra_args: List[str] = []
     with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": 'not_a_known_file.whl'}):
-        output = render_test_scripts(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
+        output = render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
     error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
     error_message_end = "not_a_known_file.whl, it is not a file."
 
     assert error_message_begin in output
     assert error_message_end in output
+
+
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> None:
+    """
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
+    and that environment variables are passed through.
+    :param run_target: Where to run the script.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    message_guid = uuid4().hex
+    extra_options: Dict[str, str] = {
+        'environment_variables': f"{{'message_guid': '{message_guid}'}}",
+        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
+    }
+    extra_args: List[str] = []
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    expected_output = f"The message_guid env var was: {message_guid}"
+    assert expected_output in output
+
+
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
+    """
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
+    and that datasets are mounted.
+    :param run_target: Where to run the script.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    extra_options: Dict[str, str] = {
+        'input_datasets': '["images123"]',
+        'output_datasets': '["images123_resized"]',
+        'body': """
+    input_folder = run_info.input_datasets[0] or Path("/tmp/my_dataset")
+    output_folder = run_info.output_datasets[0] or Path("/tmp/my_output")
+    for file in input_folder.glob("*.jpg"):
+        contents = read_image(file)
+        resized = contents.resize(0.5)
+        write_image(output_folder / file.name)
+        """
+    }
+    extra_args: List[str] = []
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    execution_message = 'The message was: hello_world'
+    assert execution_message in output
 
 # endregion Elevate to AzureML unit tests
