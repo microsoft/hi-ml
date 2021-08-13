@@ -374,7 +374,7 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
 
 def render_test_scripts(path: Path, runTarget: RunTarget,
                         extra_options: Dict[str, str], extra_args: List[str],
-                        expected_pass: bool) -> Tuple[str, str]:
+                        expected_pass: bool) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -383,7 +383,7 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
-    :return: response from spawn_and_monitor_subprocess and run output if in AzureML.
+    :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml package version, if specified in an environment variable.
     version = ""
@@ -439,7 +439,7 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
     if runTarget == RunTarget.LOCAL or not expected_pass:
         assert expected_queued not in captured
 
-        log_text = ""
+        return captured
     else:
         assert expected_queued in captured
 
@@ -450,8 +450,7 @@ def render_test_scripts(path: Path, runTarget: RunTarget,
         run.get_all_logs(destination=log_root)
         driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
         log_text = driver_log.read_text()
-
-    return captured, log_text
+        return log_text
 
 
 @pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -470,13 +469,12 @@ def test_invoking_hello_world_no_config(runTarget: RunTarget, tmp_path: Path) ->
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    captured, _ = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, runTarget == RunTarget.LOCAL)
+    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, runTarget == RunTarget.LOCAL)
     expected_output = f"The message was: {message_guid}"
-    assert expected_queued not in captured
     if runTarget == RunTarget.LOCAL:
-        assert expected_output in captured
+        assert expected_output in output
     else:
-        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in captured
+        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in output
 
 
 @pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -492,12 +490,9 @@ def test_invoking_hello_world_config(runTarget: RunTarget, tmp_path: Path) -> No
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    captured, log_text = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
+    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
     expected_output = f"The message was: {message_guid}"
-    if runTarget == RunTarget.LOCAL:
-        assert expected_output in captured
-    else:
-        assert expected_output in log_text
+    assert expected_output in output
 
 
 @pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -515,12 +510,9 @@ def test_invoking_hello_world_env_var(runTarget: RunTarget, tmp_path: Path) -> N
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
     extra_args: List[str] = []
-    captured, log_text = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
+    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
     expected_output = f"The message_guid env var was: {message_guid}"
-    if runTarget == RunTarget.LOCAL:
-        assert expected_output in captured
-    else:
-        assert expected_output in log_text
+    assert expected_output in output
 
 
 @pytest.mark.parametrize("runTarget", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -545,12 +537,9 @@ def test_invoking_hello_world_datasets(runTarget: RunTarget, tmp_path: Path) -> 
         """
     }
     extra_args: List[str] = []
-    captured, log_text = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
+    output = render_test_scripts(tmp_path, runTarget, extra_options, extra_args, True)
     execution_message = 'The message was: hello_world'
-    if runTarget == RunTarget.LOCAL:
-        assert execution_message in captured
-    else:
-        assert execution_message in log_text
+    assert execution_message in output
 
 
 @patch("health.azure.himl.submit_to_azure_if_needed")
@@ -577,11 +566,11 @@ def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     extra_options: Dict[str, str] = {}
     extra_args: List[str] = []
     with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": 'not_a_known_file.whl'}):
-        captured, _ = render_test_scripts(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
+        output = render_test_scripts(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
     error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
     error_message_end = "not_a_known_file.whl, it is not a file."
 
-    assert error_message_begin in captured
-    assert error_message_end in captured
+    assert error_message_begin in output
+    assert error_message_end in output
 
 # endregion Elevate to AzureML unit tests
