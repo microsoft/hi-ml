@@ -46,9 +46,12 @@ def get_azure_secrets(config_path: Optional[Path] = None) -> Tuple[str, str, str
 
 def get_aml_runs(args: Namespace, workspace: Workspace) -> List[Optional[Run]]:
     """
-    Download runs from Azure ML
+    Download runs from Azure ML. Runs are specified either in file specified in latest_run_path,
+    by run_recovery_ids, or else the latest 'num_runs' runs from experiment 'experiment_name' as 
+    specified in args.
 
-    :param args: Arguments containing either path to most_recent_run.txt, or experiment name
+    :param args: Arguments containing either path to most_recent_run.txt,
+    experiment name or run recovery id
     :type args: Namespace
     :param workspace: Azure ML Workspace
     :type workspace: Workspace
