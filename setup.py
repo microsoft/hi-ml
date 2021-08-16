@@ -43,11 +43,14 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 # https://www.python.org/dev/peps/pep-0440/#post-releases
 # it is necessary here to avoid duplicate packages in Test.PyPI.
 if not version:
-    # TODO: Replace this with more principled package version management for package wheels built during local test
+    # TODO: Replace this with more principled package version management for the package wheels built during local test
     # runs, one which circumvents AzureML's apparent package caching:
-    default_random_version_number = floor(random() * 10_000_000_000)
-    build_number = os.getenv('GITHUB_RUN_NUMBER', str(default_random_version_number))
-    version = '0.1.0.post' + build_number
+    build_number = os.getenv('GITHUB_RUN_NUMBER')
+    if build_number:
+        version = '0.1.0.post' + build_number
+    else:
+        default_random_version_number = floor(random() * 10_000_000_000)
+        version = f'0.1.{str(default_random_version_number)}'
 
 (here / 'latest_version.txt').write_text(version)
 
