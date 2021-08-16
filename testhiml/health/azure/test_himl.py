@@ -8,6 +8,7 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 from pathlib import Path, PosixPath
@@ -377,6 +378,7 @@ def render_test_scripts(path: Path, local: bool,
     """
     # target hi-ml package version, if specified in an environment variable.
     version = ""
+    run_requirements = False
 
     himl_wheel_filename = os.getenv('HIML_WHEEL_FILENAME')
     himl_test_pypi_version = os.getenv('HIML_TEST_PYPI_VERSION')
@@ -404,9 +406,16 @@ def render_test_scripts(path: Path, local: bool,
         # Testing against pypi, set the version.
         version = himl_pypi_version
         print(f"Added pypi: {himl_pypi_version} option")
+    else:
+        # No packages found, so copy the src folder as a fallback
+        src_path = Path.cwd().joinpath('src')
+        if src_path.is_dir():
+            shutil.copytree(src=src_path / 'health', dst=path / 'health')
+            run_requirements = True
+            print("Copied 'src' folder.")
 
     environment_yaml_path = path / "environment.yml"
-    render_environment_yaml(environment_yaml_path, version)
+    render_environment_yaml(environment_yaml_path, version, run_requirements)
 
     entry_script_path = path / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
