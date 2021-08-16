@@ -25,12 +25,13 @@ def main() -> None:
     First call submit_to_azure_if_needed.
     """
     _ = submit_to_azure_if_needed(
-        workspace_config_path=Path("config.json").absolute(),
         compute_cluster_name="lite-testing-ds2",
+        workspace_config_path=Path("config.json").absolute(),
         snapshot_root_directory=Path.cwd().parent.parent.parent,
         entry_script=Path(__file__).absolute(),
         conda_environment_file=Path("environment.yml").absolute(),
-        wait_for_completion=True)
+        wait_for_completion=True,
+        wait_for_completion_show_output=True)
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")

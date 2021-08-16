@@ -196,9 +196,11 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     NAME = "name"
     CHANNELS = "channels"
     DEPENDENCIES = "dependencies"
+
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
         unified_definition[NAME] = name
+
     try:
         channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
@@ -206,18 +208,28 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         raise
     if channels:
         unified_definition[CHANNELS] = channels
-    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+
+    try:
+        deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge dependencies.")
+        raise
     if deps:
         unified_definition[DEPENDENCIES] = deps
+    else:
+        raise ValueError("No dependencies found in any of the conda files.")
+
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
 def create_python_environment(conda_environment_file: Path,
-                              pip_extra_index_url: str,
-                              docker_base_image: str,
-                              environment_variables: Optional[Dict[str, str]]) -> Environment:
+                              pip_extra_index_url: str = "",
+                              workspace: Optional[Workspace] = None,
+                              private_pip_wheel_path: Optional[Path] = None,
+                              docker_base_image: str = "",
+                              environment_variables: Optional[Dict[str, str]] = None) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
@@ -226,6 +238,8 @@ def create_python_environment(conda_environment_file: Path,
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param workspace: The AzureML workspace to work in, required if private_pip_wheel_path is supplied.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     """
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
@@ -247,6 +261,16 @@ def create_python_environment(conda_environment_file: Path,
         "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
         **(environment_variables or {})
     }
+    # See if this package as a whl exists, and if so, register it with AzureML environment.
+    if workspace is not None and private_pip_wheel_path is not None:
+        if private_pip_wheel_path.is_file():
+            whl_url = Environment.add_private_pip_wheel(workspace=workspace,
+                                                        file_path=private_pip_wheel_path,
+                                                        exist_ok=True)
+            conda_dependencies.add_pip_package(whl_url)
+            print(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        else:
+            raise FileNotFoundError(f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}, it is not a file.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in

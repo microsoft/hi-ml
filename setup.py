@@ -10,7 +10,9 @@ https://packaging.python.org/guides/distributing-packages-using-setuptools/
 """
 
 import os
+from math import floor
 import pathlib
+from random import random
 from setuptools import setup, find_packages  # type: ignore
 
 
@@ -41,8 +43,14 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 # https://www.python.org/dev/peps/pep-0440/#post-releases
 # it is necessary here to avoid duplicate packages in Test.PyPI.
 if not version:
-    build_number = os.getenv('GITHUB_RUN_NUMBER', "1")
-    version = '0.1.0.post' + build_number
+    # TODO: Replace this with more principled package version management for the package wheels built during local test
+    # runs, one which circumvents AzureML's apparent package caching:
+    build_number = os.getenv('GITHUB_RUN_NUMBER')
+    if build_number:
+        version = '0.1.0.post' + build_number
+    else:
+        default_random_version_number = floor(random() * 10_000_000_000)
+        version = f'0.1.0.post{str(default_random_version_number)}'
 
 (here / 'latest_version.txt').write_text(version)
 
