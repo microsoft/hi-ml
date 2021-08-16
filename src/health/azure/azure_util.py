@@ -391,7 +391,8 @@ def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
     """
     Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
     :param run_recovery_file: The path of the run recovery file
-    :return: The run
+    :param workspace: Azure ML Workspace
+    :return: The Run
     """
     run_recovery_id = get_most_recent_run_id(run_recovery_file)
     return fetch_run(workspace=workspace, run_recovery_id=run_recovery_id)

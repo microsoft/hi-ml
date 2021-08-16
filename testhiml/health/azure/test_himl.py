@@ -532,8 +532,11 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in captured
 
 
+@patch("health.azure.himl.Workspace")
 @pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world_config(local: bool, tmp_path: Path) -> None:
+def test_invoking_hello_world_config(mock_workspace: mock.MagicMock,
+                                     local: bool,
+                                     tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     :param local: Local execution if True, else in AzureML.
@@ -551,7 +554,7 @@ def test_invoking_hello_world_config(local: bool, tmp_path: Path) -> None:
         assert execution_message in captured
     else:
         assert queuing_message in captured
-        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
+        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE, workspace=mock_workspace)
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
