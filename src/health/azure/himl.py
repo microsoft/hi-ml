@@ -298,8 +298,7 @@ def submit_to_azure_if_needed(  # type: ignore
     this is created based on the name of the current script.
     :param entry_script: The script that should be run in AzureML
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
-    CPU or GPU machines. If the empty string is passed in, then "local" will be used and your script will run locally
-    (with run information still available in AzureML)
+    CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
     script to run.
 

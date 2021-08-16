@@ -61,5 +61,5 @@ function in the AzureML CLI (note that all the parameters need to be set, none a
 ## Testing
 
 For all of the tests to work locally you will need to cache your AzureML credentials. One simple way to do this is to
-set run the example in `src/health/azure/examples` (i.e. run `python elevate_this.py --message='Hello World' --azureml`
-or `make example`) after editing `elevate_this.py` to reference your compute cluster.
+run the example in `src/health/azure/examples` (i.e. run `python elevate_this.py --message='Hello World' --azureml` or
+`make example`) after editing `elevate_this.py` to reference your compute cluster.
