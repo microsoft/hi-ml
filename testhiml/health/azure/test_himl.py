@@ -27,6 +27,7 @@ from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
+from testhiml.health.azure.util import DEFAULT_WORKSPACE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 
@@ -532,10 +533,8 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in captured
 
 
-@patch("health.azure.himl.Workspace")
 @pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world_config(mock_workspace: mock.MagicMock,
-                                     local: bool,
+def test_invoking_hello_world_config(local: bool,
                                      tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
@@ -554,7 +553,11 @@ def test_invoking_hello_world_config(mock_workspace: mock.MagicMock,
         assert execution_message in captured
     else:
         assert queuing_message in captured
-        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE, workspace=mock_workspace)
+
+        run = get_most_recent_run(
+            run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+            workspace=DEFAULT_WORKSPACE.workspace
+            )
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
