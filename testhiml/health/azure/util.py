@@ -5,12 +5,12 @@
 """
 Test utility functions for tests in the package.
 """
-from azureml.core import Run, Workspace
+from azureml.core import Workspace
 from pathlib import Path
 
-from health.azure.azure_util import (RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME, fetch_run, get_authentication,
+from health.azure.azure_util import (RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME, get_authentication,
                                      get_secret_from_environment)
-from health.azure.himl import RUN_RECOVERY_FILE, WORKSPACE_CONFIG_JSON
+from health.azure.himl import WORKSPACE_CONFIG_JSON
 
 DEFAULT_DATASTORE = "innereyedatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
