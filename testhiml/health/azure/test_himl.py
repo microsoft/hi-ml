@@ -18,6 +18,8 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from _pytest.capture import CaptureFixture
+from azureml._restclient.constants import RunStatus
 from azureml.core import RunConfiguration, Workspace
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
@@ -29,8 +31,6 @@ from testhiml.health.azure.test_data.make_tests import render_environment_yaml, 
 from testhiml.health.azure.util import get_most_recent_run
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
-EXAMPLE_SCRIPT = "elevate_this.py"
-ENVIRONMENT_FILE = "environment.yml"
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -70,6 +70,9 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     mock_run.id = uuid4().hex
     mock_run.experiment.name = uuid4().hex
     expected_run_recovery_id = mock_run.experiment.name + EXPERIMENT_RUN_SEPARATOR + mock_run.id
+    recovery_file = Path(himl.RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id == recovery_file_text
@@ -117,20 +120,32 @@ def test_to_datasets(
 
 
 @pytest.mark.fast
+@patch("health.azure.himl.register_environment")
+@patch("health.azure.himl.create_python_environment")
 @patch("health.azure.himl.Workspace")
 def test_create_run_configuration_fails(
-        mock_workspace: mock.MagicMock) -> None:
+        mock_workspace: mock.MagicMock,
+        _: mock.MagicMock,
+        __: mock.MagicMock,
+        ) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             compute_cluster_name="b",
             workspace=mock_workspace)
-    assert "Could not find the compute target b in the AzureML workspace" in str(e)
-    assert existing_compute_target in str(e)
+    assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
+    with pytest.raises(ValueError) as e:
+        himl.create_run_configuration(
+            conda_environment_file=Path(__file__),
+            compute_cluster_name="b",
+            workspace=mock_workspace)
+    assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
+    assert existing_compute_target in str(e.value)
 
 
 @pytest.mark.fast
+@patch("health.azure.himl.DockerConfiguration")
 @patch("health.azure.datasets.DatasetConfig.to_output_dataset")
 @patch("health.azure.datasets.DatasetConfig.to_input_dataset")
 @patch("health.azure.himl.Environment.get")
@@ -140,6 +155,7 @@ def test_create_run_configuration(
         mock_environment_get: mock.MagicMock,
         mock_to_input_dataset: mock.MagicMock,
         mock_to_output_dataset: mock.MagicMock,
+        mock_docker_configuration: mock.MagicMock,
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_env_name = "Mock Env"
@@ -158,7 +174,8 @@ def test_create_run_configuration(
         num_nodes=10,
         max_run_duration="1h",
         input_datasets=[DatasetConfig(name="input1")],
-        output_datasets=[DatasetConfig(name="output1")]
+        output_datasets=[DatasetConfig(name="output1")],
+        docker_shm_size="2g"
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -168,6 +185,16 @@ def test_create_run_configuration(
     assert run_config.max_run_duration_seconds == 60 * 60
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
+    mock_docker_configuration.assert_called_once()
+    run_config = himl.create_run_configuration(
+        workspace=mock_workspace,
+        compute_cluster_name=existing_compute_target,
+        aml_environment_name="foo",
+    )
+    assert run_config.max_run_duration_seconds is None
+    assert run_config.mpi.node_count == 1
+    assert not run_config.data
+    assert not run_config.output_data
 
 
 @pytest.mark.fast
@@ -329,6 +356,62 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert "0th line" == amlignore_text
 
 
+@pytest.mark.fast
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+@patch("health.azure.himl.Run")
+@patch("health.azure.himl.ScriptRunConfig")
+@patch("health.azure.himl.Experiment")
+@patch("health.azure.himl.Workspace")
+def test_submit_run(
+        mock_workspace: mock.MagicMock,
+        mock_experiment: mock.MagicMock,
+        mock_script_run_config: mock.MagicMock,
+        mock_run: mock.MagicMock,
+        wait_for_completion: bool,
+        capsys: CaptureFixture,
+        ) -> None:
+    mock_experiment.return_value.submit.return_value = mock_run
+    mock_run.get_status.return_value = RunStatus.COMPLETED
+    mock_run.status = RunStatus.COMPLETED
+    mock_run.get_children.return_value = []
+    an_experiment_name = "an experiment"
+    _ = himl.submit_run(
+        workspace=mock_workspace,
+        experiment_name=an_experiment_name,
+        script_run_config=mock_script_run_config,
+        wait_for_completion=wait_for_completion,
+        wait_for_completion_show_output=True,
+    )
+    out, err = capsys.readouterr()
+    assert not err
+    assert "Successfully queued run" in out
+    assert "Experiment name and run ID are available" in out
+    assert "Experiment URL" in out
+    assert "Run URL" in out
+    if wait_for_completion:
+        assert "Waiting for the completion of the AzureML run" in out
+        assert "AzureML completed" in out
+        mock_run.get_status.return_value = RunStatus.UNAPPROVED
+        mock_run.status = RunStatus.UNAPPROVED
+        with pytest.raises(ValueError) as e:
+            _ = himl.submit_run(
+                workspace=mock_workspace,
+                experiment_name=an_experiment_name,
+                script_run_config=mock_script_run_config,
+                wait_for_completion=wait_for_completion,
+                wait_for_completion_show_output=True,
+            )
+        error_msg = str(e.value)
+        out, err = capsys.readouterr()
+        assert "runs failed" in error_msg
+        assert "AzureML completed" not in out
+
+
+@pytest.mark.fast
+def test_str_to_path(tmp_path: Path) -> None:
+    assert himl._str_to_path(tmp_path) == tmp_path
+    assert himl._str_to_path(str(tmp_path)) == tmp_path
+
 # endregion Small fast local unit tests
 
 
@@ -460,7 +543,7 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world_config1(local: bool, tmp_path: Path) -> None:
+def test_invoking_hello_world_config(local: bool, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     :param local: Local execution if True, else in AzureML.
