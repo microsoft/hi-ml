@@ -50,7 +50,7 @@ if not version:
         version = '0.1.0.post' + build_number
     else:
         default_random_version_number = floor(random() * 10_000_000_000)
-        version = f'0.1.{str(default_random_version_number)}'
+        version = f'0.1.0.post{str(default_random_version_number)}'
 
 (here / 'latest_version.txt').write_text(version)
 
