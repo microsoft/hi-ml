@@ -311,7 +311,9 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
     os.chdir(cwd)
 
 
+@patch("health.azure.azure_util.Workspace")
 def test_create_python_environment(
+        mock_workspace: mock.MagicMock,
         random_folder: Path,
         ) -> None:
     just_conda_str_env_name = "HealthML-9231e34f29c82f2e809e54167003637d"
@@ -339,18 +341,28 @@ def test_create_python_environment(
         pip_extra_index_url=pip_extra_index_url,
         docker_base_image=docker_base_image,
         environment_variables={"HELLO": "world"})
-    assert list(env.python.conda_dependencies.conda_channels) == list(conda_dependencies.conda_channels)
-    assert list(env.python.conda_dependencies.conda_packages) == list(conda_dependencies.conda_packages)
-    assert list(env.python.conda_dependencies.pip_options) != list(conda_dependencies.pip_options)
-    assert f"--index-url {pip_extra_index_url}" in list(env.python.conda_dependencies.pip_options)
-    assert list(env.python.conda_dependencies.pip_packages) == list(conda_dependencies.pip_packages)
-    assert "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC" in env.environment_variables
-    assert "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE" in env.environment_variables
     assert "HELLO" in env.environment_variables
     assert env.name != just_conda_str_env_name
     assert env.docker.base_image == docker_base_image
+
+    private_pip_wheel_url = "https://some.blob/private/wheel"
+    with mock.patch("health.azure.azure_util.Environment") as mock_environment:
+        mock_environment.add_private_pip_wheel.return_value = private_pip_wheel_url
+        env = util.create_python_environment(
+            conda_environment_file=conda_environment_file,
+            workspace=mock_workspace,
+            private_pip_wheel_path=Path(__file__))
+    envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
+    assert "hi-ml" in envs_pip_packages
+    assert private_pip_wheel_url in envs_pip_packages
+
+    private_pip_wheel_path = Path("a_file_that_does_not.exist")
+    with pytest.raises(FileNotFoundError) as e:
+        _ = util.create_python_environment(
+            conda_environment_file=conda_environment_file,
+            workspace=mock_workspace,
+            private_pip_wheel_path=private_pip_wheel_path)
+    assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
 
 
 @patch("health.azure.azure_util.Environment")
