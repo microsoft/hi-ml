@@ -196,9 +196,11 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     NAME = "name"
     CHANNELS = "channels"
     DEPENDENCIES = "dependencies"
+
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
         unified_definition[NAME] = name
+
     try:
         channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
@@ -206,20 +208,28 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         raise
     if channels:
         unified_definition[CHANNELS] = channels
-    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+
+    try:
+        deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge dependencies.")
+        raise
     if deps:
         unified_definition[DEPENDENCIES] = deps
+    else:
+        raise ValueError("No dependencies found in any of the conda files.")
+
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
 def create_python_environment(conda_environment_file: Path,
-                              pip_extra_index_url: str,
-                              workspace: Optional[Workspace],
-                              private_pip_wheel_path: Optional[Path],
-                              docker_base_image: str,
-                              environment_variables: Optional[Dict[str, str]]) -> Environment:
+                              pip_extra_index_url: str = "",
+                              workspace: Optional[Workspace] = None,
+                              private_pip_wheel_path: Optional[Path] = None,
+                              docker_base_image: str = "",
+                              environment_variables: Optional[Dict[str, str]] = None) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already

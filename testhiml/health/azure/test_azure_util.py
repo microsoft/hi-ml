@@ -6,6 +6,7 @@
 Tests for the functions in health.azure.azure_util
 """
 import os
+import logging
 import time
 from pathlib import Path
 from typing import Optional
@@ -13,14 +14,14 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import conda_merge
+import health.azure.azure_util as util
 import pytest
+from _pytest.capture import CaptureFixture
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
-from testhiml.health.azure.util import repository_root
-
-import health.azure.azure_util as util
-from health.azure.azure_util import (merge_conda_files, run_duration_string_to_seconds)
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from testhiml.health.azure.util import repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -165,7 +166,10 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
-def test_merge_conda(random_folder: Path) -> None:
+def test_merge_conda(
+        random_folder: Path,
+        caplog: CaptureFixture,
+        ) -> None:
     """
     Tests the logic for merging Conda environment files.
     """
@@ -201,8 +205,9 @@ dependencies:
     time.sleep(0.5)
     files = [file1, file2]
     merged_file = random_folder / "merged.yml"
-    merge_conda_files(files, merged_file)
-    assert merged_file.read_text().splitlines() == """channels:
+    util.merge_conda_files(files, merged_file)
+    merged_file_text = merged_file.read_text()
+    assert merged_file_text.splitlines() == """channels:
 - defaults
 - pytorch
 dependencies:
@@ -217,11 +222,50 @@ dependencies:
   - foo==1.0
 """.splitlines()
     conda_dep = CondaDependencies(merged_file)
+
     # We expect to see the union of channels.
     assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
+
     # Package version conflicts are not resolved, both versions are retained.
     assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda1=1.1", "conda2=2.0", "conda_both=3.0"]
     assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
+
+    # Are names merged correctly?
+    assert "name:" not in merged_file_text
+    env1 = "name: env1\n" + env1
+    file1.write_text(env1)
+    env2 = "name: env2\n" + env2
+    file2.write_text(env2)
+    util.merge_conda_files(files, merged_file)
+    assert "name: env2" in merged_file.read_text()
+
+    def raise_a_merge_error() -> None:
+        raise conda_merge.MergeError("raising an exception")
+
+    with mock.patch("health.azure.azure_util.conda_merge.merge_channels") as mock_merge_channels:
+        mock_merge_channels.side_effect = lambda _: raise_a_merge_error()
+        with pytest.raises(conda_merge.MergeError):
+            util.merge_conda_files(files, merged_file)
+    assert "Failed to merge channel priorities" in caplog.text  # type: ignore
+
+    # If there are no channels do not produce any merge of them
+    with mock.patch("health.azure.azure_util.conda_merge.merge_channels") as mock_merge_channels:
+        mock_merge_channels.return_value = []
+        util.merge_conda_files(files, merged_file)
+        assert "channels:" not in merged_file.read_text()
+
+    with mock.patch("health.azure.azure_util.conda_merge.merge_dependencies") as mock_merge_dependencies:
+        mock_merge_dependencies.side_effect = lambda _: raise_a_merge_error()
+        with pytest.raises(conda_merge.MergeError):
+            util.merge_conda_files(files, merged_file)
+    assert "Failed to merge dependencies" in caplog.text  # type: ignore
+
+    # If there are no dependencies then something is wrong with the conda files or our parsing of them
+    with mock.patch("health.azure.azure_util.conda_merge.merge_dependencies") as mock_merge_dependencies:
+        mock_merge_dependencies.return_value = []
+        with pytest.raises(ValueError) as e:
+            util.merge_conda_files(files, merged_file)
+        assert "No dependencies found in any of the conda files" in str(e.value)
 
 
 @pytest.mark.parametrize(["s", "expected"],
@@ -233,7 +277,7 @@ dependencies:
                              ("", None),
                          ])
 def test_run_duration(s: str, expected: Optional[float]) -> None:
-    actual = run_duration_string_to_seconds(s)
+    actual = util.run_duration_string_to_seconds(s)
     assert actual == expected
     if expected:
         assert isinstance(actual, int)
@@ -241,7 +285,7 @@ def test_run_duration(s: str, expected: Optional[float]) -> None:
 
 def test_run_duration_fails() -> None:
     with pytest.raises(Exception):
-        run_duration_string_to_seconds("17b")
+        util.run_duration_string_to_seconds("17b")
 
 
 def test_repository_root() -> None:
@@ -265,3 +309,112 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
             assert f in new_contents
     assert not amlignore.is_file()
     os.chdir(cwd)
+
+
+@patch("health.azure.azure_util.Workspace")
+def test_create_python_environment(
+        mock_workspace: mock.MagicMock,
+        random_folder: Path,
+        ) -> None:
+    just_conda_str_env_name = "HealthML-9231e34f29c82f2e809e54167003637d"
+    conda_str = "name: simple-env\ndependencies:\n  - pip=20.1.1\n  - python=3.7.3\n  - pip:" + \
+        "\n    - azureml-sdk==1.23.0\n    - conda-merge==0.1.5\n  - pip:\n    - --index-url" + \
+        " https://test.pypi.org/simple/\n    - --extra-index-url https://pypi.org/simple\n    - hi-ml"
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str)
+    conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
+    env = util.create_python_environment(conda_environment_file=conda_environment_file)
+    assert list(env.python.conda_dependencies.conda_channels) == list(conda_dependencies.conda_channels)
+    assert list(env.python.conda_dependencies.conda_packages) == list(conda_dependencies.conda_packages)
+    assert list(env.python.conda_dependencies.pip_options) == list(conda_dependencies.pip_options)
+    assert list(env.python.conda_dependencies.pip_packages) == list(conda_dependencies.pip_packages)
+    assert "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC" in env.environment_variables
+    assert "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC" in env.environment_variables
+    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
+    assert "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE" in env.environment_variables
+    assert env.name == just_conda_str_env_name
+
+    pip_extra_index_url = "https://where.great.packages.live/"
+    docker_base_image = "viennaglobal.azurecr.io/azureml/azureml_a187a87cc7c31ac4d9f67496bc9c8239"
+    env = util.create_python_environment(
+        conda_environment_file=conda_environment_file,
+        pip_extra_index_url=pip_extra_index_url,
+        docker_base_image=docker_base_image,
+        environment_variables={"HELLO": "world"})
+    assert "HELLO" in env.environment_variables
+    assert env.name != just_conda_str_env_name
+    assert env.docker.base_image == docker_base_image
+
+    private_pip_wheel_url = "https://some.blob/private/wheel"
+    with mock.patch("health.azure.azure_util.Environment") as mock_environment:
+        mock_environment.add_private_pip_wheel.return_value = private_pip_wheel_url
+        env = util.create_python_environment(
+            conda_environment_file=conda_environment_file,
+            workspace=mock_workspace,
+            private_pip_wheel_path=Path(__file__))
+    envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
+    assert "hi-ml" in envs_pip_packages
+    assert private_pip_wheel_url in envs_pip_packages
+
+    private_pip_wheel_path = Path("a_file_that_does_not.exist")
+    with pytest.raises(FileNotFoundError) as e:
+        _ = util.create_python_environment(
+            conda_environment_file=conda_environment_file,
+            workspace=mock_workspace,
+            private_pip_wheel_path=private_pip_wheel_path)
+    assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
+
+
+@patch("health.azure.azure_util.Environment")
+@patch("health.azure.azure_util.Workspace")
+def test_register_environment(
+        mock_workspace: mock.MagicMock,
+        mock_environment: mock.MagicMock,
+        caplog: CaptureFixture,
+        ) -> None:
+    env_name = "an environment"
+    env_version = "an environment"
+    mock_environment.get.return_value = mock_environment
+    mock_environment.name = env_name
+    mock_environment.version = env_version
+    with caplog.at_level(logging.INFO):  # type: ignore
+        _ = util.register_environment(mock_workspace, mock_environment)
+        assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
+        mock_environment.get.side_effect = oh_no
+        _ = util.register_environment(mock_workspace, mock_environment)
+        assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
+
+
+def test_set_environment_variables_for_multi_node(
+        caplog: CaptureFixture,
+        capsys: CaptureFixture,
+        ) -> None:
+    with caplog.at_level(logging.INFO):  # type: ignore
+        util.set_environment_variables_for_multi_node()
+        assert "No settings for the MPI central node found" in caplog.text  # type: ignore
+        assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
+
+    with mock.patch.dict(
+            os.environ,
+            {
+                util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: "here",
+                util.ENV_MASTER_PORT: "there",
+                util.ENV_OMPI_COMM_WORLD_RANK: "everywhere",
+                util.ENV_MASTER_ADDR: "else",
+            },
+            clear=True):
+        util.set_environment_variables_for_multi_node()
+    out, _ = capsys.readouterr()
+    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = there, NODE_RANK = everywhere" in out
+
+    with mock.patch.dict(
+            os.environ,
+            {
+                util.ENV_MASTER_IP: "here",
+                util.ENV_NODE_RANK: "everywhere",
+                util.ENV_MASTER_ADDR: "else",
+            },
+            clear=True):
+        util.set_environment_variables_for_multi_node()
+    out, _ = capsys.readouterr()
+    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
