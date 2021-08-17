@@ -10,7 +10,6 @@ from azureml.tensorboard import Tensorboard
 from health.azure.azure_util import fetch_run, get_most_recent_run
 
 
-# TODO: replace root dir with util to find
 ROOT_DIR = Path.cwd()
 OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_LOG_DIR = OUTPUT_DIR / "tensorboard"
