@@ -1,3 +1,5 @@
+import pytest
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import List
@@ -45,7 +47,7 @@ def test_get_aml_runs() -> None:
     with mock.patch("health.azure.run_tensorboard.Experiment") as mock_experiment:
         mock_experiment.get_runs.return_value = _get_experiment_runs()
         with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={'fake_experiment': mock_experiment}
+                        experiments={"fake_experiment": mock_experiment}
                         ) as mock_workspace:
             runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
     assert len(runs) == 1
@@ -56,7 +58,7 @@ def test_get_aml_runs() -> None:
     with mock.patch("health.azure.run_tensorboard.Experiment") as mock_experiment:
         mock_experiment.get_runs.return_value = _get_experiment_runs()
         with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={'fake_experiment': mock_experiment}
+                        experiments={"fake_experiment": mock_experiment}
                         ) as mock_workspace:
             runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
     assert len(runs) == 3
@@ -67,7 +69,7 @@ def test_get_aml_runs() -> None:
     with mock.patch("health.azure.run_tensorboard.Experiment") as mock_experiment:
         mock_experiment.get_runs.return_value = _get_experiment_runs()
         with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={'fake_experiment': mock_experiment}
+                        experiments={"fake_experiment": mock_experiment}
                         ) as mock_workspace:
             runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
     assert len(runs) == 1
@@ -80,3 +82,11 @@ def test_get_aml_runs() -> None:
             runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
     assert len(runs) == 1
     assert runs[0].id == "run1234"
+
+    # Test that value error is raised if experiment name is no in workspace
+    mock_args = parser.parse_args(["--experiment_name", "idontexist"])
+    with pytest.raises(Exception):
+        with mock.patch("health.azure.run_tensorboard.Workspace",
+                        experiments={"fake_experiment": mock_experiment}
+                        ) as mock_workspace:
+            get_aml_runs(mock_args, mock_workspace)  # type: ignore

@@ -370,7 +370,7 @@ def submit_to_azure_if_needed(  # type: ignore
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    workspace = _get_workspace(aml_workspace, workspace_config_path)
+    workspace = get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
@@ -464,7 +464,7 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
 
 
-def _get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
     """
     Obtain the AzureML workspace from either the passed in value or the passed in path
     :param aml_workspace: If provided this is returned as the AzureML Workspace

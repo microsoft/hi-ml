@@ -8,6 +8,7 @@ from azureml.core import Experiment, Run, Workspace
 from azureml.tensorboard import Tensorboard
 
 from health.azure.azure_util import fetch_run, get_most_recent_run
+from health.azure.himl import get_workspace
 
 
 ROOT_DIR = Path.cwd()
@@ -114,7 +115,7 @@ def main() -> None:
             "to an AML workspace. This can be downloaded from your AML workspace (see README.md)"
             )
 
-    workspace = Workspace.from_config(config_path)
+    workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
     runs = get_aml_runs(args, workspace)
     if len(runs) == 0:

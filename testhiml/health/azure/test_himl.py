@@ -252,10 +252,10 @@ def test_get_workspace(
         mock_workspace: mock.MagicMock,
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock) -> None:
-    workspace = himl._get_workspace(mock_workspace, None)
+    workspace = himl.get_workspace(mock_workspace, None)
     assert workspace == mock_workspace
     mock_get_authentication.return_value = None
-    _ = himl._get_workspace(None, Path(__file__))
+    _ = himl.get_workspace(None, Path(__file__))
     assert mock_from_config.called
 
 
