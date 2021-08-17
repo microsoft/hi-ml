@@ -8,6 +8,7 @@ Tests for hi-ml.
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 from pathlib import Path, PosixPath
@@ -460,12 +461,13 @@ def render_test_scripts(path: Path, local: bool,
     """
     # target hi-ml package version, if specified in an environment variable.
     version = ""
+    run_requirements = False
 
-    himl_wheel_filename = os.getenv('HIML_WHEEL_FILENAME')
-    himl_test_pypi_version = os.getenv('HIML_TEST_PYPI_VERSION')
-    himl_pypi_version = os.getenv('HIML_PYPI_VERSION')
+    himl_wheel_filename = os.getenv('HIML_WHEEL_FILENAME', '')
+    himl_test_pypi_version = os.getenv('HIML_TEST_PYPI_VERSION', '')
+    himl_pypi_version = os.getenv('HIML_PYPI_VERSION', '')
 
-    if himl_wheel_filename is None:
+    if not himl_wheel_filename:
         # If testing locally, can build the package into the "dist" folder and use that.
         dist_folder = Path.cwd().joinpath('dist')
         whls = sorted(list(dist_folder.glob('*.whl')))
@@ -473,23 +475,30 @@ def render_test_scripts(path: Path, local: bool,
             last_whl = whls[-1]
             himl_wheel_filename = str(last_whl)
 
-    if himl_wheel_filename is not None:
+    if himl_wheel_filename:
         # Testing against a private wheel.
         himl_wheel_filename_full_path = str(Path(himl_wheel_filename).resolve())
         extra_options['private_pip_wheel_path'] = f'Path("{himl_wheel_filename_full_path}")'
         print(f"Added private_pip_wheel_path: {himl_wheel_filename_full_path} option")
-    elif himl_test_pypi_version is not None:
+    elif himl_test_pypi_version:
         # Testing against test.pypi, add this as the pip_extra_index_url, and set the version.
         extra_options['pip_extra_index_url'] = "https://test.pypi.org/simple/"
         version = himl_test_pypi_version
         print(f"Added test.pypi: {himl_test_pypi_version} option")
-    elif himl_pypi_version is not None:
+    elif himl_pypi_version:
         # Testing against pypi, set the version.
         version = himl_pypi_version
         print(f"Added pypi: {himl_pypi_version} option")
+    else:
+        # No packages found, so copy the src folder as a fallback
+        src_path = Path.cwd().joinpath('src')
+        if src_path.is_dir():
+            shutil.copytree(src=src_path / 'health', dst=path / 'health')
+            run_requirements = True
+            print("Copied 'src' folder.")
 
     environment_yaml_path = path / "environment.yml"
-    render_environment_yaml(environment_yaml_path, version)
+    render_environment_yaml(environment_yaml_path, version, run_requirements)
 
     entry_script_path = path / "test_script.py"
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
@@ -534,15 +543,32 @@ def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world_config(local: bool, tmp_path: Path) -> None:
+@pytest.mark.parametrize("use_package", [True, False])
+def test_invoking_hello_world_config(local: bool, use_package: bool, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
+    Test against either the local src folder or a package. If running locally, ensure that there
+    are no whl's in the dist folder, or that will be used.
     :param local: Local execution if True, else in AzureML.
+    :param use_package: True to test against package, False to test against copy of src folder.
     :param tmp_path: PyTest test fixture for temporary path.
     """
+    if not use_package and \
+            not os.getenv('HIML_WHEEL_FILENAME', '') and \
+            not os.getenv('HIML_TEST_PYPI_VERSION', '') and \
+            not os.getenv('HIML_PYPI_VERSION', ''):
+        # Running locally, no need to duplicate this test.
+        return
+
     extra_options: Dict[str, str] = {}
     extra_args = ["--message=hello_world"]
-    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    if use_package:
+        code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
+    else:
+        with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": '',
+                                          "HIML_TEST_PYPI_VERSION": '',
+                                          "HIML_PYPI_VERSION": ''}):
+            code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
     captured = "\n".join(stdout)
     assert code == 0
     queuing_message = "Successfully queued run"
