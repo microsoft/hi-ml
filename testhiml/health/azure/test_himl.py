@@ -693,7 +693,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    input_file_name = f"{uuid4().hex}.txt"
+    test_file_name = f"{uuid4().hex}.txt"
     input_blob_location = "dataset_test_input"
     output_blob_location = "dataset_test_output"
     input_folder_name = "hello_world_input"
@@ -703,31 +703,45 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     datastore: AzureBlobDatastore = get_datastore(workspace=DEFAULT_WORKSPACE.workspace,
                                                   datastore_name=DEFAULT_DATASTORE)
 
+    # Create a dummy txt file
     dummy_txt_file_contents = _create_test_file_in_blobstore(
         datastore=datastore,
-        filename=input_file_name,
+        filename=test_file_name,
         location=input_blob_location,
         tmp_path=tmp_path)
 
     if run_target == RunTarget.LOCAL:
-        input_folder = tmp_path / input_folder_name
-        input_folder.mkdir()
+        # For running locally, download the test file.
+        local_input_folder = tmp_path / input_folder_name
+        local_input_folder.mkdir()
 
         # Download input file from blobstore
         downloaded = datastore.download(
-            target_path=input_folder,
-            prefix=f"{input_blob_location}/{input_file_name}",
+            target_path=local_input_folder,
+            prefix=f"{input_blob_location}/{test_file_name}",
             overwrite=True,
             show_progress=True)
         assert downloaded == 1
 
         # Check that the input file is downloaded
-        downloaded_dummy_txt_file = input_folder / input_blob_location / input_file_name
+        downloaded_dummy_txt_file = local_input_folder / input_blob_location / test_file_name
         # Check it has expected contents
         assert dummy_txt_file_contents == downloaded_dummy_txt_file.read_text()
 
-        output_folder = tmp_path / output_folder_name
-        output_folder.mkdir()
+    output_folder = tmp_path / output_folder_name
+    output_folder.mkdir()
+
+    if run_target == RunTarget.LOCAL:
+        output_blob_folder = output_folder / output_blob_location
+        output_blob_folder.mkdir()
+    else:
+        # Check that this file is not already in the output folder.
+        downloaded = datastore.download(
+            target_path=output_folder,
+            prefix=f"{output_blob_location}/{test_file_name}",
+            overwrite=True,
+            show_progress=True)
+        assert downloaded == 0
 
     extra_options: Dict[str, str] = {
         'default_datastore': f'"{DEFAULT_DATASTORE}"',
@@ -735,36 +749,27 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         'output_datasets': f'["{output_blob_location}"]',
         'body': f"""
     input_folder = run_info.input_datasets[0] or Path("{input_folder_name}") / "{input_blob_location}"
-    output_folder = run_info.output_datasets[0] or Path("{output_folder_name}")
-    for file in input_folder.iterdir():
-        if file.is_file():
-            print(f"Copying file: {{file.name}}")
-            shutil.copy(file, output_folder)
-        else:
-            print(f"Skipping: {{file.resolve()}}")
+    output_folder = run_info.output_datasets[0] or Path("{output_folder_name}") / "{output_blob_location}"
+    file = input_folder / "{test_file_name}"
+    shutil.copy(file, output_folder)
+    print(f"Copied file: {{file.name}}")
         """
     }
     extra_args: List[str] = []
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
-    expected_output = f"Copying file: {input_file_name}"
+    expected_output = f"Copied file: {test_file_name}"
     assert expected_output in output
 
     if run_target == RunTarget.AZUREML:
-        output_folder = tmp_path / output_folder_name
-        output_folder.mkdir()
-
         downloaded = datastore.download(
             target_path=output_folder,
-            prefix=f"{output_blob_location}/{input_file_name}",
+            prefix=f"{output_blob_location}/{test_file_name}",
             overwrite=True,
             show_progress=True)
         assert downloaded == 1
 
-        output_dummy_txt_file = output_folder / output_blob_location / input_file_name
-        assert dummy_txt_file_contents == output_dummy_txt_file.read_text()
-    else:
-        output_dummy_txt_file = output_folder / input_file_name
-        assert dummy_txt_file_contents == output_dummy_txt_file.read_text()
+    output_dummy_txt_file = output_folder / output_blob_location / test_file_name
+    assert dummy_txt_file_contents == output_dummy_txt_file.read_text()
 
 
 # endregion Elevate to AzureML unit tests
