@@ -49,7 +49,7 @@ def get_aml_runs(args: Namespace, workspace: Workspace) -> List[Run]:
     return [run for run in runs if run is not None]
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     parser = ArgumentParser()
     parser.add_argument(
         "--config_path",
