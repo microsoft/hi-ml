@@ -43,6 +43,7 @@ def main() -> None:
         environment_variables={{ environment_variables }},
         pip_extra_index_url={{ pip_extra_index_url }},
         private_pip_wheel_path={{ private_pip_wheel_path }},
+        default_datastore={{ default_datastore }},
         input_datasets={{ input_datasets }},
         output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},

@@ -657,7 +657,35 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     assert expected_output in output
 
 
-@pytest.mark.parametrize("run_target", [RunTarget.LOCAL])
+def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
+                                   filename: str, location: str, tmp_path: Path) -> str:
+    # Create a dummy folder.
+    dummy_data_folder = tmp_path / "dummy_data"
+    dummy_data_folder.mkdir()
+
+    # Create a dummy text file.
+    dummy_txt_file = dummy_data_folder / filename
+    message_guid = uuid4().hex
+    dummy_txt_file.write_text(f"some test data: {message_guid}")
+
+    # Upload dummy text file to blob storage
+    datastore.upload_files(
+        [str(dummy_txt_file.resolve())],
+        relative_root=str(dummy_data_folder),
+        target_path=location,
+        overwrite=True,
+        show_progress=True)
+
+    dummy_txt_file_contents = dummy_txt_file.read_text()
+
+    # Discard dummies
+    dummy_txt_file.unlink()
+    dummy_data_folder.rmdir()
+
+    return dummy_txt_file_contents
+
+
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
 def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
@@ -665,55 +693,78 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    # Create a dummy text file
-    dummy_data_folder = tmp_path / "dummy_data"
-    dummy_data_folder.mkdir()
+    input_file_name = f"{uuid4().hex}.txt"
+    input_blob_location = "dataset_test_input"
+    output_blob_location = "dataset_test_output"
+    input_folder_name = "hello_world_input"
+    output_folder_name = "hello_world_output"
 
-    dummy_txt_file = dummy_data_folder / "dummy.txt"
-    message_guid = uuid4().hex
-    dummy_txt_file.write_text(f"some test data: {message_guid}")
-
-    # Upload dummy text file to blob storage
+    # Get default datastore
     datastore: AzureBlobDatastore = get_datastore(workspace=DEFAULT_WORKSPACE.workspace,
                                                   datastore_name=DEFAULT_DATASTORE)
-    datastore.upload_files(
-        [str(dummy_txt_file.resolve())],
-        relative_root=str(dummy_data_folder),
-        target_path="hello_world/",
-        overwrite=True,
-        show_progress=True)
 
-    target_folder = tmp_path / "hello_world_input"
-    target_folder.mkdir()
+    dummy_txt_file_contents = _create_test_file_in_blobstore(
+        datastore=datastore,
+        filename=input_file_name,
+        location=input_blob_location,
+        tmp_path=tmp_path)
 
-    # Check it can be downloaded again
-    downloaded = datastore.download(
-        target_path=target_folder,
-        prefix="hello_world/dummy.txt",
-        overwrite=True,
-        show_progress=True)
-    assert downloaded == 1
+    if run_target == RunTarget.LOCAL:
+        input_folder = tmp_path / input_folder_name
+        input_folder.mkdir()
 
-    downloaded_dummy_txt_file = target_folder / "hello_world" / "dummy.txt"
-    assert dummy_txt_file.read_text() == downloaded_dummy_txt_file.read_text()
+        # Download input file from blobstore
+        downloaded = datastore.download(
+            target_path=input_folder,
+            prefix=f"{input_blob_location}/{input_file_name}",
+            overwrite=True,
+            show_progress=True)
+        assert downloaded == 1
 
-    output_folder = tmp_path / "hello_world_output"
-    output_folder.mkdir()
+        # Check that the input file is downloaded
+        downloaded_dummy_txt_file = input_folder / input_blob_location / input_file_name
+        # Check it has expected contents
+        assert dummy_txt_file_contents == downloaded_dummy_txt_file.read_text()
+
+        output_folder = tmp_path / output_folder_name
+        output_folder.mkdir()
 
     extra_options: Dict[str, str] = {
-        'input_datasets': '["hello_world/dummy.txt"]',
-        'output_datasets': '["images123_resized"]',
-        'body': """
-    input_folder = run_info.input_datasets[0] or Path("hello_world_input") / "hello_world"
-    output_folder = run_info.output_datasets[0] or Path("hello_world_output")
+        'default_datastore': f'"{DEFAULT_DATASTORE}"',
+        'input_datasets': f'["{input_blob_location}"]',
+        'output_datasets': f'["{output_blob_location}"]',
+        'body': f"""
+    input_folder = run_info.input_datasets[0] or Path("{input_folder_name}") / "{input_blob_location}"
+    output_folder = run_info.output_datasets[0] or Path("{output_folder_name}")
     for file in input_folder.iterdir():
-        shutil.copy(file, output_folder)
+        if file.is_file():
+            print(f"Copying file: {{file.name}}")
+            shutil.copy(file, output_folder)
+        else:
+            print(f"Skipping: {{file.resolve()}}")
         """
     }
     extra_args: List[str] = []
-    _ = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    expected_output = f"Copying file: {input_file_name}"
+    assert expected_output in output
 
-    output_dummy_txt_file = output_folder / "dummy.txt"
-    assert dummy_txt_file.read_text() == output_dummy_txt_file.read_text()
+    if run_target == RunTarget.AZUREML:
+        output_folder = tmp_path / output_folder_name
+        output_folder.mkdir()
+
+        downloaded = datastore.download(
+            target_path=output_folder,
+            prefix=f"{output_blob_location}/{input_file_name}",
+            overwrite=True,
+            show_progress=True)
+        assert downloaded == 1
+
+        output_dummy_txt_file = output_folder / output_blob_location / input_file_name
+        assert dummy_txt_file_contents == output_dummy_txt_file.read_text()
+    else:
+        output_dummy_txt_file = output_folder / input_file_name
+        assert dummy_txt_file_contents == output_dummy_txt_file.read_text()
+
 
 # endregion Elevate to AzureML unit tests
