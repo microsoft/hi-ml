@@ -128,7 +128,7 @@ def main() -> None:
     ts = Tensorboard(runs=runs, local_root=str(run_logs_dir), port=args.port)
 
     ts.start()
-    print("==============================================================================\n\n")
+    print("=============================================================================\n\n")
     input("Press Enter to close TensorBoard...")
     ts.stop()
 
