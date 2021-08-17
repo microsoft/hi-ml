@@ -81,4 +81,5 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
+    scripts=['src/health/azure/run_tensorboard.py']
 )

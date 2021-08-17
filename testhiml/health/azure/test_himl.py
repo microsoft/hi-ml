@@ -25,10 +25,10 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 import health.azure.himl as himl
 from conftest import check_config_json
-from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR
+from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import get_most_recent_run
+from testhiml.health.azure.util import DEFAULT_WORKSPACE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 
@@ -252,10 +252,10 @@ def test_get_workspace(
         mock_workspace: mock.MagicMock,
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock) -> None:
-    workspace = himl._get_workspace(mock_workspace, None)
+    workspace = himl.get_workspace(mock_workspace, None)
     assert workspace == mock_workspace
     mock_get_authentication.return_value = None
-    _ = himl._get_workspace(None, Path(__file__))
+    _ = himl.get_workspace(None, Path(__file__))
     assert mock_from_config.called
 
 
@@ -578,7 +578,11 @@ def test_invoking_hello_world_config(local: bool, use_package: bool, tmp_path: P
         assert execution_message in captured
     else:
         assert queuing_message in captured
-        run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE)
+
+        run = get_most_recent_run(
+            run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+            workspace=DEFAULT_WORKSPACE.workspace
+            )
         assert run.status in ["Finalizing", "Completed"]
         log_root = tmp_path / "logs"
         log_root.mkdir(exist_ok=False)
