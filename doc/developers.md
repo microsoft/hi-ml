@@ -63,3 +63,9 @@ function in the AzureML CLI (note that all the parameters need to be set, none a
 For all of the tests to work locally you will need to cache your AzureML credentials. One simple way to do this is to
 run the example in `src/health/azure/examples` (i.e. run `python elevate_this.py --message='Hello World' --azureml` or
 `make example`) after editing `elevate_this.py` to reference your compute cluster.
+
+When running the tests locally, they can either be run against the source directly, or the source built into a package.
+
+- To run the tests against the source directly in the local `src` folder, ensure that there is no wheel in the `dist` folder (for example by running `make clean`). If a wheel is not detected, then the local `src` folder will be copied into the temporary test folder as part of the test process.
+
+- To run the tests against the source as a package, build it with `make build`. This will build the local `src` folder into a new wheel in the `dist` folder. This wheel will be detected and passed to AzureML as a private package as part of the test process.
