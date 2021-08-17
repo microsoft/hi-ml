@@ -15,12 +15,13 @@ from jinja2 import Template
 here = Path(__file__).parent.resolve()
 
 
-def render_environment_yaml(environment_yaml_path: Path, version: str) -> None:
+def render_environment_yaml(environment_yaml_path: Path, version: str, run_requirements: bool) -> None:
     """
     Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
     :param environment_yaml_path: Where to save environment.yml.
     :param version: hi-ml package version.
+    :param run_requirements: True to include run_requirements.txt.
     :return: None
     """
     environment_yaml_template = (here / 'simple' / 'environment.yml.template').read_text()
@@ -32,6 +33,13 @@ def render_environment_yaml(environment_yaml_path: Path, version: str) -> None:
   - pip:
     - hi-ml{version}
 """
+    elif run_requirements:
+        pip = """
+  - pip:
+"""
+        run_requirements_lines = Path('./run_requirements.txt').read_text().splitlines()
+        for line in run_requirements_lines:
+            pip += f"    - {line}\n"
     else:
         pip = ""
 

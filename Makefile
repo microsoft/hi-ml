@@ -22,6 +22,10 @@ pytest:
 	pip install -e .
 	pytest testhiml
 
+coverage:
+	pip install -e .
+	pytest --quiet --log-cli-level=critical --cov=src/health --cov-branch --cov-report=term-missing testhiml
+
 testfast:
 	pip install -e .
 	pytest -m fast testhiml
@@ -33,3 +37,8 @@ build:
 
 clean:
 	rm -vrf ./build ./dist ./src/*.egg-info
+
+example:
+	echo 'edit src/health/azure/examples/elevate_this.py to reference your compute_cluster_name'
+	pip install -e .
+	cd src/health/azure/examples; python elevate_this.py --azureml --message 'running example from makefile'

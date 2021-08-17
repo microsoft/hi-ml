@@ -18,8 +18,13 @@ from pathlib import Path
 
 from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
 
-hi_ml_dist = pkg_resources.get_distribution("hi-ml")
-print(f"hi_ml_dist, location: {hi_ml_dist.location}, version: {hi_ml_dist.version}")
+try:
+    hi_ml_dist = pkg_resources.get_distribution("hi-ml")
+    print(f"hi_ml_dist, location: {hi_ml_dist.location}, version: {hi_ml_dist.version}")
+except pkg_resources.DistributionNotFound:
+    import inspect
+    print(f"hi_ml_dist, location: {inspect.getfile(submit_to_azure_if_needed)}, version: unknown, local src")
+
 
 here = Path(__file__).parent.resolve()
 

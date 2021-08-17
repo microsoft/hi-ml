@@ -49,3 +49,23 @@ The repository contains a makefile with definitions for common operations.
 * In the panel, there is a link "Download config file". Click that.
 * This will download a file `config.json`. Move that file to the root folder of your `hi-ml` repository. The file name
 is already present in `.gitignore`, and will hence not be checked in.
+
+## Creating and Deleting Docker Environments in AzureML
+
+* Passing a `docker_base_image` into `submit_to_azure_if_needed` causes a new image to be built and registered in your
+workspace (see [docs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-use-environments) for more
+information).
+* To remove an environment use the [az ml environment delete](https://docs.microsoft.com/en-us/cli/azure/ml/environment?view=azure-cli-latest#az_ml_environment_delete)
+function in the AzureML CLI (note that all the parameters need to be set, none are optional).
+
+## Testing
+
+For all of the tests to work locally you will need to cache your AzureML credentials. One simple way to do this is to
+run the example in `src/health/azure/examples` (i.e. run `python elevate_this.py --message='Hello World' --azureml` or
+`make example`) after editing `elevate_this.py` to reference your compute cluster.
+
+When running the tests locally, they can either be run against the source directly, or the source built into a package.
+
+- To run the tests against the source directly in the local `src` folder, ensure that there is no wheel in the `dist` folder (for example by running `make clean`). If a wheel is not detected, then the local `src` folder will be copied into the temporary test folder as part of the test process.
+
+- To run the tests against the source as a package, build it with `make build`. This will build the local `src` folder into a new wheel in the `dist` folder. This wheel will be detected and passed to AzureML as a private package as part of the test process.
