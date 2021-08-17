@@ -1,6 +1,3 @@
-import json
-import os
-
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import List
@@ -8,7 +5,7 @@ from unittest import mock
 
 from azureml.core import Workspace
 
-from health.azure.run_tensorboard import get_azure_secrets, get_aml_runs
+from health.azure.run_tensorboard import get_aml_runs
 
 
 class MockArgsWithLatestRunPath:
@@ -19,32 +16,6 @@ class MockArgsWithLatestRunPath:
 class MockRun:
     def __init__(self) -> None:
         self.id = "run1234"
-
-
-def test_get_azure_secrets(tmp_path: Path) -> None:
-    tmp_config_path = Path(tmp_path) / "config.json"
-    expected_secrets = {
-        "workspace_name": "workspace123",
-        "resource_group": "rg123",
-        "subscription_id": "subscription123"
-    }
-
-    # Check that vars are correctly read from environment vars if config file NOT provided
-    with mock.patch.dict(os.environ, expected_secrets):
-        subscription_id, resource_group, workspace_name = get_azure_secrets()
-    assert resource_group == expected_secrets["resource_group"]
-    assert subscription_id == expected_secrets["subscription_id"]
-    assert workspace_name == expected_secrets["workspace_name"]
-
-    with open(tmp_config_path, "w+") as f_path:
-        json.dump(expected_secrets, f_path)
-
-    # Check that vars are correctly read from environment vars if config file IS provided
-    assert tmp_config_path.is_file()
-    subscription_id, resource_group, workspace_name = get_azure_secrets(tmp_config_path)
-    assert resource_group == expected_secrets["resource_group"]
-    assert subscription_id == expected_secrets["subscription_id"]
-    assert workspace_name == expected_secrets["workspace_name"]
 
 
 def test_get_aml_runs() -> None:
