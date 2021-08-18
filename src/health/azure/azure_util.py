@@ -371,3 +371,28 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     runs = list(run.get_children())
     runs.append(run)
     return all(is_completed(run) for run in runs)
+
+
+def get_most_recent_run_id(run_recovery_file: Path) -> str:
+    """
+    Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
+    file when running on the cloud.
+    :param run_recovery_file: The path of the run recovery file
+    :return: The run id
+    """
+    assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous \
+                                         training run"
+    run_id = run_recovery_file.read_text().strip()
+    print(f"Read this run ID from file: {run_id}")
+    return run_id
+
+
+def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
+    """
+    Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+    :param run_recovery_file: The path of the run recovery file
+    :param workspace: Azure ML Workspace
+    :return: The Run
+    """
+    run_recovery_id = get_most_recent_run_id(run_recovery_file)
+    return fetch_run(workspace=workspace, run_recovery_id=run_recovery_id)
