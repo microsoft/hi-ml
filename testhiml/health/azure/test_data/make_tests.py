@@ -65,6 +65,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     t = Template(hello_world_template)
 
     default_options = {}
+    default_options['prequel'] = ''
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['entry_script'] = "Path(sys.argv[0])"
     default_options['aml_workspace'] = 'None'
@@ -74,7 +75,8 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['environment_variables'] = 'None'
     default_options['pip_extra_index_url'] = '""'
     default_options['private_pip_wheel_path'] = 'None'
-    default_options['default_datastore'] = ''
+    default_options['ignored_folders'] = '[".config", ".mypy_cache"]'
+    default_options['default_datastore'] = '""'
     default_options['input_datasets'] = 'None'
     default_options['output_datasets'] = 'None'
     default_options['wait_for_completion'] = 'True'
