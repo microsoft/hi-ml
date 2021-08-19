@@ -689,78 +689,99 @@ def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
 
 @dataclass
 class TestInputDataset:
+    # Test file name. This will be populated with test data and uploaded to blob storage.
     filename: str
+    # Name of container for this dataset in blob storage.
     blob_name: str
-    folder_name: str
+    # Local folder for this dataset when running locally.
+    folder_name: Path
+    # Contents of test file.
     contents: str = ""
+
+
+@dataclass
+class TestOutputDataset:
+    # Name of container for this dataset in blob storage.
+    blob_name: str
+    # Local folder for this dataset when running locally or when testing after running in Azure.
+    folder_name: Path
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
 def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
-    and that datasets are mounted.
+    and that datasets are mounted in all combinations.
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     input_count = 4
-    inputs = [TestInputDataset(filename=f"{uuid4().hex}.txt",
-                               blob_name=f"himl_dataset_test_input{i}",
-                               folder_name=f"local_dataset_test_input{i}")
-              for i in range(0, input_count)]
-    output_blob_location = "himl_dataset_test_output"
-    output_folder_name = "hello_world_output"
+    input_datasets = [TestInputDataset(
+                          filename=f"{uuid4().hex}.txt",
+                          blob_name=f"himl_dataset_test_input{i}",
+                          folder_name=tmp_path / f"local_dataset_test_input{i}")
+                      for i in range(0, input_count)]
+    output_count = 3
+    output_datasets = [TestOutputDataset(
+                           blob_name=f"himl_dataset_test_output{i}",
+                           folder_name=tmp_path / f"local_dataset_test_output{i}")
+                       for i in range(0, output_count)]
 
     # Get default datastore
     with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+        workspace = himl.get_workspace(aml_workspace=None,
+                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
         datastore: AzureBlobDatastore = get_datastore(workspace=workspace,
                                                       datastore_name=DEFAULT_DATASTORE)
 
-    # Create dummy txt files
-    for input in inputs:
-        input.contents = _create_test_file_in_blobstore(
+    # Create dummy txt files, one for each item in input_datasets.
+    for input_dataset in input_datasets:
+        input_dataset.contents = _create_test_file_in_blobstore(
             datastore=datastore,
-            filename=input.filename,
-            location=input.blob_name,
+            filename=input_dataset.filename,
+            location=input_dataset.blob_name,
             tmp_path=tmp_path)
 
-    if run_target == RunTarget.LOCAL:
-        # For running locally, download the test files from blobstore
-        for input in inputs:
-            local_input_folder = tmp_path / input.folder_name
-            local_input_folder.mkdir()
-
+        if run_target == RunTarget.LOCAL:
+            # For running locally, download the test files from blobstore
             downloaded = datastore.download(
-                target_path=local_input_folder,
-                prefix=f"{input.blob_name}/{input.filename}",
+                target_path=input_dataset.folder_name,
+                prefix=f"{input_dataset.blob_name}/{input_dataset.filename}",
                 overwrite=True,
                 show_progress=True)
             assert downloaded == 1
 
             # Check that the input file is downloaded
-            downloaded_dummy_txt_file = local_input_folder / input.blob_name / input.filename
+            downloaded_dummy_txt_file = input_dataset.folder_name / input_dataset.blob_name / input_dataset.filename
             # Check it has expected contents
-            assert input.contents == downloaded_dummy_txt_file.read_text()
-
-    output_folder = tmp_path / output_folder_name
-    output_folder.mkdir()
+            assert input_dataset.contents == downloaded_dummy_txt_file.read_text()
 
     if run_target == RunTarget.LOCAL:
-        output_blob_folder = output_folder / output_blob_location
-        output_blob_folder.mkdir()
+        for output_dataset in output_datasets:
+            output_blob_folder = output_dataset.folder_name / output_dataset.blob_name
+            output_blob_folder.mkdir(parents=True)
     else:
-        # Check that these files are not already in the output folder.
-        for input in inputs:
-            downloaded = datastore.download(
-                target_path=output_folder,
-                prefix=f"{output_blob_location}/{input.filename}",
-                overwrite=True,
-                show_progress=True)
-        assert downloaded == 0
+        # Check that these files are not already in the output folders.
+        for input_dataset in input_datasets:
+            for output_dataset in output_datasets:
+                downloaded = datastore.download(
+                    target_path=str(output_dataset.folder_name),
+                    prefix=f"{output_dataset.blob_name}/{input_dataset.filename}",
+                    overwrite=True,
+                    show_progress=True)
+                assert downloaded == 0
 
-    test_file_names = [f'("{input.filename}", "{input.blob_name}", "{input.folder_name}")' for input in inputs]
-    formatted_test_file_names = ',\n        '.join(test_file_names)
+    # Format input_datasets for use in script.
+    input_file_names = [
+        f'("{input_dataset.filename}", "{input_dataset.blob_name}", Path("{str(input_dataset.folder_name)}"))'
+        for input_dataset in input_datasets]
+    script_input_datasets = ',\n        '.join(input_file_names)
+
+    # Format output_datasets for use in script.
+    output_file_names = [
+        f'("{output_dataset.blob_name}", Path("{str(output_dataset.folder_name)}"))'
+        for output_dataset in output_datasets]
+    script_output_datasets = ',\n        '.join(output_file_names)
 
     extra_options: Dict[str, str] = {
         'prequel': """
@@ -769,42 +790,54 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         'ignored_folders': '[".config", ".mypy_cache", "hello_world_output"]',
         'default_datastore': f'"{DEFAULT_DATASTORE}"',
         'input_datasets': f"""[
-            "{inputs[0].blob_name}",
-            DatasetConfig(name="{inputs[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
-            DatasetConfig(name="{inputs[2].blob_name}", datastore="{DEFAULT_DATASTORE}", target_folder=target_folder),
-            DatasetConfig(name="{inputs[3].blob_name}", datastore="{DEFAULT_DATASTORE}", use_mounting=True),
+            "{input_datasets[0].blob_name}",
+            DatasetConfig(name="{input_datasets[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
+            DatasetConfig(name="{input_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
+                          target_folder=target_folder),
+            DatasetConfig(name="{input_datasets[3].blob_name}", datastore="{DEFAULT_DATASTORE}",
+                          use_mounting=True),
         ]""",
-        'output_datasets': f'["{output_blob_location}"]',
+        'output_datasets': f"""[
+            "{output_datasets[0].blob_name}",
+            DatasetConfig(name="{output_datasets[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
+            DatasetConfig(name="{output_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
+                          use_mounting=False),
+        ]""",
         'body': f"""
-    test_file_names = [
-        {formatted_test_file_names}
+    input_datasets = [
+        {script_input_datasets}
     ]
-    for i, (filename, blob_name, folder_name) in enumerate(test_file_names):
-        input_folder = run_info.input_datasets[i] or Path(folder_name) / blob_name
-        output_folder = run_info.output_datasets[0] or Path("{output_folder_name}") / "{output_blob_location}"
-        file = input_folder / filename
-        shutil.copy(file, output_folder)
-        print(f"Copied file: {{file.name}}")
+    output_datasets = [
+        {script_output_datasets}
+    ]
+    for i, (filename, input_blob_name, input_folder_name) in enumerate(input_datasets):
+        input_folder = run_info.input_datasets[i] or input_folder_name / input_blob_name
+        for j, (output_blob_name, output_folder_name) in enumerate(output_datasets):
+            output_folder = run_info.output_datasets[j] or output_folder_name / output_blob_name
+            file = input_folder / filename
+            shutil.copy(file, output_folder)
+            print(f"Copied file: {{file.name}} from {{input_blob_name}} to {{output_blob_name}}")
         """
     }
     extra_args: List[str] = []
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
-    for input in inputs:
-        expected_output = f"Copied file: {input.filename}"
-        assert expected_output in output
 
-    if run_target == RunTarget.AZUREML:
-        for input in inputs:
-            downloaded = datastore.download(
-                target_path=output_folder,
-                prefix=f"{output_blob_location}/{input.filename}",
-                overwrite=True,
-                show_progress=True)
-            assert downloaded == 1
+    for input_dataset in input_datasets:
+        for output_dataset in output_datasets:
+            expected_output = \
+                f"Copied file: {input_dataset.filename} from {input_dataset.blob_name} to {output_dataset.blob_name}"
+            assert expected_output in output
 
-    for input in inputs:
-        output_dummy_txt_file = output_folder / output_blob_location / input.filename
-        assert input.contents == output_dummy_txt_file.read_text()
+            if run_target == RunTarget.AZUREML:
+                # If test ran in Azure, need to download the outputs to check them.
+                downloaded = datastore.download(
+                    target_path=str(output_dataset.folder_name),
+                    prefix=f"{output_dataset.blob_name}/{input_dataset.filename}",
+                    overwrite=True,
+                    show_progress=True)
+                assert downloaded == 1
 
+            output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
+            assert input_dataset.contents == output_dummy_txt_file.read_text()
 
 # endregion Elevate to AzureML unit tests
