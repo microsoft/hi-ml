@@ -526,7 +526,7 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
             args=score_args,
             cwd=path,
             env=env)
-        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path)
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
     assert code == 0 if expected_pass else 1
     captured = "\n".join(stdout)
     if run_target == RunTarget.LOCAL or not expected_pass:
@@ -702,7 +702,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 
     # Get default datastore
     with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path)
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
         datastore: AzureBlobDatastore = get_datastore(workspace=workspace,
                                                       datastore_name=DEFAULT_DATASTORE)
 
