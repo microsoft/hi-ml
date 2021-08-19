@@ -59,10 +59,12 @@ install_requires = (here / 'run_requirements.txt').read_text().split("\n")
 # Remove any whitespace and blank lines
 install_requires = [line.strip() for line in install_requires if line.strip()]
 
+description = 'Microsoft Health Intelligence package to elevate and monitor scripts to an AzureML workspace'
+
 setup(
     name='hi-ml',
     version=version,
-    description='Microsoft Health Intelligence package to elevate scripts to run in an AzureML workspace',
+    description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/microsoft/hi-ml',
