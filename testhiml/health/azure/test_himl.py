@@ -30,7 +30,7 @@ from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
+from testhiml.health.azure.util import DEFAULT_DATASTORE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -526,6 +526,7 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
             args=score_args,
             cwd=path,
             env=env)
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path)
     assert code == 0 if expected_pass else 1
     captured = "\n".join(stdout)
     if run_target == RunTarget.LOCAL or not expected_pass:
@@ -535,7 +536,8 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
     else:
         assert EXPECTED_QUEUED in captured
 
-        run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE)
+        run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
+                                  workspace=workspace)
         assert run.status == "Completed"
         log_root = path / "logs"
         log_root.mkdir(exist_ok=False)
@@ -699,8 +701,10 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     output_folder_name = "hello_world_output"
 
     # Get default datastore
-    datastore: AzureBlobDatastore = get_datastore(workspace=DEFAULT_WORKSPACE.workspace,
-                                                  datastore_name=DEFAULT_DATASTORE)
+    with check_config_json(tmp_path):
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path)
+        datastore: AzureBlobDatastore = get_datastore(workspace=workspace,
+                                                      datastore_name=DEFAULT_DATASTORE)
 
     # Create dummy txt files
     dummy_txt_file_contentses = [
