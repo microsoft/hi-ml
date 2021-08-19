@@ -31,7 +31,7 @@ version = ''
 # See also:
 # https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
 # https://github.com/pypa/gh-action-pypi-publish
-GITHUB_REF_TAG_COMMIT = 'refs/tags/'
+GITHUB_REF_TAG_COMMIT = 'refs/tags/v'
 
 github_ref = os.getenv('GITHUB_REF')
 if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
