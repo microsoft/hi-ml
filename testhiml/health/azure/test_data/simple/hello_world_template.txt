@@ -11,10 +11,12 @@ Simple 'hello world' script to elevate to AML using our `submit_to_azure_if_need
 import logging
 import os
 import pkg_resources
+import shutil
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
+from health.azure.datasets import DatasetConfig
 from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
 
 try:
@@ -32,7 +34,8 @@ def main() -> None:
     """
     Write out the given message, in an AzureML 'experiment' if required.
     """
-    _ = submit_to_azure_if_needed(
+    {{ prequel }}
+    run_info = submit_to_azure_if_needed(
         compute_cluster_name={{ compute_cluster_name }},
         entry_script={{ entry_script }},
         aml_workspace={{ aml_workspace }},
@@ -42,14 +45,18 @@ def main() -> None:
         environment_variables={{ environment_variables }},
         pip_extra_index_url={{ pip_extra_index_url }},
         private_pip_wheel_path={{ private_pip_wheel_path }},
+        ignored_folders={{ ignored_folders }},
+        default_datastore={{ default_datastore }},
+        input_datasets={{ input_datasets }},
+        output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }})
 
     parser = ArgumentParser()
-    parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
+    {{ args }}
     args = parser.parse_args()
 
-    print(f"The message was: {args.message}")
+    {{ body }}
 
 
 if __name__ == "__main__":

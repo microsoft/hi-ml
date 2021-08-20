@@ -11,6 +11,8 @@ import pathlib
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path, PosixPath
 from typing import Dict, List, Tuple
 from unittest import mock
@@ -21,16 +23,18 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
 from azureml.core import RunConfiguration, Workspace
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 import health.azure.himl as himl
 from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
-from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key
+from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import DEFAULT_WORKSPACE
+from testhiml.health.azure.util import DEFAULT_DATASTORE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
+EXPECTED_QUEUED = "This command will be run in AzureML:"
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -420,6 +424,11 @@ def test_str_to_path(tmp_path: Path) -> None:
 here = pathlib.Path(__file__).parent.resolve()
 
 
+class RunTarget(Enum):
+    LOCAL = 1
+    AZUREML = 2
+
+
 def spawn_and_monitor_subprocess(process: str, args: List[str],
                                  cwd: Path, env: Dict[str, str]) -> Tuple[int, List[str]]:
     """
@@ -448,16 +457,18 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     return p.wait(), stdout_lines
 
 
-def render_test_scripts(path: Path, local: bool,
-                        extra_options: Dict[str, str], extra_args: List[str]) -> Tuple[int, List[str]]:
+def render_and_run_test_script(path: Path, run_target: RunTarget,
+                               extra_options: Dict[str, str], extra_args: List[str],
+                               expected_pass: bool) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
     :param path: Where to build the test scripts.
-    :param local: Local execution if True, else in AzureML.
+    :param run_target: Where to run the script.
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
-    :return: snapshot_root and response from spawn_and_monitor_subprocess.
+    :param expected_pass: Whether this call to subprocess is expected to be successful.
+    :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml package version, if specified in an environment variable.
     version = ""
@@ -504,47 +515,66 @@ def render_test_scripts(path: Path, local: bool,
     render_test_script(entry_script_path, extra_options, INEXPENSIVE_TESTING_CLUSTER_NAME, environment_yaml_path)
 
     score_args = [str(entry_script_path)]
-    if not local:
+    if run_target == RunTarget.AZUREML:
         score_args.append("--azureml")
     score_args.extend(extra_args)
 
     env = dict(os.environ.items())
 
     with check_config_json(path):
-        return spawn_and_monitor_subprocess(
+        code, stdout = spawn_and_monitor_subprocess(
             process=sys.executable,
             args=score_args,
             cwd=path,
             env=env)
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+    assert code == 0 if expected_pass else 1
+    captured = "\n".join(stdout)
+    if run_target == RunTarget.LOCAL or not expected_pass:
+        assert EXPECTED_QUEUED not in captured
+
+        return captured
+    else:
+        assert EXPECTED_QUEUED in captured
+
+        run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
+                                  workspace=workspace)
+        assert run.status == "Completed"
+        log_root = path / "logs"
+        log_root.mkdir(exist_ok=False)
+        run.get_all_logs(destination=log_root)
+        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+        log_text = driver_log.read_text()
+        return log_text
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_invoking_hello_world(local: bool, tmp_path: Path) -> None:
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -> None:
     """
-    Test invoking hello_world.py.and
+    Test invoking rendered 'simple' / 'hello_world_template.txt'.and
     If running in AzureML - does not elevate itself to AzureML without any config.
     Else runs locally.
-    :param local: Local execution if True, else in AzureML.
+    :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
+    message_guid = uuid4().hex
     extra_options = {
-        'workspace_config_path': 'None'
+        'workspace_config_path': 'None',
+        'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
+        'body': 'print(f"The message was: {args.message}")'
     }
-    extra_args = ["--message=hello_world"]
-    code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    if local:
-        assert code == 0
-        assert "Successfully queued new run" not in captured
-        assert 'The message was: hello_world' in captured
+    extra_args = [f"--message={message_guid}"]
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL)
+    expected_output = f"The message was: {message_guid}"
+    if run_target == RunTarget.LOCAL:
+        assert expected_output in output
     else:
-        assert code == 1
-        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in captured
+        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in output
 
 
-@pytest.mark.parametrize("local", [True, False])
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
 @pytest.mark.parametrize("use_package", [True, False])
-def test_invoking_hello_world_config(local: bool, use_package: bool, tmp_path: Path) -> None:
+def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     Test against either the local src folder or a package. If running locally, ensure that there
@@ -560,36 +590,21 @@ def test_invoking_hello_world_config(local: bool, use_package: bool, tmp_path: P
         # Running locally, no need to duplicate this test.
         return
 
-    extra_options: Dict[str, str] = {}
-    extra_args = ["--message=hello_world"]
+    message_guid = uuid4().hex
+    extra_options = {
+        'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
+        'body': 'print(f"The message was: {args.message}")'
+    }
+    extra_args = [f"--message={message_guid}"]
     if use_package:
-        code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
+        output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     else:
         with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": '',
                                           "HIML_TEST_PYPI_VERSION": '',
                                           "HIML_PYPI_VERSION": ''}):
-            code, stdout = render_test_scripts(tmp_path, local, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    assert code == 0
-    queuing_message = "Successfully queued run"
-    execution_message = 'The message was: hello_world'
-    if local:
-        assert queuing_message not in captured
-        assert execution_message in captured
-    else:
-        assert queuing_message in captured
-
-        run = get_most_recent_run(
-            run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-            workspace=DEFAULT_WORKSPACE.workspace
-            )
-        assert run.status in ["Finalizing", "Completed"]
-        log_root = tmp_path / "logs"
-        log_root.mkdir(exist_ok=False)
-        run.get_all_logs(destination=str(log_root))
-        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
-        log_text = driver_log.read_text()
-        assert execution_message in log_text
+            output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    expected_output = f"The message was: {message_guid}"
+    assert expected_output in output
 
 
 @patch("health.azure.himl.submit_to_azure_if_needed")
@@ -610,19 +625,219 @@ def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock)
 
 def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     """
-    Test that invoking hello_world.py raises an FileNotFoundError on invalid private_pip_wheel_path.
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' raises a FileNotFoundError on
+    invalid private_pip_wheel_path.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     extra_options: Dict[str, str] = {}
     extra_args: List[str] = []
     with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": 'not_a_known_file.whl'}):
-        code, stdout = render_test_scripts(tmp_path, False, extra_options, extra_args)
-    captured = "\n".join(stdout)
-    assert code == 1
+        output = render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
     error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
     error_message_end = "not_a_known_file.whl, it is not a file."
 
-    assert error_message_begin in captured
-    assert error_message_end in captured
+    assert error_message_begin in output
+    assert error_message_end in output
+
+
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> None:
+    """
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
+    and that environment variables are passed through.
+    :param run_target: Where to run the script.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    message_guid = uuid4().hex
+    extra_options: Dict[str, str] = {
+        'environment_variables': f"{{'message_guid': '{message_guid}'}}",
+        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
+    }
+    extra_args: List[str] = []
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    expected_output = f"The message_guid env var was: {message_guid}"
+    assert expected_output in output
+
+
+def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
+                                   filename: str, location: str, tmp_path: Path) -> str:
+    # Create a dummy folder.
+    dummy_data_folder = tmp_path / "dummy_data"
+    dummy_data_folder.mkdir()
+
+    # Create a dummy text file.
+    dummy_txt_file = dummy_data_folder / filename
+    message_guid = uuid4().hex
+    dummy_txt_file.write_text(f"some test data: {message_guid}")
+
+    # Upload dummy text file to blob storage
+    datastore.upload_files(
+        [str(dummy_txt_file.resolve())],
+        relative_root=str(dummy_data_folder),
+        target_path=location,
+        overwrite=True,
+        show_progress=True)
+
+    dummy_txt_file_contents = dummy_txt_file.read_text()
+
+    # Discard dummies
+    dummy_txt_file.unlink()
+    dummy_data_folder.rmdir()
+
+    return dummy_txt_file_contents
+
+
+@dataclass
+class TestInputDataset:
+    # Test file name. This will be populated with test data and uploaded to blob storage.
+    filename: str
+    # Name of container for this dataset in blob storage.
+    blob_name: str
+    # Local folder for this dataset when running locally.
+    folder_name: Path
+    # Contents of test file.
+    contents: str = ""
+
+
+@dataclass
+class TestOutputDataset:
+    # Name of container for this dataset in blob storage.
+    blob_name: str
+    # Local folder for this dataset when running locally or when testing after running in Azure.
+    folder_name: Path
+
+
+@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
+def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
+    """
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
+    and that datasets are mounted in all combinations.
+    :param run_target: Where to run the script.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    input_count = 4
+    input_datasets = [TestInputDataset(
+                          filename=f"{uuid4().hex}.txt",
+                          blob_name=f"himl_dataset_test_input{i}",
+                          folder_name=tmp_path / f"local_dataset_test_input{i}")
+                      for i in range(0, input_count)]
+    output_count = 3
+    output_datasets = [TestOutputDataset(
+                           blob_name=f"himl_dataset_test_output{i}",
+                           folder_name=tmp_path / f"local_dataset_test_output{i}")
+                       for i in range(0, output_count)]
+
+    # Get default datastore
+    with check_config_json(tmp_path):
+        workspace = himl.get_workspace(aml_workspace=None,
+                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+        datastore: AzureBlobDatastore = get_datastore(workspace=workspace,
+                                                      datastore_name=DEFAULT_DATASTORE)
+
+    # Create dummy txt files, one for each item in input_datasets.
+    for input_dataset in input_datasets:
+        input_dataset.contents = _create_test_file_in_blobstore(
+            datastore=datastore,
+            filename=input_dataset.filename,
+            location=input_dataset.blob_name,
+            tmp_path=tmp_path)
+
+        if run_target == RunTarget.LOCAL:
+            # For running locally, download the test files from blobstore
+            downloaded = datastore.download(
+                target_path=input_dataset.folder_name,
+                prefix=f"{input_dataset.blob_name}/{input_dataset.filename}",
+                overwrite=True,
+                show_progress=True)
+            assert downloaded == 1
+
+            # Check that the input file is downloaded
+            downloaded_dummy_txt_file = input_dataset.folder_name / input_dataset.blob_name / input_dataset.filename
+            # Check it has expected contents
+            assert input_dataset.contents == downloaded_dummy_txt_file.read_text()
+
+    if run_target == RunTarget.LOCAL:
+        for output_dataset in output_datasets:
+            output_blob_folder = output_dataset.folder_name / output_dataset.blob_name
+            output_blob_folder.mkdir(parents=True)
+    else:
+        # Check that these files are not already in the output folders.
+        for input_dataset in input_datasets:
+            for output_dataset in output_datasets:
+                downloaded = datastore.download(
+                    target_path=str(output_dataset.folder_name),
+                    prefix=f"{output_dataset.blob_name}/{input_dataset.filename}",
+                    overwrite=True,
+                    show_progress=True)
+                assert downloaded == 0
+
+    # Format input_datasets for use in script.
+    input_file_names = [
+        f'("{input_dataset.filename}", "{input_dataset.blob_name}", Path("{str(input_dataset.folder_name)}"))'
+        for input_dataset in input_datasets]
+    script_input_datasets = ',\n        '.join(input_file_names)
+
+    # Format output_datasets for use in script.
+    output_file_names = [
+        f'("{output_dataset.blob_name}", Path("{str(output_dataset.folder_name)}"))'
+        for output_dataset in output_datasets]
+    script_output_datasets = ',\n        '.join(output_file_names)
+
+    extra_options: Dict[str, str] = {
+        'prequel': """
+    target_folder = "foo"
+        """,
+        'ignored_folders': '[".config", ".mypy_cache", "hello_world_output"]',
+        'default_datastore': f'"{DEFAULT_DATASTORE}"',
+        'input_datasets': f"""[
+            "{input_datasets[0].blob_name}",
+            DatasetConfig(name="{input_datasets[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
+            DatasetConfig(name="{input_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
+                          target_folder=target_folder),
+            DatasetConfig(name="{input_datasets[3].blob_name}", datastore="{DEFAULT_DATASTORE}",
+                          use_mounting=True),
+        ]""",
+        'output_datasets': f"""[
+            "{output_datasets[0].blob_name}",
+            DatasetConfig(name="{output_datasets[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
+            DatasetConfig(name="{output_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
+                          use_mounting=False),
+        ]""",
+        'body': f"""
+    input_datasets = [
+        {script_input_datasets}
+    ]
+    output_datasets = [
+        {script_output_datasets}
+    ]
+    for i, (filename, input_blob_name, input_folder_name) in enumerate(input_datasets):
+        input_folder = run_info.input_datasets[i] or input_folder_name / input_blob_name
+        for j, (output_blob_name, output_folder_name) in enumerate(output_datasets):
+            output_folder = run_info.output_datasets[j] or output_folder_name / output_blob_name
+            file = input_folder / filename
+            shutil.copy(file, output_folder)
+            print(f"Copied file: {{file.name}} from {{input_blob_name}} to {{output_blob_name}}")
+        """
+    }
+    extra_args: List[str] = []
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+
+    for input_dataset in input_datasets:
+        for output_dataset in output_datasets:
+            expected_output = \
+                f"Copied file: {input_dataset.filename} from {input_dataset.blob_name} to {output_dataset.blob_name}"
+            assert expected_output in output
+
+            if run_target == RunTarget.AZUREML:
+                # If test ran in Azure, need to download the outputs to check them.
+                downloaded = datastore.download(
+                    target_path=str(output_dataset.folder_name),
+                    prefix=f"{output_dataset.blob_name}/{input_dataset.filename}",
+                    overwrite=True,
+                    show_progress=True)
+                assert downloaded == 1
+
+            output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
+            assert input_dataset.contents == output_dummy_txt_file.read_text()
 
 # endregion Elevate to AzureML unit tests
