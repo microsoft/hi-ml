@@ -43,6 +43,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
+    assert False
     with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             himl.submit_to_azure_if_needed(

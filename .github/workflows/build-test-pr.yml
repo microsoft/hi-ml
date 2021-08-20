@@ -39,7 +39,7 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: flake8
-        run: flake8 --count --statistics --config=.flake8 .
+        run: make flake8
 
   mypy:
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
           pip install -r test_requirements.txt
 
       - name: mypy
-        run: python mypy_runner.py
+        run: make mypy
 
   pytest:
     runs-on: ubuntu-latest
@@ -85,14 +85,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r run_requirements.txt
           pip install -r test_requirements.txt
-          pip install -e .
 
       - name: Test with pytest, fast only
-        run: pytest -m fast testhiml
+        run: make testfast
 
   build-python:
     runs-on: ubuntu-latest
-    needs: [flake8, mypy, pytest]
+    needs: [pytest]
     steps:
       - uses: actions/checkout@v2
         with:

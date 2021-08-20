@@ -9,12 +9,10 @@ conda:
 	conda env update --file environment.yml
 
 flake8:
-	flake8 . --statistics
+	flake8 --count --statistics --config=.flake8 .
 
 mypy:
-	cd src; mypy --install-types --non-interactive --config=../mypy.ini -p health
-	mypy --install-types --non-interactive --config=mypy.ini -p testhiml
-	mypy --install-types --non-interactive --config=mypy.ini setup.py
+	python mypy_runner.py
 
 check: flake8 mypy
 

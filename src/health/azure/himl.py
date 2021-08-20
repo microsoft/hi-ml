@@ -250,7 +250,7 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 def submit_to_azure_if_needed(  # type: ignore
         # ignore missing return statement since we 'exit' instead when submitting to AzureML
-        compute_cluster_name: str,
+        compute_cluster_name: bool,
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[PathOrString] = None,
@@ -367,7 +367,7 @@ def submit_to_azure_if_needed(  # type: ignore
             logs_folder=Path.cwd() / LOGS_FOLDER
         )
     if snapshot_root_directory is None:
-        logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
+        logging.info(f"     No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
