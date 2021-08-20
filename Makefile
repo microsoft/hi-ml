@@ -15,10 +15,10 @@ pip: pip_build pip_test pip_editable
 conda:
 	conda env update --file environment.yml
 
-flake8:
+flake8: pip_test
 	flake8 --count --statistics --config=.flake8 .
 
-mypy:
+mypy: pip_test
 	python mypy_runner.py
 
 check: flake8 mypy
