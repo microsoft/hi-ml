@@ -359,6 +359,7 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
+        # Set the environment variables for local execution.
         if environment_variables is not None:
             for k, v in environment_variables.items():
                 os.environ[k] = v
