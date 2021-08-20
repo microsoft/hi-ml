@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 from argparse import ArgumentParser, Namespace
-from itertools import islice
 from pathlib import Path
-from typing import List
 
-from azureml.core import Experiment, Run, Workspace
 from azureml.tensorboard import Tensorboard
 
-from health.azure.azure_util import fetch_run, get_most_recent_run
+from health.azure.azure_util import AzureRunIdSource, get_aml_runs, get_most_recent_run
 from health.azure.himl import get_workspace
 
 
@@ -16,37 +13,20 @@ OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_LOG_DIR = OUTPUT_DIR / "tensorboard"
 
 
-def get_aml_runs(args: Namespace, workspace: Workspace) -> List[Run]:
+def determine_run_id_source(args: Namespace):
     """
-    Download runs from Azure ML. Runs are specified either in file specified in latest_run_path,
-    by run_recovery_ids, or else the latest 'num_runs' runs from experiment 'experiment_name' as
-    specified in args.
+    From the args inputted, determine what is the source of Runs to be downloaded and plotted
+    (e.g. extract id from latest run path, or take most recent run of an Experiment etc. )
 
-    :param args: Arguments containing either path to most_recent_run.txt,
-    experiment name or run recovery id
-    :type args: Namespace
-    :param workspace: Azure ML Workspace
-    :type workspace: Workspace
-    :raises ValueError: If experiment_name in args does not exist in the Workspace
-    :return: List of Azure ML Runs, or an empty list if none are retrieved
-    :rtype: List[Run]
+    :param args: Arguments for determining the source of AML Runs to be retrieved
+    :return: The source from which to extract the latest Run id(s)
     """
     if args.latest_run_path is not None:
-        latest_run_path = Path(args.latest_run_path)
-        runs = [get_most_recent_run(latest_run_path, workspace)]  # list of length 1 (most recent Run)
+        return AzureRunIdSource.LATEST_RUN_FILE
     elif args.experiment_name is not None:
-        experiment_name = args.experiment_name
-        tags = args.tags if len(args.tags) > 0 else None
-        num_runs = args.num_runs
-
-        if experiment_name not in workspace.experiments:
-            raise ValueError(f"No such experiment {experiment_name} in workspace")
-
-        experiment: Experiment = workspace.experiments[experiment_name]
-        runs = list(islice(experiment.get_runs(tags=tags), num_runs))
-    elif len(args.run_recovery_ids) > 0:
-        runs = [fetch_run(workspace, run_id) for run_id in args.run_recovery_ids]
-    return [run for run in runs if run is not None]
+        return AzureRunIdSource.EXPERIMENT_LATEST
+    elif args.run_recovery_ids is not None:
+        return AzureRunIdSource.RUN_RECOVERY_ID
 
 
 def main() -> None:  # pragma: no cover
@@ -117,7 +97,8 @@ def main() -> None:  # pragma: no cover
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
-    runs = get_aml_runs(args, workspace)
+    run_id_source = determine_run_id_source(args)
+    runs = get_aml_runs(args, workspace, run_id_source)
     if len(runs) == 0:
         raise ValueError("No runs were found")
 
