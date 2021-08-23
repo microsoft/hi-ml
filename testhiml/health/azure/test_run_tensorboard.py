@@ -1,92 +1,37 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 import pytest
+import subprocess
 
-from argparse import ArgumentParser
-from pathlib import Path
-from typing import List
-from unittest import mock
+from health.azure import run_tensorboard
 
-from azureml.core import Workspace
-
-from health.azure.run_tensorboard import get_aml_runs
-
-
-class MockArgsWithLatestRunPath:
-    def __init__(self) -> None:
-        self.latest_run_path = ""
+TENSORBOARD_SCRIPT_PATH = run_tensorboard.__file__
 
 
 class MockRun:
     def __init__(self) -> None:
-        self.id = "run1234"
+        self.id = 'run1234'
 
 
-def test_get_aml_runs() -> None:
-    def _mock_get_most_recent_run(path: Path, workspace: Workspace) -> MockRun:
-        return MockRun()
+def test_run_tensorboard_args() -> None:
+    # if no required args are passed, will fail
+    with pytest.raises(Exception) as e:
+        subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH])
+        assert "One of latest_run_path, experiment_name, run_recovery_ids" \
+               " or run_ids must be provided" in str(e)
 
-    def _get_experiment_runs() -> List[MockRun]:
-        return [MockRun(), MockRun(), MockRun(), MockRun()]
 
-    parser = ArgumentParser()
-    parser.add_argument("--latest_run_path", type=str, default=None)
-    parser.add_argument("--experiment_name", type=str, default=None)
-    parser.add_argument("--tags", action="append", default=[])
-    parser.add_argument("--num_runs", type=int, default=1)
-    parser.add_argument("--run_recovery_ids", type=str, action="append", default=None)
+def test_no_config_path() -> None:
+    # if no config path exists, will fail
+    with pytest.raises(Exception) as e:
+        subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH, "--config_path", "idontexist"])
+        assert "You must provide a config.json file in the root folder to connect" in str(e)
 
-    # Test that expected runs are returned if latest_run_path is provided
-    mock_args = parser.parse_args(["--latest_run_path", "latest_run.txt"])
-    with mock.patch("health.azure.run_tensorboard.Workspace") as mock_workspace:
-        with mock.patch("health.azure.run_tensorboard.get_most_recent_run", _mock_get_most_recent_run):
-            runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 1
-    assert runs[0].id == "run1234"
 
-    # Test that expected runs are returned if experiment_name is provided
-    mock_args = parser.parse_args(["--experiment_name", "fake_experiment"])
-    with mock.patch("health.azure.run_tensorboard.Experiment") as mock_experiment:
-        mock_experiment.get_runs.return_value = _get_experiment_runs()
-        with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={"fake_experiment": mock_experiment}
-                        ) as mock_workspace:
-            runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 1
-    assert runs[0].id == "run1234"
-
-    # Test that correct number of runs are returned if both experiment_name and num_runs are provided
-    mock_args = parser.parse_args(["--experiment_name", "fake_experiment", "--num_runs", "3"])
-    with mock.patch("health.azure.run_tensorboard.Experiment") as mock_experiment:
-        mock_experiment.get_runs.return_value = _get_experiment_runs()
-        with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={"fake_experiment": mock_experiment}
-                        ) as mock_workspace:
-            runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 3
-    assert runs[0].id == "run1234"
-
-    # Test that correct number of returns if both experiment_name and tags are provided
-    mock_args = parser.parse_args(["--experiment_name", "fake_experiment", "--tags", "3"])
-    with mock.patch("health.azure.run_tensorboard.Experiment") as mock_experiment:
-        mock_experiment.get_runs.return_value = _get_experiment_runs()
-        with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={"fake_experiment": mock_experiment}
-                        ) as mock_workspace:
-            runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 1
-    assert runs[0].id == "run1234"
-
-    # Test that the correct number of runs are returned if run_recovery_id(s) is(are) provided
-    mock_args = parser.parse_args(["--run_recovery_id", "expt:run123"])
-    with mock.patch("health.azure.run_tensorboard.Workspace") as mock_workspace:
-        with mock.patch("health.azure.run_tensorboard.fetch_run", _mock_get_most_recent_run):
-            runs = get_aml_runs(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 1
-    assert runs[0].id == "run1234"
-
-    # Test that value error is raised if experiment name is no in workspace
-    mock_args = parser.parse_args(["--experiment_name", "idontexist"])
-    with pytest.raises(Exception):
-        with mock.patch("health.azure.run_tensorboard.Workspace",
-                        experiments={"fake_experiment": mock_experiment}
-                        ) as mock_workspace:
-            get_aml_runs(mock_args, mock_workspace)  # type: ignore
+def test_run_tensorboard_no_runs() -> None:
+    # if no such run exists, will fail
+    with pytest.raises(Exception) as e:
+        subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH, "--run_recovery_ids", "madeuprun"])
+        assert "No runs were found" in str(e)

@@ -22,7 +22,6 @@ from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 
-from health.azure.himl import RUN_RECOVERY_FILE
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -408,7 +407,31 @@ class AzureRunIdSource(Enum):
     EXPERIMENT_LATEST = 2
     RUN_ID = 3
     RUN_RECOVERY_ID = 4
-    
+
+
+def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
+    """
+    From the args inputted, determine what is the source of Runs to be downloaded and plotted
+    (e.g. extract id from latest run path, or take most recent run of an Experiment etc. )
+
+    :param args: Arguments for determining the source of AML Runs to be retrieved
+    :raises ValueError: If none of expected args for retrieving Runs are provided
+    :return: The source from which to extract the latest Run id(s)
+    """
+    if "latest_run_path" in args:
+        if args.latest_run_path is not None:
+            return AzureRunIdSource.LATEST_RUN_FILE
+    if "experiment_name" in args:
+        if args.experiment_name is not None:
+            return AzureRunIdSource.EXPERIMENT_LATEST
+    if "run_recovery_ids" in args:
+        if args.run_recovery_ids is not None:
+            return AzureRunIdSource.RUN_RECOVERY_ID
+    if "run_ids" in args:
+        if args.run_ids is not None:
+            return AzureRunIdSource.RUN_ID
+    raise ValueError("One of latest_run_path, experiment_name, run_recovery_ids or run_ids must be provided")
+
 
 def get_aml_runs_from_latest_run_path(args: Namespace, workspace: Workspace) -> List[Run]:
     """
@@ -429,8 +452,8 @@ def get_latest_aml_runs_from_experiment(args: Namespace, workspace: Workspace) -
     :return: List of AML Runs
     """
     experiment_name = args.experiment_name
-    tags = args.tags if len(args.tags) > 0 else None
-    num_runs = args.num_runs
+    tags = args.tags or None
+    num_runs = args.num_runs if 'num_runs' in args else 1
 
     if experiment_name not in workspace.experiments:
         raise ValueError(f"No such experiment {experiment_name} in workspace")
@@ -443,7 +466,7 @@ def get_aml_runs_from_recovery_ids(args: Namespace, workspace: Workspace) -> Lis
     """
     Retrieve AzureML Runs for each of the run_recovery_ids specified in args.
 
-    ::param args: command line args including experiment name and number of runs to return
+    :param args: command line args including experiment name and number of runs to return
     :param workspace: AML Workspace
     :return: List of AML Runs
     """
@@ -455,7 +478,7 @@ def get_aml_runs_from_runids(args: Namespace, workspace: Workspace) -> List[Run]
     """
     Retrieve AzureML Runs for each of the Run Ids specified in args.
 
-    ::param args: command line args including experiment name and number of runs to return
+    :param args: command line args including experiment name and number of runs to return
     :param workspace: AML Workspace
     :return: List of AML Runs
     """
@@ -483,6 +506,6 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
         runs = get_aml_runs_from_recovery_ids(args, workspace)
     elif run_id_source == AzureRunIdSource.RUN_ID:
         runs = get_aml_runs_from_runids(args, workspace)
-    else: 
+    else:
         raise ValueError(f"Unrecognised RunIdSource: {run_id_source}")
     return [run for run in runs if run is not None]
