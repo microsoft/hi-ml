@@ -12,7 +12,7 @@ from health.azure.himl import get_workspace
 from health.azure.run_tensorboard import determine_run_id_source
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     parser = ArgumentParser()
     parser.add_argument(
         "--output_dir",

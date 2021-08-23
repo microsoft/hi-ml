@@ -17,7 +17,7 @@ OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_LOG_DIR = OUTPUT_DIR / "tensorboard"
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     parser = ArgumentParser()
     parser.add_argument(
         "--config_path",
