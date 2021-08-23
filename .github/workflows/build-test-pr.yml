@@ -32,14 +32,8 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r run_requirements.txt
-          pip install -r test_requirements.txt
-
       - name: flake8
-        run: flake8 --count --statistics --config=.flake8 .
+        run: make flake8
 
   mypy:
     runs-on: ubuntu-latest
@@ -56,14 +50,8 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r run_requirements.txt
-          pip install -r test_requirements.txt
-
       - name: mypy
-        run: python mypy_runner.py
+        run: make mypy
 
   pytest:
     runs-on: ubuntu-latest
@@ -80,19 +68,12 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r run_requirements.txt
-          pip install -r test_requirements.txt
-          pip install -e .
-
       - name: Test with pytest, fast only
-        run: pytest -m fast testhiml
+        run: make testfast
 
   build-python:
     runs-on: ubuntu-latest
-    needs: [flake8, mypy, pytest]
+    needs: [pytest]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -106,13 +87,8 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r build_requirements.txt
-
       - name: Build Distribution
-        run: python setup.py sdist bdist_wheel
+        run: make build
 
       - name: Archive TestPyPI version
         uses: actions/upload-artifact@v2
@@ -160,17 +136,14 @@ jobs:
       - name: Test env
         run: echo $HIML_WHEEL_FILENAME
 
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r test_requirements.txt
-
       - name: Install artifact
-        run:
+        run: |
+          make pip_upgrade
+
           pip install $HIML_WHEEL_FILENAME
 
       - name: Test with pytest, fast only
-        run: pytest -m fast testhiml
+        run: make testfast_no_install
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
@@ -240,7 +213,7 @@ jobs:
 
       - name: Install test package
         run: |
-          python -m pip install --upgrade pip
+          make pip_upgrade
 
           while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==${{ env.HIML_TEST_PYPI_VERSION }}
           do
@@ -248,15 +221,8 @@ jobs:
             sleep 10
           done
 
-      - name: Install test dependencies
-        run: |
-          pip install -r test_requirements.txt
-
       - name: Test with pytest
-        run: pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testhiml
-
-      - name: Format coverage summary
-        run: pycobertura show --format text --output coverage.txt coverage.xml
+        run: make pytest_and_coverage
 
       - name: Add coverage as a commit comment
         uses: actions/github-script@v4
@@ -393,7 +359,7 @@ jobs:
 
       - name: Install package
         run: |
-          python -m pip install --upgrade pip
+          make pip_upgrade
 
           while ! pip install hi-ml==${{ env.HIML_PYPI_VERSION }}
           do
@@ -401,9 +367,5 @@ jobs:
             sleep 10
           done
 
-      - name: Install test dependencies
-        run: |
-          pip install -r test_requirements.txt
-
       - name: Test with pytest, fast only
-        run: pytest -m fast testhiml
+        run: make testfast_no_install
