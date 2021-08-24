@@ -14,7 +14,6 @@ from health.azure.himl import get_workspace
 
 ROOT_DIR = Path.cwd()
 OUTPUT_DIR = ROOT_DIR / "outputs"
-TENSORBOARD_LOG_DIR = OUTPUT_DIR / "tensorboard"
 
 
 def main() -> None:  # pragma: no cover
@@ -86,7 +85,7 @@ def main() -> None:  # pragma: no cover
     # start Tensorboard
     print(f"runs: {runs}")
 
-    run_logs_dir = TENSORBOARD_LOG_DIR / args.run_logs_dir
+    run_logs_dir = OUTPUT_DIR / args.run_logs_dir
     run_logs_dir.mkdir(exist_ok=True)
     ts = Tensorboard(runs=runs, local_root=str(run_logs_dir), port=args.port)
 

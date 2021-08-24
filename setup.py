@@ -83,5 +83,10 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
-    scripts=['src/health/azure/run_tensorboard.py', 'src/health/azure/download_aml_run.py']
+    entry_points={
+        'console_scripts': [
+            'run-tensorboard = health.azure.run_tensorboard:main',
+            'download-aml-run = health.azure.download_aml_run:main'
+        ]
+    }
 )

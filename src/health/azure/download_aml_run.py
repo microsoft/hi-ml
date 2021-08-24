@@ -19,7 +19,7 @@ def main() -> None:  # pragma: no cover
         type=str,
         default="outputs",
         required=False,
-        help="Path to directory to store  files downloaded from Run"
+        help="Path to directory to store files downloaded from Run"
     )
     parser.add_argument(
         "--config_path",
