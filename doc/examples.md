@@ -51,7 +51,7 @@ You can specify the location where TensorBoard logs will be stored, using the `-
 If you choose to specify `--experiment_name`, you can also specify `--num_runs` to view and/or `--tags` to filter by.
 
 If your AML config path is not ROOT_DIR/config.json, you must also specify `--config_path`.
-<br><br>
+
 ## Download files from AML Runs
 
 From the command line, run the command 
