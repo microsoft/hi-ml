@@ -1,52 +1,19 @@
 #!/usr/bin/env python3
-from argparse import ArgumentParser, Namespace
-from itertools import islice
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+from argparse import ArgumentParser
 from pathlib import Path
-from typing import List
 
-from azureml.core import Experiment, Run, Workspace
 from azureml.tensorboard import Tensorboard
 
-from health.azure.azure_util import fetch_run, get_most_recent_run
+from health.azure.azure_util import get_aml_runs, determine_run_id_source
 from health.azure.himl import get_workspace
 
 
 ROOT_DIR = Path.cwd()
 OUTPUT_DIR = ROOT_DIR / "outputs"
-TENSORBOARD_LOG_DIR = OUTPUT_DIR / "tensorboard"
-
-
-def get_aml_runs(args: Namespace, workspace: Workspace) -> List[Run]:
-    """
-    Download runs from Azure ML. Runs are specified either in file specified in latest_run_path,
-    by run_recovery_ids, or else the latest 'num_runs' runs from experiment 'experiment_name' as
-    specified in args.
-
-    :param args: Arguments containing either path to most_recent_run.txt,
-    experiment name or run recovery id
-    :type args: Namespace
-    :param workspace: Azure ML Workspace
-    :type workspace: Workspace
-    :raises ValueError: If experiment_name in args does not exist in the Workspace
-    :return: List of Azure ML Runs, or an empty list if none are retrieved
-    :rtype: List[Run]
-    """
-    if args.latest_run_path is not None:
-        latest_run_path = Path(args.latest_run_path)
-        runs = [get_most_recent_run(latest_run_path, workspace)]  # list of length 1 (most recent Run)
-    elif args.experiment_name is not None:
-        experiment_name = args.experiment_name
-        tags = args.tags if len(args.tags) > 0 else None
-        num_runs = args.num_runs
-
-        if experiment_name not in workspace.experiments:
-            raise ValueError(f"No such experiment {experiment_name} in workspace")
-
-        experiment: Experiment = workspace.experiments[experiment_name]
-        runs = list(islice(experiment.get_runs(tags=tags), num_runs))
-    elif len(args.run_recovery_ids) > 0:
-        runs = [fetch_run(workspace, run_id) for run_id in args.run_recovery_ids]
-    return [run for run in runs if run is not None]
 
 
 def main() -> None:  # pragma: no cover
@@ -85,22 +52,15 @@ def main() -> None:  # pragma: no cover
         help="The name of the AML Experiment that you wish to view Runs from"
     )
     parser.add_argument(
-        "--num_runs",
-        type=int,
-        default=1,
-        required=False,
-        help="The number of most recent runs that you wish to view in Tensorboard"
-    )
-    parser.add_argument(
         "--tags",
         action="append",
-        default=[],
+        default=None,
         required=False,
         help="Optional experiment tags to restrict the AML Runs that are returned"
     )
     parser.add_argument(
         "--run_recovery_ids",
-        default=[],
+        default=None,
         action='append',
         required=False,
         help="Optional run recovery ids of the runs to plot"
@@ -117,14 +77,16 @@ def main() -> None:  # pragma: no cover
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
-    runs = get_aml_runs(args, workspace)
+    run_id_source = determine_run_id_source(args)
+    runs = get_aml_runs(args, workspace, run_id_source)
     if len(runs) == 0:
         raise ValueError("No runs were found")
 
     # start Tensorboard
     print(f"runs: {runs}")
 
-    run_logs_dir = TENSORBOARD_LOG_DIR / args.run_logs_dir
+    run_logs_dir = OUTPUT_DIR / args.run_logs_dir
+    run_logs_dir.mkdir(exist_ok=True)
     ts = Tensorboard(runs=runs, local_root=str(run_logs_dir), port=args.port)
 
     ts.start()
@@ -133,5 +95,5 @@ def main() -> None:  # pragma: no cover
     ts.stop()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
