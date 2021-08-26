@@ -93,6 +93,42 @@ To be filled in:
 * `default_datastore`
 * Complex dataset setup.
 
+## Folder structure 
+```
+.
+├── docs
+├── examples
+├── health
+│   ├── azure
+|   ├── causality
+|   |  ├── models 
+|   |  └── training
+|   ├── dataloaders
+|   ├── deeplearning
+|   |    ├── models 
+|   |    |  ├── losses
+|   |    |  ├── metrics
+|   |    |  └── optimizers
+|   |    └── training
+|   └── robustness
+└── tests
+    └── health
+```
+
+Description of health package:
+- azure:  scripts/ helper functions for submitting jobs to Azure Machine Learning
+- causality: 
+    - models: either wrappers around deeplearning models, or custom models
+    - training: training scripts
+- dataloaders: dataloaders for images, EHR databases, etc in the form of LightningDataModules
+- deeplearning:
+    - models: custom models, following pytorch Lightning LightningModules
+        - losses: custom losses
+        - metrics: custom metrics
+        - optimizers: custom Torch Optimizer objects
+    - training: tranining scripts
+- robustness: tools for developing robust ML models
+
 ## Licensing
 
 [MIT License](LICENSE)
@@ -118,6 +154,9 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## How to contribute
+Please see additional guidelines on [contributing](https://github.com/microsoft/hi-ml/blob/main/doc/contributing.md)
 
 ## Trademarks
 
