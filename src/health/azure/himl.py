@@ -458,6 +458,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             file_name: str,
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
+        print(f"start_at = {str(start_at.absolute())}")
         for child in start_at.iterdir():
             if child.is_file() and child.name == file_name:
                 return child
