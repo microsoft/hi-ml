@@ -59,7 +59,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         # N.B. This assert may fail when run locally since we may find a workspace_config_path through the call to
         # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
         if _is_running_in_github_pipeline():
-            assert "Cannot glean workspace config from parameters" in str(ex)
+            assert "No workspace config file given, nor can we find one" in str(ex)
     with mock.patch("sys.argv", [""]):
         result = himl.submit_to_azure_if_needed(
             entry_script=Path(__file__),
