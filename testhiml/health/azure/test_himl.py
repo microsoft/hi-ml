@@ -35,6 +35,7 @@ from testhiml.health.azure.util import DEFAULT_DATASTORE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
+GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -54,9 +55,11 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
-                conda_environment_file=Path("env.yaml"),
                 snapshot_root_directory=Path(__file__).parent)
-        assert "Cannot glean workspace config from parameters" in str(ex)
+        # N.B. This assert may fail when run locally since we may find a workspace_config_path through the call to
+        # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
+        if _is_running_in_github_pipeline():
+            assert "Cannot glean workspace config from parameters" in str(ex)
     with mock.patch("sys.argv", [""]):
         result = himl.submit_to_azure_if_needed(
             entry_script=Path(__file__),
@@ -65,6 +68,13 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert isinstance(result, himl.AzureRunInfo)
         assert not result.is_running_in_azure
         assert result.run is None
+
+
+def _is_running_in_github_pipeline() -> bool:
+    """
+    :return: Is the test running in a pipeline/action on GitHub, i.e. not locally?
+    """
+    return GITHUB_SHIBBOLETH in os.environ
 
 
 @pytest.mark.fast
