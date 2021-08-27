@@ -377,6 +377,13 @@ def submit_to_azure_if_needed(  # type: ignore
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
+    if workspace_config_path is None:
+        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
+        if workspace_config_path:
+            logging.info(f"Using the workspace config path found at {str(workspace_config_path.absolute())}")
+        else:
+            raise ValueError("No workspace config file given, nor can we find one.")
+
     workspace = get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
@@ -423,6 +430,36 @@ def submit_to_azure_if_needed(  # type: ignore
     if after_submission is not None:
         after_submission(run)
     exit(0)
+
+
+def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
+    """
+    Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
+    the PYTHONPATH root.
+
+    :param file_name: The fine name of the file to find.
+    :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
+    :return: The path to the file, or None if it cannot be found.
+    """
+    def return_file_or_parent(
+            start_at: Path,
+            file_name: str,
+            stop_at_pythonpath: bool,
+            pythonpaths: List[Path]) -> Optional[Path]:
+        for child in start_at.iterdir():
+            if child.is_file() and child.name == file_name:
+                return child
+        if start_at.parent is None or start_at in pythonpaths:
+            return None
+        return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
+    pythonpaths: List[Path] = []
+    if 'PYTHONPATH' in os.environ:
+        pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
+    return return_file_or_parent(
+        start_at=Path.cwd(),
+        file_name=file_name,
+        stop_at_pythonpath=stop_at_pythonpath,
+        pythonpaths=pythonpaths)
 
 
 def _write_run_recovery_file(run: Run) -> None:
