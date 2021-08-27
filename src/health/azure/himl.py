@@ -458,11 +458,10 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             file_name: str,
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
-        print(f"start_at = {str(start_at.absolute())}")
         for child in start_at.iterdir():
             if child.is_file() and child.name == file_name:
                 return child
-        if start_at.parent is None or start_at in pythonpaths:
+        if start_at.parent == start_at or start_at in pythonpaths:
             return None
         return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
     pythonpaths: List[Path] = []
