@@ -7,7 +7,6 @@ Welcome to hi-ml's documentation!
 =================================
 
 
-
 Indices and tables
 ==================
 
