@@ -464,6 +464,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
         if start_at.parent == start_at or start_at in pythonpaths:
             return None
         return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
+
     pythonpaths: List[Path] = []
     if 'PYTHONPATH' in os.environ:
         pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
