@@ -447,7 +447,7 @@ def submit_to_azure_if_needed(  # type: ignore
 def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
     """
     Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
-    the PYTHONPATH root.
+    the PYTHONPATH root (defaults to stopping).
 
     :param file_name: The fine name of the file to find.
     :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
