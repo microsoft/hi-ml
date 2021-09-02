@@ -11,6 +11,15 @@ by providing tested components (data loaders, pre-processing), deep learning mod
 
 * Install from `pypi` via `pip`, by running `pip install hi-ml`
 
+
+## Building documentation
+To build the sphinx documentation, you must have sphinx and related packages installed (see [build_requirements.txt](build_requirements.txt)). Then run:
+```
+cd docs
+make html
+```
+
+
 ## Using the AzureML integration layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.

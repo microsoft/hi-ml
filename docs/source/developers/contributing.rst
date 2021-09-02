@@ -1,0 +1,4 @@
+Contributing
+==================
+How to contribute
+~~~~~~~~~~~~~~~~~~
