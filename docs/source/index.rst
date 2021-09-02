@@ -21,3 +21,10 @@ Indices and tables
    :caption: Examples
 
    examples/examples.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developers
+
+   developers/developers.rst
+   developers/contributing.rst
