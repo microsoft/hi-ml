@@ -7,14 +7,6 @@ Welcome to hi-ml's documentation!
 =================================
 
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-
 .. toctree::
    :maxdepth: 1
    :caption: Examples
@@ -24,7 +16,7 @@ Indices and tables
 .. toctree::
    :maxdepth: 1
    :caption: Developers
-
+   
    developers.md
    contributing.md
 
@@ -34,3 +26,12 @@ Indices and tables
    :caption: API
 
    api/api.rst
+
+   
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
