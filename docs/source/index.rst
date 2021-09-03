@@ -16,14 +16,21 @@ Indices and tables
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Examples
 
-   examples/examples.rst
+   examples.md
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Developers
+
+   developers.md
+   contributing.md
+
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developers
+   :caption: API
 
-   developers/developers.rst
-   developers/contributing.rst
+   api/api.rst

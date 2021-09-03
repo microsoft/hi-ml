@@ -1,49 +1,42 @@
-Examples
-============
+# Examples
 
-
-Controlling when to submit to AzureML and when not
-~~~~~~~
+## Controlling when to submit to AzureML and when not
 
 By default, the `hi-ml` package assumes that you supply a commandline argument `--azureml` (that can be anywhere on 
 the commandline) to trigger a submission of the present script to AzureML. If you wish to control it via a different
 flag, coming out of your own argument parser, use the `submit_to_azureml` argument of the function
 `health.azure.himl.submit_to_azure_if_needed`. 
 
-Hyperdrive
-~~~~~~~
+## Hyperdrive
 
-`HyperDrive runs <https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters>`_
+[HyperDrive runs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters)
 can start multiple AzureML jobs in parallel. This can be used for tuning hyperparameters, or executing multiple
 training runs for cross validation. To use that with the `hi-ml` package, simply supply a HyperDrive configuration
 object as an additional argument. Note that this object needs to be created with an empty `run_config` argument (this
 will later be replaced with the correct `run_config` that submits your script.)
 
-.. code-block:: bash
+```python
+from azureml.core import ScriptRunConfig
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
+from health.azure.himl import submit_to_azure_if_needed
+hyperdrive_config = HyperDriveConfig(
+            run_config=ScriptRunConfig(source_directory=""),
+            hyperparameter_sampling=GridParameterSampling(
+                parameter_space={
+                    "learning_rate": choice([0.1, 0.01, 0.001])
+                }),
+            primary_metric_name="val_loss",
+            primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+            max_total_runs=5
+        )
+submit_to_azure_if_needed(..., hyperdrive_config=hyperdrive_config)
+```
 
-    from azureml.core import ScriptRunConfig
-    from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
-    from health.azure.himl import submit_to_azure_if_needed
-    hyperdrive_config = HyperDriveConfig(
-                run_config=ScriptRunConfig(source_directory=""),
-                hyperparameter_sampling=GridParameterSampling(
-                    parameter_space={
-                        "learning_rate": choice([0.1, 0.01, 0.001])
-                    }),
-                primary_metric_name="val_loss",
-                primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-                max_total_runs=5
-            )
-    submit_to_azure_if_needed(..., hyperdrive_config=hyperdrive_config)
-
-
-Run TensorBoard
-~~~~~~~
+## Run TensorBoard
 
 From the command line, run the command
 
-.. code-block:: bash
-    run-tensorboard
+```run-tensorboard```
 
 specifying one of 
 `[--experiment_name] [--latest_run_path] [--run_recovery_ids]` 
@@ -59,14 +52,11 @@ If you choose to specify `--experiment_name`, you can also specify `--num_runs` 
 
 If your AML config path is not ROOT_DIR/config.json, you must also specify `--config_path`.
 
-Download files from AML Runs
-~~~~~~~
+## Download files from AML Runs
 
 From the command line, run the command 
 
-.. code-block:: bash
-
-    download-aml-run
+```download-aml-run```
 
 specifying one of 
 `[--experiment_name] [--latest_run_path] [--run_recovery_ids] [--run_ids]` 
