@@ -827,6 +827,8 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         for output_dataset in output_datasets]
     script_output_datasets = ',\n        '.join(output_file_names)
 
+    directory_print = "print(f\"{str(input_folder_name)} contains these files: {input_folder_name.glob('*.txt')}\")"
+
     extra_options: Dict[str, str] = {
         'prequel': """
     target_folder = "foo"
@@ -855,6 +857,8 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         {script_output_datasets}
     ]
     for i, (filename, input_blob_name, input_folder_name) in enumerate(input_datasets):
+        if input_folder_name.exists():
+            {directory_print}
         input_folder = run_info.input_datasets[i] or input_folder_name / input_blob_name
         for j, (output_blob_name, output_folder_name) in enumerate(output_datasets):
             output_folder = run_info.output_datasets[j] or output_folder_name / output_blob_name
@@ -883,5 +887,6 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
+
 
 # endregion Elevate to AzureML unit tests
