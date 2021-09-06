@@ -486,9 +486,12 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     return p.wait(), stdout_lines
 
 
-def render_and_run_test_script(path: Path, run_target: RunTarget,
-                               extra_options: Dict[str, str], extra_args: List[str],
-                               expected_pass: bool) -> str:
+def render_and_run_test_script(path: Path,
+                               run_target: RunTarget,
+                               extra_options: Dict[str, str],
+                               extra_args: List[str],
+                               expected_pass: bool,
+                               suppress_config_creation: bool) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -497,6 +500,7 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
+    :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml package version, if specified in an environment variable.
@@ -550,22 +554,28 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
 
     env = dict(os.environ.items())
 
-    with check_config_json(path):
+    def spawn() -> Tuple[int, List[str], Workspace]:
         code, stdout = spawn_and_monitor_subprocess(
             process=sys.executable,
             args=score_args,
             cwd=path,
             env=env)
         workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+        return code, stdout, workspace
+
+    if suppress_config_creation:
+        code, stdout, workspace = spawn()
+    else:
+        with check_config_json(path):
+            code, stdout, workspace = spawn()
     assert code == 0 if expected_pass else 1
     captured = "\n".join(stdout)
+
     if run_target == RunTarget.LOCAL or not expected_pass:
         assert EXPECTED_QUEUED not in captured
-
         return captured
     else:
         assert EXPECTED_QUEUED in captured
-
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
         assert run.status == "Completed"
@@ -593,12 +603,17 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL)
     expected_output = f"The message was: {message_guid}"
     if run_target == RunTarget.LOCAL:
+        output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                            run_target == RunTarget.LOCAL,
+                                            suppress_config_creation=run_target == RunTarget.AZUREML)
         assert expected_output in output
     else:
-        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in output
+        with pytest.raises(ValueError) as e:
+            render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL,
+                                       suppress_config_creation=run_target == RunTarget.AZUREML)
+        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in str(e.value)
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
