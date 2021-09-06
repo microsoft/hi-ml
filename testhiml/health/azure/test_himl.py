@@ -491,7 +491,7 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, str],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool) -> str:
+                               suppress_config_creation: bool = False) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
