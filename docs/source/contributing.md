@@ -42,9 +42,10 @@ def foo(bar: int) -> Optional[List]:
 - DO try your best to write unit tests that are fast. Very often, this can be done by reducing data size to a minimum.
 Also, it is helpful to avoid long-running integration tests, but try to test at the level of the smallest involved
 function.
-- DO ensure that your tests are designed in a way that they can pass on the local box, even if they are relying on
-specific cloud features. If required, use `unittest.mock` to enable the tests to run without cloud. 
-- DO run all unit tests on your dev box before submitting your changes. The test suite is designed to pass completely
-also outside of cloud builds.
+- DO ensure that your tests are designed in a way that they can pass on the local machine, even if they are relying on
+specific cloud features. If required, use `unittest.mock` to simulate the cloud features, and hence enable the 
+tests to run successfully on your local machine. 
+- DO run all unit tests on your dev machine before submitting your changes. The test suite is designed to pass 
+completely also outside of cloud builds.
 - DO NOT rely only on the test builds in the cloud (i.e., run test locally before submitting). 
-Cloud builds trigger AzureML runs on GPU machines that have a far higher CO2 footprint than your dev box.
+Cloud builds trigger AzureML runs on GPU machines that have a far higher CO2 footprint than your dev machine.
