@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
+from azureml._base_sdk_common import user_agent
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
@@ -41,6 +42,8 @@ RUN_CONTEXT = Run.get_context()
 OUTPUT_FOLDER = "outputs"
 LOGS_FOLDER = "logs"
 AML_IGNORE_FILE = ".amlignore"
+SDK_NAME = "innereye"
+SDK_VERSION = "2.0"
 
 PathOrString = Union[Path, str]
 
@@ -218,6 +221,8 @@ def submit_run(workspace: Workspace,
     """
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
+    user_agent.append(SDK_NAME, SDK_VERSION)
+
     run = experiment.submit(script_run_config)
     tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
     run.set_tags(tags)
