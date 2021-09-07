@@ -43,10 +43,10 @@ The repository contains a makefile with definitions for common operations.
 
 ## Building documentation
 To build the sphinx documentation, you must have sphinx and related packages installed 
-(see [build_requirements.txt](build_requirements.txt)). Then run:
+(see [build_requirements.txt](../../build_requirements.txt)). Then run:
 ```
 cd docs
-make
+make html
 ```
 
 
