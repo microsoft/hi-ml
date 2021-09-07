@@ -1,4 +1,4 @@
-# hi-ml Microsoft Health Intelligence Toolbox
+# Microsoft Health Intelligence Machine Learning Toolbox
 
 ## Overview
 
@@ -10,6 +10,15 @@ by providing tested components (data loaders, pre-processing), deep learning mod
 ## Getting started
 
 * Install from `pypi` via `pip`, by running `pip install hi-ml`
+
+
+## Building documentation
+To build the sphinx documentation, you must have sphinx and related packages installed (see [build_requirements.txt](build_requirements.txt)). Then run:
+```
+cd docs
+make html
+```
+
 
 ## Using the AzureML integration layer
 

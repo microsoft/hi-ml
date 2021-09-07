@@ -15,19 +15,35 @@ from jinja2 import Template
 here = Path(__file__).parent.resolve()
 
 
-def render_environment_yaml(environment_yaml_path: Path, version: str) -> None:
+def render_environment_yaml(environment_yaml_path: Path, version: str, run_requirements: bool) -> None:
     """
     Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
     :param environment_yaml_path: Where to save environment.yml.
     :param version: hi-ml package version.
+    :param run_requirements: True to include run_requirements.txt.
     :return: None
     """
     environment_yaml_template = (here / 'simple' / 'environment.yml.template').read_text()
 
     t = Template(environment_yaml_template)
 
-    options = {'hi_ml_version': version}
+    if version:
+        pip = f"""
+  - pip:
+    - hi-ml{version}
+"""
+    elif run_requirements:
+        pip = """
+  - pip:
+"""
+        run_requirements_lines = Path('./run_requirements.txt').read_text().splitlines()
+        for line in run_requirements_lines:
+            pip += f"    - {line}\n"
+    else:
+        pip = ""
+
+    options = {'pip': pip}
 
     r = t.render(options)
     environment_yaml_path.write_text(r)
@@ -49,12 +65,24 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     t = Template(hello_world_template)
 
     default_options = {}
-    default_options['entry_script'] = "Path(sys.argv[0])"
-    default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
+    default_options['prequel'] = ''
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
+    default_options['entry_script'] = "Path(sys.argv[0])"
+    default_options['aml_workspace'] = 'None'
+    default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
+    default_options['snapshot_root_directory'] = 'here'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
+    default_options['environment_variables'] = 'None'
+    default_options['pip_extra_index_url'] = '""'
+    default_options['private_pip_wheel_path'] = 'None'
+    default_options['ignored_folders'] = '[".config", ".mypy_cache"]'
+    default_options['default_datastore'] = '""'
+    default_options['input_datasets'] = 'None'
+    default_options['output_datasets'] = 'None'
     default_options['wait_for_completion'] = 'True'
     default_options['wait_for_completion_show_output'] = 'True'
+    default_options['args'] = ''
+    default_options['body'] = ''
 
     all_options = dict(default_options, **extra_options)
 

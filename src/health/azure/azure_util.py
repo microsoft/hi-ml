@@ -5,7 +5,10 @@
 """
 Utility functions for interacting with AzureML runs
 """
+from argparse import Namespace
+from enum import Enum
 import hashlib
+from itertools import islice
 import logging
 import os
 import re
@@ -18,6 +21,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
+
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -196,9 +200,11 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     NAME = "name"
     CHANNELS = "channels"
     DEPENDENCIES = "dependencies"
+
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
         unified_definition[NAME] = name
+
     try:
         channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
@@ -206,18 +212,28 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         raise
     if channels:
         unified_definition[CHANNELS] = channels
-    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+
+    try:
+        deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge dependencies.")
+        raise
     if deps:
         unified_definition[DEPENDENCIES] = deps
+    else:
+        raise ValueError("No dependencies found in any of the conda files.")
+
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
 def create_python_environment(conda_environment_file: Path,
-                              pip_extra_index_url: str,
-                              docker_base_image: str,
-                              environment_variables: Optional[Dict[str, str]]) -> Environment:
+                              pip_extra_index_url: str = "",
+                              workspace: Optional[Workspace] = None,
+                              private_pip_wheel_path: Optional[Path] = None,
+                              docker_base_image: str = "",
+                              environment_variables: Optional[Dict[str, str]] = None) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
@@ -226,6 +242,8 @@ def create_python_environment(conda_environment_file: Path,
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param workspace: The AzureML workspace to work in, required if private_pip_wheel_path is supplied.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     """
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
@@ -247,6 +265,16 @@ def create_python_environment(conda_environment_file: Path,
         "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
         **(environment_variables or {})
     }
+    # See if this package as a whl exists, and if so, register it with AzureML environment.
+    if workspace is not None and private_pip_wheel_path is not None:
+        if private_pip_wheel_path.is_file():
+            whl_url = Environment.add_private_pip_wheel(workspace=workspace,
+                                                        file_path=private_pip_wheel_path,
+                                                        exist_ok=True)
+            conda_dependencies.add_pip_package(whl_url)
+            print(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        else:
+            raise FileNotFoundError(f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}, it is not a file.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
@@ -347,3 +375,137 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     runs = list(run.get_children())
     runs.append(run)
     return all(is_completed(run) for run in runs)
+
+
+def get_most_recent_run_id(run_recovery_file: Path) -> str:
+    """
+    Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
+    file when running on the cloud.
+    :param run_recovery_file: The path of the run recovery file
+    :return: The run id
+    """
+    assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous \
+                                         training run"
+    run_id = run_recovery_file.read_text().strip()
+    print(f"Read this run ID from file: {run_id}")
+    return run_id
+
+
+def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
+    """
+    Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+    :param run_recovery_file: The path of the run recovery file
+    :param workspace: Azure ML Workspace
+    :return: The Run
+    """
+    run_recovery_id = get_most_recent_run_id(run_recovery_file)
+    return fetch_run(workspace=workspace, run_recovery_id=run_recovery_id)
+
+
+class AzureRunIdSource(Enum):
+    LATEST_RUN_FILE = 1
+    EXPERIMENT_LATEST = 2
+    RUN_ID = 3
+    RUN_RECOVERY_ID = 4
+
+
+def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
+    """
+    From the args inputted, determine what is the source of Runs to be downloaded and plotted
+    (e.g. extract id from latest run path, or take most recent run of an Experiment etc. )
+
+    :param args: Arguments for determining the source of AML Runs to be retrieved
+    :raises ValueError: If none of expected args for retrieving Runs are provided
+    :return: The source from which to extract the latest Run id(s)
+    """
+    if "latest_run_path" in args:
+        if args.latest_run_path is not None:
+            return AzureRunIdSource.LATEST_RUN_FILE
+    if "experiment_name" in args:
+        if args.experiment_name is not None:
+            return AzureRunIdSource.EXPERIMENT_LATEST
+    if "run_recovery_ids" in args:
+        if args.run_recovery_ids is not None:
+            return AzureRunIdSource.RUN_RECOVERY_ID
+    if "run_ids" in args:
+        if args.run_ids is not None:
+            return AzureRunIdSource.RUN_ID
+    raise ValueError("One of latest_run_path, experiment_name, run_recovery_ids or run_ids must be provided")
+
+
+def get_aml_runs_from_latest_run_path(args: Namespace, workspace: Workspace) -> List[Run]:
+    """
+    Returns list of length 1 (most recent Run)
+    # TODO: update path to most_recent_runs (plural?)
+    """
+    latest_run_path = Path(args.latest_run_path)
+    return [get_most_recent_run(latest_run_path, workspace)]
+
+
+def get_latest_aml_runs_from_experiment(args: Namespace, workspace: Workspace) -> List[Run]:
+    """
+    Get latest n runs from an AML experiment
+
+    :param args: command line args including experiment name and number of runs to return
+    :param workspace: AML Workspace
+    :raises ValueError: If Experiment experiment_name doen't exist within Worksacpe
+    :return: List of AML Runs
+    """
+    experiment_name = args.experiment_name
+    tags = args.tags or None
+    num_runs = args.num_runs if 'num_runs' in args else 1
+
+    if experiment_name not in workspace.experiments:
+        raise ValueError(f"No such experiment {experiment_name} in workspace")
+
+    experiment: Experiment = workspace.experiments[experiment_name]
+    return list(islice(experiment.get_runs(tags=tags), num_runs))
+
+
+def get_aml_runs_from_recovery_ids(args: Namespace, workspace: Workspace) -> List[Run]:
+    """
+    Retrieve AzureML Runs for each of the run_recovery_ids specified in args.
+
+    :param args: command line args including experiment name and number of runs to return
+    :param workspace: AML Workspace
+    :return: List of AML Runs
+    """
+    runs = [fetch_run(workspace, run_id) for run_id in args.run_recovery_ids]
+    return [r for r in runs if r is not None]
+
+
+def get_aml_runs_from_runids(args: Namespace, workspace: Workspace) -> List[Run]:
+    """
+    Retrieve AzureML Runs for each of the Run Ids specified in args.
+
+    :param args: command line args including experiment name and number of runs to return
+    :param workspace: AML Workspace
+    :return: List of AML Runs
+    """
+    runs = [workspace.get_run(r_id) for r_id in args.run_ids]
+    return [r for r in runs if r is not None]
+
+
+def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunIdSource) -> List[Run]:
+    """
+    Download runs from Azure ML. Runs are specified either in file specified in latest_run_path,
+    by run_recovery_ids, or else the latest 'num_runs' runs from experiment 'experiment_name' as
+    specified in args.
+
+    :param args: Arguments for determining the source of AML Runs to be retrieved
+    :param workspace: Azure ML Workspace
+    :param run_id_source: The source from which to download AML Runs
+    :raises ValueError: If experiment_name in args does not exist in the Workspace
+    :return: List of Azure ML Runs, or an empty list if none are retrieved
+    """
+    if run_id_source == AzureRunIdSource.LATEST_RUN_FILE:
+        runs = get_aml_runs_from_latest_run_path(args, workspace)
+    elif run_id_source == AzureRunIdSource.EXPERIMENT_LATEST:
+        runs = get_latest_aml_runs_from_experiment(args, workspace)
+    elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
+        runs = get_aml_runs_from_recovery_ids(args, workspace)
+    elif run_id_source == AzureRunIdSource.RUN_ID:
+        runs = get_aml_runs_from_runids(args, workspace)
+    else:
+        raise ValueError(f"Unrecognised RunIdSource: {run_id_source}")
+    return [run for run in runs if run is not None]

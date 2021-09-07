@@ -10,6 +10,7 @@ See examples/elevate_this.py for a very simple 'hello world' example of use.
 """
 
 import logging
+import os
 import sys
 import warnings
 from argparse import ArgumentParser
@@ -68,47 +69,13 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     return hasattr(aml_run, 'experiment')
 
 
-def get_or_create_environment(workspace: Workspace,
-                              aml_environment_name: str,
-                              conda_environment_file: Optional[Path],
-                              environment_variables: Optional[Dict[str, str]],
-                              pip_extra_index_url: str,
-                              docker_base_image: str,
-                              ) -> Environment:
-    """
-    Gets an existing AzureML environment from the workspace (choosing by name), or get one based on the contents
-    of a Conda environment file, environment variables, pip and docker settings. Either one of the arguments
-    `aml_environment` and `conda_environment_file` must be provided.
-    :param workspace: The AzureML workspace to work in.
-    :param aml_environment_name: The name of an existing AzureML environment that should be read. If this is empty, the
-    environment is created based on conda_environment_file.
-    :param conda_environment_file: The Conda environment.yml file that should be used for environment creation. If this
-    is empty, an existing environment is retrieved via the name given in aml_environment.
-    :param environment_variables: A dictionary with environment variables that should used in the AzureML environment.
-    This is only used if conda_environment_file is given.
-    :param pip_extra_index_url: The value to use for pip's --extra-index-url argument, to read additional packages.
-    :param docker_base_image: The Docker base image to use. If not given, docker will not be used.
-    :return: An AzureML Environment object.
-    """
-    if aml_environment_name:
-        # TODO: Split off version
-        return Environment.get(workspace, aml_environment_name)
-    elif conda_environment_file:
-        environment = create_python_environment(conda_environment_file=conda_environment_file,
-                                                pip_extra_index_url=pip_extra_index_url,
-                                                docker_base_image=docker_base_image,
-                                                environment_variables=environment_variables)
-        return register_environment(workspace, environment)
-    else:
-        raise ValueError("One of the two arguments 'aml_environment' or 'conda_environment_file' must be given.")
-
-
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
                              pip_extra_index_url: str = "",
+                             private_pip_wheel_path: Optional[Path] = None,
                              docker_base_image: str = "",
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
@@ -134,6 +101,7 @@ def create_run_configuration(workspace: Workspace,
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
     exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
@@ -144,20 +112,34 @@ def create_run_configuration(workspace: Workspace,
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
     :return:
     """
+    run_config = RunConfiguration()
+
+    if aml_environment_name:
+        run_config.environment = Environment.get(workspace, aml_environment_name)
+    elif conda_environment_file:
+        run_config.environment = create_python_environment(
+            conda_environment_file=conda_environment_file,
+            pip_extra_index_url=pip_extra_index_url,
+            workspace=workspace,
+            private_pip_wheel_path=private_pip_wheel_path,
+            docker_base_image=docker_base_image,
+            environment_variables=environment_variables)
+        register_environment(workspace, run_config.environment)
+    else:
+        raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
+
+    if docker_shm_size:
+        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+
     existing_compute_clusters = workspace.compute_targets
     if compute_cluster_name not in existing_compute_clusters:
         raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
                          f"Existing clusters: {list(existing_compute_clusters.keys())}")
-    run_config = RunConfiguration()
-    run_config.environment = get_or_create_environment(workspace=workspace,
-                                                       aml_environment_name=aml_environment_name,
-                                                       conda_environment_file=conda_environment_file,
-                                                       pip_extra_index_url=pip_extra_index_url,
-                                                       environment_variables=environment_variables,
-                                                       docker_base_image=docker_base_image)
     run_config.target = compute_cluster_name
+
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+
     if num_nodes > 1:
         distributed_job_config = MpiConfiguration(node_count=num_nodes)
         run_config.mpi = distributed_job_config
@@ -165,12 +147,13 @@ def create_run_configuration(workspace: Workspace,
         run_config.communicator = "IntelMpi"
         run_config.node_count = distributed_job_config.node_count
 
-    inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
-                                                       cleaned_output_datasets=output_datasets or [],
-                                                       workspace=workspace)
-    run_config.data = inputs
-    run_config.output_data = outputs
-    run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+    if input_datasets or output_datasets:
+        inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
+                                                           cleaned_output_datasets=output_datasets or [],
+                                                           workspace=workspace)
+        run_config.data = inputs
+        run_config.output_data = outputs
+
     return run_config
 
 
@@ -269,7 +252,7 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 def submit_to_azure_if_needed(  # type: ignore
         # ignore missing return statement since we 'exit' instead when submitting to AzureML
-        compute_cluster_name: str,
+        compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
         workspace_config_path: Optional[PathOrString] = None,
@@ -280,6 +263,7 @@ def submit_to_azure_if_needed(  # type: ignore
         experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
+        private_pip_wheel_path: Optional[Path] = None,
         docker_base_image: str = "",
         docker_shm_size: str = "",
         ignored_folders: Optional[List[PathOrString]] = None,
@@ -335,6 +319,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
     the Docker image.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
     storage. This is described in more detail in the README.
@@ -375,6 +360,11 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
+        # Set the environment variables for local execution.
+        if environment_variables is not None:
+            for k, v in environment_variables.items():
+                os.environ[k] = v
+
         return AzureRunInfo(
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
@@ -383,11 +373,12 @@ def submit_to_azure_if_needed(  # type: ignore
             output_folder=Path.cwd() / OUTPUT_FOLDER,
             logs_folder=Path.cwd() / LOGS_FOLDER
         )
+
     if snapshot_root_directory is None:
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    workspace = _get_workspace(aml_workspace, workspace_config_path)
+    workspace = get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
@@ -397,6 +388,7 @@ def submit_to_azure_if_needed(  # type: ignore
         conda_environment_file=conda_environment_file,
         environment_variables=environment_variables,
         pip_extra_index_url=pip_extra_index_url,
+        private_pip_wheel_path=private_pip_wheel_path,
         docker_base_image=docker_base_image,
         docker_shm_size=docker_shm_size,
         num_nodes=num_nodes,
@@ -480,7 +472,7 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
 
 
-def _get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
     """
     Obtain the AzureML workspace from either the passed in value or the passed in path
     :param aml_workspace: If provided this is returned as the AzureML Workspace

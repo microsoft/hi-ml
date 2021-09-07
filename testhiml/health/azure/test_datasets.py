@@ -12,6 +12,7 @@ from azureml.core import Dataset
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml._restclient.exceptions import ServiceException
 from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
 from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
@@ -139,7 +140,11 @@ def test_get_dataset() -> None:
     # from previous runs of this test)
     try:
         existing_dataset = Dataset.get_by_name(workspace, name=tiny_dataset)
-        existing_dataset.unregister_all_versions()
+        try:
+            existing_dataset.unregister_all_versions()
+        except ServiceException:
+            # TODO Sometimes unregister_all_versions() raises a ServiceException.
+            pass
     except Exception as ex:
         assert "Cannot find dataset registered" in str(ex)
     dataset = get_or_create_dataset(workspace=workspace,
@@ -148,8 +153,12 @@ def test_get_dataset() -> None:
     assert isinstance(dataset, FileDataset)
     # We should now be able to get that dataset without special means
     dataset2 = Dataset.get_by_name(workspace, name=tiny_dataset)
-    # Delete the dataset again
-    dataset2.unregister_all_versions()
+    try:
+        # Delete the dataset again
+        dataset2.unregister_all_versions()
+    except ServiceException:
+        # TODO Sometimes unregister_all_versions() raises a ServiceException.
+        pass
 
 
 def test_dataset_keys() -> None:

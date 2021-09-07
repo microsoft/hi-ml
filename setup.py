@@ -10,7 +10,9 @@ https://packaging.python.org/guides/distributing-packages-using-setuptools/
 """
 
 import os
+from math import floor
 import pathlib
+from random import random
 from setuptools import setup, find_packages  # type: ignore
 
 
@@ -29,7 +31,7 @@ version = ''
 # See also:
 # https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
 # https://github.com/pypa/gh-action-pypi-publish
-GITHUB_REF_TAG_COMMIT = 'refs/tags/'
+GITHUB_REF_TAG_COMMIT = 'refs/tags/v'
 
 github_ref = os.getenv('GITHUB_REF')
 if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
@@ -41,8 +43,14 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 # https://www.python.org/dev/peps/pep-0440/#post-releases
 # it is necessary here to avoid duplicate packages in Test.PyPI.
 if not version:
-    build_number = os.getenv('GITHUB_RUN_NUMBER', "1")
-    version = '0.1.0.post' + build_number
+    # TODO: Replace this with more principled package version management for the package wheels built during local test
+    # runs, one which circumvents AzureML's apparent package caching:
+    build_number = os.getenv('GITHUB_RUN_NUMBER')
+    if build_number:
+        version = '0.1.0.post' + build_number
+    else:
+        default_random_version_number = floor(random() * 10_000_000_000)
+        version = f'0.1.0.post{str(default_random_version_number)}'
 
 (here / 'latest_version.txt').write_text(version)
 
@@ -51,10 +59,12 @@ install_requires = (here / 'run_requirements.txt').read_text().split("\n")
 # Remove any whitespace and blank lines
 install_requires = [line.strip() for line in install_requires if line.strip()]
 
+description = 'Microsoft Health Intelligence package to elevate and monitor scripts to an AzureML workspace'
+
 setup(
     name='hi-ml',
     version=version,
-    description='Microsoft Health Intelligence AzureML helpers',
+    description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/microsoft/hi-ml',
@@ -73,4 +83,10 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
+    entry_points={
+        'console_scripts': [
+            'run-tensorboard = health.azure.run_tensorboard:main',
+            'download-aml-run = health.azure.download_aml_run:main'
+        ]
+    }
 )
