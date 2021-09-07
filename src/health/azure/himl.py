@@ -32,9 +32,6 @@ from health.azure.azure_util import (create_python_environment, create_run_recov
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
-logger = logging.getLogger('health.azure')
-logger.setLevel(logging.DEBUG)
-
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
