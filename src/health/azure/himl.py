@@ -390,13 +390,6 @@ def submit_to_azure_if_needed(  # type: ignore
         else:
             raise ValueError("No workspace config file given, nor can we find one.")
 
-    if workspace_config_path is None:
-        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
-        if workspace_config_path:
-            logging.info(f"Using the workspace config path found at {str(workspace_config_path.absolute())}")
-        else:
-            raise ValueError("No workspace config file given, nor can we find one.")
-
     conda_environment_file = _str_to_path(conda_environment_file)
     if conda_environment_file is None:
         conda_environment_file = _find_file(CONDA_ENVIRONMENT_FILE)
