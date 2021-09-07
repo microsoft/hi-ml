@@ -35,8 +35,8 @@ logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
 
 RUN_RECOVERY_FILE = "most_recent_run.txt"
-WORKSPACE_CONFIG_JSON = "config.json"
 CONDA_ENVIRONMENT_FILE = "environment.yml"
+WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
 OUTPUT_FOLDER = "outputs"
