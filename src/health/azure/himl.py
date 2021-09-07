@@ -34,8 +34,8 @@ from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dat
 logger = logging.getLogger('health.azure')
 logger.setLevel(logging.DEBUG)
 
-RUN_RECOVERY_FILE = "most_recent_run.txt"
 CONDA_ENVIRONMENT_FILE = "environment.yml"
+RUN_RECOVERY_FILE = "most_recent_run.txt"
 WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
 RUN_CONTEXT = Run.get_context()
