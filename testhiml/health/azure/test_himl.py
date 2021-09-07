@@ -827,7 +827,8 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         for output_dataset in output_datasets]
     script_output_datasets = ',\n        '.join(output_file_names)
 
-    directory_print = "print(f\"{str(input_folder_name)} contains these files: {input_folder_name.glob('*.txt')}\")"
+    directory_exists = "print(f\"{str(input_folder_name)} contains these files: {input_folder_name.glob('*.txt')}\")"
+    directory_not_exists = "print(f\"{str(input_folder_name)} does not exist.\")"
 
     extra_options: Dict[str, str] = {
         'prequel': """
@@ -858,7 +859,9 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     ]
     for i, (filename, input_blob_name, input_folder_name) in enumerate(input_datasets):
         if input_folder_name.exists():
-            {directory_print}
+            {directory_exists}
+        else:
+            {directory_not_exists}
         input_folder = run_info.input_datasets[i] or input_folder_name / input_blob_name
         for j, (output_blob_name, output_folder_name) in enumerate(output_datasets):
             output_folder = run_info.output_datasets[j] or output_folder_name / output_blob_name
