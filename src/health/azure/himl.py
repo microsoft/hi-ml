@@ -222,7 +222,6 @@ def submit_run(workspace: Workspace,
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
     user_agent.append(SDK_NAME, SDK_VERSION)
-
     run = experiment.submit(script_run_config)
     tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
     run.set_tags(tags)
