@@ -27,7 +27,7 @@ def determine_output_dir_name(args: Namespace, run_id_source: AzureRunIdSource, 
         output_path = output_dir / Path(args.latest_run_path).stem
     elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
         output_path = output_dir / args.run_recovery_ids.replace(":", "")
-    elif run_id_source == AzureRunIdSource.RUN_ID:
+    else:  # run_id_source == AzureRunIdSource.RUN_ID:
         output_path = output_dir / args.run_ids
 
     output_path.mkdir(exist_ok=True)
