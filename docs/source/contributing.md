@@ -11,6 +11,20 @@ If in doubt, reach out to the core `hi-ml` team before starting your work.
 
 Please look through the existing folder structure to find a good home for your contribution.
 
+## Issues
+If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page. 
+If no existing issue exists, please open a new one. Be sure to include 
+- A descriptive title
+- Expected behaviour (including a code sample if possible)
+- Actual behavior
+
+## Submitting a Pull Request
+If you'd like to submit a PR to the codebase, please ensure you:
+- Include a brief description
+- Link to an issue, if relevant
+- Write unit tests for the code - see below for details.
+- Add appropriate documentation for any new code that you introduce
+
 ## Code style
 
 - We use `flake8` as a linter, and `mypy` for static typechecking. Both tools run as part of the PR build, and must run
@@ -39,5 +53,5 @@ function.
 specific cloud features. If required, use `unittest.mock` to enable the tests to run without cloud. 
 - DO run all unit tests on your dev box before submitting your changes. The test suite is designed to pass completely
 also outside of cloud builds.
-- DO NOT rely only on the test builds in the cloud. Cloud builds trigger AzureML runs on GPU 
-machines that have a far higher CO2 footprint than your dev box.
+- DO NOT rely only on the test builds in the cloud (i.e., run test locally before submitting). 
+Cloud builds trigger AzureML runs on GPU machines that have a far higher CO2 footprint than your dev box.
