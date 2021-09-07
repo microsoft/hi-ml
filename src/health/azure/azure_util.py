@@ -418,18 +418,14 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
     :raises ValueError: If none of expected args for retrieving Runs are provided
     :return: The source from which to extract the latest Run id(s)
     """
-    if "latest_run_path" in args:
-        if args.latest_run_path is not None:
-            return AzureRunIdSource.LATEST_RUN_FILE
-    if "experiment_name" in args:
-        if args.experiment_name is not None:
-            return AzureRunIdSource.EXPERIMENT_LATEST
-    if "run_recovery_ids" in args:
-        if args.run_recovery_ids is not None:
-            return AzureRunIdSource.RUN_RECOVERY_ID
-    if "run_ids" in args:
-        if args.run_ids is not None:
-            return AzureRunIdSource.RUN_ID
+    if "latest_run_path" in args and args.latest_run_path is not None:
+        return AzureRunIdSource.LATEST_RUN_FILE
+    if "experiment_name" in args and args.experiment_name is not None:
+        return AzureRunIdSource.EXPERIMENT_LATEST
+    if "run_recovery_ids" in args and args.run_recovery_ids is not None:
+        return AzureRunIdSource.RUN_RECOVERY_ID
+    if "run_ids" in args and args.run_ids is not None:
+        return AzureRunIdSource.RUN_ID
     raise ValueError("One of latest_run_path, experiment_name, run_recovery_ids or run_ids must be provided")
 
 
