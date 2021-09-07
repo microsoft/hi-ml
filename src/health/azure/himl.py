@@ -1,4 +1,4 @@
-#  ------------------------------------------------------------------------------------------
+#  ---------    ---------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
@@ -399,7 +399,6 @@ def submit_to_azure_if_needed(  # type: ignore
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
                                           script_params=script_params)
-    # TODO: Test that run_config is really set and used when submitting
     script_run_config.run_config = run_config
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
