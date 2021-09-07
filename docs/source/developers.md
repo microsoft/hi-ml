@@ -41,6 +41,14 @@ The repository contains a makefile with definitions for common operations.
 * `make pip`: Install all packages for running and testing in the current interpreter.
 * `make conda`: Update the hi-ml Conda environment and activate it
 
+## Building documentation
+To build the sphinx documentation, you must have sphinx and related packages installed 
+(see [build_requirements.txt](build_requirements.txt)). Then run:
+```
+cd docs
+make
+```
+
 
 ## Setting up your AzureML workspace
 
