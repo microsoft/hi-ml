@@ -434,22 +434,22 @@ def test_determine_run_id_source(tmp_path: Path) -> None:
     parser.add_argument("--run_recovery_ids", type=str)
     parser.add_argument("--run_ids", type=str)
 
-    # If run ids provided, expect source to be that
-    mock_args = parser.parse_args(["--run_ids", "run1234"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_ID
-
-    # If run recovery id is provided, expect source to be that
-    mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run1234"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_ID
+    # If latest run path provided, expect source to be latest run file
+    mock_latest_run_path = tmp_path / "most_recent_run.txt"
+    mock_args = parser.parse_args(["--latest_run_path", str(mock_latest_run_path)])
+    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
 
     # If experiment name is provided, expect source to be experiment
     mock_args = parser.parse_args(["--experiment_name", "fake_experiment"])
     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.EXPERIMENT_LATEST
 
-    # If latest run path provided, expect source to be latest run file
-    mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    mock_args = parser.parse_args(["--latest_run_path", str(mock_latest_run_path)])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
+    # If run recovery id is provided, expect source to be that
+    mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run1234"])
+    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_ID
+
+    # If run ids provided, expect source to be that
+    mock_args = parser.parse_args(["--run_ids", "run1234"])
+    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_ID
 
     # if none are provided, raise ValueError
     mock_args = parser.parse_args([])
