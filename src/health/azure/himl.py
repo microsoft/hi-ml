@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
+from azureml._base_sdk_common import user_agent
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
@@ -31,9 +32,6 @@ from health.azure.azure_util import (create_python_environment, create_run_recov
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
-logger = logging.getLogger('health.azure')
-logger.setLevel(logging.DEBUG)
-
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 WORKSPACE_CONFIG_JSON = "config.json"
 AZUREML_COMMANDLINE_FLAG = "--azureml"
@@ -41,6 +39,8 @@ RUN_CONTEXT = Run.get_context()
 OUTPUT_FOLDER = "outputs"
 LOGS_FOLDER = "logs"
 AML_IGNORE_FILE = ".amlignore"
+SDK_NAME = "innereye"
+SDK_VERSION = "2.0"
 
 PathOrString = Union[Path, str]
 
@@ -218,6 +218,7 @@ def submit_run(workspace: Workspace,
     """
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
     experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
+    user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
     tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
     run.set_tags(tags)
@@ -398,7 +399,6 @@ def submit_to_azure_if_needed(  # type: ignore
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
                                           script_params=script_params)
-    # TODO: Test that run_config is really set and used when submitting
     script_run_config.run_config = run_config
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
