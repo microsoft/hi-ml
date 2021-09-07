@@ -11,13 +11,6 @@ If in doubt, reach out to the core `hi-ml` team before starting your work.
 
 Please look through the existing folder structure to find a good home for your contribution.
 
-## Issues
-If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page. 
-If no existing issue exists, please open a new one. Be sure to include 
-- A descriptive title
-- Expected behaviour (including a code sample if possible)
-- Actual behavior
-
 ## Submitting a Pull Request
 If you'd like to submit a PR to the codebase, please ensure you:
 - Include a brief description

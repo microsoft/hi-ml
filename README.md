@@ -6,18 +6,12 @@ This toolbox aims at providing low-level and high-level building blocks for Mach
 practitioners. It helps to simplify and streamline work on deep learning models for healthcare and life sciences,
 by providing tested components (data loaders, pre-processing), deep learning models, and cloud integration tools.
 
+This toolbox is still in very early stages, and presently offers only the cloud integration components. ML components
+will be added in the next few weeks.
 
 ## Getting started
 
 * Install from `pypi` via `pip`, by running `pip install hi-ml`
-
-
-## Building documentation
-To build the sphinx documentation, you must have sphinx and related packages installed (see [build_requirements.txt](build_requirements.txt)). Then run:
-```
-cd docs
-make html
-```
 
 
 ## Using the AzureML integration layer
@@ -101,6 +95,24 @@ and while the job writes data to that folder, upload it to blob storage, in the 
 To be filled in:
 * `default_datastore`
 * Complex dataset setup.
+
+## Issues
+If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page. 
+If no existing issue exists, please open a new one. Be sure to include 
+- A descriptive title
+- Expected behaviour (including a code sample if possible)
+- Actual behavior
+
+
+## Contributing
+We welcome all contributions that help us achieve our aim of speeding up ML/AI research in health and life sciences.
+Examples of contributions are
+* Data loaders for specific health & life sciences data
+* Network architectures and components for deep learning models
+* Tools to analyze and/or visualize data
+* ...
+
+Please check the [detailed page about contributions](docs/source/contributing.md).
 
 ## Licensing
 
