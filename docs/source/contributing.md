@@ -9,6 +9,7 @@ Examples of contributions are
 All contributions to the toolbox need to come with unit tests, and will be reviewed when a Pull Request (PR) is started.
 If in doubt, reach out to the core `hi-ml` team before starting your work.
 
+Please look through the existing folder structure to find a good home for your contribution.
 
 ## Code style
 
