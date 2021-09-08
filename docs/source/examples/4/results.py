@@ -11,7 +11,8 @@ from health.azure.datasets import get_datastore
 def main() -> None:
     path = Path(__file__).parent.resolve()
 
-    workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+    workspace = himl.get_workspace(aml_workspace=None,
+                                   workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
 
     datastore = get_datastore(workspace=workspace,
                               datastore_name="himldatasets")

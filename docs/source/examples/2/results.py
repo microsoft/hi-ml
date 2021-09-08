@@ -11,7 +11,8 @@ from health.azure.azure_util import get_most_recent_run
 def main() -> None:
     path = Path(__file__).parent.resolve()
 
-    workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+    workspace = himl.get_workspace(aml_workspace=None,
+                                   workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
 
     run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                               workspace=workspace)
