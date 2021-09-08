@@ -73,6 +73,35 @@ When running locally this will create a subfolder called `outputs` and write the
 
 A sample script [examples/3/results.py](examples/3/results.py) demonstrates how to programmatically download the output file.
 
+## Output datasets
+
+The fourth sample [examples/4/sample.py](examples/4/sample.py) demonstrates output dataset handling when running on AzureML.
+
+In this case, the following parameters are added to `submit_to_azure_if_needed`:
+
+```python
+        default_datastore="himldatasets",
+        output_datasets=["himl_sample4_output"],
+```
+
+The `default_datastore` is required if using the simplest configuration for an output dataset, to just use the blob container name. There is an alternative that doesn't require the `default_datastore` and allows a different datastore for each dataset:
+
+```python
+        output_datasets=[DatasetConfig(name="himl_sample4_output", datastore="himldatasets")]
+```
+
+Now the output folder is constructed as follows:
+
+```python
+    output_folder = run_info.output_datasets[0] or Path("outputs") / "himl_sample4_output"
+    output_folder.mkdir(parents=True, exist_ok=True)
+    output = output_folder / args.output
+```
+
+When running in AzureML `run_info.output_datasets[0]` will be populated using the new parameter and the output will be written to that blob storage. When running locally `run_info.output_datasets[0]` will be None and a local folder will be created and used.
+
+A sample script [examples/4/results.py](examples/4/results.py) demonstrates how to programmatically download the output dataset file.
+
 ## Controlling when to submit to AzureML and when not
 
 By default, the `hi-ml` package assumes that you supply a commandline argument `--azureml` (that can be anywhere on 
