@@ -607,12 +607,12 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
     if run_target == RunTarget.LOCAL:
         output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
                                             run_target == RunTarget.LOCAL,
-                                            suppress_config_creation=run_target == RunTarget.AZUREML)
+                                            suppress_config_creation=False)
         assert expected_output in output
     else:
         with pytest.raises(ValueError) as e:
             render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL,
-                                       suppress_config_creation=run_target == RunTarget.AZUREML)
+                                       suppress_config_creation=True)
         assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in str(e.value)
 
 
