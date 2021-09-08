@@ -1,5 +1,52 @@
 # Examples
 
+## Basic integration
+
+The first sample [examples/1/sample.py](examples/1/sample.py) is a script that prints all the prime numbers up to (but not including) a target. It is simply intended to demonstrate a long running operation, that we want to run in Azure. It takes an optional command line argument of the target value and prints the primes to the console, using e.g.
+
+```bash
+cd examples/1
+python sample.py -n 103
+```
+
+The second sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.yml) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
+
+```python
+from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+```
+
+and add the following at the beginning of main:
+
+```python
+    _ = submit_to_azure_if_needed(
+        compute_cluster_name="lite-testing-ds2",
+        workspace_config_path=WORKSPACE_CONFIG_JSON,
+        conda_environment_file=Path("environment.yml"),
+        wait_for_completion=True,
+        wait_for_completion_show_output=True)
+```
+
+If this script is invoked as the first sample, e.g.
+
+```bash
+cd examples/2
+python sample.py -n 103
+```
+
+then the output will be exactly the same. But if the script is invoked as follows:
+
+```bash
+cd examples/2
+python sample.py -n 103 --azureml
+```
+
+then the function `submit_to_azure_if_needed` will do all the required actions to run this script in AzureML and exit. Note that:
+
+* code after `submit_to_azure_if_needed` is not run.
+* the print statement prints to the AzureML console output and is available in the `Output + logs` tab of the experiment in the `70_driver_log.txt` file.
+* the command line arguments are passed through (apart from --azureml) when running in AzureML.
+* a new file: `most_recent_run.txt` will be created containing an identifier of this AzureML run.
+
 ## Controlling when to submit to AzureML and when not
 
 By default, the `hi-ml` package assumes that you supply a commandline argument `--azureml` (that can be anywhere on 
