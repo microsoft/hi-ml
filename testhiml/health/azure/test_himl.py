@@ -35,6 +35,7 @@ from testhiml.health.azure.util import DEFAULT_DATASTORE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
+GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 
 logger = logging.getLogger('test.health.azure')
 logger.setLevel(logging.DEBUG)
@@ -54,9 +55,11 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
                 workspace_config_path=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
-                conda_environment_file=Path("env.yaml"),
                 snapshot_root_directory=Path(__file__).parent)
-        assert "Cannot glean workspace config from parameters" in str(ex)
+        # N.B. This assert may fail when run locally since we may find a workspace_config_path through the call to
+        # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
+        if _is_running_in_github_pipeline():
+            assert "No workspace config file given, nor can we find one" in str(ex)
     with mock.patch("sys.argv", [""]):
         result = himl.submit_to_azure_if_needed(
             entry_script=Path(__file__),
@@ -65,6 +68,13 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         assert isinstance(result, himl.AzureRunInfo)
         assert not result.is_running_in_azure
         assert result.run is None
+
+
+def _is_running_in_github_pipeline() -> bool:
+    """
+    :return: Is the test running in a pipeline/action on GitHub, i.e. not locally?
+    """
+    return GITHUB_SHIBBOLETH in os.environ
 
 
 @pytest.mark.fast
@@ -416,6 +426,25 @@ def test_str_to_path(tmp_path: Path) -> None:
     assert himl._str_to_path(tmp_path) == tmp_path
     assert himl._str_to_path(str(tmp_path)) == tmp_path
 
+
+@pytest.mark.fast
+def test_find_file(tmp_path: Path) -> None:
+    file_name = "some_file.json"
+    file = tmp_path / file_name
+    file.touch()
+    python_root = tmp_path / "python_root"
+    python_root.mkdir(exist_ok=False)
+    start_path = python_root / "starting_directory"
+    start_path.mkdir(exist_ok=False)
+    where_are_we_now = Path.cwd()
+    os.chdir(start_path)
+    found_file = himl._find_file(file_name, False)
+    assert found_file
+    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root.absolute())}):
+        found_file = himl._find_file(file_name)
+        assert not found_file
+    os.chdir(where_are_we_now)
+
 # endregion Small fast local unit tests
 
 
@@ -457,9 +486,12 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     return p.wait(), stdout_lines
 
 
-def render_and_run_test_script(path: Path, run_target: RunTarget,
-                               extra_options: Dict[str, str], extra_args: List[str],
-                               expected_pass: bool) -> str:
+def render_and_run_test_script(path: Path,
+                               run_target: RunTarget,
+                               extra_options: Dict[str, str],
+                               extra_args: List[str],
+                               expected_pass: bool,
+                               suppress_config_creation: bool = False) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -468,6 +500,7 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
     :param extra_options: Extra options for template rendering.
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
+    :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml package version, if specified in an environment variable.
@@ -521,22 +554,28 @@ def render_and_run_test_script(path: Path, run_target: RunTarget,
 
     env = dict(os.environ.items())
 
-    with check_config_json(path):
+    def spawn() -> Tuple[int, List[str], Workspace]:
         code, stdout = spawn_and_monitor_subprocess(
             process=sys.executable,
             args=score_args,
             cwd=path,
             env=env)
         workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+        return code, stdout, workspace
+
+    if suppress_config_creation:
+        code, stdout, workspace = spawn()
+    else:
+        with check_config_json(path):
+            code, stdout, workspace = spawn()
     assert code == 0 if expected_pass else 1
     captured = "\n".join(stdout)
+
     if run_target == RunTarget.LOCAL or not expected_pass:
         assert EXPECTED_QUEUED not in captured
-
         return captured
     else:
         assert EXPECTED_QUEUED in captured
-
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
         assert run.status == "Completed"
@@ -564,12 +603,16 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL)
     expected_output = f"The message was: {message_guid}"
     if run_target == RunTarget.LOCAL:
+        output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                            run_target == RunTarget.LOCAL)
         assert expected_output in output
     else:
-        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in output
+        with pytest.raises(ValueError) as e:
+            render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, run_target == RunTarget.LOCAL,
+                                       suppress_config_creation=True)
+        assert "Cannot glean workspace config from parameters, and so not submitting to AzureML" in str(e.value)
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -839,5 +882,6 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
+
 
 # endregion Elevate to AzureML unit tests
