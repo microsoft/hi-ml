@@ -606,8 +606,7 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
     expected_output = f"The message was: {message_guid}"
     if run_target == RunTarget.LOCAL:
         output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
-                                            run_target == RunTarget.LOCAL,
-                                            suppress_config_creation=False)
+                                            run_target == RunTarget.LOCAL)
         assert expected_output in output
     else:
         with pytest.raises(ValueError) as e:
