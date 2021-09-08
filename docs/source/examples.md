@@ -47,6 +47,8 @@ then the function `submit_to_azure_if_needed` will do all the required actions t
 * the command line arguments are passed through (apart from --azureml) when running in AzureML.
 * a new file: `most_recent_run.txt` will be created containing an identifier of this AzureML run.
 
+A sample script [examples/2/results.py](examples/2/results.py) demonstrates how to programmatically download the driver log file.
+
 ## Output files
 
 The third sample [examples/3/sample.py](examples/3/sample.py) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
@@ -69,7 +71,7 @@ Make the following additions:
 
 When running locally this will create a subfolder called `outputs` and write the output to a file there. When running in AzureML the output will be available in a file in the Experiment.
 
-
+A sample script [examples/3/results.py](examples/3/results.py) demonstrates how to programmatically download the output file.
 
 ## Controlling when to submit to AzureML and when not
 
