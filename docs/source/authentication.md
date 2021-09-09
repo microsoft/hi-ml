@@ -5,7 +5,7 @@
 The `hi-ml` package uses two possible ways of authentication with Azure. 
 The default is what is called "Interactive Authentication". When you submit a job to Azure via `hi-ml`, this will
 use the credentials you used in the browser when last logging into Azure. If there are no credentials yet, you should
-see instructions printed out to the console about how to log in.
+see instructions printed out to the console about how to log in using your browser.
 
 Alternatively, you can use a so-called Service Principal. 
 
@@ -17,7 +17,7 @@ training runs from code, for example from within an Azure pipeline. You can find
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals).
 
 If you would like to use Service Principal, you will need to create it in Azure first, and then store 3 pieces
-of information in 3 environment variables - please see the instructions below. When all the 3 environment variables are in place, 
+of information in 3 environment variables — please see the instructions below. When all the 3 environment variables are in place, 
 your Azure submissions will automatically use the Service Principal to authenticate.
 
 
