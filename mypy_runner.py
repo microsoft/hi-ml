@@ -53,17 +53,17 @@ def main() -> int:
                         help="List of files to run mypy on. "
                              "Can be used along with `dirs_recursive` and `dirs_non_recursive`. "
                              "If none of `files`, `dirs_recursive` or `dirs_non_recursive` are provided, "
-                             "run on the default set of files for the InnerEye repository")
+                             "run on the default set of files for the HI-ML repository")
     parser.add_argument("-D", "--dirs_recursive", type=str, nargs='+', required=False, default=None,
                         help="List of directories to run mypy on (recursively). "
                              "Can be used along with `files` and `dirs_non_recursive`. "
                              "If none of `files`, `dirs_recursive` or `dirs_non_recursive` are provided, "
-                             "run on the default set of files for the InnerEye repository")
+                             "run on the default set of files for the HI-ML repository")
     parser.add_argument("-d", "--dirs_non_recursive", type=str, nargs='+', required=False, default=None,
                         help="Look for python files in these directories (non-recursive) to run mypy on. "
                              "Can be used along with `files` and `dirs_recursive`. "
                              "If none of `files`, `dirs_recursive` or `dirs_non_recursive` are provided, "
-                             "run on the default set of files for the InnerEye repository")
+                             "run on the default set of files for the HI-ML repository")
     parser.add_argument("-m", "--mypy", type=str, required=False, default=None,
                         help="Path to mypy executable. If not provided, autodetect mypy executable.")
     args = parser.parse_args()

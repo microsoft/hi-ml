@@ -25,15 +25,18 @@ from azureml.core.conda_dependencies import CondaDependencies
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
-SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
-SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
-TENANT_ID = "HIML_TENANT_ID"
-RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
-SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
-WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
+
 # The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
 # name, hence version will always be fixed
 ENVIRONMENT_VERSION = "1"
+
+# Environment variables used for authentication
+ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
+ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
+ENV_TENANT_ID = "HIML_TENANT_ID"
+ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
+ENV_SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
+ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
@@ -128,15 +131,16 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
     present
     """
-    service_principal_id = get_secret_from_environment(SERVICE_PRINCIPAL_ID, allow_missing=True)
-    tenant_id = get_secret_from_environment(TENANT_ID, allow_missing=True)
-    service_principal_password = get_secret_from_environment(SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
+    service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
+    tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
+    service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
             service_principal_id=service_principal_id,
             service_principal_password=service_principal_password)
-    logging.info("Using interactive login to Azure. To use Service Principal authentication")
+    logging.info("Using interactive login to Azure. To use Service Principal authentication, set the environment "
+                 f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}")
     return InteractiveLoginAuthentication()
 
 
@@ -418,18 +422,14 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
     :raises ValueError: If none of expected args for retrieving Runs are provided
     :return: The source from which to extract the latest Run id(s)
     """
-    if "latest_run_path" in args:
-        if args.latest_run_path is not None:
-            return AzureRunIdSource.LATEST_RUN_FILE
-    if "experiment_name" in args:
-        if args.experiment_name is not None:
-            return AzureRunIdSource.EXPERIMENT_LATEST
-    if "run_recovery_ids" in args:
-        if args.run_recovery_ids is not None:
-            return AzureRunIdSource.RUN_RECOVERY_ID
-    if "run_ids" in args:
-        if args.run_ids is not None:
-            return AzureRunIdSource.RUN_ID
+    if "latest_run_path" in args and args.latest_run_path is not None:
+        return AzureRunIdSource.LATEST_RUN_FILE
+    if "experiment_name" in args and args.experiment_name is not None:
+        return AzureRunIdSource.EXPERIMENT_LATEST
+    if "run_recovery_ids" in args and args.run_recovery_ids is not None:
+        return AzureRunIdSource.RUN_RECOVERY_ID
+    if "run_ids" in args and args.run_ids is not None:
+        return AzureRunIdSource.RUN_ID
     raise ValueError("One of latest_run_path, experiment_name, run_recovery_ids or run_ids must be provided")
 
 

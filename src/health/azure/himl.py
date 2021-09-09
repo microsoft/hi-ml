@@ -33,15 +33,19 @@ from health.azure.azure_util import (create_python_environment, create_run_recov
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
-RUN_RECOVERY_FILE = "most_recent_run.txt"
-WORKSPACE_CONFIG_JSON = "config.json"
-AZUREML_COMMANDLINE_FLAG = "--azureml"
-RUN_CONTEXT = Run.get_context()
-OUTPUT_FOLDER = "outputs"
-LOGS_FOLDER = "logs"
+logger = logging.getLogger('health.azure')
+logger.setLevel(logging.DEBUG)
+
 AML_IGNORE_FILE = ".amlignore"
+AZUREML_COMMANDLINE_FLAG = "--azureml"
+CONDA_ENVIRONMENT_FILE = "environment.yml"
+LOGS_FOLDER = "logs"
+OUTPUT_FOLDER = "outputs"
+RUN_CONTEXT = Run.get_context()
+RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
+WORKSPACE_CONFIG_JSON = "config.json"
 
 PathOrString = Union[Path, str]
 
@@ -265,12 +269,12 @@ def submit_to_azure_if_needed(  # type: ignore
         workspace_config_path: Optional[PathOrString] = None,
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
-        conda_environment_file: Optional[Path] = None,
+        conda_environment_file: Optional[PathOrString] = None,
         aml_environment_name: str = "",
         experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
-        private_pip_wheel_path: Optional[Path] = None,
+        private_pip_wheel_path: Optional[PathOrString] = None,
         docker_base_image: str = "",
         docker_shm_size: str = "",
         ignored_folders: Optional[List[PathOrString]] = None,
@@ -385,6 +389,17 @@ def submit_to_azure_if_needed(  # type: ignore
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
+    if workspace_config_path is None:
+        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
+        if workspace_config_path:
+            logging.info(f"Using the workspace config path found at {str(workspace_config_path.absolute())}")
+        else:
+            raise ValueError("No workspace config file given, nor can we find one.")
+
+    conda_environment_file = _str_to_path(conda_environment_file)
+    if conda_environment_file is None:
+        conda_environment_file = _find_file(CONDA_ENVIRONMENT_FILE)
+
     workspace = get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
@@ -395,7 +410,7 @@ def submit_to_azure_if_needed(  # type: ignore
         conda_environment_file=conda_environment_file,
         environment_variables=environment_variables,
         pip_extra_index_url=pip_extra_index_url,
-        private_pip_wheel_path=private_pip_wheel_path,
+        private_pip_wheel_path=_str_to_path(private_pip_wheel_path),
         docker_base_image=docker_base_image,
         docker_shm_size=docker_shm_size,
         num_nodes=num_nodes,
@@ -430,6 +445,37 @@ def submit_to_azure_if_needed(  # type: ignore
     if after_submission is not None:
         after_submission(run)
     exit(0)
+
+
+def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
+    """
+    Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
+    the PYTHONPATH root (defaults to stopping).
+
+    :param file_name: The fine name of the file to find.
+    :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
+    :return: The path to the file, or None if it cannot be found.
+    """
+    def return_file_or_parent(
+            start_at: Path,
+            file_name: str,
+            stop_at_pythonpath: bool,
+            pythonpaths: List[Path]) -> Optional[Path]:
+        for child in start_at.iterdir():
+            if child.is_file() and child.name == file_name:
+                return child
+        if start_at.parent == start_at or start_at in pythonpaths:
+            return None
+        return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
+
+    pythonpaths: List[Path] = []
+    if 'PYTHONPATH' in os.environ:
+        pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
+    return return_file_or_parent(
+        start_at=Path.cwd(),
+        file_name=file_name,
+        stop_at_pythonpath=stop_at_pythonpath,
+        pythonpaths=pythonpaths)
 
 
 def _write_run_recovery_file(run: Run) -> None:
