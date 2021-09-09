@@ -154,6 +154,10 @@ Now the input folder is constructed as follows:
 When running in AzureML `run_info.input_datasets[0]` will be populated using the new parameter and the input will be mounted from blob storage. When running locally `run_info.input_datasets[0]` will be None and a local folder should be populated and used.
 
 
+## Hyperdrive
+
+
+
 ## Controlling when to submit to AzureML and when not
 
 By default, the `hi-ml` package assumes that you supply a commandline argument `--azureml` (that can be anywhere on 

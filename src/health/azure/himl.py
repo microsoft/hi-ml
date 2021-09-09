@@ -221,7 +221,11 @@ def submit_run(workspace: Workspace,
     experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
     user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
-    tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
+    if tags is None:
+        if isinstance(script_run_config, ScriptRunConfig):
+            tags = {"commandline_args": " ".join(script_run_config.arguments)}
+        elif isinstance(script_run_config, HyperDriveConfig):
+            tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
     run.set_tags(tags)
 
     _write_run_recovery_file(run)
