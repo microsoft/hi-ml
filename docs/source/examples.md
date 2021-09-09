@@ -64,7 +64,6 @@ Make the following additions:
 
     ...
 
-    run_info.output_folder.mkdir(exist_ok=True)
     output = run_info.output_folder / args.output
     output.write_text("\n".join(map(str, primes)))
 ```

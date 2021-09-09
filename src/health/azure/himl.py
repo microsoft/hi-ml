@@ -376,13 +376,19 @@ def submit_to_azure_if_needed(  # type: ignore
             for k, v in environment_variables.items():
                 os.environ[k] = v
 
+        output_folder = Path.cwd() / OUTPUT_FOLDER
+        output_folder.mkdir(exist_ok=True)
+
+        logs_folder = Path.cwd() / LOGS_FOLDER
+        logs_folder.mkdir(exist_ok=True)
+
         return AzureRunInfo(
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=None,
             is_running_in_azure=False,
-            output_folder=Path.cwd() / OUTPUT_FOLDER,
-            logs_folder=Path.cwd() / LOGS_FOLDER
+            output_folder=output_folder,
+            logs_folder=logs_folder
         )
 
     if snapshot_root_directory is None:
