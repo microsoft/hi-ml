@@ -5,3 +5,6 @@
 
 from health.azure.datasets import DatasetConfig
 from health.azure.himl import submit_to_azure_if_needed
+
+__all__ = ["DatasetConfig",
+           "submit_to_azure_if_needed"]
