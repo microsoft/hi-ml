@@ -1,5 +1,4 @@
-class Path(object):
-    pass# Datasets
+# Datasets
 
 ## Key concepts
 We'll first outline a few concepts that are helpful for understanding datasets.

@@ -12,7 +12,7 @@ Alternatively, you can use a so-called Service Principal.
 
 ## Service Principal Authentication
 
-A Service Principal is a form of generic identity or machine account.a This is essential if you would like to submit
+A Service Principal is a form of generic identity or machine account. This is essential if you would like to submit
 training runs from code, for example from within an Azure pipeline. You can find more information about application registrations and service principal objects
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals).
 
