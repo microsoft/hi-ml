@@ -155,7 +155,63 @@ When running in AzureML `run_info.input_datasets[0]` will be populated using the
 
 ## Hyperdrive
 
+The sample [examples/8/sample.py](examples/8/sample.py) demonstrates adding hyperparameter tuning. This shows the same hyperparameter search as in the [AzureML sample](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train-hyperparameter-tune-deploy-with-sklearn.ipynb).
 
+Make the following additions:
+
+```python
+from azureml.core import ScriptRunConfig
+from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, choice
+from azureml.train.hyperdrive.sampling import RandomParameterSampling
+
+    ...
+
+def main() -> None:
+    param_sampling = RandomParameterSampling({
+        "--kernel": choice('linear', 'rbf', 'poly', 'sigmoid'),
+        "--penalty": choice(0.5, 1, 1.5)
+    })
+
+    hyperdrive_config = HyperDriveConfig(
+        run_config=ScriptRunConfig(source_directory=""),
+        hyperparameter_sampling=param_sampling,
+        primary_metric_name='Accuracy',
+        primary_metric_goal=PrimaryMetricGoal.MAXIMIZE,
+        max_total_runs=12,
+        max_concurrent_runs=4)
+
+    run_info = submit_to_azure_if_needed(
+        ...
+        hyperdrive_config=hyperdrive_config)
+```
+
+Note that this does not make sense to run locally, it should always be run in AzureML. When invoked with:
+
+```bash
+cd examples/8
+python sample.py --azureml
+```
+
+this will perform a Hyperdrive run in AzureML, i.e. there will be 12 child runs, each randomly drawing from the parameter sample space. AzureML can plot the metrics from the child runs, but to do that, some small modifications are required.
+
+Add in:
+
+```python
+    run = run_info.run
+
+    ...
+
+    args = parser.parse_args()
+    run.log('Kernel type', np.str(args.kernel))
+    run.log('Penalty', np.float(args.penalty))
+
+    ...
+
+    print('Accuracy of SVM classifier on test set: {:.2f}'.format(accuracy))
+    run.log('Accuracy', np.float(accuracy))
+```
+
+and these metrics will be displayed on the child runs tab in the Experiment page on AzureML.
 
 ## Controlling when to submit to AzureML and when not
 
