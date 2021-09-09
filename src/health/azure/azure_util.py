@@ -137,7 +137,8 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
             tenant_id=tenant_id,
             service_principal_id=service_principal_id,
             service_principal_password=service_principal_password)
-    logging.info("Using interactive login to Azure. To use Service Principal authentication")
+    logging.info("Using interactive login to Azure. To use Service Principal authentication, set the environment "
+                 f"variables {SERVICE_PRINCIPAL_ID}, {SERVICE_PRINCIPAL_PASSWORD}, and {TENANT_ID}")
     return InteractiveLoginAuthentication()
 
 
