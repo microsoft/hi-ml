@@ -34,8 +34,9 @@ def main() -> None:
     print('Penalty:', np.float(args.penalty))
 
     # X -> features, y -> label
-    X = np.loadtxt(fname="inputs/X.csv", delimiter=',', skiprows=1)
-    y = np.loadtxt(fname="inputs/y.csv", dtype='str', delimiter=',', skiprows=1)
+    input_folder = Path("inputs")
+    X = np.loadtxt(fname=input_folder / "X.csv", delimiter=',', skiprows=1)
+    y = np.loadtxt(fname=input_folder / "y.csv", dtype='str', delimiter=',', skiprows=1)
 
     # dividing X, y into train and test data
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)

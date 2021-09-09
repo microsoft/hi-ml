@@ -87,6 +87,10 @@ In this case, the following parameters are added to `submit_to_azure_if_needed`:
 The `default_datastore` is required if using the simplest configuration for an output dataset, to just use the blob container name. There is an alternative that doesn't require the `default_datastore` and allows a different datastore for each dataset:
 
 ```python
+from health.azure.datasets import DatasetConfig
+
+    ...
+
         output_datasets=[DatasetConfig(name="himl_sample4_output", datastore="himldatasets")]
 ```
 
@@ -106,7 +110,7 @@ A sample script [examples/4/results.py](examples/4/results.py) demonstrates how 
 
 The sample [examples/5/sample.py](examples/5/sample.py) is modified from [https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py) to work with input csv files.
 
-To prepare the csv files, run the script:
+A sample script [examples/5/inputs.py](examples/5/inputs.py) is provided to prepare the csv files. Run the script:
 
 ```bash
 cd examples/5
@@ -115,9 +119,39 @@ python inputs.py
 
 this will download the Iris dataset and create two csv files.
 
-Because the files will be in the snapshot, this script can run in AzureML with only minimal modification as above, see The sample [examples/6/sample.py](examples/6/sample.py).
+Because the csv files will be in the snapshot, this script can run in AzureML with only minimal modification as above, see the sample [examples/6/sample.py](examples/6/sample.py). It is not ideal to have the sample csv files in the snapshot, it is better to put them into blob storage and use input datasets.
 
+A sample script [examples/7/inputs.py](examples/7/inputs.py) is provided to prepare the csv files and upload them to blob storage. Run the script:
 
+```bash
+cd examples/7
+python inputs.py
+```
+
+In this case, the following parameters are added to `submit_to_azure_if_needed`:
+
+```python
+        default_datastore="himldatasets",
+        input_datasets=["himl_sample7_input"],
+```
+
+The `default_datastore` is required if using the simplest configuration for an input dataset, to just use the blob container name. There are alternatives that do not require the `default_datastore` and allows a different datastore for each dataset, for example:
+
+```python
+from health.azure.datasets import DatasetConfig
+
+    ...
+
+        input_datasets=[DatasetConfig(name="himl_sample7_input", datastore="himldatasets"],
+```
+
+Now the input folder is constructed as follows:
+
+```python
+    input_folder = run_info.input_datasets[0] or Path("inputs")
+```
+
+When running in AzureML `run_info.input_datasets[0]` will be populated using the new parameter and the input will be mounted from blob storage. When running locally `run_info.input_datasets[0]` will be None and a local folder should be populated and used.
 
 
 ## Controlling when to submit to AzureML and when not

@@ -12,8 +12,18 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
+from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+
 
 def main() -> None:
+    run_info = submit_to_azure_if_needed(
+        compute_cluster_name="lite-testing-ds2",
+        workspace_config_path=WORKSPACE_CONFIG_JSON,
+        conda_environment_file=Path("environment.yml"),
+        default_datastore="himldatasets",
+        input_datasets=["himl_sample7_input"],
+        wait_for_completion=True,
+        wait_for_completion_show_output=True)
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--kernel', type=str, default='linear',
@@ -26,7 +36,7 @@ def main() -> None:
     print('Penalty:', np.float(args.penalty))
 
     # X -> features, y -> label
-    input_folder = Path("inputs")
+    input_folder = run_info.input_datasets[0] or Path("inputs")
     X = np.loadtxt(fname=input_folder / "X.csv", delimiter=',', skiprows=1)
     y = np.loadtxt(fname=input_folder / "y.csv", dtype='str', delimiter=',', skiprows=1)
 
