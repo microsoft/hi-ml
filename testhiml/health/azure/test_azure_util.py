@@ -98,9 +98,9 @@ def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
     with mock.patch.dict(
             os.environ,
             {
-                util.SERVICE_PRINCIPAL_ID: service_principal_id,
-                util.TENANT_ID: tenant_id,
-                util.SERVICE_PRINCIPAL_PASSWORD: service_principal_password
+                util.ENV_SERVICE_PRINCIPAL_ID: service_principal_id,
+                util.ENV_TENANT_ID: tenant_id,
+                util.ENV_SERVICE_PRINCIPAL_PASSWORD: service_principal_password
             },
             clear=True):
         spa = util.get_authentication()

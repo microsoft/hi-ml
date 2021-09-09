@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from health.azure.azure_util import RESOURCE_GROUP, SUBSCRIPTION_ID, WORKSPACE_NAME
+from health.azure.azure_util import ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME
 from health.azure.himl import WORKSPACE_CONFIG_JSON, _package_setup
 from testhiml.health.azure.util import repository_root
 
@@ -61,9 +61,9 @@ def check_config_json(script_folder: Path) -> Generator:
         logging.info(f"Creating {str(target_config_json)} from environment variables.")
         with open(str(target_config_json), 'w', encoding="utf-8") as file:
             config = {
-                "subscription_id": os.getenv(SUBSCRIPTION_ID, ""),
-                "resource_group": os.getenv(RESOURCE_GROUP, ""),
-                "workspace_name": os.getenv(WORKSPACE_NAME, "")
+                "subscription_id": os.getenv(ENV_SUBSCRIPTION_ID, ""),
+                "resource_group": os.getenv(ENV_RESOURCE_GROUP, ""),
+                "workspace_name": os.getenv(ENV_WORKSPACE_NAME, "")
             }
             json.dump(config, file)
     try:
