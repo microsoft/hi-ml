@@ -2,14 +2,14 @@
 
 ## Basic integration
 
-The first sample [examples/1/sample.py](examples/1/sample.py) is a script that prints all the prime numbers up to (but not including) a target. It is simply intended to demonstrate a long running operation, that we want to run in Azure. It takes an optional command line argument of the target value and prints the primes to the console, using e.g.
+The sample [examples/1/sample.py](examples/1/sample.py) is a script that prints all the prime numbers up to (but not including) a target. It is simply intended to demonstrate a long running operation, that we want to run in Azure. It takes an optional command line argument of the target value and prints the primes to the console, using e.g.
 
 ```bash
 cd examples/1
 python sample.py -n 103
 ```
 
-The second sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.yml) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
+The sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.yml) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
 
 ```python
 from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
@@ -51,7 +51,7 @@ A sample script [examples/2/results.py](examples/2/results.py) demonstrates how 
 
 ## Output files
 
-The third sample [examples/3/sample.py](examples/3/sample.py) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
+The sample [examples/3/sample.py](examples/3/sample.py) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
 
 Make the following additions:
 
@@ -75,7 +75,7 @@ A sample script [examples/3/results.py](examples/3/results.py) demonstrates how 
 
 ## Output datasets
 
-The fourth sample [examples/4/sample.py](examples/4/sample.py) demonstrates output dataset handling when running on AzureML.
+The sample [examples/4/sample.py](examples/4/sample.py) demonstrates output dataset handling when running on AzureML.
 
 In this case, the following parameters are added to `submit_to_azure_if_needed`:
 
@@ -101,6 +101,24 @@ Now the output folder is constructed as follows:
 When running in AzureML `run_info.output_datasets[0]` will be populated using the new parameter and the output will be written to that blob storage. When running locally `run_info.output_datasets[0]` will be None and a local folder will be created and used.
 
 A sample script [examples/4/results.py](examples/4/results.py) demonstrates how to programmatically download the output dataset file.
+
+## Input datasets
+
+The sample [examples/5/sample.py](examples/5/sample.py) is modified from [https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py) to work with input csv files.
+
+To prepare the csv files, run the script:
+
+```bash
+cd examples/5
+python inputs.py
+```
+
+this will download the Iris dataset and create two csv files.
+
+Because the files will be in the snapshot, this script can run in AzureML with only minimal modification as above, see The sample [examples/6/sample.py](examples/6/sample.py).
+
+
+
 
 ## Controlling when to submit to AzureML and when not
 
