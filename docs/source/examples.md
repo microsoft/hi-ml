@@ -13,9 +13,7 @@ The sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifi
 
 ```python
 from health.azure.himl import submit_to_azure_if_needed
-
     ...
-
 def main() -> None:
     _ = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
@@ -40,7 +38,7 @@ python sample.py -n 103 --azureml
 
 then the function `submit_to_azure_if_needed` will perform all the required actions to run this script in AzureML and exit. Note that:
 
-* code after `submit_to_azure_if_needed` is not run.
+* code after `submit_to_azure_if_needed` is not run locally, but it is run in AzureML.
 * the print statement prints to the AzureML console output and is available in the `Output + logs` tab of the experiment in the `70_driver_log.txt` file, and can be downloaded from there.
 * the command line arguments are passed through (apart from --azureml) when running in AzureML.
 * a new file: `most_recent_run.txt` will be created containing an identifier of this AzureML run.
@@ -55,13 +53,9 @@ Make the following additions:
 
 ```python
     run_info = submit_to_azure_if_needed(
-
     ...
-
     parser.add_argument("-o", "--output", type=str, default="primes.txt", required=False, help="Output file name")
-
     ...
-
     output = run_info.output_folder / args.output
     output.write_text("\n".join(map(str, primes)))
 ```
@@ -77,6 +71,8 @@ The sample [examples/4/sample.py](examples/4/sample.py) demonstrates output data
 In this case, the following parameters are added to `submit_to_azure_if_needed`:
 
 ```python
+    run_info = submit_to_azure_if_needed(
+        ...
         default_datastore="himldatasets",
         output_datasets=["himl_sample4_output"],
 ```
@@ -85,9 +81,9 @@ The `default_datastore` is required if using the simplest configuration for an o
 
 ```python
 from health.azure.datasets import DatasetConfig
-
     ...
-
+    run_info = submit_to_azure_if_needed(
+        ...
         output_datasets=[DatasetConfig(name="himl_sample4_output", datastore="himldatasets")]
 ```
 
@@ -130,6 +126,8 @@ python inputs.py
 In this case, the following parameters are added to `submit_to_azure_if_needed`:
 
 ```python
+    run_info = submit_to_azure_if_needed(
+        ...
         default_datastore="himldatasets",
         input_datasets=["himl_sample7_input"],
 ```
@@ -138,9 +136,9 @@ The `default_datastore` is required if using the simplest configuration for an i
 
 ```python
 from health.azure.datasets import DatasetConfig
-
     ...
-
+    run_info = submit_to_azure_if_needed(
+        ...
         input_datasets=[DatasetConfig(name="himl_sample7_input", datastore="himldatasets"],
 ```
 
@@ -150,7 +148,7 @@ Now the input folder is constructed as follows:
     input_folder = run_info.input_datasets[0] or Path("inputs")
 ```
 
-When running in AzureML `run_info.input_datasets[0]` will be populated using the new parameter and the input will be mounted from blob storage. When running locally `run_info.input_datasets[0]` will be None and a local folder should be populated and used.
+When running in AzureML `run_info.input_datasets[0]` will be populated using the new parameter and the input will be mounted from blob storage. When running locally `run_info.input_datasets[0]` will be `None` and a local folder should be populated and used.
 
 For more details about datasets, see [here](datasets.md)
 
@@ -164,9 +162,7 @@ Make the following additions:
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, choice
 from azureml.train.hyperdrive.sampling import RandomParameterSampling
-
     ...
-
 def main() -> None:
     param_sampling = RandomParameterSampling({
         "--kernel": choice('linear', 'rbf', 'poly', 'sigmoid'),
@@ -199,15 +195,11 @@ Add in:
 
 ```python
     run = run_info.run
-
     ...
-
     args = parser.parse_args()
     run.log('Kernel type', np.str(args.kernel))
     run.log('Penalty', np.float(args.penalty))
-
     ...
-
     print('Accuracy of SVM classifier on test set: {:.2f}'.format(accuracy))
     run.log('Accuracy', np.float(accuracy))
 ```
