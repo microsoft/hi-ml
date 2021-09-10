@@ -226,10 +226,13 @@ def submit_run(workspace: Workspace,
     user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
     if tags is None:
-        if hasattr(script_run_config, 'arguments'):
+        if hasattr(script_run_config, 'arguments') and \
+                script_run_config.arguments is not None:
             # It is probably a ScriptRunConfig
             tags = {"commandline_args": " ".join(script_run_config.arguments)}
-        elif hasattr(script_run_config, 'run_config') and hasattr(script_run_config.run_config, 'arguments'):
+        elif hasattr(script_run_config, 'run_config') and \
+                hasattr(script_run_config.run_config, 'arguments') and \
+                script_run_config.run_config.arguments is not None:
             # It is probably a HyperDriveConfig
             tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
     run.set_tags(tags)
