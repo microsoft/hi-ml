@@ -3,10 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from argparse import ArgumentParser
-from pathlib import Path
 from typing import List
 
-from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+from health.azure.himl import submit_to_azure_if_needed
 
 
 def sieve(n: int) -> List[int]:
@@ -32,8 +31,6 @@ def sieve(n: int) -> List[int]:
 def main() -> None:
     run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
-        workspace_config_path=WORKSPACE_CONFIG_JSON,
-        conda_environment_file=Path("environment.yml"),
         wait_for_completion=True,
         wait_for_completion_show_output=True)
 

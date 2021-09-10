@@ -12,7 +12,7 @@ python sample.py -n 103
 The sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.yml) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
 
 ```python
-from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+from health.azure.himl import submit_to_azure_if_needed
 ```
 
 and add the following at the beginning of main:
@@ -20,8 +20,6 @@ and add the following at the beginning of main:
 ```python
     _ = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
-        workspace_config_path=WORKSPACE_CONFIG_JSON,
-        conda_environment_file=Path("environment.yml"),
         wait_for_completion=True,
         wait_for_completion_show_output=True)
 ```

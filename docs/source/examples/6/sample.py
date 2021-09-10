@@ -12,14 +12,12 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+from health.azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:
     _ = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
-        workspace_config_path=WORKSPACE_CONFIG_JSON,
-        conda_environment_file=Path("environment.yml"),
         wait_for_completion=True,
         wait_for_completion_show_output=True)
     parser = argparse.ArgumentParser()

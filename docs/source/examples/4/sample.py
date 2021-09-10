@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import List
 
-from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+from health.azure.himl import submit_to_azure_if_needed
 
 
 def sieve(n: int) -> List[int]:
@@ -32,8 +32,6 @@ def sieve(n: int) -> List[int]:
 def main() -> None:
     run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
-        workspace_config_path=WORKSPACE_CONFIG_JSON,
-        conda_environment_file=Path("environment.yml"),
         default_datastore="himldatasets",
         output_datasets=["himl_sample4_output"],
         wait_for_completion=True,
