@@ -2,7 +2,7 @@
 
 ## Basic integration
 
-The sample [examples/1/sample.py](examples/1/sample.py) is a script that prints all the prime numbers up to (but not including) a target. It is simply intended to demonstrate a long running operation, that we want to run in Azure. It takes an optional command line argument of the target value and prints the primes to the console, using e.g.
+The sample [examples/1/sample.py](examples/1/sample.py) is a script that takes an optional command line argument of a target value and prints all the prime numbers up to (but not including) this target. It is simply intended to demonstrate a long running operation that we want to run in Azure. Run it using e.g.
 
 ```bash
 cd examples/1
@@ -13,17 +13,17 @@ The sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifi
 
 ```python
 from health.azure.himl import submit_to_azure_if_needed
-```
 
-and add the following at the beginning of main:
+    ...
 
-```python
+def main() -> None:
     _ = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
         wait_for_completion=True,
         wait_for_completion_show_output=True)
 ```
 
+Replace `lite-testing-ds2` with the name of a compute cluster created within the AzureML workspace.
 If this script is invoked as the first sample, e.g.
 
 ```bash
@@ -38,7 +38,7 @@ cd examples/2
 python sample.py -n 103 --azureml
 ```
 
-then the function `submit_to_azure_if_needed` will do all the required actions to run this script in AzureML and exit. Note that:
+then the function `submit_to_azure_if_needed` will perform all the required actions to run this script in AzureML and exit. Note that:
 
 * code after `submit_to_azure_if_needed` is not run.
 * the print statement prints to the AzureML console output and is available in the `Output + logs` tab of the experiment in the `70_driver_log.txt` file, and can be downloaded from there.
@@ -49,7 +49,7 @@ A sample script [examples/2/results.py](examples/2/results.py) demonstrates how 
 
 ## Output files
 
-The sample [examples/3/sample.py](examples/3/sample.py) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
+The sample [examples/3/sample.py](examples/3/sample.py) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster then any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
 
 Make the following additions:
 
@@ -66,7 +66,7 @@ Make the following additions:
     output.write_text("\n".join(map(str, primes)))
 ```
 
-When running locally this will create a subfolder called `outputs` and write the output to a file there. When running in AzureML the output will be available in a file in the Experiment.
+When running locally `submit_to_azure_if_needed` will create a subfolder called `outputs` and then the output can be written to the file `args.output` there. When running in AzureML the output will be available in the file `args.output` in the Experiment.
 
 A sample script [examples/3/results.py](examples/3/results.py) demonstrates how to programmatically download the output file.
 
@@ -103,6 +103,8 @@ When running in AzureML `run_info.output_datasets[0]` will be populated using th
 
 A sample script [examples/4/results.py](examples/4/results.py) demonstrates how to programmatically download the output dataset file.
 
+For more details about datasets, see [here](datasets.md)
+
 ## Input datasets
 
 The sample [examples/5/sample.py](examples/5/sample.py) is modified from [https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py) to work with input csv files.
@@ -116,7 +118,7 @@ python inputs.py
 
 this will download the Iris dataset and create two csv files.
 
-Because the csv files will be in the snapshot, this script can run in AzureML with only minimal modification as above, see the sample [examples/6/sample.py](examples/6/sample.py). It is not ideal to have the sample csv files in the snapshot, it is better to put them into blob storage and use input datasets.
+Because the csv files will be in the snapshot this script can run in AzureML with only minimal modification as above, see the sample [examples/6/sample.py](examples/6/sample.py). It is not ideal to have the sample csv files in the snapshot, it is better to put them into blob storage and use input datasets.
 
 A sample script [examples/7/inputs.py](examples/7/inputs.py) is provided to prepare the csv files and upload them to blob storage. Run the script:
 
@@ -150,6 +152,7 @@ Now the input folder is constructed as follows:
 
 When running in AzureML `run_info.input_datasets[0]` will be populated using the new parameter and the input will be mounted from blob storage. When running locally `run_info.input_datasets[0]` will be None and a local folder should be populated and used.
 
+For more details about datasets, see [here](datasets.md)
 
 ## Hyperdrive
 
