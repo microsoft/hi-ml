@@ -128,7 +128,6 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     """
     Creates a service principal authentication object with the application ID stored in the present object. The
     application key is read from the environment.
-
     :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
     present
     """
@@ -148,7 +147,6 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
 def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
     """
     Gets a password or key from the secrets file or environment variables.
-
     :param name: The name of the environment variable to read. It will be converted to uppercase.
     :param allow_missing: If true, the function returns None if there is no entry of the given name in any of the
     places searched. If false, missing entries will raise a ValueError.
@@ -163,8 +161,10 @@ def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optio
 
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     """
-    Given a string, ensure it can be used in Azure by replacing everything apart from a-zA-Z0-9_ with _, and replace
-    multiple _ with a single _.
+    Given a string, ensure it can be used in Azure by replacing everything apart from a-z, A-Z, 0-9, or _ with _,
+    and replace multiple _ with a single _.
+    :param x: Optional string to be converted.
+    :return: Converted string, if one supplied. None otherwise.
     """
     if x is None:
         return x

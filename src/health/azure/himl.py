@@ -225,7 +225,16 @@ def submit_run(workspace: Workspace,
     experiment = Experiment(workspace=workspace, name=cleaned_experiment_name)
     user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
-    tags = tags or {"commandline_args": " ".join(script_run_config.arguments)}
+    if tags is None:
+        if hasattr(script_run_config, 'arguments') and \
+                script_run_config.arguments is not None:
+            # It is probably a ScriptRunConfig
+            tags = {"commandline_args": " ".join(script_run_config.arguments)}
+        elif hasattr(script_run_config, 'run_config') and \
+                hasattr(script_run_config.run_config, 'arguments') and \
+                script_run_config.run_config.arguments is not None:
+            # It is probably a HyperDriveConfig
+            tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
     run.set_tags(tags)
 
     _write_run_recovery_file(run)
@@ -370,13 +379,19 @@ def submit_to_azure_if_needed(  # type: ignore
             for k, v in environment_variables.items():
                 os.environ[k] = v
 
+        output_folder = Path.cwd() / OUTPUT_FOLDER
+        output_folder.mkdir(exist_ok=True)
+
+        logs_folder = Path.cwd() / LOGS_FOLDER
+        logs_folder.mkdir(exist_ok=True)
+
         return AzureRunInfo(
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=None,
             is_running_in_azure=False,
-            output_folder=Path.cwd() / OUTPUT_FOLDER,
-            logs_folder=Path.cwd() / LOGS_FOLDER
+            output_folder=output_folder,
+            logs_folder=logs_folder
         )
 
     if snapshot_root_directory is None:

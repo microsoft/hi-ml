@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -22,9 +22,10 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import RunConfiguration, Workspace
+from azureml.core import RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.train.hyperdrive import HyperDriveConfig
 
 import health.azure.himl as himl
 from conftest import check_config_json
@@ -370,29 +371,54 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert "0th line" == amlignore_text
 
 
+class TestTagOption(Enum):
+    TAGS = 1  # Set the tags parameter
+    NO_TAGS = 2  # Set the tags parameter to None
+    ARGS = 3  # script_run_config is a ScriptRunConfig with arguments
+    HYPER = 4  # script_run_config is a HyperDriveConfig with arguments
+
+
 @pytest.mark.fast
 @pytest.mark.parametrize("wait_for_completion", [True, False])
+@pytest.mark.parametrize("set_tags", [
+    TestTagOption.TAGS, TestTagOption.NO_TAGS, TestTagOption.ARGS, TestTagOption.HYPER])
 @patch("health.azure.himl.Run")
-@patch("health.azure.himl.ScriptRunConfig")
 @patch("health.azure.himl.Experiment")
 @patch("health.azure.himl.Workspace")
 def test_submit_run(
         mock_workspace: mock.MagicMock,
         mock_experiment: mock.MagicMock,
-        mock_script_run_config: mock.MagicMock,
         mock_run: mock.MagicMock,
         wait_for_completion: bool,
+        set_tags: TestTagOption,
         capsys: CaptureFixture,
         ) -> None:
     mock_experiment.return_value.submit.return_value = mock_run
     mock_run.get_status.return_value = RunStatus.COMPLETED
     mock_run.status = RunStatus.COMPLETED
     mock_run.get_children.return_value = []
+    mock_tags = {'tag1': '1', 'tag2': '2'}
+    mock_arguments = ["--arg1", "--message=\\'Hello World :-)\\'"]
+    # Pretend to be a ScriptRunConfig
+    mock_script_run_config = mock.MagicMock(spec=[ScriptRunConfig])
+    mock_script_run_config.arguments = None
+    tags: Optional[Dict[str, str]] = None
+    if set_tags == TestTagOption.TAGS:
+        tags = mock_tags
+    else:
+        if set_tags == TestTagOption.ARGS:
+            mock_script_run_config.arguments = mock_arguments
+        elif set_tags == TestTagOption.HYPER:
+            # Pretend to be a HyperDriveConfig
+            mock_script_run_config = mock.MagicMock(spec=[HyperDriveConfig])
+            mock_script_run_config.run_config = MagicMock()
+            mock_script_run_config.run_config.arguments = mock_arguments
     an_experiment_name = "an experiment"
     _ = himl.submit_run(
         workspace=mock_workspace,
         experiment_name=an_experiment_name,
         script_run_config=mock_script_run_config,
+        tags=tags,
         wait_for_completion=wait_for_completion,
         wait_for_completion_show_output=True,
     )
@@ -402,6 +428,12 @@ def test_submit_run(
     assert "Experiment name and run ID are available" in out
     assert "Experiment URL" in out
     assert "Run URL" in out
+    if set_tags == TestTagOption.TAGS:
+        mock_run.set_tags.assert_called_once_with(mock_tags)
+    elif set_tags == TestTagOption.NO_TAGS:
+        mock_run.set_tags.assert_called_once_with(None)
+    else:
+        mock_run.set_tags.assert_called_once_with({"commandline_args": " ".join(mock_arguments)})
     if wait_for_completion:
         assert "Waiting for the completion of the AzureML run" in out
         assert "AzureML completed" in out

@@ -56,6 +56,17 @@
             "request": "launch",
             "program": "${workspaceFolder}/testhiml/health/azure/test_data/make_tests.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Hyperdrive Sample",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/docs/source/examples/8",
+            "program": "${workspaceFolder}/docs/source/examples/8/sample.py",
+            "args": [
+                "--azureml"
+            ],
+            "console": "integratedTerminal"
         }
     ]
 }

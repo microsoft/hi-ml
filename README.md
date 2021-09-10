@@ -43,14 +43,14 @@ from health.azure.himl import submit_to_azure_if_needed
 if __name__ == '__main__':
     current_file = Path(__file__)
     run_info = submit_to_azure_if_needed(entry_script=current_file, 
-                                          snapshot_root_directory=current_file.parent,
-                                          workspace_config_path=Path("config.json"),
-                                          compute_cluster_name="preprocess-ds12",
-                                          conda_environment_file=Path("environment.yml"),
-                                          input_datasets=["images123"],
-                                          # Omit this line if you don't create an output dataset (for example, in
-                                          # model training scripts)
-                                          output_datasets=["images123_resized"],)
+                                         snapshot_root_directory=current_file.parent,
+                                         workspace_config_path=Path("config.json"),
+                                         compute_cluster_name="preprocess-ds12",
+                                         conda_environment_file=Path("environment.yml"),
+                                         input_datasets=["images123"],
+                                         # Omit this line if you don't create an output dataset (for example, in
+                                         # model training scripts)
+                                         output_datasets=["images123_resized"],)
     # When running in AzureML, run_info.input_datasets and run_info.output_datasets will be populated,
     # and point to the data coming from blob storage. For runs outside AML, the paths will be None.
     # Replace the None with a meaningful path, so that we can still run the script easily outside AML.
@@ -91,10 +91,7 @@ datastore. Once the script has run, it will also register the data in this folde
 * `output_datasets=["images123_resized"]` means that the script will create a temporary folder when running in AML,
 and while the job writes data to that folder, upload it to blob storage, in the data store.
 
-
-To be filled in:
-* `default_datastore`
-* Complex dataset setup.
+For more examples, please see [examples.md](docs/source/examples.md).
 
 ## Issues
 If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page. 
