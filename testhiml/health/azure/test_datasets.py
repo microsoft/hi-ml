@@ -6,6 +6,7 @@
 Test the data input and output functionality
 """
 from unittest import mock
+from azureml.telemetry import UserErrorException
 
 import pytest
 from azureml.core import Dataset
@@ -156,8 +157,8 @@ def test_get_dataset() -> None:
     try:
         # Delete the dataset again
         dataset2.unregister_all_versions()
-    except ServiceException:
-        # TODO Sometimes unregister_all_versions() raises a ServiceException.
+    except (ServiceException, UserErrorException):
+        # TODO Sometimes unregister_all_versions() raises a ServiceException or a UserErrorException.
         pass
 
 
