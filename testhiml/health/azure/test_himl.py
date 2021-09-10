@@ -372,27 +372,44 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
 
 @pytest.mark.fast
 @pytest.mark.parametrize("wait_for_completion", [True, False])
+@pytest.mark.parametrize("set_tags", [
+    (False, False, False), (True, False, False), (False, True, False), (False, False, True)])
 @patch("health.azure.himl.Run")
-@patch("health.azure.himl.ScriptRunConfig")
 @patch("health.azure.himl.Experiment")
 @patch("health.azure.himl.Workspace")
 def test_submit_run(
         mock_workspace: mock.MagicMock,
         mock_experiment: mock.MagicMock,
-        mock_script_run_config: mock.MagicMock,
         mock_run: mock.MagicMock,
         wait_for_completion: bool,
+        set_tags: Tuple[bool, bool, bool],
         capsys: CaptureFixture,
         ) -> None:
     mock_experiment.return_value.submit.return_value = mock_run
     mock_run.get_status.return_value = RunStatus.COMPLETED
     mock_run.status = RunStatus.COMPLETED
     mock_run.get_children.return_value = []
+    (add_tags, add_script_args, add_hyper_args) = set_tags
+    mock_tags = {'tag1': 1, 'tag2': "2"}
+    mock_arguments = ["--arg1", "--message=\\'Hello World :-)\\'"]
+    # Pretend to be a ScriptRunConfig
+    mock_script_run_config = mock.MagicMock(spec=['arguments'])
+    if add_tags:
+        tags = mock_tags
+    else:
+        tags = None
+        if add_script_args:
+            mock_script_run_config.arguments = mock_arguments
+        elif add_hyper_args:
+            # Pretend to be a HyperDriveConfig
+            mock_script_run_config = mock.MagicMock(spec=['run_config'])
+            mock_script_run_config.run_config.arguments = mock_arguments
     an_experiment_name = "an experiment"
     _ = himl.submit_run(
         workspace=mock_workspace,
         experiment_name=an_experiment_name,
         script_run_config=mock_script_run_config,
+        tags=tags,
         wait_for_completion=wait_for_completion,
         wait_for_completion_show_output=True,
     )
@@ -402,6 +419,12 @@ def test_submit_run(
     assert "Experiment name and run ID are available" in out
     assert "Experiment URL" in out
     assert "Run URL" in out
+    if add_tags:
+        mock_run.set_tags.assert_called_once_with(mock_tags)
+    elif add_script_args or add_hyper_args:
+        mock_run.set_tags.assert_called_once_with({"commandline_args": " ".join(mock_arguments)})
+    else:
+        mock_run.set_tags.assert_called_once_with({"commandline_args": ""})
     if wait_for_completion:
         assert "Waiting for the completion of the AzureML run" in out
         assert "AzureML completed" in out
