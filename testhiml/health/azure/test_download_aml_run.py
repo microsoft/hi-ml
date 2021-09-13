@@ -21,8 +21,8 @@ def test_download_aml_run_args(tmp_path: Path) -> None:
 
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--output_dir", str(tmp_output_dir)])
-        assert 'One of latest_run_path, experiment_name, run_recovery_ids ' \
-               'or run_ids must be provided' in str(e)
+        assert 'One of latest_run_file, experiment_name, run_recovery_id ' \
+               'or run_id must be provided' in str(e)
 
 
 def test_no_config_path() -> None:
@@ -35,7 +35,7 @@ def test_no_config_path() -> None:
 def test_download_aml_run_no_runs() -> None:
     # if no such run exists, will fail
     with pytest.raises(Exception) as e:
-        subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--run_ids", "madeuprun"])
+        subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--run_id", "madeuprun"])
         assert "was not found" in str(e)
 
 
@@ -44,10 +44,10 @@ def test_determine_output_dir_name(tmp_path: Path) -> None:
     mock_output_dir.mkdir(exist_ok=True)
 
     parser = ArgumentParser()
-    parser.add_argument("--latest_run_path", type=str)
+    parser.add_argument("--latest_run_file", type=str)
     parser.add_argument("--experiment_name", type=str)
-    parser.add_argument("--run_recovery_ids", type=str)
-    parser.add_argument("--run_ids", type=str)
+    parser.add_argument("--run_recovery_id", type=str)
+    parser.add_argument("--run_id", type=str)
 
     # if experiment name is provided, expect that to be included in the directory
     mock_experiment_name = "fake-experiment"
@@ -57,19 +57,19 @@ def test_determine_output_dir_name(tmp_path: Path) -> None:
     assert output_dir == mock_output_dir / mock_experiment_name
 
     # if latest run path is provided, expect that to be included in the directory path
-    mock_args = parser.parse_args(["--latest_run_path", "most_recent_run.txt"])
+    mock_args = parser.parse_args(["--latest_run_file", "most_recent_run.txt"])
     run_id_source = AzureRunIdSource.LATEST_RUN_FILE
     output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / "most_recent_run"
 
     # if run ID is provided, expect that to be included in the directory path
-    mock_args = parser.parse_args(["--run_ids", "run123abc"])
+    mock_args = parser.parse_args(["--run_id", "run123abc"])
     run_id_source = AzureRunIdSource.RUN_ID
     output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / "run123abc"
 
     # if run recovery ID is provided, expect that to be included in the directory path
-    mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run123abc"])
+    mock_args = parser.parse_args(["--run_recovery_id", "experiment:run123abc"])
     run_id_source = AzureRunIdSource.RUN_RECOVERY_ID
     output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / "experimentrun123abc"

@@ -19,7 +19,7 @@ OUTPUT_DIR = ROOT_DIR / "outputs"
 def main() -> None:  # pragma: no cover
     parser = ArgumentParser()
     parser.add_argument(
-        "--config_path",
+        "--config_file",
         type=str,
         default="config.json",
         required=False,
@@ -40,7 +40,7 @@ def main() -> None:  # pragma: no cover
         help="Path to directory in which to store Tensorboard logs"
     )
     parser.add_argument(
-        "--latest_run_path",
+        "--latest_run_file",
         type=str,
         required=False,
         help="Optional path to most_recent_run.txt where details on latest run are stored"
@@ -68,7 +68,7 @@ def main() -> None:  # pragma: no cover
 
     args = parser.parse_args()
 
-    config_path = Path(args.config_path)
+    config_path = Path(args.config_file)
     if not config_path.is_file():
         raise ValueError(
             "You must provide a config.json file in the root folder to connect"
