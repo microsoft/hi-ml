@@ -19,6 +19,9 @@ env:
 jobs:
   flake8:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     steps:
       - uses: actions/checkout@v2
         with:
@@ -37,6 +40,9 @@ jobs:
 
   mypy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     steps:
       - uses: actions/checkout@v2
         with:
@@ -55,6 +61,9 @@ jobs:
 
   pytest:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     steps:
       - uses: actions/checkout@v2
         with:
@@ -73,6 +82,9 @@ jobs:
 
   build-python:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [pytest]
     steps:
       - uses: actions/checkout@v2
@@ -99,11 +111,14 @@ jobs:
       - name: Upload Distribution
         uses: actions/upload-artifact@v2
         with:
-          name: dist
+          name: hi-ml-azure-dist
           path: dist/*
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [build-python]
     strategy:
       matrix:
@@ -124,7 +139,7 @@ jobs:
       - name: Download Distribution
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: hi-ml-azure-dist
           path: dist
 
       - name: List contents of dist
@@ -147,13 +162,16 @@ jobs:
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [test-artifact-pkg]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     steps:
       - name: Download Distribution
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: hi-ml-azure-dist
           path: dist
 
       - name: Publish package to TestPyPI
@@ -177,6 +195,9 @@ jobs:
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [publish-testpypi-pkg]
     steps:
       - uses: actions/checkout@v2
@@ -202,7 +223,7 @@ jobs:
       - name: Download Distribution
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: hi-ml-azure-dist
           path: dist
 
       - name: Set env
@@ -272,6 +293,9 @@ jobs:
 
   test-testpypi-pkg-conda:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [publish-testpypi-pkg]
     steps:
       - uses: actions/checkout@v2
@@ -296,7 +320,7 @@ jobs:
       - name: Download Distribution
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: hi-ml-azure-dist
           path: dist
 
       - name: Set env
@@ -318,13 +342,16 @@ jobs:
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [test-artifact-pkg]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Download Distribution
         uses: actions/download-artifact@v2
         with:
-          name: dist
+          name: hi-ml-azure-dist
           path: dist
 
       - name: Publish package to PyPI
@@ -335,6 +362,9 @@ jobs:
 
   test-pypi-pkg:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hi-ml-azure
     needs: [publish-pypi-pkg]
     steps:
       - uses: actions/checkout@v2
