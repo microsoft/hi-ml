@@ -112,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: dist/*
+          path: hi-ml-azure/dist/*
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
