@@ -269,7 +269,7 @@ def submit_to_azure_if_needed(  # type: ignore
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
-        workspace_config_path: Optional[PathOrString] = None,
+        workspace_config_file: Optional[PathOrString] = None,
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
         conda_environment_file: Optional[PathOrString] = None,
@@ -320,7 +320,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
     to pass it in as a parameter.
-    :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
+    :param workspace_config_file: The 2nd option is to specify the path to the config.json file downloaded from the
     Azure portal from which we can retrieve the existing Workspace.
 
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
@@ -356,7 +356,7 @@ def submit_to_azure_if_needed(  # type: ignore
     otherwise we return a AzureRunInformation object.
     """
     _package_setup()
-    workspace_config_path = _str_to_path(workspace_config_path)
+    workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
                                                       default_datastore_name=default_datastore)
@@ -623,7 +623,7 @@ def main() -> None:
     Handle submit_to_azure if called from the command line.
     """
     parser = ArgumentParser()
-    parser.add_argument("-p", "--workspace_config_path", type=str, required=False, help="AzureML workspace config file")
+    parser.add_argument("-p", "--workspace_config_file", type=str, required=False, help="AzureML workspace config file")
     parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML cluster name")
     parser.add_argument("-y", "--snapshot_root_directory", type=str, required=True,
                         help="Root of snapshot to upload to AzureML")
@@ -634,7 +634,7 @@ def main() -> None:
     args = parser.parse_args()
 
     submit_to_azure_if_needed(
-        workspace_config_path=Path(args.workspace_config_path),
+        workspace_config_file=Path(args.workspace_config_file),
         compute_cluster_name=args.compute_cluster_name,
         snapshot_root_directory=Path(args.snapshot_root_directory),
         entry_script=Path(args.entry_script),

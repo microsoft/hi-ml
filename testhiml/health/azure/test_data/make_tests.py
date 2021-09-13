@@ -69,7 +69,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['entry_script'] = "Path(sys.argv[0])"
     default_options['aml_workspace'] = 'None'
-    default_options['workspace_config_path'] = "WORKSPACE_CONFIG_JSON"
+    default_options['workspace_config_file'] = "WORKSPACE_CONFIG_JSON"
     default_options['snapshot_root_directory'] = 'here'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
     default_options['environment_variables'] = 'None'

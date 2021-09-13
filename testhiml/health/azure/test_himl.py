@@ -53,11 +53,11 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         with pytest.raises(Exception) as ex:
             himl.submit_to_azure_if_needed(
                 aml_workspace=None,
-                workspace_config_path=None,
+                workspace_config_file=None,
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
                 snapshot_root_directory=Path(__file__).parent)
-        # N.B. This assert may fail when run locally since we may find a workspace_config_path through the call to
+        # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
         # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
         if _is_running_in_github_pipeline():
             assert "No workspace config file given, nor can we find one" in str(ex)
@@ -685,13 +685,13 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
 @patch("health.azure.himl.submit_to_azure_if_needed")
 def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock) -> None:
     with mock.patch("sys.argv", ["",
-                                 "--workspace_config_path", "1",
+                                 "--workspace_config_file", "1",
                                  "--compute_cluster_name", "2",
                                  "--snapshot_root_directory", "3",
                                  "--entry_script", "4",
                                  "--conda_environment_file", "5"]):
         himl.main()
-    assert mock_submit_to_azure_if_needed.call_args[1]["workspace_config_path"] == PosixPath("1")
+    assert mock_submit_to_azure_if_needed.call_args[1]["workspace_config_file"] == PosixPath("1")
     assert mock_submit_to_azure_if_needed.call_args[1]["compute_cluster_name"] == "2"
     assert mock_submit_to_azure_if_needed.call_args[1]["snapshot_root_directory"] == PosixPath("3")
     assert mock_submit_to_azure_if_needed.call_args[1]["entry_script"] == PosixPath("4")

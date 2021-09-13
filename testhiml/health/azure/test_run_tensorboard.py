@@ -19,7 +19,7 @@ def test_run_tensorboard_args() -> None:
     # if no required args are passed, will fail
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH])
-        assert "One of latest_run_path, experiment_name, run_recovery_ids" \
+        assert "One of latest_run_file, experiment_name, run_recovery_ids" \
                " or run_ids must be provided" in str(e)
 
 

@@ -416,13 +416,13 @@ class AzureRunIdSource(Enum):
 def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
     """
     From the args inputted, determine what is the source of Runs to be downloaded and plotted
-    (e.g. extract id from latest run path, or take most recent run of an Experiment etc. )
+    (e.g. extract id from latest run file, or take most recent run of an Experiment etc. )
 
     :param args: Arguments for determining the source of AML Runs to be retrieved
     :raises ValueError: If none of expected args for retrieving Runs are provided
     :return: The source from which to extract the latest Run id(s)
     """
-    if "latest_run_path" in args and args.latest_run_path is not None:
+    if "latest_run_file" in args and args.latest_run_file is not None:
         return AzureRunIdSource.LATEST_RUN_FILE
     if "experiment_name" in args and args.experiment_name is not None:
         return AzureRunIdSource.EXPERIMENT_LATEST
@@ -430,15 +430,15 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
         return AzureRunIdSource.RUN_RECOVERY_ID
     if "run_ids" in args and args.run_ids is not None:
         return AzureRunIdSource.RUN_ID
-    raise ValueError("One of latest_run_path, experiment_name, run_recovery_ids or run_ids must be provided")
+    raise ValueError("One of latest_run_file, experiment_name, run_recovery_ids or run_ids must be provided")
 
 
-def get_aml_runs_from_latest_run_path(args: Namespace, workspace: Workspace) -> List[Run]:
+def get_aml_runs_from_latest_run_file(args: Namespace, workspace: Workspace) -> List[Run]:
     """
     Returns list of length 1 (most recent Run)
     # TODO: update path to most_recent_runs (plural?)
     """
-    latest_run_path = Path(args.latest_run_path)
+    latest_run_path = Path(args.latest_run_file)
     return [get_most_recent_run(latest_run_path, workspace)]
 
 
@@ -488,7 +488,7 @@ def get_aml_runs_from_runids(args: Namespace, workspace: Workspace) -> List[Run]
 
 def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunIdSource) -> List[Run]:
     """
-    Download runs from Azure ML. Runs are specified either in file specified in latest_run_path,
+    Download runs from Azure ML. Runs are specified either in file specified in latest_run_file,
     by run_recovery_ids, or else the latest 'num_runs' runs from experiment 'experiment_name' as
     specified in args.
 
@@ -499,7 +499,7 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
     :return: List of Azure ML Runs, or an empty list if none are retrieved
     """
     if run_id_source == AzureRunIdSource.LATEST_RUN_FILE:
-        runs = get_aml_runs_from_latest_run_path(args, workspace)
+        runs = get_aml_runs_from_latest_run_file(args, workspace)
     elif run_id_source == AzureRunIdSource.EXPERIMENT_LATEST:
         runs = get_latest_aml_runs_from_experiment(args, workspace)
     elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
