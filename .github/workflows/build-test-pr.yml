@@ -71,7 +71,8 @@ jobs:
       - name: Test with pytest, fast only
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
-          make testfast
+          make pip_local
+          make testfast_no_install
 
   build-python:
     runs-on: ubuntu-latest
@@ -128,18 +129,8 @@ jobs:
       - name: Install and test artifact
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
-
-          # List contents of dist
-          ls -al dist
-
-          # Set env
-          HIML_WHEEL_FILENAME=$(find dist -name ${{ matrix.packageName }})
-
-          make pip_upgrade
-
-          # Install artifact
-          pip install $HIML_WHEEL_FILENAME
-
+          # Install package
+          make packageName=${{ matrix.packageName }} pip_wheel
           # Test with pytest, fast only
           make testfast_no_install
 
@@ -199,20 +190,7 @@ jobs:
       - name: Install and test package
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
-
-          # Get TestPyPI version
-          latest_version=$(cat ./latest_version.txt)
-
-          make pip_upgrade
-
-          # Install test package
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==$latest_version
-          do
-            echo waiting for test.pypi
-            sleep 10
-          done
-
-          # Test with pytest
+          make pip_test_pypi_latest
           make pytest_and_coverage
 
       - name: Add coverage as a commit comment
@@ -334,18 +312,6 @@ jobs:
       - name: Install PyPI package and test
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
-
-          # Get PyPI version
-          latest_version=$(cat latest_version.txt)
-
-          make pip_upgrade
-
-          # Install package
-          while ! pip install hi-ml==$latest_version
-          do
-            echo waiting for pypi
-            sleep 10
-          done
-
+          make pip_pypi_latest
           # Test with pytest, fast only
           make testfast_no_install
