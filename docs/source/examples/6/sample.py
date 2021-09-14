@@ -16,8 +16,10 @@ from health.azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:
-    _ = submit_to_azure_if_needed(
+    run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
+        default_datastore="himldatasets",
+        input_datasets=["himl_sample6_input"],
         wait_for_completion=True,
         wait_for_completion_show_output=True)
     parser = argparse.ArgumentParser()
@@ -32,7 +34,7 @@ def main() -> None:
     print('Penalty:', np.float(args.penalty))
 
     # X -> features, y -> label
-    input_folder = Path("inputs")
+    input_folder = run_info.input_datasets[0] or Path("dataset")
     X = np.loadtxt(fname=input_folder / "X.csv", delimiter=',', skiprows=1)
     y = np.loadtxt(fname=input_folder / "y.csv", dtype='str', delimiter=',', skiprows=1)
 

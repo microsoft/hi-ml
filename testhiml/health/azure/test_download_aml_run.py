@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import subprocess
 
-from health.azure import download_aml_run
+from health.azure import himl_download
 from health.azure.azure_util import AzureRunIdSource
 
-DOWNLOAD_SCRIPT_PATH = download_aml_run.__file__
+DOWNLOAD_SCRIPT_PATH = himl_download.__file__
 
 
 def test_download_aml_run_args(tmp_path: Path) -> None:
@@ -53,23 +53,23 @@ def test_determine_output_dir_name(tmp_path: Path) -> None:
     mock_experiment_name = "fake-experiment"
     mock_args = parser.parse_args(["--experiment_name", mock_experiment_name])
     run_id_source = AzureRunIdSource.EXPERIMENT_LATEST
-    output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
+    output_dir = himl_download.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / mock_experiment_name
 
     # if latest run path is provided, expect that to be included in the directory path
     mock_args = parser.parse_args(["--latest_run_file", "most_recent_run.txt"])
     run_id_source = AzureRunIdSource.LATEST_RUN_FILE
-    output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
+    output_dir = himl_download.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / "most_recent_run"
 
     # if run ID is provided, expect that to be included in the directory path
     mock_args = parser.parse_args(["--run_id", "run123abc"])
     run_id_source = AzureRunIdSource.RUN_ID
-    output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
+    output_dir = himl_download.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / "run123abc"
 
     # if run recovery ID is provided, expect that to be included in the directory path
     mock_args = parser.parse_args(["--run_recovery_id", "experiment:run123abc"])
     run_id_source = AzureRunIdSource.RUN_RECOVERY_ID
-    output_dir = download_aml_run.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
+    output_dir = himl_download.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / "experimentrun123abc"

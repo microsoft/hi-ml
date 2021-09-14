@@ -9,7 +9,7 @@ from pathlib import Path
 from health.azure.azure_util import AzureRunIdSource, get_aml_runs
 
 from health.azure.himl import get_workspace
-from health.azure.run_tensorboard import determine_run_id_source
+from health.azure.himl_tensorboard import determine_run_id_source
 
 
 def determine_output_dir_name(args: Namespace, run_id_source: AzureRunIdSource, output_dir: Path) -> Path:

@@ -34,7 +34,8 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
     'sphinx_automodapi.automodapi',
-    'sphinx_autodoc_typehints'
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.viewcode',
     ]
 
 
@@ -73,3 +74,12 @@ source_suffix = {
     '.txt': 'restructuredtext',
     '.md': 'markdown',
 }
+
+# Add packages here that are expensive to import during doc generation, like pytorch
+autodoc_mock_imports = [""]
+
+# This is the default language for syntax highlighting for all files that in included in .rst files
+highlight_language = "python"
+
+# For classes, insert documentation from the class itself AND the constructor
+autoclass_content = "both"

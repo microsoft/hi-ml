@@ -13,11 +13,11 @@ def main() -> None:
     iris = datasets.load_iris()
     X = iris.data[:, :2]  # we only take the first two features.
     y = iris.target
-    inputs = Path("inputs")
-    inputs.mkdir(exist_ok=False)
-    X_csv = inputs / "X.csv"
+    dataset = Path("dataset")
+    dataset.mkdir(exist_ok=False)
+    X_csv = dataset / "X.csv"
     np.savetxt(X_csv, X, delimiter=',')
-    y_csv = inputs / "y.csv"
+    y_csv = dataset / "y.csv"
     np.savetxt(y_csv, y, delimiter=',')
 
 

@@ -7,7 +7,9 @@ The default is what is called "Interactive Authentication". When you submit a jo
 use the credentials you used in the browser when last logging into Azure. If there are no credentials yet, you should
 see instructions printed out to the console about how to log in using your browser.
 
-Alternatively, you can use a so-called Service Principal. 
+We recommend using Interactive Authentication. 
+
+Alternatively, you can use a so-called Service Principal, for example within build pipelines. 
 
 
 ## Service Principal Authentication

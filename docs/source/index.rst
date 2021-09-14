@@ -3,14 +3,19 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to hi-ml's documentation!
-=================================
+Documentation for the Health Intelligence Machine Learning toolbox hi-ml
+========================================================================
 
 
 .. toctree::
    :maxdepth: 1
-   :caption: Examples
+   :caption: Overview
 
+   first_steps.md
+   authentication.md
+   datasets.md
+   hyperdrive.md
+   commandline_tools.md
    examples.md
 
 .. toctree::
