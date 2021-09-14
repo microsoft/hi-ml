@@ -226,7 +226,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: path: hi-ml-azure/dist
+          path: hi-ml-azure/dist
 
       - name: Set env
         run: echo "HIML_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
