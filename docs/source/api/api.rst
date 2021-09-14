@@ -1,4 +1,4 @@
-.. AzureRunInfo should be documented including its members, but that does not work together with
+.. AzureRunInfo should be documented including its members, but that does not work together with automodapi
 
 API
 =================================
