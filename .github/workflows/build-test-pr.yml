@@ -187,7 +187,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
-          path: hi-ml-azure/latest_version.txt
+          path: hi-ml-azure
 
       - name: Show published TestPyPI package version
         run: |
@@ -215,7 +215,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
-          path: hi-ml-azure/latest_version.txt
+          path: hi-ml-azure
 
       - name: Get TestPyPI version
         run: |
@@ -313,7 +313,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
-          path: hi-ml-azure/latest_version.txt
+          path: hi-ml-azure
 
       - name: Get TestPyPI version
         run: |
@@ -385,7 +385,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
-          path: hi-ml-azure/latest_version.txt
+          path: hi-ml-azure
 
       - name: Get PyPI version
         run: |
