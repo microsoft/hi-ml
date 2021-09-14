@@ -1,5 +1,10 @@
 # Examples
 
+**Note**: All examples below contain links to sample scripts that are also included in the repository. 
+The experience is **optimized for use on readthedocs**. When navigating to the sample scripts on the github UI,
+you will only see the `.rst` file that links to the `.py` file. To access the `.py` file, go to the folder that 
+contains the respective `.rst` file.
+
 ## Basic integration
 
 The sample [examples/1/sample.py](examples/1/sample.rst) is a script that takes an optional command line argument of a target value and prints all the prime numbers up to (but not including) this target. It is simply intended to demonstrate a long running operation that we want to run in Azure. Run it using e.g.
@@ -9,7 +14,7 @@ cd examples/1
 python sample.py -n 103
 ```
 
-The sample [examples/2/sample.py](examples/2/sample.py) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.yml) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
+The sample [examples/2/sample.py](examples/2/sample.rst) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.rst) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
 
 ```python
 from health.azure.himl import submit_to_azure_if_needed
@@ -43,11 +48,11 @@ then the function `submit_to_azure_if_needed` will perform all the required acti
 * the command line arguments are passed through (apart from --azureml) when running in AzureML.
 * a new file: `most_recent_run.txt` will be created containing an identifier of this AzureML run.
 
-A sample script [examples/2/results.py](examples/2/results.py) demonstrates how to programmatically download the driver log file.
+A sample script [examples/2/results.py](examples/2/results.rst) demonstrates how to programmatically download the driver log file.
 
 ## Output files
 
-The sample [examples/3/sample.py](examples/3/sample.py) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster then any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
+The sample [examples/3/sample.py](examples/3/sample.rst) demonstrates output file handling when running on AzureML. Because each run is performed in a separate VM or cluster then any file output is not generally preserved. In order to keep the output it should be written to the `outputs` folder when running in AzureML. The AzureML infrastructure will preserve this and it will be available for download from the `outputs` folder in the `Output + logs` tab.
 
 Make the following additions:
 
@@ -62,11 +67,11 @@ Make the following additions:
 
 When running locally `submit_to_azure_if_needed` will create a subfolder called `outputs` and then the output can be written to the file `args.output` there. When running in AzureML the output will be available in the file `args.output` in the Experiment.
 
-A sample script [examples/3/results.py](examples/3/results.py) demonstrates how to programmatically download the output file.
+A sample script [examples/3/results.rst](examples/3/results.rst) demonstrates how to programmatically download the output file.
 
 ## Output datasets
 
-The sample [examples/4/sample.py](examples/4/sample.py) demonstrates output dataset handling when running on AzureML.
+The sample [examples/4/sample.py](examples/4/sample.rst) demonstrates output dataset handling when running on AzureML.
 
 In this case, the following parameters are added to `submit_to_azure_if_needed`:
 
@@ -97,42 +102,81 @@ Now the output folder is constructed as follows:
 
 When running in AzureML `run_info.output_datasets[0]` will be populated using the new parameter and the output will be written to that blob storage. When running locally `run_info.output_datasets[0]` will be None and a local folder will be created and used.
 
-A sample script [examples/4/results.py](examples/4/results.py) demonstrates how to programmatically download the output dataset file.
+A sample script [examples/4/results.py](examples/4/results.rst) demonstrates how to programmatically download the output dataset file.
 
 For more details about datasets, see [here](datasets.md)
 
 ## Input datasets
 
-The sample [examples/5/sample.py](examples/5/sample.py) is modified from [https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py) to work with input csv files.
+This example trains a simple classifier on a toy dataset, first creating the dataset files and then in a second script
+training the classifier.
 
-A sample script [examples/5/inputs.py](examples/5/inputs.py) is provided to prepare the csv files. Run the script:
-
+The script [examples/5/inputs.py](examples/5/inputs.rst) is provided to prepare the csv files. Run the script to 
+download the Iris dataset and create two CSV files:
 ```bash
 cd examples/5
 python inputs.py
 ```
 
-this will download the Iris dataset and create two csv files.
-
-Because the csv files will be in the snapshot this script can run in AzureML with only minimal modification as above, see the sample [examples/6/sample.py](examples/6/sample.py). It is not ideal to have the sample csv files in the snapshot, it is better to put them into blob storage and use input datasets.
-
-A sample script [examples/7/inputs.py](examples/7/inputs.py) is provided to prepare the csv files and upload them to blob storage. Run the script:
-
+The training script [examples/5/sample.py](examples/5/sample.rst) is modified from 
+[https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py) to work with input csv files.
+Start it to train the actual classifier, based on the data files that were just written:
 ```bash
-cd examples/7
-python inputs.py
+cd examples/5
+python sample.py
 ```
 
-In this case, the following parameters are added to `submit_to_azure_if_needed`:
+### Including input files in the snapshot
+When using very small datafiles (in the order of few MB), the easiest way to get the input data to Azure is to include
+them in the set of (source) files that are uploaded to Azure. You can run the dataset creation script on your local
+machine, writing the resulting two files to the same folder where your training script is located, and then submit
+the training script to AzureML. Because the dataset files are in the same folder, they will automatically be uploaded
+to AzureML.
 
+However, it is not ideal to have the input files in the snapshot: The size of the snapshot is limited to 25 MB.
+It is better to put the data files into blob storage and use input datasets.
+
+### Creating the dataset in AzureML
+The suggested way of creating a dataset is to run a script in AzureML that writes an output dataset. This is 
+particularly important for large datasets, to avoid the usually low bandwith from a local machine to the cloud.
+
+This is shown in [examples/6/inputs.py](examples/6/inputs.rst): 
+This script prepares the CSV files in an AzureML run, and writes them to an output dataset called `himl_sample6_input`. 
+The relevant code parts are:
 ```python
-    run_info = submit_to_azure_if_needed(
-        ...
-        default_datastore="himldatasets",
-        input_datasets=["himl_sample7_input"],
+run_info = submit_to_azure_if_needed(
+    compute_cluster_name="lite-testing-ds2",
+    default_datastore="himldatasets",
+    output_datasets=["himl_sample6_input"])
+# The dataset files should be written into this folder:
+dataset = run_info.output_datasets[0] or Path("dataset")
+```
+Run the script:
+```bash
+cd examples/6
+python inputs.py --azureml
 ```
 
-The `default_datastore` is required if using the simplest configuration for an input dataset, to just use the blob container name. There are alternatives that do not require the `default_datastore` and allows a different datastore for each dataset, for example:
+You can now modify the training script [examples/6/sample.py](examples/6/sample.rst) to use the newly created dataset 
+`himl_sample6_input` as an input. To do that, the following parameters are added to `submit_to_azure_if_needed`:
+```python
+run_info = submit_to_azure_if_needed(
+    compute_cluster_name="lite-testing-ds2",
+    default_datastore="himldatasets",
+    input_datasets=["himl_sample6_input"])
+```
+When running in AzureML, the dataset will be downloaded before running the job. You can access the temporary folder
+where the dataset is available like this:
+```python
+input_folder = run_info.input_datasets[0] or Path("dataset")
+```
+The part behind the `or` statement is only necessary to keep a reasonable behaviour when running outside of AzureML:
+When running in AzureML `run_info.input_datasets[0]` will be populated using input dataset specified in the call to
+`submit_to_azure_if_needed`, and the input will be downloaded from blob storage. When running locally 
+`run_info.input_datasets[0]` will be `None` and a local folder should be populated and used.
+
+The `default_datastore` is required if using the simplest configuration for an input dataset. There are 
+alternatives that do not require the `default_datastore` and allows a different datastore for each dataset, for example:
 
 ```python
 from health.azure.datasets import DatasetConfig
@@ -142,19 +186,35 @@ from health.azure.datasets import DatasetConfig
         input_datasets=[DatasetConfig(name="himl_sample7_input", datastore="himldatasets"],
 ```
 
-Now the input folder is constructed as follows:
+For more details about datasets, see [here](datasets.md)
 
-```python
-    input_folder = run_info.input_datasets[0] or Path("inputs")
+### Uploading the input files manually
+An alternative to writing the dataset in AzureML (as suggested above) is to create them on the local machine, and
+upload them manually directly to Azure blob storage.
+
+This is shown in [examples/7/inputs.py](examples/7/inputs.rst): This script prepares the CSV files 
+and uploads them to blob storage, in a folder called `himl_sample7_input`. Run the script:
+```bash
+cd examples/7
+python inputs_via_upload.py
 ```
 
-When running in AzureML `run_info.input_datasets[0]` will be populated using the new parameter and the input will be mounted from blob storage. When running locally `run_info.input_datasets[0]` will be `None` and a local folder should be populated and used.
+As in the above example, you can now modify the training script [examples/7/sample.py](examples/7/sample.rst) to use 
+an input dataset that has the same name as the folder where the files just got uploaded. In this case, the following 
+parameters are added to `submit_to_azure_if_needed`:
 
-For more details about datasets, see [here](datasets.md)
+```python
+    run_info = submit_to_azure_if_needed(
+        ...
+        default_datastore="himldatasets",
+        input_datasets=["himl_sample7_input"],
+```
 
 ## Hyperdrive
 
-The sample [examples/8/sample.py](examples/8/sample.py) demonstrates adding hyperparameter tuning. This shows the same hyperparameter search as in the [AzureML sample](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train-hyperparameter-tune-deploy-with-sklearn.ipynb).
+The sample [examples/8/sample.py](examples/8/sample.rst) demonstrates adding hyperparameter tuning. This shows the 
+same hyperparameter search as in the 
+[AzureML sample](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train-hyperparameter-tune-deploy-with-sklearn.ipynb).
 
 Make the following additions:
 
@@ -189,7 +249,8 @@ cd examples/8
 python sample.py --azureml
 ```
 
-this will perform a Hyperdrive run in AzureML, i.e. there will be 12 child runs, each randomly drawing from the parameter sample space. AzureML can plot the metrics from the child runs, but to do that, some small modifications are required.
+this will perform a Hyperdrive run in AzureML, i.e. there will be 12 child runs, each randomly drawing from the 
+parameter sample space. AzureML can plot the metrics from the child runs, but to do that, some small modifications are required.
 
 Add in:
 
@@ -203,7 +264,6 @@ Add in:
     print('Accuracy of SVM classifier on test set: {:.2f}'.format(accuracy))
     run.log('Accuracy', np.float(accuracy))
 ```
-
 and these metrics will be displayed on the child runs tab in the Experiment page on AzureML.
 
 ## Controlling when to submit to AzureML and when not
@@ -212,31 +272,6 @@ By default, the `hi-ml` package assumes that you supply a commandline argument `
 the commandline) to trigger a submission of the present script to AzureML. If you wish to control it via a different
 flag, coming out of your own argument parser, use the `submit_to_azureml` argument of the function
 `health.azure.himl.submit_to_azure_if_needed`. 
-
-## Hyperdrive
-
-[HyperDrive runs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters)
-can start multiple AzureML jobs in parallel. This can be used for tuning hyperparameters, or executing multiple
-training runs for cross validation. To use that with the `hi-ml` package, simply supply a HyperDrive configuration
-object as an additional argument. Note that this object needs to be created with an empty `run_config` argument (this
-will later be replaced with the correct `run_config` that submits your script.)
-
-```python
-from azureml.core import ScriptRunConfig
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
-from health.azure.himl import submit_to_azure_if_needed
-hyperdrive_config = HyperDriveConfig(
-            run_config=ScriptRunConfig(source_directory=""),
-            hyperparameter_sampling=GridParameterSampling(
-                parameter_space={
-                    "learning_rate": choice([0.1, 0.01, 0.001])
-                }),
-            primary_metric_name="val_loss",
-            primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=5
-        )
-submit_to_azure_if_needed(..., hyperdrive_config=hyperdrive_config)
-```
 
 ## Run TensorBoard
 

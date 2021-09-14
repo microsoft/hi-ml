@@ -1,3 +1,2 @@
 .. literalinclude:: sample.py
-   :language: python
-   :emphasize-lines: 22,37
+   :emphasize-lines: 21-22,37

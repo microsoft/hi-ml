@@ -67,6 +67,7 @@ def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
     """
     Returns True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     When called without arguments, this functions returns True if the present code is running in AzureML.
+
     :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     """
@@ -90,29 +91,29 @@ def create_run_configuration(workspace: Workspace,
     """
     Creates an AzureML run configuration, that contains information about environment, multi node execution, and
     Docker.
+
     :param workspace: The AzureML Workspace to use.
     :param aml_environment_name: The name of an AzureML environment that should be used to submit the script. If not
-    provided, an environment will be created from the arguments to this function (conda_environment_file,
-    pip_extra_index_url, environment_variables, docker_base_image)
+        provided, an environment will be created from the arguments to this function (conda_environment_file,
+        pip_extra_index_url, environment_variables, docker_base_image)
     :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
-    floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
+        floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
-    CPU or GPU machines.
+        CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
-    script to run.
+        script to run.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
-    the Docker image.
+        the Docker image.
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
-    exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
-    also register the data in this folder as an AzureML dataset.
+        exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
+        also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
-    data to that folder, upload it to blob storage, in the data store.
-
+        data to that folder, upload it to blob storage, in the data store.
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
     :return:
     """
@@ -167,11 +168,12 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
     its arguments.
+
     :param entry_script: The script that should be run in AzureML.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
-    All Python code that the script uses must be copied over.
+        All Python code that the script uses must be copied over.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-    default) these will be copied over from sys.argv, omitting the --azureml flag.
+        default) these will be copied over from sys.argv, omitting the --azureml flag.
     :return:
     """
     if snapshot_root_directory is None:
@@ -209,16 +211,17 @@ def submit_run(workspace: Workspace,
                wait_for_completion_show_output: bool = False, ) -> Run:
     """
     Starts an AzureML run on a given workspace, via the script_run_config.
+
     :param workspace: The AzureML workspace to use.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
-    characters that are not valid in Azure, those will be removed.
+        characters that are not valid in Azure, those will be removed.
     :param script_run_config: The settings that describe which script should be run.
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
-    a default metadata field will be added that only contains the commandline arguments that started the run.
+        a default metadata field will be added that only contains the commandline arguments that started the run.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
-    the completion of this run (if True).
+        the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
-    run output on sys.stdout.
+        run output on sys.stdout.
     :return: An AzureML Run object.
     """
     cleaned_experiment_name = to_azure_friendly_string(experiment_name)
@@ -293,57 +296,58 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
-    Use the flag --azureml to submit to AzureML, and leave it out to run locally.
+    Use the commandline flag --azureml to submit to AzureML, and leave it out to run locally.
+
     :param after_submission: A function that will be called directly after submitting the job to AzureML. The only
-    argument to this function is the run that was just submitted. Use this to, for example, add additional tags
-    or print information about the run.
+        argument to this function is the run that was just submitted. Use this to, for example, add additional tags
+        or print information about the run.
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
-    a default metadata field will be added that only contains the commandline arguments that started the run.
+        a default metadata field will be added that only contains the commandline arguments that started the run.
     :param aml_environment_name: The name of an AzureML environment that should be used to submit the script. If not
-    provided, an environment will be created from the arguments to this function.
+        provided, an environment will be created from the arguments to this function.
     :param max_run_duration: The maximum runtime that is allowed for this job in AzureML. This is given as a
-    floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
+        floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted. If omitted,
-    this is created based on the name of the current script.
+        this is created based on the name of the current script.
     :param entry_script: The script that should be run in AzureML
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
-    CPU or GPU machines.
+        CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
-    script to run.
+        script to run.
     :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
-    to pass it in as a parameter.
+        to pass it in as a parameter.
     :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
-    Azure portal from which we can retrieve the existing Workspace.
+        Azure portal from which we can retrieve the existing Workspace.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
-    All Python code that the script uses must be copied over.
+        All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-    default) these will be copied over from sys.argv, omitting the --azureml flag.
+        default) these will be copied over from sys.argv, omitting the --azureml flag.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
-    the Docker image.
+        the Docker image.
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
-    storage. This is described in more detail in the README.
+        storage. This is described in more detail in the README.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
-    exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
-    also register the data in this folder as an AzureML dataset.
+        exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
+        also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
-    data to that folder, upload it to blob storage, in the data store.
+        data to that folder, upload it to blob storage, in the data store.
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
-    the completion of this run (if True).
+        the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
-    run output on sys.stdout.
+        run output on sys.stdout.
     :param submit_to_azureml: If True, the codepath to create an AzureML run will be executed. If False, the codepath
-    for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
-    will be triggered if the commandline flag '--azureml' is present in sys.argv
+        for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
+        will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
-    otherwise we return a AzureRunInformation object.
+        otherwise we return a AzureRunInformation object.
     """
     _package_setup()
     workspace_config_path = _str_to_path(workspace_config_path)
@@ -528,7 +532,7 @@ def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Opt
     Obtain the AzureML workspace from either the passed in value or the passed in path
     :param aml_workspace: If provided this is returned as the AzureML Workspace
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
-    config
+        config
     :param return: The AzureML Workspace
     """
     if aml_workspace:
@@ -569,9 +573,10 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
     Context manager that appends lines to the .amlignore file, and reverts to the previous contents after leaving
     the context.
     If the file does not exist yet, it will be created, the contents written, and deleted when leaving the context.
+
     :param lines_to_append: The text lines that should be added at the end of the .amlignore file
     :param amlignore: The path of the .amlignore file that should be modified. If not given, the function
-    looks for a file in the current working directory.
+        looks for a file in the current working directory.
     """
     if amlignore is None:
         amlignore = Path.cwd() / AML_IGNORE_FILE
