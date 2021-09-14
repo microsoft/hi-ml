@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Documentation for the Health Intelligence Machine Learning toolbox hi-ml
-=================================
+========================================================================
 
 
 .. toctree::

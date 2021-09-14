@@ -4,9 +4,9 @@
 You need to have an AzureML workspace in your Azure subscription.
 Download the config file from your AzureML workspace, as described 
 [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). **Put this file (it
-should be called `config.json` into the folder where your script lives**, or one of its parent folders. You can use
-parent folders up to the last parent that is still included in the `PYTHONPATH` environment variable - `hi-ml` will
-try to be smart and search through all code that it thinks belongs to your current project.
+should be called `config.json`) into the folder where your script lives**, or one of its parent folders. You can use
+parent folders up to the last parent that is still included in the `PYTHONPATH` environment variable: `hi-ml` will
+try to be smart and search through all folders that it thinks belong to your current project.
 
 ## Using the AzureML integration layer
 
