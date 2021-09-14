@@ -265,7 +265,6 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 
 def submit_to_azure_if_needed(  # type: ignore
-        # ignore missing return statement since we 'exit' instead when submitting to AzureML
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
@@ -292,15 +291,9 @@ def submit_to_azure_if_needed(  # type: ignore
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInfo:  # pragma: no cover
-    # This function is unit-tested, inside and outside AzureML, in the test_invoking_hello_world* unit tests, but
-    # they run the code in a spawned subprocess which is not counted towards coverage analysis; hence the no-cover
-    # pragma applied here. Furthermore, submit_to_azure_if_needed is broken into simple small functions which are
-    # called with their own unit tests.
     """
     Submit a folder to Azure, if needed and run it.
-
     Use the flag --azureml to submit to AzureML, and leave it out to run locally.
-
     :param after_submission: A function that will be called directly after submitting the job to AzureML. The only
     argument to this function is the run that was just submitted. Use this to, for example, add additional tags
     or print information about the run.
@@ -317,12 +310,10 @@ def submit_to_azure_if_needed(  # type: ignore
     CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
     script to run.
-
     :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
     to pass it in as a parameter.
     :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
     Azure portal from which we can retrieve the existing Workspace.
-
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
     All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
@@ -342,7 +333,6 @@ def submit_to_azure_if_needed(  # type: ignore
     also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
     data to that folder, upload it to blob storage, in the data store.
-
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
     the completion of this run (if True).

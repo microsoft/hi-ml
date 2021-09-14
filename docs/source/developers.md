@@ -48,6 +48,7 @@ To build the sphinx documentation, you must have sphinx and related packages ins
 cd docs
 make html
 ```
+This will build all your documentation in `docs/build/html`.
 
 
 ## Setting up your AzureML workspace

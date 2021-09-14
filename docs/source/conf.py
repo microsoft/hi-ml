@@ -34,7 +34,8 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
     'sphinx_automodapi.automodapi',
-    'sphinx_autodoc_typehints'
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.viewcode',
     ]
 
 
@@ -72,4 +73,10 @@ source_suffix = {
     '.rst': 'restructuredtext',
     '.txt': 'restructuredtext',
     '.md': 'markdown',
+    # This is not ideal because it adds weird markup occasionally
+    '.py': 'restructuredtext',
+    '.yml': 'restructuredtext',
 }
+
+# Add packages here that are expensive to import during doc generation, like pytorch
+autodoc_mock_imports = [""]

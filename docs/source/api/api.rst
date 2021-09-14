@@ -1,7 +1,3 @@
    
-.. automodapi:: health.azure.azure_util
-   :no-inheritance-diagram:
-.. automodapi:: health.azure.datasets
-   :no-inheritance-diagram:
-.. automodapi:: health.azure.himl
+.. automodapi:: health.azure
    :no-inheritance-diagram:

@@ -2,7 +2,7 @@
 
 ## Basic integration
 
-The sample [examples/1/sample.py](examples/1/sample.py) is a script that takes an optional command line argument of a target value and prints all the prime numbers up to (but not including) this target. It is simply intended to demonstrate a long running operation that we want to run in Azure. Run it using e.g.
+The sample [examples/1/sample.py](examples/1/sample.rst) is a script that takes an optional command line argument of a target value and prints all the prime numbers up to (but not including) this target. It is simply intended to demonstrate a long running operation that we want to run in Azure. Run it using e.g.
 
 ```bash
 cd examples/1
