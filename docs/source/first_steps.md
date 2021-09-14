@@ -62,7 +62,7 @@ on the commandline, like `python myscript.py --azureml`.
 
 Note that you do not need to modify the argument parser of your script to recognize the `--azureml` flag.
 
-## Arguments to `submit_to_azure_if_needed`
+## Essential arguments to `submit_to_azure_if_needed`
 When calling `submit_to_azure_if_needed`, you can to supply the following parameters:
 * `compute_cluster_name` (**Mandatory**): The name of the AzureML cluster that should run the job. This can be a 
 cluster with CPU or GPU machines. See
@@ -71,22 +71,42 @@ cluster with CPU or GPU machines. See
 to submit the script that is presently running, given in `sys.argv[0]`.
 * `snapshot_root_directory`: The directory that contains all code that should be packaged and sent to AzureML. All
 Python code that the script uses must be copied over. This defaults to the current working directory, but can be
-one of its parents.
+one of its parents. If you would like to explicitly skip some folders inside the `snapshot_root_directory`, then use 
+  `ignored_folders` to specify those.
 * `conda_environment_file`: The conda configuration file that describes which packages are necessary for your script
 to run. If omitted, the `hi-ml` package searches for a file called `environment.yml` in the current folder or its
 parents.
 
-You also need to supply an input dataset. For data pre-processing scripts, you can also supply an output dataset
+You can also supply an input dataset. For data pre-processing scripts, you can add an output dataset
 (omit this for ML training scripts).
-* You need to provision a data store in your AML workspace, that points to your training data in blob storage. This
-is described [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-connect-data-ui).
+* To use datasets, you need to provision a data store in your AML workspace, that points to your training data in 
+  blob storage. This is described 
+  [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-connect-data-ui).
 * `input_datasets=["images123"]` in the code above means that the script will consume all data in folder `images123`
 in blob storage as the input. The folder must exist in blob storage, in the location that you gave when creating the
 datastore. Once the script has run, it will also register the data in this folder as an AML dataset. 
 * `output_datasets=["images123_resized"]` means that the script will create a temporary folder when running in AML,
 and while the job writes data to that folder, upload it to blob storage, in the data store.
 
-For more examples, please see [examples.md](examples.md).
+For more examples, please see [examples.md](examples.md). For more details about datasets, see [here](datasets.md).
+
+
+## Additional arguments you should know about
+
+`submit_to_azure_if_needed` has a large number of arguments, please check the 
+[API documentation](api/health.azure.submit_to_azure_if_needed.rst) for an exhaustive list.
+The particularly helpful ones are listed below.
+
+* `experiment_name`: All runs in AzureML are grouped in "experiments". By default, the experiment name is determined
+  by the name of the script you submit, but you can specify a name explicitly with this argument.
+* `environment_variables`: A dictionary with the contents of all environment variables that should be set inside the
+  AzureML run, before the script is started.
+* `docker_base_image`: This specifies the name of the Docker base image to use for creating the
+  Python environment for your script. The amount of memory to allocate for Docker is given by `docker_shm_size`. 
+* `num_nodes`: The number of nodes on which your script should run. This is essential for distributed training.
+* `tags`: A dictionary mapping from string to string, with additional tags that will be stored on the AzureML run.
+  This is helpful to add metadata about the run for later use.
+
 
 ## Conda environments, Alternate pips, Private wheels
 
@@ -124,21 +144,3 @@ Finally, it is possible to use a private wheel, if the package is only available
 
 where `private_pip_wheel_path` is a `pathlib.Path` or a string identifying the wheel package to use. In this case, 
 this wheel will be copied to the AzureML environment as a private wheel.
-
-## Additional arguments you should know about
-
-`submit_to_azure_if_needed` has a large number of arguments, please check the API documentation for an exhaustive list.
-The particularly helpful ones are listed below.
-
-* `snapshot_root_directory` determines which folder should be copied to AzureML. All code that the script uses must 
-  be copied. If you would like to explicitly skip some folders inside the `snapshot_root_directory`, then use 
-  `ignored_folders` to specify those.
-* `experiment_name`: All runs in AzureML are grouped in "experiments". By default, the experiment name is determined
-  by the name of the script you submit, but you can specify a name explicitly with this argument.
-* `environment_variables`: A dictionary with the contents of all environment variables that should be set inside the
-  AzureML run, before the script is started.
-* `docker_base_image`: This specifies the name of the Docker base image to use for creating the
-  Python environment for your script. The amount of memory to allocate for Docker is given by `docker_shm_size`. 
-* `num_nodes`: The number of nodes on which your script should run. This is essential for distributed training.
-* `tags`: A dictionary mapping from string to string, with additional tags that will be stored on the AzureML run.
-  This is helpful to add metadata about the run for later use.
