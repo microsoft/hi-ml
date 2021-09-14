@@ -39,7 +39,7 @@ def main() -> None:
         compute_cluster_name={{ compute_cluster_name }},
         entry_script={{ entry_script }},
         aml_workspace={{ aml_workspace }},
-        workspace_config_path={{ workspace_config_path }},
+        workspace_config_file={{ workspace_config_file }},
         snapshot_root_directory={{ snapshot_root_directory }},
         conda_environment_file={{ conda_environment_file }},
         environment_variables={{ environment_variables }},

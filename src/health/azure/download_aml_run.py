@@ -24,11 +24,11 @@ def determine_output_dir_name(args: Namespace, run_id_source: AzureRunIdSource, 
     if run_id_source == AzureRunIdSource.EXPERIMENT_LATEST:
         output_path = output_dir / args.experiment_name
     elif run_id_source == AzureRunIdSource.LATEST_RUN_FILE:
-        output_path = output_dir / Path(args.latest_run_path).stem
+        output_path = output_dir / Path(args.latest_run_file).stem
     elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
-        output_path = output_dir / args.run_recovery_ids.replace(":", "")
+        output_path = output_dir / args.run_recovery_id.replace(":", "")
     else:  # run_id_source == AzureRunIdSource.RUN_ID:
-        output_path = output_dir / args.run_ids
+        output_path = output_dir / args.run_id
 
     output_path.mkdir(exist_ok=True)
     return output_path
@@ -41,33 +41,26 @@ def main() -> None:  # pragma: no cover
         type=str,
         default="outputs",
         required=False,
-        help="Path to directory to store files downloaded from Run"
+        help="Path to directory to store files downloaded from the AML Run"
     )
     parser.add_argument(
-        "--config_path",
+        "--config_file",
         type=str,
         default="config.json",
         required=False,
         help="Path to config.json where Workspace name is defined"
     )
     parser.add_argument(
-        "--latest_run_path",
+        "--latest_run_file",
         type=str,
         required=False,
-        help="Optional path to most_recent_run.txt where details on latest run are stored"
+        help="Optional path to most_recent_run.txt where the ID of the latest run is stored"
     )
     parser.add_argument(
         "--experiment_name",
         type=str,
         required=False,
-        help="The name of the AML Experiment that you wish to view Runs from"
-    )
-    parser.add_argument(
-        "--num_runs",
-        type=int,
-        default=1,
-        required=False,
-        help="The number of most recent runs that you wish to download"
+        help="The name of the AML Experiment that you wish to download Run files from"
     )
     parser.add_argument(
         "--tags",
@@ -77,26 +70,25 @@ def main() -> None:  # pragma: no cover
         help="Optional experiment tags to restrict the AML Runs that are returned"
     )
     parser.add_argument(
-        "--run_ids",
-        action="append",
+        "--run_id",
         type=str,
         default=None,
         required=False,
-        help="Optional Run ID that you wish to download files for"
+        help="Optional Run ID of the run that you wish to download files from"
     )
     parser.add_argument(
-        "--run_recovery_ids",
+        "--run_recovery_id",
+        type=str,
         default=None,
-        action='append',
         required=False,
-        help="Optional run recovery ids of the runs to plot"
+        help="Optional run recovery ID of the run to download files from"
     )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    config_path = Path(args.config_path)
+    config_path = Path(args.config_file)
     if not config_path.is_file():
         raise ValueError(
             "You must provide a config.json file in the root folder to connect"

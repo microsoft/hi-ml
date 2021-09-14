@@ -429,14 +429,14 @@ class MockRun:
 
 def test_determine_run_id_source(tmp_path: Path) -> None:
     parser = ArgumentParser()
-    parser.add_argument("--latest_run_path", type=str)
+    parser.add_argument("--latest_run_file", type=str)
     parser.add_argument("--experiment_name", type=str)
     parser.add_argument("--run_recovery_ids", type=str)
     parser.add_argument("--run_ids", type=str)
 
     # If latest run path provided, expect source to be latest run file
     mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    mock_args = parser.parse_args(["--latest_run_path", str(mock_latest_run_path)])
+    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
 
     # If experiment name is provided, expect source to be experiment
@@ -457,33 +457,33 @@ def test_determine_run_id_source(tmp_path: Path) -> None:
         util.determine_run_id_source(mock_args)
 
 
-def test_get_aml_runs_from_latest_run_path(tmp_path: Path) -> None:
+def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
     mock_run_id = 'mockrunid123'
     mock_latest_run_path = tmp_path / "most_recent_run.txt"
     with open(mock_latest_run_path, 'w+') as f_path:
         f_path.write(mock_run_id)
     parser = ArgumentParser()
-    parser.add_argument("--latest_run_path", type=str)
-    mock_args = parser.parse_args(["--latest_run_path", str(mock_latest_run_path)])
+    parser.add_argument("--latest_run_file", type=str)
+    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
     with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
         with mock.patch("health.azure.azure_util.fetch_run") as mock_fetch_run:
             mock_fetch_run.return_value = MockRun(mock_run_id)
-            aml_runs = util.get_aml_runs_from_latest_run_path(mock_args, mock_workspace)
+            aml_runs = util.get_aml_runs_from_latest_run_file(mock_args, mock_workspace)
             mock_fetch_run.assert_called_once_with(workspace=mock_workspace, run_recovery_id=mock_run_id)
             assert len(aml_runs) == 1
             assert aml_runs[0].id == mock_run_id
 
     # if path doesn't exist, expect error
     with pytest.raises(Exception):
-        mock_args = parser.parse_args(["--latest_run_path", "idontexist"])
+        mock_args = parser.parse_args(["--latest_run_file", "idontexist"])
         with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
-            util.get_aml_runs_from_latest_run_path(mock_args, mock_workspace)
+            util.get_aml_runs_from_latest_run_file(mock_args, mock_workspace)
 
     # if arg not provided, expect error
     with pytest.raises(Exception):
-        mock_args = parser.parse_args(["--latest_run_path", None])  # type: ignore
+        mock_args = parser.parse_args(["--latest_run_file", None])  # type: ignore
         with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
-            util.get_aml_runs_from_latest_run_path(mock_args, mock_workspace)
+            util.get_aml_runs_from_latest_run_file(mock_args, mock_workspace)
 
 
 def test_get_latest_aml_runs_from_experiment() -> None:
@@ -582,12 +582,12 @@ def test_get_aml_runs_from_runids() -> None:
 def test_get_aml_runs(tmp_path: Path) -> None:
     parser = ArgumentParser()
     mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    parser.add_argument("--latest_run_path", type=str)
+    parser.add_argument("--latest_run_file", type=str)
 
     # if latest run path has been provided:
-    mock_args = parser.parse_args(["--latest_run_path", str(mock_latest_run_path)])
+    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
     run_id_source = util.AzureRunIdSource.LATEST_RUN_FILE
-    with mock.patch("health.azure.azure_util.get_aml_runs_from_latest_run_path") as mock_get_from_run_path:
+    with mock.patch("health.azure.azure_util.get_aml_runs_from_latest_run_file") as mock_get_from_run_path:
         with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
             aml_runs = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
             mock_get_from_run_path.assert_called_once()
