@@ -19,14 +19,11 @@ env:
   HIML_AZURE_DIST_ARTIFACT: 'hi-ml-azure-dist'
   HIML_AZURE_VERSION_ARTIFACT: 'latest_version'
   HIML_FOLDER: 'hi-ml'
-  HIML_PKGS: '[\'hi-ml-azure\', \'hi-ml\']'
+  HIML_PKGS: "['hi-ml-azure', 'hi-ml']"
 
 jobs:
   flake8:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        pkg: ${{fromJSON(${{ env.HIML_PKGS }})}}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -39,8 +36,6 @@ jobs:
 
       - name: flake8
         run: |
-          echo "Pkg:"
-          echo {{ matrix.pkg }}
           cd ${{ env.HIML_AZURE_FOLDER }}
           make flake8
 
