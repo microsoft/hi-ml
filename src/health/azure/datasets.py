@@ -88,8 +88,8 @@ class DatasetConfig:
         :param use_mounting: If True, the dataset will be "mounted", that is, individual files will be read
             or written on-demand over the network. If False, the dataset will be fully downloaded before the job starts,
             respectively fully uploaded at job end for output datasets.
-            Defaults: False (downloading) for datasets that are script inputs, True (mounting) for datasets that are script
-            outputs.
+            Defaults: False (downloading) for datasets that are script inputs, True (mounting) for datasets that are
+            script outputs.
         :param target_folder: The folder into which the dataset should be downloaded or mounted. If left empty, a
             random folder on /tmp will be chosen.
         :param local_folder: The folder on the local machine at which the dataset is available. This

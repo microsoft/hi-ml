@@ -9,6 +9,7 @@ from sklearn import datasets
 
 from health.azure import submit_to_azure_if_needed
 
+
 def main() -> None:
     run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
@@ -24,6 +25,7 @@ def main() -> None:
     np.savetxt(X_csv, X, delimiter=',')
     y_csv = dataset / "y.csv"
     np.savetxt(y_csv, y, delimiter=',')
+
 
 if __name__ == "__main__":
     main()

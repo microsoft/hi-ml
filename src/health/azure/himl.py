@@ -61,11 +61,11 @@ class AzureRunInfo:
     """
     input_datasets: List[Optional[Path]]
     """A list of folders that contain all the datasets that the script uses as inputs. Input datasets must be
-     specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no input 
+     specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no input
      datasets are specified, the list is empty."""
     output_datasets: List[Optional[Path]]
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
-         specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output 
+         specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
          datasets are specified, the list is empty."""
     run: Optional[Run]
     """An AzureML Run object if the present script is executing inside AzureML, or None if outside of AzureML.
@@ -127,8 +127,8 @@ def create_run_configuration(workspace: Workspace,
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
-        exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
-        also register the data in this folder as an AzureML dataset.
+        exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it
+        will also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
         data to that folder, upload it to blob storage, in the data store.
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
@@ -350,8 +350,8 @@ def submit_to_azure_if_needed(  # type: ignore
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
         storage. This is described in more detail in the README.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
-        exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it will
-        also register the data in this folder as an AzureML dataset.
+        exist in blob storage, in the location that you gave when creating the datastore. Once the script has run, it
+        will also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
         data to that folder, upload it to blob storage, in the data store.
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
@@ -476,6 +476,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
     :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
     :return: The path to the file, or None if it cannot be found.
     """
+
     def return_file_or_parent(
             start_at: Path,
             file_name: str,
