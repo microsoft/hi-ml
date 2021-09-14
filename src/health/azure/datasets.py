@@ -79,8 +79,6 @@ class DatasetConfig:
                  target_folder: str = "",
                  local_folder: Optional[Path] = None):
         """
-        Creates a new configuration for using an AzureML dataset.
-
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
             this will be the name given to the newly created dataset.
         :param datastore: The name of the AzureML datastore that holds the dataset. This can be empty if the AzureML

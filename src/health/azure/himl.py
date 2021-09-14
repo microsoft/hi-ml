@@ -52,15 +52,32 @@ PathOrString = Union[Path, str]
 
 @dataclass
 class AzureRunInfo:
+    """
+    This class stores all information that a script needs to run inside and outside of AzureML. It is return
+    from `submit_to_azure_if_needed`, where the return value depends on whether the script is inside or outside
+    AzureML.
+
+    Please check the source code for detailed documentation for all fields.
+    """
     input_datasets: List[Optional[Path]]
+    """A list of folders that contain all the datasets that the script uses as inputs. Input datasets must be
+     specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no input 
+     datasets are specified, the list is empty."""
     output_datasets: List[Optional[Path]]
+    """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
+         specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output 
+         datasets are specified, the list is empty."""
     run: Optional[Run]
-    # If True, the present code is running inside of AzureML.
+    """An AzureML Run object if the present script is executing inside AzureML, or None if outside of AzureML.
+    The Run object has methods to log metrics, upload files, etc."""
     is_running_in_azure: bool
-    # In Azure, this would be the "outputs" folder. In local runs: "." or create a timestamped folder.
-    # The folder that we create here must be added to .amlignore
+    """If True, the present script is executing inside AzureML. If False, outside AzureML."""
     output_folder: Path
+    """The output folder into which all script outputs should be written, if they should be later available in the
+    AzureML portal. Files written to this folder will be uploaded to blob storage at the end of the script run."""
     logs_folder: Path
+    """The folder into which all log files (for example, tensorboard) should be written. All files written to this
+    folder will be uploaded to blob storage regularly during the script run."""
 
 
 def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
@@ -347,7 +364,7 @@ def submit_to_azure_if_needed(  # type: ignore
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
-        otherwise we return a AzureRunInformation object.
+        otherwise we return a AzureRunInfo object.
     """
     _package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
@@ -552,7 +569,7 @@ def _generate_azure_datasets(
     Generate returned datasets when running in AzumreML
     :param cleaned_input_datasets: The list of input dataset configs
     :param cleaned_output_datasets: The list of output dataset configs
-    :return: The AzureRunInformation containing the AzureML input and output dataset lists etc.
+    :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
     returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
                                for index in range(len(cleaned_input_datasets))]

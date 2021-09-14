@@ -78,4 +78,8 @@ source_suffix = {
 # Add packages here that are expensive to import during doc generation, like pytorch
 autodoc_mock_imports = [""]
 
+# This is the default language for syntax highlighting for all files that in included in .rst files
 highlight_language = "python"
+
+# For classes, insert documentation from the class itself AND the constructor
+autoclass_content = "both"
