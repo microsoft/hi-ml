@@ -4,7 +4,7 @@
 
 From the command line, run the command
 
-```run-tensorboard```
+```himl-tb```
 
 specifying one of 
 `[--experiment_name] [--latest_run_path] [--run_recovery_ids]` 
@@ -24,7 +24,7 @@ If your AML config path is not ROOT_DIR/config.json, you must also specify `--co
 
 From the command line, run the command 
 
-```download-aml-run```
+```himl-download```
 
 specifying one of 
 `[--experiment_name] [--latest_run_path] [--run_recovery_ids] [--run_ids]` 
@@ -37,5 +37,5 @@ The files associated with your Run(s) will be downloaded to the location specifi
 
 If you choose to specify `--experiment_name`, you can also specify `--num_runs` to view and/or `--tags` to filter by.
 
-If your AML config path is not ROOT_DIR/config.json, you must also specify `--config_path`.
+If your AML config path is not `ROOT_DIR/config.json`, you must also specify `--config_path`.
 

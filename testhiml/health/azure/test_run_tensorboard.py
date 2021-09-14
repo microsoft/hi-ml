@@ -5,9 +5,9 @@
 import pytest
 import subprocess
 
-from health.azure import run_tensorboard
+from health.azure import himl_tensorboard
 
-TENSORBOARD_SCRIPT_PATH = run_tensorboard.__file__
+TENSORBOARD_SCRIPT_PATH = himl_tensorboard.__file__
 
 
 class MockRun:
