@@ -106,7 +106,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: latest_version
-          path: latest_version.txt
+          path: hi-ml-azure/latest_version.txt
 
       - name: Upload Distribution
         uses: actions/upload-artifact@v2
@@ -140,7 +140,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: dist
+          path: hi-ml-azure/dist
 
       - name: List contents of dist
         run: ls -al dist
@@ -172,7 +172,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: dist
+          path: hi-ml-azure/dist
 
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -186,6 +186,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
+          path: hi-ml-azure/latest_version.txt
 
       - name: Show published TestPyPI package version
         run: |
@@ -213,6 +214,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
+          path: hi-ml-azure/latest_version.txt
 
       - name: Get TestPyPI version
         run: |
@@ -224,7 +226,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: dist
+          path: path: hi-ml-azure/dist
 
       - name: Set env
         run: echo "HIML_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
@@ -310,6 +312,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
+          path: hi-ml-azure/latest_version.txt
 
       - name: Get TestPyPI version
         run: |
@@ -321,7 +324,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: dist
+          path: hi-ml-azure/dist
 
       - name: Set env
         run: echo "HIML_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
@@ -352,7 +355,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: hi-ml-azure-dist
-          path: dist
+          path: hi-ml-azure/dist
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -380,6 +383,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: latest_version
+          path: hi-ml-azure/latest_version.txt
 
       - name: Get PyPI version
         run: |
