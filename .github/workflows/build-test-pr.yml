@@ -256,7 +256,7 @@ jobs:
 
             const sha = context.eventName == 'pull_request' ? context.payload.pull_request.head.sha : context.sha
 
-            const coverage = await fs.readFile('./coverage.txt', 'utf8')
+            const coverage = await fs.readFile('hi-ml-azure/coverage.txt', 'utf8')
 
             var table = ""
             const coverage_lines = coverage.split("\n")
