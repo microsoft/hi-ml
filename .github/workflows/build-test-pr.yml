@@ -16,6 +16,7 @@ env:
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
   HIML_AZURE_FOLDER: 'hi-ml-azure'
+  HIML_AZURE_PKG: 'hi-ml-azure'
   HIML_AZURE_DIST_ARTIFACT: 'hi-ml-azure-dist'
   HIML_AZURE_VERSION_ARTIFACT: 'latest_version'
   HIML_FOLDER: 'hi-ml'
@@ -149,7 +150,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ secrets.TEST_PIPY_TOKEN }}
+          password: ${{ secrets.PYPI_TEST_AZURE_TOKEN }}
           packages_dir: ${{ env.HIML_AZURE_FOLDER }}/dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
@@ -166,7 +167,7 @@ jobs:
 
           latest_version=$(cat ./latest_version.txt)
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple hi-ml==$latest_version"
+          echo "pip install --extra-index-url https://test.pypi.org/simple {{ env.HIML_AZURE_PKG }}==$latest_version"
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
@@ -257,14 +258,17 @@ jobs:
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
 
-          # Get TestPyPI version
-          latest_version=$(cat latest_version.txt)
-
           # Set up conda environment
           $CONDA/bin/conda env update --file test_environment.yml --name base
 
+          # Get TestPyPI version
+          latest_version=$(cat latest_version.txt)
+
           # Install test package
-          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple hi-ml==$latest_version
+          while ! $CONDA/bin/pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple \
+            {{ env.HIML_AZURE_PKG }}==$latest_version
           do
             echo waiting for test.pypi
             sleep 10

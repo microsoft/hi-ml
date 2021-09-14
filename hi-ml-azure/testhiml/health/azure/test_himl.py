@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 """
-Tests for hi-ml.
+Tests for hi-ml-azure.
 """
 import logging
 import os
@@ -535,7 +535,7 @@ def render_and_run_test_script(path: Path,
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
-    # target hi-ml package version, if specified in an environment variable.
+    # target hi-ml-azure package version, if specified in an environment variable.
     version = ""
     run_requirements = False
 

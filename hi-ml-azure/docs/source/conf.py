@@ -18,7 +18,7 @@ sys.path.insert(0, root_dir)
 
 # -- Project information -----------------------------------------------------
 
-project = 'hi-ml'
+project = 'hi-ml-azure'
 copyright = '2021, InnerEye'
 author = 'InnerEye'
 

@@ -62,7 +62,7 @@ install_requires = [line.strip() for line in install_requires if line.strip()]
 description = 'Microsoft Health Intelligence package to elevate and monitor scripts to an AzureML workspace'
 
 setup(
-    name='hi-ml',
+    name='hi-ml-azure',
     version=version,
     description=description,
     long_description=long_description,

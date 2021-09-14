@@ -20,7 +20,7 @@ pip_test_pypi_latest: pip_upgrade
 	while ! pip install \
 		--index-url https://test.pypi.org/simple/ \
 		--extra-index-url https://pypi.org/simple \
-		hi-ml==$$latest_version ;\
+		hi-ml-azure==$$latest_version ;\
 	do \
 		echo waiting for test.pypi ;\
 		sleep 10 ;\
@@ -30,7 +30,7 @@ pip_pypi_latest: pip_upgrade
 	set -e ;\
 	latest_version=$$(cat ./latest_version.txt) ;\
 	while ! pip install \
-		hi-ml==$$latest_version ;\
+		hi-ml-azure==$$latest_version ;\
 	do \
 		echo waiting for pypi ;\
 		sleep 10 ;\

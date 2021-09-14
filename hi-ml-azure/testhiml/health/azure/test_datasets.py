@@ -6,7 +6,7 @@
 Test the data input and output functionality
 """
 from unittest import mock
-from azureml.telemetry import UserErrorException
+from azureml.exceptions._azureml_exception import UserErrorException
 
 import pytest
 from azureml.core import Dataset

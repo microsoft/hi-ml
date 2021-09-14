@@ -20,7 +20,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
     Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
     :param environment_yaml_path: Where to save environment.yml.
-    :param version: hi-ml package version.
+    :param version: hi-ml-azure package version.
     :param run_requirements: True to include run_requirements.txt.
     :return: None
     """
@@ -31,7 +31,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
     if version:
         pip = f"""
   - pip:
-    - hi-ml{version}
+    - hi-ml-azure{version}
 """
     elif run_requirements:
         pip = """
