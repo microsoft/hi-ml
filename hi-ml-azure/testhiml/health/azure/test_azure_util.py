@@ -292,7 +292,7 @@ def test_run_duration_fails() -> None:
 
 def test_repository_root() -> None:
     root = repository_root()
-    assert (root / "SECURITY.md").is_file()
+    assert (root / "README.md").is_file()
 
 
 def test_nonexisting_amlignore(random_folder: Path) -> None:
