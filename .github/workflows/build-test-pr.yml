@@ -19,7 +19,7 @@ env:
   HIML_AZURE_DIST_ARTIFACT: 'hi-ml-azure-dist'
   HIML_AZURE_VERSION_ARTIFACT: 'latest_version'
   HIML_FOLDER: 'hi-ml'
-  HIML_PKGS: '[\'hi-ml-azure\', \'hi-ml\']'
+  HIML_PKGS: "['hi-ml-azure', 'hi-ml']"
 
 jobs:
   flake8:
