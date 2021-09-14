@@ -125,3 +125,20 @@ Finally, it is possible to use a private wheel, if the package is only available
 where `private_pip_wheel_path` is a `pathlib.Path` or a string identifying the wheel package to use. In this case, 
 this wheel will be copied to the AzureML environment as a private wheel.
 
+## Additional arguments you should know about
+
+`submit_to_azure_if_needed` has a large number of arguments, please check the API documentation for an exhaustive list.
+The particularly helpful ones are listed below.
+
+* `snapshot_root_directory` determines which folder should be copied to AzureML. All code that the script uses must 
+  be copied. If you would like to explicitly skip some folders inside the `snapshot_root_directory`, then use 
+  `ignored_folders` to specify those.
+* `experiment_name`: All runs in AzureML are grouped in "experiments". By default, the experiment name is determined
+  by the name of the script you submit, but you can specify a name explicitly with this argument.
+* `environment_variables`: A dictionary with the contents of all environment variables that should be set inside the
+  AzureML run, before the script is started.
+* `docker_base_image`: This specifies the name of the Docker base image to use for creating the
+  Python environment for your script. The amount of memory to allocate for Docker is given by `docker_shm_size`. 
+* `num_nodes`: The number of nodes on which your script should run. This is essential for distributed training.
+* `tags`: A dictionary mapping from string to string, with additional tags that will be stored on the AzureML run.
+  This is helpful to add metadata about the run for later use.
