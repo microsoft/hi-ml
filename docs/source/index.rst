@@ -15,6 +15,7 @@ Documentation for the Health Intelligence Machine Learning toolbox hi-ml
    authentication.md
    datasets.md
    hyperdrive.md
+   commandline_tools.md
    examples.md
 
 .. toctree::
