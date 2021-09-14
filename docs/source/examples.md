@@ -210,6 +210,38 @@ Add in:
 
 and these metrics will be displayed on the child runs tab in the Experiment page on AzureML.
 
+## Conda environments, Alternate pips, Private wheels
+
+The function `submit_to_azure_if_needed` tries to locate a Conda environment file in the current folder, or in the Python path, with the name `environment.yml`. The actual Conda environment file to use can be specified directly with:
+
+```python
+    run_info = submit_to_azure_if_needed(
+        ...
+        conda_environment_file=conda_environment_file,
+```
+
+where `conda_environment_file` is a `pathlib.Path` or a string identifying the Conda environment file to use.
+
+The basic use of Conda assumes that packages listed are published [Conda packages](https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/packages.html) or published Python packages on [PyPI](https://pypi.org/). However, during development, the Python package may be on [Test.PyPI](https://test.pypi.org/), or in some other location, in which case the alternative package location can be specified directly with:
+
+```python
+    run_info = submit_to_azure_if_needed(
+        ...
+        pip_extra_index_url=pip_extra_index_url,
+```
+
+where `pip_extra_index_url` is the URL of the package, e.g. ["https://test.pypi.org/simple/"]("https://test.pypi.org/simple/").
+
+Finally, it is possible to use a private wheel, if the package is only available locally with:
+
+```python
+    run_info = submit_to_azure_if_needed(
+        ...
+        private_pip_wheel_path=private_pip_wheel_path,
+```
+
+where `private_pip_wheel_path` is a `pathlib.Path` or a string identifying the wheel package to use. In this case, this wheel will be copied to the AzureML environment as a private wheel.
+
 ## Controlling when to submit to AzureML and when not
 
 By default, the `hi-ml` package assumes that you supply a commandline argument `--azureml` (that can be anywhere on 
