@@ -1,4 +1,4 @@
-# Microsoft Health Intelligence Machine Learning Toolbox
+# Microsoft Health Intelligence Machine Learning Azure Toolbox
 
 ## Overview
 
@@ -11,13 +11,13 @@ will be added in the next few weeks.
 
 ## Getting started
 
-* Install from `pypi` via `pip`, by running `pip install hi-ml`
+* Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
 
 
 ## Using the AzureML integration layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
-The `hi-ml` package can help easily run that on Azure Machine Learning (AML) services.
+The `hi-ml-azure` package can help easily run that on Azure Machine Learning (AML) services.
 
 Here is an example script that reads images from a folder, resizes and saves them to an output folder:
 ```python

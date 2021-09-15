@@ -20,7 +20,7 @@ def repository_root() -> Path:
     """
     Gets the root folder of the git repository.
     """
-    return Path(__file__).parent.parent.parent.parent
+    return Path(__file__).parent.parent.parent.parent.parent
 
 
 def default_aml_workspace() -> Workspace:

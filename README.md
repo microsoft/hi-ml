@@ -9,74 +9,10 @@ by providing tested components (data loaders, pre-processing), deep learning mod
 This toolbox is still in very early stages, and presently offers only the cloud integration components. ML components
 will be added in the next few weeks.
 
-## Getting started
+This toolbox consists of two Python projects:
 
-* Install from `pypi` via `pip`, by running `pip install hi-ml`
-
-## Documentation
-
-The detailed package documentation, with examples and API reference, is on 
-[readthedocs](https://hi-ml.readthedocs.io/en/latest/).
-
-
-## Quick start: Using the Azure layer
-
-Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
-The `hi-ml` package can help easily run that on Azure Machine Learning (AML) services.
-
-Here is an example script that reads images from a folder, resizes and saves them to an output folder:
-```python
-from pathlib import Path
-if __name__ == '__main__':
-    input_folder = Path("/tmp/my_dataset")
-    output_folder = Path("/tmp/my_output")
-    for file in input_folder.glob("*.jpg"):
-        contents = read_image(file)
-        resized = contents.resize(0.5)
-        write_image(output_folder / file.name)
-```
-Doing that at scale can take a long time. **We'd like to run that script in AzureML, consume the data from a folder in
-blob storage, and write the results back to blob storage**.
-
-With the `hi-ml` package, you can turn that script into one that runs on the cloud by adding one function call:
-
-```python
-from pathlib import Path
-from health.azure.himl import submit_to_azure_if_needed
-if __name__ == '__main__':
-    current_file = Path(__file__)
-    run_info = submit_to_azure_if_needed(compute_cluster_name="preprocess-ds12",
-                                         input_datasets=["images123"],
-                                         # Omit this line if you don't create an output dataset (for example, in
-                                         # model training scripts)
-                                         output_datasets=["images123_resized"],
-                                         default_datastore="my_datastore")
-    # When running in AzureML, run_info.input_datasets and run_info.output_datasets will be populated,
-    # and point to the data coming from blob storage. For runs outside AML, the paths will be None.
-    # Replace the None with a meaningful path, so that we can still run the script easily outside AML.
-    input_dataset = run_info.input_datasets[0] or Path("/tmp/my_dataset")
-    output_dataset = run_info.output_datasets[0] or Path("/tmp/my_output")
-    files_processed = []
-    for file in input_dataset.glob("*.jpg"):
-        contents = read_image(file)
-        resized = contents.resize(0.5)
-        write_image(output_dataset / file.name)
-        files_processed.append(file.name)
-    # Any other files that you would not consider an "output dataset", like metrics, etc, should be written to
-    # a folder "./outputs". Any files written into that folder will later be visible in the AzureML UI.
-    # run_info.output_folder already points to the correct folder.
-    stats_file = run_info.output_folder / "processed_files.txt"
-    stats_file.write_text("\n".join(files_processed))
-```
-
-Once these changes are in place, you can submit the script to AzureML by supplying an additional `--azureml` flag
-on the commandline, like `python myscript.py --azureml`.
-
-That's it!
-
-For details, please refer to the [onboarding page](docs/source/first_steps.md).
- 
-For more examples, please see [examples.md](docs/source/examples.md).
+* [hi-ml-azure](hi-ml-azure/README.md) - providing helper functions for running in AzureML.
+* [hi-ml](hi-ml/README.md) - providing ML components.
 
 ## Issues
 If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page. 
