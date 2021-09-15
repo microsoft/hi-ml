@@ -176,7 +176,7 @@ jobs:
 
           latest_version=$(cat ./latest_version.txt)
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple {{ env.HIML_AZURE_PKG }}==$latest_version"
+          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ env.HIML_AZURE_PKG }}==$latest_version"
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
@@ -203,9 +203,6 @@ jobs:
           name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
           path: ${{ env.HIML_AZURE_FOLDER }}/dist
 
-      - name: Set env
-        run: echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
-
       - name: Install and test package
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
@@ -220,7 +217,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple {{ env.HIML_AZURE_PKG }}==$latest_version
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_AZURE_PKG }}==$latest_version
           do
             echo waiting for test.pypi
             sleep 10
@@ -299,7 +296,7 @@ jobs:
           $CONDA/bin/conda env update --file test_environment.yml --name base
 
           # Install test package
-          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple {{ env.HIML_AZURE_PKG }}==$latest_version
+          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_AZURE_PKG }}==$latest_version
           do
             echo waiting for test.pypi
             sleep 10
@@ -355,7 +352,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install {{ env.HIML_AZURE_PKG }}==$latest_version
+          while ! pip install ${{ env.HIML_AZURE_PKG }}==$latest_version
           do
             echo waiting for pypi
             sleep 10
