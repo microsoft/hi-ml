@@ -130,8 +130,17 @@ jobs:
       - name: Install and test artifact
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
+
+          wheel_filename=$(find dist -name ${{ matrix.packageName }})
+
+          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
+          echo "HIML_AZURE_WHEEL_FILENAME=$wheel_filename" >> $GITHUB_ENV
+
+          make pip_upgrade
+
           # Install package
-          make packageName=${{ matrix.packageName }} pip_wheel
+          pip install $wheel_filename
+
           # Test with pytest, fast only
           make testfast_no_install
 
@@ -188,10 +197,38 @@ jobs:
           name: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
           path: ${{ env.HIML_AZURE_FOLDER }}
 
+      - name: Download Distribution
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
+          path: ${{ env.HIML_AZURE_FOLDER }}/dist
+
+      - name: Set env
+        run: echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
+
       - name: Install and test package
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
-          make pip_test_pypi_latest
+
+          latest_version=$(cat ./latest_version.txt)
+
+          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
+          echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
+
+          # Set env var HIML_AZURE_TEST_PYPI_VERSION, used in test_himl.py to identify package
+          echo "HIML_AZURE_TEST_PYPI_VERSION=$latest_version" >> $GITHUB_ENV
+
+          make pip_upgrade
+
+         	while ! pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple \
+            {{ env.HIML_AZURE_PKG }}==$latest_version
+          do
+            echo waiting for test.pypi
+            sleep 10
+          done
+
           make pytest_and_coverage
 
       - name: Add coverage as a commit comment
@@ -258,11 +295,11 @@ jobs:
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
 
+          # Get TestPyPI version
+          latest_version=$(cat ./latest_version.txt)
+
           # Set up conda environment
           $CONDA/bin/conda env update --file test_environment.yml --name base
-
-          # Get TestPyPI version
-          latest_version=$(cat latest_version.txt)
 
           # Install test package
           while ! $CONDA/bin/pip install \
@@ -316,6 +353,19 @@ jobs:
       - name: Install PyPI package and test
         run: |
           cd ${{ env.HIML_AZURE_FOLDER }}
-          make pip_pypi_latest
+
+          latest_version=$(cat ./latest_version.txt)
+
+          # Set env var HIML_AZURE_PYPI_VERSION, used in test_himl.py to identify package
+          echo "HIML_AZURE_PYPI_VERSION=$latest_version" >> $GITHUB_ENV
+
+          make pip_upgrade
+
+          while ! pip install {{ env.HIML_AZURE_PKG }}==$latest_version
+          do
+            echo waiting for pypi
+            sleep 10
+          done
+
           # Test with pytest, fast only
           make testfast_no_install

@@ -539,9 +539,9 @@ def render_and_run_test_script(path: Path,
     version = ""
     run_requirements = False
 
-    himl_wheel_filename = os.getenv('HIML_WHEEL_FILENAME', '')
-    himl_test_pypi_version = os.getenv('HIML_TEST_PYPI_VERSION', '')
-    himl_pypi_version = os.getenv('HIML_PYPI_VERSION', '')
+    himl_wheel_filename = os.getenv('HIML_AZURE_WHEEL_FILENAME', '')
+    himl_test_pypi_version = os.getenv('HIML_AZURE_TEST_PYPI_VERSION', '')
+    himl_pypi_version = os.getenv('HIML_AZURE_PYPI_VERSION', '')
 
     if not himl_wheel_filename:
         # If testing locally, can build the package into the "dist" folder and use that.
@@ -659,9 +659,9 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     :param tmp_path: PyTest test fixture for temporary path.
     """
     if not use_package and \
-            not os.getenv('HIML_WHEEL_FILENAME', '') and \
-            not os.getenv('HIML_TEST_PYPI_VERSION', '') and \
-            not os.getenv('HIML_PYPI_VERSION', ''):
+            not os.getenv('HIML_AZURE_WHEEL_FILENAME', '') and \
+            not os.getenv('HIML_AZURE_TEST_PYPI_VERSION', '') and \
+            not os.getenv('HIML_AZURE_PYPI_VERSION', ''):
         # Running locally, no need to duplicate this test.
         return
 
@@ -674,9 +674,9 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     if use_package:
         output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     else:
-        with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": '',
-                                          "HIML_TEST_PYPI_VERSION": '',
-                                          "HIML_PYPI_VERSION": ''}):
+        with mock.patch.dict(os.environ, {"HIML_AZURE_WHEEL_FILENAME": '',
+                                          "HIML_AZURE_TEST_PYPI_VERSION": '',
+                                          "HIML_AZURE_PYPI_VERSION": ''}):
             output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     expected_output = f"The message was: {message_guid}"
     assert expected_output in output
@@ -706,7 +706,7 @@ def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     """
     extra_options: Dict[str, str] = {}
     extra_args: List[str] = []
-    with mock.patch.dict(os.environ, {"HIML_WHEEL_FILENAME": 'not_a_known_file.whl'}):
+    with mock.patch.dict(os.environ, {"HIML_AZURE_WHEEL_FILENAME": 'not_a_known_file.whl'}):
         output = render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
     error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
     error_message_end = "not_a_known_file.whl, it is not a file."

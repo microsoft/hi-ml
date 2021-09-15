@@ -14,33 +14,6 @@ pip_test: pip_upgrade
 pip_local: pip_upgrade
 	pip install -e .
 
-pip_test_pypi_latest: pip_upgrade
-	set -e ;\
-	latest_version=$$(cat ./latest_version.txt) ;\
-	while ! pip install \
-		--index-url https://test.pypi.org/simple/ \
-		--extra-index-url https://pypi.org/simple \
-		hi-ml-azure==$$latest_version ;\
-	do \
-		echo waiting for test.pypi ;\
-		sleep 10 ;\
-	done ;\
-
-pip_pypi_latest: pip_upgrade
-	set -e ;\
-	latest_version=$$(cat ./latest_version.txt) ;\
-	while ! pip install \
-		hi-ml-azure==$$latest_version ;\
-	do \
-		echo waiting for pypi ;\
-		sleep 10 ;\
-	done ;\
-
-pip_wheel: pip_upgrade
-	set -e ;\
-	HIML_WHEEL_FILENAME=$$(find dist -name $(packageName)) ;\
-	pip install $$HIML_WHEEL_FILENAME ;\
-
 # pip install everything for local development and testing
 pip: pip_build pip_test pip_local
 
