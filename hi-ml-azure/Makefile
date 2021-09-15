@@ -49,6 +49,9 @@ pytest_and_coverage: pip_test
 testfast_no_install: pip_test
 	pytest -m fast testhiml
 
+# run pytest fast subset on local package
+testfast: pip_local testfast_no_install
+
 # run all tests
 test: flake8 mypy pytest
 
