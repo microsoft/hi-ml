@@ -4,7 +4,7 @@ flake8:
 	cd hi-ml && $(MAKE) flake8
 
 # run mypy
-mypy: pip_test
+mypy:
 	cd hi-ml-azure && $(MAKE) mypy
 	cd hi-ml && $(MAKE) mypy
 
