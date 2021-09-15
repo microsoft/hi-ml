@@ -23,11 +23,11 @@ conda:
 
 # run flake8
 flake8: pip_test
-	flake8 --count --statistics --config=.flake8 .
+	flake8 --count --statistics --config=../.flake8 .
 
 # run mypy
 mypy: pip_test
-	python mypy_runner.py
+	python mypy_runner.py --config=../mypy.ini
 
 # run basic checks
 check: flake8 mypy

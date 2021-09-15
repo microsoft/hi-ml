@@ -11,7 +11,7 @@ from shutil import which
 from typing import List
 
 
-def run_mypy(files: List[str], mypy_executable_path: str) -> int:
+def run_mypy(files: List[str], mypy_executable_path: str, config: str) -> int:
     """
     Runs mypy on the specified files, printing whatever is sent to stdout (i.e. mypy errors).
     Because of an apparent bug in mypy, we run mypy in --verbose mode, so that log lines are printed to
@@ -20,6 +20,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     no further files are mentioned in the logs.
     :param files: list of .py files to check
     :param mypy_executable_path: path to mypy executable
+    :param config: path to ini file.
     :return: maximum return code from any of the mypy runs
     """
     return_code = 0
@@ -37,7 +38,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
         else:
             print("Skipping.")
         if mypy_args:
-            command = [mypy_executable_path, "--config=mypy.ini", *mypy_args]
+            command = [mypy_executable_path, f"--config={config}", *mypy_args]
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
             process = subprocess.run(command)
             return_code = max(return_code, process.returncode)
@@ -66,6 +67,8 @@ def main() -> int:
                              "run on the default set of files for the HI-ML repository")
     parser.add_argument("-m", "--mypy", type=str, required=False, default=None,
                         help="Path to mypy executable. If not provided, autodetect mypy executable.")
+    parser.add_argument("-i", "--config", type=str, required=False, default=None,
+                        help="Path to ini file. If not provided, assume mypy.ini in working directory")
     args = parser.parse_args()
 
     file_list = []
@@ -89,7 +92,8 @@ def main() -> int:
     if not mypy:
         raise ValueError("Mypy executable not found.")
 
-    return run_mypy(sorted(str(file) for file in file_list), mypy_executable_path=mypy)
+    config = args.config or "mypy.ini"
+    return run_mypy(sorted(str(file) for file in file_list), mypy_executable_path=mypy, config=config)
 
 
 if __name__ == "__main__":

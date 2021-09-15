@@ -21,11 +21,11 @@
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
-        "--config=${workspaceFolder}/hi-ml-azure/.flake8",
+        "--config=${workspaceFolder}/.flake8",
     ],
     "python.linting.mypyEnabled": true,
     "python.linting.mypyArgs": [
-        "--config-file=${workspaceFolder}/hi-ml-azure/mypy.ini"
+        "--config-file=${workspaceFolder}/mypy.ini"
     ],
     "python.linting.pycodestyleEnabled": true,
     "python.linting.pycodestyleArgs": [

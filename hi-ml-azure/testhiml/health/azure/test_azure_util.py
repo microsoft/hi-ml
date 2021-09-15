@@ -318,7 +318,7 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
         ) -> None:
-    just_conda_str_env_name = "HealthML-7b49e1a2dc8a9df6a47bbfb98878a2a2"
+    just_conda_str_env_name = "HealthML-a26b35a434dd27a44a8224c709fb4760"
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
