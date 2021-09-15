@@ -1,0 +1,5 @@
+azureml-sdk==1.32.0
+azureml-tensorboard==1.32.0
+conda-merge==0.1.5
+ruamel.yaml==0.16.12
+tensorboard==2.6.0

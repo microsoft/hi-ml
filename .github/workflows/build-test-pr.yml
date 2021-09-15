@@ -36,9 +36,7 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: flake8
-        run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
-          make flake8
+        run: make flake8
 
   mypy:
     runs-on: ubuntu-latest
@@ -53,9 +51,7 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: mypy
-        run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
-          make mypy
+        run: make mypy
 
   pytest:
     runs-on: ubuntu-latest
