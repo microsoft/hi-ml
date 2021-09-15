@@ -21,11 +21,11 @@
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
-        "--config=${workspaceFolder}/.flake8",
+        "--config=${workspaceFolder}/hi-ml-azure/.flake8",
     ],
     "python.linting.mypyEnabled": true,
     "python.linting.mypyArgs": [
-        "--config-file=${workspaceFolder}/mypy.ini"
+        "--config-file=${workspaceFolder}/hi-ml-azure/mypy.ini"
     ],
     "python.linting.pycodestyleEnabled": true,
     "python.linting.pycodestyleArgs": [
@@ -39,7 +39,7 @@
     ],
     "python.sortImports.args": ["-l", "120"],
     "python.testing.pytestArgs": [
-        "${workspaceFolder}/testhiml/"
+        "${workspaceFolder}/hi-ml-azure/testhiml/"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,

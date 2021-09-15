@@ -318,10 +318,19 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
         ) -> None:
-    just_conda_str_env_name = "HealthML-9231e34f29c82f2e809e54167003637d"
-    conda_str = "name: simple-env\ndependencies:\n  - pip=20.1.1\n  - python=3.7.3\n  - pip:" + \
-        "\n    - azureml-sdk==1.23.0\n    - conda-merge==0.1.5\n  - pip:\n    - --index-url" + \
-        " https://test.pypi.org/simple/\n    - --extra-index-url https://pypi.org/simple\n    - hi-ml-azure"
+    just_conda_str_env_name = "HealthML-7b49e1a2dc8a9df6a47bbfb98878a2a2"
+    conda_str = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pip:
+    - azureml-sdk==1.23.0
+    - conda-merge==0.1.5
+  - pip:
+    - --index-url https://test.pypi.org/simple/
+    - --extra-index-url https://pypi.org/simple
+    - hi-ml-azure
+"""
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str)
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
