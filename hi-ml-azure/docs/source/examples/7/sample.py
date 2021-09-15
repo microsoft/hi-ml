@@ -34,7 +34,7 @@ def main() -> None:
     print('Penalty:', np.float(args.penalty))
 
     # X -> features, y -> label
-    input_folder = run_info.input_datasets[0] or Path("inputs")
+    input_folder = run_info.input_datasets[0] or Path("dataset")
     X = np.loadtxt(fname=input_folder / "X.csv", delimiter=',', skiprows=1)
     y = np.loadtxt(fname=input_folder / "y.csv", dtype='str', delimiter=',', skiprows=1)
 

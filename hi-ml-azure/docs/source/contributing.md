@@ -30,11 +30,14 @@ can run both tools in one go via `make check` (from the repository root folder)
 from typing import List, Optional
 def foo(bar: int) -> Optional[List]:
     """
-    Creates a list. Or not.
-    :param bar: The length of the list. If 0, returns None.
+    Creates a list. Or not. Note that there must a be blank line after the summary.
+    
+    :param bar: The length of the list. If 0, returns None. If there is a very long doc string for an argument, the next
+        line must be indented.
     :return: A list with `bar` elements.
     """
 ```
+Note the blank line after the summary, and the indentation of multi-line documentation for parameters.
 
 ## Unit testing
 - DO write unit tests for each new function or class that you add.

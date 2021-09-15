@@ -15,6 +15,7 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
     """
     Retrieves a datastore of a given name from an AzureML workspace. The datastore_name argument can be omitted if
     the workspace only contains a single datastore. Raises a ValueError if there is no datastore of the given name.
+
     :param workspace: The AzureML workspace to read from.
     :param datastore_name: The name of the datastore to retrieve.
     :return: An AzureML datastore.
@@ -78,22 +79,21 @@ class DatasetConfig:
                  target_folder: str = "",
                  local_folder: Optional[Path] = None):
         """
-        Creates a new configuration for using an AzureML dataset.
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
-        this will be the name given to the newly created dataset.
+            this will be the name given to the newly created dataset.
         :param datastore: The name of the AzureML datastore that holds the dataset. This can be empty if the AzureML
-        workspace has only a single datastore, or if the default datastore should be used.
+            workspace has only a single datastore, or if the default datastore should be used.
         :param version: The version of the dataset that should be used. This is only used for input datasets.
-        If the version is not specified, the latest version will be used.
+            If the version is not specified, the latest version will be used.
         :param use_mounting: If True, the dataset will be "mounted", that is, individual files will be read
-        or written on-demand over the network. If False, the dataset will be fully downloaded before the job starts,
-        respectively fully uploaded at job end for output datasets.
-        Defaults: False (downloading) for datasets that are script inputs, True (mounting) for datasets that are script
-        outputs.
+            or written on-demand over the network. If False, the dataset will be fully downloaded before the job starts,
+            respectively fully uploaded at job end for output datasets.
+            Defaults: False (downloading) for datasets that are script inputs, True (mounting) for datasets that are
+            script outputs.
         :param target_folder: The folder into which the dataset should be downloaded or mounted. If left empty, a
-        random folder on /tmp will be chosen.
+            random folder on /tmp will be chosen.
         :param local_folder: The folder on the local machine at which the dataset is available. This
-        is used only for runs outside of AzureML.
+            is used only for runs outside of AzureML.
         """
         # This class would be a good candidate for a dataclass, but having an explicit constructor makes
         # documentation tools in the editor work nicer.
@@ -113,6 +113,7 @@ class DatasetConfig:
         """
         Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
         dataset with given name available as a named input, using INPUT_0 as the key for dataset index 0.
+
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked INPUT_{index}
         """
@@ -142,6 +143,7 @@ class DatasetConfig:
         """
         Creates a configuration to write a script output to an AzureML dataset. The name and datastore of this new
         dataset will be taken from the present object.
+
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked OUTPUT_{index}
         :return:
@@ -173,6 +175,7 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
     """
     Processes a list of input or output datasets. All entries in the list that are strings are turned into
     DatasetConfig objects, using the string as the dataset name, and pointing to the default datastore.
+
     :param datasets: A list of datasets, each given either as a string or a DatasetConfig object.
     :param default_datastore_name: The datastore to use for all datasets that are only specified via their name.
     :return: A list of DatasetConfig objects, in the same order as the input list.
