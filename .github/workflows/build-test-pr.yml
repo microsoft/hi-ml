@@ -54,11 +54,11 @@ jobs:
 
   provide_packages_json:
     runs-on: ubuntu-latest
+    outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - id: set-matrix
         run: echo "::set-output name=matrix::[ ${{ env.HIML_FOLDER }}, ${{ env.HIML_AZURE_FOLDER }} ]"
-        outputs:
-            matrix: ${{ steps.set-matrix.outputs.matrix }}
 
   pytest_fast:
     runs-on: ubuntu-latest
