@@ -5,7 +5,13 @@
 import pytest
 import subprocess
 
+from pathlib import Path
+from unittest import mock
+
 from health.azure import run_tensorboard
+from health.azure.run_tensorboard import WrappedTensorboard, ROOT_DIR
+
+from azureml.core import Experiment, Run, Workspace
 
 TENSORBOARD_SCRIPT_PATH = run_tensorboard.__file__
 
@@ -35,3 +41,43 @@ def test_run_tensorboard_no_runs() -> None:
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH, "--run_recovery_ids", "madeuprun"])
         assert "No runs were found" in str(e)
+
+
+def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
+    mock_run = mock.MagicMock()
+    mock_run.id = "id123"
+    local_root = Path("test_tensorboard") / "dummy_summarywriter_logs"
+    remote_root = tmp_path / "tensorboard_logs"
+    ts = WrappedTensorboard(remote_root=str(remote_root), local_root=str(local_root), runs=[mock_run])
+    url = ts.start()
+    assert url == "http://localhost:6006/"
+    assert ts.remote_root == str(remote_root)
+    assert ts._local_root == str(local_root)
+    ts.stop()
+
+
+@pytest.mark.skip
+def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
+    """
+    This test expects an experiment called 'tensorboard_test' in your workspace, with at least 1 associated run
+    See the scripts in test_tensorboard to create this Experiment & Run.
+    :param tmp_path:
+    :return:
+    """
+    # get the latest run in this experiment
+    ws = Workspace.from_config(ROOT_DIR / "config.json")
+    expt = Experiment(ws, 'tensorboard_test')
+    run = next(expt.get_runs())
+
+    tensorboard_log_dir = "outputs"
+
+    local_root = tmp_path / tensorboard_log_dir
+    local_root.mkdir(exist_ok=True)
+    remote_root = str(local_root.relative_to(tmp_path)) + "/"
+
+    ts = WrappedTensorboard(remote_root=remote_root, local_root=str(local_root), runs=[run], port=6006)
+    url = ts.start()
+    assert url == "http://localhost:6006/"
+    assert ts.remote_root == str(remote_root)
+    assert ts._local_root == str(local_root)
+    ts.stop()
