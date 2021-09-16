@@ -6,6 +6,13 @@
 Documentation for the Health Intelligence Machine Learning toolbox hi-ml
 ========================================================================
 
+This toolbox helps to simplify and streamline work on deep learning models for healthcare and life sciences,
+by providing tested components (data loaders, pre-processing), deep learning models, and cloud integration tools.
+
+The `hi-ml` toolbox provides
+
+- Functionality to easily run Python code in Azure Machine Learning services
+- Low-level and high-level building blocks for Machine Learning / AI researchers and practitioners.
 
 .. toctree::
    :maxdepth: 1
@@ -25,6 +32,11 @@ Documentation for the Health Intelligence Machine Learning toolbox hi-ml
    developers.md
    contributing.md
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Changelog
+
+   CHANGELOG.md
 
 .. toctree::
    :maxdepth: 2

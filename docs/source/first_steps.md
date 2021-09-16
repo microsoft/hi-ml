@@ -1,4 +1,8 @@
-# First steps: How to get started with hi-ml
+# First steps: How to run your Python code in the cloud
+
+The simplest use case for the `hi-ml` toolbox is taking a script that you developed, and run it inside of
+Azure Machine Learning (AML) services. This can be helpful because the cloud gives you access to massive GPU
+resource, you can consume vast datasets, and access multiple machines at the same time for distributed training.
 
 ## Setting up AzureML
 You need to have an AzureML workspace in your Azure subscription.
