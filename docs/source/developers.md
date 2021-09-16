@@ -43,11 +43,12 @@ The repository contains a makefile with definitions for common operations.
 
 ## Building documentation
 To build the sphinx documentation, you must have sphinx and related packages installed 
-(see [build_requirements.txt](../../build_requirements.txt)). Then run:
+(see `build_requirements.txt` in the repository root). Then run:
 ```
 cd docs
 make html
 ```
+This will build all your documentation in `docs/build/html`.
 
 
 ## Setting up your AzureML workspace

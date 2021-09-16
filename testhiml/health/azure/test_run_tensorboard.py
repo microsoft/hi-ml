@@ -8,12 +8,13 @@ import subprocess
 from pathlib import Path
 from unittest import mock
 
-from health.azure import run_tensorboard
-from health.azure.run_tensorboard import WrappedTensorboard, ROOT_DIR
+from health.azure import himl_tensorboard
+from health.azure.himl_tensorboard import WrappedTensorboard, ROOT_DIR
 
 from azureml.core import Experiment, Run, Workspace
 
-TENSORBOARD_SCRIPT_PATH = run_tensorboard.__file__
+
+TENSORBOARD_SCRIPT_PATH = himl_tensorboard.__file__
 
 
 class MockRun:

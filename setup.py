@@ -19,7 +19,7 @@ from setuptools import setup, find_packages  # type: ignore
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
-long_description = (here / 'README.md').read_text(encoding='utf-8')
+long_description = (here / 'package_description.md').read_text(encoding='utf-8')
 
 version = ''
 
@@ -85,8 +85,8 @@ setup(
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'run-tensorboard = health.azure.run_tensorboard:main',
-            'download-aml-run = health.azure.download_aml_run:main'
+            'himl-tb = health.azure.himl_tensorboard:main',
+            'himl-download = health.azure.himl_download:main'
         ]
     }
 )

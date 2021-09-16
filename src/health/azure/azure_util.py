@@ -65,7 +65,8 @@ def split_recovery_id(id: str) -> Tuple[str, str]:
     The argument can be in the format 'experiment_name:run_id',
     or just a run ID like user_branch_abcde12_123. In the latter case, everything before the last
     two alphanumeric parts is assumed to be the experiment name.
-    :param id:
+
+    :param id: The string run ID.
     :return: experiment name and run name
     """
     components = id.strip().split(EXPERIMENT_RUN_SEPARATOR)
@@ -85,9 +86,10 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     """
     Finds an existing run in an experiment, based on a recovery ID that contains the experiment ID and the actual RunId.
     The run can be specified either in the experiment_name:run_id format, or just the run_id.
+
     :param workspace: the configured AzureML workspace to search for the experiment.
-    :param run_recovery_id: The Run to find. Either in the full recovery ID format, experiment_name:run_id or just the
-    run_id
+    :param run_recovery_id: The Run to find. Either in the full recovery ID format, experiment_name:run_id or
+        just the run_id
     :return: The AzureML run.
     """
     experiment, run = split_recovery_id(run_recovery_id)
@@ -110,6 +112,8 @@ def is_running_on_azure_agent() -> bool:
 
 def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
     """
+    Gets an AzureML Run object for a given run ID in an experiment.
+
     :param experiment_to_recover: an experiment
     :param run_id: a string representing the Run ID of one of the runs of the experiment
     :return: the run matching run_id_or_number; raises an exception if not found
@@ -128,8 +132,9 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     """
     Creates a service principal authentication object with the application ID stored in the present object. The
     application key is read from the environment.
+
     :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
-    present
+        present
     """
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
@@ -147,9 +152,10 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
 def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
     """
     Gets a password or key from the secrets file or environment variables.
+
     :param name: The name of the environment variable to read. It will be converted to uppercase.
     :param allow_missing: If true, the function returns None if there is no entry of the given name in any of the
-    places searched. If false, missing entries will raise a ValueError.
+        places searched. If false, missing entries will raise a ValueError.
     :return: Value of the secret. None, if there is no value and allow_missing is True.
     """
     name = name.upper()
@@ -163,6 +169,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     """
     Given a string, ensure it can be used in Azure by replacing everything apart from a-z, A-Z, 0-9, or _ with _,
     and replace multiple _ with a single _.
+
     :param x: Optional string to be converted.
     :return: Converted string, if one supplied. None otherwise.
     """
@@ -175,6 +182,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
     """
     Write number of conda and pip packages to logs.
+
     :param conda: A conda dependencies object
     :param message_prefix: A message to prefix to the log string.
     """
@@ -192,6 +200,7 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
 def merge_conda_files(files: List[Path], result_file: Path) -> None:
     """
     Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
+
     :param files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     """
@@ -242,10 +251,11 @@ def create_python_environment(conda_environment_file: Path,
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
     exists, it is retrieved, otherwise created afresh.
+
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
-    the Docker image.
+        the Docker image.
     :param workspace: The AzureML workspace to work in, required if private_pip_wheel_path is supplied.
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
     :param conda_environment_file: The file that contains the Conda environment definition.
@@ -299,10 +309,11 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
     """
     Try to get the AzureML environment by name and version from the AzureML workspace. If that fails, register the
     environment on the workspace.
+
     :param workspace: The AzureML workspace to use.
     :param environment: An AzureML execution environment.
     :return: An AzureML execution environment. If the environment did already exist on the workspace, the return value
-    is the environment as registered on the workspace, otherwise it is equal to the environment argument.
+        is the environment as registered on the workspace, otherwise it is equal to the environment argument.
     """
     try:
         env = Environment.get(workspace, name=environment.name, version=environment.version)
@@ -318,6 +329,7 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     Parse a string that represents a timespan, and returns it converted into seconds. The string is expected to be
     floating point number with a single character suffix s, m, h, d for seconds, minutes, hours, day.
     Examples: '3.5h', '2d'. If the argument is an empty string, None is returned.
+
     :param s: The string to parse.
     :return: The timespan represented in the string converted to seconds.
     """
@@ -365,6 +377,7 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     """
     Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
     completed successfully.
+
     :param run: The AzureML run to check.
     :return: True if the run and all child runs completed successfully.
     """
@@ -385,6 +398,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     """
     Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
     file when running on the cloud.
+
     :param run_recovery_file: The path of the run recovery file
     :return: The run id
     """
@@ -435,8 +449,8 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
 
 def get_aml_runs_from_latest_run_file(args: Namespace, workspace: Workspace) -> List[Run]:
     """
-    Returns list of length 1 (most recent Run)
-    # TODO: update path to most_recent_runs (plural?)
+    Returns the most recent run that was submitted to AzureML. The function presently always returns a list of
+    length 1.
     """
     latest_run_path = Path(args.latest_run_file)
     return [get_most_recent_run(latest_run_path, workspace)]
