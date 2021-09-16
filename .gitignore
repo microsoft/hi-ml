@@ -139,5 +139,5 @@ dmypy.json
 # tensorboard
 tensorboard_logs/
 
-hi-ml-azure/docs/source/api
-!hi-ml-azure/docs/source/api/api.rst
+docs/source/api
+!docs/source/api/api.rst

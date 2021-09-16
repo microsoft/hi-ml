@@ -4,7 +4,7 @@ pip_upgrade:
 
 # pip install build requirements
 pip_build: pip_upgrade
-	pip install -r build_requirements.txt
+	pip install -r ../build_requirements.txt
 
 # pip install test requirements
 pip_test: pip_upgrade
@@ -16,10 +16,6 @@ pip_local: pip_upgrade
 
 # pip install everything for local development and testing
 pip: pip_build pip_test pip_local
-
-# set the conda environment
-conda:
-	conda env update --file environment.yml
 
 # run flake8
 flake8: pip_test

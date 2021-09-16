@@ -10,3 +10,7 @@ mypy:
 
 # run basic checks
 check: flake8 mypy
+
+# set the conda environment
+conda:
+	conda env update --file environment.yml

@@ -9,8 +9,10 @@ RUN if [ "${INSTALL_NODE}" = "true" ]; then su vscode -c "umask 0002 && . /usr/l
 
 # Copy environment.yml (if found) to a temp location so we update the environment. Also
 # copy "noop.txt" so the COPY instruction does not fail if no environment.yml exists.
-COPY hi-ml-azure/environment.yml* .devcontainer/noop.txt /tmp/conda-tmp/
-COPY hi-ml-azure/build_requirements.txt hi-ml-azure/run_requirements.txt hi-ml-azure/test_requirements.txt /tmp/conda-tmp/
+COPY environment.yml* .devcontainer/noop.txt /tmp/conda-tmp/
+COPY build_requirements.txt test_requirements.txt /tmp/conda-tmp/
+COPY hi-ml/run_requirements.txt /tmp/conda-tmp/hi-ml/
+COPY hi-ml-azure/run_requirements.txt /tmp/conda-tmp/hi-ml-azure/
 RUN if [ -f "/tmp/conda-tmp/environment.yml" ]; then /opt/conda/bin/conda env update -n base -f /tmp/conda-tmp/environment.yml; fi \
     && rm -rf /tmp/conda-tmp
 

@@ -1,2 +1,2 @@
--r build_requirements.txt
+-r ../build_requirements.txt
 -r run_requirements.txt
