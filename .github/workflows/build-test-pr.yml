@@ -94,7 +94,9 @@ jobs:
 
       - name: Build Distribution
         run: |
+          echo ${{ matrix.folder }}
           cd ${{ matrix.folder }}
+          echo $(pwd)
           make build
 
       - name: Archive TestPyPI version
