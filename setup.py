@@ -19,7 +19,7 @@ from setuptools import setup, find_packages  # type: ignore
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
-long_description = (here / 'README.md').read_text(encoding='utf-8')
+long_description = (here / 'package_description.md').read_text(encoding='utf-8')
 
 version = ''
 
