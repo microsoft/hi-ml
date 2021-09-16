@@ -94,7 +94,9 @@ jobs:
 
       - name: Build Distribution
         run: |
-          echo ${{ matrix.folder }}
+          echo matrix.folder:${{ matrix.folder }}
+          echo matrix.dist_artifact:${{ matrix.dist_artifact }}
+          echo matrix.version_artifact:${{ matrix.version_artifact }}
           cd ${{ matrix.folder }}
           echo $(pwd)
           make build
