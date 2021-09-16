@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        folder: ["hi-ml", "hi-ml-azure"]
+        folder: [hi-ml, hi-ml-azure]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -79,9 +79,9 @@ jobs:
     strategy:
       matrix:
         includes:
-          - folder: ${{ env.HIML_AZURE_FOLDER }}
-            dist_artifact: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
-            version_artifact: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
+          - folder: hi-ml-azure
+            dist_artifact: hi-ml-azure-dist
+            version_artifact: latest_version
     steps:
       - uses: actions/checkout@v2
         with:
