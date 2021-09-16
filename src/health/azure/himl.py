@@ -518,6 +518,7 @@ def convert_himl_to_azureml_datasets(
         workspace: Workspace) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
+
     :param cleaned_input_datasets: The list of input DatasetConfigs
     :param cleaned_output_datasets: The list of output DatasetConfigs
     :param workspace: The AzureML workspace
@@ -537,6 +538,7 @@ def convert_himl_to_azureml_datasets(
 def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     """
     If script parameters are given then return them, otherwise derive them from sys.argv
+
     :param script_params: The optional script parameters
     :return: The given script parameters or ones derived from sys.argv
     """
@@ -547,7 +549,8 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
 
 def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
     """
-    Obtain the AzureML workspace from either the passed in value or the passed in path
+    Obtain the AzureML workspace from either the passed in value or the passed in path.
+
     :param aml_workspace: If provided this is returned as the AzureML Workspace
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
@@ -567,7 +570,8 @@ def _generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
     """
-    Generate returned datasets when running in AzumreML
+    Generate returned datasets when running in AzumreML.
+
     :param cleaned_input_datasets: The list of input dataset configs
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
