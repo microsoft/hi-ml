@@ -39,6 +39,7 @@
     ],
     "python.sortImports.args": ["-l", "120"],
     "python.testing.pytestArgs": [
+        "${workspaceFolder}/hi-ml/testhiml/",
         "${workspaceFolder}/hi-ml-azure/testhiml/"
     ],
     "python.testing.unittestEnabled": false,

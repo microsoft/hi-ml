@@ -1,14 +1,14 @@
 # pip upgrade
 pip_upgrade:
-	python -m pip install --upgrade pip
+	cd .. && $(MAKE) pip_upgrade
 
 # pip install build requirements
-pip_build: pip_upgrade
-	pip install -r ../build_requirements.txt
+pip_build:
+	cd .. && $(MAKE) pip_build
 
 # pip install test requirements
-pip_test: pip_upgrade
-	pip install -r test_requirements.txt
+pip_test:
+	cd .. && $(MAKE) pip_test
 
 # pip install local package in editable mode for development and testing
 pip_local: pip_upgrade
@@ -23,7 +23,10 @@ flake8: pip_test
 
 # run mypy
 mypy: pip_test
-	python mypy_runner.py --config=../mypy.ini
+	mypy --config=../mypy.ini conftest.py 
+	mypy --config=../mypy.ini setup.py 
+	mypy --config=../mypy.ini -p src
+	mypy --config=../mypy.ini -p testhiml
 
 # run basic checks
 check: flake8 mypy
