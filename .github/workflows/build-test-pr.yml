@@ -78,7 +78,7 @@ jobs:
     needs: [pytest_fast]
     strategy:
       matrix:
-        includes:
+        include:
           - folder: hi-ml-azure
             dist_artifact: hi-ml-azure-dist
             version_artifact: latest_version
