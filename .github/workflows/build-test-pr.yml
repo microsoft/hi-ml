@@ -79,9 +79,12 @@ jobs:
     strategy:
       matrix:
         include:
+          - folder: hi-ml
+            dist_artifact: hi-ml-dist
+            version_artifact: hi-ml-latest_version
           - folder: hi-ml-azure
             dist_artifact: hi-ml-azure-dist
-            version_artifact: latest_version
+            version_artifact: hi-ml-azure-latest_version
     steps:
       - uses: actions/checkout@v2
         with:
@@ -94,11 +97,7 @@ jobs:
 
       - name: Build Distribution
         run: |
-          echo matrix.folder:${{ matrix.folder }}
-          echo matrix.dist_artifact:${{ matrix.dist_artifact }}
-          echo matrix.version_artifact:${{ matrix.version_artifact }}
           cd ${{ matrix.folder }}
-          echo $(pwd)
           make build
 
       - name: Archive TestPyPI version
