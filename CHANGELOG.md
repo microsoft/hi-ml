@@ -13,7 +13,7 @@ created.
 ## Upcoming
 
 ### Added
-- ([#110](https://github.com/microsoft/InnerEye-DeepLearning/pull/110)) Adding changelog.
+- ([#111](https://github.com/microsoft/InnerEye-DeepLearning/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
 
 ### Changed
 
