@@ -76,6 +76,12 @@ jobs:
   build-python:
     runs-on: ubuntu-latest
     needs: [pytest_fast]
+    strategy:
+      matrix:
+        includes:
+          - folder: ${{ env.HIML_AZURE_FOLDER }}
+            dist_artifact: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
+            version_artifact: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -88,20 +94,20 @@ jobs:
 
       - name: Build Distribution
         run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
+          cd ${{ matrix.folder }}
           make build
 
       - name: Archive TestPyPI version
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}/latest_version.txt
+          name: ${{ matrix.version_artifact }}
+          path: ${{ matrix.folder }}/latest_version.txt
 
       - name: Upload Distribution
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}/dist/*
+          name: ${{ matrix.dist_artifact }}
+          path: ${{ matrix.folder }}/dist/*
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
@@ -140,7 +146,7 @@ jobs:
           pip install $wheel_filename
 
           # Test with pytest, fast only
-          make testfast_no_install
+          make pytest_fast
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
@@ -357,4 +363,4 @@ jobs:
           done
 
           # Test with pytest, fast only
-          make testfast_no_install
+          make pytest_fast
