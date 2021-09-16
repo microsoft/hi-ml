@@ -23,7 +23,6 @@ flake8: pip_test
 
 # run mypy
 mypy: pip_test
-	mypy --config=../mypy.ini conftest.py 
 	mypy --config=../mypy.ini setup.py 
 	mypy --config=../mypy.ini -p src
 	mypy --config=../mypy.ini -p testhiml
