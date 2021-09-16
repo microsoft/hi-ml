@@ -1,62 +1,88 @@
+# call make for parent
+define call_parent
+	cd .. && $(MAKE) $(1)
+endef
+
+## Package management
+
 # pip upgrade
 pip_upgrade:
-	cd .. && $(MAKE) pip_upgrade
+	$(call call_parent,pip_upgrade)
 
-# pip install build requirements
+# pip upgrade and install build requirements
 pip_build:
-	cd .. && $(MAKE) pip_build
+	$(call call_parent,pip_build)
 
-# pip install test requirements
+# pip upgrade and install test requirements
 pip_test:
-	cd .. && $(MAKE) pip_test
+	$(call call_parent,pip_test)
 
 # pip install local package in editable mode for development and testing
-pip_local: pip_upgrade
+call_pip_local:
 	pip install -e .
 
+# pip upgrade and install local package in editable mode
+pip_local: pip_upgrade call_pip_local
+
 # pip install everything for local development and testing
-pip: pip_build pip_test pip_local
+pip: pip_build pip_test call_pip_local
 
-# run flake8
-flake8: pip_test
-	flake8 --count --statistics --config=../.flake8 .
-
-# run mypy
-mypy: pip_test
-	mypy --config=../mypy.ini setup.py 
-	mypy --config=../mypy.ini -p src
-	mypy --config=../mypy.ini -p testhiml
-
-# run basic checks
-check: flake8 mypy
-
-# run pytest on local package
-pytest: pip_local pip_test
-	pytest testhiml
-
-# run coverage on local package
-coverage: pip_local pip_test
-	pytest --quiet --log-cli-level=critical --cov=health --cov-branch --cov-report=term-missing testhiml
-
-# run pytest with coverage on health package, however it may be installed, and format coverage output as a text file
-pytest_and_coverage: pip_test
-	pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testhiml
-	pycobertura show --format text --output coverage.txt coverage.xml
-
-# run pytest fast subset on health package, however it may be installed
-testfast_no_install: pip_test
-	pytest -m fast testhiml
-
-# run pytest fast subset on local package
-testfast: pip_local testfast_no_install
-
-# run all tests
-test: flake8 mypy pytest
-
-# build package
-build: pip_build
-	python setup.py sdist bdist_wheel
+## Actions
 
 # clean build artifacts
 clean:
 	rm -vrf ./build ./dist ./src/*.egg-info
+
+# build package, assuming build requirements already installed
+call_build:
+	python setup.py sdist bdist_wheel
+
+# pip install build requirements and build package
+build: pip_build call_build
+
+# run flake8, assuming test requirements already installed
+call_flake8:
+	flake8 --count --statistics --config=../.flake8 .
+
+# pip install test requirements and run flake8
+flake8: pip_test call_flake8
+
+# run mypy, assuming test requirements already installed
+call_mypy:
+	mypy --config=../mypy.ini setup.py 
+	mypy --config=../mypy.ini -p src
+	mypy --config=../mypy.ini -p testhiml
+
+# pip install test requirements and run mypy
+mypy: pip_test call_mypy
+
+# run basic checks
+call_check: call_flake8 call_mypy
+
+# install test requirements and run basic checks
+check: pip_test call_check
+
+# run pytest on package, assuming test requirements already installed
+call_pytest:
+	pytest testhiml
+
+# install test requirements and run tests
+pytest: pip_test call_pytest
+
+# run pytest fast subset on package, assuming test requirements already installed
+call_pytest_fast:
+	pytest -m fast testhiml
+
+# install test requirements and run pytest fast subset
+pytest_fast: pip_test call_pytest_fast
+
+# run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
+call_pytest_and_coverage:
+	pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testhiml
+	pycobertura show --format text --output coverage.txt coverage.xml
+
+# install test requirements and run pytest coverage
+pytest_and_coverage: pip_test call_pytest_and_coverage
+
+# install test requirements and run all tests
+test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
