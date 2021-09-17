@@ -5,7 +5,7 @@
 from azureml.core import Environment, Experiment, ScriptRunConfig, Workspace
 
 
-def main():
+def main() -> None:
     ws = Workspace.from_config("config.json")
     experiment = Experiment(ws, "tensorboard_test")
     config = ScriptRunConfig(source_directory='.', script="summary_writer_script.py", compute_target="lite-testing-ds2")
@@ -13,8 +13,8 @@ def main():
     config.run_config.environment = env
 
     run = experiment.submit(config)
+    run.wait_for_completion()
 
 
 if __name__ == "__main__":
     main()
-

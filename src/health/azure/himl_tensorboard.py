@@ -9,7 +9,7 @@ import logging
 from argparse import ArgumentParser
 from pathlib import Path
 from requests import Session
-from typing import Any, Optional, List
+from typing import Any, Optional
 
 from azureml._run_impl.run_watcher import RunWatcher
 from azureml.core import Run

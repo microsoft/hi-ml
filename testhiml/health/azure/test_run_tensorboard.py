@@ -11,7 +11,7 @@ from unittest import mock
 from health.azure import himl_tensorboard
 from health.azure.himl_tensorboard import WrappedTensorboard, ROOT_DIR
 
-from azureml.core import Experiment, Run, Workspace
+from azureml.core import Experiment, Workspace
 
 
 TENSORBOARD_SCRIPT_PATH = himl_tensorboard.__file__

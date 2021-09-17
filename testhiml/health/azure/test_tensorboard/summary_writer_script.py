@@ -7,7 +7,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 
-def main():
+def main() -> None:
     log_dir = Path("outputs")
     log_dir.mkdir(exist_ok=True)
     writer = SummaryWriter(log_dir=str(log_dir))
@@ -27,7 +27,6 @@ def main():
         loss.backward()
         optimizer.step()
     writer.flush()
-    print(f"Written logs")
 
 
 if __name__ == "__main__":
