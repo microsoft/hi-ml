@@ -237,15 +237,12 @@ jobs:
           path: ${{ matrix.folder }}
 
       - name: Set envs
-        id: secret_step
         run: |
           cd ${{ matrix.folder }}
 
           if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "::set-output name=testpypi_token::${{ secrets.TEST_PIPY_TOKEN }}"
             echo "TESTPYPI_TOKEN=${{ secrets.TEST_PIPY_TOKEN }}" >> $GITHUB_ENV
           elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "::set-output name=testpypi_token::${{ secrets.PYPI_TEST_AZURE_TOKEN }}"
             echo "TESTPYPI_TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}" >> $GITHUB_ENV
           fi
 
@@ -359,7 +356,7 @@ jobs:
           cd ${{ matrix.folder }}
 
           # Set up conda environment
-          $CONDA/bin/conda env update --file test_environment.yml --name base
+          $CONDA/bin/conda env update --file ../test_environment.yml --name base
 
           # Install test package
           while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
