@@ -20,6 +20,8 @@ env:
   HIML_AZURE_DIST_ARTIFACT: 'hi-ml-azure-dist'
   HIML_AZURE_VERSION_ARTIFACT: 'latest_version'
   HIML_FOLDER: 'hi-ml'
+  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  HIML_DIST_ARTIFACT_SUFFIX: '-dist'
 
 jobs:
   flake8:
@@ -56,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        folder: [hi-ml, hi-ml-azure]
+        folder:  [hi-ml, hi-ml-azure ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -70,7 +72,11 @@ jobs:
       - name: Test with pytest, fast only
         run: |
           cd ${{ matrix.folder }}
+
+          # Install local package in editable mode
           make pip_local
+
+          # Run fast tests
           make pytest_fast
 
   build-python:
@@ -78,13 +84,7 @@ jobs:
     needs: [pytest_fast]
     strategy:
       matrix:
-        include:
-          - folder: hi-ml
-            dist_artifact: hi-ml-dist
-            version_artifact: hi-ml-latest_version
-          - folder: hi-ml-azure
-            dist_artifact: hi-ml-azure-dist
-            version_artifact: hi-ml-azure-latest_version
+        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -100,16 +100,16 @@ jobs:
           cd ${{ matrix.folder }}
           make build
 
-      - name: Archive TestPyPI version
+      - name: Upload latest version artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.version_artifact }}
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/latest_version.txt
 
-      - name: Upload Distribution
+      - name: Upload distribution artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.dist_artifact }}
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist/*
 
   test-artifact-pkg:
@@ -117,6 +117,7 @@ jobs:
     needs: [build-python]
     strategy:
       matrix:
+        folder: [ hi-ml, hi-ml-azure ]
         packageName: [ '*.whl', '*.tar.gz' ]
     steps:
       - uses: actions/checkout@v2
@@ -128,15 +129,15 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download Distribution
+      - name: Download distribution artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}/dist
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/dist
 
-      - name: Install and test artifact
+      - name: Install artifact
         run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
+          cd ${{ matrix.folder }}
 
           wheel_filename=$(find dist -name ${{ matrix.packageName }})
 
@@ -148,6 +149,15 @@ jobs:
           # Install package
           pip install $wheel_filename
 
+      - name: Test (full) artifact
+        if: ${{ matrix.packageName }} == '*.whl'
+        run: |
+          # Test with pytest
+          make pytest
+
+      - name: Test (fast) artifact
+        if: ${{ matrix.packageName }} != '*.whl'
+        run: |
           # Test with pytest, fast only
           make pytest_fast
 
