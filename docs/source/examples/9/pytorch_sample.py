@@ -1,6 +1,5 @@
 #  ------------------------------------------------------------------------------------------
-#  Copyright (c) Microsoft Corporation. All rights reserved.
-#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+# Adapted from the example at https://pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 import torch
@@ -12,8 +11,8 @@ def main() -> None:
     log_dir.mkdir(exist_ok=True)
     writer = SummaryWriter(log_dir=str(log_dir))
 
-    x = torch.arange(-5, 5, 0.1).view(-1, 1)
-    y = -5 * x + 0.1 * torch.randn(x.size())
+    x = torch.arange(-20, 20, 0.1).view(-1, 1)
+    y = -2 * x + 0.1 * torch.randn(x.size())
 
     model = torch.nn.Linear(1, 1)
     criterion = torch.nn.MSELoss()

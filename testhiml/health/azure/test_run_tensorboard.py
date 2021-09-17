@@ -47,7 +47,7 @@ def test_run_tensorboard_no_runs() -> None:
 def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     mock_run = mock.MagicMock()
     mock_run.id = "id123"
-    local_root = Path("test_tensorboard") / "dummy_summarywriter_logs"
+    local_root = Path("test_data") / "dummy_summarywriter_logs"
     remote_root = tmp_path / "tensorboard_logs"
     ts = WrappedTensorboard(remote_root=str(remote_root), local_root=str(local_root), runs=[mock_run])
     url = ts.start()
