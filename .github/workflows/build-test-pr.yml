@@ -425,7 +425,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install ${{ env.HIML_PACKAGE_NAME }}==${{ HIML_AZURE_PYPI_VERSION }}
+          while ! pip install ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
           do
             echo waiting for pypi
             sleep 10
