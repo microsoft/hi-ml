@@ -147,7 +147,7 @@ jobs:
 
           if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Test with pytest
-            make pytest
+            # make pytest
           else
             # Test with pytest, fast only
             make pytest_fast
@@ -177,14 +177,13 @@ jobs:
         id: secret_step
         run: |
           if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            PASSWORD=${{ secrets.PYPI_TEST_TOKEN }}
+            PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
             PACKAGE='hi-ml'
           elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
             PASSWORD=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
             PACKAGE='hi-ml-azure'
           fi
 
-          echo "::add-mask::$PASSWORD"
           echo "::set-output name=testpypi_password::$PASSWORD"
           echo "::set-output name=testpypi_package::$PACKAGE"
 
