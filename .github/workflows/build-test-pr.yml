@@ -148,6 +148,7 @@ jobs:
           if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Test with pytest
             # make pytest
+            make pytest_fast
           else
             # Test with pytest, fast only
             make pytest_fast
