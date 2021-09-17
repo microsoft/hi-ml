@@ -302,7 +302,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ HIML_AZURE_PYPI_VERSION }}
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -347,7 +347,7 @@ jobs:
           $CONDA/bin/conda env update --file test_environment.yml --name base
 
           # Install test package
-          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ HIML_AZURE_PYPI_VERSION }}
+          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
           do
             echo waiting for test.pypi
             sleep 10
