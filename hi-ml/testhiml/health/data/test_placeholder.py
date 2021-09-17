@@ -4,11 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 import pytest
 
+from health.data.placeholder import placeholder
+
 
 @pytest.mark.fast
 def test_placeholder_fast() -> None:
-    assert True
+    assert placeholder() is True
 
 
 def test_placeholder() -> None:
-    assert True
+    assert placeholder() is True
