@@ -149,21 +149,13 @@ jobs:
           # Install package
           pip install $wheel_filename
 
-      - name: Test (full) artifact
-        if: ${{ matrix.packageName == '*.whl' }}
-        run: |
-          cd ${{ matrix.folder }}
-
-          # Test with pytest
-          make pytest
-
-      - name: Test (fast) artifact
-        if: ${{ matrix.packageName != '*.whl' }}
-        run: |
-          cd ${{ matrix.folder }}
-
-          # Test with pytest, fast only
-          make pytest_fast
+          if [ ${{ matrix.packageName = '*.whl' ]; then
+            # Test with pytest
+            make pytest
+          else
+            # Test with pytest, fast only
+            make pytest_fast
+          fi
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
