@@ -15,11 +15,7 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
-  HIML_AZURE_FOLDER: 'hi-ml-azure'
   HIML_AZURE_PKG: 'hi-ml-azure'
-  HIML_AZURE_DIST_ARTIFACT: 'hi-ml-azure-dist'
-  HIML_AZURE_VERSION_ARTIFACT: 'latest_version'
-  HIML_FOLDER: 'hi-ml'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
 
@@ -100,17 +96,17 @@ jobs:
           cd ${{ matrix.folder }}
           make build
 
-      - name: Upload latest version artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/latest_version.txt
-
       - name: Upload distribution artifact
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist/*
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/latest_version.txt
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
@@ -135,7 +131,7 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist
 
-      - name: Install artifact
+      - name: Install artifact and test
         run: |
           cd ${{ matrix.folder }}
 
@@ -161,39 +157,60 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-artifact-pkg]
     if: "!startsWith(github.ref, 'refs/tags/v')"
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - name: Download Distribution
+      - name: Download distribution artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}/dist
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/dist
+
+      - name: Download version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
+      - name: Chose secret
+        id: secret_step
+        run: |
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            TOKEN1=${{ secrets.PYPI_TEST_TOKEN }}
+            PACKAGE = 'hi-ml'
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            TOKEN1=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
+            PACKAGE = 'hi-ml-azure'
+          fi
+
+          echo "::add-mask::$TOKEN1"
+          echo "::set-output name=testpypi_password::$TOKEN1"
+          echo "::set-output name=testpypi_package::$PACKAGE"
 
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ secrets.PYPI_TEST_AZURE_TOKEN }}
-          packages_dir: ${{ env.HIML_AZURE_FOLDER }}/dist/
+          password: ${{ steps.secret_step.outputs.testpypi_password }}
+          packages_dir: ${{ matrix.folder }}/dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
 
-      - name: Download TestPyPI version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}
-
       - name: Show published TestPyPI package version
         run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
+          cd ${{ matrix.folder }}
 
           latest_version=$(cat ./latest_version.txt)
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ env.HIML_AZURE_PKG }}==$latest_version"
+          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ steps.secret_step.outputs.testpypi_package }}==$latest_version"
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
     needs: [publish-testpypi-pkg]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -204,21 +221,21 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download TestPyPI version artifact
+      - name: Download distribution artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/dist
 
-      - name: Download Distribution
+      - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}/dist
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
 
       - name: Install and test package
         run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
+          cd ${{ matrix.folder }}
 
           latest_version=$(cat ./latest_version.txt)
 
@@ -246,7 +263,7 @@ jobs:
 
             const sha = context.eventName == 'pull_request' ? context.payload.pull_request.head.sha : context.sha
 
-            const coverage = await fs.readFile('${{ env.HIML_AZURE_FOLDER }}/coverage.txt', 'utf8')
+            const coverage = await fs.readFile('${{ matrix.folder }}/coverage.txt', 'utf8')
 
             var table = ""
             const coverage_lines = coverage.split("\n")
@@ -287,20 +304,23 @@ jobs:
   test-testpypi-pkg-conda:
     runs-on: ubuntu-latest
     needs: [publish-testpypi-pkg]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - uses: actions/checkout@v2
         with:
           lfs: true
 
-      - name: Download TestPyPI version artifact
+      - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
 
       - name: Install test.PyPI package and test with Conda
         run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
+          cd ${{ matrix.folder }}
 
           # Get TestPyPI version
           latest_version=$(cat ./latest_version.txt)
@@ -320,24 +340,39 @@ jobs:
   publish-pypi-pkg:
     runs-on: ubuntu-latest
     needs: [test-artifact-pkg]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Download Distribution
+      - name: Download distribution artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_DIST_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}/dist
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/dist
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
+        if: ${{ matrix.folder == 'hi-ml' }}
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+          packages_dir: ${{ matrix.folder }}/dist/
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        if: ${{ matrix.folder == 'hi-ml-azure' }}
         with:
           user: __token__
           password: ${{ secrets.PYPI_AZURE_TOKEN }}
-          packages_dir: ${{ env.HIML_AZURE_FOLDER }}/dist/
+          packages_dir: ${{ matrix.folder }}/dist/
 
   test-pypi-pkg:
     runs-on: ubuntu-latest
     needs: [publish-pypi-pkg]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -348,15 +383,15 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download PyPI version artifact
+      - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ env.HIML_AZURE_VERSION_ARTIFACT }}
-          path: ${{ env.HIML_AZURE_FOLDER }}
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
 
       - name: Install PyPI package and test
         run: |
-          cd ${{ env.HIML_AZURE_FOLDER }}
+          cd ${{ matrix.folder }}
 
           latest_version=$(cat ./latest_version.txt)
 
