@@ -18,6 +18,7 @@ env:
   HIML_AZURE_PKG: 'hi-ml-azure'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
+  HIML_COV_ARTIFACT_SUFFIX: '-code_coverage_report'
 
 jobs:
   flake8:
@@ -131,132 +132,33 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist
 
+      - name: Set envs
+        run: |
+          cd ${{ matrix.folder }}
+
+          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
+          echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name ${{ matrix.packageName }})" >> $GITHUB_ENV
+
       - name: Install artifact and test
         run: |
           cd ${{ matrix.folder }}
 
-          wheel_filename=$(find dist -name ${{ matrix.packageName }})
-
-          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
-          echo "HIML_AZURE_WHEEL_FILENAME=$wheel_filename" >> $GITHUB_ENV
-
           make pip_upgrade
 
           # Install package
-          pip install $wheel_filename
+          pip install ${{ env.HIML_AZURE_WHEEL_FILENAME }}
 
           if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Test with pytest
-            # make pytest
-            make pytest_fast
+            make pytest_and_coverage
           else
             # Test with pytest, fast only
             make pytest_fast
           fi
 
-  publish-testpypi-pkg:
-    runs-on: ubuntu-latest
-    needs: [test-artifact-pkg]
-    if: "!startsWith(github.ref, 'refs/tags/v')"
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
-    steps:
-      - name: Download distribution artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Choose secret
-        id: secret_step
-        run: |
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            TOKEN=${{ secrets.TEST_PIPY_TOKEN }}
-            PACKAGE='hi-ml'
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
-            PACKAGE='hi-ml-azure'
-          fi
-
-          echo "::set-output name=testpypi_token::$TOKEN"
-          echo "::set-output name=testpypi_package::$PACKAGE"
-
-      - name: Publish package to TestPyPI
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ steps.secret_step.outputs.testpypi_token }}
-          packages_dir: ${{ matrix.folder }}/dist/
-          repository_url: https://test.pypi.org/legacy/
-          verbose: true
-
-      - name: Show published TestPyPI package version
-        run: |
-          cd ${{ matrix.folder }}
-
-          latest_version=$(cat ./latest_version.txt)
-          echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ steps.secret_step.outputs.testpypi_package }}==$latest_version"
-
-  test-testpypi-pkg-pip:
-    runs-on: ubuntu-latest
-    needs: [publish-testpypi-pkg]
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: Download distribution artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Install and test package
-        run: |
-          cd ${{ matrix.folder }}
-
-          latest_version=$(cat ./latest_version.txt)
-
-          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
-          echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
-
-          # Set env var HIML_AZURE_TEST_PYPI_VERSION, used in test_himl.py to identify package
-          echo "HIML_AZURE_TEST_PYPI_VERSION=$latest_version" >> $GITHUB_ENV
-
-          make pip_upgrade
-
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_AZURE_PKG }}==$latest_version
-          do
-            echo waiting for test.pypi
-            sleep 10
-          done
-
-          make pytest_and_coverage
-
       - name: Add coverage as a commit comment
         uses: actions/github-script@v4
+        if: ${{ matrix.packageName == '*.whl' }}
         with:
           script: |
             const { promises: fs } = require('fs')
@@ -297,9 +199,116 @@ jobs:
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
+        if: ${{ matrix.packageName == '*.whl' }}
         with:
-          name: code-coverage-report
-          path: htmlcov/*
+          name: ${{ matrix.folder }}${{ env.HIML_COV_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/htmlcov/*
+
+  publish-testpypi-pkg:
+    runs-on: ubuntu-latest
+    needs: [test-artifact-pkg]
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    steps:
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/dist
+
+      - name: Download version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
+      - name: Set envs
+        id: secret_step
+        run: |
+          cd ${{ matrix.folder }}
+
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "::set-output name=testpypi_token::${{ secrets.TEST_PIPY_TOKEN }}"
+            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "::set-output name=testpypi_token::${{ secrets.PYPI_TEST_AZURE_TOKEN }}"
+            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
+          fi
+
+          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ steps.secret_step.outputs.testpypi_token }}
+          packages_dir: ${{ matrix.folder }}/dist/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+
+      - name: Show published TestPyPI package version
+        run: |
+          echo "Install this package version via:"
+          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}"
+
+  test-testpypi-pkg-pip:
+    runs-on: ubuntu-latest
+    needs: [publish-testpypi-pkg]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/dist
+
+      - name: Download version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
+      - name: Set envs
+        run: |
+          cd ${{ matrix.folder }}
+
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
+          fi
+
+          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
+          echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
+
+          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+
+      - name: Install and test package
+        run: |
+          cd ${{ matrix.folder }}
+
+          make pip_upgrade
+
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ HIML_AZURE_PYPI_VERSION }}
+          do
+            echo waiting for test.pypi
+            sleep 10
+          done
+
+          make pytest_and_coverage
 
   test-testpypi-pkg-conda:
     runs-on: ubuntu-latest
@@ -318,18 +327,27 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}
 
-      - name: Install test.PyPI package and test with Conda
+      - name: Set envs
         run: |
           cd ${{ matrix.folder }}
 
-          # Get TestPyPI version
-          latest_version=$(cat ./latest_version.txt)
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
+          fi
+
+          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+
+      - name: Install test.PyPI package and test with Conda
+        run: |
+          cd ${{ matrix.folder }}
 
           # Set up conda environment
           $CONDA/bin/conda env update --file test_environment.yml --name base
 
           # Install test package
-          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_AZURE_PKG }}==$latest_version
+          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ HIML_AZURE_PYPI_VERSION }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -389,18 +407,25 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}
 
+      - name: Set envs
+        run: |
+          cd ${{ matrix.folder }}
+
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
+          fi
+
+          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+
       - name: Install PyPI package and test
         run: |
           cd ${{ matrix.folder }}
 
-          latest_version=$(cat ./latest_version.txt)
-
-          # Set env var HIML_AZURE_PYPI_VERSION, used in test_himl.py to identify package
-          echo "HIML_AZURE_PYPI_VERSION=$latest_version" >> $GITHUB_ENV
-
           make pip_upgrade
 
-          while ! pip install ${{ env.HIML_AZURE_PKG }}==$latest_version
+          while ! pip install ${{ env.HIML_PACKAGE_NAME }}==${{ HIML_AZURE_PYPI_VERSION }}
           do
             echo waiting for pypi
             sleep 10
