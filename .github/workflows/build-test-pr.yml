@@ -177,15 +177,15 @@ jobs:
         id: secret_step
         run: |
           if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            TOKEN1=${{ secrets.PYPI_TEST_TOKEN }}
-            PACKAGE = 'hi-ml'
+            PASSWORD=${{ secrets.PYPI_TEST_TOKEN }}
+            PACKAGE='hi-ml'
           elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            TOKEN1=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
-            PACKAGE = 'hi-ml-azure'
+            PASSWORD=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
+            PACKAGE='hi-ml-azure'
           fi
 
-          echo "::add-mask::$TOKEN1"
-          echo "::set-output name=testpypi_password::$TOKEN1"
+          echo "::add-mask::$PASSWORD"
+          echo "::set-output name=testpypi_password::$PASSWORD"
           echo "::set-output name=testpypi_package::$PACKAGE"
 
       - name: Publish package to TestPyPI
