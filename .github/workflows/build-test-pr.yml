@@ -15,9 +15,9 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
-  HIML_AZURE_PKG: 'hi-ml-azure'
-  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
+  HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
+  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
   HIML_COV_ARTIFACT_SUFFIX: '-code_coverage_report'
 
 jobs:
@@ -102,6 +102,12 @@ jobs:
         with:
           name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist/*
+
+      - name: Upload package name artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}/package_name.txt
 
       - name: Upload version artifact
         uses: actions/upload-artifact@v2
@@ -218,6 +224,12 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist
 
+      - name: Download package name artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
       - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
@@ -231,19 +243,20 @@ jobs:
 
           if [ ${{ matrix.folder }} = 'hi-ml' ]; then
             echo "::set-output name=testpypi_token::${{ secrets.TEST_PIPY_TOKEN }}"
-            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
+            echo "TESTPYPI_TOKEN=${{ secrets.TEST_PIPY_TOKEN }}" >> $GITHUB_ENV
           elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
             echo "::set-output name=testpypi_token::${{ secrets.PYPI_TEST_AZURE_TOKEN }}"
-            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
+            echo "TESTPYPI_TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}" >> $GITHUB_ENV
           fi
 
+          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
           echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
 
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ steps.secret_step.outputs.testpypi_token }}
+          password: ${{ env.TESTPYPI_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
@@ -275,6 +288,12 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}/dist
 
+      - name: Download package name artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
       - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
@@ -285,15 +304,10 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
-          fi
-
           # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
           echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
 
+          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
           echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
 
       - name: Install and test package
@@ -321,6 +335,12 @@ jobs:
         with:
           lfs: true
 
+      - name: Download package name artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
       - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
@@ -331,12 +351,7 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
-          fi
-
+          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
           echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
 
       - name: Install test.PyPI package and test with Conda
@@ -401,6 +416,12 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
+      - name: Download package name artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          path: ${{ matrix.folder }}
+
       - name: Download version artifact
         uses: actions/download-artifact@v2
         with:
@@ -411,12 +432,7 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "HIML_PACKAGE_NAME=hi-ml" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "HIML_PACKAGE_NAME=hi-ml-azure" >> $GITHUB_ENV
-          fi
-
+          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
           echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
 
       - name: Install PyPI package and test
