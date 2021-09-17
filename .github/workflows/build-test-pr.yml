@@ -150,7 +150,7 @@ jobs:
           pip install $wheel_filename
 
       - name: Test (full) artifact
-        if: ${{ matrix.packageName }} == '*.whl'
+        if: ${{ matrix.packageName == '*.whl' }}
         run: |
           cd ${{ matrix.folder }}
 
@@ -158,7 +158,7 @@ jobs:
           make pytest
 
       - name: Test (fast) artifact
-        if: ${{ matrix.packageName }} != '*.whl'
+        if: ${{ matrix.packageName != '*.whl' }}
         run: |
           cd ${{ matrix.folder }}
 
