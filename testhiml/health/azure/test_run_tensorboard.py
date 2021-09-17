@@ -51,7 +51,6 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     remote_root = tmp_path / "tensorboard_logs"
     ts = WrappedTensorboard(remote_root=str(remote_root), local_root=str(local_root), runs=[mock_run])
     url = ts.start()
-    assert url == "http://localhost:6006/"
     assert ts.remote_root == str(remote_root)
     assert ts._local_root == str(local_root)
     ts.stop()
