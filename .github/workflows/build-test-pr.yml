@@ -152,12 +152,16 @@ jobs:
       - name: Test (full) artifact
         if: ${{ matrix.packageName }} == '*.whl'
         run: |
+          cd ${{ matrix.folder }}
+
           # Test with pytest
           make pytest
 
       - name: Test (fast) artifact
         if: ${{ matrix.packageName }} != '*.whl'
         run: |
+          cd ${{ matrix.folder }}
+
           # Test with pytest, fast only
           make pytest_fast
 
