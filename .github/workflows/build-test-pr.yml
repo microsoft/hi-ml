@@ -174,25 +174,27 @@ jobs:
           name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
           path: ${{ matrix.folder }}
 
-      - name: Chose secret
+      - name: Choose secret
         id: secret_step
         run: |
           if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
+            TOKEN=${{ secrets.TEST_PYPI_TOKEN }}
             PACKAGE='hi-ml'
           elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            PASSWORD=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
+            TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}
             PACKAGE='hi-ml-azure'
           fi
 
-          echo "::set-output name=testpypi_password::$PASSWORD"
+          echo "::add-mask::$TOKEN"
+          echo "::set-output name=testpypi_token::$TOKEN"
+          echo "::add-mask::$PACKAGE"
           echo "::set-output name=testpypi_package::$PACKAGE"
 
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ steps.secret_step.outputs.testpypi_password }}
+          password: ${{ steps.secret_step.outputs.testpypi_token }}
           packages_dir: ${{ matrix.folder }}/dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
