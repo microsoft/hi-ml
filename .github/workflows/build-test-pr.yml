@@ -149,7 +149,7 @@ jobs:
           # Install package
           pip install $wheel_filename
 
-          if [ ${{ matrix.packageName = '*.whl' ]; then
+          if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Test with pytest
             make pytest
           else
