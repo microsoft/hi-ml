@@ -1,10 +1,26 @@
 name: 'Hello World'
 description: 'Greet someone'
 inputs:
-  who-to-greet:  # id of input
-    description: 'Who to greet'
+  folder:  # id of input
+    description: 'Target folder'
     required: true
-    default: 'World'
+  dist_folder:
+    description: 'Dist folder'
+    required: false
+    default: 'dist'
+  package_type:
+    description: 'Package type'
+    required: false
+    default: '*.whl'
+  distribution_artifact_suffix:
+    description: 'Distribution artifact suffix'
+    required: true
+  package_name_artifact_suffix:
+    description: 'Package name artifact suffix'
+    required: true
+  version_artifact_suffix:
+    description: 'Version artifact suffix'
+    required: true
 outputs:
   random-number:
     description: "Random number"
@@ -12,12 +28,28 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - run: echo Hello ${{ inputs.who-to-greet }}.
-      shell: bash
+    - name: Download distribution artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ inputs.distribution_artifact_suffix }}
+        path: ${{ inputs.folder }}/${{ inputs.dist_folder }}
 
-    - id: random-number-generator
-      run: echo "::set-output name=random-id::$(echo $RANDOM)"
-      shell: bash
+    - name: Download package name artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ inputs.package_name_artifact_suffix }}
+        path: ${{ inputs.folder }}
 
-    - run: ${{ github.action_path }}/goodbye.sh
-      shell: bash
+    - name: Download version artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ inputs.version_artifact_suffix }}
+        path: ${{ inputs.folder }}
+
+    - name: Set output
+      run: |
+        cd ${{ inputs.folder }}
+
+        echo "::set-output name=wheel_filename::$(find dist -name ${{ inputs.package_type }})"
+        echo "::set-output name=package_name::$(cat ./package_name.txt)"
+        echo "::set-output name=latest_version::$(cat ./latest_version.txt)"

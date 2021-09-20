@@ -146,18 +146,15 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download distribution artifact
-        uses: actions/download-artifact@v2
+      - name: Download package
+        id: download
+        uses: ./.github/actions/install_artifact
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist
-
-      - name: Set envs
-        run: |
-          cd ${{ matrix.folder }}
-
-          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
-          echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name ${{ matrix.packageName }})" >> $GITHUB_ENV
+          folder: ${{ matrix.folder }}
+          package_type: ${{ matrix.packageName }}
+          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install artifact and test
         run: |
@@ -166,7 +163,7 @@ jobs:
           make pip_upgrade
 
           # Install package
-          pip install ${{ env.HIML_AZURE_WHEEL_FILENAME }}
+          pip install ${{ steps.download.outputs.wheel_filename }}
 
           if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Test with pytest
@@ -198,36 +195,22 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - name: Download distribution artifact
-        uses: actions/download-artifact@v2
+      - name: Download package
+        id: download
+        uses: ./.github/actions/install_artifact
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist
-
-      - name: Download package name artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
+          folder: ${{ matrix.folder }}
+          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Set envs
         run: |
-          cd ${{ matrix.folder }}
-
           if [ ${{ matrix.folder }} = 'hi-ml' ]; then
             echo "TESTPYPI_TOKEN=${{ secrets.TEST_PIPY_TOKEN }}" >> $GITHUB_ENV
           elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
             echo "TESTPYPI_TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}" >> $GITHUB_ENV
           fi
-
-          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
-          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
 
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -241,7 +224,7 @@ jobs:
       - name: Show published TestPyPI package version
         run: |
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}"
+          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}"
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
@@ -259,33 +242,14 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download distribution artifact
-        uses: actions/download-artifact@v2
+      - name: Download package
+        id: download
+        uses: ./.github/actions/install_artifact
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist
-
-      - name: Download package name artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Set envs
-        run: |
-          cd ${{ matrix.folder }}
-
-          # Set env var HIML_AZURE_WHEEL_FILENAME, used in test_himl.py to identify package
-          echo "HIML_AZURE_WHEEL_FILENAME=$(find dist -name *.whl)" >> $GITHUB_ENV
-
-          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
-          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+          folder: ${{ matrix.folder }}
+          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install and test package
         run: |
@@ -293,7 +257,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -313,24 +277,14 @@ jobs:
         with:
           lfs: true
 
-      - name: Download package name artifact
-        uses: actions/download-artifact@v2
+      - name: Download package
+        id: download
+        uses: ./.github/actions/install_artifact
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Set envs
-        run: |
-          cd ${{ matrix.folder }}
-
-          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
-          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+          folder: ${{ matrix.folder }}
+          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install test.PyPI package and test with Conda
         run: |
@@ -340,7 +294,7 @@ jobs:
           $CONDA/bin/conda env update --file ../test_environment.yml --name base
 
           # Install test package
-          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
+          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -356,11 +310,14 @@ jobs:
         folder: [ hi-ml, hi-ml-azure ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Download distribution artifact
-        uses: actions/download-artifact@v2
+      - name: Download package
+        id: download
+        uses: ./.github/actions/install_artifact
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist
+          folder: ${{ matrix.folder }}
+          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -394,24 +351,14 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download package name artifact
-        uses: actions/download-artifact@v2
+      - name: Download package
+        id: download
+        uses: ./.github/actions/install_artifact
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}
-
-      - name: Set envs
-        run: |
-          cd ${{ matrix.folder }}
-
-          echo "HIML_PACKAGE_NAME=$(cat ./package_name.txt)" >> $GITHUB_ENV
-          echo "HIML_AZURE_PYPI_VERSION=$(cat ./latest_version.txt)" >> $GITHUB_ENV
+          folder: ${{ matrix.folder }}
+          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install PyPI package and test
         run: |
@@ -419,7 +366,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install ${{ env.HIML_PACKAGE_NAME }}==${{ env.HIML_AZURE_PYPI_VERSION }}
+          while ! pip install ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}
           do
             echo waiting for pypi
             sleep 10
