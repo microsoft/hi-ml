@@ -128,7 +128,7 @@ def main() -> None:  # pragma: no cover
         help="The port to run Tensorboard on"
     )
     parser.add_argument(
-        "--tensorboard_log_dir",
+        "--log_dir",
         type=str,
         default="outputs",
         required=False,
@@ -141,7 +141,7 @@ def main() -> None:  # pragma: no cover
         help="Optional path to most_recent_run.txt where details on latest run are stored"
     )
     parser.add_argument(
-        "--experiment_name",
+        "--experiment",
         type=str,
         required=False,
         help="The name of the AML Experiment that you wish to view Runs from"
@@ -185,7 +185,7 @@ def main() -> None:  # pragma: no cover
     if len(runs) == 0:
         raise ValueError("No runs were found")
 
-    local_logs_dir = ROOT_DIR / args.tensorboard_log_dir
+    local_logs_dir = ROOT_DIR / args.log_dir
     local_logs_dir.mkdir(exist_ok=True, parents=True)
 
     remote_logs_dir = local_logs_dir.relative_to(ROOT_DIR)

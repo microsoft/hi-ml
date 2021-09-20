@@ -26,7 +26,7 @@ def test_run_tensorboard_args() -> None:
     # if no required args are passed, will fail
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH])
-        assert "One of latest_run_file, experiment_name, run_recovery_ids" \
+        assert "One of latest_run_file, experiment, run_recovery_ids" \
                " or run_ids must be provided" in str(e)
 
 
@@ -70,9 +70,9 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     expt = Experiment(ws, 'tensorboard_test')
     run = next(expt.get_runs())
 
-    tensorboard_log_dir = "outputs"
+    log_dir = "outputs"
 
-    local_root = tmp_path / tensorboard_log_dir
+    local_root = tmp_path / log_dir
     local_root.mkdir(exist_ok=True)
     remote_root = str(local_root.relative_to(tmp_path)) + "/"
 
