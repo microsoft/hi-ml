@@ -47,6 +47,7 @@ runs:
         path: ${{ inputs.folder }}
 
     - name: Set output
+      shell: bash
       run: |
         cd ${{ inputs.folder }}
 
