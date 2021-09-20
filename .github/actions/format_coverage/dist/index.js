@@ -6377,7 +6377,7 @@ const { promises: fs } = __nccwpck_require__(747)
 
     const githubClient = github.getOctokit(githubToken)
 
-    await githubClient.repos.createCommitComment({
+    await githubClient.rest.repos.createCommitComment({
       owner: github.context.repo.owner,
       repo: github.context.repo.repo,
       commit_sha: sha,
