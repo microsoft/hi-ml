@@ -4,7 +4,9 @@ inputs:
   file:  # id of input
     description: 'Coverage.txt file name'
     required: true
-    default: 'coverage.txt'
+  token:  # id of input
+    description: 'Token with access to your repository'
+    required: true
 runs:
   using: 'node12'
   main: 'dist/index.js'

@@ -6370,7 +6370,14 @@ const { promises: fs } = __nccwpck_require__(747)
 
     console.log(`Table: ${table}`);
 
-    await github.repos.createCommitComment({
+    const githubToken = core.getInput('token')
+    if (githubToken === '') {
+      return
+    }
+
+    const githubClient = github.getOctokit(githubToken)
+
+    await githubClient.repos.createCommitComment({
       owner: github.context.repo.owner,
       repo: github.context.repo.repo,
       commit_sha: sha,

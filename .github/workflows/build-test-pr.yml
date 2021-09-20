@@ -167,6 +167,7 @@ jobs:
         if: ${{ matrix.packageName == '*.whl' }}
         with:
           file: '${{ matrix.folder }}/coverage.txt'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
