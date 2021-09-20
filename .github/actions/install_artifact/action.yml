@@ -22,9 +22,15 @@ inputs:
     description: 'Version artifact suffix'
     required: true
 outputs:
-  random-number:
-    description: "Random number"
-    value: ${{ steps.random-number-generator.outputs.random-id }}
+  wheel_filename:
+    description: 'Wheel filename'
+    value: ${{ steps.set_output.outputs.wheel_filename }}
+  package_name:
+    description: 'Package name'
+    value: ${{ steps.set_output.outputs.package_name }}
+  latest_version:
+    description: 'Latest version'
+    value: ${{ steps.set_output.outputs.latest_version }}
 runs:
   using: "composite"
   steps:
@@ -47,6 +53,7 @@ runs:
         path: ${{ inputs.folder }}
 
     - name: Set output
+      id: set_output
       shell: bash
       run: |
         cd ${{ inputs.folder }}
