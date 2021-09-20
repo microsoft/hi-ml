@@ -19,5 +19,5 @@ runs:
       run: echo "::set-output name=random-id::$(echo $RANDOM)"
       shell: bash
 
-    - run: ${{ github.action_path }}/goodbye2.sh
+    - run: ${{ github.action_path }}/goodbye.sh
       shell: bash
