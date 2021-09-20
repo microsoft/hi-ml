@@ -58,6 +58,8 @@ runs:
       run: |
         cd ${{ inputs.folder }}
 
+        echo "The env var is: $HIML_DIST_ARTIFACT_SUFFIX"
+
         echo "::set-output name=wheel_filename::$(find dist -name ${{ inputs.package_type }})"
         echo "::set-output name=package_name::$(cat ./package_name.txt)"
         echo "::set-output name=latest_version::$(cat ./latest_version.txt)"
