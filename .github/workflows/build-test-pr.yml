@@ -51,25 +51,6 @@ jobs:
       - name: mypy
         run: make mypy
 
-  hello_world_job:
-    runs-on: ubuntu-latest
-    name: A job to say hello
-    steps:
-      # To use this repository's private action,
-      # you must check out the repository
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Hello world action step
-        uses: ./.github/actions/format_coverage
-        id: hello
-        with:
-          who-to-greet: 'Mona the Octocat'
-
-      # Use the output from the `hello` step
-      - name: Get the output time
-        run: echo "The time was ${{ steps.hello.outputs.time }}"
-
   pytest_fast:
     runs-on: ubuntu-latest
     strategy:
@@ -182,45 +163,10 @@ jobs:
           fi
 
       - name: Add coverage as a commit comment
-        uses: actions/github-script@v4
+        uses: ./.github/actions/format_coverage
         if: ${{ matrix.packageName == '*.whl' }}
         with:
-          script: |
-            const { promises: fs } = require('fs')
-
-            const sha = context.eventName == 'pull_request' ? context.payload.pull_request.head.sha : context.sha
-
-            const coverage = await fs.readFile('${{ matrix.folder }}/coverage.txt', 'utf8')
-
-            var table = ""
-            const coverage_lines = coverage.split("\n")
-            for (var i = 0; i < coverage_lines.length; i++)
-            {
-              const cells = coverage_lines[i].split(" ")
-              var row = ""
-              for (var j = 0; j < cells.length; j++)
-              {
-                if (cells[j] != "")
-                {
-                  if (row.length != "")
-                  {
-                    row += "|"
-                  }
-                  row += cells[j]
-                }
-              }
-              if (row != "")
-              {
-                table += row + "\n"
-              }
-            }
-
-            await github.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: sha,
-              body: table
-            })
+          file: '${{ matrix.folder }}/coverage.txt'
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
