@@ -51,6 +51,25 @@ jobs:
       - name: mypy
         run: make mypy
 
+  hello_world_job:
+    runs-on: ubuntu-latest
+    name: A job to say hello
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Hello world action step
+        uses: ./.github/actions/format_coverage
+        id: hello
+        with:
+          who-to-greet: 'Mona the Octocat'
+
+      # Use the output from the `hello` step
+      - name: Get the output time
+        run: echo "The time was ${{ steps.hello.outputs.time }}"
+
   pytest_fast:
     runs-on: ubuntu-latest
     strategy:
@@ -319,7 +338,8 @@ jobs:
             sleep 10
           done
 
-          make pytest_and_coverage
+          # Test with pytest, fast only
+          make pytest_fast
 
   test-testpypi-pkg-conda:
     runs-on: ubuntu-latest
