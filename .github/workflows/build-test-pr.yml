@@ -138,9 +138,6 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
           package_type: ${{ matrix.packageName }}
-          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install artifact and test
         run: |
@@ -181,14 +178,15 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
       - name: Download package
         id: download
         uses: ./.github/actions/install_artifact
         with:
           folder: ${{ matrix.folder }}
-          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Set envs
         run: |
@@ -233,9 +231,6 @@ jobs:
         uses: ./.github/actions/install_artifact
         with:
           folder: ${{ matrix.folder }}
-          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install and test package
         run: |
@@ -268,9 +263,6 @@ jobs:
         uses: ./.github/actions/install_artifact
         with:
           folder: ${{ matrix.folder }}
-          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install test.PyPI package and test with Conda
         run: |
@@ -301,9 +293,6 @@ jobs:
         uses: ./.github/actions/install_artifact
         with:
           folder: ${{ matrix.folder }}
-          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -342,9 +331,6 @@ jobs:
         uses: ./.github/actions/install_artifact
         with:
           folder: ${{ matrix.folder }}
-          distribution_artifact_suffix: ${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          package_name_artifact_suffix: ${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          version_artifact_suffix: ${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
 
       - name: Install PyPI package and test
         run: |

@@ -1,26 +1,13 @@
-name: 'Hello World'
-description: 'Greet someone'
+name: 'Download package artifacts'
+description: 'Download and parse all package artifacts'
 inputs:
   folder:  # id of input
     description: 'Target folder'
     required: true
-  dist_folder:
-    description: 'Dist folder'
-    required: false
-    default: 'dist'
   package_type:
     description: 'Package type'
     required: false
     default: '*.whl'
-  distribution_artifact_suffix:
-    description: 'Distribution artifact suffix'
-    required: true
-  package_name_artifact_suffix:
-    description: 'Package name artifact suffix'
-    required: true
-  version_artifact_suffix:
-    description: 'Version artifact suffix'
-    required: true
 outputs:
   wheel_filename:
     description: 'Wheel filename'
@@ -31,25 +18,28 @@ outputs:
   latest_version:
     description: 'Latest version'
     value: ${{ steps.set_output.outputs.latest_version }}
+  package_version:
+    description: 'Package version string'
+    value: ${{ steps.set_output.outputs.package_version }}
 runs:
   using: "composite"
   steps:
     - name: Download distribution artifact
       uses: actions/download-artifact@v2
       with:
-        name: ${{ inputs.folder }}${{ inputs.distribution_artifact_suffix }}
-        path: ${{ inputs.folder }}/${{ inputs.dist_folder }}
+        name: ${{ inputs.folder }}$HIML_DIST_ARTIFACT_SUFFIX
+        path: ${{ inputs.folder }}/dist
 
     - name: Download package name artifact
       uses: actions/download-artifact@v2
       with:
-        name: ${{ inputs.folder }}${{ inputs.package_name_artifact_suffix }}
+        name: ${{ inputs.folder }}$HIML_PACKAGE_NAME_ARTIFACT_SUFFIX
         path: ${{ inputs.folder }}
 
     - name: Download version artifact
       uses: actions/download-artifact@v2
       with:
-        name: ${{ inputs.folder }}${{ inputs.version_artifact_suffix }}
+        name: ${{ inputs.folder }}$HIML_VERSION_ARTIFACT_SUFFIX
         path: ${{ inputs.folder }}
 
     - name: Set output
@@ -58,8 +48,17 @@ runs:
       run: |
         cd ${{ inputs.folder }}
 
-        echo "The env var is: $HIML_DIST_ARTIFACT_SUFFIX"
+        wheel_filename=$(find dist -name ${{ inputs.package_type }})
+        package_name=$(cat ./package_name.txt)
+        latest_version=$(cat ./latest_version.txt)
+        package_version='$package_name==$latest_version'
 
-        echo "::set-output name=wheel_filename::$(find dist -name ${{ inputs.package_type }})"
-        echo "::set-output name=package_name::$(cat ./package_name.txt)"
-        echo "::set-output name=latest_version::$(cat ./latest_version.txt)"
+        echo "wheel_filename=$wheel_filename"
+        echo "package_name=$package_name"
+        echo "latest_version=$latest_version"
+        echo "package_version=$package_version"
+
+        echo "::set-output name=wheel_filename::$wheel_filename"
+        echo "::set-output name=package_name::$package_name"
+        echo "::set-output name=latest_version::$latest_version"
+        echo "::set-output name=package_version::$package_version"
