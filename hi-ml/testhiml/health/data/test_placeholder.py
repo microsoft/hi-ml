@@ -19,6 +19,7 @@ def test_placeholder() -> None:
     assert placeholder() is True
 
 
+@pytest.mark.fast
 def test_run_duration() -> None:
     """Test the health.azure has been imported correctly."""
     actual = run_duration_string_to_seconds("0.5m")

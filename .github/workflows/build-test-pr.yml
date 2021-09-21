@@ -134,6 +134,14 @@ jobs:
           folder: ${{ matrix.folder }}
           package_type: ${{ matrix.packageName }}
 
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
       - name: Install artifact and test
         run: |
           cd ${{ matrix.folder }}
@@ -227,6 +235,14 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
       - name: Install and test package
         run: |
           cd ${{ matrix.folder }}
@@ -259,6 +275,14 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
       - name: Install test.PyPI package and test with Conda
         run: |
           cd ${{ matrix.folder }}
@@ -289,20 +313,19 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@master
-        if: ${{ matrix.folder == 'hi-ml' }}
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
-          packages_dir: ${{ matrix.folder }}/dist/
+      - name: Set envs
+        run: |
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "PYPI_TOKEN=${{ secrets.PYPI_TOKEN }}" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "PYPI_TOKEN=${{ secrets.PYPI_AZURE_TOKEN }}" >> $GITHUB_ENV
+          fi
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
-        if: ${{ matrix.folder == 'hi-ml-azure' }}
         with:
           user: __token__
-          password: ${{ secrets.PYPI_AZURE_TOKEN }}
+          password: ${{ env.PYPI_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
 
   test-pypi-pkg:
@@ -326,6 +349,14 @@ jobs:
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
+
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
 
       - name: Install PyPI package and test
         run: |
