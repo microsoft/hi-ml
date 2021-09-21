@@ -9,9 +9,9 @@ inputs:
     required: false
     default: '*.whl'
 outputs:
-  wheel_filename:
-    description: 'Wheel filename'
-    value: ${{ steps.set_output.outputs.wheel_filename }}
+  package_filename:
+    description: 'Package filename'
+    value: ${{ steps.set_output.outputs.package_filename }}
   package_name:
     description: 'Package name'
     value: ${{ steps.set_output.outputs.package_name }}
@@ -48,17 +48,12 @@ runs:
       run: |
         cd ${{ inputs.folder }}
 
-        wheel_filename=$(find dist -name ${{ inputs.package_type }})
+        package_filename=$(find dist -name ${{ inputs.package_type }})
         package_name=$(cat ./package_name.txt)
         latest_version=$(cat ./latest_version.txt)
-        package_version='$package_name==$latest_version'
+        package_version=$package_name==$latest_version
 
-        echo "wheel_filename=$wheel_filename"
-        echo "package_name=$package_name"
-        echo "latest_version=$latest_version"
-        echo "package_version=$package_version"
-
-        echo "::set-output name=wheel_filename::$wheel_filename"
+        echo "::set-output name=package_filename::$package_filename"
         echo "::set-output name=package_name::$package_name"
         echo "::set-output name=latest_version::$latest_version"
         echo "::set-output name=package_version::$package_version"

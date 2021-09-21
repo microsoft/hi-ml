@@ -97,23 +97,10 @@ jobs:
           cd ${{ matrix.folder }}
           make build
 
-      - name: Upload distribution artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload package artifacts
+        uses: ./.github/actions/upload_package_artifacts
         with:
-          name: ${{ matrix.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/dist/*
-
-      - name: Upload package name artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/package_name.txt
-
-      - name: Upload version artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/latest_version.txt
+          folder: ${{ matrix.folder }}
 
   test-artifact-pkg:
     runs-on: ubuntu-latest
@@ -132,9 +119,9 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download package
+      - name: Download package artifacts
         id: download
-        uses: ./.github/actions/install_artifact
+        uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
           package_type: ${{ matrix.packageName }}
@@ -146,7 +133,7 @@ jobs:
           make pip_upgrade
 
           # Install package
-          pip install ${{ steps.download.outputs.wheel_filename }}
+          pip install ${{ steps.download.outputs.package_filename }}
 
           if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Test with pytest
@@ -182,9 +169,9 @@ jobs:
         with:
           lfs: true
 
-      - name: Download package
+      - name: Download package artifacts
         id: download
-        uses: ./.github/actions/install_artifact
+        uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
 
@@ -208,7 +195,7 @@ jobs:
       - name: Show published TestPyPI package version
         run: |
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}"
+          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
@@ -226,9 +213,9 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download package
+      - name: Download package artifacts
         id: download
-        uses: ./.github/actions/install_artifact
+        uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
 
@@ -238,7 +225,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}
+          while ! pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_version }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -258,9 +245,9 @@ jobs:
         with:
           lfs: true
 
-      - name: Download package
+      - name: Download package artifacts
         id: download
-        uses: ./.github/actions/install_artifact
+        uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
 
@@ -272,7 +259,7 @@ jobs:
           $CONDA/bin/conda env update --file ../test_environment.yml --name base
 
           # Install test package
-          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}
+          while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_version }}
           do
             echo waiting for test.pypi
             sleep 10
@@ -288,9 +275,9 @@ jobs:
         folder: [ hi-ml, hi-ml-azure ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Download package
+      - name: Download package artifacts
         id: download
-        uses: ./.github/actions/install_artifact
+        uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
 
@@ -326,9 +313,9 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Download package
+      - name: Download package artifacts
         id: download
-        uses: ./.github/actions/install_artifact
+        uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
 
@@ -338,7 +325,7 @@ jobs:
 
           make pip_upgrade
 
-          while ! pip install ${{ steps.download.outputs.package_name }}==${{ steps.download.outputs.latest_version }}
+          while ! pip install ${{ steps.download.outputs.package_version }}
           do
             echo waiting for pypi
             sleep 10
