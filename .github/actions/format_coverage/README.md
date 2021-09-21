@@ -1,28 +1,12 @@
-# Hello world javascript action
+# Format coverage action
 
-This action prints "Hello World" or "Hello" + the name of a person to greet to the log.
-
-## Inputs
-
-## `who-to-greet`
-
-**Required** The name of the person to greet. Default `"World"`.
-
-## Outputs
-
-## `time`
-
-The time we greeted you.
-
-## Example usage
-
-uses: actions/hello-world-javascript-action@v1.1
-with:
-  who-to-greet: 'Mona the Octocat'
+This action loads the file coverage.txt produced by pytest-cov, formats it as an HTML table, and adds it to the commit as a comment.
 
 ## Build
 
 Following the instructions: [https://docs.github.com/en/actions/creating-actions/creating-a-javascript-action](https://docs.github.com/en/actions/creating-actions/creating-a-javascript-action):
+
+1. Install nodejs and npm
 
 1. Install vercel/ncc by running this command in your terminal. npm i -g @vercel/ncc
 
