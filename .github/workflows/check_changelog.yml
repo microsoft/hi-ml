@@ -24,7 +24,7 @@ jobs:
           if [[ "$changed_files" =~ CHANGELOG\.md ]]
           then
             changelog=$(cat ./CHANGELOG.md)
-            if [[ "$changelog" =~ https://github\.com/microsoft/InnerEye-DeepLearning/pull/$PR_NUMBER ]]
+            if [[ "$changelog" =~ https://github\.com/microsoft/hi-ml/pull/$PR_NUMBER ]]
             then
               echo "Changelog has been updated and contains the PR number."
             else

@@ -13,10 +13,10 @@ created.
 ## Upcoming
 
 ### Added
-- ([#111](https://github.com/microsoft/InnerEye-DeepLearning/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
+- ([#111](https://github.com/microsoft/hi-ml/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
 
 ### Changed
-
+- ([#112](https://github.com/microsoft/hi-ml/pull/112)) Update himl_tensorboard to work with files not in 'logs' directory
 ### Fixed
 
 ### Removed
