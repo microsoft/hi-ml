@@ -13,10 +13,12 @@ created.
 ## Upcoming
 
 ### Added
-- ([#111](https://github.com/microsoft/InnerEye-DeepLearning/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
+- ([#111](https://github.com/microsoft/hi-ml/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
 
 ### Changed
-- ([#106](https://github.com/microsoft/InnerEye-DeepLearning/pull/106)) Split into two packages. Most of existing package renamed to hi-ml-azure, remained remains hi-ml.
+- ([#112](https://github.com/microsoft/hi-ml/pull/112)) Update himl_tensorboard to work with files not in 'logs' directory
+
+- ([#106](https://github.com/microsoft/hi-ml/pull/106)) Split into two packages. Most of existing package renamed to hi-ml-azure, remained remains hi-ml.
 
 ### Fixed
 
