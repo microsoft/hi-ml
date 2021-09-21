@@ -10,7 +10,7 @@ import os
 import logging
 import time
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -19,7 +19,7 @@ import conda_merge
 import health.azure.azure_util as util
 import pytest
 from _pytest.capture import CaptureFixture
-from azureml.core import Workspace, Run
+from azureml.core import Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -171,7 +171,7 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
 def test_merge_conda(
         random_folder: Path,
         caplog: CaptureFixture,
-        ) -> None:
+) -> None:
     """
     Tests the logic for merging Conda environment files.
     """
@@ -317,11 +317,11 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
-        ) -> None:
+) -> None:
     just_conda_str_env_name = "HealthML-9231e34f29c82f2e809e54167003637d"
     conda_str = "name: simple-env\ndependencies:\n  - pip=20.1.1\n  - python=3.7.3\n  - pip:" + \
-        "\n    - azureml-sdk==1.23.0\n    - conda-merge==0.1.5\n  - pip:\n    - --index-url" + \
-        " https://test.pypi.org/simple/\n    - --extra-index-url https://pypi.org/simple\n    - hi-ml"
+                "\n    - azureml-sdk==1.23.0\n    - conda-merge==0.1.5\n  - pip:\n    - --index-url" + \
+                " https://test.pypi.org/simple/\n    - --extra-index-url https://pypi.org/simple\n    - hi-ml"
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str)
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
@@ -373,7 +373,7 @@ def test_register_environment(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
         caplog: CaptureFixture,
-        ) -> None:
+) -> None:
     env_name = "an environment"
     env_version = "an environment"
     mock_environment.get.return_value = mock_environment
@@ -390,7 +390,7 @@ def test_register_environment(
 def test_set_environment_variables_for_multi_node(
         caplog: CaptureFixture,
         capsys: CaptureFixture,
-        ) -> None:
+) -> None:
     with caplog.at_level(logging.INFO):  # type: ignore
         util.set_environment_variables_for_multi_node()
         assert "No settings for the MPI central node found" in caplog.text  # type: ignore
@@ -422,9 +422,20 @@ def test_set_environment_variables_for_multi_node(
     assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
 
 
+class MockClient:
+    # This only exists to appease mypy
+    artifacts = None
+
+
 class MockRun:
     def __init__(self, run_id: str = 'run1234') -> None:
         self.id = run_id
+        self._container = None  # for mypy
+        self._client = MockClient()  # for mypy
+
+    def download_file(self) -> None:
+        # for mypy
+        pass
 
 
 def test_determine_run_id_source(tmp_path: Path) -> None:
@@ -487,9 +498,7 @@ def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
 
 
 def test_get_latest_aml_runs_from_experiment() -> None:
-
     def _get_experiment_runs() -> List[MockRun]:
-
         return [MockRun(), MockRun(), MockRun(), MockRun()]
 
     mock_experiment_name = "MockExperiment"
@@ -629,23 +638,70 @@ def test_get_aml_runs(tmp_path: Path) -> None:
             util.get_aml_runs(mock_args, mock_workspace, run_id_source)  # type: ignore
 
 
-def test_download_run_files() -> None:
-    mock_run = MockRun(run_id="id123")
-    with patch("health.azure.azure_util.download_run_file") as mock_download:
-        util.download_run_files(mock_run)
-        mock_download.assert_called_with(mock_run, prefix="")
-
-        util.download_run_files(mock_run, prefix="somepath")
-        mock_download.assert_called_with(mock_run, prefix="somepath")
-
-
 @patch("azureml.core.Run", MockRun)
-def test_download_run_files(tmp_path: Path) -> None:
+def test_download_run_file(tmp_path: Path) -> None:
     dummy_filename = "filetodownload.txt"
 
     # mock the method 'download_file' on the AML Run class and assert it gets called with the expected params
     mock_run = MockRun(run_id="id123")
-    mock_run.download_file = MagicMock(return_value=None)
+    mock_run.download_file = MagicMock(return_value=None)  # type: ignore
 
     util.download_run_file(mock_run, dummy_filename, tmp_path)
     mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
+
+
+def _mock_get_files_by_prefix(prefix: str = "") -> List[Tuple[str, str]]:
+    sas_urls = [("somepath.txt", "https://somepath.txt/otherstuff"),
+                ("abc/someotherpath.txt", "https://abc/someotherpath"),
+                ("abc/def/anotherpath.txt", "https://abc/def/anotherpath")]
+    if len(prefix) > 0:
+        return [u for u in sas_urls if prefix in u[0]]
+    else:
+        return sas_urls
+
+
+def test_get_run_paths() -> None:
+    mock_run = MockRun(run_id="id123")
+    mock_run._container = MagicMock(return_value='somecontainerid')  # type: ignore
+    mock_run._client = MagicMock()  # type: ignore
+    mock_run._client.artifacts = MagicMock()  # type: ignore
+    # type: ignore
+    mock_run._client.artifacts.get_files_by_artifact_prefix_id.return_value = _mock_get_files_by_prefix()
+    # check that we get the expected run paths if no filter is applied
+    expected_run_paths = [x[0] for x in _mock_get_files_by_prefix()]
+    run_paths = util.get_run_paths(mock_run)  # type: ignore
+    assert len(run_paths) == len(expected_run_paths)
+    assert sorted(run_paths) == sorted(expected_run_paths)
+
+    # Now check we get the expected run paths if a filter is applied
+    prefix = "abc"
+    expected_run_paths_filtered = [x[0] for x in _mock_get_files_by_prefix(prefix=prefix)]
+    run_paths = util.get_run_paths(mock_run, prefix=prefix)
+    assert len(run_paths) == len(expected_run_paths_filtered)
+
+
+@pytest.mark.parametrize("prefix", ["", "abc"])
+def test_download_run_files(tmp_path: Path, prefix: str) -> None:
+    # Assert that 'downloaded' paths don't exist to begin with
+    dummy_paths = [x[0] for x in _mock_get_files_by_prefix(prefix=prefix)]
+    expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
+    assert sum([p.exists() for p in expected_paths]) == 0
+
+    def _mock_download_files(filename: str, output_path: Optional[str] = None,
+                             _validate_checksum: bool = False) -> None:
+        for dummy_path in dummy_paths:
+            out_path = tmp_path / dummy_path
+            out_path.parent.mkdir(exist_ok=True, parents=True)
+            out_path.touch(exist_ok=True)
+
+    mock_run = MockRun(run_id="id123")
+    with patch("health.azure.azure_util.get_run_paths") as mock_get_run_paths:
+        mock_get_run_paths.return_value = dummy_paths
+        with patch("health.azure.azure_util.download_run_file") as mock_download:
+            mock_download.return_value = None
+            mock_download.side_effect = _mock_download_files
+            util.download_run_files(mock_run, output_dir=tmp_path)
+            # Check that our mocked download_run_file has been called once for each file
+            assert mock_download.call_count == len(dummy_paths)
+            # Now the expected paths should exist
+            assert sum([p.exists() for p in expected_paths]) == len(expected_paths)

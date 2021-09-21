@@ -525,29 +525,51 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
     return [run for run in runs if run is not None]
 
 
-def download_run_files(run: Run, prefix: str = "") -> None:
+def get_run_paths(run: Run, prefix: str = "") -> List[str]:
+    """
+    Get the remote path to all files for a given Run which optionally start with a given prefix
+
+    :param run: The AML Run to look up associated files for
+    :param prefix: The optional prefix to filter Run files by
+    :return: A list of paths within the Run's container
+    """
+    container = run._container  # type: ignore
+    origin = "ExperimentRun"
     container_path = "{}/{}/".format(origin, container)
     if not prefix:
         prefix = ''
     else:
         prefix = prefix.replace("\\", "/")
-        if (prefix[-1] != "/"):
+        if prefix[-1] != "/":
             prefix += "/"
     prefix_path = container_path if len(prefix) == 0 else "{}{}/".format(container_path, prefix)
 
-    sas_urls = run._client.artifacts.get_files_by_artifact_prefix_id, prefix_path)
-    
-    # TODO: implement
-    for sas_url in sas_urls:
-        download_run_file()
+    sas_urls = run._client.artifacts.get_files_by_artifact_prefix_id(prefix_path)
+    return [sas_url[0] for sas_url in sas_urls]
+
+
+def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
+    """
+    Download all files for a given run, which optionally start with a given prefix
+
+    :param run: The AML Run to download associated files for
+    :param output_dir: Local directory to which the Run files should be downloaded.
+    :param prefix: The prefix to filter Run files by
+    """
+
+    run_paths = get_run_paths(run, prefix=prefix)
+
+    for run_path in run_paths:
+        output_path = output_dir / run_path
+        download_run_file(run, run_path, output_path)
 
 
 def download_run_file(run: Run, filename: str, output_path: Path) -> None:
     """
     A wrapper around AML Run's download_file method, that handles timeouts
 
-    :param run: [description]
-    :param filename: [description]
-    :param output_path: [description]
+    :param run: The AML Run to download associated file for
+    :param filename: The name of the file as it exists in Azure storage
+    :param output_path: Local path to which the file should be downloaded
     """
     run.download_file(filename, output_file_path=output_path, _validate_checksum=False)
