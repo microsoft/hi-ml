@@ -523,3 +523,31 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
     else:
         raise ValueError(f"Unrecognised RunIdSource: {run_id_source}")
     return [run for run in runs if run is not None]
+
+
+def download_run_files(run: Run, prefix: str = "") -> None:
+    container_path = "{}/{}/".format(origin, container)
+    if not prefix:
+        prefix = ''
+    else:
+        prefix = prefix.replace("\\", "/")
+        if (prefix[-1] != "/"):
+            prefix += "/"
+    prefix_path = container_path if len(prefix) == 0 else "{}{}/".format(container_path, prefix)
+
+    sas_urls = run._client.artifacts.get_files_by_artifact_prefix_id, prefix_path)
+    
+    # TODO: implement
+    for sas_url in sas_urls:
+        download_run_file()
+
+
+def download_run_file(run: Run, filename: str, output_path: Path) -> None:
+    """
+    A wrapper around AML Run's download_file method, that handles timeouts
+
+    :param run: [description]
+    :param filename: [description]
+    :param output_path: [description]
+    """
+    run.download_file(filename, output_file_path=output_path, _validate_checksum=False)

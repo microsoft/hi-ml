@@ -19,7 +19,7 @@ import conda_merge
 import health.azure.azure_util as util
 import pytest
 from _pytest.capture import CaptureFixture
-from azureml.core import Workspace
+from azureml.core import Workspace, Run
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -627,3 +627,25 @@ def test_get_aml_runs(tmp_path: Path) -> None:
     with pytest.raises(Exception):
         with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
             util.get_aml_runs(mock_args, mock_workspace, run_id_source)  # type: ignore
+
+
+def test_download_run_files() -> None:
+    mock_run = MockRun(run_id="id123")
+    with patch("health.azure.azure_util.download_run_file") as mock_download:
+        util.download_run_files(mock_run)
+        mock_download.assert_called_with(mock_run, prefix="")
+
+        util.download_run_files(mock_run, prefix="somepath")
+        mock_download.assert_called_with(mock_run, prefix="somepath")
+
+
+@patch("azureml.core.Run", MockRun)
+def test_download_run_files(tmp_path: Path) -> None:
+    dummy_filename = "filetodownload.txt"
+
+    # mock the method 'download_file' on the AML Run class and assert it gets called with the expected params
+    mock_run = MockRun(run_id="id123")
+    mock_run.download_file = MagicMock(return_value=None)
+
+    util.download_run_file(mock_run, dummy_filename, tmp_path)
+    mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
