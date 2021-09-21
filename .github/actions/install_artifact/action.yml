@@ -27,19 +27,19 @@ runs:
     - name: Download distribution artifact
       uses: actions/download-artifact@v2
       with:
-        name: ${{ inputs.folder }}$HIML_DIST_ARTIFACT_SUFFIX
+        name: ${{ inputs.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
         path: ${{ inputs.folder }}/dist
 
     - name: Download package name artifact
       uses: actions/download-artifact@v2
       with:
-        name: ${{ inputs.folder }}$HIML_PACKAGE_NAME_ARTIFACT_SUFFIX
+        name: ${{ inputs.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
         path: ${{ inputs.folder }}
 
     - name: Download version artifact
       uses: actions/download-artifact@v2
       with:
-        name: ${{ inputs.folder }}$HIML_VERSION_ARTIFACT_SUFFIX
+        name: ${{ inputs.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
         path: ${{ inputs.folder }}
 
     - name: Set output
