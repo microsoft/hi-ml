@@ -430,7 +430,7 @@ class MockRun:
 def test_determine_run_id_source(tmp_path: Path) -> None:
     parser = ArgumentParser()
     parser.add_argument("--latest_run_file", type=str)
-    parser.add_argument("--experiment_name", type=str)
+    parser.add_argument("--experiment", type=str)
     parser.add_argument("--run_recovery_ids", type=str)
     parser.add_argument("--run_ids", type=str)
 
@@ -440,7 +440,7 @@ def test_determine_run_id_source(tmp_path: Path) -> None:
     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
 
     # If experiment name is provided, expect source to be experiment
-    mock_args = parser.parse_args(["--experiment_name", "fake_experiment"])
+    mock_args = parser.parse_args(["--experiment", "fake_experiment"])
     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.EXPERIMENT_LATEST
 
     # If run recovery id is provided, expect source to be that

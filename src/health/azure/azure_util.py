@@ -438,13 +438,13 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
     """
     if "latest_run_file" in args and args.latest_run_file is not None:
         return AzureRunIdSource.LATEST_RUN_FILE
-    if "experiment_name" in args and args.experiment_name is not None:
+    if "experiment" in args and args.experiment is not None:
         return AzureRunIdSource.EXPERIMENT_LATEST
     if "run_recovery_ids" in args and args.run_recovery_ids is not None:
         return AzureRunIdSource.RUN_RECOVERY_ID
     if "run_ids" in args and args.run_ids is not None:
         return AzureRunIdSource.RUN_ID
-    raise ValueError("One of latest_run_file, experiment_name, run_recovery_ids or run_ids must be provided")
+    raise ValueError("One of latest_run_file, experiment, run_recovery_ids or run_ids must be provided")
 
 
 def get_aml_runs_from_latest_run_file(args: Namespace, workspace: Workspace) -> List[Run]:

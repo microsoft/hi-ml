@@ -22,7 +22,7 @@ def determine_output_dir_name(args: Namespace, run_id_source: AzureRunIdSource, 
     :return: The path in which to store the AML Run files
     """
     if run_id_source == AzureRunIdSource.EXPERIMENT_LATEST:
-        output_path = output_dir / args.experiment_name
+        output_path = output_dir / args.experiment
     elif run_id_source == AzureRunIdSource.LATEST_RUN_FILE:
         output_path = output_dir / Path(args.latest_run_file).stem
     elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
@@ -57,7 +57,7 @@ def main() -> None:  # pragma: no cover
         help="Optional path to most_recent_run.txt where the ID of the latest run is stored"
     )
     parser.add_argument(
-        "--experiment_name",
+        "--experiment",
         type=str,
         required=False,
         help="The name of the AML Experiment that you wish to download Run files from"

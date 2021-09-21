@@ -21,7 +21,7 @@ def test_download_aml_run_args(tmp_path: Path) -> None:
 
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--output_dir", str(tmp_output_dir)])
-        assert 'One of latest_run_file, experiment_name, run_recovery_id ' \
+        assert 'One of latest_run_file, experiment, run_recovery_id ' \
                'or run_id must be provided' in str(e)
 
 
@@ -45,13 +45,13 @@ def test_determine_output_dir_name(tmp_path: Path) -> None:
 
     parser = ArgumentParser()
     parser.add_argument("--latest_run_file", type=str)
-    parser.add_argument("--experiment_name", type=str)
+    parser.add_argument("--experiment", type=str)
     parser.add_argument("--run_recovery_id", type=str)
     parser.add_argument("--run_id", type=str)
 
     # if experiment name is provided, expect that to be included in the directory
     mock_experiment_name = "fake-experiment"
-    mock_args = parser.parse_args(["--experiment_name", mock_experiment_name])
+    mock_args = parser.parse_args(["--experiment", mock_experiment_name])
     run_id_source = AzureRunIdSource.EXPERIMENT_LATEST
     output_dir = himl_download.determine_output_dir_name(mock_args, run_id_source, mock_output_dir)
     assert output_dir == mock_output_dir / mock_experiment_name
