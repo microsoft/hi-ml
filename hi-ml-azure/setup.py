@@ -13,7 +13,7 @@ import os
 from math import floor
 import pathlib
 from random import random
-from setuptools import setup, find_packages  # type: ignore
+from setuptools import setup, find_namespace_packages  # type: ignore
 
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -80,7 +80,7 @@ setup(
     ],
     keywords='InnerEye, HealthIntelligence, AzureML',
     license='MIT License',
-    packages=find_packages(where="src"),
+    packages=find_namespace_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
