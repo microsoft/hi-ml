@@ -12,7 +12,6 @@ from requests import Session
 from typing import Any, Optional
 
 from azureml._run_impl.run_watcher import RunWatcher
-from azureml.core import Run
 from azureml.tensorboard import Tensorboard
 
 from health.azure.azure_util import get_aml_runs, determine_run_id_source
@@ -32,22 +31,10 @@ class WrappedTensorboard(Tensorboard):
         super().__init__(**kwargs)
         self.remote_root = remote_root
 
-    def download_tb_files_from_run(self, run: Run, local_tb_dir: str) -> None:
-        """
-        Download tensorboard files from run.
-        :param run: A single AML run
-        :param local_tb_dir: the local directory to download TensorBoard files into
-        :return:
-        """
-
-        try:
-            run.download_files(prefix=self.remote_root, output_directory=local_tb_dir)
-        except Exception as e:
-            raise e
-
     def start(self) -> Optional[str]:
         """
         Start the Tensorboard instance, and begin processing logs.
+
         :return: The URL for accessing the Tensorboard instance.
         """
         self._tb_proc: Optional[Popen]
