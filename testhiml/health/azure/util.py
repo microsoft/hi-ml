@@ -5,8 +5,11 @@
 """
 Test utility functions for tests in the package.
 """
+import os
 from azureml.core import Workspace
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 from health.azure.azure_util import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME, get_authentication,
                                      get_secret_from_environment)
@@ -63,3 +66,15 @@ class WorkspaceWrapper:
 
 
 DEFAULT_WORKSPACE = WorkspaceWrapper()
+
+
+@contextmanager
+def change_working_directory(path_or_str: Path) -> Generator:
+    """
+    Context manager for changing the current working directory
+    """
+    new_path = Path(path_or_str).expanduser()
+    old_path = Path.cwd()
+    os.chdir(new_path)
+    yield
+    os.chdir(old_path)

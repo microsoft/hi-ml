@@ -32,7 +32,7 @@ from conftest import check_config_json
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import DEFAULT_DATASTORE
+from testhiml.health.azure.util import DEFAULT_DATASTORE, change_working_directory
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -142,7 +142,7 @@ def test_create_run_configuration_fails(
         mock_workspace: mock.MagicMock,
         _: mock.MagicMock,
         __: mock.MagicMock,
-        ) -> None:
+) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
@@ -266,12 +266,39 @@ def test_get_script_params() -> None:
 def test_get_workspace(
         mock_workspace: mock.MagicMock,
         mock_get_authentication: mock.MagicMock,
-        mock_from_config: mock.MagicMock) -> None:
+        mock_from_config: mock.MagicMock,
+        tmp_path: Path) -> None:
     workspace = himl.get_workspace(mock_workspace, None)
     assert workspace == mock_workspace
-    mock_get_authentication.return_value = None
+    mock_get_authentication.return_value = "auth"
     _ = himl.get_workspace(None, Path(__file__))
-    assert mock_from_config.called
+    mock_from_config.assert_called_once_with(path=__file__, auth="auth")
+    # Work off a temporary directory: No config file should be found
+    with change_working_directory(tmp_path):
+        with pytest.raises(ValueError) as ex:
+            himl.get_workspace(None, None)
+        assert "No workspace config file given" in str(ex)
+    # Workspace config file does not exist at all
+    with pytest.raises(ValueError) as ex:
+        himl.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
+    assert "Workspace config file does not exist" in str(ex)
+
+
+@pytest.mark.fast
+@patch("health.azure.himl.is_running_in_azure")
+def test_get_workspace_no_config(
+        mock_is_running_in_azure: mock.MagicMock,
+        tmp_path: Path) -> None:
+    """
+    Test if the workspace config path setting is ignored if a workspace is already given, and there is no config.json
+    file in the current directory.
+    """
+    mock_is_running_in_azure.return_value = False
+    with change_working_directory(tmp_path):
+        with pytest.raises(ValueError) as ex:
+            with mock.patch("sys.argv", ["", "--azureml"]):
+                himl.submit_to_azure_if_needed(compute_cluster_name="foo")
+        assert "No workspace config file given" in str(ex)
 
 
 @pytest.mark.fast
@@ -392,7 +419,7 @@ def test_submit_run(
         wait_for_completion: bool,
         set_tags: TestTagOption,
         capsys: CaptureFixture,
-        ) -> None:
+) -> None:
     mock_experiment.return_value.submit.return_value = mock_run
     mock_run.get_status.return_value = RunStatus.COMPLETED
     mock_run.status = RunStatus.COMPLETED
@@ -476,6 +503,7 @@ def test_find_file(tmp_path: Path) -> None:
         found_file = himl._find_file(file_name)
         assert not found_file
     os.chdir(where_are_we_now)
+
 
 # endregion Small fast local unit tests
 
@@ -792,15 +820,15 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     """
     input_count = 4
     input_datasets = [TestInputDataset(
-                          filename=f"{uuid4().hex}.txt",
-                          blob_name=f"himl_dataset_test_input{i}",
-                          folder_name=tmp_path / f"local_dataset_test_input{i}")
-                      for i in range(0, input_count)]
+        filename=f"{uuid4().hex}.txt",
+        blob_name=f"himl_dataset_test_input{i}",
+        folder_name=tmp_path / f"local_dataset_test_input{i}")
+        for i in range(0, input_count)]
     output_count = 3
     output_datasets = [TestOutputDataset(
-                           blob_name=f"himl_dataset_test_output{i}",
-                           folder_name=tmp_path / f"local_dataset_test_output{i}")
-                       for i in range(0, output_count)]
+        blob_name=f"himl_dataset_test_output{i}",
+        folder_name=tmp_path / f"local_dataset_test_output{i}")
+        for i in range(0, output_count)]
 
     # Get default datastore
     with check_config_json(tmp_path):
@@ -914,6 +942,5 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
-
 
 # endregion Elevate to AzureML unit tests
