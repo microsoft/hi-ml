@@ -9,9 +9,20 @@ by providing tested components (data loaders, pre-processing), deep learning mod
 This toolbox is still in very early stages, and presently offers only the cloud integration components. ML components
 will be added in the next few weeks.
 
+This toolbox consists of two Python projects:
+
+* [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
+* [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
+
 ## Getting started
 
+For the full toolbox (this will also install `hi-ml-azure`):
+
 * Install from `pypi` via `pip`, by running `pip install hi-ml`
+
+For just the AzureML helper functions:
+
+* Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
 
 ## Documentation
 
@@ -22,7 +33,7 @@ The detailed package documentation, with examples and API reference, is on
 ## Quick start: Using the Azure layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
-The `hi-ml` package can help easily run that on Azure Machine Learning (AML) services.
+The `hi-ml-azure` package can help easily run that on Azure Machine Learning (AML) services.
 
 Here is an example script that reads images from a folder, resizes and saves them to an output folder:
 ```python
@@ -38,7 +49,7 @@ if __name__ == '__main__':
 Doing that at scale can take a long time. **We'd like to run that script in AzureML, consume the data from a folder in
 blob storage, and write the results back to blob storage**.
 
-With the `hi-ml` package, you can turn that script into one that runs on the cloud by adding one function call:
+With the `hi-ml-azure` package, you can turn that script into one that runs on the cloud by adding one function call:
 
 ```python
 from pathlib import Path

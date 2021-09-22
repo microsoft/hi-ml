@@ -5,6 +5,6 @@ dependencies:
   - pip=20.1.1
   - python=3.7.3
   - pip:
-      - -r file:run_requirements.txt
-      - -r file:build_requirements.txt
-      - -r file:test_requirements.txt
+      - -r build_requirements.txt
+      - -r hi-ml-azure/run_requirements.txt
+      - -r test_requirements.txt
