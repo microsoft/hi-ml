@@ -1,0 +1,59 @@
+name: 'Download package artifacts'
+description: 'Download and parse all package artifacts'
+inputs:
+  folder:  # id of input
+    description: 'Target folder'
+    required: true
+  package_type:
+    description: 'Package type'
+    required: false
+    default: '*.whl'
+outputs:
+  package_filename:
+    description: 'Package filename'
+    value: ${{ steps.set_output.outputs.package_filename }}
+  package_name:
+    description: 'Package name'
+    value: ${{ steps.set_output.outputs.package_name }}
+  latest_version:
+    description: 'Latest version'
+    value: ${{ steps.set_output.outputs.latest_version }}
+  package_version:
+    description: 'Package version string'
+    value: ${{ steps.set_output.outputs.package_version }}
+runs:
+  using: "composite"
+  steps:
+    - name: Download distribution artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/dist
+
+    - name: Download package name artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}
+
+    - name: Download version artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}
+
+    - name: Set output
+      id: set_output
+      shell: bash
+      run: |
+        cd ${{ inputs.folder }}
+
+        package_filename=$(find dist -name ${{ inputs.package_type }})
+        package_name=$(cat ./package_name.txt)
+        latest_version=$(cat ./latest_version.txt)
+        package_version=$package_name==$latest_version
+
+        echo "::set-output name=package_filename::$package_filename"
+        echo "::set-output name=package_name::$package_name"
+        echo "::set-output name=latest_version::$latest_version"
+        echo "::set-output name=package_version::$package_version"

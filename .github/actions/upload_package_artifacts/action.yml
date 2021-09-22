@@ -1,0 +1,26 @@
+name: 'Upload package artifacts'
+description: 'Upload all package artifacts'
+inputs:
+  folder:  # id of input
+    description: 'Source folder'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Upload distribution artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/dist/*
+
+    - name: Upload package name artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/package_name.txt
+
+    - name: Upload version artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/latest_version.txt

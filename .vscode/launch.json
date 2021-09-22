@@ -13,12 +13,12 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Elevate: Local",
+            "name": "Elevate: HI-ML-AZURE Local",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
-            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
-            "cwd": "${workspaceFolder}/src/health/azure/examples/",
+            "program": "${workspaceFolder}/hi-ml-azure/src/health/azure/examples/elevate_this.py",
+            "env": {"PYTHONPATH": "${workspaceRoot}/hi-ml-azure/src"},
+            "cwd": "${workspaceFolder}/hi-ml-azure/src/health/azure/examples/",
             "args": 
             [
                 "--message='Hello World :-)'"
@@ -26,12 +26,12 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Elevate: AML",
+            "name": "Elevate: HI-ML-AZURE AML",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/src/health/azure/examples/elevate_this.py",
-            "env": {"PYTHONPATH": "${workspaceRoot}/src"},
-            "cwd": "${workspaceFolder}/src/health/azure/examples/",
+            "program": "${workspaceFolder}/hi-ml-azure/src/health/azure/examples/elevate_this.py",
+            "env": {"PYTHONPATH": "${workspaceRoot}/hi-ml-azure/src"},
+            "cwd": "${workspaceFolder}/hi-ml-azure/src/health/azure/examples/",
             "args": 
             [
                 "--message='Hello World :-)'",
@@ -40,10 +40,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Setup",
+            "name": "Python: HI-ML-AZURE Setup",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/setup.py",
+            "program": "${workspaceFolder}/hi-ml-azure/setup.py",
             "args": [
                 "sdist",
                 "bdist_wheel"
@@ -51,18 +51,18 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Make Tests",
+            "name": "Python: HI-ML-AZURE Make Tests",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/testhiml/health/azure/test_data/make_tests.py",
+            "program": "${workspaceFolder}/hi-ml-azure/testhiml/health/azure/test_data/make_tests.py",
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Hyperdrive Sample",
+            "name": "Python: HI-ML-AZURE Hyperdrive Sample",
             "type": "python",
             "request": "launch",
-            "cwd": "${workspaceFolder}/docs/source/examples/8",
-            "program": "${workspaceFolder}/docs/source/examples/8/sample.py",
+            "cwd": "${workspaceFolder}/hi-ml-azure/docs/source/examples/8",
+            "program": "${workspaceFolder}/hi-ml-azure/docs/source/examples/8/sample.py",
             "args": [
                 "--azureml"
             ],
