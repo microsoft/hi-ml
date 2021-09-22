@@ -24,6 +24,11 @@ For just the AzureML helper functions:
 
 * Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
 
+## Documentation
+
+The detailed package documentation, with examples and API reference, is on 
+[readthedocs](https://hi-ml.readthedocs.io/en/latest/).
+
 ## Quick start: Using the Azure layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
@@ -51,11 +56,11 @@ from health.azure.himl import submit_to_azure_if_needed
 if __name__ == '__main__':
     current_file = Path(__file__)
     run_info = submit_to_azure_if_needed(compute_cluster_name="preprocess-ds12",
-                                         conda_environment_file=Path("environment.yml"),
                                          input_datasets=["images123"],
                                          # Omit this line if you don't create an output dataset (for example, in
                                          # model training scripts)
-                                         output_datasets=["images123_resized"],)
+                                         output_datasets=["images123_resized"],
+                                         default_datastore="my_datastore")
     # When running in AzureML, run_info.input_datasets and run_info.output_datasets will be populated,
     # and point to the data coming from blob storage. For runs outside AML, the paths will be None.
     # Replace the None with a meaningful path, so that we can still run the script easily outside AML.
@@ -76,8 +81,10 @@ if __name__ == '__main__':
 
 Once these changes are in place, you can submit the script to AzureML by supplying an additional `--azureml` flag
 on the commandline, like `python myscript.py --azureml`.
- 
+
 That's it!
+
+For details, please refer to the [onboarding page](docs/source/first_steps.md).
 
 For more examples, please see [examples.md](docs/source/examples.md).
 
