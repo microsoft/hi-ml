@@ -25,17 +25,17 @@ def test_download_aml_run_args(tmp_path: Path) -> None:
                'or run_id must be provided' in str(e)
 
 
-def test_no_config_path() -> None:
+def test_no_config_path(tmp_path: Path) -> None:
     # if no config path exists, will fail
     with pytest.raises(Exception) as e:
-        subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--config_path", "idontexist"])
+        subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--config_path", "idontexist", "--output_dir", str(tmp_path)])
         assert "You must provide a config.json file in the root folder to connect" in str(e)
 
 
 def test_download_aml_run_no_runs(tmp_path: Path) -> None:
     # if no such run exists, will fail
     with pytest.raises(Exception) as e:
-        subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--run_id", "madeuprun" "--output_dir", str(tmp_path)])
+        subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--run_id", "madeuprun", "--output_dir", str(tmp_path)])
         assert "was not found" in str(e)
 
 

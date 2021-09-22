@@ -83,3 +83,4 @@ def random_folder() -> Generator:
     remove_and_create_folder(folder)
     print(f"Created temporary folder for test: {folder}")
     yield folder
+    shutil.rmtree(folder)
