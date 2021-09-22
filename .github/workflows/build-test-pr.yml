@@ -310,6 +310,10 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
       - name: Download package artifacts
         id: download
         uses: ./.github/actions/download_package_artifacts
