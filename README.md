@@ -29,6 +29,7 @@ For just the AzureML helper functions:
 The detailed package documentation, with examples and API reference, is on 
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
+
 ## Quick start: Using the Azure layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
@@ -85,7 +86,7 @@ on the commandline, like `python myscript.py --azureml`.
 That's it!
 
 For details, please refer to the [onboarding page](docs/source/first_steps.md).
-
+ 
 For more examples, please see [examples.md](docs/source/examples.md).
 
 ## Issues
