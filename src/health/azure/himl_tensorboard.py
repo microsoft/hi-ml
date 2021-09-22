@@ -142,8 +142,8 @@ def main() -> None:  # pragma: no cover
     )
     parser.add_argument(
         "--run_recovery_ids",
-        default=None,
-        action='append',
+        default=[],
+        nargs="+",
         required=False,
         help="Optional run recovery ids of the runs to plot"
     )

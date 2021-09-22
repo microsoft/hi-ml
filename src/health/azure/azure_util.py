@@ -440,9 +440,11 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
         return AzureRunIdSource.LATEST_RUN_FILE
     if "experiment" in args and args.experiment is not None:
         return AzureRunIdSource.EXPERIMENT_LATEST
-    if "run_recovery_ids" in args and args.run_recovery_ids is not None:
+    if ("run_recovery_ids" in args and args.run_recovery_ids is not None) or (
+            "run_recovery_id" in args and args.run_recovery_id is not None):
         return AzureRunIdSource.RUN_RECOVERY_ID
-    if "run_ids" in args and args.run_ids is not None:
+    if ("run_ids" in args and args.run_ids is not None) or (
+            "run_id" in args and args.run_id is not None):
         return AzureRunIdSource.RUN_ID
     raise ValueError("One of latest_run_file, experiment, run_recovery_ids or run_ids must be provided")
 
@@ -484,7 +486,20 @@ def get_aml_runs_from_recovery_ids(args: Namespace, workspace: Workspace) -> Lis
     :param workspace: AML Workspace
     :return: List of AML Runs
     """
-    runs = [fetch_run(workspace, run_id) for run_id in args.run_recovery_ids]
+    if "run_recovery_ids" in args:
+        if len(args.run_recovery_ids) == 0:
+            raise ValueError("Expected to find run_recovery_ids in args but did not")
+        else:
+            run_recovery_ids = args.run_recovery_ids
+    elif "run_recovery_id" in args:
+        if not args.run_recovery_id:
+            raise ValueError("Expected to find run_recovery_id in args but did not")
+        else:
+            run_recovery_ids = [args.run_recovery_id]
+    else:
+        raise ValueError("Attempting to retrieve AML Runs from run_recovery_id but no run_recovery_id(s)"
+                         " supplied in args")
+    runs = [fetch_run(workspace, run_id) for run_id in run_recovery_ids]
     return [r for r in runs if r is not None]
 
 
@@ -496,7 +511,19 @@ def get_aml_runs_from_runids(args: Namespace, workspace: Workspace) -> List[Run]
     :param workspace: AML Workspace
     :return: List of AML Runs
     """
-    runs = [workspace.get_run(r_id) for r_id in args.run_ids]
+    if "run_ids" in args:
+        if len(args.run_ids) == 0:
+            raise ValueError("Expected to find run_ids in args but did not")
+        else:
+            run_ids = args.run_ids
+    elif "run_id" in args:
+        if not args.run_id:
+            raise ValueError("Expected to find run_id in args but did not")
+        else:
+            run_ids = [args.run_id]
+    else:
+        raise ValueError("Attempting to retrieve AML Runs from run_id but no run_id(s) supplied in args")
+    runs = [workspace.get_run(r_id) for r_id in run_ids]
     return [r for r in runs if r is not None]
 
 
@@ -525,7 +552,7 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
     return [run for run in runs if run is not None]
 
 
-def get_run_paths(run: Run, prefix: str = "") -> List[str]:
+def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     """
     Get the remote path to all files for a given Run which optionally start with a given prefix
 
@@ -533,19 +560,8 @@ def get_run_paths(run: Run, prefix: str = "") -> List[str]:
     :param prefix: The optional prefix to filter Run files by
     :return: A list of paths within the Run's container
     """
-    container = run._container  # type: ignore
-    origin = "ExperimentRun"
-    container_path = "{}/{}/".format(origin, container)
-    if not prefix:
-        prefix = ''
-    else:
-        prefix = prefix.replace("\\", "/")
-        if prefix[-1] != "/":
-            prefix += "/"
-    prefix_path = container_path if len(prefix) == 0 else "{}{}/".format(container_path, prefix)
-
-    sas_urls = run._client.artifacts.get_files_by_artifact_prefix_id(prefix_path)
-    return [sas_url[0] for sas_url in sas_urls]
+    all_files = run.get_file_names()
+    return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
 def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
@@ -557,7 +573,9 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
     :param prefix: The prefix to filter Run files by
     """
 
-    run_paths = get_run_paths(run, prefix=prefix)
+    run_paths = get_run_file_names(run, prefix=prefix)
+    if len(run_paths) == 0:
+        raise ValueError("No such files were found for this Run.")
 
     for run_path in run_paths:
         output_path = output_dir / run_path

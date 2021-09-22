@@ -17,6 +17,7 @@ created.
 
 ### Changed
 - ([#112](https://github.com/microsoft/hi-ml/pull/112)) Update himl_tensorboard to work with files not in 'logs' directory
+- ([#113](https://github.com/microsoft/hi-ml/pull/113) Add helper function to download files from AML Run)
 ### Fixed
 
 ### Removed

@@ -37,10 +37,11 @@ def test_no_config_path() -> None:
         assert "You must provide a config.json file in the root folder to connect" in str(e)
 
 
-def test_run_tensorboard_no_runs() -> None:
+def test_run_tensorboard_no_runs(tmp_path: Path) -> None:
     # if no such run exists, will fail
     with pytest.raises(Exception) as e:
-        subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH, "--run_recovery_ids", "madeuprun"])
+        subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH, "--run_recovery_ids", "madeuprun",
+                          "--log_dir", str(tmp_path)])
         assert "No runs were found" in str(e)
 
 
