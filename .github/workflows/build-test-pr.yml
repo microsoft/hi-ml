@@ -309,7 +309,6 @@ jobs:
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
-    if: ${{ true }}
     steps:
       - name: Download package artifacts
         id: download
