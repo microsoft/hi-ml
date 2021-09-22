@@ -543,12 +543,15 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
 def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
     """
     Obtain the AzureML workspace from either the passed in value or the passed in path. If a workspace is provided,
-    it is returned as-is. If a file to a config.json file is provided,
+    it is returned as-is. If a file to a config.json file is provided, a workspace will be created based on the settings
+    found in config.json. If neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
 
     :param aml_workspace: If provided this is returned as the AzureML Workspace.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
-    :param return: The AzureML Workspace
+    :return: An AzureML workspace.
     """
     if aml_workspace:
         return aml_workspace
