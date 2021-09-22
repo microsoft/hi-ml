@@ -11,14 +11,20 @@ will be added in the next few weeks.
 
 This toolbox consists of two Python projects:
 
-* [hi-ml-azure](hi-ml-azure/README.md) - providing helper functions for running in AzureML.
-* [hi-ml](hi-ml/README.md) - providing ML components.
+* [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
+* [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
 
 ## Getting started
 
-* Install from `pypi` via `pip`, by running `pip install hi-ml`.
+For the full toolbox (this will also install `hi-ml-azure`):
 
-## Using the AzureML integration layer
+* Install from `pypi` via `pip`, by running `pip install hi-ml`
+
+For just the AzureML helper functions:
+
+* Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
+
+## Quick start: Using the Azure layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
 The `hi-ml-azure` package can help easily run that on Azure Machine Learning (AML) services.
@@ -34,22 +40,17 @@ if __name__ == '__main__':
         resized = contents.resize(0.5)
         write_image(output_folder / file.name)
 ```
-Doing that at scale can take a long time. We'd like to run that script in AzureML, consume the data from a folder in
-blob storage, and write the results back to blob storage.
+Doing that at scale can take a long time. **We'd like to run that script in AzureML, consume the data from a folder in
+blob storage, and write the results back to blob storage**.
 
-Pre-requisite: Download the config file from your AzureML workspace, as described 
-[here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). Put this file into
-the folder where your script lives.
+With the `hi-ml-azure` package, you can turn that script into one that runs on the cloud by adding one function call:
 
 ```python
 from pathlib import Path
 from health.azure.himl import submit_to_azure_if_needed
 if __name__ == '__main__':
     current_file = Path(__file__)
-    run_info = submit_to_azure_if_needed(entry_script=current_file, 
-                                         snapshot_root_directory=current_file.parent,
-                                         workspace_config_path=Path("config.json"),
-                                         compute_cluster_name="preprocess-ds12",
+    run_info = submit_to_azure_if_needed(compute_cluster_name="preprocess-ds12",
                                          conda_environment_file=Path("environment.yml"),
                                          input_datasets=["images123"],
                                          # Omit this line if you don't create an output dataset (for example, in
@@ -74,26 +75,9 @@ if __name__ == '__main__':
 ```
 
 Once these changes are in place, you can submit the script to AzureML by supplying an additional `--azureml` flag
-on the commandline, like `python myscript.py --azureml`
+on the commandline, like `python myscript.py --azureml`.
  
-In the added code, you need to supply the following parameters:
-* `entry_script`: The script that should be run
-* `snapshot_root_directory`: The directory that contains all code that should be packaged and sent to AzureML. All
-Python code that the script uses must be copied over.
-* `compute_cluster_name`: The name of the AzureML cluster that should run the job. This can be a cluster with CPU or 
-GPU machines. See [here for documentation](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-attach-compute-studio#amlcompute)
-* `conda_environment_file`: The conda configuration file that describes which packages are necessary for your script
-to run.
-
-You also need to supply an input dataset. For data pre-processing scripts, you also supply an output dataset - you
-can omit this for ML training scripts.
-* You need to provision a data store in your AML workspace, that points to your training data in blob storage. This
-is described [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-connect-data-ui).
-* `input_datasets=["images123"]` in the code above means that the script will consume all data in folder `images123`
-in blob storage as the input. The folder must exist in blob storage, in the location that you gave when creating the
-datastore. Once the script has run, it will also register the data in this folder as an AML dataset. 
-* `output_datasets=["images123_resized"]` means that the script will create a temporary folder when running in AML,
-and while the job writes data to that folder, upload it to blob storage, in the data store.
+That's it!
 
 For more examples, please see [examples.md](docs/source/examples.md).
 
