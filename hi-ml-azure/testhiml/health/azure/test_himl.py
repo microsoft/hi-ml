@@ -418,8 +418,8 @@ def test_submit_run(
         mock_run: mock.MagicMock,
         wait_for_completion: bool,
         set_tags: TestTagOption,
-        capsys: CaptureFixture,
-) -> None:
+        capsys: CaptureFixture
+    ) -> None:
     mock_experiment.return_value.submit.return_value = mock_run
     mock_run.get_status.return_value = RunStatus.COMPLETED
     mock_run.status = RunStatus.COMPLETED

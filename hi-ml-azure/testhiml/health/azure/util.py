@@ -6,10 +6,11 @@
 Test utility functions for tests in the package.
 """
 import os
-from azureml.core import Workspace
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
+
+from azureml.core import Workspace
 
 from health.azure.azure_util import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME, get_authentication,
                                      get_secret_from_environment)
