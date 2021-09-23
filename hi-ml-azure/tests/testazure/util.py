@@ -5,7 +5,10 @@
 """
 Test utility functions for tests in the package.
 """
+import json
+import logging
 import os
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
@@ -20,11 +23,18 @@ DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 
 
+def himl_azure_root() -> Path:
+    """
+    Gets the root folder of the hi-ml-azure code in the repository.
+    """
+    return Path(__file__).parent.parent.parent
+
+
 def repository_root() -> Path:
     """
     Gets the root folder of the git repository.
     """
-    return Path(__file__).parent.parent.parent.parent.parent
+    return himl_azure_root().parent
 
 
 def default_aml_workspace() -> Workspace:
@@ -79,3 +89,30 @@ def change_working_directory(path_or_str: Path) -> Generator:
     os.chdir(new_path)
     yield
     os.chdir(old_path)
+
+
+@contextmanager
+def check_config_json(script_folder: Path) -> Generator:
+    """
+    Create a workspace config.json file in the folder where we expect the test scripts. This is either copied
+    from the repository root folder (this should be the case when executing a test on a dev machine), or create
+    it from environment variables (this should trigger in builds on the github agents).
+    """
+    shared_config_json = repository_root() / WORKSPACE_CONFIG_JSON
+    target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+    if shared_config_json.exists():
+        logging.info(f"Copying {WORKSPACE_CONFIG_JSON} from repository root to folder {script_folder}")
+        shutil.copy(shared_config_json, target_config_json)
+    else:
+        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        with open(str(target_config_json), 'w', encoding="utf-8") as file:
+            config = {
+                "subscription_id": os.getenv(ENV_SUBSCRIPTION_ID, ""),
+                "resource_group": os.getenv(ENV_RESOURCE_GROUP, ""),
+                "workspace_name": os.getenv(ENV_WORKSPACE_NAME, "")
+            }
+            json.dump(config, file)
+    try:
+        yield
+    finally:
+        target_config_json.unlink()

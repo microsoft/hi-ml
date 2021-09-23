@@ -12,6 +12,8 @@ from typing import Dict
 
 from jinja2 import Template
 
+from testazure.util import himl_azure_root
+
 here = Path(__file__).parent.resolve()
 
 
@@ -37,7 +39,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
         pip = """
   - pip:
 """
-        run_requirements_lines = Path('./run_requirements.txt').read_text().splitlines()
+        run_requirements_lines = (himl_azure_root() / 'run_requirements.txt').read_text().splitlines()
         for line in run_requirements_lines:
             pip += f"    - {line}\n"
     else:

@@ -26,13 +26,12 @@ from azureml.core import RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
-from conftest import check_config_json
-from testhiml.health.azure.test_data.make_tests import render_environment_yaml, render_test_script
-from testhiml.health.azure.util import DEFAULT_DATASTORE, change_working_directory
 
 import health.azure.himl as himl
 from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
+from testazure.test_data.make_tests import render_environment_yaml, render_test_script
+from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -594,7 +593,7 @@ def render_and_run_test_script(path: Path,
         print(f"Added pypi: {himl_pypi_version} option")
     else:
         # No packages found, so copy the src folder as a fallback
-        src_path = Path.cwd().joinpath('src')
+        src_path = repository_root() / "hi-ml-azure" / "src"
         if src_path.is_dir():
             shutil.copytree(src=src_path / 'health', dst=path / 'health')
             run_requirements = True
