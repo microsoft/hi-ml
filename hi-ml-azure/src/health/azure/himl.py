@@ -573,7 +573,7 @@ def _generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
     """
-    Generate returned datasets when running in AzumreML.
+    Generate returned datasets when running in AzureML.
 
     :param cleaned_input_datasets: The list of input dataset configs
     :param cleaned_output_datasets: The list of output dataset configs

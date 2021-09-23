@@ -50,7 +50,8 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
 
 
 def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
-                       compute_cluster_name: str, environment_yaml_path: Path) -> None:
+                       compute_cluster_name: str, environment_yaml_path: Path,
+                       workspace_config_file_arg: str = "WORKSPACE_CONFIG_JSON") -> None:
     """
     Rewrite the template with standard options, and extra options into a file at entry_script_path.
 
@@ -58,6 +59,8 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     :param extra_options: Extra options for rendering.
     :param compute_cluster_name: Compute cluster name for testing.
     :param environment_yaml_path: Path to environment.yml.
+    :param workspace_config_file_arg: The string that should be put into the script for the workspace_config_file
+    argument.
     :return: None
     """
     hello_world_template = (here / 'simple' / 'hello_world_template.txt').read_text()
@@ -69,7 +72,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['entry_script'] = "Path(sys.argv[0])"
     default_options['aml_workspace'] = 'None'
-    default_options['workspace_config_file'] = "WORKSPACE_CONFIG_JSON"
+    default_options['workspace_config_file'] = workspace_config_file_arg
     default_options['snapshot_root_directory'] = 'here'
     default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
     default_options['environment_variables'] = 'None'
