@@ -261,7 +261,7 @@ def submit_run(workspace: Workspace,
 
     # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
-    print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
+    print(f"Successfully queued run number {run.number} (ID {run.id}) in experiment {run.experiment.name}")
     print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
     print(f"Experiment URL: {run.experiment.get_portal_url()}")
     print(f"Run URL: {run.get_portal_url()}")

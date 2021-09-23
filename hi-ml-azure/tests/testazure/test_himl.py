@@ -636,7 +636,8 @@ def render_and_run_test_script(path: Path,
         return captured
     else:
         assert EXPECTED_QUEUED in captured
-        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+        with check_config_json(path):
+            workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
 
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
