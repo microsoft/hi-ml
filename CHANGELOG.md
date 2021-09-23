@@ -21,6 +21,7 @@ created.
 - ([#113](https://github.com/microsoft/hi-ml/pull/113) Add helper function to download files from AML Run)
 
 ### Fixed
+- ([#117](https://github.com/microsoft/hi-ml/pull/117)) Bug fix: Config.json file was expected to be present, even if workspace was provided explicitly.
 
 ### Removed
 

@@ -16,7 +16,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml._restclient.exceptions import ServiceException
 from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
-from testhiml.health.azure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
+from testazure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
 
 
 def test_datasetconfig_init() -> None:
