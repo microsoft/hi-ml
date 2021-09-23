@@ -261,7 +261,7 @@ def submit_run(workspace: Workspace,
 
     # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
-    print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
+    print(f"Successfully queued run number {run.number} (ID {run.id}) in experiment {run.experiment.name}")
     print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
     print(f"Experiment URL: {run.experiment.get_portal_url()}")
     print(f"Run URL: {run.get_portal_url()}")
@@ -409,18 +409,11 @@ def submit_to_azure_if_needed(  # type: ignore
         logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    if workspace_config_path is None:
-        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
-        if workspace_config_path:
-            logging.info(f"Using the workspace config path found at {str(workspace_config_path.absolute())}")
-        else:
-            raise ValueError("No workspace config file given, nor can we find one.")
+    workspace = get_workspace(aml_workspace, workspace_config_path)
 
     conda_environment_file = _str_to_path(conda_environment_file)
     if conda_environment_file is None:
         conda_environment_file = _find_file(CONDA_ENVIRONMENT_FILE)
-
-    workspace = get_workspace(aml_workspace, workspace_config_path)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
@@ -549,28 +542,38 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
 
 def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
     """
-    Obtain the AzureML workspace from either the passed in value or the passed in path.
+    Obtain the AzureML workspace from either the passed in value or the passed in path. If a workspace is provided,
+    it is returned as-is. If a file to a config.json file is provided, a workspace will be created based on the settings
+    found in config.json. If neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
 
-    :param aml_workspace: If provided this is returned as the AzureML Workspace
+    :param aml_workspace: If provided this is returned as the AzureML Workspace.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
-    :param return: The AzureML Workspace
+    :return: An AzureML workspace.
     """
     if aml_workspace:
-        workspace = aml_workspace
-    elif workspace_config_path and workspace_config_path.is_file():
+        return aml_workspace
+
+    if workspace_config_path is None:
+        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
+        if workspace_config_path:
+            logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
+        else:
+            raise ValueError("No workspace config file given, nor can we find one.")
+
+    if workspace_config_path.is_file():
         auth = get_authentication()
-        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-    else:
-        raise ValueError("Cannot glean workspace config from parameters, and so not submitting to AzureML")
-    return workspace
+        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
+    raise ValueError("Workspace config file does not exist or cannot be read.")
 
 
 def _generate_azure_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
     """
-    Generate returned datasets when running in AzumreML.
+    Generate returned datasets when running in AzureML.
 
     :param cleaned_input_datasets: The list of input dataset configs
     :param cleaned_output_datasets: The list of output dataset configs

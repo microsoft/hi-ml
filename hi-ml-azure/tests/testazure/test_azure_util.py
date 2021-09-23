@@ -23,7 +23,7 @@ from azureml.core import Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from testhiml.health.azure.util import repository_root
+from testazure.util import repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
