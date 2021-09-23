@@ -628,8 +628,8 @@ def render_and_run_test_script(path: Path,
     else:
         with check_config_json(path):
             code, stdout = spawn()
-    assert code == 0 if expected_pass else 1, f"Expected the script to {'pass' if expected_pass else 'fail'}, but got " \
-                                              f"a return code {code}"
+    assert code == 0 if expected_pass else 1, f"Expected the script to {'pass' if expected_pass else 'fail'}, but " \
+                                              f"got a return code {code}"
     captured = "\n".join(stdout)
 
     if run_target == RunTarget.LOCAL or not expected_pass:
