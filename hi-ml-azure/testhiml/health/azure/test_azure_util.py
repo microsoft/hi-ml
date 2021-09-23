@@ -715,24 +715,11 @@ def test_download_run_file(tmp_path: Path) -> None:
     mock_run = MockRun(run_id="id123")
     mock_run.download_file = MagicMock(return_value=None)  # type: ignore
 
-    from time import perf_counter
     util.download_run_file(mock_run, dummy_filename, tmp_path)
     mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
 
 
-@patch("azureml.core.Run", MockRun)
-def test_download_run_file(tmp_path: Path) -> None:
-    dummy_filename = "filetodownload.txt"
-
-    # mock the method 'download_file' on the AML Run class and assert it gets called with the expected params
-    mock_run = MockRun(run_id="id123")
-    mock_run.download_file = MagicMock(return_value=None)  # type: ignore
-
-    util.download_run_file(mock_run, dummy_filename, tmp_path)
-    mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
-
-
-def test_download_run_file(tmp_path: Path):
+def test_download_run_file_local(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
     root_dir = Path.cwd()
     ws = Workspace.from_config(root_dir / 'config.json')
@@ -778,7 +765,7 @@ def test_download_run_file(tmp_path: Path):
         assert data == "Hello world"
 
     logging.info(f"Time to download file without checksum: {time_dont_validate_checksum} vs time with"
-          f"validation {time_validate_checksum}.")
+                 f"validation {time_validate_checksum}.")
 
 
 def _get_file_names(pref: str = "") -> List[str]:

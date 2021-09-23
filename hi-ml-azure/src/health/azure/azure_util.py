@@ -582,7 +582,7 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
         download_run_file(run, run_path, output_path)
 
 
-def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool=False) -> None:
+def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool = False) -> None:
     """
     A wrapper around AML Run's download_file method, that handles timeouts
 
