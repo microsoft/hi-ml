@@ -23,7 +23,7 @@ from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from testazure.util import repository_root
+from testazure.util import repository_root, DEFAULT_WORKSPACE
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -721,8 +721,7 @@ def test_download_run_file(tmp_path: Path) -> None:
 
 def test_download_run_file_local(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
-    root_dir = Path.cwd()
-    ws = Workspace.from_config(root_dir / 'config.json')
+    ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
     config = ScriptRunConfig(
         source_directory=".",
