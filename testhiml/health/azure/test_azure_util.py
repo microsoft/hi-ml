@@ -19,7 +19,7 @@ import conda_merge
 import health.azure.azure_util as util
 import pytest
 from _pytest.capture import CaptureFixture
-from azureml.core import Workspace
+from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -28,6 +28,7 @@ from testhiml.health.azure.util import repository_root
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
 EXPERIMENT_NAME = "fancy-experiment"
+AML_TESTS_EXPERIMENT = "test_experiment"
 
 
 def oh_no() -> None:
@@ -705,8 +706,70 @@ def test_download_run_file(tmp_path: Path) -> None:
     mock_run = MockRun(run_id="id123")
     mock_run.download_file = MagicMock(return_value=None)  # type: ignore
 
+    from time import perf_counter
     util.download_run_file(mock_run, dummy_filename, tmp_path)
     mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
+
+
+@patch("azureml.core.Run", MockRun)
+def test_download_run_file(tmp_path: Path) -> None:
+    dummy_filename = "filetodownload.txt"
+
+    # mock the method 'download_file' on the AML Run class and assert it gets called with the expected params
+    mock_run = MockRun(run_id="id123")
+    mock_run.download_file = MagicMock(return_value=None)  # type: ignore
+
+    util.download_run_file(mock_run, dummy_filename, tmp_path)
+    mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
+
+
+def test_download_run_file(tmp_path: Path):
+    # This test will create a Run in your workspace (using only local compute)
+    root_dir = Path.cwd()
+    ws = Workspace.from_config(root_dir / 'config.json')
+    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    config = ScriptRunConfig(
+        source_directory=".",
+        command=["cd ."],  # command that does nothing
+        compute_target="local"
+    )
+    run = experiment.submit(config)
+
+    file_to_upload = tmp_path / "dummy_file.txt"
+    with open(file_to_upload, "w+") as f_path:
+        f_path.write("Hello world")
+
+    # This should store the file in outputs
+    run.upload_file("dummy_file", str(file_to_upload))
+
+    output_file_path = tmp_path / "downloaded_file.txt"
+    assert not output_file_path.exists()
+
+    start_time = time.perf_counter()
+    util.download_run_file(run, "dummy_file", output_file_path)
+    end_time = time.perf_counter()
+    time_dont_validate_checksum = end_time - start_time
+
+    assert output_file_path.exists()
+    with open(output_file_path, 'r') as f_path:
+        data = f_path.read()
+        assert data == "Hello world"
+
+    # Now delete the file and try again with _validate_checksum == True
+    os.remove(output_file_path)
+    assert not output_file_path.exists()
+    start_time = time.perf_counter()
+    util.download_run_file(run, "dummy_file", output_file_path, validate_checksum=True)
+    end_time = time.perf_counter()
+    time_validate_checksum = end_time - start_time
+
+    assert output_file_path.exists()
+    with open(output_file_path, 'r') as f_path:
+        data = f_path.read()
+        assert data == "Hello world"
+
+    logging.info(f"Time to download file without checksum: {time_dont_validate_checksum} vs time with"
+          f"validation {time_validate_checksum}.")
 
 
 def _get_file_names(pref: str = "") -> List[str]:

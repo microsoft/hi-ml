@@ -582,7 +582,7 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
         download_run_file(run, run_path, output_path)
 
 
-def download_run_file(run: Run, filename: str, output_path: Path) -> None:
+def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool=False) -> None:
     """
     A wrapper around AML Run's download_file method, that handles timeouts
 
@@ -590,4 +590,4 @@ def download_run_file(run: Run, filename: str, output_path: Path) -> None:
     :param filename: The name of the file as it exists in Azure storage
     :param output_path: Local path to which the file should be downloaded
     """
-    run.download_file(filename, output_file_path=output_path, _validate_checksum=False)
+    run.download_file(filename, output_file_path=output_path, _validate_checksum=validate_checksum)
