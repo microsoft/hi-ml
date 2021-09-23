@@ -300,7 +300,7 @@ jobs:
             sleep 10
           done
 
-          $CONDA/bin/pytest -m fast testhiml
+          $CONDA/bin/pytest -m fast tests
 
   publish-pypi-pkg:
     runs-on: ubuntu-latest

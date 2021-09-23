@@ -272,12 +272,12 @@ def test_get_workspace(
     mock_get_authentication.return_value = "auth"
     _ = himl.get_workspace(None, Path(__file__))
     mock_from_config.assert_called_once_with(path=__file__, auth="auth")
-    # Work off a temporary directory: No config file should be found
+    # Work off a temporary directory: No config file is present
     with change_working_directory(tmp_path):
         with pytest.raises(ValueError) as ex:
             himl.get_workspace(None, None)
         assert "No workspace config file given" in str(ex)
-    # Workspace config file does not exist at all
+    # Workspace config file is set to a file that does not exist
     with pytest.raises(ValueError) as ex:
         himl.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
     assert "Workspace config file does not exist" in str(ex)
