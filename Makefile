@@ -93,7 +93,7 @@ test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
 action:
 	cd .github/actions/format_coverage && ncc build index.js --license licenses.txt
 
-combine:
+combine: pip_test
 	mkdir -p coverage
 	cp hi-ml/.coverage coverage/hi-ml-coverage
 	cp hi-ml-azure/.coverage coverage/hi-ml-azure-coverage
