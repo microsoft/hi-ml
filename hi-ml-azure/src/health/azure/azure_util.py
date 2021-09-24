@@ -21,6 +21,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
+from msrest.exceptions import HttpOperationError
 
 
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -47,6 +48,76 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
+
+RUN_CONTEXT = Run.get_context()
+WORKSPACE_CONFIG_JSON = "config.json"
+
+
+def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
+    """
+    Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
+    the PYTHONPATH root (defaults to stopping).
+
+    :param file_name: The fine name of the file to find.
+    :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
+    :return: The path to the file, or None if it cannot be found.
+    """
+
+    def return_file_or_parent(
+            start_at: Path,
+            file_name: str,
+            stop_at_pythonpath: bool,
+            pythonpaths: List[Path]) -> Optional[Path]:
+        for child in start_at.iterdir():
+            if child.is_file() and child.name == file_name:
+                return child
+        if start_at.parent == start_at or start_at in pythonpaths:
+            return None
+        return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
+
+    pythonpaths: List[Path] = []
+    if 'PYTHONPATH' in os.environ:
+        pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
+    return return_file_or_parent(
+        start_at=Path.cwd(),
+        file_name=file_name,
+        stop_at_pythonpath=stop_at_pythonpath,
+        pythonpaths=pythonpaths)
+
+
+def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+    """
+    Retrieve an Azure ML Workspace from one of several places:
+      1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace
+      2. If a Workspace object has been provided by the user, return that
+      3. If a path to a Workspace config file has been provided, load the workspace according to that.
+
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param aml_workspace: If provided this is returned as the AzureML Workspace.
+    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
+        config
+    :return: An AzureML workspace.
+    """
+    if is_running_on_azure_agent():
+        return RUN_CONTEXT.experiment.workspace
+
+    if aml_workspace:
+        return aml_workspace
+
+    if workspace_config_path is None:
+        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
+        if workspace_config_path:
+            logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
+        else:
+            raise ValueError("No workspace config file given, nor can we find one.")
+
+    if workspace_config_path.is_file():
+        auth = get_authentication()
+        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
+    raise ValueError("Workspace config file does not exist or cannot be read.")
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -503,6 +574,38 @@ def get_aml_runs_from_recovery_ids(args: Namespace, workspace: Workspace) -> Lis
     return [r for r in runs if r is not None]
 
 
+def _get_aml_run_from_runid(run_id: str, workspace: Workspace) -> Run:
+    """
+    Attempt to retrieve a Run from a given Workspace, specified by run_id.
+
+    :param run_id: the run_id to return
+    :param workspace: the Workspace to search in
+    :return: An Azure ML Run object
+    """
+    try:
+        run = workspace.get_run(run_id)
+    except HttpOperationError as e:
+        if 'was not found' in e.message:
+            raise ValueError(f"Run {run_id} was not found in workspace {workspace.name}. Please check the run_id"
+                             f" and the workspace definition")
+    return run
+
+
+def get_aml_run_from_run_id(run_id: str, workspace: Optional[Workspace] = None,
+                            workspace_config_path: Optional[Path] = None) -> Run:
+    """
+    Retrieve an Azure ML Run, firstly by retrieving the corresponding Workspace, and then getting the
+    run according to the specified run_id
+
+    :param workspace: Optional Workspace object, defaults to None
+    :param workspace_config_file: Optional path to a Workspace config file, defaults to None
+    :return: The Azure ML Run object with the given run_id
+    """
+    workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
+    run = _get_aml_run_from_runid(run_id, workspace)
+    return run
+
+
 def get_aml_runs_from_runids(args: Namespace, workspace: Workspace) -> List[Run]:
     """
     Retrieve AzureML Runs for each of the Run Ids specified in args.
@@ -523,7 +626,7 @@ def get_aml_runs_from_runids(args: Namespace, workspace: Workspace) -> List[Run]
             run_ids = [args.run_id]
     else:
         raise ValueError("Attempting to retrieve AML Runs from run_id but no run_id(s) supplied in args")
-    runs = [workspace.get_run(r_id) for r_id in run_ids]
+    runs = [_get_aml_run_from_runid(r_id, workspace) for r_id in run_ids]
     return [r for r in runs if r is not None]
 
 

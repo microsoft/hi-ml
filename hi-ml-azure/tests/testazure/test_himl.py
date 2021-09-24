@@ -28,7 +28,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health.azure.himl as himl
-from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run
+from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run, WORKSPACE_CONFIG_JSON, get_workspace
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
@@ -256,31 +256,6 @@ def test_get_script_params() -> None:
         assert expected_params == himl._get_script_params()
     with mock.patch("sys.argv", ["", "a string"]):
         assert expected_params == himl._get_script_params()
-
-
-@pytest.mark.fast
-@patch("health.azure.himl.Workspace.from_config")
-@patch("health.azure.himl.get_authentication")
-@patch("health.azure.himl.Workspace")
-def test_get_workspace(
-        mock_workspace: mock.MagicMock,
-        mock_get_authentication: mock.MagicMock,
-        mock_from_config: mock.MagicMock,
-        tmp_path: Path) -> None:
-    workspace = himl.get_workspace(mock_workspace, None)
-    assert workspace == mock_workspace
-    mock_get_authentication.return_value = "auth"
-    _ = himl.get_workspace(None, Path(__file__))
-    mock_from_config.assert_called_once_with(path=__file__, auth="auth")
-    # Work off a temporary directory: No config file is present
-    with change_working_directory(tmp_path):
-        with pytest.raises(ValueError) as ex:
-            himl.get_workspace(None, None)
-        assert "No workspace config file given" in str(ex)
-    # Workspace config file is set to a file that does not exist
-    with pytest.raises(ValueError) as ex:
-        himl.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
-    assert "Workspace config file does not exist" in str(ex)
 
 
 @pytest.mark.fast
@@ -637,7 +612,7 @@ def render_and_run_test_script(path: Path,
     else:
         assert EXPECTED_QUEUED in captured
         with check_config_json(path):
-            workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+            workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
@@ -685,7 +660,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     Test against either the local src folder or a package. If running locally, ensure that there
     are no whl's in the dist folder, or that will be used.
-    :param local: Local execution if True, else in AzureML.
+    :param run_target: Local execution if True, else in AzureML.
     :param use_package: True to test against package, False to test against copy of src folder.
     :param tmp_path: PyTest test fixture for temporary path.
     """
@@ -835,8 +810,8 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 
     # Get default datastore
     with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None,
-                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
         datastore: AzureBlobDatastore = get_datastore(workspace=workspace,
                                                       datastore_name=DEFAULT_DATASTORE)
 

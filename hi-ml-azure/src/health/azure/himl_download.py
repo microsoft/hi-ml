@@ -96,11 +96,6 @@ def main() -> None:  # pragma: no cover
     output_dir.mkdir(exist_ok=True)
 
     config_path = Path(args.config_file)
-    if not config_path.is_file():
-        raise ValueError(
-            "You must provide a config.json file in the root folder to connect"
-            "to an AML workspace. This can be downloaded from your AML workspace (see README.md)"
-            )
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 

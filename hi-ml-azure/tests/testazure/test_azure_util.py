@@ -16,14 +16,15 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import conda_merge
-import health.azure.azure_util as util
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
+
+import health.azure.azure_util as util
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from testazure.util import repository_root, DEFAULT_WORKSPACE
+from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -36,6 +37,44 @@ def oh_no() -> None:
     Raise a simple exception. To be used as a side_effect for mocks.
     """
     raise ValueError("Throwing an exception")
+
+
+@pytest.mark.fast
+@patch("health.azure.azure_util.Workspace.from_config")
+@patch("health.azure.azure_util.get_authentication")
+@patch("health.azure.azure_util.Workspace")
+def test_get_workspace(
+        mock_workspace: mock.MagicMock,
+        mock_get_authentication: mock.MagicMock,
+        mock_from_config: mock.MagicMock,
+        tmp_path: Path) -> None:
+
+    # Test the case when running on AML
+    with patch("health.azure.azure_util.is_running_on_azure_agent") as mock_is_is_running_on_azure_agent:
+        mock_is_is_running_on_azure_agent.return_value = True
+        with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+            mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+            workspace = util.get_workspace(None, None)
+            assert workspace == mock_workspace
+
+    # Test the case when a workspace object is provided
+    workspace = util.get_workspace(mock_workspace, None)
+    assert workspace == mock_workspace
+
+    # Test the case when a workspace config path is provided
+    mock_get_authentication.return_value = "auth"
+    _ = util.get_workspace(None, Path(__file__))
+    mock_from_config.assert_called_once_with(path=__file__, auth="auth")
+
+    # Work off a temporary directory: No config file is present
+    with change_working_directory(tmp_path):
+        with pytest.raises(ValueError) as ex:
+            util.get_workspace(None, None)
+        assert "No workspace config file given" in str(ex)
+    # Workspace config file is set to a file that does not exist
+    with pytest.raises(ValueError) as ex:
+        util.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
+    assert "Workspace config file does not exist" in str(ex)
 
 
 @patch("health.azure.azure_util.Run")
@@ -612,6 +651,13 @@ def test_get_aml_runs_from_recovery_ids_singluar() -> None:
                 util.get_aml_runs_from_recovery_ids(mock_args, mock_workspace)  # type: ignore
 
 
+def test_get_aml_run_from_runid() -> None:
+    workspace = DEFAULT_WORKSPACE.workspace
+    run_id = "run123"
+    with pytest.raises(ValueError):
+        util._get_aml_run_from_runid(run_id, workspace)
+
+
 def test_get_aml_runs_from_runids() -> None:
     parser = ArgumentParser()
     parser.add_argument("--run_ids", nargs="+", default=[])
@@ -731,8 +777,8 @@ def test_download_run_file_local(tmp_path: Path) -> None:
     run = experiment.submit(config)
 
     file_to_upload = tmp_path / "dummy_file.txt"
-    with open(file_to_upload, "w+") as f_path:
-        f_path.write("Hello world")
+    file_contents = "Hello world"
+    file_to_upload.write_text(file_contents)
 
     # This should store the file in outputs
     run.upload_file("dummy_file", str(file_to_upload))
@@ -746,12 +792,10 @@ def test_download_run_file_local(tmp_path: Path) -> None:
     time_dont_validate_checksum = end_time - start_time
 
     assert output_file_path.exists()
-    with open(output_file_path, 'r') as f_path:
-        data = f_path.read()
-        assert data == "Hello world"
+    assert output_file_path.read_text() == file_contents
 
     # Now delete the file and try again with _validate_checksum == True
-    os.remove(output_file_path)
+    output_file_path.unlink()
     assert not output_file_path.exists()
     start_time = time.perf_counter()
     util.download_run_file(run, "dummy_file", output_file_path, validate_checksum=True)
@@ -759,9 +803,7 @@ def test_download_run_file_local(tmp_path: Path) -> None:
     time_validate_checksum = end_time - start_time
 
     assert output_file_path.exists()
-    with open(output_file_path, 'r') as f_path:
-        data = f_path.read()
-        assert data == "Hello world"
+    assert output_file_path.read_text() == file_contents
 
     logging.info(f"Time to download file without checksum: {time_dont_validate_checksum} vs time with"
                  f"validation {time_validate_checksum}.")
@@ -770,7 +812,7 @@ def test_download_run_file_local(tmp_path: Path) -> None:
 def _get_file_names(pref: str = "") -> List[str]:
     file_names = ["somepath.txt", "abc/someotherpath.txt", "abc/def/anotherpath.txt"]
     if len(pref) > 0:
-        return [u for u in file_names if pref in u]
+        return [u for u in file_names if u.startswith(pref)]
     else:
         return file_names
 
@@ -786,9 +828,8 @@ def test_get_run_file_names() -> None:
 
         # Now check we get the expected run paths if a filter is applied
         prefix = "abc"
-        expected_file_names_filtered = _get_file_names(pref=prefix)
         run_paths = util.get_run_file_names(mock_run, prefix=prefix)
-        assert len(run_paths) == len(expected_file_names_filtered)
+        assert all([f.startswith(prefix) for f in run_paths])
 
 
 @pytest.mark.parametrize("prefix", ["", "abc"])
@@ -796,7 +837,7 @@ def test_download_run_files(tmp_path: Path, prefix: str) -> None:
     # Assert that 'downloaded' paths don't exist to begin with
     dummy_paths = [x[0] for x in _get_file_names(pref=prefix)]
     expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
-    assert sum([p.exists() for p in expected_paths]) == 0
+    assert not any([p.exists() for p in expected_paths])
 
     def _mock_download_files(filename: str, output_path: Optional[str] = None,
                              _validate_checksum: bool = False) -> None:
@@ -811,7 +852,7 @@ def test_download_run_files(tmp_path: Path, prefix: str) -> None:
         with patch("health.azure.azure_util.download_run_file") as mock_download:
             mock_download.return_value = None
             mock_download.side_effect = _mock_download_files
-            util.download_run_files(mock_run, output_dir=tmp_path)
+            util.download_run_files(mock_run, output_dir=tmp_path)  # type: ignore
             # Check that our mocked download_run_file has been called once for each file
             assert mock_download.call_count == len(dummy_paths)
             # Now the expected paths should exist
