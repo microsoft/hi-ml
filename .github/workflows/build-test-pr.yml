@@ -141,6 +141,8 @@ jobs:
       - name: Install dependencies
         if: ${{ matrix.folder != 'hi-ml-azure' }}
         run: |
+          cd hi-ml-azure
+
           make pip_upgrade
 
           # Install package
@@ -200,6 +202,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          cd hi-ml-azure
+
           make pip_upgrade
 
           # Install package
@@ -213,6 +217,8 @@ jobs:
 
       - name: Install artifact and test
         run: |
+          cd hi-ml
+
           make pip_upgrade
 
           # Install package
