@@ -92,3 +92,13 @@ test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
 # build the github format_coverage action
 action:
 	cd .github/actions/format_coverage && ncc build index.js --license licenses.txt
+
+combine:
+	mkdir -p coverage
+	cp hi-ml/.coverage coverage/hi-ml-coverage
+	cp hi-ml-azure/.coverage coverage/hi-ml-azure-coverage
+	cd coverage && \
+		coverage combine hi-ml-coverage hi-ml-azure-coverage && \
+		coverage html && \
+		coverage xml && \
+		pycobertura show --format text --output coverage.txt coverage.xml
