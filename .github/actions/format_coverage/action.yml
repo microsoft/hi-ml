@@ -1,5 +1,5 @@
 name: 'format_coverage'
-description: 'Format pytest-cov report for github comment'
+description: 'Format pytest-cov report as markdown table for github comment'
 inputs:
   file:  # id of input
     description: 'Coverage.txt file name'

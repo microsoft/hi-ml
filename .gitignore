@@ -146,5 +146,6 @@ docs/source/api
 # This file is copied from repository root to docs/source by the makefile
 /docs/source/CHANGELOG.md
 
-.github/actions/format_coverage/node_modules/
+node_modules/
 !.github/actions/format_coverage/dist/
+package-lock.json

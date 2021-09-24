@@ -89,3 +89,6 @@ pytest_and_coverage: pip_test call_pytest_and_coverage
 # install test requirements and run all tests
 test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
 
+# build the github format_coverage action
+action:
+	cd .github/actions/format_coverage && ncc build index.js --license licenses.txt
