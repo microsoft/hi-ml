@@ -6347,22 +6347,35 @@ const { promises: fs } = __nccwpck_require__(747)
 
     var table = ""
     const coverage_lines = coverage.split("\n")
+    var header_count = 1
     for (var i = 0; i < coverage_lines.length; i++)
     {
       const cells = coverage_lines[i].split(" ")
       var row = ""
+      var cell_count = 1
+
       for (var j = 0; j < cells.length; j++)
       {
         if (cells[j] != "")
         {
-          if (row.length != "")
+          if (row.length > 0)
           {
-            row += "|"
+            if (i == 0)
+            {
+              row += "|"
+              header_count++;
+            }
+            else if (cell_count < header_count)
+            {
+              row += "|"
+              cell_count++
+            }
           }
           row += cells[j]
         }
       }
-      if (row != "")
+
+      if (row.length > 0)
       {
         table += row + "\n"
       }
