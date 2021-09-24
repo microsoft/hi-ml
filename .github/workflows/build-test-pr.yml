@@ -130,20 +130,28 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
+      - name: Download dependent package artifacts
+        id: download_dep
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: hi-ml-azure
+          package_type: ${{ matrix.packageName }}
+
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          make pip_upgrade
+
+          # Install package
+          pip install ${{ steps.download_dep.outputs.package_filename }}
+
       - name: Download package artifacts
         id: download
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
           package_type: ${{ matrix.packageName }}
-
-      - name: Install dependencies
-        if: ${{ matrix.folder != 'hi-ml-azure' }}
-        run: |
-          cd hi-ml-azure
-
-          # Install local package in editable mode
-          make pip_local
 
       - name: Install artifact and test
         run: |
@@ -183,6 +191,32 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.pythonVersion }}
+
+      - name: Download dependent package artifacts
+        id: download_dep
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: hi-ml-azure
+
+      - name: Install dependencies
+        run: |
+          make pip_upgrade
+
+          # Install package
+          pip install ${{ steps.download_dep.outputs.package_filename }}
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: hi-ml
+
+      - name: Install artifact and test
+        run: |
+          make pip_upgrade
+
+          # Install package
+          pip install ${{ steps.download.outputs.package_filename }}
 
       - name: Download coverage artifacts
         uses: ./.github/actions/download_coverage_artifacts
