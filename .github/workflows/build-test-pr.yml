@@ -18,7 +18,9 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
-  HIML_COV_ARTIFACT_SUFFIX: '-code_coverage_report'
+  HIML_COV_HTML_ARTIFACT_SUFFIX: '-code_coverage_report_html'
+  HIML_COV_TXT_ARTIFACT_SUFFIX: '-code_coverage_txt'
+  HIML_COV_XML_ARTIFACT_SUFFIX: '-code_coverage_xml'
 
 jobs:
   flake8:
@@ -162,19 +164,18 @@ jobs:
             make pytest_fast
           fi
 
+      - name: Upload coverage artifacts
+        uses: ./.github/actions/upload_coverage_artifacts
+        if: ${{ matrix.packageName == '*.whl' }}
+        with:
+          folder: ${{ matrix.folder }}
+
       - name: Add coverage as a commit comment
         uses: ./.github/actions/format_coverage
         if: ${{ matrix.packageName == '*.whl' }}
         with:
           file: '${{ matrix.folder }}/coverage.txt'
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v2
-        if: ${{ matrix.packageName == '*.whl' }}
-        with:
-          name: ${{ matrix.folder }}${{ env.HIML_COV_ARTIFACT_SUFFIX }}
-          path: ${{ matrix.folder }}/htmlcov/*
 
   publish-testpypi-pkg:
     runs-on: ubuntu-latest
