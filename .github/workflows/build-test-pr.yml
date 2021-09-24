@@ -18,6 +18,7 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  HIML_COV_DOT_ARTIFACT_SUFFIX: '-code_coverage_report_dot'
   HIML_COV_HTML_ARTIFACT_SUFFIX: '-code_coverage_report_html'
   HIML_COV_TXT_ARTIFACT_SUFFIX: '-code_coverage_txt'
   HIML_COV_XML_ARTIFACT_SUFFIX: '-code_coverage_xml'

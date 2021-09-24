@@ -7,6 +7,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Download dot code coverage results
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_COV_DOT_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}
+
     - name: Download html code coverage results
       uses: actions/download-artifact@v2
       with:
