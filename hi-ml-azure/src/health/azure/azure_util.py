@@ -523,3 +523,14 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
     else:
         raise ValueError(f"Unrecognised RunIdSource: {run_id_source}")
     return [run for run in runs if run is not None]
+
+
+def run_upload_folder(run: Run, name: str, path: str, datastore_name: Optional[str] = None) -> Union[Tuple[dict, map], map]:
+    """
+    Wrap a call to run.upload_folder with extra checks to see if files already exist.
+
+    :param name: The name of the folder of files to upload.
+    :param path: The relative local path to the folder to upload.
+    :param datastore_name: Optional DataStore name
+    """
+    return run.upload_folder(name=name, path=path, datastore_name=datastore_name)

@@ -10,20 +10,24 @@ import os
 import logging
 import time
 from pathlib import Path
-from typing import Optional, List
+from typing import Dict, Optional, List
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import conda_merge
 import health.azure.azure_util as util
+import health.azure.himl as himl
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml.core import Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
+from health.azure.azure_util import get_most_recent_run
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from testazure.util import repository_root
+from testazure.test_himl import RunTarget, render_and_run_test_script
+from testazure.util import check_config_json, repository_root
+
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -636,3 +640,46 @@ def test_get_aml_runs(tmp_path: Path) -> None:
     with pytest.raises(Exception):
         with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
             util.get_aml_runs(mock_args, mock_workspace, run_id_source)  # type: ignore
+
+
+def test_run_upload_folder(tmp_path: Path) -> None:
+    """
+    Test the run_upload_folder works even if some of the files in the folder
+    are already uploaded
+    """
+    extra_options: Dict[str, str] = {
+        'body': """
+
+    dummy_data_folder = Path("dummy_data")
+    dummy_data_folder.mkdir()
+
+    # Create dummy text files.
+    filenames = [dummy_data_folder / f"{uuid4().hex}.txt" for _ in range(0, 6)]
+    for dummy_txt_file in filenames[:3]:
+        message_guid = uuid4().hex
+        dummy_txt_file.write_text(f"some test data: {message_guid}")
+
+    run_info.run.upload_folder("test_dummy_data", str(dummy_data_folder))
+
+    for dummy_txt_file in filenames[3:]:
+        message_guid = uuid4().hex
+        dummy_txt_file.write_text(f"some test data: {message_guid}")
+
+    # Try again, this should fail
+    try:
+        run_info.run.upload_folder("test_dummy_data", str(dummy_data_folder))
+    except Exception as ex:
+        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+        for dummy_txt_file in filenames[:3]:
+            assert f"{dummy_txt_file} already exists" in str(ex)
+        """
+    }
+    extra_args: List[str] = []
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    with check_config_json(tmp_path):
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+
+    run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                              workspace=workspace)
+    assert run.status == "Completed"
+

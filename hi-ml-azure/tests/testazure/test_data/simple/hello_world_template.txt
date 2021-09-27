@@ -15,6 +15,7 @@ import shutil
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
+from uuid import uuid4
 
 from health.azure.datasets import DatasetConfig
 from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
