@@ -10,7 +10,7 @@ import os
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -18,7 +18,7 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
-from azureml.core import Experiment, ScriptRunConfig, Workspace
+from azureml.core import Experiment, ScriptRunConfig, Workspace, Environment
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 
@@ -37,6 +37,25 @@ def oh_no() -> None:
     Raise a simple exception. To be used as a side_effect for mocks.
     """
     raise ValueError("Throwing an exception")
+
+
+@pytest.mark.fast
+def test_find_file(tmp_path: Path) -> None:
+    file_name = "some_file.json"
+    file = tmp_path / file_name
+    file.touch()
+    python_root = tmp_path / "python_root"
+    python_root.mkdir(exist_ok=False)
+    start_path = python_root / "starting_directory"
+    start_path.mkdir(exist_ok=False)
+    where_are_we_now = Path.cwd()
+    os.chdir(start_path)
+    found_file = util._find_file(file_name, False)
+    assert found_file
+    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root.absolute())}):
+        found_file = util._find_file(file_name)
+        assert not found_file
+    os.chdir(where_are_we_now)
 
 
 @pytest.mark.fast
@@ -753,19 +772,100 @@ def test_get_aml_runs(tmp_path: Path) -> None:
             util.get_aml_runs(mock_args, mock_workspace, run_id_source)  # type: ignore
 
 
+def _get_file_names(pref: str = "") -> List[str]:
+    file_names = ["somepath.txt", "abc/someotherpath.txt", "abc/def/anotherpath.txt"]
+    if len(pref) > 0:
+        return [u for u in file_names if u.startswith(pref)]
+    else:
+        return file_names
+
+
+def test_get_run_file_names() -> None:
+    with patch("azureml.core.Run") as mock_run:
+        expected_file_names = _get_file_names()
+        mock_run.get_file_names.return_value = expected_file_names
+        # check that we get the expected run paths if no filter is applied
+        run_paths = util.get_run_file_names(mock_run)  # type: ignore
+        assert len(run_paths) == len(expected_file_names)
+        assert sorted(run_paths) == sorted(expected_file_names)
+
+        # Now check we get the expected run paths if a filter is applied
+        prefix = "abc"
+        run_paths = util.get_run_file_names(mock_run, prefix=prefix)
+        assert all([f.startswith(prefix) for f in run_paths])
+
+
+def _mock_download_file(filename: str, output_file_path: Optional[str] = None,
+                        _validate_checksum: bool = False) -> None:
+    """
+    Creates an empty file at the given output_file_path
+    """
+    output_file_path = 'test_output' if output_file_path is None else output_file_path
+    Path(output_file_path).touch(exist_ok=True)
+
+
+@pytest.mark.parametrize("dummy_env_vars", [{}, {util.ENV_LOCAL_RANK: "1"}])
+@pytest.mark.parametrize("prefix", ["", "abc"])
+def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], Optional[str]], prefix: str) -> None:
+
+    # Assert that 'downloaded' paths don't exist to begin with
+    dummy_paths = [x[0] for x in _get_file_names(pref=prefix)]
+    expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
+    # Ensure that paths don't already exist
+    [p.unlink() for p in expected_paths if p.exists()]  # type: ignore
+    assert not any([p.exists() for p in expected_paths])
+
+    mock_run = MockRun(run_id="id123")
+    with mock.patch.dict(os.environ, dummy_env_vars):
+        with patch("health.azure.azure_util.get_run_file_names") as mock_get_run_paths:
+            mock_get_run_paths.return_value = dummy_paths  # type: ignore
+            mock_run.download_file = MagicMock()  # type: ignore
+            mock_run.download_file.side_effect = _mock_download_file
+            util.download_run_files(mock_run, output_dir=tmp_path)
+            # First test the case where is_local_rank_zero returns True
+            if not any(dummy_env_vars):
+                # Check that our mocked download_run_file has been called once for each file
+                assert sum([p.exists() for p in expected_paths]) == len(expected_paths)
+            # Now test the case where is_local_rank_zero returns False - in this case nothing should be created
+            else:
+                assert not any([p.exists() for p in expected_paths])
+
+
+@patch("health.azure.azure_util.get_workspace")
+@patch("health.azure.azure_util._get_aml_run_from_runid")
+@patch("health.azure.azure_util.download_run_files")
+def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
+                                        mock_get_aml_run_from_runid: MagicMock,
+                                        mock_workspace: MagicMock) -> None:
+    mock_run = {"id": "run123"}
+    mock_get_aml_run_from_runid.return_value = mock_run
+    util.download_run_files_from_run_id("run123", Path(__file__))
+    mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="")
+
+
+@pytest.mark.parametrize("dummy_env_vars, expect_file_downloaded", [({}, True), ({util.ENV_LOCAL_RANK: "1"}, False)])
 @patch("azureml.core.Run", MockRun)
-def test_download_run_file(tmp_path: Path) -> None:
+def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expect_file_downloaded: bool) -> None:
     dummy_filename = "filetodownload.txt"
+    expected_file_path = tmp_path / dummy_filename
 
     # mock the method 'download_file' on the AML Run class and assert it gets called with the expected params
     mock_run = MockRun(run_id="id123")
     mock_run.download_file = MagicMock(return_value=None)  # type: ignore
+    mock_run.download_file.side_effect = _mock_download_file
 
-    util.download_run_file(mock_run, dummy_filename, tmp_path)
-    mock_run.download_file.assert_called_with(dummy_filename, output_file_path=tmp_path, _validate_checksum=False)
+    with mock.patch.dict(os.environ, dummy_env_vars):
+        util.download_run_file(mock_run, dummy_filename, expected_file_path)
+
+        if expect_file_downloaded:
+            mock_run.download_file.assert_called_with(dummy_filename, output_file_path=expected_file_path,
+                                                      _validate_checksum=False)
+            assert expected_file_path.exists()
+        else:
+            assert not expected_file_path.exists()
 
 
-def test_download_run_file_local(tmp_path: Path) -> None:
+def test_download_run_file_remote(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
@@ -809,51 +909,49 @@ def test_download_run_file_local(tmp_path: Path) -> None:
                  f"validation {time_validate_checksum}.")
 
 
-def _get_file_names(pref: str = "") -> List[str]:
-    file_names = ["somepath.txt", "abc/someotherpath.txt", "abc/def/anotherpath.txt"]
-    if len(pref) > 0:
-        return [u for u in file_names if u.startswith(pref)]
-    else:
-        return file_names
+def test_download_run_file_during_run(tmp_path: Path) -> None:
+    # This test will create a Run in your workspace (using only local compute)
+
+    expected_file_path = tmp_path / "azureml-logs"
+    # Check that at first the path to downloaded logs doesnt exist (will be created by the later test script)
+    assert not expected_file_path.exists()
+
+    ws = DEFAULT_WORKSPACE.workspace
+    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    env = Environment.get(workspace=ws, name="AzureML-Minimal")
+
+    test_dir = Path(__file__).parent
+    script_path = test_dir / "scripts" / "script_that_downloads_run_files.py"
+
+    config = ScriptRunConfig(
+        source_directory=test_dir,
+        script=script_path.relative_to(test_dir),
+        arguments=["--output_path", str(tmp_path)],
+        compute_target="local",
+        environment=env
+    )
+    run = experiment.submit(config)
+    run.wait_for_completion()
+    # Check that there are now files in the download file path
+    assert expected_file_path.exists()
+    assert len([f for f in expected_file_path.iterdir()]) > 0
 
 
-def test_get_run_file_names() -> None:
-    with patch("azureml.core.Run") as mock_run:
-        expected_file_names = _get_file_names()
-        mock_run.get_file_names.return_value = expected_file_names
-        # check that we get the expected run paths if no filter is applied
-        run_paths = util.get_run_file_names(mock_run)  # type: ignore
-        assert len(run_paths) == len(expected_file_names)
-        assert sorted(run_paths) == sorted(expected_file_names)
+def test_is_global_rank_zero() -> None:
+    with mock.patch.dict(os.environ, {util.ENV_NODE_RANK: "0", util.ENV_GLOBAL_RANK: "0", util.ENV_LOCAL_RANK: "0"}):
+        assert not util.is_global_rank_zero()
 
-        # Now check we get the expected run paths if a filter is applied
-        prefix = "abc"
-        run_paths = util.get_run_file_names(mock_run, prefix=prefix)
-        assert all([f.startswith(prefix) for f in run_paths])
+    with mock.patch.dict(os.environ, {util.ENV_GLOBAL_RANK: "0", util.ENV_LOCAL_RANK: "0"}):
+        assert not util.is_global_rank_zero()
+
+    with mock.patch.dict(os.environ, {util.ENV_NODE_RANK: "0"}):
+        assert util.is_global_rank_zero()
 
 
-@pytest.mark.parametrize("prefix", ["", "abc"])
-def test_download_run_files(tmp_path: Path, prefix: str) -> None:
-    # Assert that 'downloaded' paths don't exist to begin with
-    dummy_paths = [x[0] for x in _get_file_names(pref=prefix)]
-    expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
-    assert not any([p.exists() for p in expected_paths])
+def test_is_local_rank_zero() -> None:
+    # mock the environment variables
+    with mock.patch.dict(os.environ, {}):
+        assert util.is_local_rank_zero()
 
-    def _mock_download_files(filename: str, output_path: Optional[str] = None,
-                             _validate_checksum: bool = False) -> None:
-        for dummy_path in dummy_paths:
-            out_path = tmp_path / dummy_path
-            out_path.parent.mkdir(exist_ok=True, parents=True)
-            out_path.touch(exist_ok=True)
-
-    mock_run = MockRun(run_id="id123")
-    with patch("health.azure.azure_util.get_run_file_names") as mock_get_run_paths:
-        mock_get_run_paths.return_value = dummy_paths
-        with patch("health.azure.azure_util.download_run_file") as mock_download:
-            mock_download.return_value = None
-            mock_download.side_effect = _mock_download_files
-            util.download_run_files(mock_run, output_dir=tmp_path)  # type: ignore
-            # Check that our mocked download_run_file has been called once for each file
-            assert mock_download.call_count == len(dummy_paths)
-            # Now the expected paths should exist
-            assert sum([p.exists() for p in expected_paths]) == len(expected_paths)
+    with mock.patch.dict(os.environ, {util.ENV_GLOBAL_RANK: "1", util.ENV_LOCAL_RANK: "1"}):
+        assert not util.is_local_rank_zero()

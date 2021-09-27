@@ -459,25 +459,6 @@ def test_str_to_path(tmp_path: Path) -> None:
     assert himl._str_to_path(str(tmp_path)) == tmp_path
 
 
-@pytest.mark.fast
-def test_find_file(tmp_path: Path) -> None:
-    file_name = "some_file.json"
-    file = tmp_path / file_name
-    file.touch()
-    python_root = tmp_path / "python_root"
-    python_root.mkdir(exist_ok=False)
-    start_path = python_root / "starting_directory"
-    start_path.mkdir(exist_ok=False)
-    where_are_we_now = Path.cwd()
-    os.chdir(start_path)
-    found_file = himl._find_file(file_name, False)
-    assert found_file
-    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root.absolute())}):
-        found_file = himl._find_file(file_name)
-        assert not found_file
-    os.chdir(where_are_we_now)
-
-
 # endregion Small fast local unit tests
 
 

@@ -673,9 +673,8 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
 
     :param run: The AML Run to download associated files for
     :param output_dir: Local directory to which the Run files should be downloaded.
-    :param prefix: The prefix to filter Run files by
+    :param prefix: Optional prefix to filter Run files by
     """
-
     run_paths = get_run_file_names(run, prefix=prefix)
     if len(run_paths) == 0:
         raise ValueError("No such files were found for this Run.")
@@ -683,6 +682,24 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
     for run_path in run_paths:
         output_path = output_dir / run_path
         download_run_file(run, run_path, output_path)
+
+
+def download_run_files_from_run_id(run_id: str, output_dir: Path, prefix: str = "",
+                                   workspace: Optional[Workspace] = None,
+                                   workspace_config_path: Optional[Path] = None) -> None:
+    """
+    For a given Azure ML run id, first retrieve the Run, and then download all files,
+    which optionally start with a given prefix
+
+    :param run_id: The id of the Azure ML Run
+    :param output_dir: Local directory to which the Run files should be downloaded.
+    :param prefix: Optional prefix to filter Run files by
+    :param workspace: Optional Azure ML Workspace object
+    :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    """
+    workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
+    run = _get_aml_run_from_runid(run_id, workspace)
+    download_run_files(run, output_dir, prefix=prefix)
 
 
 def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool = False) -> None:
@@ -694,4 +711,32 @@ def download_run_file(run: Run, filename: str, output_path: Path, validate_check
     :param output_path: Local path to which the file should be downloaded
     :param validate_checksum: Whether to validate the content from HTTP response
     """
+    if not is_local_rank_zero():
+        return
+
     run.download_file(filename, output_file_path=output_path, _validate_checksum=validate_checksum)
+
+
+def is_global_rank_zero() -> bool:
+    """
+    Tries to guess if the current process is running as DDP rank zero, before the training has actually started,
+    by looking at environment variables.
+    :return: True if the current process is global rank 0.
+    """
+    # When doing multi-node training, this indicates which node the present job is on. This is set in
+    # set_environment_variables_for_multi_node
+    node_rank = os.getenv(ENV_NODE_RANK, "0")
+    return is_local_rank_zero() and node_rank == "0"
+
+
+def is_local_rank_zero() -> bool:
+    """
+    Tries to guess if the current process is running as DDP local rank zero (i.e., the process that is responsible for
+    GPU 0 on each node).
+    :return: True if the current process is local rank 0.
+    """
+    # The per-node jobs for rank zero do not have any of the rank-related environment variables set. PL will
+    # set them only once starting its child processes.
+    global_rank = os.getenv(ENV_GLOBAL_RANK)
+    local_rank = os.getenv(ENV_LOCAL_RANK)
+    return global_rank is None and local_rank is None
