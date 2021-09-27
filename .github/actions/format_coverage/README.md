@@ -1,6 +1,6 @@
 # Format coverage action
 
-This action loads the file coverage.txt produced by pytest-cov, formats it as an HTML table, and adds it to the commit as a comment.
+This action loads the file coverage.txt produced by pytest-cov, formats it as a markdown table, and adds it to the commit as a comment.
 
 ## Build
 
