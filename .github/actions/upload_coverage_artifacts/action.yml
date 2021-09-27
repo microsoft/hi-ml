@@ -1,0 +1,32 @@
+name: 'Upload coverage artifacts'
+description: 'Upload all coverage artifacts'
+inputs:
+  folder:  # id of input
+    description: 'Source folder'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Upload dot code coverage results
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_COV_DOT_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/.coverage
+
+    - name: Upload html code coverage results
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_COV_HTML_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/htmlcov/*
+
+    - name: Upload txt code coverage results
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_COV_TXT_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/coverage.txt
+
+    - name: Upload xml code coverage results
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.folder }}${{ env.HIML_COV_XML_ARTIFACT_SUFFIX }}
+        path: ${{ inputs.folder }}/coverage.xml
