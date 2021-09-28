@@ -682,4 +682,3 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                               workspace=workspace)
     assert run.status == "Completed"
-

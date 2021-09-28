@@ -14,6 +14,7 @@ created.
 
 ### Added
 - ([#111](https://github.com/microsoft/hi-ml/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
+- ([#120](https://github.com/microsoft/hi-ml/pull/120)) Added wrapper function to handle failes with run.upload_folder.
 
 ### Changed
 - ([#112](https://github.com/microsoft/hi-ml/pull/112)) Update himl_tensorboard to work with files not in 'logs' directory
