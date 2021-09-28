@@ -8,6 +8,7 @@ Tests for the functions in health.azure.azure_util
 from argparse import ArgumentParser
 import os
 import logging
+import shutil
 import time
 from pathlib import Path
 from typing import Dict, Optional, List
@@ -647,6 +648,41 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     Test the run_upload_folder works even if some of the files in the folder
     are already uploaded
     """
+    dummy_data_folder = tmp_path / "base_data"
+    dummy_data_folder.mkdir()
+
+    # Create dummy text file names.
+    filenames = [dummy_data_folder / f"{uuid4().hex}.txt" for _ in range(0, 12)]
+
+    for filename in filenames:
+        filename.write_text(f"some test data: {uuid4().hex}")
+
+    relative_filenames = [str(f.relative_to(dummy_data_folder)) for f in filenames]
+
+    filenames_list = tmp_path / "filenames.txt"
+    filenames_list.write_text("\n".join(relative_filenames))
+
+    test_data_folders = [tmp_path / f"test_data{i}" for i in range(0, 4)]
+    for test_data_folder in test_data_folders:
+        test_data_folder.mkdir()
+
+    for filename in filenames[:3]:
+        shutil.copyfile(filename, test_data_folders[0] / filename.name)
+        shutil.copyfile(filename, test_data_folders[1] / filename.name)
+        shutil.copyfile(filename, test_data_folders[2] / filename.name)
+
+    for filename in filenames[3:6]:
+        shutil.copyfile(filename, test_data_folders[1] / filename.name)
+        shutil.copyfile(filename, test_data_folders[2] / filename.name)
+        shutil.copyfile(filename, test_data_folders[3] / filename.name)
+
+    for filename in filenames[6:9]:
+        shutil.copyfile(filename, test_data_folders[1] / filename.name)
+        shutil.copyfile(filename, test_data_folders[2] / filename.name)
+
+    for filename in filenames[9:]:
+        shutil.copyfile(filename, test_data_folders[2] / filename.name)
+
     extra_options: Dict[str, str] = {
         'imports': """
 import sys
@@ -654,45 +690,36 @@ from uuid import uuid4
 import health.azure.azure_util as util""",
         'body': """
 
-    dummy_data_folder = Path("dummy_data")
-    dummy_data_folder.mkdir()
+    filenames_list = Path("filenames.txt")
+    filenames = filenames_list.read_text().split("\\n")
 
-    # Create dummy text file names.
-    filenames_contents = [(dummy_data_folder / f"{uuid4().hex}.txt",
-                           f"some test data: {uuid4().hex}")
-                          for _ in range(0, 9)]
-
-    # Create first three
-    for filename, contents in filenames_contents[:3]:
-        filename.write_text(contents)
+    print(f"filenames: { filenames }")
 
     # Upload the first three
-    run_info.run.upload_folder("test_dummy_data", str(dummy_data_folder))
+    run_info.run.upload_folder("test_dummy_data", "test_data0")
 
     files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
     print(f"file_names: {files}")
 
-    # Create second three
-    for filename, contents in filenames_contents[3:6]:
-        filename.write_text(contents)
+    # Upload the second three
+    run_info.run.upload_folder("test_dummy_data", "test_data3")
+
+    files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
+    print(f"file_names: {files}")
 
     # Try again, this should fail
     try:
-        run_info.run.upload_folder("test_dummy_data", str(dummy_data_folder))
+        run_info.run.upload_folder("test_dummy_data", "test_data1")
     except Exception as ex:
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for filename, _ in filenames_contents[:3]:
+        for filename in filenames[:6]:
             assert f"{filename} already exists" in str(ex)
 
     files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
     print(f"file_names: {files}")
 
-    # Create third three
-    for filename, contents in filenames_contents[6:]:
-        filename.write_text(contents)
-
     # Upload with the utility
-    util.run_upload_folder(run_info.run, "test_dummy_data", str(dummy_data_folder))
+    # util.run_upload_folder(run_info.run, "test_dummy_data", "test_data2")
 
     files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
     print(f"file_names: {files}")
