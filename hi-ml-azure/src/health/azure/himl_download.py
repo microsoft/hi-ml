@@ -108,7 +108,7 @@ def main() -> None:  # pragma: no cover
     # TODO: extend to multiple runs?
     try:  # pragma: no cover
         download_run_files(run, output_dir=output_path, prefix=prefix)
-        print(f"Downloading file(s) to '{output_path}'")
+        print(f"Downloaded file(s) to '{output_path}'")
     except Exception as e:  # pragma: no cover
         raise ValueError(f"Couldn't download files from run {args.run_id}: {e}")
 

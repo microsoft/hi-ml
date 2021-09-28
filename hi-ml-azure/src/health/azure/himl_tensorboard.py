@@ -134,6 +134,14 @@ def main() -> None:  # pragma: no cover
         help="The name of the AML Experiment that you wish to view Runs from"
     )
     parser.add_argument(
+        "--num_runs",
+        type=int,
+        default=1,
+        required=False,
+        help="Specify this in conjunction with --experiment, to specify the number of Runs to plot"
+             " from a given experiment"
+    )
+    parser.add_argument(
         "--tags",
         action="append",
         default=None,
@@ -151,6 +159,7 @@ def main() -> None:  # pragma: no cover
         "--run_ids",
         default=[],
         nargs="+",
+        required=False,
         help="Optional run ids of the runs to plot"
     )
 

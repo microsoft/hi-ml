@@ -476,7 +476,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous \
                                          training run"
     run_id = run_recovery_file.read_text().strip()
-    print(f"Read this run ID from file: {run_id}")
+    logging.info(f"Read this run ID from file: {run_id}. Starting file download")
     return run_id
 
 
@@ -487,8 +487,12 @@ def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
     :param workspace: Azure ML Workspace
     :return: The Run
     """
-    run_recovery_id = get_most_recent_run_id(run_recovery_file)
-    return fetch_run(workspace=workspace, run_recovery_id=run_recovery_id)
+    run_or_recovery_id = get_most_recent_run_id(run_recovery_file)
+    # Check if the id loaded is of run_recovery_id format
+    if len(run_or_recovery_id.split(":")) > 1:
+        return fetch_run(workspace, run_or_recovery_id)
+    # Otherwise treat it as a run_id
+    return get_aml_run_from_run_id(run_or_recovery_id, aml_workspace=workspace)
 
 
 class AzureRunIdSource(Enum):
@@ -513,13 +517,13 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
         return AzureRunIdSource.LATEST_RUN_FILE
     if "experiment" in args and args.experiment is not None:
         return AzureRunIdSource.EXPERIMENT_LATEST
-    if "run_recovery_ids" in args and args.run_recovery_ids is not None:
+    if "run_recovery_ids" in args and args.run_recovery_ids is not None and len(args.run_recovery_ids) > 0:
         return AzureRunIdSource.RUN_RECOVERY_IDS
     if "run_recovery_id" in args and args.run_recovery_id is not None:
         return AzureRunIdSource.RUN_RECOVERY_ID
     if "run_id" in args and args.run_id is not None:
         return AzureRunIdSource.RUN_ID
-    if "run_ids" in args and args.run_ids is not None:
+    if "run_ids" in args and args.run_ids is not None and len(args.run_ids) > 0:
         return AzureRunIdSource.RUN_IDS
     raise ValueError("One of latest_run_file, experiment, run_recovery_id(s) or run_id(s) must be provided")
 
@@ -538,10 +542,10 @@ def get_latest_aml_runs_from_experiment(args: Namespace, workspace: Workspace) -
 
     :param args: command line args including experiment name and number of runs to return
     :param workspace: AML Workspace
-    :raises ValueError: If Experiment experiment_name doen't exist within Worksacpe
+    :raises ValueError: If Experiment experiment doen't exist within Worksacpe
     :return: List of AML Runs
     """
-    experiment_name = args.experiment_name
+    experiment_name = args.experiment
     tags = args.tags or None
     num_runs = args.num_runs if 'num_runs' in args else 1
 
