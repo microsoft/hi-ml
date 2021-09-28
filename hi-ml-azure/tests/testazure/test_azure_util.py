@@ -648,6 +648,9 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     are already uploaded
     """
     extra_options: Dict[str, str] = {
+        'imports': """
+import sys
+from uuid import uuid4""",
         'body': """
 
     dummy_data_folder = Path("dummy_data")
