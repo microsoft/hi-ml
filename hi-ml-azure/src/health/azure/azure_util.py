@@ -537,4 +537,15 @@ def run_upload_folder(run: Run,
     :param path: The relative local path to the folder to upload.
     :param datastore_name: Optional DataStore name
     """
-    return run.upload_folder(name=name, path=path, datastore_name=datastore_name)
+    try:
+        return run.upload_folder(name=name, path=path, datastore_name=datastore_name)
+    except Exception:
+        existing_files = [f for f in run.get_file_names() if f.startswith(f'{name}/')]
+
+        new_files = [f for f in os.listdir(path) if os.path.isfile(f) and f not in existing_files]
+ 
+        names = [f"{name}/{os.path.basename(f)}" for f in new_files]
+
+        return run.upload_files(names=names,
+                                paths=new_files,
+                                datastore_name=datastore_name)

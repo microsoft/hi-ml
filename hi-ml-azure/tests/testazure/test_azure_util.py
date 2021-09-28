@@ -650,32 +650,54 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     extra_options: Dict[str, str] = {
         'imports': """
 import sys
-from uuid import uuid4""",
+from uuid import uuid4
+import health.azure.azure_util as util""",
         'body': """
 
     dummy_data_folder = Path("dummy_data")
     dummy_data_folder.mkdir()
 
-    # Create dummy text files.
-    filenames = [dummy_data_folder / f"{uuid4().hex}.txt" for _ in range(0, 6)]
-    for dummy_txt_file in filenames[:3]:
-        message_guid = uuid4().hex
-        dummy_txt_file.write_text(f"some test data: {message_guid}")
+    # Create dummy text file names.
+    filenames_contents = [(dummy_data_folder / f"{uuid4().hex}.txt",
+                           f"some test data: {uuid4().hex}")
+                          for _ in range(0, 9)]
 
+    # Create first three
+    for filename, contents in filenames_contents[:3]:
+        filename.write_text(contents)
+
+    # Upload the first three
     run_info.run.upload_folder("test_dummy_data", str(dummy_data_folder))
 
-    for dummy_txt_file in filenames[3:]:
-        message_guid = uuid4().hex
-        dummy_txt_file.write_text(f"some test data: {message_guid}")
+    files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
+    print(f"file_names: {files}")
+
+    # Create second three
+    for filename, contents in filenames_contents[3:6]:
+        filename.write_text(contents)
 
     # Try again, this should fail
     try:
         run_info.run.upload_folder("test_dummy_data", str(dummy_data_folder))
     except Exception as ex:
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for dummy_txt_file in filenames[:3]:
-            assert f"{dummy_txt_file} already exists" in str(ex)
-        """
+        for filename, _ in filenames_contents[:3]:
+            assert f"{filename} already exists" in str(ex)
+
+    files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
+    print(f"file_names: {files}")
+
+    # Create third three
+    for filename, contents in filenames_contents[6:]:
+        filename.write_text(contents)
+
+    # Upload with the utility
+    util.run_upload_folder(run_info.run, "test_dummy_data", str(dummy_data_folder))
+
+    files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
+    print(f"file_names: {files}")
+
+"""
     }
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
