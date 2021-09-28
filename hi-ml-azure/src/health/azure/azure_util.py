@@ -562,7 +562,7 @@ def get_aml_runs_from_recovery_ids(args: Namespace, aml_workspace: Optional[Work
     :param workspace_config_path: Optional path containing AML Workspace settings
     :return: List of AML Runs
     """
-    def _get_run_recovery_ids_from_args(args: Namespace) -> List[str]:
+    def _get_run_recovery_ids_from_args(args: Namespace) -> List[str]:  # pragma: no cover
         """
         Retrieve a list of run recovery ids from the args as long as more than one is supplied.
 
@@ -592,7 +592,7 @@ def get_aml_run_from_recovery_id(args: Namespace, aml_workspace: Optional[Worksp
     :param workspace_config_path: Optional path containing AML Workspace settings
     :return: A single AML Run
     """
-    def _get_run_recovery_id_from_args(args: Namespace) -> str:
+    def _get_run_recovery_id_from_args(args: Namespace) -> str:  # pragma: no cover
         """
         Retrieve a list of run recovery ids from the args as long as one is supplied.
 
@@ -621,7 +621,7 @@ def get_aml_run_from_run_id(run_id: str, aml_workspace: Optional[Workspace] = No
     :param workspace_config_path: Optional path to a Workspace config file
     :return: The Azure ML Run object with the given run_id
     """
-    def _get_aml_run_from_runid(run_id: str, workspace: Workspace) -> Run:
+    def _get_aml_run_from_runid(run_id: str, workspace: Workspace) -> Run:  # pragma: no cover
         """
         Attempt to retrieve a Run from a given Workspace, specified by run_id.
 
@@ -678,7 +678,7 @@ def get_aml_runs_from_run_ids(args: Namespace, aml_workspace: Optional[Workspace
     :param workspace_config_path: Optional path containing AML Workspace settings
     :return: List of AML Runs
     """
-    def _get_run_ids_from_args(args: Namespace) -> List[str]:
+    def _get_run_ids_from_args(args: Namespace) -> List[str]:  # pragma: no cover
         """
         Retrieve a list of run  ids from the args as long as more than one is supplied.
 
