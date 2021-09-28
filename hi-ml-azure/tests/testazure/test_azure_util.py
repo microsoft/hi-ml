@@ -20,7 +20,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azureml.core import Experiment, ScriptRunConfig, Workspace, Environment
 from azureml.core.authentication import ServicePrincipalAuthentication
-from azureml.core.conda_dependencies import CondaDependencies
+from azureml.core.environment import CondaDependencies
 
 import health.azure.azure_util as util
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -681,7 +681,7 @@ def test_get_aml_run_from_run_id_args() -> None:
     parser = ArgumentParser()
     parser.add_argument("--run_id", type=str, default="")
 
-    # assert single run returned
+    # assert single run returned (mock the workspace since this run doesnt really exist)
     mock_run_id = "run123"
     mock_args = parser.parse_args(["--run_id", mock_run_id])
     with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
@@ -690,12 +690,11 @@ def test_get_aml_run_from_run_id_args() -> None:
         mock_workspace.get_run.assert_called_with(mock_run_id)
         assert aml_run.id == mock_run_id
 
-    # Test that Exception is raised if run_id is not provided
+    # Test that Exception is raised if run_id is not provided. Not necessary to mock the workspace.
     mock_args = parser.parse_args([])
-    with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
-        with mock.patch("health.azure.azure_util.fetch_run", _mock_get_most_recent_run):
-            with pytest.raises(Exception):
-                util.get_aml_run_from_run_id_args(mock_args, aml_workspace=mock_workspace)
+    ws = DEFAULT_WORKSPACE.workspace
+    with pytest.raises(Exception):
+        util.get_aml_run_from_run_id_args(mock_args, aml_workspace=ws)
 
 
 def test_get_aml_runs_from_run_ids() -> None:
@@ -955,7 +954,13 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
 
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
-    env = Environment.get(workspace=ws, name="AzureML-Minimal")
+    env = Environment(workspace=ws, name="test_env_downloads")
+
+    conda_deps = CondaDependencies()
+    conda_deps.set_python_version("3.7.3")
+    conda_deps.add_pip_package("hi-ml-azure")
+    conda_deps.add_pip_package("azureml-sdk")
+    env.python.conda_dependencies = conda_deps
 
     test_dir = Path(__file__).parent
     script_path = test_dir / "scripts" / "script_that_downloads_run_files.py"

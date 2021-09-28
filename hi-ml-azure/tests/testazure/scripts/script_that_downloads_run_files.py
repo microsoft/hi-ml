@@ -7,6 +7,8 @@ from pathlib import Path
 
 from azureml.core import Run
 
+from health.azure.azure_util import download_run_files
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -21,6 +23,8 @@ def main() -> None:
     available_files = run_ctx.get_file_names()
     first_file_name = available_files[0]
     output_file_path = output_path / first_file_name
+
+    download_run_files(run_ctx, output_path)
 
     run_ctx.download_file(first_file_name, output_file_path=output_file_path)
     print(f"Downloaded file {first_file_name} to location {output_file_path}")

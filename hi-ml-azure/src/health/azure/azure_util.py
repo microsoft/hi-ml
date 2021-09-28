@@ -21,7 +21,6 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
-from msrest.exceptions import HttpOperationError
 
 
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -476,7 +475,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous \
                                          training run"
     run_id = run_recovery_file.read_text().strip()
-    logging.info(f"Read this run ID from file: {run_id}. Starting file download")
+    logging.info(f"Read this run ID from file: {run_id}.")
     return run_id
 
 
@@ -530,7 +529,11 @@ def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
 
 def get_aml_run_from_latest_run_file(args: Namespace, workspace: Workspace) -> Run:
     """
-    Returns the most recent run that was submitted to AzureML.
+    Returns the Run object corresponding to the id found in the most recent run file.
+
+    :param args: command line args including latest_run_file
+    :param workspace: An Azure ML Workspace object
+    :return the Run object corresponding to the id found in the most recent run file.
     """
     latest_run_path = Path(args.latest_run_file)
     return get_most_recent_run(latest_run_path, workspace)
@@ -538,11 +541,11 @@ def get_aml_run_from_latest_run_file(args: Namespace, workspace: Workspace) -> R
 
 def get_latest_aml_runs_from_experiment(args: Namespace, workspace: Workspace) -> List[Run]:
     """
-    Get latest n runs from an AML experiment
+    Get latest 'num_runs' runs from an AML experiment
 
     :param args: command line args including experiment name and number of runs to return
     :param workspace: AML Workspace
-    :raises ValueError: If Experiment experiment doen't exist within Worksacpe
+    :raises ValueError: If Experiment experiment doen't exist within Workspace
     :return: List of AML Runs
     """
     experiment_name = args.experiment
@@ -596,21 +599,13 @@ def get_aml_run_from_recovery_id(args: Namespace, aml_workspace: Optional[Worksp
     :param workspace_config_path: Optional path containing AML Workspace settings
     :return: A single AML Run
     """
-    def _get_run_recovery_id_from_args(args: Namespace) -> str:  # pragma: no cover
-        """
-        Retrieve a list of run recovery ids from the args as long as one is supplied.
-
-        :param args: The command line arguments
-        :return: A string representing the run_recovery_id as passed in to the command line
-        """
-        if "run_recovery_id" not in args or not args.run_recovery_id:
-            raise ValueError("Expected to find run_recovery_id in args but did not")
-        else:
-            return args.run_recovery_id
+    if "run_recovery_id" in args and args.run_recovery_id:
+        run_recovery_id = args.run_recovery_id
+    else:
+        raise ValueError("No run_recovery_id in args")
 
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
 
-    run_recovery_id = _get_run_recovery_id_from_args(args)
     return fetch_run(workspace, run_recovery_id)
 
 
@@ -618,31 +613,17 @@ def get_aml_run_from_run_id(run_id: str, aml_workspace: Optional[Workspace] = No
                             workspace_config_path: Optional[Path] = None) -> Run:
     """
     Retrieve an Azure ML Run, firstly by retrieving the corresponding Workspace, and then getting the
-    run according to the specified run_id
+    run according to the specified run_id. If running in AML, will take the current workspace. Otherwise, if
+    neither aml_workspace nor workspace_config_path are provided, will try to locate a config.json file
+    in any of the parent folders of the current working directory.
 
     :param run_id: the parameter corresponding to the 'id' property of the Run
     :param aml_workspace: Optional Azure ML Workspace object
     :param workspace_config_path: Optional path to a Workspace config file
     :return: The Azure ML Run object with the given run_id
     """
-    def _get_aml_run_from_runid(run_id: str, workspace: Workspace) -> Run:  # pragma: no cover
-        """
-        Attempt to retrieve a Run from a given Workspace, specified by run_id.
-
-        :param run_id: the run_id to return
-        :param workspace: the Workspace to search in
-        :return: An Azure ML Run object
-        """
-        try:
-            run = workspace.get_run(run_id)
-        except HttpOperationError as e:
-            if 'was not found' in e.message:
-                raise ValueError(f"Run {run_id} was not found in workspace {workspace.name}. "
-                                 f"Please check the run_id and the workspace definition")
-        return run
-
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    run = _get_aml_run_from_runid(run_id, workspace)
+    run = workspace.get_run(run_id)
     return run
 
 
@@ -656,26 +637,19 @@ def get_aml_run_from_run_id_args(args: Namespace, aml_workspace: Optional[Worksp
     :param workspace_config_path: Optional path to a Workspace config file
     :return: The Azure ML Run object with the id as specified by args.run_id
     """
-    def _get_run_id_from_args(args: Namespace) -> str:
-        """
-        Retrieve the value for run_id from the args as long as one is supplied.
-
-        :param args: The command line arguments
-        :return: A string representing the run_id as passed in to the command line
-        """
-        if not args.run_id:
-            raise ValueError("Expected to find run_id in args but did not")
-        else:
-            return args.run_id
-
-    run_id = _get_run_id_from_args(args)
+    if "run_id" in args and args.run_id:
+        run_id = args.run_id
+    else:
+        raise ValueError("No run_id in args")
     return get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
 
 
 def get_aml_runs_from_run_ids(args: Namespace, aml_workspace: Optional[Workspace] = None,
                               workspace_config_path: Optional[Path] = None) -> List[Run]:
     """
-    Retrieve AzureML Runs for each of the Run Ids specified in args.
+    Retrieve AzureML Runs for each of the Run Ids specified in args. If running in AML, will take the
+    current workspace. Otherwise, if neither aml_workspace nor workspace_config_path are provided,
+    will try to locate a config.json file in any of the parent folders of the current working directory.
 
     :param args: command line args including experiment name and number of runs to return
     :param aml_workspace: Optional Azure ML Workspace object
@@ -777,7 +751,7 @@ def download_run_files_from_run_id(run_id: str, output_dir: Path, prefix: str = 
     download_run_files(run, output_dir, prefix=prefix)
 
 
-def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool = False) -> None:
+def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool = False) -> Optional[Path]:
     """
     A wrapper around AML Run's download_file method, that handles timeouts
 
@@ -785,17 +759,20 @@ def download_run_file(run: Run, filename: str, output_path: Path, validate_check
     :param filename: The name of the file as it exists in Azure storage
     :param output_path: Local path to which the file should be downloaded
     :param validate_checksum: Whether to validate the content from HTTP response
+    :return: The path to the downloaded file if local rank is zero, else None
     """
     if not is_local_rank_zero():
-        return
+        return None
 
     run.download_file(filename, output_file_path=output_path, _validate_checksum=validate_checksum)
+    return output_path
 
 
 def is_global_rank_zero() -> bool:
     """
     Tries to guess if the current process is running as DDP rank zero, before the training has actually started,
     by looking at environment variables.
+
     :return: True if the current process is global rank 0.
     """
     # When doing multi-node training, this indicates which node the present job is on. This is set in
@@ -808,6 +785,7 @@ def is_local_rank_zero() -> bool:
     """
     Tries to guess if the current process is running as DDP local rank zero (i.e., the process that is responsible for
     GPU 0 on each node).
+
     :return: True if the current process is local rank 0.
     """
     # The per-node jobs for rank zero do not have any of the rank-related environment variables set. PL will
