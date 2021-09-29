@@ -543,7 +543,7 @@ def run_upload_folder(run: Run,
         existing_files = [f for f in run.get_file_names() if f.startswith(f'{name}/')]
 
         new_files = [f for f in os.listdir(path) if os.path.isfile(f) and f not in existing_files]
- 
+
         names = [f"{name}/{os.path.basename(f)}" for f in new_files]
 
         return run.upload_files(names=names,

@@ -734,3 +734,63 @@ import health.azure.azure_util as util""",
     run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                               workspace=workspace)
     assert run.status == "Completed"
+
+
+def test_run_upload_folder_min(tmp_path: Path) -> None:
+    """
+    Test the run_upload_folder works even if some of the files in the folder
+    are already uploaded
+    """
+    dummy_data_folder = tmp_path / "base_data"
+    dummy_data_folder.mkdir()
+
+    # Create dummy text file names.
+    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 2)]
+
+    for filename in filenames:
+        filename.write_text(f"some test data: {uuid4().hex}")
+
+    extra_options: Dict[str, str] = {
+        'imports': """
+import shutil
+import sys
+from uuid import uuid4
+import health.azure.azure_util as util""",
+        'body': """
+
+    test_file0_name = "test_file0.txt"
+    test_file1_name = "test_file1.txt"
+
+    upload_folder_name = "uploaded_folder"
+
+    base_data_folder = Path("base_data")
+    test_upload_folder = Path("test_data")
+    test_upload_folder.mkdir()
+
+    # Upload the first file
+    shutil.copyfile(base_data_folder / test_file0_name, test_upload_folder / test_file0_name)
+    run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
+
+    files = [f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")]
+    print(f"file_names_1: {files}")
+
+    # Upload the second file, this should fail since first file already there
+    shutil.copyfile(base_data_folder / test_file1_name, test_upload_folder / test_file1_name)
+    try:
+        run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
+    except Exception as ex:
+        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+        assert f"{test_file0_name} already exists" in str(ex)
+
+    files = [f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")]
+    print(f"file_names_2: {files}")
+"""
+    }
+    extra_args: List[str] = []
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    with check_config_json(tmp_path):
+        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+
+    run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                              workspace=workspace)
+    assert run.status == "Completed"
