@@ -756,8 +756,8 @@ import shutil
 import sys""",
         'body': """
 
-    test_file0_name = "test_file0.txt"
-    test_file1_name = "test_file1.txt"
+    test_file_name_set0 = {"test_file0.txt"}
+    test_file_name_set1 = test_file_name_set0.copy().add("test_file1.txt")
 
     upload_folder_name = "uploaded_folder"
 
@@ -776,21 +776,24 @@ import sys""",
         for f in filenames:
             run_info.run.download_file(name=f"{upload_folder_name}/{f}", output_file_path=str(download_folder))
 
-    print("Upload the first file")
-    shutil.copyfile(base_data_folder / test_file0_name, test_upload_folder / test_file0_name)
+    print("Upload the first file set")
+    for f in test_file_name_set0:
+        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
     run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
 
-    check_files([test_file0_name], 1)
+    check_files(test_file_name_set0, 1)
 
-    print("Upload the second file, this should fail since first file already there")
-    shutil.copyfile(base_data_folder / test_file1_name, test_upload_folder / test_file1_name)
+    print("Upload the second file set, this should fail since first file set already there")
+    for f in test_file_name_set1.difference(test_file_name_set0):
+        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
     try:
         run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
     except Exception as ex:
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        assert f"{test_file0_name} already exists" in str(ex)
+        for f in test_file_name_set0:
+            assert f"{f} already exists" in str(ex)
 
-    check_files([test_file0_name, test_file1_name], 2)
+    check_files(test_file_name_set1, 2)
 """
     }
 
