@@ -753,9 +753,7 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
     extra_options: Dict[str, str] = {
         'imports': """
 import shutil
-import sys
-from uuid import uuid4
-import health.azure.azure_util as util""",
+import sys""",
         'body': """
 
     test_file0_name = "test_file0.txt"
@@ -767,14 +765,24 @@ import health.azure.azure_util as util""",
     test_upload_folder = Path("test_data")
     test_upload_folder.mkdir()
 
-    # Upload the first file
+    def check_files(filenames, step):
+        files = {f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
+        print(f"file_names_{step}: {files}")
+        assert files == {f"{upload_folder_name}/{f}" for f in filenames}
+
+        download_folder = Path(f"outputs/download_folder_{step}")
+        download_folder.mkdir()
+        # run_info.run.download_files(prefix=upload_folder_name, output_directory=str(download_folder))
+        for f in filenames:
+            run_info.run.download_file(name=f"{upload_folder_name}/{f}", output_file_path=str(download_folder))
+
+    print("Upload the first file")
     shutil.copyfile(base_data_folder / test_file0_name, test_upload_folder / test_file0_name)
     run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
 
-    files = [f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")]
-    print(f"file_names_1: {files}")
+    check_files([test_file0_name], 1)
 
-    # Upload the second file, this should fail since first file already there
+    print("Upload the second file, this should fail since first file already there")
     shutil.copyfile(base_data_folder / test_file1_name, test_upload_folder / test_file1_name)
     try:
         run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
@@ -782,10 +790,10 @@ import health.azure.azure_util as util""",
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
         assert f"{test_file0_name} already exists" in str(ex)
 
-    files = [f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")]
-    print(f"file_names_2: {files}")
+    check_files([test_file0_name, test_file1_name], 2)
 """
     }
+
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
     with check_config_json(tmp_path):
