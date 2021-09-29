@@ -18,12 +18,14 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
-from azureml.core import Experiment, ScriptRunConfig, Workspace, Environment
+from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 
 import health.azure.azure_util as util
+from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory
 
 RUN_ID = uuid4().hex
@@ -953,30 +955,37 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     assert not expected_file_path.exists()
 
     ws = DEFAULT_WORKSPACE.workspace
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
-    env = Environment(workspace=ws, name="test_env_downloads")
 
-    conda_deps = CondaDependencies()
-    conda_deps.set_python_version("3.7.3")
-    conda_deps.add_pip_package("hi-ml-azure")
-    conda_deps.add_pip_package("azureml-sdk")
-    env.python.conda_dependencies = conda_deps
+    # call the script here
+    extra_options = {
+        "imports": """
+from azureml.core import Run
+from health.azure.azure_util import download_run_files""",
+        "args": """
+    parser.add_argument("--output_path", type=str, required=True)
+        """,
+        "body": """
+    output_path = Path(args.output_path)
+    output_path.mkdir(exist_ok=True)
 
-    test_dir = Path(__file__).parent
-    script_path = test_dir / "scripts" / "script_that_downloads_run_files.py"
+    run_ctx = Run.get_context()
+    available_files = run_ctx.get_file_names()
+    first_file_name = available_files[0]
+    output_file_path = output_path / first_file_name
 
-    config = ScriptRunConfig(
-        source_directory=test_dir,
-        script=script_path.relative_to(test_dir),
-        arguments=["--output_path", str(tmp_path)],
-        compute_target="local",
-        environment=env
-    )
-    run = experiment.submit(config)
-    run.wait_for_completion()
-    # Check that there are now files in the download file path
-    assert expected_file_path.exists()
-    assert len([f for f in expected_file_path.iterdir()]) > 0
+    download_run_files(run_ctx, output_path)
+
+    run_ctx.download_file(first_file_name, output_file_path=output_file_path)
+    print(f"Downloaded file {first_file_name} to location {output_file_path}")
+        """
+    }
+
+    extra_args = ["--output_path", 'outputs']
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+
+    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                   workspace=ws)
+    assert run.status == "Completed"
 
 
 def test_is_global_rank_zero() -> None:

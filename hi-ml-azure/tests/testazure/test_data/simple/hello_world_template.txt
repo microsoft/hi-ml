@@ -19,6 +19,7 @@ from pathlib import Path
 from health.azure.datasets import DatasetConfig
 from health.azure import submit_to_azure_if_needed
 from health.azure.azure_util import WORKSPACE_CONFIG_JSON
+{{ imports }}
 
 try:
     hi_ml_dist = pkg_resources.get_distribution("hi-ml-azure")
