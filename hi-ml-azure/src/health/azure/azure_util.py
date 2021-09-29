@@ -537,6 +537,8 @@ def run_upload_folder(run: Run,
     :param path: The relative local path to the folder to upload.
     :param datastore_name: Optional DataStore name
     """
+    existing_files = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
+
     try:
         return run.upload_folder(name=name, path=path, datastore_name=datastore_name)
     except Exception:
