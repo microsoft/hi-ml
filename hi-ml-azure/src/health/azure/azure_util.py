@@ -12,7 +12,9 @@ from itertools import islice
 import logging
 import os
 import re
+from operator import itemgetter
 from pathlib import Path
+# from tempfile import TemporaryDirectory
 from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
@@ -525,6 +527,24 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
     return [run for run in runs if run is not None]
 
 
+def hash_file(filename: str) -> str:
+    """
+    Compute a SHA1 hash of a file in 64kb chunks.
+
+    :param filename: File to hash.
+    :return: Hex version of SHA1 digest.
+    """
+    BLOCKSIZE = 65536
+    sha1 = hashlib.sha1()
+    with open(filename, 'rb') as afile:
+        while True:
+            data = afile.read(BLOCKSIZE)
+            if not data:
+                break
+            sha1.update(data)
+    return sha1.hexdigest()
+
+
 def run_upload_folder(run: Run,
                       name: str,
                       path: str,
@@ -537,17 +557,37 @@ def run_upload_folder(run: Run,
     :param path: The relative local path to the folder to upload.
     :param datastore_name: Optional DataStore name
     """
-    existing_files = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
+    # Get list of files already uploaded to the run wiith this name
+    existing_file_names = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
+    # Get list of files in the local folder
+    local_files = {f for f in Path(path).iterdir() if f.is_file()}
+    # Get list of file names as they would be after upload
+    local_file_named = {(str(f), f"{name}/{f.name}", f.name) for f in local_files}
+    # Filter out the files that are both local and already uploaded
+    dup_files = [f for f in local_file_named if f[1] in existing_file_names]
+    # Filter out the files that are local but not uploaded.
+    new_files = [f for f in local_file_named if f[1] not in existing_file_names]
 
-    try:
+    # If there are duplicate files then upload_folder fails
+    if len(dup_files) == 0:
+        # If there are no duplicate files, then use upload_folder
         return run.upload_folder(name=name, path=path, datastore_name=datastore_name)
-    except Exception:
-        existing_files = [f for f in run.get_file_names() if f.startswith(f'{name}/')]
+    else:
+        # Check the duplicate files.
+        # with TemporaryDirectory() as d:
+        d = Path("outputs") / "test_download_folder"
+        d.mkdir()
 
-        new_files = [f for f in os.listdir(path) if os.path.isfile(f) and f not in existing_files]
+        for f in dup_files:
+            run.download_file(name=f[1],
+                              output_file_path=d)
+            downloaded_file = d / f[2]
+            downloaded_file_hash = hash_file(str(downloaded_file))
 
-        names = [f"{name}/{os.path.basename(f)}" for f in new_files]
+            local_file_hash = hash_file(f[0])
+            assert downloaded_file_hash == local_file_hash
 
-        return run.upload_files(names=names,
-                                paths=new_files,
+        # Upload the new files.
+        return run.upload_files(names=list(map(itemgetter(1), new_files)),
+                                paths=list(map(itemgetter(0), new_files)),
                                 datastore_name=datastore_name)

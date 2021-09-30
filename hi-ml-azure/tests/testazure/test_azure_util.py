@@ -646,11 +646,11 @@ def test_get_aml_runs(tmp_path: Path) -> None:
 run_upload_folder_common = """
     def check_files(good_filenames, bad_filenames, step, upload_folder_name):
         files = {f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-        print(f"file_names_{step}: {files}")
+        print(f"file_names_{step}_{upload_folder_name}: {files}")
         all_filenames = good_filenames.union(bad_filenames)
         assert files == {f"{upload_folder_name}/{f}" for f in all_filenames}
 
-        download_folder_all = Path(f"outputs/download_folder_all_{step}")
+        download_folder_all = Path(f"outputs/download_folder_all_{step}_{upload_folder_name}")
         download_folder_all.mkdir()
 
         if len(bad_filenames) == 0:
@@ -665,7 +665,7 @@ run_upload_folder_common = """
             except Exception as ex:
                 print(f"Error in download_files: {str(ex)}")
 
-        download_folder_ind = Path(f"outputs/download_folder_ind_{step}")
+        download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
         download_folder_ind.mkdir()
 
         for f in good_filenames:
@@ -683,7 +683,32 @@ run_upload_folder_common = """
     test_upload_folder = Path("test_data")
     test_upload_folder.mkdir()
 
+    def copy_test_file_name_set(test_file_name_set):
+        for f in test_file_name_set:
+            shutil.copyfile(base_data_folder / f, test_upload_folder / f)
+
+    def rm_test_file_name_set(test_file_name_set):
+        for f in test_file_name_set:
+            (test_upload_folder / f).unlink()
+
     upload_folder_names = ["uploaded_folder1", "uploaded_folder2"]
+
+
+    amlupload = lambda run, name, path: run.upload_folder(name, str(path))
+    himlupload = lambda run, name, path: util.run_upload_folder(run, name, str(path))
+
+    @dataclass
+    class TestUploadData:
+        # Name of folder
+        folder_name: str
+        # Function to use for upload
+        upload_fn: Path
+        # Does this work?
+        errors: bool
+        upload_files: set = field(default_factory=set)
+        good_files: set = field(default_factory=set)
+        bad_files: set = field(default_factory=set)
+
 """
 
 
@@ -708,6 +733,7 @@ def test_run_upload_folder(tmp_path: Path) -> None:
 
     extra_options: Dict[str, str] = {
         'imports': """
+from dataclasses import dataclass, field
 import shutil
 import sys
 import health.azure.azure_util as util""",
@@ -723,56 +749,69 @@ import health.azure.azure_util as util""",
         set(filenames[9:]),
     ]
 
+    upload_datas = [
+        # TestUploadData(upload_folder_names[0], amlupload, True),
+        TestUploadData(upload_folder_names[1], himlupload, False)
+    ]
+
     # Step 1, upload the first file set
-    upload_files = test_file_name_sets[0].copy()
-    good_files = test_file_name_sets[0].copy()
-    bad_files = set()
+    copy_test_file_name_set(test_file_name_sets[0])
 
-    print(f"Upload the first file set: {upload_files}")
-    for f in test_file_name_sets[0]:
-        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
-    run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
+    for upload_data in upload_datas:
+        upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[0])
+        upload_data.good_files = upload_data.good_files.union(test_file_name_sets[0])
+        upload_data.bad_files = upload_data.bad_files.union(set())
 
-    check_files(good_files, bad_files, 1, upload_folder_names[0])
+        print(f"Upload the first file set: {upload_data.folder_name}, {upload_data.upload_files}")
 
-    # Step 2, upload the second file set
-    upload_files = upload_files.union(test_file_name_sets[1])
-    good_files = good_files.union(test_file_name_sets[1])
-    bad_files = bad_files
+        upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+        check_files(upload_data.good_files, upload_data.bad_files, 0, upload_data.folder_name)
 
-    print(f"Upload the second file set: {upload_files}, \
-            this should be fine, since this set is distinct")
-    for f in test_file_name_sets[1]:
-        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
-    run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
+    # Step 2, remove first set and upload the second file set
+    rm_test_file_name_set(test_file_name_sets[0])
+    copy_test_file_name_set(test_file_name_sets[1])
 
-    check_files(good_files, bad_files, 2, upload_folder_names[0])
+    for upload_data in upload_datas:
+        upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[1])
+        upload_data.good_files = upload_data.good_files.union(test_file_name_sets[1])
+        upload_data.bad_files = upload_data.bad_files.union(set())
+
+        print(f"Upload the second file set: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should be fine, since this set is distinct")
+
+        upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+        check_files(upload_data.good_files, upload_data.bad_files, 1, upload_data.folder_name)
 
     # Step 3, upload the third file set
-    upload_files = upload_files.union(test_file_name_sets[2])
-    good_files = good_files
-    bad_files = bad_files.union(test_file_name_sets[2])
+    copy_test_file_name_set(test_file_name_sets[2])
 
-    print(f"Upload the third file set: {upload_files}, \
-            this should fail, since the first 6 files already uploaded")
-    for f in test_file_name_sets[2]:
-        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
+    for upload_data in upload_datas:
+        upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[2])
 
-    try:
-        run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
-    except Exception as ex:
-        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for f in good_files:
-            assert f"{f} already exists" in str(ex)
+        if upload_data.errors:
+            print(f"Upload the third file set: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should fail, since file set: {test_file_name_sets[1]} already uploaded")
 
-    check_files(good_files, bad_files, 3, upload_folder_names[0])
+            upload_data.good_files = upload_data.good_files.union(set())
+            upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[2])
 
-    # Upload with the utility
-    # util.run_upload_folder(run_info.run, "test_dummy_data", "test_data2")
+            try:
+                upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+            except Exception as ex:
+                assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+                for f in test_file_name_sets[1]:
+                    assert f"{f} already exists" in str(ex)
 
-    files = [f for f in run_info.run.get_file_names() if f.startswith('test_dummy_data/')]
-    print(f"file_names: {files}")
+        else:
+            print(f"Upload the third file set: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should be fine, since overlaps handled")
 
+            upload_data.good_files = upload_data.good_files.union(test_file_name_sets[2])
+            upload_data.bad_files = upload_data.bad_files.union(set())
+
+            upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+
+        check_files(upload_data.good_files, upload_data.bad_files, 2, upload_data.folder_name)
 """
     }
     extra_args: List[str] = []
@@ -801,6 +840,7 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
 
     extra_options: Dict[str, str] = {
         'imports': """
+from dataclasses import dataclass, field
 import shutil
 import sys""",
         'body': run_upload_folder_common + """
@@ -816,10 +856,9 @@ import sys""",
     upload_files = test_file_name_sets[0].copy()
     good_files = test_file_name_sets[0].copy()
     bad_files = set()
+    copy_test_file_name_set(test_file_name_sets[0])
 
     print(f"Upload the first file set: {upload_files}")
-    for f in test_file_name_sets[0]:
-        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
     run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
 
     check_files(good_files, bad_files, 1, upload_folder_names[0])
@@ -828,11 +867,10 @@ import sys""",
     upload_files = upload_files.union(test_file_name_sets[1])
     good_files = good_files
     bad_files = bad_files.union(test_file_name_sets[1])
+    copy_test_file_name_set(test_file_name_sets[1])
 
     print(f"Upload the second file set: {upload_files}, \
           this should fail since first file set already there")
-    for f in test_file_name_sets[1]:
-        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
     try:
         run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
     except Exception as ex:
