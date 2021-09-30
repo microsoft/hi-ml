@@ -16,8 +16,7 @@ from typing import Generator
 from azureml.core import Workspace
 
 from health.azure.azure_util import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME, get_authentication,
-                                     get_secret_from_environment)
-from health.azure.himl import WORKSPACE_CONFIG_JSON
+                                     get_secret_from_environment, WORKSPACE_CONFIG_JSON)
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
