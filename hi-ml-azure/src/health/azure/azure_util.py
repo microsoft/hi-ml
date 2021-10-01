@@ -17,12 +17,11 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
 import ruamel.yaml
-from azure.storage.blob import BlobServiceClient
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
-
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -796,49 +795,62 @@ def is_local_rank_zero() -> bool:
     return global_rank is None and local_rank is None
 
 
-def download_blob_from_container(container_name: str, blob_name: str, validate_content: bool = False,
-                                 timeout: Optional[int] = None):
+def download_from_datastore(datastore_name: str, prefix: str, output_path: Path,
+                            aml_workspace: Optional[Workspace] = None,
+                            workspace_config_path: Optional[Path] = None,
+                            overwrite: bool = False,
+                            show_progress: bool = False):
     """
-    Download a file from a Blob Storage container. If validate_content is set to True, the MD5 hash of each
-    chunk of arriving data will be checked against that of the data sent. This can considerable increase file
-    download time
+    Download a file from an Azure ML Datastore that is registered within a given Workspace.
 
-    :param container_name: The name of the container where the blob lives
-    :param blob_name: The name of the blob to be downloaded
-    :param validate_content: If True, calculates an MD5 hash for each chunk of the blob and checks the hash
-        of the content that has arrived against that of the data sent
-    :param timeout: Optional integer representing the number of seconds before the request should timeout
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param datastore_name: The name of the Datastore containing the blob to be downloaded. This Datastore itself
+        must be an instance of an AzureBlobDatastore.
+    :param prefix: The prefix to the blob to be downloaded
+    :param output_path: The path to which the blob should be downloaded
+    :param aml_workspace: Optional Azure ML Workspace object
+    :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    :param overwrite: If True, will overwrite any existing file at the same remote path
+    :param show_progress: If True, will show the progress of the file download
     """
-    connection_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-    if not connection_str:
-        raise ValueError("To connect to blob storage you must set the environment variable"
-                         " AZURE_STORAGE_CONNECTION_STRING")  # for mypy
-    blob_service_client = BlobServiceClient.from_connection_string(connection_str)
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
-    blob_client.download_blob(validate_content=validate_content, timeout=timeout)
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    datastore = workspace.datastores[datastore_name]
+    assert isinstance(datastore, AzureBlobDatastore), \
+        "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
+    datastore.download(str(output_path), prefix=prefix, overwrite=overwrite, show_progress=show_progress)
+    logging.info(f"Downloaded data to {str(output_path)}")
 
 
-def upload_blob_to_container(container_name: str, file_to_upload: Path, tags: Optional[Dict[str, str]] = None,
-                             overwrite: bool = False, validate_content: bool = False,
-                             timeout: Optional[int] = None) -> None:
+def upload_to_datastore(datastore_name: str, local_data_dir: Path, remote_path: Path,
+                        aml_workspace: Optional[Workspace] = None,
+                        workspace_config_path: Optional[Path] = None,
+                        overwrite: bool = False,
+                        show_progress: bool = False):
     """
-    Upload a new blob to a Blob storage container
+    Upload a file to an Azure ML Datastore that is registered within a given Workspace.
 
-    :param container_name: The name of the container to upload the blob to
-    :param file_to_upload: Local path to blob to be uploaded
-    :param tags: Optional tags to associate with the uploaded blob
-    :param overwrite: If True, will overwrite an existing blob with the same name
-    :param validate_content: If True, calculates an MD5 hash for each chunk of the blob and checks the hash
-        of the content that has arrived against that of the data sent
-    :param timeout: Optional integer representing the number of seconds before the request should timeout
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param datastore_name: The name of the Datastore to which the blob should be uploaded. This Datastore itself
+        must be an instance of an AzureBlobDatastore
+    :param local_data_dir: The path to the local directory containing the data to be uploaded
+    :param remote_path: The path to which the blob should be uploaded
+    :param aml_workspace: Optional Azure ML Workspace object
+    :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    :param overwrite: If True, will overwrite any existing file at the same remote path
+    :param show_progress: If True, will show the progress of the file download
     """
-    file_name = file_to_upload.name
-    connection_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-    if not connection_str:
-        raise ValueError("To connect to blob storage you must set the environment variable"
-                         " AZURE_STORAGE_CONNECTION_STRING")  # for mypy
-    blob_service_client = BlobServiceClient.from_connection_string(connection_str)
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
-    with open(file_to_upload, "rb") as data:
-        blob_client.upload_blob(data, tags=tags, overwrite=overwrite,
-                                validate_content=validate_content, timeout=timeout)
+    if not local_data_dir.is_dir():
+        raise ValueError("local_path must be a directory")
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    datastore = workspace.datastores[datastore_name]
+    assert isinstance(datastore, AzureBlobDatastore), \
+        "Invalid datastore type. Can only upload to AzureBlobDatastore"  # for mypy
+    datastore.upload(str(local_data_dir), target_path=str(remote_path), overwrite=overwrite,
+                     show_progress=show_progress)
+    logging.info(f"Uploaded data to {str(remote_path)}")

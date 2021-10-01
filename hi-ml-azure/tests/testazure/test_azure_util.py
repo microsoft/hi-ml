@@ -18,9 +18,11 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
+from azureml._vendor.azure_storage.blob import Blob
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health.azure.azure_util as util
 from health.azure import himl
@@ -1008,55 +1010,79 @@ def test_is_local_rank_zero() -> None:
         assert not util.is_local_rank_zero()
 
 
-@patch("azure.storage.blob.BlobServiceClient.from_connection_string")
-@patch("health.azure.azure_util.open")
-def test_upload_blob_to_container(mock_open: MagicMock, mock_from_conn_str: MagicMock, tmp_path: Path):
-    dummy_container_name = "dummy_container"
-    file_contents = "Hello world"
-    mock_open.return_value.__enter__.return_value = file_contents
+@pytest.mark.parametrize("overwrite", [True, False])
+@pytest.mark.parametrize("show_progress", [True, False])
+def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress: bool):
+    """
+    Test that download_from_datastore successfully downloads file from Blob Storage.
+    Note that this will temporarily upload a file to the default datastore of the default workspace -
+    (determined by either a config.json file, or by specifying workspace settings in the environment variables).
+    After the test has completed, the blob will be deleted.
+    """
+    ws = DEFAULT_WORKSPACE.workspace
+    default_datastore: AzureBlobDatastore = ws.get_default_datastore()
+    dummy_file_content = "Hello world"
 
-    local_file_path = tmp_path / "dummyfile.txt"
-    local_file_path.touch()
-    local_file_path.write_text(file_contents)
+    # Create a dummy data file and upload to datastore
+    dummy_filename = "dummy_data.txt"
+    data_to_upload_path = tmp_path / dummy_filename
+    data_to_upload_path.touch()
+    data_to_upload_path.write_text(dummy_file_content)
+    test_data_path_remote = "test_data"
+    default_datastore.upload(str(tmp_path), test_data_path_remote, overwrite=False)
 
-    mock_blob_service_client = MagicMock()
+    # Check that the file doesn't currently exist at download location
+    downloaded_data_path = tmp_path / "downloads"
+    assert not downloaded_data_path.exists()
 
-    mock_from_conn_str.return_value = mock_blob_service_client
+    # Now attempt to download
+    util.download_from_datastore(default_datastore.name, test_data_path_remote, downloaded_data_path,
+                                 aml_workspace=ws, overwrite=overwrite, show_progress=show_progress)
+    assert downloaded_data_path.exists()
 
-    mock_blob_client = MagicMock()
-    mock_blob_service_client.get_blob_client = MagicMock(return_value=mock_blob_client)
-    mock_blob_client.upload_blob = MagicMock()
-
-    util.upload_blob_to_container(dummy_container_name, local_file_path)
-    mock_blob_service_client.get_blob_client.assert_called_once()
-    mock_blob_client.upload_blob.assert_called_once_with(
-        file_contents, tags=None, overwrite=False, validate_content=False, timeout=None)
-
-    # try changing the default values
-    dummy_tags = {"a", "b"}
-    dummy_timeout = 300
-    util.upload_blob_to_container(dummy_container_name, local_file_path, tags=dummy_tags,
-                                  overwrite=True, validate_content=True, timeout=dummy_timeout)
-    mock_blob_client.upload_blob.assert_called_with(
-        file_contents, tags=dummy_tags, overwrite=True, validate_content=True, timeout=dummy_timeout)
+    # Delete the file from Blob Storage
+    expected_remote_path = Path(test_data_path_remote) / dummy_filename
+    container = default_datastore.container_name
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
+                                                                    container_name=container))
+    existing_blob: Blob = existing_blobs[0]
+    default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
 
 
-def test_download_blob_from_container(tmp_path: Path):
-    dummy_container_name = 'dummy_container'
-    dummy_blob_path = Path("abc/def/my_data.txt")
-    mock_blob_service_client = MagicMock()
-    with patch("azure.storage.blob.BlobServiceClient.from_connection_string") as mock_from_conn_str:
-        mock_from_conn_str.return_value = mock_blob_service_client
+@pytest.mark.parametrize("overwrite", [True, False])
+@pytest.mark.parametrize("show_progress", [True, False])
+def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: bool):
+    """
+    Test that upload_to_datastore successfully uploads a file to Blob Storage.
+    Note that this will temporarily upload a file to the default datastore of the default workspace -
+    (determined by either a config.json file, or by specifying workspace settings in the environment variables).
+    After the test has completed, the blob will be deleted.
+    """
+    ws = DEFAULT_WORKSPACE.workspace
+    default_datastore: AzureBlobDatastore = ws.get_default_datastore()
+    container = default_datastore.container_name
+    dummy_file_content = "Hello world"
 
-        mock_blob_client = MagicMock()
-        mock_blob_service_client.get_blob_client = MagicMock(return_value=mock_blob_client)
-        mock_blob_client.download_blob = MagicMock()
+    remote_data_dir = "test_data"
+    dummy_file_name = "uploaded_file.txt"
+    expected_remote_path = Path(remote_data_dir) / dummy_file_name
 
-        util.download_blob_from_container(dummy_container_name, dummy_blob_path)
-        mock_blob_service_client.get_blob_client.assert_called_once()
-        mock_blob_client.download_blob.assert_called_once_with(validate_content=False, timeout=None)
+    # check that the file doesnt already exist in Blob Storage
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
+                                                                    container_name=container))
+    assert len(existing_blobs) == 0
 
-        dummy_timeout = 300
-        util.download_blob_from_container(dummy_container_name, dummy_blob_path, validate_content=True,
-                                          timeout=dummy_timeout)
-        mock_blob_client.download_blob.assert_called_with(validate_content=False, timeout=dummy_timeout)
+    # Create a dummy data file and upload to datastore
+    data_to_upload_path = tmp_path / dummy_file_name
+    data_to_upload_path.touch()
+    data_to_upload_path.write_text(dummy_file_content)
+
+    util.upload_to_datastore(default_datastore.name, tmp_path, Path(remote_data_dir), aml_workspace=ws,
+                             overwrite=overwrite, show_progress=show_progress)
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
+                                                                    container_name=container))
+    assert len(existing_blobs) == 1
+
+    # delete the blob from Blob Storage
+    existing_blob: Blob = existing_blobs[0]
+    default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
