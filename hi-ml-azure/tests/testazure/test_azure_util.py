@@ -1012,7 +1012,7 @@ def test_is_local_rank_zero() -> None:
 
 @pytest.mark.parametrize("overwrite", [True, False])
 @pytest.mark.parametrize("show_progress", [True, False])
-def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress: bool):
+def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress: bool) -> None:
     """
     Test that download_from_datastore successfully downloads file from Blob Storage.
     Note that this will temporarily upload a file to the default datastore of the default workspace -
@@ -1051,7 +1051,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress:
 
 @pytest.mark.parametrize("overwrite", [True, False])
 @pytest.mark.parametrize("show_progress", [True, False])
-def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: bool):
+def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: bool) -> None:
     """
     Test that upload_to_datastore successfully uploads a file to Blob Storage.
     Note that this will temporarily upload a file to the default datastore of the default workspace -

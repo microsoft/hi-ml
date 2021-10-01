@@ -799,7 +799,7 @@ def download_from_datastore(datastore_name: str, prefix: str, output_path: Path,
                             aml_workspace: Optional[Workspace] = None,
                             workspace_config_path: Optional[Path] = None,
                             overwrite: bool = False,
-                            show_progress: bool = False):
+                            show_progress: bool = False) -> None:
     """
     Download a file from an Azure ML Datastore that is registered within a given Workspace.
 
@@ -828,7 +828,7 @@ def upload_to_datastore(datastore_name: str, local_data_dir: Path, remote_path: 
                         aml_workspace: Optional[Workspace] = None,
                         workspace_config_path: Optional[Path] = None,
                         overwrite: bool = False,
-                        show_progress: bool = False):
+                        show_progress: bool = False) -> None:
     """
     Upload a file to an Azure ML Datastore that is registered within a given Workspace.
 
