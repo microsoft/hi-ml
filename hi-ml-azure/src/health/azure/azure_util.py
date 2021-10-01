@@ -588,7 +588,8 @@ def run_upload_folder(run: Run,
             downloaded_file_hash = hash_file(str(downloaded_file))
 
             local_file_hash = hash_file(f[1])
-            assert downloaded_file_hash == local_file_hash
+            if downloaded_file_hash != local_file_hash:
+                raise Exception(f"Files are different, {f[1]}")
 
         # Upload the new files.
         return run.upload_files(names=list(map(itemgetter(0), new_files)),

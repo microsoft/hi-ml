@@ -847,6 +847,47 @@ this should be fine, since overlaps handled")
 
             check_files(upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
 
+    # Step 3, modify the original set
+    for i in [1, 3, 5]:
+        rm_test_file_name_set()
+        copy_test_file_name_set(test_file_name_sets[i])
+        random_file = list(test_file_name_sets[i])[0]
+        random_upload_file = test_upload_folder / random_file
+        existing_text = random_upload_file.read_text()
+        random_upload_file.write_text("modified... " + existing_text)
+
+        for upload_data in upload_datas:
+            upload_data.good_files = upload_data.good_files.union(set())
+            upload_data.upload_files = upload_data.upload_files.union(set())
+
+            if upload_data.errors:
+                print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should fail, since file set: {test_file_name_sets[i]} already uploaded")
+
+                upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[j])
+
+                try:
+                    upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+                except Exception as ex:
+                    assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+                    for f in test_file_name_sets[i]:
+                        assert f"{f} already exists" in str(ex)
+
+            else:
+                print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should be raise an exception since one of the files has changed")
+
+                upload_data.bad_files = upload_data.bad_files.union(set())
+
+                try:
+                    upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+                except Exception as ex:
+                    print(f"Expected error in upload_folder: {str(ex)}")
+                    assert f"Files are different, {random_upload_file}" in str(ex)
+
+            j = j + 1
+            check_files(upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
+
 """
     }
     extra_args: List[str] = []
