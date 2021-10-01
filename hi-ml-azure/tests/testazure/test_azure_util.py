@@ -750,7 +750,7 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     dummy_data_sub_sub_folder = dummy_data_folder / "sub1" / "sub2" / "sub3"
     dummy_data_sub_sub_folder.mkdir(parents=True)
 
-    sub_sub_filenames = [dummy_data_sub_sub_folder / f"test_file{i}.txt" for i in range(18, 21)]
+    sub_sub_filenames = [dummy_data_sub_sub_folder / f"test_file{i}.txt" for i in range(18, 27)]
     filenames.extend(sub_sub_filenames)
 
     for filename in filenames:
@@ -773,13 +773,24 @@ import health.azure.azure_util as util""",
     filenames = filenames_list.read_text().split("\\n")
 
     test_file_name_sets = [
+        # Base level files
         set(filenames[:3]),
+        # Second set of base level files, distinct from the first
         set(filenames[3:6]),
+        # sub1 level files to check folder handling
         set(filenames[9:12]),
+        # Second set of sub1 level files, distinct from the first
         set(filenames[12:15]),
+        # sub1/sub2/sub3 level files to check folder handling when an extra level inserted
         set(filenames[18:21]),
+        # Second set of sub1/sub2/sub3 level files, distinct from the first
+        set(filenames[21:24]),
+        # Hold back base level files to test overlaps
         set(filenames[6:9]),
+        # Hold back sub1 level files to test overlaps
         set(filenames[15:18]),
+        # Hold back sub1/sub2/sub3 level files to test overlaps
+        set(filenames[24:27]),
     ]
 
     upload_datas = [
@@ -788,7 +799,7 @@ import health.azure.azure_util as util""",
     ]
 
     # Step 1, upload distinct file sets
-    for i in range(0, 5):
+    for i in range(0, 6):
         rm_test_file_name_set()
         copy_test_file_name_set(test_file_name_sets[i])
 
@@ -803,7 +814,7 @@ import health.azure.azure_util as util""",
             check_files(upload_data.good_files, upload_data.bad_files, i, upload_data.folder_name)
 
     # Step 2, upload the overlapping file sets
-    for (i, j) in [(1, 5), (3, 6)]:
+    for (i, j) in [(1, 6), (3, 7), (5, 8)]:
         rm_test_file_name_set()
         copy_test_file_name_set(test_file_name_sets[i])
         copy_test_file_name_set(test_file_name_sets[j])

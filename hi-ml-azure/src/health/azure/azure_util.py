@@ -563,11 +563,11 @@ def run_upload_folder(run: Run,
     # Get list of files in the local folder
     local_files = {f for f in Path(path).rglob("*") if f.is_file()}
     # Get list of file names as they would be after upload
-    local_file_named = {(str(f), f"{name}/{f.name}", f.name) for f in local_files}
+    local_file_named = {(f"{name}/{str(f.relative_to(path))}", str(f), f.name) for f in local_files}
     # Filter out the files that are both local and already uploaded
-    dup_files = [f for f in local_file_named if f[1] in existing_file_names]
+    dup_files = [f for f in local_file_named if f[0] in existing_file_names]
     # Filter out the files that are local but not uploaded.
-    new_files = [f for f in local_file_named if f[1] not in existing_file_names]
+    new_files = [f for f in local_file_named if f[0] not in existing_file_names]
 
     # If there are duplicate files then upload_folder fails
     if len(dup_files) == 0:
@@ -582,15 +582,15 @@ def run_upload_folder(run: Run,
         d.mkdir()
 
         for f in dup_files:
-            run.download_file(name=f[1],
+            run.download_file(name=f[0],
                               output_file_path=d)
             downloaded_file = d / f[2]
             downloaded_file_hash = hash_file(str(downloaded_file))
 
-            local_file_hash = hash_file(f[0])
+            local_file_hash = hash_file(f[1])
             assert downloaded_file_hash == local_file_hash
 
         # Upload the new files.
-        return run.upload_files(names=list(map(itemgetter(1), new_files)),
-                                paths=list(map(itemgetter(0), new_files)),
+        return run.upload_files(names=list(map(itemgetter(0), new_files)),
+                                paths=list(map(itemgetter(1), new_files)),
                                 datastore_name=datastore_name)
