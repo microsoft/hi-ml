@@ -14,6 +14,7 @@ import os
 import re
 from operator import itemgetter
 from pathlib import Path
+import shutil
 # from tempfile import TemporaryDirectory
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -560,7 +561,7 @@ def run_upload_folder(run: Run,
     # Get list of files already uploaded to the run wiith this name
     existing_file_names = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
     # Get list of files in the local folder
-    local_files = {f for f in Path(path).iterdir() if f.is_file()}
+    local_files = {f for f in Path(path).rglob("*") if f.is_file()}
     # Get list of file names as they would be after upload
     local_file_named = {(str(f), f"{name}/{f.name}", f.name) for f in local_files}
     # Filter out the files that are both local and already uploaded
@@ -576,6 +577,8 @@ def run_upload_folder(run: Run,
         # Check the duplicate files.
         # with TemporaryDirectory() as d:
         d = Path("outputs") / "test_download_folder"
+        if d.exists():
+            shutil.rmtree(d)
         d.mkdir()
 
         for f in dup_files:

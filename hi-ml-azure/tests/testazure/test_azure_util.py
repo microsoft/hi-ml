@@ -645,10 +645,10 @@ def test_get_aml_runs(tmp_path: Path) -> None:
 
 run_upload_folder_common = """
     def check_files(good_filenames, bad_filenames, step, upload_folder_name):
-        files = {f for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-        print(f"file_names_{step}_{upload_folder_name}: {files}")
-        all_filenames = good_filenames.union(bad_filenames)
-        assert files == {f"{upload_folder_name}/{f}" for f in all_filenames}
+        run_file_names = {f[len(upload_folder_name) + 1:]
+                          for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
+        print(f"file_names_{step}_{upload_folder_name}: {run_file_names}")
+        assert run_file_names == good_filenames.union(bad_filenames)
 
         download_folder_all = Path(f"outputs/download_folder_all_{step}_{upload_folder_name}")
         download_folder_all.mkdir()
@@ -663,21 +663,34 @@ run_upload_folder_common = """
                                             output_directory=str(download_folder_all),
                                             append_prefix=False)
             except Exception as ex:
-                print(f"Error in download_files: {str(ex)}")
+                print(f"Expected error in download_files: {str(ex)}")
+
+        downloaded_all_local_files = {str(f.relative_to(download_folder_all))
+                                      for f in download_folder_all.rglob("*") if f.is_file()}
+        print(f"file_names_{step}_{upload_folder_name}: downloaded_all_local_files:{downloaded_all_local_files}")
+        assert downloaded_all_local_files == good_filenames
 
         download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
         download_folder_ind.mkdir()
 
-        for f in good_filenames:
-            run_info.run.download_file(name=f"{upload_folder_name}/{f}",
-                                       output_file_path=str(download_folder_ind))
+        for f in good_filenames.union(bad_filenames):
+            target_folder = (download_folder_ind / f).parent
+            if not target_folder.exists():
+                target_folder.mkdir(parents=True)
 
-        for f in bad_filenames:
             try:
                 run_info.run.download_file(name=f"{upload_folder_name}/{f}",
-                                           output_file_path=str(download_folder_ind))
+                                           output_file_path=str(target_folder))
             except Exception as ex:
-                print(f"Error in download_file: {str(ex)}")
+                if f in bad_filenames:
+                    print(f"Eexpected error in download_file: {str(ex)}")
+                else:
+                    raise ex
+
+        downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
+                                      for f in download_folder_ind.rglob("*") if f.is_file()}
+        print(f"file_names_{step}_{upload_folder_name}: downloaded_ind_local_files:{downloaded_ind_local_files}")
+        assert downloaded_ind_local_files == good_filenames
 
     base_data_folder = Path("base_data")
     test_upload_folder = Path("test_data")
@@ -685,11 +698,16 @@ run_upload_folder_common = """
 
     def copy_test_file_name_set(test_file_name_set):
         for f in test_file_name_set:
+            target_folder = (test_upload_folder / f).parent
+            if not target_folder.exists():
+                target_folder.mkdir(parents=True)
+
             shutil.copyfile(base_data_folder / f, test_upload_folder / f)
 
-    def rm_test_file_name_set(test_file_name_set):
-        for f in test_file_name_set:
-            (test_upload_folder / f).unlink()
+    def rm_test_file_name_set():
+        if test_upload_folder.exists():
+            shutil.rmtree(test_upload_folder)
+        test_upload_folder.mkdir()
 
     upload_folder_names = ["uploaded_folder1", "uploaded_folder2"]
 
@@ -721,7 +739,19 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     dummy_data_folder.mkdir()
 
     # Create dummy text file names.
-    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 12)]
+    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 9)]
+
+    dummy_data_sub_folder = dummy_data_folder / "sub1"
+    dummy_data_sub_folder.mkdir()
+
+    sub_filenames = [dummy_data_sub_folder / f"test_file{i}.txt" for i in range(9, 18)]
+    filenames.extend(sub_filenames)
+
+    dummy_data_sub_sub_folder = dummy_data_folder / "sub1" / "sub2" / "sub3"
+    dummy_data_sub_sub_folder.mkdir(parents=True)
+
+    sub_sub_filenames = [dummy_data_sub_sub_folder / f"test_file{i}.txt" for i in range(18, 21)]
+    filenames.extend(sub_sub_filenames)
 
     for filename in filenames:
         filename.write_text(f"some test data: {uuid4().hex}")
@@ -745,8 +775,11 @@ import health.azure.azure_util as util""",
     test_file_name_sets = [
         set(filenames[:3]),
         set(filenames[3:6]),
+        set(filenames[9:12]),
+        set(filenames[12:15]),
+        set(filenames[18:21]),
         set(filenames[6:9]),
-        set(filenames[9:]),
+        set(filenames[15:18]),
     ]
 
     upload_datas = [
@@ -754,64 +787,55 @@ import health.azure.azure_util as util""",
         TestUploadData(upload_folder_names[1], himlupload, False)
     ]
 
-    # Step 1, upload the first file set
-    copy_test_file_name_set(test_file_name_sets[0])
+    # Step 1, upload distinct file sets
+    for i in range(0, 5):
+        rm_test_file_name_set()
+        copy_test_file_name_set(test_file_name_sets[i])
 
-    for upload_data in upload_datas:
-        upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[0])
-        upload_data.good_files = upload_data.good_files.union(test_file_name_sets[0])
-        upload_data.bad_files = upload_data.bad_files.union(set())
-
-        print(f"Upload the first file set: {upload_data.folder_name}, {upload_data.upload_files}")
-
-        upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
-        check_files(upload_data.good_files, upload_data.bad_files, 0, upload_data.folder_name)
-
-    # Step 2, remove first set and upload the second file set
-    rm_test_file_name_set(test_file_name_sets[0])
-    copy_test_file_name_set(test_file_name_sets[1])
-
-    for upload_data in upload_datas:
-        upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[1])
-        upload_data.good_files = upload_data.good_files.union(test_file_name_sets[1])
-        upload_data.bad_files = upload_data.bad_files.union(set())
-
-        print(f"Upload the second file set: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
-this should be fine, since this set is distinct")
-
-        upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
-        check_files(upload_data.good_files, upload_data.bad_files, 1, upload_data.folder_name)
-
-    # Step 3, upload the third file set
-    copy_test_file_name_set(test_file_name_sets[2])
-
-    for upload_data in upload_datas:
-        upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[2])
-
-        if upload_data.errors:
-            print(f"Upload the third file set: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
-this should fail, since file set: {test_file_name_sets[1]} already uploaded")
-
-            upload_data.good_files = upload_data.good_files.union(set())
-            upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[2])
-
-            try:
-                upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
-            except Exception as ex:
-                assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-                for f in test_file_name_sets[1]:
-                    assert f"{f} already exists" in str(ex)
-
-        else:
-            print(f"Upload the third file set: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
-this should be fine, since overlaps handled")
-
-            upload_data.good_files = upload_data.good_files.union(test_file_name_sets[2])
+        for upload_data in upload_datas:
+            upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[i])
+            upload_data.good_files = upload_data.good_files.union(test_file_name_sets[i])
             upload_data.bad_files = upload_data.bad_files.union(set())
 
-            upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+            print(f"Upload file set {i}: {upload_data.folder_name}, {upload_data.upload_files}")
 
-        check_files(upload_data.good_files, upload_data.bad_files, 2, upload_data.folder_name)
+            upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+            check_files(upload_data.good_files, upload_data.bad_files, i, upload_data.folder_name)
+
+    # Step 2, upload the overlapping file sets
+    for (i, j) in [(1, 5), (3, 6)]:
+        rm_test_file_name_set()
+        copy_test_file_name_set(test_file_name_sets[i])
+        copy_test_file_name_set(test_file_name_sets[j])
+
+        for upload_data in upload_datas:
+            upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[j])
+
+            if upload_data.errors:
+                print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should fail, since file set: {test_file_name_sets[i]} already uploaded")
+
+                upload_data.good_files = upload_data.good_files.union(set())
+                upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[j])
+
+                try:
+                    upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+                except Exception as ex:
+                    assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+                    for f in test_file_name_sets[i]:
+                        assert f"{f} already exists" in str(ex)
+
+            else:
+                print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+this should be fine, since overlaps handled")
+
+                upload_data.good_files = upload_data.good_files.union(test_file_name_sets[j])
+                upload_data.bad_files = upload_data.bad_files.union(set())
+
+                upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
+
+            check_files(upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
+
 """
     }
     extra_args: List[str] = []
