@@ -1006,3 +1006,50 @@ def test_is_local_rank_zero() -> None:
 
     with mock.patch.dict(os.environ, {util.ENV_GLOBAL_RANK: "1", util.ENV_LOCAL_RANK: "1"}):
         assert not util.is_local_rank_zero()
+
+
+# # TODO: delete
+# def test_check_testpoint_download(tmp_path: Path):
+#     ws = DEFAULT_WORKSPACE.workspace
+#     run_id = "JointChestXray_1631102222_01c55f72"
+#     prefix = "outputs/chexpert/unsupervised/unsupervised_impression"
+#     util.download_run_files_from_run_id(run_id, output_dir=tmp_path, prefix=prefix, workspace=ws)
+#     expected_path = tmp_path / prefix
+#     assert expected_path.is_dir()
+#     assert len([x for x in expected_path.iterdir()]) > 0
+
+
+@pytest.mark.slow
+def test_checkpoint_download(tmp_path: Path):
+    large_file_path = tmp_path / "dummy_checkpoint"
+    with open(large_file_path, "wb") as f_path:
+        f_path.seek((1024 * 1024 * 1024) - 1)
+        f_path.write(b"\0")
+    file_size = large_file_path.stat().st_size
+    logging.info(f"File size: {file_size}")
+
+    ws = DEFAULT_WORKSPACE.workspace
+    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    config = ScriptRunConfig(
+        source_directory=".",
+        command=["cd ."],  # command that does nothing
+        compute_target="local"
+    )
+    run = experiment.submit(config)
+
+    # This should store the file in outputs
+    prefix = "outputs/checkpoints/"
+    file_name = "dummy_checkpoint_1"
+    local_path = str(large_file_path)
+    run.upload_file(prefix + file_name, local_path)
+
+    output_file_path = tmp_path / prefix
+    assert not output_file_path.exists()
+
+    start_time = time.perf_counter()
+    util.download_run_files_from_run_id(run.id, output_dir=tmp_path, prefix=prefix, workspace=ws)
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    logging.info(f"Time taken to download file: {time_taken}")
+
+    assert output_file_path.exists()
