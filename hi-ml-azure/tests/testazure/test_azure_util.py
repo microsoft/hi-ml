@@ -1006,3 +1006,57 @@ def test_is_local_rank_zero() -> None:
 
     with mock.patch.dict(os.environ, {util.ENV_GLOBAL_RANK: "1", util.ENV_LOCAL_RANK: "1"}):
         assert not util.is_local_rank_zero()
+
+
+@patch("azure.storage.blob.BlobServiceClient.from_connection_string")
+@patch("health.azure.azure_util.open")
+def test_upload_blob_to_container(mock_open: MagicMock, mock_from_conn_str: MagicMock, tmp_path: Path):
+    dummy_container_name = "dummy_container"
+    file_contents = "Hello world"
+    mock_open.return_value.__enter__.return_value = file_contents
+
+    local_file_path = tmp_path / "dummyfile.txt"
+    local_file_path.touch()
+    local_file_path.write_text(file_contents)
+
+    mock_blob_service_client = MagicMock()
+
+    mock_from_conn_str.return_value = mock_blob_service_client
+
+    mock_blob_client = MagicMock()
+    mock_blob_service_client.get_blob_client = MagicMock(return_value=mock_blob_client)
+    mock_blob_client.upload_blob = MagicMock()
+
+    util.upload_blob_to_container(dummy_container_name, local_file_path)
+    mock_blob_service_client.get_blob_client.assert_called_once()
+    mock_blob_client.upload_blob.assert_called_once_with(
+        file_contents, tags=None, overwrite=False, validate_content=False, timeout=None)
+
+    # try changing the default values
+    dummy_tags = {"a", "b"}
+    dummy_timeout = 300
+    util.upload_blob_to_container(dummy_container_name, local_file_path, tags=dummy_tags,
+                                  overwrite=True, validate_content=True, timeout=dummy_timeout)
+    mock_blob_client.upload_blob.assert_called_with(
+        file_contents, tags=dummy_tags, overwrite=True, validate_content=True, timeout=dummy_timeout)
+
+
+def test_download_blob_from_container(tmp_path: Path):
+    dummy_container_name = 'dummy_container'
+    dummy_blob_path = Path("abc/def/my_data.txt")
+    mock_blob_service_client = MagicMock()
+    with patch("azure.storage.blob.BlobServiceClient.from_connection_string") as mock_from_conn_str:
+        mock_from_conn_str.return_value = mock_blob_service_client
+
+        mock_blob_client = MagicMock()
+        mock_blob_service_client.get_blob_client = MagicMock(return_value=mock_blob_client)
+        mock_blob_client.download_blob = MagicMock()
+
+        util.download_blob_from_container(dummy_container_name, dummy_blob_path)
+        mock_blob_service_client.get_blob_client.assert_called_once()
+        mock_blob_client.download_blob.assert_called_once_with(validate_content=False, timeout=None)
+
+        dummy_timeout = 300
+        util.download_blob_from_container(dummy_container_name, dummy_blob_path, validate_content=True,
+                                          timeout=dummy_timeout)
+        mock_blob_client.download_blob.assert_called_with(validate_content=False, timeout=dummy_timeout)

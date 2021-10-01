@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
 import ruamel.yaml
+from azure.storage.blob import BlobServiceClient
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
@@ -793,3 +794,51 @@ def is_local_rank_zero() -> bool:
     global_rank = os.getenv(ENV_GLOBAL_RANK)
     local_rank = os.getenv(ENV_LOCAL_RANK)
     return global_rank is None and local_rank is None
+
+
+def download_blob_from_container(container_name: str, blob_name: str, validate_content: bool = False,
+                                 timeout: Optional[int] = None):
+    """
+    Download a file from a Blob Storage container. If validate_content is set to True, the MD5 hash of each
+    chunk of arriving data will be checked against that of the data sent. This can considerable increase file
+    download time
+
+    :param container_name: The name of the container where the blob lives
+    :param blob_name: The name of the blob to be downloaded
+    :param validate_content: If True, calculates an MD5 hash for each chunk of the blob and checks the hash
+        of the content that has arrived against that of the data sent
+    :param timeout: Optional integer representing the number of seconds before the request should timeout
+    """
+    connection_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    if not connection_str:
+        raise ValueError("To connect to blob storage you must set the environment variable"
+                         " AZURE_STORAGE_CONNECTION_STRING")  # for mypy
+    blob_service_client = BlobServiceClient.from_connection_string(connection_str)
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    blob_client.download_blob(validate_content=validate_content, timeout=timeout)
+
+
+def upload_blob_to_container(container_name: str, file_to_upload: Path, tags: Optional[Dict[str, str]] = None,
+                             overwrite: bool = False, validate_content: bool = False,
+                             timeout: Optional[int] = None) -> None:
+    """
+    Upload a new blob to a Blob storage container
+
+    :param container_name: The name of the container to upload the blob to
+    :param file_to_upload: Local path to blob to be uploaded
+    :param tags: Optional tags to associate with the uploaded blob
+    :param overwrite: If True, will overwrite an existing blob with the same name
+    :param validate_content: If True, calculates an MD5 hash for each chunk of the blob and checks the hash
+        of the content that has arrived against that of the data sent
+    :param timeout: Optional integer representing the number of seconds before the request should timeout
+    """
+    file_name = file_to_upload.name
+    connection_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    if not connection_str:
+        raise ValueError("To connect to blob storage you must set the environment variable"
+                         " AZURE_STORAGE_CONNECTION_STRING")  # for mypy
+    blob_service_client = BlobServiceClient.from_connection_string(connection_str)
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
+    with open(file_to_upload, "rb") as data:
+        blob_client.upload_blob(data, tags=tags, overwrite=overwrite,
+                                validate_content=validate_content, timeout=timeout)
