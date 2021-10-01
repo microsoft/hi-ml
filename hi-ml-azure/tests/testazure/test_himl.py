@@ -28,7 +28,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health.azure.himl as himl
-from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, get_most_recent_run, WORKSPACE_CONFIG_JSON, get_workspace
+from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_workspace, get_most_recent_run
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root

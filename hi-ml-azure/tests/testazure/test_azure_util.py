@@ -5,12 +5,13 @@
 """
 Tests for the functions in health.azure.azure_util
 """
+import sys
 from argparse import ArgumentParser
 import os
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -499,128 +500,129 @@ class MockRun:
     def download_file(self) -> None:
         # for mypy
         pass
+#
+#
+# def test_determine_run_id_source(tmp_path: Path) -> None:
+#     parser = ArgumentParser()
+#     parser.add_argument("--latest_run_file", type=str)
+#     parser.add_argument("--experiment", type=str)
+#
+#     # If latest run path provided, expect source to be latest run file
+#     mock_latest_run_path = tmp_path / "most_recent_run.txt"
+#     mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
+#     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
+#
+#     # If experiment name is provided, expect source to be experiment
+#     mock_args = parser.parse_args(["--experiment", "fake_experiment"])
+#     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.EXPERIMENT_LATEST
+#
+#     parser = ArgumentParser()
+#     parser.add_argument("--run_recovery_id", type=str)
+#     parser.add_argument("--run_id", type=str)
+#
+#     # If single run recovery id is provided, expect source to be run_recovery_id
+#     mock_args = parser.parse_args(["--run_recovery_id", "experiment:run1234"])
+#     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_ID
+#
+#     # If run id provided, expect source to be run_id
+#     mock_args = parser.parse_args(["--run_id", "run1234"])
+#     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_ID
+#
+#     parser = ArgumentParser()
+#     parser.add_argument("--run_recovery_ids", nargs="+")
+#     parser.add_argument("--run_ids", nargs="+")
+#
+#     # If run recovery ids are provided, expect source to be run_recovery_id
+#     mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run1234", "experiment:5432"])
+#     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_IDS
+#
+#     # If run ids provided, expect source to be run_id
+#     mock_args = parser.parse_args(["--run_ids", "run1234", "run5432"])
+#     assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_IDS
+#
+#     # if none of the expected run source options are provided, assert that Exception is raised
+#     mock_args = parser.parse_args([])
+#     with pytest.raises(Exception):
+#         util.determine_run_id_source(mock_args)
 
 
-def test_determine_run_id_source(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--latest_run_file", type=str)
-    parser.add_argument("--experiment", type=str)
-
-    # If latest run path provided, expect source to be latest run file
-    mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
-
-    # If experiment name is provided, expect source to be experiment
-    mock_args = parser.parse_args(["--experiment", "fake_experiment"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.EXPERIMENT_LATEST
-
-    parser = ArgumentParser()
-    parser.add_argument("--run_recovery_id", type=str)
-    parser.add_argument("--run_id", type=str)
-
-    # If single run recovery id is provided, expect source to be run_recovery_id
-    mock_args = parser.parse_args(["--run_recovery_id", "experiment:run1234"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_ID
-
-    # If run id provided, expect source to be run_id
-    mock_args = parser.parse_args(["--run_id", "run1234"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_ID
-
-    parser = ArgumentParser()
-    parser.add_argument("--run_recovery_ids", nargs="+")
-    parser.add_argument("--run_ids", nargs="+")
-
-    # If run recovery ids are provided, expect source to be run_recovery_id
-    mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run1234", "experiment:5432"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_IDS
-
-    # If run ids provided, expect source to be run_id
-    mock_args = parser.parse_args(["--run_ids", "run1234", "run5432"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_IDS
-
-    # if none of the expected run source options are provided, assert that Exception is raised
-    mock_args = parser.parse_args([])
-    with pytest.raises(Exception):
-        util.determine_run_id_source(mock_args)
+@pytest.mark.parametrize("run_id, run_type", [
+    ("run_abc_4353", util.RunId),
+    ("expt_name:run_dfgd_4645", util.RunRecoveryId),
+    ("latest_run.txt", util.LatestRunPath),
+    ("MyExperiment", util.ExperimentParam)
+])
+def test_determine_run_id_type(run_id: str, run_type: util.RunSource):
+    assert isinstance(util.determine_run_id_type(run_id), run_type)
 
 
-def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
-    mock_run_id = 'mockrunid123'
+def test_get_aml_run_from_latest_run_file(tmp_path: Path) -> None:
+    mock_run_id = 'expt_name:mock_runid_123'
     mock_latest_run_path = tmp_path / "most_recent_run.txt"
     with open(mock_latest_run_path, 'w+') as f_path:
         f_path.write(mock_run_id)
-    parser = ArgumentParser()
-    parser.add_argument("--latest_run_file", type=str)
-    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
-    with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
-        with mock.patch("health.azure.azure_util.get_aml_run_from_run_id") as mock_fetch_run:
+    latest_run = util.LatestRunPath(mock_latest_run_path)
+
+    with mock.patch("health.azure.azure_util.get_workspace") as mock_get_workspace:
+        mock_workspace = MagicMock()
+        mock_get_workspace.return_value = mock_workspace
+        with mock.patch("health.azure.azure_util.fetch_run") as mock_fetch_run:
             mock_fetch_run.return_value = MockRun(mock_run_id)
-            aml_run = util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-            mock_fetch_run.assert_called_once_with(mock_run_id, aml_workspace=mock_workspace)
+            aml_run = util.get_aml_run(latest_run)
+            # aml_run = util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
+            mock_fetch_run.assert_called_once_with(mock_workspace, mock_run_id)
             assert aml_run.id == mock_run_id
 
     # if path doesn't exist, expect error
     with pytest.raises(Exception):
-        mock_args = parser.parse_args(["--latest_run_file", "idontexist"])
+        latest_run = util.LatestRunPath("idontexist")
         with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
-            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-
-    # if arg not provided, expect error
-    with pytest.raises(Exception):
-        mock_args = parser.parse_args(["--latest_run_file", None])  # type: ignore
-        with mock.patch("health.azure.azure_util.Workspace") as mock_workspace:
-            util.get_aml_runs_from_latest_run_file(mock_args, mock_workspace)
+            util.get_aml_run(latest_run)
 
 
-def test_get_latest_aml_runs_from_experiment() -> None:
+def test_get_latest_aml_run_from_experiment() -> None:
     def _get_experiment_runs() -> List[MockRun]:
         return [MockRun(), MockRun(), MockRun(), MockRun()]
 
     mock_experiment_name = "MockExperiment"
-    parser = ArgumentParser()
-    parser.add_argument("--experiment", type=str)
-    parser.add_argument("--tags", action="append", default=[])
-    parser.add_argument("--num_runs", type=int, default=1)
-    mock_args = parser.parse_args(["--experiment", mock_experiment_name])
+    experiment_param = util.ExperimentParam(mock_experiment_name)
     with mock.patch("health.azure.azure_util.Experiment") as mock_experiment:
         with mock.patch("health.azure.azure_util.Workspace",
                         experiments={mock_experiment_name: mock_experiment}
                         ) as mock_workspace:
             mock_experiment.get_runs.return_value = _get_experiment_runs()
-            aml_runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)
-            assert len(aml_runs) == 1  # if num_runs not provided, returns 1 by default
-            assert aml_runs[0].id == "run1234"
+            aml_run = util.get_aml_run(experiment_param, aml_workspace=mock_workspace)
+            assert aml_run.id == "run1234"
 
-    # Test that correct number of runs are returned if both experiment_name and num_runs are provided
-    mock_args = parser.parse_args(["--experiment", mock_experiment_name, "--num_runs", "3"])
-    with mock.patch("health.azure.azure_util.Experiment") as mock_experiment:
-        mock_experiment.get_runs.return_value = _get_experiment_runs()
-        with mock.patch("health.azure.azure_util.Workspace",
-                        experiments={mock_experiment_name: mock_experiment}
-                        ) as mock_workspace:
-            runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 3
-    assert runs[0].id == "run1234"
+    # # Test that correct number of runs are returned if both experiment_name and num_runs are provided
+    # # mock_args = parser.parse_args(["--experiment", mock_experiment_name, "--num_runs", "3"])
+    # with mock.patch("health.azure.azure_util.Experiment") as mock_experiment:
+    #     mock_experiment.get_runs.return_value = _get_experiment_runs()
+    #     with mock.patch("health.azure.azure_util.Workspace",
+    #                     experiments={mock_experiment_name: mock_experiment}
+    #                     ) as mock_workspace:
+    #         runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
+    # assert len(runs) == 3
+    # assert runs[0].id == "run1234"
 
     # Test that correct number of returns if both experiment and tags are provided
-    mock_args = parser.parse_args(["--experiment", mock_experiment_name, "--tags", "3"])
+    # TODO: What effect does tags have here?
+    experiment_param = util.ExperimentParam(mock_experiment_name, tags="3")
     with mock.patch("health.azure.azure_util.Experiment") as mock_experiment:
         mock_experiment.get_runs.return_value = _get_experiment_runs()
         with mock.patch("health.azure.azure_util.Workspace",
                         experiments={mock_experiment_name: mock_experiment}
                         ) as mock_workspace:
-            runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 1
-    assert runs[0].id == "run1234"
+            run = util.get_aml_run(experiment_param, aml_workspace=mock_workspace)
+    assert run.id == "run1234"
 
     # Test that value error is raised if experiment name is not in workspace
-    mock_args = parser.parse_args(["--experiment", "idontexist"])
+    experiment_param = util.ExperimentParam("idontexist")
     with pytest.raises(Exception):
         with mock.patch("health.azure.azure_util.Workspace",
                         experiments={mock_experiment_name: mock_experiment}
                         ) as mock_workspace:
-            util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
+            util.get_aml_run(experiment_param, mock_workspace)  # type: ignore
 
 
 def _mock_get_most_recent_run(path: Path, workspace: Workspace) -> MockRun:
@@ -1006,3 +1008,23 @@ def test_is_local_rank_zero() -> None:
 
     with mock.patch.dict(os.environ, {util.ENV_GLOBAL_RANK: "1", util.ENV_LOCAL_RANK: "1"}):
         assert not util.is_local_rank_zero()
+
+
+@pytest.mark.parametrize("dummy_recovery_id, expected_id_type", [
+    ("expt:run1234", util.RunRecoveryId),
+    ("['expt:432','expt2:111']",  util.RunRecoveryId),
+    ("run1234", util.RunId),
+    ("['run1234','run7654']", util.RunId)
+])
+def test_get_run_source(dummy_recovery_id: str,
+                        expected_id_type: Union[util.RunId, util.RunRecoveryId]):
+
+    arguments = ["", "--run", dummy_recovery_id]
+    with patch.object(sys, "argv", arguments):
+
+        run_source = util.ScriptConfig.parse_args()
+
+        if isinstance(run_source.run, str):
+            assert isinstance(run_source.run, expected_id_type)
+        elif isinstance(run_source.run, List):
+            assert isinstance(run_source.run[0], expected_id_type)

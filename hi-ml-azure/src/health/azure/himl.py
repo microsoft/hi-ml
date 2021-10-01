@@ -28,7 +28,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from health.azure.azure_util import (create_python_environment, create_run_recovery_id, _find_file,
                                      is_run_and_child_runs_completed, register_environment,
-                                     run_duration_string_to_seconds,
+                                     run_duration_string_to_seconds, PathOrString,
                                      to_azure_friendly_string, RUN_CONTEXT, get_workspace)
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
@@ -44,8 +44,6 @@ OUTPUT_FOLDER = "outputs"
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
-
-PathOrString = Union[Path, str]
 
 
 @dataclass
