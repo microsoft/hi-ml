@@ -1029,7 +1029,7 @@ def test_checkpoint_download(tmp_path: Path) -> None:
     for i in range(num_dummy_files):
         large_file_path = tmp_path / f"dummy_checkpoint_{i}"
         with open(large_file_path, "wb") as f_path:
-            f_path.seek((124 * 124 * 124) - 1)
+            f_path.seek((1024 * 1024 * 1024) - 1)
             f_path.write(b"\0")
         file_size = large_file_path.stat().st_size
         logging.info(f"File {i} size: {file_size}")
