@@ -893,7 +893,7 @@ def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expec
     mock_run.download_file.side_effect = _mock_download_file
 
     with mock.patch.dict(os.environ, dummy_env_vars):
-        util.download_run_file(mock_run, dummy_filename, expected_file_path)
+        _ = util.download_run_file(mock_run, dummy_filename, expected_file_path)
 
         if expect_file_downloaded:
             mock_run.download_file.assert_called_with(dummy_filename, output_file_path=expected_file_path,
@@ -925,7 +925,7 @@ def test_download_run_file_remote(tmp_path: Path) -> None:
     assert not output_file_path.exists()
 
     start_time = time.perf_counter()
-    util.download_run_file(run, "dummy_file", output_file_path)
+    _ = util.download_run_file(run, "dummy_file", output_file_path)
     end_time = time.perf_counter()
     time_dont_validate_checksum = end_time - start_time
 
@@ -936,7 +936,7 @@ def test_download_run_file_remote(tmp_path: Path) -> None:
     output_file_path.unlink()
     assert not output_file_path.exists()
     start_time = time.perf_counter()
-    util.download_run_file(run, "dummy_file", output_file_path, validate_checksum=True)
+    _ = util.download_run_file(run, "dummy_file", output_file_path, validate_checksum=True)
     end_time = time.perf_counter()
     time_validate_checksum = end_time - start_time
 
@@ -1008,25 +1008,14 @@ def test_is_local_rank_zero() -> None:
         assert not util.is_local_rank_zero()
 
 
-# # TODO: delete
-# def test_check_testpoint_download(tmp_path: Path):
-#     ws = DEFAULT_WORKSPACE.workspace
-#     run_id = "JointChestXray_1631102222_01c55f72"
-#     prefix = "outputs/chexpert/unsupervised/unsupervised_impression"
-#     util.download_run_files_from_run_id(run_id, output_dir=tmp_path, prefix=prefix, workspace=ws)
-#     expected_path = tmp_path / prefix
-#     assert expected_path.is_dir()
-#     assert len([x for x in expected_path.iterdir()]) > 0
-
-
 @pytest.mark.slow
-def test_checkpoint_download(tmp_path: Path):
-    large_file_path = tmp_path / "dummy_checkpoint"
-    with open(large_file_path, "wb") as f_path:
-        f_path.seek((1024 * 1024 * 1024) - 1)
-        f_path.write(b"\0")
-    file_size = large_file_path.stat().st_size
-    logging.info(f"File size: {file_size}")
+def test_checkpoint_download(tmp_path: Path) -> None:
+    """
+    Creates a very large dummy file and ensures we can upload it to a Run and subsequently download
+    with no issues, thus replicating the behaviour of downloading a large checkpoint file.
+    """
+    num_dummy_files = 2
+    prefix = "outputs/checkpoints/"
 
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
@@ -1037,19 +1026,29 @@ def test_checkpoint_download(tmp_path: Path):
     )
     run = experiment.submit(config)
 
-    # This should store the file in outputs
-    prefix = "outputs/checkpoints/"
-    file_name = "dummy_checkpoint_1"
-    local_path = str(large_file_path)
-    run.upload_file(prefix + file_name, local_path)
+    for i in range(num_dummy_files):
+        large_file_path = tmp_path / f"dummy_checkpoint_{i}"
+        with open(large_file_path, "wb") as f_path:
+            f_path.seek((124 * 124 * 124) - 1)
+            f_path.write(b"\0")
+        file_size = large_file_path.stat().st_size
+        logging.info(f"File {i} size: {file_size}")
 
-    output_file_path = tmp_path / prefix
-    assert not output_file_path.exists()
+        # This should store the file in outputs
+        file_name = f"dummy_checkpoint_{i}"
+        local_path = str(large_file_path)
+        run.upload_file(prefix + file_name, local_path)
+
+    # Check the local dir is empty to begin with
+    output_file_dir = tmp_path
+    assert not (output_file_dir / prefix).exists()
 
     start_time = time.perf_counter()
-    util.download_run_files_from_run_id(run.id, output_dir=tmp_path, prefix=prefix, workspace=ws)
+    # util.download_run_files_from_run_id(run.id, output_dir=tmp_path, prefix=prefix, workspace=ws)
+    util.download_checkpoints_from_run(run.id, prefix, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
 
-    assert output_file_path.exists()
+    assert (output_file_dir / prefix).is_dir()
+    assert len(list((output_file_dir / prefix).iterdir())) == num_dummy_files

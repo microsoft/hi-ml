@@ -545,7 +545,7 @@ def get_latest_aml_runs_from_experiment(args: Namespace, workspace: Workspace) -
 
     :param args: command line args including experiment name and number of runs to return
     :param workspace: AML Workspace
-    :raises ValueError: If Experiment experiment doen't exist within Workspace
+    :raises ValueError: If Experiment experiment doesn't exist within Workspace
     :return: List of AML Runs
     """
     experiment_name = args.experiment
@@ -716,13 +716,14 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
-def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
+def download_run_files(run: Run, output_dir: Path, prefix: str = "", validate_checksum: bool = False) -> None:
     """
     Download all files for a given run, which optionally start with a given prefix
 
     :param run: The AML Run to download associated files for
     :param output_dir: Local directory to which the Run files should be downloaded.
     :param prefix: Optional prefix to filter Run files by
+    :param validate_checksum: Whether to validate the content from HTTP response
     """
     run_paths = get_run_file_names(run, prefix=prefix)
     if len(run_paths) == 0:
@@ -730,12 +731,13 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
 
     for run_path in run_paths:
         output_path = output_dir / run_path
-        download_run_file(run, run_path, output_path)
+        _ = download_run_file(run, run_path, output_path, validate_checksum=validate_checksum)
 
 
 def download_run_files_from_run_id(run_id: str, output_dir: Path, prefix: str = "",
                                    workspace: Optional[Workspace] = None,
-                                   workspace_config_path: Optional[Path] = None) -> None:
+                                   workspace_config_path: Optional[Path] = None,
+                                   validate_checksum: bool = None) -> None:
     """
     For a given Azure ML run id, first retrieve the Run, and then download all files,
     which optionally start with a given prefix
@@ -745,6 +747,7 @@ def download_run_files_from_run_id(run_id: str, output_dir: Path, prefix: str = 
     :param prefix: Optional prefix to filter Run files by
     :param workspace: Optional Azure ML Workspace object
     :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    :param validate_checksum: Whether to validate the content from HTTP response
     """
     workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
     run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
@@ -793,3 +796,24 @@ def is_local_rank_zero() -> bool:
     global_rank = os.getenv(ENV_GLOBAL_RANK)
     local_rank = os.getenv(ENV_LOCAL_RANK)
     return global_rank is None and local_rank is None
+
+
+def download_checkpoints_from_run(run_id: str, checkpoint_dir: str, output_path: Path,
+                                  aml_workspace: Optional[Workspace] = None,
+                                  workspace_config_path: Optional[Path] = None) -> None:
+    """
+    Given an Azure ML run id, download all files from a given checkpoint directory within that run.
+    If running in AML, will take the
+    current workspace. Otherwise, if neither aml_workspace nor workspace_config_path are provided,
+    will try to locate a config.json file in any of the parent folders of the current working directory.
+
+    :param run_id: The id of the run to download checkpoints from
+    :param checkpoint_dir: The path to the checkpoints directory within the run files
+    :param output_path: The path to which the checkpoints should be stored
+    :param aml_workspace: Optional AML workspace object
+    :param workspace_config_path: Optional workspace config file
+    """
+    # TODO: once refactoring is merged, update the first param to be union run type
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    download_run_files_from_run_id(run_id, output_path, prefix=checkpoint_dir, workspace=workspace,
+                                   validate_checksum=True)
