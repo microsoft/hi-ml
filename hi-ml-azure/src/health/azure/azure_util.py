@@ -563,7 +563,7 @@ def run_upload_folder(run: Run,
     # Get list of files in the local folder
     local_files = {f for f in Path(path).rglob("*") if f.is_file()}
     # Get list of file names as they would be after upload
-    local_file_named = {(f"{name}/{str(f.relative_to(path))}", str(f), f.name) for f in local_files}
+    local_file_named = {(f"{name}/{f.relative_to(path)}", str(f), f.name) for f in local_files}
     # Filter out the files that are both local and already uploaded
     dup_files = [f for f in local_file_named if f[0] in existing_file_names]
     # Filter out the files that are local but not uploaded.
