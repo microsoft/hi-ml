@@ -653,11 +653,14 @@ run_upload_folder_common = """
         :param upload_folder_name: Upload folder name.
         :return: None.
         \"\"\"
+        print_prefix = f"check_files_{step}_{upload_folder_name}:"
+        print(f"{print_prefix} good_filenames:{good_filenames}")
+        print(f"{print_prefix} bad_filenames:{bad_filenames}")
 
         # Download all the file names for this upload_folder_name, stripping off the leading upload_folder_name and /
         run_file_names = {f[len(upload_folder_name) + 1:]
                           for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-        print(f"file_names_{step}_{upload_folder_name}: run_file_names:{run_file_names}")
+        print(f"{print_prefix} run_file_names:{run_file_names}")
         # This should be the same as the list of good and bad filenames combined.
         assert run_file_names == good_filenames.union(bad_filenames)
 
@@ -677,13 +680,14 @@ run_upload_folder_common = """
                 run_info.run.download_files(prefix=upload_folder_name,
                                             output_directory=str(download_folder_all),
                                             append_prefix=False)
-            except Exception as ex:
+            except AzureMLException as ex:
                 print(f"Expected error in download_files: {str(ex)}")
+                assert "Failed to flush task queue within 120 seconds" in str(ex)
 
         # Glob the list of all the files that have been downloaded relative to the download folder.
         downloaded_all_local_files = {str(f.relative_to(download_folder_all))
                                       for f in download_folder_all.rglob("*") if f.is_file()}
-        print(f"file_names_{step}_{upload_folder_name}: downloaded_all_local_files:{downloaded_all_local_files}")
+        print(f"{print_prefix} downloaded_all_local_files:{downloaded_all_local_files}")
         # This should be the same as the list of good filenames.
         assert downloaded_all_local_files == good_filenames
 
@@ -712,7 +716,7 @@ run_upload_folder_common = """
         # Glob the list of all the files that have been downloaded relative to the download folder.
         downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
                                       for f in download_folder_ind.rglob("*") if f.is_file()}
-        print(f"file_names_{step}_{upload_folder_name}: downloaded_ind_local_files:{downloaded_ind_local_files}")
+        print(f"{print_prefix} downloaded_ind_local_files:{downloaded_ind_local_files}")
         # This should be the same as the list of good filenames.
         assert downloaded_ind_local_files == good_filenames
 
@@ -806,6 +810,7 @@ def test_run_upload_folder(tmp_path: Path) -> None:
 from dataclasses import dataclass, field
 import shutil
 import sys
+from azureml.exceptions import AzureMLException
 import health.azure.azure_util as util""",
         'body': run_upload_folder_common + """
 
@@ -958,7 +963,8 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
         'imports': """
 from dataclasses import dataclass, field
 import shutil
-import sys""",
+import sys
+from azureml.exceptions import AzureMLException""",
         'body': run_upload_folder_common + """
 
     upload_folder_name = "uploaded_folder"
