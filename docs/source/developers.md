@@ -78,3 +78,19 @@ When running the tests locally, they can either be run against the source direct
 - To run the tests against the source directly in the local `src` folder, ensure that there is no wheel in the `dist` folder (for example by running `make clean`). If a wheel is not detected, then the local `src` folder will be copied into the temporary test folder as part of the test process.
 
 - To run the tests against the source as a package, build it with `make build`. This will build the local `src` folder into a new wheel in the `dist` folder. This wheel will be detected and passed to AzureML as a private package as part of the test process.
+
+
+## Creating a New Release
+
+To create a new package release (for example `0.12.17`), follow these steps:
+* Modify `CHANGELOG.md` as follows:
+  * Copy the whole section called "Upcoming", including its subsections for "Added/Removed/..." to a new section 
+  that is called "0.12.17 (2021-10-21)", using the current date. In the section for the new release, remove any empty
+  subsections if needed.
+  * Clean up all PR links from the "Upcoming" section, to effectively create an empty template for the next release.
+* Create a PR for this change. While creating the PR, add the "no changelog needed" label that exists on the repo.
+  *Important*: This label needs to be added right when the PR is created, not afterwards - the github workflows will
+  not pick it up if added afterwards. In the worst case, you can added the label afterwards, and push a whitespace
+  change to the PR.
+* Once the PR with the updated `CHANGELOG.md` is in, create a tag that has the desired version number, plus a "v" 
+  prefix. For example, to create package version 0.12.17, create a tag `v0.12.17`
