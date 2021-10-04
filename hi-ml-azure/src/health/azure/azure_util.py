@@ -813,7 +813,8 @@ def download_from_datastore(datastore_name: str, prefix: str, output_path: Path,
     :param output_path: The path to which the blob should be downloaded
     :param aml_workspace: Optional Azure ML Workspace object
     :param workspace_config_path: Optional path to settings for Azure ML Workspace
-    :param overwrite: If True, will overwrite any existing file at the same remote path
+    :param overwrite: If True, will overwrite any existing file at the same remote path.
+        If False, will skip any duplicate file.
     :param show_progress: If True, will show the progress of the file download
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
@@ -830,7 +831,8 @@ def upload_to_datastore(datastore_name: str, local_data_dir: Path, remote_path: 
                         overwrite: bool = False,
                         show_progress: bool = False) -> None:
     """
-    Upload a file to an Azure ML Datastore that is registered within a given Workspace.
+    Upload a folder to an Azure ML Datastore that is registered within a given Workspace. Note that this will upload
+    all files within the folder.
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
@@ -842,7 +844,8 @@ def upload_to_datastore(datastore_name: str, local_data_dir: Path, remote_path: 
     :param remote_path: The path to which the blob should be uploaded
     :param aml_workspace: Optional Azure ML Workspace object
     :param workspace_config_path: Optional path to settings for Azure ML Workspace
-    :param overwrite: If True, will overwrite any existing file at the same remote path
+    :param overwrite: If True, will overwrite any existing file at the same remote path. 
+        If False, will skip any duplicate files and continue to the next.
     :param show_progress: If True, will show the progress of the file download
     """
     if not local_data_dir.is_dir():
