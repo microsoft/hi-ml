@@ -645,19 +645,34 @@ def test_get_aml_runs(tmp_path: Path) -> None:
 
 run_upload_folder_common = """
     def check_files(good_filenames, bad_filenames, step, upload_folder_name):
+        \"\"\"
+        Check that the list of files that have been uploaded to the run for this folder name are as expected.
+
+        :param good_filenames: List of filenames that should have been uploaded without error.
+        :param bad_filenames: List of filenames that are expected to have been uploaded with an error.
+        :param upload_folder_name: Upload folder name.
+        :return: None.
+        \"\"\"
+
+        # Download all the file names for this upload_folder_name, stripping off the leading upload_folder_name and /
         run_file_names = {f[len(upload_folder_name) + 1:]
                           for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-        print(f"file_names_{step}_{upload_folder_name}: {run_file_names}")
+        print(f"file_names_{step}_{upload_folder_name}: run_file_names:{run_file_names}")
+        # This should be the same as the list of good and bad filenames combined.
         assert run_file_names == good_filenames.union(bad_filenames)
 
+        # Make a folder to download them all at once
         download_folder_all = Path(f"outputs/download_folder_all_{step}_{upload_folder_name}")
         download_folder_all.mkdir()
 
         if len(bad_filenames) == 0:
+            # With no bad filenames, it should be possible to just download them all at once
+            # The option 'append_prefix' actually removes the upload_folder_name.
             run_info.run.download_files(prefix=upload_folder_name,
                                         output_directory=str(download_folder_all),
                                         append_prefix=False)
         else:
+            # With bad filenames, run.download_files with raise an exception.
             try:
                 run_info.run.download_files(prefix=upload_folder_name,
                                             output_directory=str(download_folder_all),
@@ -665,38 +680,56 @@ run_upload_folder_common = """
             except Exception as ex:
                 print(f"Expected error in download_files: {str(ex)}")
 
+        # Glob the list of all the files that have been downloaded relative to the download folder.
         downloaded_all_local_files = {str(f.relative_to(download_folder_all))
                                       for f in download_folder_all.rglob("*") if f.is_file()}
         print(f"file_names_{step}_{upload_folder_name}: downloaded_all_local_files:{downloaded_all_local_files}")
+        # This should be the same as the list of good filenames.
         assert downloaded_all_local_files == good_filenames
 
+        # Make a folder to download them individually
         download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
         download_folder_ind.mkdir()
 
         for f in good_filenames.union(bad_filenames):
+            # Each file may be in a sub folder, make sure it exists before trying download.
             target_folder = (download_folder_ind / f).parent
             if not target_folder.exists():
                 target_folder.mkdir(parents=True)
 
             try:
+                # Try to download each file
                 run_info.run.download_file(name=f"{upload_folder_name}/{f}",
                                            output_file_path=str(target_folder))
             except Exception as ex:
                 if f in bad_filenames:
-                    print(f"Eexpected error in download_file: {str(ex)}")
+                    # If this file is in the list of bad_filenames this is expected to raise an exception.
+                    print(f"Expected error in download_file: {str(ex)}")
                 else:
+                    # Otherwise, reraise the exception to terminate the run.
                     raise ex
 
+        # Glob the list of all the files that have been downloaded relative to the download folder.
         downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
                                       for f in download_folder_ind.rglob("*") if f.is_file()}
         print(f"file_names_{step}_{upload_folder_name}: downloaded_ind_local_files:{downloaded_ind_local_files}")
+        # This should be the same as the list of good filenames.
         assert downloaded_ind_local_files == good_filenames
 
+    # The folder where the test files have been created. Since they are in a subfolder of the script, they should
+    # have been uploaded.
     base_data_folder = Path("base_data")
+    # Create a new folder to upload files from
     test_upload_folder = Path("test_data")
     test_upload_folder.mkdir()
 
     def copy_test_file_name_set(test_file_name_set):
+        \"\"\"
+        Copy a set of test files from the base_data folder to the test_data folder, making sure parent folders exist.
+
+        :param test_file_name_set: Set of files to copy.
+        :return: None.
+        \"\"\"
         for f in test_file_name_set:
             target_folder = (test_upload_folder / f).parent
             if not target_folder.exists():
@@ -705,18 +738,25 @@ run_upload_folder_common = """
             shutil.copyfile(base_data_folder / f, test_upload_folder / f)
 
     def rm_test_file_name_set():
+        \"\"\"
+        Completely remove the test_data folder and recreate it.
+
+        :return: None.
+        \"\"\"
         if test_upload_folder.exists():
             shutil.rmtree(test_upload_folder)
         test_upload_folder.mkdir()
 
-    upload_folder_names = ["uploaded_folder1", "uploaded_folder2"]
-
-
+    # Lambda function to upload a folder using AzureML directly.
     amlupload = lambda run, name, path: run.upload_folder(name, str(path))
+    # Lambda function to upload a folder using the HI-ML wrapper function.
     himlupload = lambda run, name, path: util.run_upload_folder(run, name, str(path))
 
     @dataclass
     class TestUploadData:
+        \"\"\"
+        Class to track progress of uploading test file sets and tracking expected results.
+        \"\"\"
         # Name of folder
         folder_name: str
         # Function to use for upload
@@ -794,8 +834,8 @@ import health.azure.azure_util as util""",
     ]
 
     upload_datas = [
-        # TestUploadData(upload_folder_names[0], amlupload, True),
-        TestUploadData(upload_folder_names[1], himlupload, False)
+        TestUploadData("uploaded_folder_aml", amlupload, True),
+        TestUploadData("uploaded_folder_himl", himlupload, False)
     ]
 
     # Step 1, upload distinct file sets
@@ -921,6 +961,8 @@ import shutil
 import sys""",
         'body': run_upload_folder_common + """
 
+    upload_folder_name = "uploaded_folder"
+
     filenames = ["test_file0.txt", "test_file1.txt"]
 
     test_file_name_sets = [
@@ -935,9 +977,9 @@ import sys""",
     copy_test_file_name_set(test_file_name_sets[0])
 
     print(f"Upload the first file set: {upload_files}")
-    run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
+    run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
 
-    check_files(good_files, bad_files, 1, upload_folder_names[0])
+    check_files(good_files, bad_files, 1, upload_folder_name)
 
     # Step 2, upload the second file set
     upload_files = upload_files.union(test_file_name_sets[1])
@@ -948,13 +990,13 @@ import sys""",
     print(f"Upload the second file set: {upload_files}, \
           this should fail since first file set already there")
     try:
-        run_info.run.upload_folder(upload_folder_names[0], str(test_upload_folder))
+        run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
     except Exception as ex:
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
         for f in good_files:
             assert f"{f} already exists" in str(ex)
 
-    check_files(good_files, bad_files, 2, upload_folder_names[0])
+    check_files(good_files, bad_files, 2, upload_folder_name)
 """
     }
 
