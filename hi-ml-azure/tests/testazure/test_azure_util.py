@@ -1022,14 +1022,23 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress:
     ws = DEFAULT_WORKSPACE.workspace
     default_datastore: AzureBlobDatastore = ws.get_default_datastore()
     dummy_file_content = "Hello world"
+    local_data_path = tmp_path / "local_data"
+    local_data_path.mkdir()
+    test_data_path_remote = "test_data/abc"
 
-    # Create a dummy data file and upload to datastore
-    dummy_filename = "dummy_data.txt"
-    data_to_upload_path = tmp_path / dummy_filename
-    data_to_upload_path.touch()
-    data_to_upload_path.write_text(dummy_file_content)
-    test_data_path_remote = "test_data"
-    default_datastore.upload(str(tmp_path), test_data_path_remote, overwrite=False)
+    # Create dummy data files and upload to datastore (checking they are uploaded)
+    dummy_filenames = []
+    num_dummy_files = 2
+    for i in range(num_dummy_files):
+        dummy_filename = f"dummy_data_{i}.txt"
+        dummy_filenames.append(dummy_filename)
+        data_to_upload_path = local_data_path / dummy_filename
+        data_to_upload_path.touch()
+        data_to_upload_path.write_text(dummy_file_content)
+    default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
+                                                                    container_name=default_datastore.container_name))
+    assert len(existing_blobs) == num_dummy_files
 
     # Check that the file doesn't currently exist at download location
     downloaded_data_path = tmp_path / "downloads"
@@ -1038,15 +1047,17 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress:
     # Now attempt to download
     util.download_from_datastore(default_datastore.name, test_data_path_remote, downloaded_data_path,
                                  aml_workspace=ws, overwrite=overwrite, show_progress=show_progress)
-    assert downloaded_data_path.exists()
+    expected_local_download_dir = downloaded_data_path / test_data_path_remote
+    assert expected_local_download_dir.exists()
+    expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
+    assert all([p.exists() for p in expected_download_paths])
 
     # Delete the file from Blob Storage
-    expected_remote_path = Path(test_data_path_remote) / dummy_filename
     container = default_datastore.container_name
-    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
                                                                     container_name=container))
-    existing_blob: Blob = existing_blobs[0]
-    default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+    for existing_blob in existing_blobs:
+        default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1064,8 +1075,8 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     dummy_file_content = "Hello world"
 
     remote_data_dir = "test_data"
-    dummy_file_name = "uploaded_file.txt"
-    expected_remote_path = Path(remote_data_dir) / dummy_file_name
+    dummy_file_name = Path("abc/uploaded_file.txt")
+    expected_remote_path = Path(remote_data_dir) / dummy_file_name.name
 
     # check that the file doesnt already exist in Blob Storage
     existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
@@ -1074,11 +1085,12 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
 
     # Create a dummy data file and upload to datastore
     data_to_upload_path = tmp_path / dummy_file_name
+    data_to_upload_path.parent.mkdir(exist_ok=True, parents=True)
     data_to_upload_path.touch()
     data_to_upload_path.write_text(dummy_file_content)
 
-    util.upload_to_datastore(default_datastore.name, tmp_path, Path(remote_data_dir), aml_workspace=ws,
-                             overwrite=overwrite, show_progress=show_progress)
+    util.upload_to_datastore(default_datastore.name, data_to_upload_path.parent, Path(remote_data_dir),
+                             aml_workspace=ws, overwrite=overwrite, show_progress=show_progress)
     existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
                                                                     container_name=container))
     assert len(existing_blobs) == 1
