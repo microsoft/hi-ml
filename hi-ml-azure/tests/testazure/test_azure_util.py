@@ -16,17 +16,17 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import conda_merge
-import health.azure.azure_util as util
-import health.azure.himl as himl
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
-from azureml.core.conda_dependencies import CondaDependencies
-from health.azure.azure_util import get_most_recent_run
+from azureml.core.environment import CondaDependencies
+
+import health.azure.azure_util as util
+from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import change_working_directory, check_config_json, repository_root, DEFAULT_WORKSPACE
+from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory, check_config_json
 
 
 RUN_ID = uuid4().hex
@@ -1318,8 +1318,8 @@ this should be raise an exception since one of the files has changed")
     with check_config_json(tmp_path):
         workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
 
-    run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                              workspace=workspace)
+    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                   workspace=workspace)
     assert run.status == "Completed"
 
 
@@ -1389,6 +1389,6 @@ from azureml.exceptions import AzureMLException""",
     with check_config_json(tmp_path):
         workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
 
-    run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                              workspace=workspace)
+    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                   workspace=workspace)
     assert run.status == "Completed"
