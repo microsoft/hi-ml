@@ -82,11 +82,12 @@ When running the tests locally, they can either be run against the source direct
 
 ## Creating a New Release
 
-To create a new package release (for example `0.12.17`), follow these steps:
+To create a new package release, follow these steps:
 * Modify `CHANGELOG.md` as follows:
-  * Copy the whole section called "Upcoming", including its subsections for "Added/Removed/..." to a new section 
-  that is called "0.12.17 (2021-10-21)", using the current date. In the section for the new release, remove any empty
-  subsections if needed.
+  * Copy the whole section called "Upcoming", including its subsections for "Added/Removed/..." to a new section,
+  that has the desired package version and the current date as the title. For example, to release package version 
+  `0.12.17` on Oct 10th, that section would be called "0.12.17 (2021-10-21)". 
+  * In the section for the new release, remove any empty subsections if needed.
   * Clean up all PR links from the "Upcoming" section, to effectively create an empty template for the next release.
 * Create a PR for this change. While creating the PR, add the "no changelog needed" label that exists on the repo.
   *Important*: This label needs to be added right when the PR is created, not afterwards - the github workflows will
