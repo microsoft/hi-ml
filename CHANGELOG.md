@@ -13,6 +13,18 @@ created.
 ## Upcoming
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+## 0.1.7 (2021-10-04)
+
+### Added
 - ([#111](https://github.com/microsoft/hi-ml/pull/111)) Adding changelog. Displaying changelog in sphinx docu. Ensure changelog is updated.
 
 ### Changed
@@ -25,9 +37,6 @@ created.
 - ([#117](https://github.com/microsoft/hi-ml/pull/117)) Bug fix: Config.json file was expected to be present, even if workspace was provided explicitly.
 - ([#119](https://github.com/microsoft/hi-ml/pull/119)) Bug fix: Code coverage wasn't formatted correctly.
 
-### Removed
-
-### Deprecated
 
 ## 0.1.4 (2021-09-15)
 
