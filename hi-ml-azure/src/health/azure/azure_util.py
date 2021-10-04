@@ -558,7 +558,7 @@ def run_upload_folder(run: Run,
     :param path: The relative local path to the folder to upload.
     :param datastore_name: Optional DataStore name
     """
-    # Get list of files already uploaded to the run wiith this name
+    # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
     # Get list of files in the local folder
     local_files = {f for f in Path(path).rglob("*") if f.is_file()}
