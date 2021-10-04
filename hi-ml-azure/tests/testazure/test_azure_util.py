@@ -1054,8 +1054,8 @@ run_upload_folder_common = """
         downloaded_all_local_files = {str(f.relative_to(download_folder_all))
                                       for f in download_folder_all.rglob("*") if f.is_file()}
         print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
-        # This should be the same as the list of good filenames.
-        assert downloaded_all_local_files == good_filenames
+        # This should be the same as the list of good and bad filenames.
+        assert downloaded_all_local_files == good_filenames.union(bad_filenames)
 
         # Make a folder to download them individually
         download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
@@ -1086,8 +1086,8 @@ run_upload_folder_common = """
         downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
                                       for f in download_folder_ind.rglob("*") if f.is_file()}
         print(f"{print_prefix} downloaded_ind_local_files:{sorted(downloaded_ind_local_files)}")
-        # This should be the same as the list of good filenames.
-        assert downloaded_ind_local_files == good_filenames
+        # This should be the same as the list of good and bad filenames.
+        assert downloaded_ind_local_files == good_filenames.union(bad_filenames)
 
     # The folder where the test files have been created. Since they are in a subfolder of the script, they should
     # have been uploaded.
@@ -1214,7 +1214,10 @@ import health.azure.azure_util as util""",
 
     # Test against two different methods. AzureML directly and using the HI-ML wrapper
     upload_datas = [
-        TestUploadData("uploaded_folder_aml", amlupload, True),
+        # Test against AzureML. This takes a long time because of two minute timeouts trying to download
+        # corrupted files.
+        # TestUploadData("uploaded_folder_aml", amlupload, True),
+        # Test against HI-ML wrapper function.
         TestUploadData("uploaded_folder_himl", himlupload, False)
     ]
 
@@ -1316,7 +1319,8 @@ this should be raise an exception since one of the files has changed")
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
     with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+        workspace = himl.get_workspace(aml_workspace=None,
+                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
 
     run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                                    workspace=workspace)
@@ -1347,47 +1351,108 @@ from azureml.exceptions import AzureMLException""",
 
     upload_folder_name = "uploaded_folder"
 
-    filenames = ["test_file0.txt", "test_file1.txt"]
-
     test_file_name_sets = [
-        { filenames[0] },
-        { filenames[1] }
+        { "test_file0.txt" },
+        { "test_file1.txt" }
     ]
 
     # Step 1, upload the first file set
     upload_files = test_file_name_sets[0].copy()
-    good_files = test_file_name_sets[0].copy()
-    bad_files = set()
     copy_test_file_name_set(test_file_name_sets[0])
 
     print(f"Upload the first file set: {upload_files}")
-    run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
+    run_info.run.upload_folder(name=upload_folder_name, path=str(test_upload_folder))
 
-    check_files(good_files, bad_files, 1, upload_folder_name)
+    check_files(test_file_name_sets[0], set(), 1, upload_folder_name)
 
     # Step 2, upload the second file set
     upload_files = upload_files.union(test_file_name_sets[1])
-    good_files = good_files
-    bad_files = bad_files.union(test_file_name_sets[1])
     copy_test_file_name_set(test_file_name_sets[1])
 
     print(f"Upload the second file set: {upload_files}, \
           this should fail since first file set already there")
     try:
-        run_info.run.upload_folder(upload_folder_name, str(test_upload_folder))
+        run_info.run.upload_folder(name=upload_folder_name, path=str(test_upload_folder))
     except Exception as ex:
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for f in good_files:
+        for f in test_file_name_sets[0]:
             assert f"{f} already exists" in str(ex)
 
-    check_files(good_files, bad_files, 2, upload_folder_name)
+    check_files(test_file_name_sets[0], test_file_name_sets[1], 2, upload_folder_name)
 """
     }
 
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
     with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None, workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+        workspace = himl.get_workspace(aml_workspace=None,
+                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+
+    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                   workspace=workspace)
+    assert run.status == "Completed"
+
+
+def test_run_upload_file(tmp_path: Path) -> None:
+    """
+    Test the run_upload_file works even if some of the files in the folder
+    are already uploaded
+    """
+    dummy_data_folder = tmp_path / "base_data"
+    dummy_data_folder.mkdir()
+
+    # Create dummy text file names.
+    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 2)]
+
+    for filename in filenames:
+        filename.write_text(f"some test data: {uuid4().hex}")
+
+    extra_options: Dict[str, str] = {
+        'imports': """
+from dataclasses import dataclass, field
+import shutil
+import sys
+from azureml.exceptions import AzureMLException""",
+        'body': run_upload_folder_common + """
+
+    upload_folder_name = "uploaded_folder"
+
+    test_file_name_sets = [
+        { "test_file0.txt" },
+        { "test_file1.txt" }
+    ]
+
+    # Step 1, upload the first file
+    upload_files = test_file_name_sets[0].copy()
+    copy_test_file_name_set(test_file_name_sets[0])
+
+    print(f"Upload the first file: {upload_files}")
+    run_info.run.upload_file(name="upload_folder_name/test_file0_txt.txt", path_or_stream=str(test_upload_folder / "test_file0.txt"))
+
+    check_files(test_file_name_sets[0], set(), 1, upload_folder_name)
+
+    # Step 2, upload the second file set
+    upload_files = upload_files.union(test_file_name_sets[1])
+    copy_test_file_name_set(test_file_name_sets[1])
+
+    print(f"Upload the second file set: {upload_files}, \
+          this should fail since first file set already there")
+    try:
+        run_info.run.upload_folder(name=upload_folder_name, path=str(test_upload_folder))
+    except Exception as ex:
+        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+        for f in test_file_name_sets[0]:
+            assert f"{f} already exists" in str(ex)
+
+    check_files(test_file_name_sets[0], test_file_name_sets[1], 2, upload_folder_name)
+"""
+    }
+
+    extra_args: List[str] = []
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    with check_config_json(tmp_path):
+        workspace = himl.get_workspace(aml_workspace=None,
+                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
 
     run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                                    workspace=workspace)
