@@ -1415,36 +1415,56 @@ import sys
 from azureml.exceptions import AzureMLException""",
         'body': run_upload_folder_common + """
 
-    upload_folder_name = "uploaded_folder"
+    upload_folder_name = "uploaded_files"
 
     test_file_name_sets = [
         { "test_file0.txt" },
         { "test_file1.txt" }
     ]
 
+    test_file_name_alias = "test_file0_txt.txt"
+
     # Step 1, upload the first file
-    upload_files = test_file_name_sets[0].copy()
+    upload_files = test_file_name_sets[0]
+    upload_file_aliases = {test_file_name_alias}
     copy_test_file_name_set(test_file_name_sets[0])
 
     print(f"Upload the first file: {upload_files}")
-    run_info.run.upload_file(name="upload_folder_name/test_file0_txt.txt", path_or_stream=str(test_upload_folder / "test_file0.txt"))
+    run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
+                             path_or_stream=str(test_upload_folder / "test_file0.txt"))
 
-    check_files(test_file_name_sets[0], set(), 1, upload_folder_name)
+    check_files(upload_file_aliases, set(), 1, upload_folder_name)
 
-    # Step 2, upload the second file set
-    upload_files = upload_files.union(test_file_name_sets[1])
-    copy_test_file_name_set(test_file_name_sets[1])
-
-    print(f"Upload the second file set: {upload_files}, \
-          this should fail since first file set already there")
+    # Step 2, upload the first file again
+    print(f"Upload the first file again: {upload_files}, \
+          this should fail since first file already there")
     try:
-        run_info.run.upload_folder(name=upload_folder_name, path=str(test_upload_folder))
+        run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
+                                 path_or_stream=str(test_upload_folder / "test_file0.txt"))
     except Exception as ex:
+        print(f"Expected error in run.upload_file: {str(ex)}")
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for f in test_file_name_sets[0]:
+        for f in upload_file_aliases:
             assert f"{f} already exists" in str(ex)
 
-    check_files(test_file_name_sets[0], test_file_name_sets[1], 2, upload_folder_name)
+    check_files(upload_file_aliases, set(), 2, upload_folder_name)
+
+    # Step 3, upload a second file with the same alias as the first
+    upload_files = test_file_name_sets[1]
+    copy_test_file_name_set(test_file_name_sets[1])
+    print(f"Upload a second file with same name as the first: {upload_files}, \
+          this should fail since first file already there")
+    try:
+        run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
+                                 path_or_stream=str(test_upload_folder / "test_file1.txt"))
+    except Exception as ex:
+        print(f"Expected error in run.upload_file: {str(ex)}")
+        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+        for f in upload_file_aliases:
+            assert f"{f} already exists" in str(ex)
+
+    check_files(upload_file_aliases, set(), 3, upload_folder_name)
+
 """
     }
 
