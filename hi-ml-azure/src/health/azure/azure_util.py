@@ -530,7 +530,7 @@ def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunI
 
 def hash_file(filename: str) -> str:
     """
-    Compute a SHA1 hash of a file in 64kb chunks.
+    Compute a SHA1 hash of a file in 64 KB chunks.
 
     :param filename: File to hash.
     :return: Hex version of SHA1 digest.
@@ -558,7 +558,7 @@ def run_upload_folder(run: Run,
     :param path: The relative local path to the folder to upload.
     :param datastore_name: Optional DataStore name
     """
-    # Get list of files already uploaded to the run wiith this name
+    # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
     # Get list of files in the local folder
     local_files = {f for f in Path(path).rglob("*") if f.is_file()}
@@ -589,7 +589,10 @@ def run_upload_folder(run: Run,
 
             local_file_hash = hash_file(f[1])
             if downloaded_file_hash != local_file_hash:
-                raise Exception(f"Files are different, {f[1]}")
+                raise Exception(f"trying to upload file {f[1]} but that file already exists in the run. \n"
+                                "The existing file on the run has hash {downloaded_file_hash}, \n"
+                                "but the local file has hash {local_file_hash}.\n"
+                                "Unable to reconcile those differences.")
 
         # Upload the new files.
         return run.upload_files(names=list(map(itemgetter(0), new_files)),

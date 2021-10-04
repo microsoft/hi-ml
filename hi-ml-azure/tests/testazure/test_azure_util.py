@@ -654,13 +654,13 @@ run_upload_folder_common = """
         :return: None.
         \"\"\"
         print_prefix = f"check_files_{step}_{upload_folder_name}:"
-        print(f"{print_prefix} good_filenames:{good_filenames}")
-        print(f"{print_prefix} bad_filenames:{bad_filenames}")
+        print(f"{print_prefix} good_filenames:{sorted(good_filenames)}")
+        print(f"{print_prefix} bad_filenames:{sorted(bad_filenames)}")
 
         # Download all the file names for this upload_folder_name, stripping off the leading upload_folder_name and /
         run_file_names = {f[len(upload_folder_name) + 1:]
                           for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-        print(f"{print_prefix} run_file_names:{run_file_names}")
+        print(f"{print_prefix} run_file_names:{sorted(run_file_names)}")
         # This should be the same as the list of good and bad filenames combined.
         assert run_file_names == good_filenames.union(bad_filenames)
 
@@ -687,7 +687,7 @@ run_upload_folder_common = """
         # Glob the list of all the files that have been downloaded relative to the download folder.
         downloaded_all_local_files = {str(f.relative_to(download_folder_all))
                                       for f in download_folder_all.rglob("*") if f.is_file()}
-        print(f"{print_prefix} downloaded_all_local_files:{downloaded_all_local_files}")
+        print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
         # This should be the same as the list of good filenames.
         assert downloaded_all_local_files == good_filenames
 
@@ -705,18 +705,21 @@ run_upload_folder_common = """
                 # Try to download each file
                 run_info.run.download_file(name=f"{upload_folder_name}/{f}",
                                            output_file_path=str(target_folder))
-            except Exception as ex:
+            except AzureMLException as ex:
                 if f in bad_filenames:
                     # If this file is in the list of bad_filenames this is expected to raise an exception.
-                    print(f"Expected error in download_file: {str(ex)}")
+                    print(f"Expected error in download_file: {f}: {str(ex)}")
+                    assert "Download of file failed with error: The specified blob does not exist. "\
+                           "ErrorCode: BlobNotFound" in str(ex)
                 else:
+                    print(f"Unexpected error in download_file: {f}: {str(ex)}")
                     # Otherwise, reraise the exception to terminate the run.
                     raise ex
 
         # Glob the list of all the files that have been downloaded relative to the download folder.
         downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
                                       for f in download_folder_ind.rglob("*") if f.is_file()}
-        print(f"{print_prefix} downloaded_ind_local_files:{downloaded_ind_local_files}")
+        print(f"{print_prefix} downloaded_ind_local_files:{sorted(downloaded_ind_local_files)}")
         # This should be the same as the list of good filenames.
         assert downloaded_ind_local_files == good_filenames
 
@@ -782,26 +785,29 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     dummy_data_folder = tmp_path / "base_data"
     dummy_data_folder.mkdir()
 
-    # Create dummy text file names.
+    # Create dummy text file names in the root of the base_data folder.
     filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 9)]
 
     dummy_data_sub_folder = dummy_data_folder / "sub1"
     dummy_data_sub_folder.mkdir()
 
+    # Create dummy text file names in a direct sub folder of the base_data folder.
     sub_filenames = [dummy_data_sub_folder / f"test_file{i}.txt" for i in range(9, 18)]
     filenames.extend(sub_filenames)
 
     dummy_data_sub_sub_folder = dummy_data_folder / "sub1" / "sub2" / "sub3"
     dummy_data_sub_sub_folder.mkdir(parents=True)
 
+    # Create dummy text file names in a sub sub sub folder of the base_data folder.
     sub_sub_filenames = [dummy_data_sub_sub_folder / f"test_file{i}.txt" for i in range(18, 27)]
     filenames.extend(sub_sub_filenames)
 
+    # Populate the dummy text files with some unique text
     for filename in filenames:
         filename.write_text(f"some test data: {uuid4().hex}")
 
+    # Write all the filenames to a file so the script can extract them
     relative_filenames = [str(f.relative_to(dummy_data_folder)) for f in filenames]
-
     filenames_list = tmp_path / "filenames.txt"
     filenames_list.write_text("\n".join(relative_filenames))
 
@@ -814,30 +820,33 @@ from azureml.exceptions import AzureMLException
 import health.azure.azure_util as util""",
         'body': run_upload_folder_common + """
 
+    # Extra the list of test text filenames
     filenames_list = Path("filenames.txt")
     filenames = filenames_list.read_text().split("\\n")
 
+    # Split into distinct sets for each stage of the test
     test_file_name_sets = [
-        # Base level files
+        # 0. Base level files
         set(filenames[:3]),
-        # Second set of base level files, distinct from the first
+        # 1. Second set of base level files, distinct from the first
         set(filenames[3:6]),
-        # sub1 level files to check folder handling
+        # 2. sub1 level files to check folder handling
         set(filenames[9:12]),
-        # Second set of sub1 level files, distinct from the first
+        # 3. Second set of sub1 level files, distinct from the first
         set(filenames[12:15]),
-        # sub1/sub2/sub3 level files to check folder handling when an extra level inserted
+        # 4. sub1/sub2/sub3 level files to check folder handling when an extra level inserted
         set(filenames[18:21]),
-        # Second set of sub1/sub2/sub3 level files, distinct from the first
+        # 5. Second set of sub1/sub2/sub3 level files, distinct from the first
         set(filenames[21:24]),
-        # Hold back base level files to test overlaps
+        # 6. Hold back base level files to test overlaps
         set(filenames[6:9]),
-        # Hold back sub1 level files to test overlaps
+        # 7. Hold back sub1 level files to test overlaps
         set(filenames[15:18]),
-        # Hold back sub1/sub2/sub3 level files to test overlaps
+        # 8. Hold back sub1/sub2/sub3 level files to test overlaps
         set(filenames[24:27]),
     ]
 
+    # Test against two different methods. AzureML directly and using the HI-ML wrapper
     upload_datas = [
         TestUploadData("uploaded_folder_aml", amlupload, True),
         TestUploadData("uploaded_folder_himl", himlupload, False)
@@ -845,9 +854,12 @@ import health.azure.azure_util as util""",
 
     # Step 1, upload distinct file sets
     for i in range(0, 6):
+        # Remove any existing test files
         rm_test_file_name_set()
+        # Copy in the new test file set
         copy_test_file_name_set(test_file_name_sets[i])
 
+        # Upload using each method and check the results
         for upload_data in upload_datas:
             upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[i])
             upload_data.good_files = upload_data.good_files.union(test_file_name_sets[i])
@@ -871,7 +883,7 @@ import health.azure.azure_util as util""",
                 print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
 this should fail, since file set: {test_file_name_sets[i]} already uploaded")
 
-                upload_data.good_files = upload_data.good_files.union(set())
+                upload_data.good_files = upload_data.good_files.union()
                 upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[j])
 
                 try:
