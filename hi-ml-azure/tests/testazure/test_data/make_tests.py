@@ -77,7 +77,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['aml_workspace'] = 'None'
     default_options['workspace_config_file'] = workspace_config_file_arg
     default_options['snapshot_root_directory'] = 'here'
-    default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path)}")'
+    default_options['conda_environment_file'] = f'Path("{str(environment_yaml_path.as_posix())}")'
     default_options['environment_variables'] = 'None'
     default_options['pip_extra_index_url'] = '""'
     default_options['private_pip_wheel_path'] = 'None'
@@ -89,6 +89,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['wait_for_completion_show_output'] = 'True'
     default_options['args'] = ''
     default_options['body'] = ''
+    default_options['imports'] = ''
 
     all_options = dict(default_options, **extra_options)
 

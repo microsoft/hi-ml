@@ -14,7 +14,9 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from health.azure.datasets import DatasetConfig
-from health.azure.himl import submit_to_azure_if_needed, WORKSPACE_CONFIG_JSON
+from health.azure import submit_to_azure_if_needed
+from health.azure.azure_util import WORKSPACE_CONFIG_JSON
+{{ imports }}
 
 {{ imports }}
 

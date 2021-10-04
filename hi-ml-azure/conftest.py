@@ -42,8 +42,7 @@ def test_suite_setup() -> Generator:
 @pytest.fixture
 def random_folder() -> Generator:
     """
-    Fixture to automatically create a random directory before executing a test and then
-    removing this directory after the test has been executed.
+    Fixture to automatically create a random directory before executing a test
     """
     # create dirs before executing the test
     folder = outputs_for_tests() / str(uuid.uuid4().hex)

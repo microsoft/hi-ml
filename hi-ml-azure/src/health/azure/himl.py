@@ -26,10 +26,10 @@ from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
-from health.azure.azure_util import (create_python_environment, create_run_recovery_id,
-                                     get_authentication, is_run_and_child_runs_completed, register_environment,
+from health.azure.azure_util import (create_python_environment, create_run_recovery_id, _find_file,
+                                     is_run_and_child_runs_completed, register_environment,
                                      run_duration_string_to_seconds,
-                                     to_azure_friendly_string)
+                                     to_azure_friendly_string, RUN_CONTEXT, get_workspace)
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
@@ -41,11 +41,9 @@ AZUREML_COMMANDLINE_FLAG = "--azureml"
 CONDA_ENVIRONMENT_FILE = "environment.yml"
 LOGS_FOLDER = "logs"
 OUTPUT_FOLDER = "outputs"
-RUN_CONTEXT = Run.get_context()
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
-WORKSPACE_CONFIG_JSON = "config.json"
 
 PathOrString = Union[Path, str]
 
@@ -346,7 +344,6 @@ def submit_to_azure_if_needed(  # type: ignore
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
         the Docker image.
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
-    :param conda_environment_file: The file that contains the Conda environment definition.
     :param default_datastore: The data store in your AzureML workspace, that points to your training data in blob
         storage. This is described in more detail in the README.
     :param input_datasets: The script will consume all data in folder in blob storage as the input. The folder must
@@ -411,9 +408,9 @@ def submit_to_azure_if_needed(  # type: ignore
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
 
-    conda_environment_file = _str_to_path(conda_environment_file)
     if conda_environment_file is None:
         conda_environment_file = _find_file(CONDA_ENVIRONMENT_FILE)
+    conda_environment_file = _str_to_path(conda_environment_file)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
@@ -458,38 +455,6 @@ def submit_to_azure_if_needed(  # type: ignore
     if after_submission is not None:
         after_submission(run)
     exit(0)
-
-
-def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
-    """
-    Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
-    the PYTHONPATH root (defaults to stopping).
-
-    :param file_name: The fine name of the file to find.
-    :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
-    :return: The path to the file, or None if it cannot be found.
-    """
-
-    def return_file_or_parent(
-            start_at: Path,
-            file_name: str,
-            stop_at_pythonpath: bool,
-            pythonpaths: List[Path]) -> Optional[Path]:
-        for child in start_at.iterdir():
-            if child.is_file() and child.name == file_name:
-                return child
-        if start_at.parent == start_at or start_at in pythonpaths:
-            return None
-        return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
-
-    pythonpaths: List[Path] = []
-    if 'PYTHONPATH' in os.environ:
-        pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
-    return return_file_or_parent(
-        start_at=Path.cwd(),
-        file_name=file_name,
-        stop_at_pythonpath=stop_at_pythonpath,
-        pythonpaths=pythonpaths)
 
 
 def _write_run_recovery_file(run: Run) -> None:
@@ -538,35 +503,6 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     if script_params:
         return script_params
     return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
-
-
-def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
-    """
-    Obtain the AzureML workspace from either the passed in value or the passed in path. If a workspace is provided,
-    it is returned as-is. If a file to a config.json file is provided, a workspace will be created based on the settings
-    found in config.json. If neither a workspace nor the config file are provided, the code will try to locate a
-    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
-
-    :param aml_workspace: If provided this is returned as the AzureML Workspace.
-    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
-        config
-    :return: An AzureML workspace.
-    """
-    if aml_workspace:
-        return aml_workspace
-
-    if workspace_config_path is None:
-        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
-        if workspace_config_path:
-            logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
-        else:
-            raise ValueError("No workspace config file given, nor can we find one.")
-
-    if workspace_config_path.is_file():
-        auth = get_authentication()
-        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
-    raise ValueError("Workspace config file does not exist or cannot be read.")
 
 
 def _generate_azure_datasets(
