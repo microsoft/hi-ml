@@ -891,6 +891,64 @@ def hash_file(filename: str) -> str:
     return sha1.hexdigest()
 
 
+def run_upload_file(run: Run,
+                    name: str,
+                    path_or_stream: str,
+                    datastore_name: Optional[str] = None) -> None:
+    """
+    Wrap a call to run.upload_file with extra checks to see if the file already exists. This is intended to make it safe
+    to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
+    exception will be raised, it is only safe for files that are not changed or partially uploaded.
+
+    For more details on these parameters please see the original documentation here:
+    https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-file-name--path-or-stream--datastore-name-none-
+
+    with open(path, "rb") as stream:
+
+    :param run: AzureML run to upload folder to.
+    :param name: The name of the file to upload.
+    :param path_or_stream: The relative local path or stream to the file to upload.
+    :param datastore_name: Optional DataStore name
+    """
+    # Get list of files already uploaded to the run with this name
+    existing_file_names = {f for f in run.get_file_names() if f == name}
+    print(f"run_upload_file existing_file_names:{sorted(existing_file_names)}")
+    # Get list of files in the local folder
+    local_files = {Path(path_or_stream)}
+
+    local_file_named = {(name, str(f), f.name) for f in local_files}
+    # Filter out the files that are both local and already uploaded
+    dup_files = [f for f in local_file_named if f[0] in existing_file_names]
+    print(f"run_upload_file dup_files:{sorted(dup_files)}")
+
+    # If there are duplicate files then upload_file fails
+    if len(dup_files) == 0:
+        # If there are no duplicate files, then use upload_file
+        print("No duplicates, fall back to AzureML")
+        return run.upload_file(name=name, path_or_stream=path_or_stream, datastore_name=datastore_name)
+    else:
+        # Check the duplicate file.
+        print("Duplicates, check sha1")
+        with TemporaryDirectory() as d:
+            for f in dup_files:
+                run.download_file(name=f[0],
+                                  output_file_path=d)
+                # If the uploaded filename is foo/bar/file.txt then it will just download as file.txt.
+                downloaded_file = Path(d) / ((Path(d) / f[0]).name)
+                downloaded_file_hash = hash_file(str(downloaded_file))
+
+                local_file_hash = hash_file(f[1])
+                if downloaded_file_hash != local_file_hash:
+                    raise Exception(f"Trying to upload file {f[0]} but that file already exists in the run. \n"
+                                    f"The existing file on the run has hash {downloaded_file_hash}, \n"
+                                    f"but the local file has hash {local_file_hash}.\n"
+                                    "Unable to reconcile those differences.")
+
+        # File has not changed, nothing to do.
+        print("Duplicates, pass")
+        pass
+
+
 def run_upload_folder(run: Run,
                       name: str,
                       path: str,
@@ -929,7 +987,7 @@ def run_upload_folder(run: Run,
             for f in dup_files:
                 run.download_file(name=f[0],
                                   output_file_path=d)
-                downloaded_file = d / f[2]
+                downloaded_file = Path(d) / f[2]
                 downloaded_file_hash = hash_file(str(downloaded_file))
 
                 local_file_hash = hash_file(f[1])

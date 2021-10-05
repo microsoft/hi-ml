@@ -10,7 +10,7 @@ import os
 import logging
 import time
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Callable, Dict, Optional, List
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -1143,6 +1143,7 @@ run_upload_folder_imports: str = """
 from dataclasses import dataclass, field
 import shutil
 import sys
+from typing import Callable
 from azureml.exceptions import AzureMLException"""
 
 run_upload_folder_common = """
@@ -1269,9 +1270,9 @@ run_upload_folder_common = """
         test_upload_folder.mkdir()
 
     # Lambda function to upload a folder using AzureML directly.
-    amlupload = lambda run, name, path: run.upload_folder(name, str(path))
+    amlupload_folder = lambda run, name, path: run.upload_folder(name, str(path))
     # Lambda function to upload a folder using the HI-ML wrapper function.
-    himlupload = lambda run, name, path: util.run_upload_folder(run, name, str(path))
+    himlupload_folder = lambda run, name, path: util.run_upload_folder(run, name, str(path))
 
     @dataclass
     class TestUploadData:
@@ -1281,7 +1282,7 @@ run_upload_folder_common = """
         # Name of folder
         folder_name: str
         # Function to use for upload
-        upload_fn: Path
+        upload_fn: Callable
         # Does this work?
         errors: bool
         upload_files: set = field(default_factory=set)
@@ -1339,9 +1340,9 @@ import health.azure.azure_util as util""",
     upload_datas = [
         # Test against AzureML. This takes a long time because of two minute timeouts trying to download
         # corrupted files.
-        # TestUploadData("uploaded_folder_aml", amlupload, True),
+        # TestUploadData("uploaded_folder_aml", amlupload_folder, True),
         # Test against HI-ML wrapper function.
-        TestUploadData("uploaded_folder_himl", himlupload, False)
+        TestUploadData("uploaded_folder_himl", himlupload_folder, False)
     ]
 
     # Step 1, upload distinct file sets
@@ -1506,10 +1507,9 @@ def test_run_upload_file(tmp_path: Path) -> None:
     create_test_files(tmp_path, None, range(0, 2))
 
     extra_options: Dict[str, str] = {
-        'imports': run_upload_folder_imports,
+        'imports': run_upload_folder_imports + """
+import health.azure.azure_util as util""",
         'body': run_upload_folder_common + """
-
-    upload_folder_name = "uploaded_file"
 
     # Extract the list of test file names
     filenames = get_base_data_filenames()
@@ -1521,46 +1521,77 @@ def test_run_upload_file(tmp_path: Path) -> None:
 
     test_file_name_alias = "test_file0_txt.txt"
 
+    # Lambda function to upload a folder using AzureML directly.
+    amlupload_file = lambda run, name, path_or_stream: run.upload_file(name, path_or_stream)
+    # Lambda function to upload a folder using the HI-ML wrapper function.
+    himlupload_file = lambda run, name, path_or_stream: util.run_upload_file(run, name, path_or_stream)
+
+    # Test against two different methods. AzureML directly and using the HI-ML wrapper
+    upload_datas = [
+        # Test against AzureML. This takes a long time because of two minute timeouts trying to download
+        # corrupted files.
+        ("upload_file_aml", amlupload_file, True),
+        # Test against HI-ML wrapper function.
+        ("upload_file_himl", himlupload_file, False)
+    ]
+
     # Step 1, upload the first file
     upload_files = test_file_name_sets[0]
     upload_file_aliases = {test_file_name_alias}
     copy_test_file_name_set(test_file_name_sets[0])
 
-    print(f"Upload the first file: {upload_files}")
-    run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
-                             path_or_stream=str(test_upload_folder / filenames[0]))
+    for upload_folder_name, upload_fn, errors in upload_datas:
+        print(f"Upload the first file: {upload_folder_name}, {upload_files}")
+        upload_fn(run=run_info.run,
+                  name=f"{upload_folder_name}/{test_file_name_alias}",
+                  path_or_stream=str(test_upload_folder / filenames[0]))
 
-    check_files(upload_file_aliases, set(), 1, upload_folder_name)
+        check_files(upload_file_aliases, set(), 1, upload_folder_name)
 
     # Step 2, upload the first file again
-    print(f"Upload the first file again: {upload_files}, \
-          this should fail since first file already there")
-    try:
-        run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
-                                 path_or_stream=str(test_upload_folder / filenames[0]))
-    except Exception as ex:
-        print(f"Expected error in run.upload_file: {str(ex)}")
-        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for f in upload_file_aliases:
-            assert f"{f} already exists" in str(ex)
+    for upload_folder_name, upload_fn, errors in upload_datas:
+        print(f"Upload the first file again: {upload_folder_name}, {upload_files}, \
+              this should fail since first file already there")
+        try:
+            upload_fn(run=run_info.run,
+                      name=f"{upload_folder_name}/{test_file_name_alias}",
+                      path_or_stream=str(test_upload_folder / filenames[0]))
+        except Exception as ex:
+            print(f"Expected error in run.upload_file: {str(ex)}")
+            if errors:
+                assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+                for f in upload_file_aliases:
+                    print(f"f is: {f}")
+                    assert f"{f} already exists" in str(ex)
+            else:
+                # File is the same, so nothing should have happened
+                raise ex
 
-    check_files(upload_file_aliases, set(), 2, upload_folder_name)
+        check_files(upload_file_aliases, set(), 2, upload_folder_name)
 
     # Step 3, upload a second file with the same alias as the first
     upload_files = test_file_name_sets[1]
     copy_test_file_name_set(test_file_name_sets[1])
-    print(f"Upload a second file with same name as the first: {upload_files}, \
-          this should fail since first file already there")
-    try:
-        run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
-                                 path_or_stream=str(test_upload_folder / filenames[1]))
-    except Exception as ex:
-        print(f"Expected error in run.upload_file: {str(ex)}")
-        assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-        for f in upload_file_aliases:
-            assert f"{f} already exists" in str(ex)
 
-    check_files(upload_file_aliases, set(), 3, upload_folder_name)
+    for upload_folder_name, upload_fn, errors in upload_datas:
+        print(f"Upload a second file with same name as the first: {upload_folder_name}, {upload_files}, \
+              this should fail since first file already there")
+        name = f"{upload_folder_name}/{test_file_name_alias}"
+        try:
+            upload_fn(run=run_info.run,
+                      name=name,
+                      path_or_stream=str(test_upload_folder / filenames[1]))
+        except Exception as ex:
+            print(f"Expected error in run.upload_file: {str(ex)}")
+            if errors:
+                assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
+                for f in upload_file_aliases:
+                    assert f"{f} already exists" in str(ex)
+            else:
+                assert f"Trying to upload file {name} but that file already exists in the run." \
+                        "in str(ex)"
+
+        check_files(upload_file_aliases, set(), 3, upload_folder_name)
 
 """
     }
