@@ -1100,14 +1100,23 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
 
 
-def test_checkpoint_download():
-    util.download_checkpoints_from_run(run.id, prefix, output_file_dir, aml_workspace=ws)
+@patch("health.azure.azure_util.download_run_files_from_run_id")
+@patch("health.azure.azure_util.get_workspace")
+def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files: MagicMock) -> None:
+    mock_workspace = MagicMock()
+    mock_get_workspace.return_value = mock_workspace
+    dummy_run_id = "run_def_456"
+    prefix = "path/to/file"
+    output_file_dir = Path("my_ouputs")
+    util.download_checkpoints_from_run(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
+                                                workspace=mock_workspace, validate_checksum=True)
 
 
 @pytest.mark.slow
-def test_checkpoint_download(tmp_path: Path) -> None:
+def test_checkpoint_download_remote(tmp_path: Path) -> None:
     """
-    Creates a very large dummy file and ensures we can upload it to a Run and subsequently download
+    Creates a very large dummy file (around 500 MB and ensures we can upload it to a Run and subsequently download
     with no issues, thus replicating the behaviour of downloading a large checkpoint file.
     """
     num_dummy_files = 2
@@ -1125,7 +1134,7 @@ def test_checkpoint_download(tmp_path: Path) -> None:
     for i in range(num_dummy_files):
         large_file_path = tmp_path / f"dummy_checkpoint_{i}"
         with open(large_file_path, "wb") as f_path:
-            f_path.seek((1024 * 1024 * 1024) - 1)
+            f_path.seek((1024 * 1024 * 512) - 1)
             f_path.write(b"\0")
         file_size = large_file_path.stat().st_size
         logging.info(f"File {i} size: {file_size}")

@@ -878,10 +878,11 @@ def download_checkpoints_from_run(run_id: str, checkpoint_dir: str, output_path:
                                   aml_workspace: Optional[Workspace] = None,
                                   workspace_config_path: Optional[Path] = None) -> None:
     """
-    Given an Azure ML run id, download all files from a given checkpoint directory within that run.
-    If running in AML, will take the
-    current workspace. Otherwise, if neither aml_workspace nor workspace_config_path are provided,
-    will try to locate a config.json file in any of the parent folders of the current working directory.
+    Given an Azure ML run id, download all files from a given checkpoint directory within that run, to
+    the path specified by output_path.
+    If running in AML, will take the current workspace. Otherwise, if neither aml_workspace nor
+    workspace_config_path are provided, will try to locate a config.json file in any of the
+    parent folders of the current working directory.
 
     :param run_id: The id of the run to download checkpoints from
     :param checkpoint_dir: The path to the checkpoints directory within the run files
@@ -889,7 +890,6 @@ def download_checkpoints_from_run(run_id: str, checkpoint_dir: str, output_path:
     :param aml_workspace: Optional AML workspace object
     :param workspace_config_path: Optional workspace config file
     """
-    # TODO: once refactoring is merged, update the first param to be union run type
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     download_run_files_from_run_id(run_id, output_path, prefix=checkpoint_dir, workspace=workspace,
                                    validate_checksum=True)
