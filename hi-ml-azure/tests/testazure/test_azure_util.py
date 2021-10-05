@@ -1119,7 +1119,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     Creates a very large dummy file (around 500 MB and ensures we can upload it to a Run and subsequently download
     with no issues, thus replicating the behaviour of downloading a large checkpoint file.
     """
-    num_dummy_files = 2
+    num_dummy_files = 1
     prefix = "outputs/checkpoints/"
 
     ws = DEFAULT_WORKSPACE.workspace
