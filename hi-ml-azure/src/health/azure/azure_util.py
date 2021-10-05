@@ -21,7 +21,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
-
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -793,3 +793,79 @@ def is_local_rank_zero() -> bool:
     global_rank = os.getenv(ENV_GLOBAL_RANK)
     local_rank = os.getenv(ENV_LOCAL_RANK)
     return global_rank is None and local_rank is None
+
+
+def download_from_datastore(datastore_name: str, file_prefix: str, output_folder: Path,
+                            aml_workspace: Optional[Workspace] = None,
+                            workspace_config_path: Optional[Path] = None,
+                            overwrite: bool = False,
+                            show_progress: bool = False) -> None:
+    """
+    Download file(s) from an Azure ML Datastore that are registered within a given Workspace. The path
+    to the file(s) to be downloaded, relative to the datastore <datastore_name>, is specified by the parameter
+    "prefix".  Azure will search for files within the Datastore whose paths begin with this string.
+    If you wish to download multiple files from the same folder, set <prefix> equal to that folder's path
+    within the Datastore. If you wish to download a single file, include both the path to the folder it
+    resides in, as well as the filename itself. If the relevant file(s) are found, they will be downloaded to
+    the folder specified by <output_folder>. If this directory does not already exist, it will be created.
+    E.g. if your datastore contains the paths ["foo/bar/1.txt", "foo/bar/2.txt"] and you call this
+    function with file_prefix="foo/bar" and output_folder="outputs", you would end up with the
+    files ["outputs/foo/bar/1.txt", "outputs/foo/bar/2.txt"]
+
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param datastore_name: The name of the Datastore containing the blob to be downloaded. This Datastore itself
+        must be an instance of an AzureBlobDatastore.
+    :param file_prefix: The prefix to the blob to be downloaded
+    :param output_folder: The directory into which the blob should be downloaded
+    :param aml_workspace: Optional Azure ML Workspace object
+    :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    :param overwrite: If True, will overwrite any existing file at the same remote path.
+        If False, will skip any duplicate file.
+    :param show_progress: If True, will show the progress of the file download
+    """
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    datastore = workspace.datastores[datastore_name]
+    assert isinstance(datastore, AzureBlobDatastore), \
+        "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
+    datastore.download(str(output_folder), prefix=file_prefix, overwrite=overwrite, show_progress=show_progress)
+    logging.info(f"Downloaded data to {str(output_folder)}")
+
+
+def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_path: Path,
+                        aml_workspace: Optional[Workspace] = None,
+                        workspace_config_path: Optional[Path] = None,
+                        overwrite: bool = False,
+                        show_progress: bool = False) -> None:
+    """
+    Upload a folder to an Azure ML Datastore that is registered within a given Workspace. Note that this will upload
+    all files within the folder, but will not copy the folder itself. E.g. if you specify the local_data_dir="foo/bar"
+    and that contains the files ["1.txt", "2.txt"], and you specify the remote_path="baz", you would see the
+    following paths uploaded to your Datastore: ["baz/1.txt", "baz/2.txt"]
+
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param datastore_name: The name of the Datastore to which the blob should be uploaded. This Datastore itself
+        must be an instance of an AzureBlobDatastore
+    :param local_data_folder: The path to the local directory containing the data to be uploaded
+    :param remote_path: The path to which the blob should be uploaded
+    :param aml_workspace: Optional Azure ML Workspace object
+    :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    :param overwrite: If True, will overwrite any existing file at the same remote path.
+        If False, will skip any duplicate files and continue to the next.
+    :param show_progress: If True, will show the progress of the file download
+    """
+    if not local_data_folder.is_dir():
+        raise TypeError("local_path must be a directory")
+
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    datastore = workspace.datastores[datastore_name]
+    assert isinstance(datastore, AzureBlobDatastore), \
+        "Invalid datastore type. Can only upload to AzureBlobDatastore"  # for mypy
+    datastore.upload(str(local_data_folder), target_path=str(remote_path), overwrite=overwrite,
+                     show_progress=show_progress)
+    logging.info(f"Uploaded data to {str(remote_path)}")

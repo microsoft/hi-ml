@@ -18,9 +18,11 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
+from azureml._vendor.azure_storage.blob import Blob
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health.azure.azure_util as util
 from health.azure import himl
@@ -1006,3 +1008,93 @@ def test_is_local_rank_zero() -> None:
 
     with mock.patch.dict(os.environ, {util.ENV_GLOBAL_RANK: "1", util.ENV_LOCAL_RANK: "1"}):
         assert not util.is_local_rank_zero()
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+@pytest.mark.parametrize("show_progress", [True, False])
+def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress: bool) -> None:
+    """
+    Test that download_from_datastore successfully downloads file from Blob Storage.
+    Note that this will temporarily upload a file to the default datastore of the default workspace -
+    (determined by either a config.json file, or by specifying workspace settings in the environment variables).
+    After the test has completed, the blob will be deleted.
+    """
+    ws = DEFAULT_WORKSPACE.workspace
+    default_datastore: AzureBlobDatastore = ws.get_default_datastore()
+    dummy_file_content = "Hello world"
+    local_data_path = tmp_path / "local_data"
+    local_data_path.mkdir()
+    test_data_path_remote = "test_data/abc"
+
+    # Create dummy data files and upload to datastore (checking they are uploaded)
+    dummy_filenames = []
+    num_dummy_files = 2
+    for i in range(num_dummy_files):
+        dummy_filename = f"dummy_data_{i}.txt"
+        dummy_filenames.append(dummy_filename)
+        data_to_upload_path = local_data_path / dummy_filename
+        data_to_upload_path.touch()
+        data_to_upload_path.write_text(dummy_file_content)
+    default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
+                                                                    container_name=default_datastore.container_name))
+    assert len(existing_blobs) == num_dummy_files
+
+    # Check that the file doesn't currently exist at download location
+    downloaded_data_path = tmp_path / "downloads"
+    assert not downloaded_data_path.exists()
+
+    # Now attempt to download
+    util.download_from_datastore(default_datastore.name, test_data_path_remote, downloaded_data_path,
+                                 aml_workspace=ws, overwrite=overwrite, show_progress=show_progress)
+    expected_local_download_dir = downloaded_data_path / test_data_path_remote
+    assert expected_local_download_dir.exists()
+    expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
+    assert all([p.exists() for p in expected_download_paths])
+
+    # Delete the file from Blob Storage
+    container = default_datastore.container_name
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
+                                                                    container_name=container))
+    for existing_blob in existing_blobs:
+        default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+@pytest.mark.parametrize("show_progress", [True, False])
+def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: bool) -> None:
+    """
+    Test that upload_to_datastore successfully uploads a file to Blob Storage.
+    Note that this will temporarily upload a file to the default datastore of the default workspace -
+    (determined by either a config.json file, or by specifying workspace settings in the environment variables).
+    After the test has completed, the blob will be deleted.
+    """
+    ws = DEFAULT_WORKSPACE.workspace
+    default_datastore: AzureBlobDatastore = ws.get_default_datastore()
+    container = default_datastore.container_name
+    dummy_file_content = "Hello world"
+
+    remote_data_dir = "test_data"
+    dummy_file_name = Path("abc/uploaded_file.txt")
+    expected_remote_path = Path(remote_data_dir) / dummy_file_name.name
+
+    # check that the file doesnt already exist in Blob Storage
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
+                                                                    container_name=container))
+    assert len(existing_blobs) == 0
+
+    # Create a dummy data file and upload to datastore
+    data_to_upload_path = tmp_path / dummy_file_name
+    data_to_upload_path.parent.mkdir(exist_ok=True, parents=True)
+    data_to_upload_path.touch()
+    data_to_upload_path.write_text(dummy_file_content)
+
+    util.upload_to_datastore(default_datastore.name, data_to_upload_path.parent, Path(remote_data_dir),
+                             aml_workspace=ws, overwrite=overwrite, show_progress=show_progress)
+    existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
+                                                                    container_name=container))
+    assert len(existing_blobs) == 1
+
+    # delete the blob from Blob Storage
+    existing_blob: Blob = existing_blobs[0]
+    default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
