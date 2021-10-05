@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from health.azure.azure_util import (fetch_run, set_environment_variables_for_multi_node, split_recovery_id,
+                                     download_from_datastore, upload_to_datastore,
                                      run_upload_folder)
 from health.azure.datasets import DatasetConfig
 from health.azure.himl import (AzureRunInfo, create_run_configuration, create_script_run, get_workspace, submit_run,
@@ -12,11 +13,13 @@ from health.azure.himl import (AzureRunInfo, create_run_configuration, create_sc
 __all__ = ["fetch_run",
            "set_environment_variables_for_multi_node",
            "split_recovery_id",
-           "run_upload_folder",
            "DatasetConfig",
            "AzureRunInfo",
            "create_run_configuration",
            "create_script_run",
            "get_workspace",
            "submit_run",
-           "submit_to_azure_if_needed"]
+           "submit_to_azure_if_needed",
+           "download_from_datastore",
+           "upload_to_datastore",
+           "run_upload_folder"]
