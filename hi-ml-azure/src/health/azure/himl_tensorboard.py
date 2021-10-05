@@ -14,7 +14,7 @@ from typing import Any, Optional
 from azureml._run_impl.run_watcher import RunWatcher
 from azureml.tensorboard import Tensorboard
 
-from health.azure.azure_util import get_aml_runs, determine_run_id_source
+from health.azure import azure_util as util
 from health.azure.himl import get_workspace
 
 from concurrent.futures import ThreadPoolExecutor
@@ -99,71 +99,71 @@ class WrappedTensorboard(Tensorboard):
 
 
 def main() -> None:  # pragma: no cover
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        default="config.json",
-        required=False,
-        help="Path to config.json where Workspace name is defined"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=6006,
-        required=False,
-        help="The port to run Tensorboard on"
-    )
-    parser.add_argument(
-        "--log_dir",
-        type=str,
-        default="outputs",
-        required=False,
-        help="Path to directory in which Tensorboard  files (summarywriter and TB logs) are stored"
-    )
-    parser.add_argument(
-        "--latest_run_file",
-        type=str,
-        required=False,
-        help="Optional path to most_recent_run.txt where details on latest run are stored"
-    )
-    parser.add_argument(
-        "--experiment",
-        type=str,
-        required=False,
-        help="The name of the AML Experiment that you wish to view Runs from"
-    )
-    parser.add_argument(
-        "--num_runs",
-        type=int,
-        default=1,
-        required=False,
-        help="Specify this in conjunction with --experiment, to specify the number of Runs to plot"
-             " from a given experiment"
-    )
-    parser.add_argument(
-        "--tags",
-        action="append",
-        default=None,
-        required=False,
-        help="Optional experiment tags to restrict the AML Runs that are returned"
-    )
-    parser.add_argument(
-        "--run_recovery_ids",
-        default=[],
-        nargs="+",
-        required=False,
-        help="Optional run recovery ids of the runs to plot"
-    )
-    parser.add_argument(
-        "--run_ids",
-        default=[],
-        nargs="+",
-        required=False,
-        help="Optional run ids of the runs to plot"
-    )
-
-    args = parser.parse_args()
+    # parser = ArgumentParser()
+    # parser.add_argument(
+    #     "--config_file",
+    #     type=str,
+    #     default="config.json",
+    #     required=False,
+    #     help="Path to config.json where Workspace name is defined"
+    # )
+    # parser.add_argument(
+    #     "--port",
+    #     type=int,
+    #     default=6006,
+    #     required=False,
+    #     help="The port to run Tensorboard on"
+    # )
+    # parser.add_argument(
+    #     "--log_dir",
+    #     type=str,
+    #     default="outputs",
+    #     required=False,
+    #     help="Path to directory in which Tensorboard  files (summarywriter and TB logs) are stored"
+    # )
+    # parser.add_argument(
+    #     "--latest_run_file",
+    #     type=str,
+    #     required=False,
+    #     help="Optional path to most_recent_run.txt where details on latest run are stored"
+    # )
+    # parser.add_argument(
+    #     "--experiment",
+    #     type=str,
+    #     required=False,
+    #     help="The name of the AML Experiment that you wish to view Runs from"
+    # )
+    # parser.add_argument(
+    #     "--num_runs",
+    #     type=int,
+    #     default=1,
+    #     required=False,
+    #     help="Specify this in conjunction with --experiment, to specify the number of Runs to plot"
+    #          " from a given experiment"
+    # )
+    # parser.add_argument(
+    #     "--tags",
+    #     action="append",
+    #     default=None,
+    #     required=False,
+    #     help="Optional experiment tags to restrict the AML Runs that are returned"
+    # )
+    # parser.add_argument(
+    #     "--run_recovery_ids",
+    #     default=[],
+    #     nargs="+",
+    #     required=False,
+    #     help="Optional run recovery ids of the runs to plot"
+    # )
+    # parser.add_argument(
+    #     "--run_ids",
+    #     default=[],
+    #     nargs="+",
+    #     required=False,
+    #     help="Optional run ids of the runs to plot"
+    # )
+    #
+    # args = parser.parse_args()
 
     config_path = Path(args.config_file)
     if not config_path.is_file():
