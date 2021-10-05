@@ -14,8 +14,7 @@ import os
 import re
 from operator import itemgetter
 from pathlib import Path
-import shutil
-# from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory
 from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
@@ -821,7 +820,12 @@ def run_upload_folder(run: Run,
                       path: str,
                       datastore_name: Optional[str] = None) -> Union[Tuple[dict, map], map]:
     """
-    Wrap a call to run.upload_folder with extra checks to see if files already exist.
+    Wrap a call to run.upload_folder with extra checks to see if files already exist. This is intended to make it safe
+    to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
+    exception will be raised, it is only safe for files that are not changed or partially uploaded.
+
+    For more details on these parameters please see the original documentation here:
+    https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-folder-name--path--datastore-name-none-
 
     :param run: AzureML run to upload folder to.
     :param name: The name of the folder of files to upload.
@@ -845,24 +849,19 @@ def run_upload_folder(run: Run,
         return run.upload_folder(name=name, path=path, datastore_name=datastore_name)
     else:
         # Check the duplicate files.
-        # with TemporaryDirectory() as d:
-        d = Path("outputs") / "test_download_folder"
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir()
+        with TemporaryDirectory() as d:
+            for f in dup_files:
+                run.download_file(name=f[0],
+                                  output_file_path=d)
+                downloaded_file = d / f[2]
+                downloaded_file_hash = hash_file(str(downloaded_file))
 
-        for f in dup_files:
-            run.download_file(name=f[0],
-                              output_file_path=d)
-            downloaded_file = d / f[2]
-            downloaded_file_hash = hash_file(str(downloaded_file))
-
-            local_file_hash = hash_file(f[1])
-            if downloaded_file_hash != local_file_hash:
-                raise Exception(f"Trying to upload file {f[1]} but that file already exists in the run. \n"
-                                f"The existing file on the run has hash {downloaded_file_hash}, \n"
-                                f"but the local file has hash {local_file_hash}.\n"
-                                "Unable to reconcile those differences.")
+                local_file_hash = hash_file(f[1])
+                if downloaded_file_hash != local_file_hash:
+                    raise Exception(f"Trying to upload file {f[1]} but that file already exists in the run. \n"
+                                    f"The existing file on the run has hash {downloaded_file_hash}, \n"
+                                    f"but the local file has hash {local_file_hash}.\n"
+                                    "Unable to reconcile those differences.")
 
         # Upload the new files.
         return run.upload_files(names=list(map(itemgetter(0), new_files)),
