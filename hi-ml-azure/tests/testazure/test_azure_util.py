@@ -566,7 +566,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
     # Create second run and ensure no tags
     second_run = experiment.submit(config)
     if any(second_run.get_tags()):
-        second_run.remove_tags()
+        second_run.remove_tags(tags)
 
     # Retrieve latest run with given tags (expect first_run to be returned)
     retrieved_runs = util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
@@ -901,3 +901,19 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     # delete the blob from Blob Storage
     existing_blob: Blob = existing_blobs[0]
     default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+
+
+@pytest.mark.parametrize("arguments, run_id", [
+    (["", "--run", "run_abc_123"], util.RunId("run_abc_123")),
+    (["", "--run", "run_abc_123,run_def_456"], [util.RunId("run_abc_123"), util.RunId("run_def_456")]),
+    (["", "--run", "expt_name:run_abc_123"], util.RunRecoveryId("expt_name:run_abc_123")),
+])
+def test_script_config_run_src(arguments: List[str], run_id: Union[List[util.RunId], util.RunId]) -> None:
+    with patch.object(sys, "argv", arguments):
+        script_config = util.ScriptConfig.parse_args()
+
+        if isinstance(run_id, list):
+            for script_config_run, expected_run in zip(script_config.run, run_id):
+                assert script_config_run.val == expected_run.val
+        else:
+            assert script_config.run.val == run_id.val

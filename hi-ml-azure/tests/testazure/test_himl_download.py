@@ -40,18 +40,3 @@ def test_download_aml_run_no_runs(tmp_path: Path) -> None:
         subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--run_id", "madeuprun", "--output_dir", str(tmp_path)])
         assert "was not found" in str(e)
 
-
-@pytest.mark.parametrize("arguments, run_id", [
-    (["", "--run", "run_abc_123"], util.RunId("run_abc_123")),
-    (["", "--run", "run_abc_123,run_def_456"], [util.RunId("run_abc_123"), util.RunId("run_def_456")]),
-    (["", "--run", "expt_name:run_abc_123"], util.RunRecoveryId("expt_name:run_abc_123")),
-])
-def test_script_config_run_src(arguments: List[str], run_id: Union[List[util.RunId], util.RunId]) -> None:
-    with patch.object(sys, "argv", arguments):
-        script_config = himl_download.ScriptConfig.parse_args()
-
-        if isinstance(run_id, list):
-            for script_config_run, expected_run in zip(script_config.run, run_id):
-                assert script_config_run.val == expected_run.val
-        else:
-            assert script_config.run.val == run_id.val

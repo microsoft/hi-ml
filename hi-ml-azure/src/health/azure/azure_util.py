@@ -21,14 +21,11 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
-<<<<<<< HEAD
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 T = TypeVar('T')
 
 RunType = Union[str, List[str]]
-=======
-from azureml.data.azure_storage_datastore import AzureBlobDatastore
->>>>>>> 9bf8ea58754cf6440a72e1f7151b4b3067f1b574
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -57,7 +54,6 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 
 RUN_CONTEXT = Run.get_context()
 WORKSPACE_CONFIG_JSON = "config.json"
-
 
 PathOrString = Union[Path, str]
 
@@ -179,6 +175,7 @@ class GenericConfig(param.Parameterized):
                     else:
                         # list
                         return [determine_run_id_type(x) for x in res]
+
                 p_type = list_or_string
             else:
                 raise TypeError("Parameter of type: {} is not supported".format(_p))
@@ -257,6 +254,7 @@ class RunIdOrListParam(param.Parameter):
     """
     Wrapper class to allow either a List or string inside of a Parameterized object.
     """
+
     def _validate(self, val: Any) -> None:
         if not (self.allow_None and val is None):
             if not (isinstance(val, List) or isinstance(val, RunId) or isinstance(val, RunRecoveryId)):
@@ -783,7 +781,7 @@ def get_latest_aml_runs_from_experiment(experiment_name: str,
                                         ) -> List[Run]:
     """
     Retrieves the experiment <experiment_name> from the identified workspace and returns <num_runs> latest
-    runs from it, optionally filtering by tags # TODO: e.g. 'completed', true 
+    runs from it, optionally filtering by tags - e.g. {'tag_name':'tag_value'}
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
@@ -844,8 +842,7 @@ def download_run_files_from_run_id(run_id: str, output_dir: Path, prefix: str = 
     :param workspace_config_path: Optional path to settings for Azure ML Workspace
     """
     workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
-    run_id = RunId(run_id)
-    run = get_aml_run(run_id, aml_workspace=workspace)
+    run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     download_run_files(run, output_dir, prefix=prefix)
 
 
@@ -967,3 +964,37 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     datastore.upload(str(local_data_folder), target_path=str(remote_path), overwrite=overwrite,
                      show_progress=show_progress)
     logging.info(f"Uploaded data to {str(remote_path)}")
+
+
+class ScriptConfig(GenericConfig):
+    latest_run_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
+                                                doc="Optional path to most_recent_run.txt where the ID of the"
+                                                    "latest run is stored")
+    experiment_name: str = param.String(default=None, allow_None=True,
+                                        doc="The name of the AML Experiment that you wish to "
+                                            "download Run files from")
+    num_runs: int = param.Integer(default=1, allow_None=True, doc="The number of runs to download from the "
+                                                                  "named experiment")
+    config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
+                                            doc="Path to config.json where Workspace name is defined")
+    tags: Dict[str, Any] = param.Dict()
+    run: Union[List[str], str] = RunIdOrListParam(default=None,
+                                                  doc="Either single or multiple run id(s). Also "
+                                                      "supports run_recovery_ids but this is not "
+                                                      "recommended")
+
+
+def get_runs_from_script_config(script_config: ScriptConfig, workspace: Workspace) -> List[Run]:
+    if script_config.run is None:
+        if script_config.experiment_name is None:
+            # default to latest run file
+            latest_run_file = _find_file("most_recent_run.txt")
+            runs = [get_most_recent_run(latest_run_file, workspace)]
+        else:
+            # get latest runs from experiment
+            runs = get_latest_aml_runs_from_experiment(script_config.experiment_name, tags=script_config.tags,
+                                                       num_runs=script_config.num_runs, aml_workspace=workspace)
+    else:
+        run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]
+        runs = [get_aml_run_from_run_id(run_id.val, aml_workspace=workspace) for run_id in run_ids]
+    return runs
