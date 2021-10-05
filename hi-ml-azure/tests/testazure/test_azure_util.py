@@ -1009,6 +1009,51 @@ def test_is_local_rank_zero() -> None:
         assert not util.is_local_rank_zero()
 
 
+def create_test_files(tmp_path: Path, subfolder: Optional[Path], range: range) -> None:
+    """
+    Create a set of test files in a target folder.
+
+    If subfolder is not empty then the target folder will be tmp_path / "base_data" / subfolder, otherwise it will
+    be tmp_path / "base_data". This folder will be created if it does not exist.
+
+    :param tmp_path: Base folder, intended to be a temporary folder.
+    :param subfolder: Optional subfolder of "base_data", where to create the test files.
+    :param range: Range of suffixes to apply to the filenames.
+    :return: None.
+    """
+    base_data_folder = tmp_path / "base_data"
+    folder = base_data_folder / subfolder if subfolder is not None else base_data_folder
+    if not folder.exists():
+        folder.mkdir(parents=True)
+    filenames = [folder / f"test_file{i}.txt" for i in range]
+    # Populate the dummy text files with some unique text
+    for filename in filenames:
+        filename.write_text(f"some test data: {uuid4().hex}")
+    relative_filenames = [str(f.relative_to(base_data_folder)) for f in filenames]
+    filenames_list = base_data_folder / "filenames.txt"
+    existing_filenames = filenames_list.read_text() + "\n" if filenames_list.exists() else ""
+    filenames_list.write_text(existing_filenames + "\n".join(relative_filenames))
+
+
+def check_run_completed(tmp_path: Path) -> None:
+    """
+    Check that run completed with correct status.
+    """
+    with check_config_json(tmp_path):
+        workspace = himl.get_workspace(aml_workspace=None,
+                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+
+    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                   workspace=workspace)
+    assert run.status == "Completed"
+
+
+run_upload_folder_imports: str = """
+from dataclasses import dataclass, field
+import shutil
+import sys
+from azureml.exceptions import AzureMLException"""
+
 run_upload_folder_common = """
     def check_files(good_filenames, bad_filenames, step, upload_folder_name):
         \"\"\"
@@ -1016,6 +1061,8 @@ run_upload_folder_common = """
 
         :param good_filenames: List of filenames that should have been uploaded without error.
         :param bad_filenames: List of filenames that are expected to have been uploaded with an error.
+        :param changed_filenames: List of filenames that are expected to have changed.
+        :param step: Which step of the test, used for logging and creating temporary folders.
         :param upload_folder_name: Upload folder name.
         :return: None.
         \"\"\"
@@ -1096,6 +1143,15 @@ run_upload_folder_common = """
     test_upload_folder = Path("test_data")
     test_upload_folder.mkdir()
 
+
+    def get_base_data_filenames():
+        \"\"\"
+        Return a list of filenames in the base_data folder, relative to that folder.
+        \"\"\"
+        filenames_list = base_data_folder / "filenames.txt"
+        return filenames_list.read_text().split("\\n")
+
+
     def copy_test_file_name_set(test_file_name_set):
         \"\"\"
         Copy a set of test files from the base_data folder to the test_data folder, making sure parent folders exist.
@@ -1109,6 +1165,7 @@ run_upload_folder_common = """
                 target_folder.mkdir(parents=True)
 
             shutil.copyfile(base_data_folder / f, test_upload_folder / f)
+
 
     def rm_test_file_name_set():
         \"\"\"
@@ -1145,50 +1202,25 @@ run_upload_folder_common = """
 
 def test_run_upload_folder(tmp_path: Path) -> None:
     """
-    Test the run_upload_folder works even if some of the files in the folder
+    Test that run_upload_folder works even if some of the files in the folder
     are already uploaded
     """
-    dummy_data_folder = tmp_path / "base_data"
-    dummy_data_folder.mkdir()
+    # Create test files in the root of the base_data folder.
+    create_test_files(tmp_path, None, range(0, 9))
 
-    # Create dummy text file names in the root of the base_data folder.
-    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 9)]
+    # Create test files in a direct sub folder of the base_data folder.
+    create_test_files(tmp_path, Path("sub1"), range(9, 18))
 
-    dummy_data_sub_folder = dummy_data_folder / "sub1"
-    dummy_data_sub_folder.mkdir()
-
-    # Create dummy text file names in a direct sub folder of the base_data folder.
-    sub_filenames = [dummy_data_sub_folder / f"test_file{i}.txt" for i in range(9, 18)]
-    filenames.extend(sub_filenames)
-
-    dummy_data_sub_sub_folder = dummy_data_folder / "sub1" / "sub2" / "sub3"
-    dummy_data_sub_sub_folder.mkdir(parents=True)
-
-    # Create dummy text file names in a sub sub sub folder of the base_data folder.
-    sub_sub_filenames = [dummy_data_sub_sub_folder / f"test_file{i}.txt" for i in range(18, 27)]
-    filenames.extend(sub_sub_filenames)
-
-    # Populate the dummy text files with some unique text
-    for filename in filenames:
-        filename.write_text(f"some test data: {uuid4().hex}")
-
-    # Write all the filenames to a file so the script can extract them
-    relative_filenames = [str(f.relative_to(dummy_data_folder)) for f in filenames]
-    filenames_list = tmp_path / "filenames.txt"
-    filenames_list.write_text("\n".join(relative_filenames))
+    # Create test files in a sub sub sub folder of the base_data folder.
+    create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(18, 27))
 
     extra_options: Dict[str, str] = {
-        'imports': """
-from dataclasses import dataclass, field
-import shutil
-import sys
-from azureml.exceptions import AzureMLException
+        'imports': run_upload_folder_imports + """
 import health.azure.azure_util as util""",
         'body': run_upload_folder_common + """
 
-    # Extra the list of test text filenames
-    filenames_list = Path("filenames.txt")
-    filenames = filenames_list.read_text().split("\\n")
+    # Extract the list of test file names
+    filenames = get_base_data_filenames()
 
     # Split into distinct sets for each stage of the test
     test_file_name_sets = [
@@ -1287,10 +1319,10 @@ this should be fine, since overlaps handled")
             upload_data.upload_files = upload_data.upload_files.union(set())
 
             if upload_data.errors:
-                print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+                print(f"Upload file set {i}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
 this should fail, since file set: {test_file_name_sets[i]} already uploaded")
 
-                upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[j])
+                upload_data.bad_files = upload_data.bad_files.union(test_file_name_sets[i])
 
                 try:
                     upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
@@ -1300,7 +1332,7 @@ this should fail, since file set: {test_file_name_sets[i]} already uploaded")
                         assert f"{f} already exists" in str(ex)
 
             else:
-                print(f"Upload file sets {i} and {j}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
+                print(f"Upload file set {i}: {upload_data.folder_name}, {upload_data.upload_files}, \\n \
 this should be raise an exception since one of the files has changed")
 
                 upload_data.bad_files = upload_data.bad_files.union(set())
@@ -1309,7 +1341,8 @@ this should be raise an exception since one of the files has changed")
                     upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
                 except Exception as ex:
                     print(f"Expected error in upload_folder: {str(ex)}")
-                    assert f"Files are different, {random_upload_file}" in str(ex)
+                    assert f"Trying to upload file {random_upload_file} but that file already exists in the run." \
+                            "in str(ex)"
 
             j = j + 1
             check_files(upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
@@ -1318,42 +1351,28 @@ this should be raise an exception since one of the files has changed")
     }
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None,
-                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
-
-    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                   workspace=workspace)
-    assert run.status == "Completed"
+    check_run_completed(tmp_path)
 
 
 def test_run_upload_folder_min(tmp_path: Path) -> None:
     """
-    Test the run_upload_folder works even if some of the files in the folder
-    are already uploaded
+    Minimal test of how run_upload_folder behaves when called twice with the same file in the folder both times.
     """
-    dummy_data_folder = tmp_path / "base_data"
-    dummy_data_folder.mkdir()
-
-    # Create dummy text file names.
-    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 2)]
-
-    for filename in filenames:
-        filename.write_text(f"some test data: {uuid4().hex}")
+    # Create test files.
+    create_test_files(tmp_path, None, range(0, 2))
 
     extra_options: Dict[str, str] = {
-        'imports': """
-from dataclasses import dataclass, field
-import shutil
-import sys
-from azureml.exceptions import AzureMLException""",
+        'imports': run_upload_folder_imports,
         'body': run_upload_folder_common + """
 
     upload_folder_name = "uploaded_folder"
 
+    # Extract the list of test file names
+    filenames = get_base_data_filenames()
+
     test_file_name_sets = [
-        { "test_file0.txt" },
-        { "test_file1.txt" }
+        { filenames[0] },
+        { filenames[1] }
     ]
 
     # Step 1, upload the first file set
@@ -1384,42 +1403,29 @@ from azureml.exceptions import AzureMLException""",
 
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None,
-                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
-
-    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                   workspace=workspace)
-    assert run.status == "Completed"
+    check_run_completed(tmp_path)
 
 
 def test_run_upload_file(tmp_path: Path) -> None:
     """
-    Test the run_upload_file works even if some of the files in the folder
+    Test that run_upload_file works even if some of the files in the folder
     are already uploaded
     """
-    dummy_data_folder = tmp_path / "base_data"
-    dummy_data_folder.mkdir()
-
-    # Create dummy text file names.
-    filenames = [dummy_data_folder / f"test_file{i}.txt" for i in range(0, 2)]
-
-    for filename in filenames:
-        filename.write_text(f"some test data: {uuid4().hex}")
+    # Create test files.
+    create_test_files(tmp_path, None, range(0, 2))
 
     extra_options: Dict[str, str] = {
-        'imports': """
-from dataclasses import dataclass, field
-import shutil
-import sys
-from azureml.exceptions import AzureMLException""",
+        'imports': run_upload_folder_imports,
         'body': run_upload_folder_common + """
 
-    upload_folder_name = "uploaded_files"
+    upload_folder_name = "uploaded_file"
+
+    # Extract the list of test file names
+    filenames = get_base_data_filenames()
 
     test_file_name_sets = [
-        { "test_file0.txt" },
-        { "test_file1.txt" }
+        { filenames[0] },
+        { filenames[1] }
     ]
 
     test_file_name_alias = "test_file0_txt.txt"
@@ -1431,7 +1437,7 @@ from azureml.exceptions import AzureMLException""",
 
     print(f"Upload the first file: {upload_files}")
     run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
-                             path_or_stream=str(test_upload_folder / "test_file0.txt"))
+                             path_or_stream=str(test_upload_folder / filenames[0]))
 
     check_files(upload_file_aliases, set(), 1, upload_folder_name)
 
@@ -1440,7 +1446,7 @@ from azureml.exceptions import AzureMLException""",
           this should fail since first file already there")
     try:
         run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
-                                 path_or_stream=str(test_upload_folder / "test_file0.txt"))
+                                 path_or_stream=str(test_upload_folder / filenames[0]))
     except Exception as ex:
         print(f"Expected error in run.upload_file: {str(ex)}")
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
@@ -1456,7 +1462,7 @@ from azureml.exceptions import AzureMLException""",
           this should fail since first file already there")
     try:
         run_info.run.upload_file(name=f"{upload_folder_name}/{test_file_name_alias}",
-                                 path_or_stream=str(test_upload_folder / "test_file1.txt"))
+                                 path_or_stream=str(test_upload_folder / filenames[1]))
     except Exception as ex:
         print(f"Expected error in run.upload_file: {str(ex)}")
         assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
@@ -1470,10 +1476,4 @@ from azureml.exceptions import AzureMLException""",
 
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    with check_config_json(tmp_path):
-        workspace = himl.get_workspace(aml_workspace=None,
-                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
-
-    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                   workspace=workspace)
-    assert run.status == "Completed"
+    check_run_completed(tmp_path)

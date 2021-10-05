@@ -859,9 +859,9 @@ def run_upload_folder(run: Run,
 
             local_file_hash = hash_file(f[1])
             if downloaded_file_hash != local_file_hash:
-                raise Exception(f"trying to upload file {f[1]} but that file already exists in the run. \n"
-                                "The existing file on the run has hash {downloaded_file_hash}, \n"
-                                "but the local file has hash {local_file_hash}.\n"
+                raise Exception(f"Trying to upload file {f[1]} but that file already exists in the run. \n"
+                                f"The existing file on the run has hash {downloaded_file_hash}, \n"
+                                f"but the local file has hash {local_file_hash}.\n"
                                 "Unable to reconcile those differences.")
 
         # Upload the new files.
