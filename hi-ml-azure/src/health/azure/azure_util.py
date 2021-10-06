@@ -742,6 +742,10 @@ def download_files_from_run_id(run_id: str, output_folder: Path, prefix: str = "
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
     file will be used to instantiate the workspace.
 
+    If function is called in a distributed PyTorch training script, the files will only be downloaded once per node
+    (i.e, all process where is_local_rank_zero() == True). All processes will exit this function once all downloads
+    are completed.
+
     :param run_id: The id of the Azure ML Run
     :param output_folder: Local directory to which the Run files should be downloaded.
     :param prefix: Optional prefix to filter Run files by
@@ -752,6 +756,7 @@ def download_files_from_run_id(run_id: str, output_folder: Path, prefix: str = "
     workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
     run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     _download_files_from_run(run, output_folder, prefix=prefix, validate_checksum=validate_checksum)
+    torch_barrier()
 
 
 def _download_file_from_run(run: Run, filename: str, output_file: Path, validate_checksum: bool = False
@@ -910,3 +915,18 @@ def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     """
     return hasattr(aml_run, 'experiment')
+
+
+def torch_barrier() -> None:
+    """
+    This is a barrier to use in distributed jobs. Use it to make all processes that participate in a distributed
+    pytorch job to wait for each other. When torch.distributed is not set up or not found, the function exits
+    immediately.
+    """
+    try:
+        import torch
+    except ModuleNotFoundError:
+        logging.info("Skipping the barrier because PyTorch is not available.")
+        return
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.barrier()

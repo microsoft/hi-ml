@@ -25,7 +25,8 @@ There is an additional parameter, "validate_checksum" which defaults to False. I
 MD5 hash of the data arriving (in chunks) to that being sent.
 
 Note that if your code is running in a distributed manner, files will only be downloaded onto nodes with local rank = 0.
-E.g. if you have 2 nodes each running 4 processes, the file will be downloaded by CPU/GPU 0 on each of the 2 nodes. 
+E.g. if you have 2 nodes each running 4 processes, the file will be downloaded by CPU/GPU 0 on each of the 2 nodes.
+All processes will be synchronized to only exit the downloading method once it has completed on all nodes/ranks.
 
 ## Downloading checkpoint files from a run
 
@@ -43,6 +44,7 @@ Since checkpoint files are often large and therefore prone to corruption during 
 
 Note that if your code is running in a distributed manner, files will only be downloaded onto nodes with local rank = 0.
 E.g. if you have 2 nodes each running 4 processes, the file will be downloaded by CPU/GPU 0 on each of the 2 nodes. 
+All processes will be synchronized to only exit the downloading method once it has completed on all nodes/ranks.
 
 
 ## Downloading files from an Azure ML Datastore
