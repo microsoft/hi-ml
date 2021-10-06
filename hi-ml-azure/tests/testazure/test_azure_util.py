@@ -26,7 +26,9 @@ from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health.azure.azure_util as util
-import testazure.test_data.simple.upload_util as upload_util
+import testazure.test_data.simple.upload_file as upload_file
+import testazure.test_data.simple.upload_folder as upload_folder
+import testazure.test_data.simple.upload_folder_min as upload_folder_min
 from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
@@ -1119,17 +1121,9 @@ def check_run_completed(tmp_path: Path) -> None:
 
 def test_run_upload_folder(tmp_path: Path) -> None:
     """
-    Test that run_upload_folder works even if some of the files in the folder
-    are already uploaded
+    Test that run_upload_folder works even if some of the files in the folder are already uploaded
     """
-    # Create test files in the root of the base_data folder.
-    upload_util.create_test_files(tmp_path, None, range(0, 9))
-
-    # Create test files in a direct sub folder of the base_data folder.
-    upload_util.create_test_files(tmp_path, Path("sub1"), range(9, 18))
-
-    # Create test files in a sub sub sub folder of the base_data folder.
-    upload_util.create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(18, 27))
+    upload_folder.init_test(tmp_path)
 
     extra_options: Dict[str, str] = {
         'imports': """
@@ -1150,8 +1144,7 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
     """
     Minimal test of how run_upload_folder behaves when called twice with the same file in the folder both times.
     """
-    # Create test files.
-    upload_util.create_test_files(tmp_path, None, range(0, 2))
+    upload_folder_min.init_test(tmp_path)
 
     extra_options: Dict[str, str] = {
         'imports': """
@@ -1174,8 +1167,7 @@ def test_run_upload_file(tmp_path: Path) -> None:
     Test that run_upload_file works even if some of the files in the folder
     are already uploaded
     """
-    # Create test files.
-    upload_util.create_test_files(tmp_path, None, range(0, 2))
+    upload_file.init_test(tmp_path)
 
     extra_options: Dict[str, str] = {
         'imports': """

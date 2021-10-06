@@ -10,13 +10,35 @@ from pathlib import Path
 
 from azureml.core.run import Run
 
-import upload_util
 import health.azure.azure_util as util
+
+try:
+    import upload_util
+except Exception:
+    import testazure.test_data.simple.upload_util as upload_util
+
+
+def init_test(tmp_path: Path) -> None:
+    """
+    Create test files.
+
+    :param tmp_path: Folder to create test files in.
+    """
+    # Create test files in the root of the base_data folder.
+    upload_util.create_test_files(tmp_path, None, range(0, 9))
+
+    # Create test files in a direct sub folder of the base_data folder.
+    upload_util.create_test_files(tmp_path, Path("sub1"), range(9, 18))
+
+    # Create test files in a sub sub sub folder of the base_data folder.
+    upload_util.create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(18, 27))
 
 
 def run_test(run: Run) -> None:
     """
     Run a set of tests against run.upload_folder and run_upload_folder.
+
+    :param run: AzureML run.
     """
     # Extract the list of test file names
     filenames = upload_util.get_base_data_filenames()
@@ -144,6 +166,7 @@ this should fail, since file set: {test_file_name_sets[i]} already uploaded")
                 try:
                     upload_data.upload_fn(run, upload_data.folder_name, test_upload_folder)
                 except Exception as ex:
+                    print(f"Expected error in upload_folder: {str(ex)}")
                     assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
                     for f in test_file_name_sets[i]:
                         assert f"{f} already exists" in str(ex)

@@ -10,8 +10,21 @@ from pathlib import Path
 
 from azureml.core.run import Run
 
-import upload_util
 import health.azure.azure_util as util
+
+try:
+    import upload_util
+except Exception:
+    import testazure.test_data.simple.upload_util as upload_util
+
+
+def init_test(tmp_path: Path) -> None:
+    """
+    Create test files.
+
+    :param tmp_path: Folder to create test files in.
+    """
+    upload_util.create_test_files(tmp_path, None, range(0, 2))
 
 
 def run_test(run: Run) -> None:
