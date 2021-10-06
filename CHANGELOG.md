@@ -24,6 +24,9 @@ created.
 
 ## 0.1.8 (2021-10-05)
 
+### Added
+- ([#123](https://github.com/microsoft/hi-ml/pull/123)) Add helper function to download checkpoint files
+
 ### Changed
 - ([#127](https://github.com/microsoft/hi-ml/pull/127)) The field `is_running_in_azure` of `AzureRunInfo` has been renamed to `is_running_in_azure_ml`
 
@@ -41,7 +44,6 @@ created.
 - ([#106](https://github.com/microsoft/hi-ml/pull/106)) Split into two packages. Most of existing package renamed to hi-ml-azure, remained remains hi-ml.
 - ([#113](https://github.com/microsoft/hi-ml/pull/113)) Add helper function to download files from AML Run, tidied up some command line args, and moved some functions from himl.py to azure_util.py
 - ([#122](https://github.com/microsoft/hi-ml/pull/122)) Add helper functions to upload to and download from AML Datastores
-- ([#123](https://github.com/microsoft/hi-ml/pull/123)) Add helper function to download checkpoint files
 
 ### Fixed
 - ([#117](https://github.com/microsoft/hi-ml/pull/117)) Bug fix: Config.json file was expected to be present, even if workspace was provided explicitly.
