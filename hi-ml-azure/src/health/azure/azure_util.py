@@ -903,8 +903,6 @@ def run_upload_file(run: Run,
     For more details on these parameters please see the original documentation here:
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-file-name--path-or-stream--datastore-name-none-
 
-    with open(path, "rb") as stream:
-
     :param run: AzureML run to upload folder to.
     :param name: The name of the file to upload.
     :param path_or_stream: The relative local path or stream to the file to upload.

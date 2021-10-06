@@ -5,12 +5,13 @@
 """
 Tests for the functions in health.azure.azure_util
 """
-from argparse import ArgumentParser
 import os
 import logging
+import shutil
 import time
+from argparse import ArgumentParser
 from pathlib import Path
-from typing import Callable, Dict, Optional, List
+from typing import Dict, Optional, List
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -25,15 +26,18 @@ from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health.azure.azure_util as util
+import testazure.test_data.simple.upload_util as upload_util
 from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory, check_config_json
 
+
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
 EXPERIMENT_NAME = "fancy-experiment"
 AML_TESTS_EXPERIMENT = "test_experiment"
+here = Path(__file__).parent.resolve()
 
 
 def oh_no() -> None:
@@ -1100,32 +1104,6 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
 
 
-def create_test_files(tmp_path: Path, subfolder: Optional[Path], range: range) -> None:
-    """
-    Create a set of test files in a target folder.
-
-    If subfolder is not empty then the target folder will be tmp_path / "base_data" / subfolder, otherwise it will
-    be tmp_path / "base_data". This folder will be created if it does not exist.
-
-    :param tmp_path: Base folder, intended to be a temporary folder.
-    :param subfolder: Optional subfolder of "base_data", where to create the test files.
-    :param range: Range of suffixes to apply to the filenames.
-    :return: None.
-    """
-    base_data_folder = tmp_path / "base_data"
-    folder = base_data_folder / subfolder if subfolder is not None else base_data_folder
-    if not folder.exists():
-        folder.mkdir(parents=True)
-    filenames = [folder / f"test_file{i}.txt" for i in range]
-    # Populate the dummy text files with some unique text
-    for filename in filenames:
-        filename.write_text(f"some test data: {uuid4().hex}")
-    relative_filenames = [str(f.relative_to(base_data_folder)) for f in filenames]
-    filenames_list = base_data_folder / "filenames.txt"
-    existing_filenames = filenames_list.read_text() + "\n" if filenames_list.exists() else ""
-    filenames_list.write_text(existing_filenames + "\n".join(relative_filenames))
-
-
 def check_run_completed(tmp_path: Path) -> None:
     """
     Check that run completed with correct status.
@@ -1139,180 +1117,29 @@ def check_run_completed(tmp_path: Path) -> None:
     assert run.status == "Completed"
 
 
-run_upload_folder_imports: str = """
-from dataclasses import dataclass, field
-import shutil
-import sys
-from typing import Callable
-from azureml.exceptions import AzureMLException"""
-
-run_upload_folder_common = """
-    def check_files(good_filenames, bad_filenames, step, upload_folder_name):
-        \"\"\"
-        Check that the list of files that have been uploaded to the run for this folder name are as expected.
-
-        :param good_filenames: List of filenames that should have been uploaded without error.
-        :param bad_filenames: List of filenames that are expected to have been uploaded with an error.
-        :param changed_filenames: List of filenames that are expected to have changed.
-        :param step: Which step of the test, used for logging and creating temporary folders.
-        :param upload_folder_name: Upload folder name.
-        :return: None.
-        \"\"\"
-        print_prefix = f"check_files_{step}_{upload_folder_name}:"
-        print(f"{print_prefix} good_filenames:{sorted(good_filenames)}")
-        print(f"{print_prefix} bad_filenames:{sorted(bad_filenames)}")
-
-        # Download all the file names for this upload_folder_name, stripping off the leading upload_folder_name and /
-        run_file_names = {f[len(upload_folder_name) + 1:]
-                          for f in run_info.run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-        print(f"{print_prefix} run_file_names:{sorted(run_file_names)}")
-        # This should be the same as the list of good and bad filenames combined.
-        assert run_file_names == good_filenames.union(bad_filenames)
-
-        # Make a folder to download them all at once
-        download_folder_all = Path(f"outputs/download_folder_all_{step}_{upload_folder_name}")
-        download_folder_all.mkdir()
-
-        if len(bad_filenames) == 0:
-            # With no bad filenames, it should be possible to just download them all at once
-            # The option 'append_prefix' actually removes the upload_folder_name.
-            run_info.run.download_files(prefix=upload_folder_name,
-                                        output_directory=str(download_folder_all),
-                                        append_prefix=False)
-        else:
-            # With bad filenames, run.download_files with raise an exception.
-            try:
-                run_info.run.download_files(prefix=upload_folder_name,
-                                            output_directory=str(download_folder_all),
-                                            append_prefix=False)
-            except AzureMLException as ex:
-                print(f"Expected error in download_files: {str(ex)}")
-                assert "Failed to flush task queue within 120 seconds" in str(ex)
-
-        # Glob the list of all the files that have been downloaded relative to the download folder.
-        downloaded_all_local_files = {str(f.relative_to(download_folder_all))
-                                      for f in download_folder_all.rglob("*") if f.is_file()}
-        print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
-        # This should be the same as the list of good and bad filenames.
-        assert downloaded_all_local_files == good_filenames.union(bad_filenames)
-
-        # Make a folder to download them individually
-        download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
-        download_folder_ind.mkdir()
-
-        for f in good_filenames.union(bad_filenames):
-            # Each file may be in a sub folder, make sure it exists before trying download.
-            target_folder = (download_folder_ind / f).parent
-            if not target_folder.exists():
-                target_folder.mkdir(parents=True)
-
-            try:
-                # Try to download each file
-                run_info.run.download_file(name=f"{upload_folder_name}/{f}",
-                                           output_file_path=str(target_folder))
-            except AzureMLException as ex:
-                if f in bad_filenames:
-                    # If this file is in the list of bad_filenames this is expected to raise an exception.
-                    print(f"Expected error in download_file: {f}: {str(ex)}")
-                    assert "Download of file failed with error: The specified blob does not exist. "\
-                           "ErrorCode: BlobNotFound" in str(ex)
-                else:
-                    print(f"Unexpected error in download_file: {f}: {str(ex)}")
-                    # Otherwise, reraise the exception to terminate the run.
-                    raise ex
-
-        # Glob the list of all the files that have been downloaded relative to the download folder.
-        downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
-                                      for f in download_folder_ind.rglob("*") if f.is_file()}
-        print(f"{print_prefix} downloaded_ind_local_files:{sorted(downloaded_ind_local_files)}")
-        # This should be the same as the list of good and bad filenames.
-        assert downloaded_ind_local_files == good_filenames.union(bad_filenames)
-
-    # The folder where the test files have been created. Since they are in a subfolder of the script, they should
-    # have been uploaded.
-    base_data_folder = Path("base_data")
-    # Create a new folder to upload files from
-    test_upload_folder = Path("test_data")
-    test_upload_folder.mkdir()
-
-
-    def get_base_data_filenames():
-        \"\"\"
-        Return a list of filenames in the base_data folder, relative to that folder.
-        \"\"\"
-        filenames_list = base_data_folder / "filenames.txt"
-        return filenames_list.read_text().split("\\n")
-
-
-    def copy_test_file_name_set(test_file_name_set):
-        \"\"\"
-        Copy a set of test files from the base_data folder to the test_data folder, making sure parent folders exist.
-
-        :param test_file_name_set: Set of files to copy.
-        :return: None.
-        \"\"\"
-        for f in test_file_name_set:
-            target_folder = (test_upload_folder / f).parent
-            if not target_folder.exists():
-                target_folder.mkdir(parents=True)
-
-            shutil.copyfile(base_data_folder / f, test_upload_folder / f)
-
-
-    def rm_test_file_name_set():
-        \"\"\"
-        Completely remove the test_data folder and recreate it.
-
-        :return: None.
-        \"\"\"
-        if test_upload_folder.exists():
-            shutil.rmtree(test_upload_folder)
-        test_upload_folder.mkdir()
-
-    # Lambda function to upload a folder using AzureML directly.
-    amlupload_folder = lambda run, name, path: run.upload_folder(name, str(path))
-    # Lambda function to upload a folder using the HI-ML wrapper function.
-    himlupload_folder = lambda run, name, path: util.run_upload_folder(run, name, str(path))
-
-    @dataclass
-    class TestUploadData:
-        \"\"\"
-        Class to track progress of uploading test file sets and tracking expected results.
-        \"\"\"
-        # Name of folder
-        folder_name: str
-        # Function to use for upload
-        upload_fn: Callable
-        # Does this work?
-        errors: bool
-        upload_files: set = field(default_factory=set)
-        good_files: set = field(default_factory=set)
-        bad_files: set = field(default_factory=set)
-
-"""
-
-
 def test_run_upload_folder(tmp_path: Path) -> None:
     """
     Test that run_upload_folder works even if some of the files in the folder
     are already uploaded
     """
     # Create test files in the root of the base_data folder.
-    create_test_files(tmp_path, None, range(0, 9))
+    upload_util.create_test_files(tmp_path, None, range(0, 9))
 
     # Create test files in a direct sub folder of the base_data folder.
-    create_test_files(tmp_path, Path("sub1"), range(9, 18))
+    upload_util.create_test_files(tmp_path, Path("sub1"), range(9, 18))
 
     # Create test files in a sub sub sub folder of the base_data folder.
-    create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(18, 27))
+    upload_util.create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(18, 27))
 
     extra_options: Dict[str, str] = {
-        'imports': run_upload_folder_imports + """
+        'imports': """
+import sys
+import upload_util
 import health.azure.azure_util as util""",
-        'body': run_upload_folder_common + """
+        'body': """
 
     # Extract the list of test file names
-    filenames = get_base_data_filenames()
+    filenames = upload_util.get_base_data_filenames()
 
     # Split into distinct sets for each stage of the test
     test_file_name_sets = [
@@ -1336,21 +1163,28 @@ import health.azure.azure_util as util""",
         set(filenames[24:27]),
     ]
 
+    # Lambda function to upload a folder using AzureML directly.
+    amlupload_folder = lambda run, name, path: run.upload_folder(name, str(path))
+    # Lambda function to upload a folder using the HI-ML wrapper function.
+    himlupload_folder = lambda run, name, path: util.run_upload_folder(run, name, str(path))
+
     # Test against two different methods. AzureML directly and using the HI-ML wrapper
     upload_datas = [
         # Test against AzureML. This takes a long time because of two minute timeouts trying to download
         # corrupted files.
-        # TestUploadData("uploaded_folder_aml", amlupload_folder, True),
+        # upload_util.TestUploadFolderData("uploaded_folder_aml", amlupload_folder, True),
         # Test against HI-ML wrapper function.
-        TestUploadData("uploaded_folder_himl", himlupload_folder, False)
+        upload_util.TestUploadFolderData("uploaded_folder_himl", himlupload_folder, False)
     ]
+
+    test_upload_folder = Path(upload_util.test_upload_folder_name)
 
     # Step 1, upload distinct file sets
     for i in range(0, 6):
         # Remove any existing test files
-        rm_test_file_name_set()
+        upload_util.rm_test_file_name_set()
         # Copy in the new test file set
-        copy_test_file_name_set(test_file_name_sets[i])
+        upload_util.copy_test_file_name_set(test_file_name_sets[i])
 
         # Upload using each method and check the results
         for upload_data in upload_datas:
@@ -1361,13 +1195,13 @@ import health.azure.azure_util as util""",
             print(f"Upload file set {i}: {upload_data.folder_name}, {upload_data.upload_files}")
 
             upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
-            check_files(upload_data.good_files, upload_data.bad_files, i, upload_data.folder_name)
+            upload_util.check_files(run_info.run, upload_data.good_files, upload_data.bad_files, i, upload_data.folder_name)
 
     # Step 2, upload the overlapping file sets
     for (i, j) in [(1, 6), (3, 7), (5, 8)]:
-        rm_test_file_name_set()
-        copy_test_file_name_set(test_file_name_sets[i])
-        copy_test_file_name_set(test_file_name_sets[j])
+        upload_util.rm_test_file_name_set()
+        upload_util.copy_test_file_name_set(test_file_name_sets[i])
+        upload_util.copy_test_file_name_set(test_file_name_sets[j])
 
         for upload_data in upload_datas:
             upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[j])
@@ -1395,12 +1229,12 @@ this should be fine, since overlaps handled")
 
                 upload_data.upload_fn(run_info.run, upload_data.folder_name, test_upload_folder)
 
-            check_files(upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
+            upload_util.check_files(run_info.run, upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
 
     # Step 3, modify the original set
     for i in [1, 3, 5]:
-        rm_test_file_name_set()
-        copy_test_file_name_set(test_file_name_sets[i])
+        upload_util.rm_test_file_name_set()
+        upload_util.copy_test_file_name_set(test_file_name_sets[i])
         random_file = list(test_file_name_sets[i])[0]
         random_upload_file = test_upload_folder / random_file
         existing_text = random_upload_file.read_text()
@@ -1437,11 +1271,12 @@ this should be raise an exception since one of the files has changed")
                             "in str(ex)"
 
             j = j + 1
-            check_files(upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
+            upload_util.check_files(run_info.run, upload_data.good_files, upload_data.bad_files, j, upload_data.folder_name)
 
 """
     }
     extra_args: List[str] = []
+    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
     check_run_completed(tmp_path)
 
@@ -1451,34 +1286,39 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
     Minimal test of how run_upload_folder behaves when called twice with the same file in the folder both times.
     """
     # Create test files.
-    create_test_files(tmp_path, None, range(0, 2))
+    upload_util.create_test_files(tmp_path, None, range(0, 2))
 
     extra_options: Dict[str, str] = {
-        'imports': run_upload_folder_imports,
-        'body': run_upload_folder_common + """
+        'imports': """
+import sys
+import upload_util
+import health.azure.azure_util as util""",
+        'body': """
 
     upload_folder_name = "uploaded_folder"
 
     # Extract the list of test file names
-    filenames = get_base_data_filenames()
+    filenames = upload_util.get_base_data_filenames()
 
     test_file_name_sets = [
         { filenames[0] },
         { filenames[1] }
     ]
 
+    test_upload_folder = Path(upload_util.test_upload_folder_name)
+
     # Step 1, upload the first file set
     upload_files = test_file_name_sets[0].copy()
-    copy_test_file_name_set(test_file_name_sets[0])
+    upload_util.copy_test_file_name_set(test_file_name_sets[0])
 
     print(f"Upload the first file set: {upload_files}")
     run_info.run.upload_folder(name=upload_folder_name, path=str(test_upload_folder))
 
-    check_files(test_file_name_sets[0], set(), 1, upload_folder_name)
+    upload_util.check_files(run_info.run, test_file_name_sets[0], set(), 1, upload_folder_name)
 
     # Step 2, upload the second file set
     upload_files = upload_files.union(test_file_name_sets[1])
-    copy_test_file_name_set(test_file_name_sets[1])
+    upload_util.copy_test_file_name_set(test_file_name_sets[1])
 
     print(f"Upload the second file set: {upload_files}, \
           this should fail since first file set already there")
@@ -1489,11 +1329,12 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
         for f in test_file_name_sets[0]:
             assert f"{f} already exists" in str(ex)
 
-    check_files(test_file_name_sets[0], test_file_name_sets[1], 2, upload_folder_name)
+    upload_util.check_files(run_info.run, test_file_name_sets[0], test_file_name_sets[1], 2, upload_folder_name)
 """
     }
 
     extra_args: List[str] = []
+    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
     check_run_completed(tmp_path)
 
@@ -1504,15 +1345,19 @@ def test_run_upload_file(tmp_path: Path) -> None:
     are already uploaded
     """
     # Create test files.
-    create_test_files(tmp_path, None, range(0, 2))
+    upload_util.create_test_files(tmp_path, None, range(0, 2))
 
     extra_options: Dict[str, str] = {
-        'imports': run_upload_folder_imports + """
+        'imports': """
+import sys
+import upload_util
 import health.azure.azure_util as util""",
-        'body': run_upload_folder_common + """
+        'body': """
 
     # Extract the list of test file names
-    filenames = get_base_data_filenames()
+    filenames = upload_util.get_base_data_filenames()
+
+    print(f"Loaded file names: {filenames}")
 
     test_file_name_sets = [
         { filenames[0] },
@@ -1535,10 +1380,12 @@ import health.azure.azure_util as util""",
         ("upload_file_himl", himlupload_file, False)
     ]
 
+    test_upload_folder = Path(upload_util.test_upload_folder_name)
+
     # Step 1, upload the first file
     upload_files = test_file_name_sets[0]
     upload_file_aliases = {test_file_name_alias}
-    copy_test_file_name_set(test_file_name_sets[0])
+    upload_util.copy_test_file_name_set(test_file_name_sets[0])
 
     for upload_folder_name, upload_fn, errors in upload_datas:
         print(f"Upload the first file: {upload_folder_name}, {upload_files}")
@@ -1546,7 +1393,7 @@ import health.azure.azure_util as util""",
                   name=f"{upload_folder_name}/{test_file_name_alias}",
                   path_or_stream=str(test_upload_folder / filenames[0]))
 
-        check_files(upload_file_aliases, set(), 1, upload_folder_name)
+        upload_util.check_files(run_info.run, upload_file_aliases, set(), 1, upload_folder_name)
 
     # Step 2, upload the first file again
     for upload_folder_name, upload_fn, errors in upload_datas:
@@ -1567,11 +1414,11 @@ import health.azure.azure_util as util""",
                 # File is the same, so nothing should have happened
                 raise ex
 
-        check_files(upload_file_aliases, set(), 2, upload_folder_name)
+        upload_util.check_files(run_info.run, upload_file_aliases, set(), 2, upload_folder_name)
 
     # Step 3, upload a second file with the same alias as the first
     upload_files = test_file_name_sets[1]
-    copy_test_file_name_set(test_file_name_sets[1])
+    upload_util.copy_test_file_name_set(test_file_name_sets[1])
 
     for upload_folder_name, upload_fn, errors in upload_datas:
         print(f"Upload a second file with same name as the first: {upload_folder_name}, {upload_files}, \
@@ -1591,11 +1438,12 @@ import health.azure.azure_util as util""",
                 assert f"Trying to upload file {name} but that file already exists in the run." \
                         "in str(ex)"
 
-        check_files(upload_file_aliases, set(), 3, upload_folder_name)
+        upload_util.check_files(run_info.run, upload_file_aliases, set(), 3, upload_folder_name)
 
 """
     }
 
     extra_args: List[str] = []
+    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
     check_run_completed(tmp_path)
