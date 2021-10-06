@@ -23,6 +23,7 @@ The `hi-ml` toolbox provides
    datasets.md
    hyperdrive.md
    commandline_tools.md
+   downloading.md
    examples.md
 
 .. toctree::
