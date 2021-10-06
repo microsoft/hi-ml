@@ -1187,7 +1187,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
 @pytest.mark.fast
 def test_torch_barrier(available: bool,
                        initialized: bool,
-                       expected_barrier_called: bool):
+                       expected_barrier_called: bool) -> None:
     distributed = mock.MagicMock()
     distributed.is_available.return_value = available
     distributed.is_initialized.return_value = initialized

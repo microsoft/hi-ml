@@ -17,13 +17,11 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import conda_merge
 import ruamel.yaml
-from astroid import Module
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from mypy.build import ModuleNotFound
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
