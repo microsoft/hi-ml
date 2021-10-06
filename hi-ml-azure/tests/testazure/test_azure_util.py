@@ -5,12 +5,12 @@
 """
 Tests for the functions in health.azure.azure_util
 """
-from argparse import ArgumentParser
-import os
 import logging
+import os
 import time
+from argparse import ArgumentParser
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -28,7 +28,7 @@ import health.azure.azure_util as util
 from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory
+from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -88,7 +88,6 @@ def test_get_workspace(
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock,
         tmp_path: Path) -> None:
-
     # Test the case when running on AML
     with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
         mock_run_context.experiment = MagicMock(workspace=mock_workspace)
@@ -391,7 +390,7 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
-        ) -> None:
+) -> None:
     just_conda_str_env_name = "HealthML-a26b35a434dd27a44a8224c709fb4760"
     conda_str = """name: simple-env
 dependencies:
@@ -860,7 +859,6 @@ def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
 @pytest.mark.parametrize("dummy_env_vars", [{}, {util.ENV_LOCAL_RANK: "1"}])
 @pytest.mark.parametrize("prefix", ["", "abc"])
 def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], Optional[str]], prefix: str) -> None:
-
     # Assert that 'downloaded' paths don't exist to begin with
     dummy_paths = [Path(x) for x in _get_file_names(pref=prefix)]
     expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
@@ -1179,3 +1177,24 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
                 break
 
     assert found_file_contents == file_contents
+
+
+@pytest.mark.parametrize(("available", "initialized", "expected_barrier_called"),
+                         [(False, True, False),
+                          (True, False, False),
+                          (False, False, False),
+                          (True, True, True)])
+@pytest.mark.fast
+def test_torch_barrier(available: bool,
+                       initialized: bool,
+                       expected_barrier_called: bool):
+    distributed = mock.MagicMock()
+    distributed.is_available.return_value = available
+    distributed.is_initialized.return_value = initialized
+    distributed.barrier = mock.MagicMock()
+    with mock.patch.dict("sys.modules", {"torch": mock.MagicMock(distributed=distributed)}):
+        util.torch_barrier()
+        if expected_barrier_called:
+            distributed.barrier.assert_called_once()
+        else:
+            assert distributed.barrier.call_count == 0
