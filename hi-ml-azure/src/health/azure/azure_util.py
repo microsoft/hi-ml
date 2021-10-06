@@ -922,7 +922,8 @@ def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
 def torch_barrier() -> None:
     """
     This is a barrier to use in distributed jobs. Use it to make all processes that participate in a distributed
-    pytorch job to wait for each other.
+    pytorch job to wait for each other. When torch.distributed is not set up or not found, the function exits
+    immediately.
     """
     try:
         import torch
