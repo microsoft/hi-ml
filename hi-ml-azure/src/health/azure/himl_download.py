@@ -6,7 +6,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from health.azure.azure_util import AzureRunIdSource, download_run_files, get_aml_runs
+from health.azure.azure_util import AzureRunIdSource, _download_files_from_run, get_aml_runs
 
 from health.azure.himl import get_workspace
 from health.azure.himl_tensorboard import determine_run_id_source
@@ -107,7 +107,7 @@ def main() -> None:  # pragma: no cover
 
     # TODO: extend to multiple runs?
     try:  # pragma: no cover
-        download_run_files(run, output_dir=output_path, prefix=prefix)
+        _download_files_from_run(run, output_dir=output_path, prefix=prefix)
         print(f"Downloaded file(s) to '{output_path}'")
     except Exception as e:  # pragma: no cover
         raise ValueError(f"Couldn't download files from run {args.run_id}: {e}")
