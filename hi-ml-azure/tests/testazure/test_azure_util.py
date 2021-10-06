@@ -1136,7 +1136,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
         file_name = f"dummy_checkpoint_{i}.txt"
         large_file_path = tmp_path / file_name
         with open(str(large_file_path), "wb") as f_path:
-            f_path.seek((256 * 256 * 256) - 1)
+            f_path.seek((1024 * 1024 * 240) - 1)
             f_path.write(bytearray(file_contents, encoding="UTF-8"))
 
         file_size = large_file_path.stat().st_size

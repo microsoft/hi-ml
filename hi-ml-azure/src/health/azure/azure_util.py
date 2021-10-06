@@ -93,7 +93,7 @@ def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Opt
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param aml_workspace: If provided this is returned as the AzureML Workspace.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
@@ -744,11 +744,11 @@ def download_files_from_run_id(run_id: str, output_folder: Path, prefix: str = "
     """
     For a given Azure ML run id, first retrieve the Run, and then download all files, which optionally start
     with a given prefix. E.g. if the Run creates a folder called "outputs", which you wish to download all
-    files from, specify prefix="outputs". To download all files associated with the run, leave prefix as empty.
+    files from, specify prefix="outputs". To download all files associated with the run, leave prefix empty.
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param run_id: The id of the Azure ML Run
     :param output_folder: Local directory to which the Run files should be downloaded.
@@ -829,7 +829,7 @@ def download_from_datastore(datastore_name: str, file_prefix: str, output_folder
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param datastore_name: The name of the Datastore containing the blob to be downloaded. This Datastore itself
         must be an instance of an AzureBlobDatastore.
@@ -862,7 +862,7 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param datastore_name: The name of the Datastore to which the blob should be uploaded. This Datastore itself
         must be an instance of an AzureBlobDatastore
