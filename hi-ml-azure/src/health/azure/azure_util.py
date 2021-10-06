@@ -867,6 +867,8 @@ def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
     """
     Returns True if the given run is inside of an AzureML machine, or False if it is on a machine outside AzureML.
     When called without arguments, this functions returns True if the present code is running in AzureML.
+    Note that in runs with "compute_target='local'" this function will also return True. Such runs execute outside
+    of AzureML, but are able to log all their metrics, etc to an AzureML run.
 
     :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.

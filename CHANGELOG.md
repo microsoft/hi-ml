@@ -24,6 +24,9 @@ created.
 
 ## 0.1.8 (2021-10-05)
 
+### Changed
+- ([#127](https://github.com/microsoft/hi-ml/pull/127)) The field `is_running_in_azure` of `AzureRunInfo` has been renamed to `is_running_in_azure_ml`
+
 ### Fixed
 - ([#127](https://github.com/microsoft/hi-ml/pull/127)) Fixing bug #126: get_workspace was assuming it runs in AzureML, when it was running on a plain Azure build agent.
 
