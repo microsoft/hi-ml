@@ -5,13 +5,13 @@
 """
 Utility functions for interacting with AzureML runs
 """
-from argparse import Namespace
-from enum import Enum
 import hashlib
-from itertools import islice
 import logging
 import os
 import re
+from argparse import Namespace
+from enum import Enum
+from itertools import islice
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -100,7 +100,7 @@ def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Opt
         config
     :return: An AzureML workspace.
     """
-    if is_running_on_azure_agent():
+    if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
 
     if aml_workspace:
@@ -170,14 +170,6 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
     logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
     return run_to_recover
-
-
-def is_running_on_azure_agent() -> bool:
-    """
-    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
-    """
-    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
-    return bool(os.environ.get("AGENT_OS", None))
 
 
 def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
@@ -905,3 +897,16 @@ def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_fo
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     download_files_from_run_id(run_id, output_folder, prefix=checkpoint_dir, workspace=workspace,
                                validate_checksum=True)
+
+
+def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
+    """
+    Returns True if the given run is inside of an AzureML machine, or False if it is on a machine outside AzureML.
+    When called without arguments, this functions returns True if the present code is running in AzureML.
+    Note that in runs with "compute_target='local'" this function will also return True. Such runs execute outside
+    of AzureML, but are able to log all their metrics, etc to an AzureML run.
+
+    :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
+    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    """
+    return hasattr(aml_run, 'experiment')
