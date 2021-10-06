@@ -6,7 +6,9 @@
 Testing run_upload_folder.
 """
 
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 from azureml.core.run import Run
 
@@ -15,7 +17,23 @@ import health.azure.azure_util as util
 try:
     import upload_util
 except Exception:
-    import testazure.test_data.simple.upload_util as upload_util
+    import testazure.test_data.simple.upload_util as upload_util  # type: ignore
+
+
+@dataclass
+class TestUploadFolderData:
+    """
+    Class to track progress of uploading test file sets and tracking expected results.
+    """
+    # Name of folder
+    folder_name: str
+    # Function to use for upload
+    upload_fn: Callable
+    # Does this work?
+    errors: bool
+    upload_files: set = field(default_factory=set)
+    good_files: set = field(default_factory=set)
+    bad_files: set = field(default_factory=set)
 
 
 def init_test(tmp_path: Path) -> None:
@@ -41,7 +59,7 @@ def run_test(run: Run) -> None:
     :param run: AzureML run.
     """
     # Extract the list of test file names
-    filenames = upload_util.get_base_data_filenames()
+    filenames = upload_util.get_test_file_names()
 
     # Split into distinct sets for each stage of the test
     test_file_name_sets = [
@@ -85,9 +103,9 @@ def run_test(run: Run) -> None:
     upload_datas = [
         # Test against AzureML. This takes a long time because of two minute timeouts trying to download
         # corrupted files.
-        # upload_util.TestUploadFolderData("uploaded_folder_aml", amlupload_folder, True),
+        # TestUploadFolderData("uploaded_folder_aml", amlupload_folder, True),
         # Test against HI-ML wrapper function.
-        upload_util.TestUploadFolderData("uploaded_folder_himl", himlupload_folder, False)
+        TestUploadFolderData("uploaded_folder_himl", himlupload_folder, False)
     ]
 
     test_upload_folder = Path(upload_util.test_upload_folder_name)
@@ -95,9 +113,9 @@ def run_test(run: Run) -> None:
     # Step 1, upload distinct file sets
     for i in range(0, 6):
         # Remove any existing test files
-        upload_util.rm_test_file_name_set()
+        upload_util.rm_test_file_name_set(test_upload_folder)
         # Copy in the new test file set
-        upload_util.copy_test_file_name_set(test_file_name_sets[i])
+        upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[i])
 
         # Upload using each method and check the results
         for upload_data in upload_datas:
@@ -112,9 +130,9 @@ def run_test(run: Run) -> None:
 
     # Step 2, upload the overlapping file sets
     for (i, j) in [(1, 6), (3, 7), (5, 8)]:
-        upload_util.rm_test_file_name_set()
-        upload_util.copy_test_file_name_set(test_file_name_sets[i])
-        upload_util.copy_test_file_name_set(test_file_name_sets[j])
+        upload_util.rm_test_file_name_set(test_upload_folder)
+        upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[i])
+        upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[j])
 
         for upload_data in upload_datas:
             upload_data.upload_files = upload_data.upload_files.union(test_file_name_sets[j])
@@ -146,8 +164,8 @@ this should be fine, since overlaps handled")
 
     # Step 3, modify the original set
     for i in [1, 3, 5]:
-        upload_util.rm_test_file_name_set()
-        upload_util.copy_test_file_name_set(test_file_name_sets[i])
+        upload_util.rm_test_file_name_set(test_upload_folder)
+        upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[i])
         random_file = list(test_file_name_sets[i])[0]
         random_upload_file = test_upload_folder / random_file
         existing_text = random_upload_file.read_text()

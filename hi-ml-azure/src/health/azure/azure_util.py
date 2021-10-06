@@ -946,23 +946,21 @@ def run_upload_file(run: Run,
     """
     # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f == name}
-    print(f"run_upload_file existing_file_names:{sorted(existing_file_names)}")
     # Get list of files in the local folder
     local_files = {Path(path_or_stream)}
 
     local_file_named = {(name, str(f), f.name) for f in local_files}
     # Filter out the files that are both local and already uploaded
     dup_files = [f for f in local_file_named if f[0] in existing_file_names]
-    print(f"run_upload_file dup_files:{sorted(dup_files)}")
 
     # If there are duplicate files then upload_file fails
     if len(dup_files) == 0:
         # If there are no duplicate files, then use upload_file
-        print("No duplicates, fall back to AzureML")
-        return run.upload_file(name=name, path_or_stream=path_or_stream, datastore_name=datastore_name)
+        return run.upload_file(name=name,
+                               path_or_stream=path_or_stream,
+                               datastore_name=datastore_name)
     else:
         # Check the duplicate file.
-        print("Duplicates, check sha1")
         with TemporaryDirectory() as d:
             for f in dup_files:
                 run.download_file(name=f[0],
@@ -979,8 +977,34 @@ def run_upload_file(run: Run,
                                     "Unable to reconcile those differences.")
 
         # File has not changed, nothing to do.
-        print("Duplicates, pass")
         pass
+
+
+def run_upload_files(run: Run,
+                     names: List[str],
+                     paths: List[str],
+                     return_artifacts: bool = False,
+                     timeout_seconds: Optional[int] = None,
+                     datastore_name: str = None) -> Union[Tuple[dict, map], map]:
+    """
+    Wrap a call to run.upload_files with extra checks to see if files already exist. This is intended to make it safe
+    to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
+    exception will be raised, it is only safe for files that are not changed or partially uploaded.
+
+    For more details on these parameters please see the original documentation here:
+    https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-files-names--paths--return-artifacts-false--timeout-seconds-none--datastore-name-none-
+
+    :param names: The names of the files to upload. If set, paths must also be set.
+    :param paths: The relative local paths to the files to upload. If set, names is required.
+    :param return_artifacts: Indicates that an artifact object should be returned for each file uploaded.
+    :param timeout_seconds: The timeout for uploading files.
+    :param datastore_name: Optional DataStore name
+    """
+    return run.upload_files(names=names,
+                            paths=paths,
+                            return_artifacts=return_artifacts,
+                            timeout_seconds=timeout_seconds,
+                            datastore_name=datastore_name)
 
 
 def run_upload_folder(run: Run,
