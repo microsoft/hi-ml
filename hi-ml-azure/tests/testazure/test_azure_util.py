@@ -835,12 +835,13 @@ def test_get_run_file_names() -> None:
         assert all([f.startswith(prefix) for f in run_paths])
 
 
-def _mock_download_file(filename: str, output_file_path: Optional[str] = None,
+def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
                         _validate_checksum: bool = False) -> None:
     """
     Creates an empty file at the given output_file_path
     """
-    output_file_path: Path = Path('test_output') if output_file_path is None else Path(output_file_path)
+    output_file_path = Path('test_output') if output_file_path is None else output_file_path
+    output_file_path = Path(output_file_path) if not isinstance(output_file_path, Path) else output_file_path  # mypy
     output_file_path.parent.mkdir(exist_ok=True, parents=True)
     output_file_path.touch(exist_ok=True)
 
@@ -850,7 +851,7 @@ def _mock_download_file(filename: str, output_file_path: Optional[str] = None,
 def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], Optional[str]], prefix: str) -> None:
 
     # Assert that 'downloaded' paths don't exist to begin with
-    dummy_paths = _get_file_names(pref=prefix)
+    dummy_paths = [Path(x) for x in _get_file_names(pref=prefix)]
     expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
     # Ensure that paths don't already exist
     [p.unlink() for p in expected_paths if p.exists()]  # type: ignore
@@ -1110,7 +1111,7 @@ def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files:
     dummy_run_id = "run_def_456"
     prefix = "path/to/file"
     output_file_dir = Path("my_ouputs")
-    util.download_checkpoints_from_run(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
     mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
                                                 workspace=mock_workspace, validate_checksum=True)
 
@@ -1152,7 +1153,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     assert not (output_file_dir / prefix).exists()
 
     start_time = time.perf_counter()
-    util.download_checkpoints_from_run(run.id, prefix, output_file_dir, aml_workspace=ws)
+    util.download_checkpoints_from_run_id(run.id, prefix, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
