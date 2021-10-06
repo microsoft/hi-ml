@@ -62,6 +62,23 @@ def test_find_file(tmp_path: Path) -> None:
     os.chdir(where_are_we_now)
 
 
+def test_is_running_in_azureml() -> None:
+    """
+    Test if the code correctly recognizes that it is executed in AzureML
+    """
+    # These tests would always run outside of AzureML, on local box or Azure build agents. Function should return
+    # False in all those cases
+    assert not util.is_running_in_azure_ml()
+    assert not util.is_running_in_azure_ml(util.RUN_CONTEXT)
+    # When in AzureML, the Run has a field "experiment"
+    mock_workspace = "foo"
+    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+        # We can't try that with the default argument because of Python's handling of mutable default arguments
+        # (default argument value has been assigned already before mocking)
+        assert util.is_running_in_azure_ml(util.RUN_CONTEXT)
+
+
 @pytest.mark.fast
 @patch("health.azure.azure_util.Workspace.from_config")
 @patch("health.azure.azure_util.get_authentication")
@@ -73,16 +90,16 @@ def test_get_workspace(
         tmp_path: Path) -> None:
 
     # Test the case when running on AML
-    with patch("health.azure.azure_util.is_running_on_azure_agent") as mock_is_is_running_on_azure_agent:
-        mock_is_is_running_on_azure_agent.return_value = True
-        with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
-            mock_run_context.experiment = MagicMock(workspace=mock_workspace)
-            workspace = util.get_workspace(None, None)
-            assert workspace == mock_workspace
+    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+        workspace = util.get_workspace(None, None)
+        assert workspace == mock_workspace
 
-    # Test the case when a workspace object is provided
-    workspace = util.get_workspace(mock_workspace, None)
-    assert workspace == mock_workspace
+    # Test the case when a workspace object is provided. The test always runs outside AzureML, and should return the
+    # workspace object unchanged
+    mock_workspace2 = "foo"
+    workspace = util.get_workspace(mock_workspace2, None)  # type: ignore
+    assert workspace == mock_workspace2
 
     # Test the case when a workspace config path is provided
     mock_get_authentication.return_value = "auth"
@@ -109,12 +126,6 @@ def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     mock_run.experiment.name = EXPERIMENT_NAME
     recovery_id = util.create_run_recovery_id(mock_run)
     assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
-
-
-@pytest.mark.parametrize("on_azure", [True, False])
-def test_is_running_on_azure_agent(on_azure: bool) -> None:
-    with mock.patch.dict(os.environ, {"AGENT_OS": "LINUX" if on_azure else ""}):
-        assert on_azure == util.is_running_on_azure_agent()
 
 
 @patch("health.azure.azure_util.Workspace")

@@ -27,7 +27,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health.azure.azure_util import (create_python_environment, create_run_recovery_id, _find_file,
-                                     is_run_and_child_runs_completed, register_environment,
+                                     is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                      run_duration_string_to_seconds,
                                      to_azure_friendly_string, RUN_CONTEXT, get_workspace)
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
@@ -76,17 +76,6 @@ class AzureRunInfo:
     logs_folder: Path
     """The folder into which all log files (for example, tensorboard) should be written. All files written to this
     folder will be uploaded to blob storage regularly during the script run."""
-
-
-def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
-    """
-    Returns True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
-    When called without arguments, this functions returns True if the present code is running in AzureML.
-
-    :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
-    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
-    """
-    return hasattr(aml_run, 'experiment')
 
 
 def create_run_configuration(workspace: Workspace,
@@ -373,7 +362,7 @@ def submit_to_azure_if_needed(  # type: ignore
     # The present function will most likely be called from the script once it is running in AzureML.
     # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
     # can infer if the present code is running in AzureML.
-    in_azure = is_running_in_azure()
+    in_azure = is_running_in_azure_ml()
     if in_azure:
         return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
 

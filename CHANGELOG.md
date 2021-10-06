@@ -22,6 +22,12 @@ created.
 
 ### Deprecated
 
+## 0.1.8 (2021-10-05)
+
+### Fixed
+- ([#127](https://github.com/microsoft/hi-ml/pull/127)) Fixing bug #126: get_workspace was assuming it runs in AzureML, when it was running on a plain Azure build agent.
+
+
 ## 0.1.7 (2021-10-04)
 
 ### Added

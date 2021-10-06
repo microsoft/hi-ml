@@ -100,7 +100,7 @@ def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Opt
         config
     :return: An AzureML workspace.
     """
-    if is_running_on_azure_agent():
+    if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
 
     if aml_workspace:
@@ -170,14 +170,6 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
     logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
     return run_to_recover
-
-
-def is_running_on_azure_agent() -> bool:
-    """
-    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
-    """
-    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
-    return bool(os.environ.get("AGENT_OS", None))
 
 
 def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
@@ -869,3 +861,14 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     datastore.upload(str(local_data_folder), target_path=str(remote_path), overwrite=overwrite,
                      show_progress=show_progress)
     logging.info(f"Uploaded data to {str(remote_path)}")
+
+
+def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
+    """
+    Returns True if the given run is inside of an AzureML machine, or False if it is on a machine outside AzureML.
+    When called without arguments, this functions returns True if the present code is running in AzureML.
+
+    :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
+    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    """
+    return hasattr(aml_run, 'experiment')
