@@ -1,5 +1,6 @@
 # Downloading from/ uploading to Azure ML
 
+All of the below functions will attempt to find a current workspace, if running in Azure ML, or else will attempt to locate 'config.json' file in the current directory, and its parents. Alternatively, you can specify your own Workspace object or a path to a file containing the workspace settings.
 
 ## Download files from an Azure ML Run
 
@@ -8,14 +9,14 @@ To download all files from an AML Run, given its run id, perform the following:
 ```python
 from pathlib import Path
 from health.azure.azure_util import download_files_from_run_id
-download_files_from_run_id("example_run_id_123", Path("path_to_save"))
+run_id = "example_run_id_123"
+output_folder = Path("path/to/save")
+download_files_from_run_id(run_id, output_folder)
 ```
 
-Here, "path_to_save" represents the folder in which we want the downloaded files to be stored.
-
-You can also pass an AML Workspace into this function, or a path to the config file where its settings can be found.
-If neither of these is provided, if the function is called during an AML Run, the current workspace will be
-used. Otherwise, the code will try to locate a 'config.json' file in your directory.
+Here, "path_to_save" represents the folder in which we want the downloaded files to be stored. E.g. if your run contains
+the files ["abc/def/1.txt", "abc/2.txt"] and you specify the prefix "abc" and the output_folder "my_outputs", you'll
+end up with the files ["my_outputs/abc/def/1.txt", "my_outputs/abc/2.txt"]
 
 If you wish to specify the file name(s) to be downloaded, you can do so with the "prefix" parameter. E.g.
 prefix="outputs" will download all files within the "output" folder, if such a folder exists within your Run.
@@ -35,10 +36,6 @@ from pathlib import Path
 from health.azure.azure_util import download_checkpoints_from_run_id
 download_checkpoints_from_run_id("example_run_id_123", Path("path/to/checkpoint/directory"))
 ```
-
-As above, you can pass either an AML Workspace object or a path to a config file to this function, 
-or else  if the function is called during an AML Run, the current workspace will be
-selected. Otherwise, the code will try to locate a 'config.json' file in your directory.
 
 All files within the checkpoint directory will be downloaded into the folder specified by "path/to/checkpoint_directory".
 
@@ -67,10 +64,6 @@ E.g. if your datastore contains the paths ["foo/bar/1.txt", "foo/bar/2.txt"] and
 function with file_prefix="foo/bar" and output_folder="outputs", you would end up with the
 files ["outputs/foo/bar/1.txt", "outputs/foo/bar/2.txt"]
 
-You can also pass an AML Workspace object, or a path to a config.json file to this function. If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
-config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-file will be used to instantiate the workspace.
-
 This function takes additional parameters "overwrite" and "show_progress". If True, overwrite will overwrite any existing local files with the same path. If False and there is a duplicate file, it will skip this file.
 If show_progress is set to True, the progress of the file download will be visible in the terminal. 
 
@@ -87,10 +80,6 @@ Where "datastore_name" is the name of the registered Datastore within your works
 Note that the path to local data must be a folder, not a single path. The folder name will not be included in the remote path. E.g. if you specify the local_data_dir="foo/bar"
     and that contains the files ["1.txt", "2.txt"], and you specify the remote_path="baz", you would see the
     following paths uploaded to your Datastore: ["baz/1.txt", "baz/2.txt"]
-
-You can also pass an AML Workspace object, or a path to a config.json file to this function. If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
-config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-file will be used to instantiate the workspace.
 
 This function takes additional parameters "overwrite" and "show_progress". If True, overwrite will overwrite any existing remote files with the same path. If False and there is a duplicate file, it will skip this file.
 If show_progress is set to True, the progress of the file upload will be visible in the terminal. 
