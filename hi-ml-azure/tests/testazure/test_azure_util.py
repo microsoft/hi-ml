@@ -835,13 +835,15 @@ def test_get_run_file_names() -> None:
         assert all([f.startswith(prefix) for f in run_paths])
 
 
-def _mock_download_file(filename: str, output_file_path: Optional[str] = None,
+def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
                         _validate_checksum: bool = False) -> None:
     """
     Creates an empty file at the given output_file_path
     """
-    output_file_path = 'test_output' if output_file_path is None else output_file_path
-    Path(output_file_path).touch(exist_ok=True)
+    output_file_path = Path('test_output') if output_file_path is None else output_file_path
+    output_file_path = Path(output_file_path) if not isinstance(output_file_path, Path) else output_file_path  # mypy
+    output_file_path.parent.mkdir(exist_ok=True, parents=True)
+    output_file_path.touch(exist_ok=True)
 
 
 @pytest.mark.parametrize("dummy_env_vars", [{}, {util.ENV_LOCAL_RANK: "1"}])
@@ -849,7 +851,7 @@ def _mock_download_file(filename: str, output_file_path: Optional[str] = None,
 def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], Optional[str]], prefix: str) -> None:
 
     # Assert that 'downloaded' paths don't exist to begin with
-    dummy_paths = [x[0] for x in _get_file_names(pref=prefix)]
+    dummy_paths = [Path(x) for x in _get_file_names(pref=prefix)]
     expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
     # Ensure that paths don't already exist
     [p.unlink() for p in expected_paths if p.exists()]  # type: ignore
@@ -861,10 +863,11 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
             mock_get_run_paths.return_value = dummy_paths  # type: ignore
             mock_run.download_file = MagicMock()  # type: ignore
             mock_run.download_file.side_effect = _mock_download_file
-            util.download_run_files(mock_run, output_dir=tmp_path)
+
+            util._download_files_from_run(mock_run, output_dir=tmp_path)
             # First test the case where is_local_rank_zero returns True
             if not any(dummy_env_vars):
-                # Check that our mocked download_run_file has been called once for each file
+                # Check that our mocked _download_file_from_run has been called once for each file
                 assert sum([p.exists() for p in expected_paths]) == len(expected_paths)
             # Now test the case where is_local_rank_zero returns False - in this case nothing should be created
             else:
@@ -873,14 +876,14 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 
 @patch("health.azure.azure_util.get_workspace")
 @patch("health.azure.azure_util.get_aml_run_from_run_id")
-@patch("health.azure.azure_util.download_run_files")
+@patch("health.azure.azure_util._download_files_from_run")
 def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
                                         mock_get_aml_run_from_run_id: MagicMock,
                                         mock_workspace: MagicMock) -> None:
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
-    util.download_run_files_from_run_id("run123", Path(__file__))
-    mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="")
+    util.download_files_from_run_id("run123", Path(__file__))
+    mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="", validate_checksum=False)
 
 
 @pytest.mark.parametrize("dummy_env_vars, expect_file_downloaded", [({}, True), ({util.ENV_LOCAL_RANK: "1"}, False)])
@@ -895,10 +898,10 @@ def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expec
     mock_run.download_file.side_effect = _mock_download_file
 
     with mock.patch.dict(os.environ, dummy_env_vars):
-        util.download_run_file(mock_run, dummy_filename, expected_file_path)
+        _ = util._download_file_from_run(mock_run, dummy_filename, expected_file_path)
 
         if expect_file_downloaded:
-            mock_run.download_file.assert_called_with(dummy_filename, output_file_path=expected_file_path,
+            mock_run.download_file.assert_called_with(dummy_filename, output_file_path=str(expected_file_path),
                                                       _validate_checksum=False)
             assert expected_file_path.exists()
         else:
@@ -927,7 +930,7 @@ def test_download_run_file_remote(tmp_path: Path) -> None:
     assert not output_file_path.exists()
 
     start_time = time.perf_counter()
-    util.download_run_file(run, "dummy_file", output_file_path)
+    _ = util._download_file_from_run(run, "dummy_file", output_file_path)
     end_time = time.perf_counter()
     time_dont_validate_checksum = end_time - start_time
 
@@ -938,7 +941,7 @@ def test_download_run_file_remote(tmp_path: Path) -> None:
     output_file_path.unlink()
     assert not output_file_path.exists()
     start_time = time.perf_counter()
-    util.download_run_file(run, "dummy_file", output_file_path, validate_checksum=True)
+    _ = util._download_file_from_run(run, "dummy_file", output_file_path, validate_checksum=True)
     end_time = time.perf_counter()
     time_validate_checksum = end_time - start_time
 
@@ -962,7 +965,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     extra_options = {
         "imports": """
 from azureml.core import Run
-from health.azure.azure_util import download_run_files""",
+from health.azure.azure_util import _download_files_from_run""",
         "args": """
     parser.add_argument("--output_path", type=str, required=True)
         """,
@@ -972,12 +975,12 @@ from health.azure.azure_util import download_run_files""",
 
     run_ctx = Run.get_context()
     available_files = run_ctx.get_file_names()
+    print(f"available files: {available_files}")
     first_file_name = available_files[0]
     output_file_path = output_path / first_file_name
 
-    download_run_files(run_ctx, output_path)
+    _download_files_from_run(run_ctx, output_path, prefix=first_file_name)
 
-    run_ctx.download_file(first_file_name, output_file_path=output_file_path)
     print(f"Downloaded file {first_file_name} to location {output_file_path}")
         """
     }
@@ -1098,3 +1101,70 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     # delete the blob from Blob Storage
     existing_blob: Blob = existing_blobs[0]
     default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+
+
+@patch("health.azure.azure_util.download_files_from_run_id")
+@patch("health.azure.azure_util.get_workspace")
+def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files: MagicMock) -> None:
+    mock_workspace = MagicMock()
+    mock_get_workspace.return_value = mock_workspace
+    dummy_run_id = "run_def_456"
+    prefix = "path/to/file"
+    output_file_dir = Path("my_ouputs")
+    util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
+                                                workspace=mock_workspace, validate_checksum=True)
+
+
+@pytest.mark.slow
+def test_checkpoint_download_remote(tmp_path: Path) -> None:
+    """
+    Creates a large dummy file (around 250 MB) and ensures we can upload it to a Run and subsequently download
+    with no issues, thus replicating the behaviour of downloading a large checkpoint file.
+    """
+    num_dummy_files = 1
+    prefix = "outputs/checkpoints/"
+
+    ws = DEFAULT_WORKSPACE.workspace
+    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    config = ScriptRunConfig(
+        source_directory=".",
+        command=["cd ."],  # command that does nothing
+        compute_target="local"
+    )
+    run = experiment.submit(config)
+
+    file_contents = "Hello world"
+    for i in range(num_dummy_files):
+        file_name = f"dummy_checkpoint_{i}.txt"
+        large_file_path = tmp_path / file_name
+        with open(str(large_file_path), "wb") as f_path:
+            f_path.seek((1024 * 1024 * 240) - 1)
+            f_path.write(bytearray(file_contents, encoding="UTF-8"))
+
+        file_size = large_file_path.stat().st_size
+        logging.info(f"File {i} size: {file_size}")
+
+        local_path = str(large_file_path)
+        run.upload_file(prefix + file_name, local_path)
+
+    # Check the local dir is empty to begin with
+    output_file_dir = tmp_path
+    assert not (output_file_dir / prefix).exists()
+
+    start_time = time.perf_counter()
+    util.download_checkpoints_from_run_id(run.id, prefix, output_file_dir, aml_workspace=ws)
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    logging.info(f"Time taken to download file: {time_taken}")
+
+    assert (output_file_dir / prefix).is_dir()
+    assert len(list((output_file_dir / prefix).iterdir())) == num_dummy_files
+    with open(str(output_file_dir / prefix / "dummy_checkpoint_0.txt"), "rb") as f_path:
+        for line in f_path:
+            chunk = line.strip(b'\x00')
+            if chunk:
+                found_file_contents = chunk.decode("utf-8")
+                break
+
+    assert found_file_contents == file_contents
