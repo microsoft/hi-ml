@@ -18,8 +18,9 @@
 import os
 import sys
 
-root_dir = os.path.abspath('../src')
-sys.path.insert(0, root_dir)
+# Make the source code for both packages available here
+sys.path.insert(0, os.path.abspath('../../hi-ml/src'))
+sys.path.insert(0, os.path.abspath('../../hi-ml-azure/src'))
 
 # -- Project information -----------------------------------------------------
 
