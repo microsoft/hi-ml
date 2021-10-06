@@ -886,9 +886,9 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     logging.info(f"Uploaded data to {str(remote_path)}")
 
 
-def download_checkpoints_from_run(run_id: str, checkpoint_dir: str, output_folder: Path,
-                                  aml_workspace: Optional[Workspace] = None,
-                                  workspace_config_path: Optional[Path] = None) -> None:
+def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_folder: Path,
+                                     aml_workspace: Optional[Workspace] = None,
+                                     workspace_config_path: Optional[Path] = None) -> None:
     """
     Given an Azure ML run id, download all files from a given checkpoint directory within that run, to
     the path specified by output_path.

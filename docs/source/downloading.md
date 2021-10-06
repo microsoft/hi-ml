@@ -32,8 +32,8 @@ To download checkpoint files from an Azure ML Run, perform the following:
 
 ```python
 from pathlib import Path
-from health.azure.azure_util import download_checkpoints_from_run
-download_checkpoints_from_run("example_run_id_123", Path("path/to/checkpoint/directory"))
+from health.azure.azure_util import download_checkpoints_from_run_id
+download_checkpoints_from_run_id("example_run_id_123", Path("path/to/checkpoint/directory"))
 ```
 
 As above, you can pass either an AML Workspace object or a path to a config file to this function, 

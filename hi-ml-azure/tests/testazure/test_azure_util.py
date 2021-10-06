@@ -1108,7 +1108,7 @@ def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files:
     dummy_run_id = "run_def_456"
     prefix = "path/to/file"
     output_file_dir = Path("my_ouputs")
-    util.download_checkpoints_from_run(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
     mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
                                                 workspace=mock_workspace, validate_checksum=True)
 
@@ -1150,7 +1150,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     assert not (output_file_dir / prefix).exists()
 
     start_time = time.perf_counter()
-    util.download_checkpoints_from_run(run.id, prefix, output_file_dir, aml_workspace=ws)
+    util.download_checkpoints_from_run_id(run.id, prefix, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
