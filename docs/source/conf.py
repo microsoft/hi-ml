@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -13,8 +18,9 @@
 import os
 import sys
 
-root_dir = os.path.abspath('../../src')
-sys.path.insert(0, root_dir)
+# Make the source code for both packages available here
+sys.path.insert(0, os.path.abspath('../../hi-ml/src'))
+sys.path.insert(0, os.path.abspath('../../hi-ml-azure/src'))
 
 # -- Project information -----------------------------------------------------
 

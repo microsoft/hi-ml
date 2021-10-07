@@ -22,6 +22,19 @@ created.
 
 ### Deprecated
 
+## 0.1.8 (2021-10-06)
+
+### Added
+- ([#123](https://github.com/microsoft/hi-ml/pull/123)) Add helper function to download checkpoint files
+- ([#128](https://github.com/microsoft/hi-ml/pull/128)) When downloading files in a distributed PyTorch job, a barrier is used to synchronize the processes.
+
+### Changed
+- ([#127](https://github.com/microsoft/hi-ml/pull/127)) The field `is_running_in_azure` of `AzureRunInfo` has been renamed to `is_running_in_azure_ml`
+
+### Fixed
+- ([#127](https://github.com/microsoft/hi-ml/pull/127)) Fixing bug #126: get_workspace was assuming it runs in AzureML, when it was running on a plain Azure build agent.
+
+
 ## 0.1.7 (2021-10-04)
 
 ### Added

@@ -5,12 +5,12 @@
 """
 Tests for the functions in health.azure.azure_util
 """
-import sys
-import os
 import logging
+import os
+import sys
 import time
 from pathlib import Path
-from typing import List, Optional, Dict, Union
+from typing import Dict, List, Optional, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -28,7 +28,7 @@ import health.azure.azure_util as util
 from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory
+from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -62,6 +62,23 @@ def test_find_file(tmp_path: Path) -> None:
     os.chdir(where_are_we_now)
 
 
+def test_is_running_in_azureml() -> None:
+    """
+    Test if the code correctly recognizes that it is executed in AzureML
+    """
+    # These tests would always run outside of AzureML, on local box or Azure build agents. Function should return
+    # False in all those cases
+    assert not util.is_running_in_azure_ml()
+    assert not util.is_running_in_azure_ml(util.RUN_CONTEXT)
+    # When in AzureML, the Run has a field "experiment"
+    mock_workspace = "foo"
+    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+        # We can't try that with the default argument because of Python's handling of mutable default arguments
+        # (default argument value has been assigned already before mocking)
+        assert util.is_running_in_azure_ml(util.RUN_CONTEXT)
+
+
 @pytest.mark.fast
 @patch("health.azure.azure_util.Workspace.from_config")
 @patch("health.azure.azure_util.get_authentication")
@@ -71,18 +88,17 @@ def test_get_workspace(
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock,
         tmp_path: Path) -> None:
-
     # Test the case when running on AML
-    with patch("health.azure.azure_util.is_running_on_azure_agent") as mock_is_is_running_on_azure_agent:
-        mock_is_is_running_on_azure_agent.return_value = True
-        with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
-            mock_run_context.experiment = MagicMock(workspace=mock_workspace)
-            workspace = util.get_workspace(None, None)
-            assert workspace == mock_workspace
+    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+        workspace = util.get_workspace(None, None)
+        assert workspace == mock_workspace
 
-    # Test the case when a workspace object is provided
-    workspace = util.get_workspace(mock_workspace, None)
-    assert workspace == mock_workspace
+    # Test the case when a workspace object is provided. The test always runs outside AzureML, and should return the
+    # workspace object unchanged
+    mock_workspace2 = "foo"
+    workspace = util.get_workspace(mock_workspace2, None)  # type: ignore
+    assert workspace == mock_workspace2
 
     # Test the case when a workspace config path is provided
     mock_get_authentication.return_value = "auth"
@@ -109,12 +125,6 @@ def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     mock_run.experiment.name = EXPERIMENT_NAME
     recovery_id = util.create_run_recovery_id(mock_run)
     assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
-
-
-@pytest.mark.parametrize("on_azure", [True, False])
-def test_is_running_on_azure_agent(on_azure: bool) -> None:
-    with mock.patch.dict(os.environ, {"AGENT_OS": "LINUX" if on_azure else ""}):
-        assert on_azure == util.is_running_on_azure_agent()
 
 
 @patch("health.azure.azure_util.Workspace")
@@ -380,7 +390,7 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
-        ) -> None:
+) -> None:
     just_conda_str_env_name = "HealthML-a26b35a434dd27a44a8224c709fb4760"
     conda_str = """name: simple-env
 dependencies:
@@ -618,21 +628,22 @@ def test_get_run_file_names() -> None:
         assert all([f.startswith(prefix) for f in run_paths])
 
 
-def _mock_download_file(filename: str, output_file_path: Optional[str] = None,
+def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
                         _validate_checksum: bool = False) -> None:
     """
     Creates an empty file at the given output_file_path
     """
-    output_file_path = 'test_output' if output_file_path is None else output_file_path
-    Path(output_file_path).touch(exist_ok=True)
+    output_file_path = Path('test_output') if output_file_path is None else output_file_path
+    output_file_path = Path(output_file_path) if not isinstance(output_file_path, Path) else output_file_path  # mypy
+    output_file_path.parent.mkdir(exist_ok=True, parents=True)
+    output_file_path.touch(exist_ok=True)
 
 
 @pytest.mark.parametrize("dummy_env_vars", [{}, {util.ENV_LOCAL_RANK: "1"}])
 @pytest.mark.parametrize("prefix", ["", "abc"])
 def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], Optional[str]], prefix: str) -> None:
-
     # Assert that 'downloaded' paths don't exist to begin with
-    dummy_paths = [x[0] for x in _get_file_names(pref=prefix)]
+    dummy_paths = [Path(x) for x in _get_file_names(pref=prefix)]
     expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
     # Ensure that paths don't already exist
     [p.unlink() for p in expected_paths if p.exists()]  # type: ignore
@@ -644,10 +655,11 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
             mock_get_run_paths.return_value = dummy_paths  # type: ignore
             mock_run.download_file = MagicMock()  # type: ignore
             mock_run.download_file.side_effect = _mock_download_file
-            util.download_run_files(mock_run, output_dir=tmp_path)
+
+            util._download_files_from_run(mock_run, output_dir=tmp_path)
             # First test the case where is_local_rank_zero returns True
             if not any(dummy_env_vars):
-                # Check that our mocked download_run_file has been called once for each file
+                # Check that our mocked _download_file_from_run has been called once for each file
                 assert sum([p.exists() for p in expected_paths]) == len(expected_paths)
             # Now test the case where is_local_rank_zero returns False - in this case nothing should be created
             else:
@@ -656,14 +668,14 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 
 @patch("health.azure.azure_util.get_workspace")
 @patch("health.azure.azure_util.get_aml_run_from_run_id")
-@patch("health.azure.azure_util.download_run_files")
+@patch("health.azure.azure_util._download_files_from_run")
 def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
                                         mock_get_aml_run_from_run_id: MagicMock,
                                         mock_workspace: MagicMock) -> None:
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
-    util.download_run_files_from_run_id("run123", Path(__file__))
-    mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="")
+    util.download_files_from_run_id("run123", Path(__file__))
+    mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="", validate_checksum=False)
 
 
 @pytest.mark.parametrize("dummy_env_vars, expect_file_downloaded", [({}, True), ({util.ENV_LOCAL_RANK: "1"}, False)])
@@ -678,10 +690,10 @@ def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expec
     mock_run.download_file.side_effect = _mock_download_file
 
     with mock.patch.dict(os.environ, dummy_env_vars):
-        util.download_run_file(mock_run, dummy_filename, expected_file_path)
+        _ = util._download_file_from_run(mock_run, dummy_filename, expected_file_path)
 
         if expect_file_downloaded:
-            mock_run.download_file.assert_called_with(dummy_filename, output_file_path=expected_file_path,
+            mock_run.download_file.assert_called_with(dummy_filename, output_file_path=str(expected_file_path),
                                                       _validate_checksum=False)
             assert expected_file_path.exists()
         else:
@@ -710,7 +722,7 @@ def test_download_run_file_remote(tmp_path: Path) -> None:
     assert not output_file_path.exists()
 
     start_time = time.perf_counter()
-    util.download_run_file(run, "dummy_file", output_file_path)
+    _ = util._download_file_from_run(run, "dummy_file", output_file_path)
     end_time = time.perf_counter()
     time_dont_validate_checksum = end_time - start_time
 
@@ -721,7 +733,7 @@ def test_download_run_file_remote(tmp_path: Path) -> None:
     output_file_path.unlink()
     assert not output_file_path.exists()
     start_time = time.perf_counter()
-    util.download_run_file(run, "dummy_file", output_file_path, validate_checksum=True)
+    _ = util._download_file_from_run(run, "dummy_file", output_file_path, validate_checksum=True)
     end_time = time.perf_counter()
     time_validate_checksum = end_time - start_time
 
@@ -745,7 +757,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     extra_options = {
         "imports": """
 from azureml.core import Run
-from health.azure.azure_util import download_run_files""",
+from health.azure.azure_util import _download_files_from_run""",
         "args": """
     parser.add_argument("--output_path", type=str, required=True)
         """,
@@ -755,12 +767,12 @@ from health.azure.azure_util import download_run_files""",
 
     run_ctx = Run.get_context()
     available_files = run_ctx.get_file_names()
+    print(f"available files: {available_files}")
     first_file_name = available_files[0]
     output_file_path = output_path / first_file_name
 
-    download_run_files(run_ctx, output_path)
+    _download_files_from_run(run_ctx, output_path, prefix=first_file_name)
 
-    run_ctx.download_file(first_file_name, output_file_path=output_file_path)
     print(f"Downloaded file {first_file_name} to location {output_file_path}")
         """
     }
@@ -917,3 +929,91 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[List[util.Run
                 assert script_config_run.val == expected_run.val
         else:
             assert script_config.run.val == run_id.val
+
+
+@patch("health.azure.azure_util.download_files_from_run_id")
+@patch("health.azure.azure_util.get_workspace")
+def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files: MagicMock) -> None:
+    mock_workspace = MagicMock()
+    mock_get_workspace.return_value = mock_workspace
+    dummy_run_id = "run_def_456"
+    prefix = "path/to/file"
+    output_file_dir = Path("my_ouputs")
+    util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
+                                                workspace=mock_workspace, validate_checksum=True)
+
+
+@pytest.mark.slow
+def test_checkpoint_download_remote(tmp_path: Path) -> None:
+    """
+    Creates a large dummy file (around 250 MB) and ensures we can upload it to a Run and subsequently download
+    with no issues, thus replicating the behaviour of downloading a large checkpoint file.
+    """
+    num_dummy_files = 1
+    prefix = "outputs/checkpoints/"
+
+    ws = DEFAULT_WORKSPACE.workspace
+    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    config = ScriptRunConfig(
+        source_directory=".",
+        command=["cd ."],  # command that does nothing
+        compute_target="local"
+    )
+    run = experiment.submit(config)
+
+    file_contents = "Hello world"
+    for i in range(num_dummy_files):
+        file_name = f"dummy_checkpoint_{i}.txt"
+        large_file_path = tmp_path / file_name
+        with open(str(large_file_path), "wb") as f_path:
+            f_path.seek((1024 * 1024 * 240) - 1)
+            f_path.write(bytearray(file_contents, encoding="UTF-8"))
+
+        file_size = large_file_path.stat().st_size
+        logging.info(f"File {i} size: {file_size}")
+
+        local_path = str(large_file_path)
+        run.upload_file(prefix + file_name, local_path)
+
+    # Check the local dir is empty to begin with
+    output_file_dir = tmp_path
+    assert not (output_file_dir / prefix).exists()
+
+    start_time = time.perf_counter()
+    util.download_checkpoints_from_run_id(run.id, prefix, output_file_dir, aml_workspace=ws)
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    logging.info(f"Time taken to download file: {time_taken}")
+
+    assert (output_file_dir / prefix).is_dir()
+    assert len(list((output_file_dir / prefix).iterdir())) == num_dummy_files
+    with open(str(output_file_dir / prefix / "dummy_checkpoint_0.txt"), "rb") as f_path:
+        for line in f_path:
+            chunk = line.strip(b'\x00')
+            if chunk:
+                found_file_contents = chunk.decode("utf-8")
+                break
+
+    assert found_file_contents == file_contents
+
+
+@pytest.mark.parametrize(("available", "initialized", "expected_barrier_called"),
+                         [(False, True, False),
+                          (True, False, False),
+                          (False, False, False),
+                          (True, True, True)])
+@pytest.mark.fast
+def test_torch_barrier(available: bool,
+                       initialized: bool,
+                       expected_barrier_called: bool) -> None:
+    distributed = mock.MagicMock()
+    distributed.is_available.return_value = available
+    distributed.is_initialized.return_value = initialized
+    distributed.barrier = mock.MagicMock()
+    with mock.patch.dict("sys.modules", {"torch": mock.MagicMock(distributed=distributed)}):
+        util.torch_barrier()
+        if expected_barrier_called:
+            distributed.barrier.assert_called_once()
+        else:
+            assert distributed.barrier.call_count == 0

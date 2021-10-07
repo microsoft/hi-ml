@@ -29,7 +29,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from health.azure.azure_util import (create_python_environment, create_run_recovery_id, _find_file,
                                      is_run_and_child_runs_completed, register_environment,
                                      run_duration_string_to_seconds, PathOrString,
-                                     to_azure_friendly_string, RUN_CONTEXT, get_workspace)
+                                     is_running_in_azure_ml, to_azure_friendly_string, RUN_CONTEXT, get_workspace)
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
@@ -66,7 +66,7 @@ class AzureRunInfo:
     run: Optional[Run]
     """An AzureML Run object if the present script is executing inside AzureML, or None if outside of AzureML.
     The Run object has methods to log metrics, upload files, etc."""
-    is_running_in_azure: bool
+    is_running_in_azure_ml: bool
     """If True, the present script is executing inside AzureML. If False, outside AzureML."""
     output_folder: Path
     """The output folder into which all script outputs should be written, if they should be later available in the
@@ -74,17 +74,6 @@ class AzureRunInfo:
     logs_folder: Path
     """The folder into which all log files (for example, tensorboard) should be written. All files written to this
     folder will be uploaded to blob storage regularly during the script run."""
-
-
-def is_running_in_azure(aml_run: Run = RUN_CONTEXT) -> bool:
-    """
-    Returns True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
-    When called without arguments, this functions returns True if the present code is running in AzureML.
-
-    :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
-    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
-    """
-    return hasattr(aml_run, 'experiment')
 
 
 def create_run_configuration(workspace: Workspace,
@@ -371,7 +360,7 @@ def submit_to_azure_if_needed(  # type: ignore
     # The present function will most likely be called from the script once it is running in AzureML.
     # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
     # can infer if the present code is running in AzureML.
-    in_azure = is_running_in_azure()
+    in_azure = is_running_in_azure_ml(RUN_CONTEXT)
     if in_azure:
         return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
 
@@ -395,7 +384,7 @@ def submit_to_azure_if_needed(  # type: ignore
             input_datasets=[d.local_folder for d in cleaned_input_datasets],
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             run=None,
-            is_running_in_azure=False,
+            is_running_in_azure_ml=False,
             output_folder=output_folder,
             logs_folder=logs_folder
         )
@@ -521,7 +510,7 @@ def _generate_azure_datasets(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
         run=RUN_CONTEXT,
-        is_running_in_azure=True,
+        is_running_in_azure_ml=True,
         output_folder=Path.cwd() / OUTPUT_FOLDER,
         logs_folder=Path.cwd() / LOGS_FOLDER)
 

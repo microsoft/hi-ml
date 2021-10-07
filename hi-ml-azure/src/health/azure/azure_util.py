@@ -5,13 +5,13 @@
 """
 Utility functions for interacting with AzureML runs
 """
-from argparse import ArgumentParser, OPTIONAL
 import hashlib
-from itertools import islice
 import logging
 import os
 import param
 import re
+from argparse import ArgumentParser, OPTIONAL
+from itertools import islice
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
@@ -351,14 +351,14 @@ def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Opt
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param aml_workspace: If provided this is returned as the AzureML Workspace.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
     :return: An AzureML workspace.
     """
-    if is_running_on_azure_agent():
+    if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
 
     if aml_workspace:
@@ -428,14 +428,6 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
     logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
     return run_to_recover
-
-
-def is_running_on_azure_agent() -> bool:
-    """
-    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
-    """
-    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
-    return bool(os.environ.get("AGENT_OS", None))
 
 
 def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
@@ -811,13 +803,15 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
-def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
+def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", validate_checksum: bool = False) -> None:
     """
-    Download all files for a given run, which optionally start with a given prefix
+    Download all files for a given AML run, where the filenames may optionally start with a given
+    prefix.
 
     :param run: The AML Run to download associated files for
     :param output_dir: Local directory to which the Run files should be downloaded.
     :param prefix: Optional prefix to filter Run files by
+    :param validate_checksum: Whether to validate the content from HTTP response
     """
     run_paths = get_run_file_names(run, prefix=prefix)
     if len(run_paths) == 0:
@@ -825,42 +819,58 @@ def download_run_files(run: Run, output_dir: Path, prefix: str = "") -> None:
 
     for run_path in run_paths:
         output_path = output_dir / run_path
-        download_run_file(run, run_path, output_path)
+        _download_file_from_run(run, run_path, output_path, validate_checksum=validate_checksum)
 
 
-def download_run_files_from_run_id(run_id: str, output_dir: Path, prefix: str = "",
-                                   workspace: Optional[Workspace] = None,
-                                   workspace_config_path: Optional[Path] = None) -> None:
+def download_files_from_run_id(run_id: str, output_folder: Path, prefix: str = "",
+                               workspace: Optional[Workspace] = None,
+                               workspace_config_path: Optional[Path] = None,
+                               validate_checksum: bool = False) -> None:
     """
-    For a given Azure ML run id, first retrieve the Run, and then download all files,
-    which optionally start with a given prefix
+    For a given Azure ML run id, first retrieve the Run, and then download all files, which optionally start
+    with a given prefix. E.g. if the Run creates a folder called "outputs", which you wish to download all
+    files from, specify prefix="outputs". To download all files associated with the run, leave prefix empty.
+
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to instantiate the workspace.
+
+    If function is called in a distributed PyTorch training script, the files will only be downloaded once per node
+    (i.e, all process where is_local_rank_zero() == True). All processes will exit this function once all downloads
+    are completed.
 
     :param run_id: The id of the Azure ML Run
-    :param output_dir: Local directory to which the Run files should be downloaded.
+    :param output_folder: Local directory to which the Run files should be downloaded.
     :param prefix: Optional prefix to filter Run files by
     :param workspace: Optional Azure ML Workspace object
     :param workspace_config_path: Optional path to settings for Azure ML Workspace
+    :param validate_checksum: Whether to validate the content from HTTP response
     """
     workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
     run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-    download_run_files(run, output_dir, prefix=prefix)
+    _download_files_from_run(run, output_folder, prefix=prefix, validate_checksum=validate_checksum)
+    torch_barrier()
 
 
-def download_run_file(run: Run, filename: str, output_path: Path, validate_checksum: bool = False) -> Optional[Path]:
+def _download_file_from_run(run: Run, filename: str, output_file: Path, validate_checksum: bool = False
+                            ) -> Optional[Path]:
     """
-    A wrapper around AML Run's download_file method, that handles timeouts
+    Download a single file from an Azure ML Run, optionally validating the content to ensure the file is not
+    corrupted during download. If running inside a distributed setting, will only attempt to download the file
+    onto the node with local_rank==0. This prevents multiple processes on the same node from trying to download
+    the same file, which can lead to errors.
 
     :param run: The AML Run to download associated file for
     :param filename: The name of the file as it exists in Azure storage
-    :param output_path: Local path to which the file should be downloaded
+    :param output_file: Local path to which the file should be downloaded
     :param validate_checksum: Whether to validate the content from HTTP response
     :return: The path to the downloaded file if local rank is zero, else None
     """
     if not is_local_rank_zero():
         return None
 
-    run.download_file(filename, output_file_path=output_path, _validate_checksum=validate_checksum)
-    return output_path
+    run.download_file(filename, output_file_path=str(output_file), _validate_checksum=validate_checksum)
+    return output_file
 
 
 def is_global_rank_zero() -> bool:
@@ -909,7 +919,7 @@ def download_from_datastore(datastore_name: str, file_prefix: str, output_folder
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param datastore_name: The name of the Datastore containing the blob to be downloaded. This Datastore itself
         must be an instance of an AzureBlobDatastore.
@@ -942,7 +952,7 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
+    file will be used to instantiate the workspace.
 
     :param datastore_name: The name of the Datastore to which the blob should be uploaded. This Datastore itself
         must be an instance of an AzureBlobDatastore
@@ -998,3 +1008,52 @@ def get_runs_from_script_config(script_config: ScriptConfig, workspace: Workspac
         run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]
         runs = [get_aml_run_from_run_id(run_id.val, aml_workspace=workspace) for run_id in run_ids]
     return runs
+
+
+def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_folder: Path,
+                                     aml_workspace: Optional[Workspace] = None,
+                                     workspace_config_path: Optional[Path] = None) -> None:
+    """
+    Given an Azure ML run id, download all files from a given checkpoint directory within that run, to
+    the path specified by output_path.
+    If running in AML, will take the current workspace. Otherwise, if neither aml_workspace nor
+    workspace_config_path are provided, will try to locate a config.json file in any of the
+    parent folders of the current working directory.
+
+    :param run_id: The id of the run to download checkpoints from
+    :param checkpoint_dir: The path to the checkpoints directory within the run files
+    :param output_folder: The path to which the checkpoints should be stored
+    :param aml_workspace: Optional AML workspace object
+    :param workspace_config_path: Optional workspace config file
+    """
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    download_files_from_run_id(run_id, output_folder, prefix=checkpoint_dir, workspace=workspace,
+                               validate_checksum=True)
+
+
+def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
+    """
+    Returns True if the given run is inside of an AzureML machine, or False if it is on a machine outside AzureML.
+    When called without arguments, this functions returns True if the present code is running in AzureML.
+    Note that in runs with "compute_target='local'" this function will also return True. Such runs execute outside
+    of AzureML, but are able to log all their metrics, etc to an AzureML run.
+
+    :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
+    :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
+    """
+    return hasattr(aml_run, 'experiment')
+
+
+def torch_barrier() -> None:
+    """
+    This is a barrier to use in distributed jobs. Use it to make all processes that participate in a distributed
+    pytorch job to wait for each other. When torch.distributed is not set up or not found, the function exits
+    immediately.
+    """
+    try:
+        import torch
+    except ModuleNotFoundError:
+        logging.info("Skipping the barrier because PyTorch is not available.")
+        return
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.barrier()

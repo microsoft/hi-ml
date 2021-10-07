@@ -28,7 +28,8 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health.azure.himl as himl
-from health.azure.azure_util import EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_workspace, get_most_recent_run
+from health.azure.azure_util import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
+                                     get_workspace, is_running_in_azure_ml)
 from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
@@ -66,7 +67,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
             compute_cluster_name="foo",
             conda_environment_file=Path("env.yml"))
         assert isinstance(result, himl.AzureRunInfo)
-        assert not result.is_running_in_azure
+        assert not result.is_running_in_azure_ml
         assert result.run is None
 
 
@@ -259,7 +260,7 @@ def test_get_script_params() -> None:
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.is_running_in_azure")
+@patch("health.azure.azure_util.is_running_in_azure_ml")
 def test_get_workspace_no_config(
         mock_is_running_in_azure: mock.MagicMock,
         tmp_path: Path) -> None:
@@ -279,18 +280,26 @@ def test_get_workspace_no_config(
 @patch("health.azure.himl.Run")
 @patch("health.azure.himl.Workspace")
 @patch("health.azure.himl._generate_azure_datasets")
-@patch("health.azure.himl.is_running_in_azure")
+@patch("health.azure.himl.RUN_CONTEXT")
 def test_submit_to_azure_if_needed_azure_return(
-        mock_is_running_in_azure: mock.MagicMock,
+        mock_run_context: mock.MagicMock,
         mock_generate_azure_datasets: mock.MagicMock,
         mock_workspace: mock.MagicMock,
         mock_run: mock.MagicMock) -> None:
-    mock_is_running_in_azure.return_value = True
+    """
+    When running in AzureML, the call to submit_to_azure_if_needed should return immediately, without trying to
+    submit a new job.
+    """
+    # The presence of the "experiment" flag is the trigger to recognize an AzureML run.
+    mock_run_context.experiment = mock.MagicMock(workspace=mock_workspace)
+    # This import needs to be local, after mocking the RUN_CONTEXT
+    import health
+    assert is_running_in_azure_ml(health.azure.himl.RUN_CONTEXT)
     expected_run_info = himl.AzureRunInfo(
         run=mock_run,
         input_datasets=[],
         output_datasets=[],
-        is_running_in_azure=True,
+        is_running_in_azure_ml=True,
         output_folder=Path.cwd(),
         logs_folder=Path.cwd())
     mock_generate_azure_datasets.return_value = expected_run_info
@@ -317,7 +326,7 @@ def test_generate_azure_datasets(
     run_info = himl._generate_azure_datasets(
         cleaned_input_datasets=[mock_dataset_config] * 2,
         cleaned_output_datasets=[mock_dataset_config] * 3)
-    assert run_info.is_running_in_azure
+    assert run_info.is_running_in_azure_ml
     assert len(run_info.input_datasets) == 2
     assert len(run_info.output_datasets) == 3
     for i, d in enumerate(run_info.input_datasets):
