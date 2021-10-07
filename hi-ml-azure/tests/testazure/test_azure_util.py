@@ -350,7 +350,7 @@ dependencies:
                              ("1.5h", 90 * 60),
                              ("1.0d", 24 * 3600),
                              ("", None),
-                         ])   # NOQA
+                         ])  # NOQA
 def test_run_duration(s: str, expected: Optional[float]) -> None:
     actual = util.run_duration_string_to_seconds(s)
     assert actual == expected
@@ -670,8 +670,8 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 @patch("health.azure.azure_util.get_aml_run_from_run_id")
 @patch("health.azure.azure_util._download_files_from_run")
 def test_download_files_from_run_id(mock_download_run_files: MagicMock,
-                                        mock_get_aml_run_from_run_id: MagicMock,
-                                        mock_workspace: MagicMock) -> None:
+                                    mock_get_aml_run_from_run_id: MagicMock,
+                                    mock_workspace: MagicMock) -> None:
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
     util.download_files_from_run_id("run123", Path(__file__))

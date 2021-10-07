@@ -54,10 +54,11 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
 
 def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     """
-    This test expects an experiment called 'tensorboard_test' in your workspace, with at least 1 associated run
-    See the scripts in test_tensorboard to create this Experiment & Run.
-    :param tmp_path:
-    :return:
+    This test will create a new run under an experiment named "test_script" in your default Workspace.
+    The run will create some dummy TensorBoard-compatible logs. The run is then passed to the
+    WrappedTensorboard class to ensure that it works as expected.
+    If running for the first time it may take a while longer since it will install PyTorch in the
+    AML environment
     """
     ws = DEFAULT_WORKSPACE.workspace
 
