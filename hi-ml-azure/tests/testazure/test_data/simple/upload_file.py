@@ -7,7 +7,6 @@ Testing run_upload_file.
 """
 
 from pathlib import Path
-from typing import Set
 
 from azureml.core.run import Run
 
@@ -19,19 +18,13 @@ except Exception:
     import testazure.test_data.simple.upload_util as upload_util  # type: ignore
 
 
-def init_test(tmp_path: Path) -> None:
-    """
-    Create test files.
-
-    :param tmp_path: Folder to create test files in.
-    """
-    upload_util.create_test_files(tmp_path, None, range(0, 6))
-
-
 def run_test(run: Run) -> None:
     """
     Run a set of tests against run.upload_file and run_upload_file.
     """
+    # Create test files.
+    upload_util.create_test_files(None, range(0, 6))
+
     # Extract the list of test file names
     filenames = upload_util.get_test_file_names()
 

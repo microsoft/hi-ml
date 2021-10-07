@@ -16,19 +16,12 @@ except Exception:
     import testazure.test_data.simple.upload_util as upload_util  # type: ignore
 
 
-def init_test(tmp_path: Path) -> None:
-    """
-    Create test files.
-
-    :param tmp_path: Folder to create test files in.
-    """
-    upload_util.create_test_files(tmp_path, None, range(0, 2))
-
-
 def run_test(run: Run) -> None:
     """
     Run a minimal set of tests against run.upload_folder.
     """
+    # Create test files.
+    upload_util.create_test_files(None, range(0, 2))
 
     upload_folder_name = "uploaded_folder"
 

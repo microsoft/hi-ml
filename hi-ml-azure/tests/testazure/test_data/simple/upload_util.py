@@ -16,41 +16,41 @@ from azureml.exceptions import AzureMLException
 from health.azure.azure_util import hash_file, run_download_file_name
 
 
-# A file to store the ordered list of test files.
-_filenames_file_name = "filenames.txt"
-
 # The folder where the test files have been created. Since they are in a subfolder of the script, they should
 # have been uploaded.
 _base_data_folder_name = "base_data"
+_base_data_folder = Path("outputs") / _base_data_folder_name
+
+# A file to store the ordered list of test files.
+_filenames_file_name = "filenames.txt"
+_filenames_file = _base_data_folder / _filenames_file_name
 
 # Create a new folder to upload files from
 test_upload_folder_name = "test_data"
 
 
-def create_test_files(path: Path, subfolder: Optional[Path], range: range) -> None:
+def create_test_files(subfolder: Optional[Path], range: range) -> None:
     """
     Create a set of test files in a target folder.
 
-    If subfolder is not empty then the target folder will be path / "base_data" / subfolder, otherwise it will
-    be path / "base_data". This folder will be created if it does not exist.
+    If subfolder is not empty then the target folder will be "outputs" / "base_data" / subfolder, otherwise it will
+    be "outputs" / "base_data". This folder will be created if it does not exist.
 
     :param path: Base folder, intended to be a temporary folder.
     :param subfolder: Optional subfolder of "base_data", where to create the test files.
     :param range: Range of suffixes to apply to the filenames.
     :return: None.
     """
-    base_data_folder = path / _base_data_folder_name
-    folder = base_data_folder / subfolder if subfolder is not None else base_data_folder
+    folder = _base_data_folder / subfolder if subfolder is not None else _base_data_folder
     if not folder.exists():
         folder.mkdir(parents=True)
     filenames = [folder / f"test_file{i}.txt" for i in range]
     # Populate the dummy text files with some unique text
     for filename in filenames:
         filename.write_text(f"some test data: {uuid4().hex}")
-    relative_filenames = [str(f.relative_to(base_data_folder)) for f in filenames]
-    filenames_list = base_data_folder / _filenames_file_name
-    existing_filenames = filenames_list.read_text() + "\n" if filenames_list.exists() else ""
-    filenames_list.write_text(existing_filenames + "\n".join(relative_filenames))
+    relative_filenames = [str(f.relative_to(_base_data_folder)) for f in filenames]
+    existing_filenames = _filenames_file.read_text() + "\n" if _filenames_file.exists() else ""
+    _filenames_file.write_text(existing_filenames + "\n".join(relative_filenames))
 
 
 def get_test_file_names() -> List[str]:
@@ -59,9 +59,7 @@ def get_test_file_names() -> List[str]:
 
     :return: List of file names stored in the filenames.txt file.
     """
-    base_data_folder = Path(_base_data_folder_name)
-    filenames_list = base_data_folder / _filenames_file_name
-    return filenames_list.read_text().split("\n")
+    return _filenames_file.read_text().split("\n")
 
 
 def copy_test_file_name_set(test_upload_folder: Path, test_file_name_set: Set[str]) -> None:
@@ -77,8 +75,7 @@ def copy_test_file_name_set(test_upload_folder: Path, test_file_name_set: Set[st
         if not target_folder.exists():
             target_folder.mkdir(parents=True)
 
-        base_data_folder = Path(_base_data_folder_name)
-        shutil.copyfile(base_data_folder / f, test_upload_folder / f)
+        shutil.copyfile(_base_data_folder / f, test_upload_folder / f)
 
 
 def rm_test_file_name_set(test_upload_folder: Path) -> None:
@@ -102,7 +99,7 @@ def assert_folder_contents(filenames: Set[str], download_folder: Path) -> None:
     :return: None.
     """
     for filename in filenames:
-        uploaded_file = Path(_base_data_folder_name) / filename
+        uploaded_file = _base_data_folder / filename
         uploaded_file_hash = hash_file(uploaded_file)
         downloaded_file = download_folder / filename
         downloaded_file_hash = hash_file(downloaded_file)
@@ -162,7 +159,7 @@ def check_file(run: Run,
     # This should be the same as the filename.
     assert downloaded_all_local_files == {run_download_file_name(name)}
 
-    uploaded_file = Path(_base_data_folder_name) / filename
+    uploaded_file = _base_data_folder / filename
     uploaded_file_hash = hash_file(uploaded_file)
     downloaded_file = download_folder_all / run_download_file_name(name)
     downloaded_file_hash = hash_file(downloaded_file)

@@ -26,10 +26,6 @@ from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health.azure.azure_util as util
-import testazure.test_data.simple.upload_file as upload_file
-import testazure.test_data.simple.upload_files as upload_files
-import testazure.test_data.simple.upload_folder as upload_folder
-import testazure.test_data.simple.upload_folder_min as upload_folder_min
 from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
@@ -1218,7 +1214,6 @@ def test_run_upload_file(tmp_path: Path) -> None:
     """
     Test that run_upload_file works even if the file is already uploaded or changed.
     """
-    upload_file.init_test(tmp_path)
     check_upload(tmp_path, "upload_file")
 
 
@@ -1226,7 +1221,6 @@ def test_run_upload_files(tmp_path: Path) -> None:
     """
     Test that run_upload_files works even if some files is already uploaded or changed.
     """
-    upload_files.init_test(tmp_path)
     check_upload(tmp_path, "upload_files")
 
 
@@ -1235,7 +1229,6 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     Test that run_upload_folder works even if some of the files in the folder are already uploaded
     or changed.
     """
-    upload_folder.init_test(tmp_path)
     check_upload(tmp_path, "upload_folder")
 
 
@@ -1243,5 +1236,4 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
     """
     Minimal test of how run_upload_folder behaves when called twice with the same file in the folder both times.
     """
-    upload_folder_min.init_test(tmp_path)
     check_upload(tmp_path, "upload_folder_min")

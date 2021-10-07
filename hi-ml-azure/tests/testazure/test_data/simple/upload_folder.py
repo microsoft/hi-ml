@@ -37,34 +37,28 @@ class TestUploadFolderData:
     bad_files: set = field(default_factory=set)
 
 
-def init_test(tmp_path: Path) -> None:
-    """
-    Create test files.
-
-    :param tmp_path: Folder to create test files in.
-    """
-    # [0, 12) Create test files in the root of the base_data folder.
-    upload_util.create_test_files(tmp_path, None, range(0, 12))
-
-    # [12, 24) Create test files in a direct sub folder of the base_data folder.
-    upload_util.create_test_files(tmp_path, Path("sub1"), range(12, 24))
-
-    # [24, 36) Create test files in a sub sub sub folder of the base_data folder.
-    upload_util.create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(24, 36))
-
-    # [36, 45) Create test files in a direct sub folder of the base_data folder, with same filenames as the first set.
-    upload_util.create_test_files(tmp_path, Path("sub1"), range(0, 9))
-
-    # [45, 54) Create test files in a sub sub sub folder of the base_data folder, with same filenames as the first set.
-    upload_util.create_test_files(tmp_path, Path("sub1") / "sub2" / "sub3", range(0, 9))
-
-
 def run_test(run: Run) -> None:
     """
     Run a set of tests against run.upload_folder and run_upload_folder.
 
     :param run: AzureML run.
     """
+    # Create test files.
+    # [0, 12) Create test files in the root of the base_data folder.
+    upload_util.create_test_files(None, range(0, 12))
+
+    # [12, 24) Create test files in a direct sub folder of the base_data folder.
+    upload_util.create_test_files(Path("sub1"), range(12, 24))
+
+    # [24, 36) Create test files in a sub sub sub folder of the base_data folder.
+    upload_util.create_test_files(Path("sub1") / "sub2" / "sub3", range(24, 36))
+
+    # [36, 45) Create test files in a direct sub folder of the base_data folder, with same filenames as the first set.
+    upload_util.create_test_files(Path("sub1"), range(0, 9))
+
+    # [45, 54) Create test files in a sub sub sub folder of the base_data folder, with same filenames as the first set.
+    upload_util.create_test_files(Path("sub1") / "sub2" / "sub3", range(0, 9))
+
     # Extract the list of test file names
     filenames = upload_util.get_test_file_names()
 
