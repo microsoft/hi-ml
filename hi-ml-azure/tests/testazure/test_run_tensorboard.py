@@ -6,13 +6,14 @@ import pytest
 import subprocess
 
 from pathlib import Path
+from typing import List
 from unittest import mock
 
-from health.azure import himl_tensorboard
-from health.azure.himl_tensorboard import WrappedTensorboard, ROOT_DIR
-
-from azureml.core import Experiment, Workspace
-
+from health.azure import himl_tensorboard, himl
+from health.azure import azure_util as util
+from health.azure.himl_tensorboard import WrappedTensorboard
+from testazure.test_himl import render_and_run_test_script, RunTarget
+from testazure.util import DEFAULT_WORKSPACE
 
 TENSORBOARD_SCRIPT_PATH = himl_tensorboard.__file__
 
@@ -51,7 +52,6 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     ts.stop()
 
 
-@pytest.mark.skip
 def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     """
     This test expects an experiment called 'tensorboard_test' in your workspace, with at least 1 associated run
@@ -59,13 +59,50 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     :param tmp_path:
     :return:
     """
-    # get the latest run in this experiment
-    ws = Workspace.from_config(ROOT_DIR / "config.json")
-    expt = Experiment(ws, 'tensorboard_test')
-    run = next(expt.get_runs())
+    ws = DEFAULT_WORKSPACE.workspace
+
+    # call the script here
+    extra_options = {
+        "conda_channels": ["pytorch"],
+        "conda_dependencies": ["pytorch=1.4.0"],
+        "imports": """
+from health.azure.azure_util import is_running_in_azure_ml
+""",
+
+        "body": """
+    if is_running_in_azure_ml():
+        import torch
+        from torch.utils.tensorboard import SummaryWriter
+    log_dir = Path("outputs")
+    log_dir.mkdir(exist_ok=True)
+    writer = SummaryWriter(log_dir=str(log_dir))
+
+    x = torch.arange(-20, 20, 0.1).view(-1, 1)
+    y = -2 * x + 0.1 * torch.randn(x.size())
+
+    model = torch.nn.Linear(1, 1)
+    criterion = torch.nn.MSELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+    for epoch in range(10):
+        y1 = model(x)
+        loss = criterion(y1, y)
+        writer.add_scalar("Loss/train", loss, epoch)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    writer.flush()
+            """
+    }
+
+    extra_args: List[str] = []
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+
+    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                   workspace=ws)
+    run.wait_for_completion()
 
     log_dir = "outputs"
-
     local_root = tmp_path / log_dir
     local_root.mkdir(exist_ok=True)
     remote_root = str(local_root.relative_to(tmp_path)) + "/"

@@ -565,7 +565,7 @@ def render_and_run_test_script(path: Path,
             print("Copied 'src' folder.")
 
     environment_yaml_path = path / "environment.yml"
-    render_environment_yaml(environment_yaml_path, version, run_requirements)
+    render_environment_yaml(environment_yaml_path, version, run_requirements, extra_options=extra_options)
 
     entry_script_path = path / "test_script.py"
     workspace_config_file_arg = "None" if suppress_config_creation else "WORKSPACE_CONFIG_JSON"

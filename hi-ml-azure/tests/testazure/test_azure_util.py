@@ -350,7 +350,7 @@ dependencies:
                              ("1.5h", 90 * 60),
                              ("1.0d", 24 * 3600),
                              ("", None),
-                         ])
+                         ])   # NOQA
 def test_run_duration(s: str, expected: Optional[float]) -> None:
     actual = util.run_duration_string_to_seconds(s)
     assert actual == expected
@@ -669,7 +669,7 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 @patch("health.azure.azure_util.get_workspace")
 @patch("health.azure.azure_util.get_aml_run_from_run_id")
 @patch("health.azure.azure_util._download_files_from_run")
-def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
+def test_download_files_from_run_id(mock_download_run_files: MagicMock,
                                         mock_get_aml_run_from_run_id: MagicMock,
                                         mock_workspace: MagicMock) -> None:
     mock_run = {"id": "run123"}
@@ -680,7 +680,7 @@ def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
 
 @pytest.mark.parametrize("dummy_env_vars, expect_file_downloaded", [({}, True), ({util.ENV_LOCAL_RANK: "1"}, False)])
 @patch("azureml.core.Run", MockRun)
-def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expect_file_downloaded: bool) -> None:
+def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], expect_file_downloaded: bool) -> None:
     dummy_filename = "filetodownload.txt"
     expected_file_path = tmp_path / dummy_filename
 
@@ -700,7 +700,7 @@ def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expec
             assert not expected_file_path.exists()
 
 
-def test_download_run_file_remote(tmp_path: Path) -> None:
+def test_download_file_from_run_remote(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
@@ -806,23 +806,22 @@ def test_is_local_rank_zero() -> None:
 
 
 @pytest.mark.parametrize("dummy_recovery_id, expected_id_type", [
-    ("expt:run1234", util.RunRecoveryId),
-    ("['expt:432','expt2:111']",  util.RunRecoveryId),
-    ("run1234", util.RunId),
-    ("['run1234','run7654']", util.RunId)
+    ("expt:run_abc_1234", util.RunRecoveryId),
+    ("['expt:abc_432','expt2:def_111']", util.RunRecoveryId),
+    ("run_ghi_1234", util.RunId),
+    ("['run_jkl_1234','run_mno_7654']", util.RunId)
 ])
 def test_get_run_source(dummy_recovery_id: str,
                         expected_id_type: Union[util.RunId, util.RunRecoveryId]) -> None:
-
     arguments = ["", "--run", dummy_recovery_id]
     with patch.object(sys, "argv", arguments):
 
         run_source = util.ScriptConfig.parse_args()
 
-        if isinstance(run_source.run, str):
-            assert isinstance(run_source.run, expected_id_type)
-        elif isinstance(run_source.run, List):
+        if isinstance(run_source.run, List):
             assert isinstance(run_source.run[0], expected_id_type)
+        else:
+            assert isinstance(run_source.run, expected_id_type)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -980,21 +979,37 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     output_file_dir = tmp_path
     assert not (output_file_dir / prefix).exists()
 
+    whole_file_path = prefix + file_name
     start_time = time.perf_counter()
-    util.download_checkpoints_from_run_id(run.id, prefix, output_file_dir, aml_workspace=ws)
+    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
 
+    download_file_path = output_file_dir / prefix / "dummy_checkpoint_0.txt"
     assert (output_file_dir / prefix).is_dir()
     assert len(list((output_file_dir / prefix).iterdir())) == num_dummy_files
-    with open(str(output_file_dir / prefix / "dummy_checkpoint_0.txt"), "rb") as f_path:
+    with open(str(download_file_path), "rb") as f_path:
         for line in f_path:
             chunk = line.strip(b'\x00')
             if chunk:
                 found_file_contents = chunk.decode("utf-8")
                 break
 
+    assert found_file_contents == file_contents
+
+    # Delete the file downloaded file and check that download_checkpoints also works on a single checkpoint file
+    download_file_path.unlink()
+    assert not download_file_path.exists()
+
+    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
+    assert download_file_path.exists()
+    with open(str(download_file_path), "rb") as f_path:
+        for line in f_path:
+            chunk = line.strip(b'\x00')
+            if chunk:
+                found_file_contents = chunk.decode("utf-8")
+                break
     assert found_file_contents == file_contents
 
 

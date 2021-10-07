@@ -109,9 +109,13 @@ class WrappedTensorboard(Tensorboard):
 def main() -> None:  # pragma: no cover
 
     tb_config = HimlTensorboardConfig.parse_args()
-    config_path = Path(tb_config.config_file)
+    config_path = tb_config.config_file
 
-    if not config_path.is_file():
+    if not config_path:
+        logging.info("You have not provided a config path. Therefore we will try to find one in your "
+                     "current directory, and its parents")
+
+    if not config_path or config_path.is_file():
         raise ValueError(
             "You must provide a config.json file in the root folder to connect"
             "to an AML workspace. This can be downloaded from your AML workspace (see README.md)"
@@ -125,7 +129,8 @@ def main() -> None:  # pragma: no cover
     if len(runs) == 0:
         raise ValueError("No runs were found")
 
-    local_logs_dir = ROOT_DIR / args.log_dir
+    local_logs_dir = ROOT_DIR / tb_config.log_dir
+    logging.info(f"Creating directory {local_logs_dir} to store TensorBoard logs in")
     local_logs_dir.mkdir(exist_ok=True, parents=True)
 
     remote_logs_dir = local_logs_dir.relative_to(ROOT_DIR)

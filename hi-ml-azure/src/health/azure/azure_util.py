@@ -25,8 +25,6 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 T = TypeVar('T')
 
-RunType = Union[str, List[str]]
-
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
 
@@ -58,11 +56,36 @@ WORKSPACE_CONFIG_JSON = "config.json"
 PathOrString = Union[Path, str]
 
 
-def is_private_field_name(name: str) -> bool:
-    """
-    A private field is any Python class member that starts with an underscore eg: _hello
-    """
-    return name.startswith("_")
+class RunSource:
+    def __init__(self) -> None:
+        pass
+
+
+class RunId(RunSource):
+    def __init__(self, val: str) -> None:
+        super().__init__()
+        self.val = val
+
+    def __str__(self) -> str:
+        return self.val
+
+    def __repr__(self) -> str:
+        return f"RunId(value={self.val})"
+
+
+class RunRecoveryId(RunSource):
+    def __init__(self, val: str) -> None:
+        super().__init__()
+        self.val = val
+
+    def __str__(self) -> str:
+        return self.val
+
+    def __repr__(self) -> str:
+        return f"RunRecoveryId(value={self.val})"
+
+
+RunIdType = Union[RunId, RunRecoveryId]
 
 
 class GenericConfig(param.Parameterized):
@@ -164,7 +187,7 @@ class GenericConfig(param.Parameterized):
             elif isinstance(_p, param.ClassSelector):
                 p_type = _p.class_
             elif isinstance(_p, RunIdOrListParam):
-                def list_or_string(x: str) -> Union[str, List]:
+                def list_or_string(x: str) -> Union[RunId, RunRecoveryId, List]:
 
                     res = [str(item) for item in x.split(',')]
                     if not isinstance(res, List):
@@ -262,36 +285,14 @@ class RunIdOrListParam(param.Parameter):
         super()._validate(val)
 
 
-class RunSource:
-    def __init__(self):
-        pass
+def is_private_field_name(name: str) -> bool:
+    """
+    A private field is any Python class member that starts with an underscore eg: _hello
+    """
+    return name.startswith("_")
 
 
-class RunId(RunSource):
-    def __init__(self, val):
-        super().__init__()
-        self.val = val
-
-    def __str__(self):
-        return self.val
-
-    def __repr__(self):
-        return f"RunId(value={self.val})"
-
-
-class RunRecoveryId(RunSource):
-    def __init__(self, val):
-        super().__init__()
-        self.val = val
-
-    def __str__(self):
-        return self.val
-
-    def __repr__(self):
-        return f"RunRecoveryId(value={self.val})"
-
-
-def determine_run_id_type(run_or_recovery_id: str) -> RunSource:
+def determine_run_id_type(run_or_recovery_id: str) -> RunIdType:
     """
     Determine whether a run id is of type "run id" or "run recovery id". This distinction is made
     by checking for telltale patterns within the string. Run recovery ideas take the form "experiment_name:run_id"
@@ -757,12 +758,12 @@ def get_aml_run_from_run_id(run_id: str,
     :param workspace_config_path: Optional path to config file containing AML Workspace settings
     :return: An Azure ML Run object
     """
-    run_id = determine_run_id_type(run_id)
+    run_id_ = determine_run_id_type(run_id)
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    if isinstance(run_id, RunId):
-        return workspace.get_run(run_id.val)
-    elif isinstance(run_id, RunRecoveryId):
-        return fetch_run(workspace, run_id.val)
+    if isinstance(run_id_, RunId):
+        return workspace.get_run(run_id_.val)
+    elif isinstance(run_id_, RunRecoveryId):
+        return fetch_run(workspace, run_id_.val)
 
 
 def get_latest_aml_runs_from_experiment(experiment_name: str,
@@ -1005,12 +1006,13 @@ def get_runs_from_script_config(script_config: ScriptConfig, workspace: Workspac
             runs = get_latest_aml_runs_from_experiment(script_config.experiment_name, tags=script_config.tags,
                                                        num_runs=script_config.num_runs, aml_workspace=workspace)
     else:
-        run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]
+        run_ids: List[Union[RunId, RunRecoveryId]]
+        run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]  # type: ignore
         runs = [get_aml_run_from_run_id(run_id.val, aml_workspace=workspace) for run_id in run_ids]
     return runs
 
 
-def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_folder: Path,
+def download_checkpoints_from_run_id(run_id: str, checkpoint_path_or_folder: str, output_folder: Path,
                                      aml_workspace: Optional[Workspace] = None,
                                      workspace_config_path: Optional[Path] = None) -> None:
     """
@@ -1021,13 +1023,14 @@ def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_fo
     parent folders of the current working directory.
 
     :param run_id: The id of the run to download checkpoints from
-    :param checkpoint_dir: The path to the checkpoints directory within the run files
+    :param checkpoint_path_or_folder: The path to the either a single checkpoint file, or a directory of
+        checkpoints within the run files. If a folder is provided, all files within it will be downloaded.
     :param output_folder: The path to which the checkpoints should be stored
     :param aml_workspace: Optional AML workspace object
     :param workspace_config_path: Optional workspace config file
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    download_files_from_run_id(run_id, output_folder, prefix=checkpoint_dir, workspace=workspace,
+    download_files_from_run_id(run_id, output_folder, prefix=checkpoint_path_or_folder, workspace=workspace,
                                validate_checksum=True)
 
 

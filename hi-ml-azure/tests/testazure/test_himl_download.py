@@ -3,15 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import List, Union
-from unittest.mock import patch
 
 import pytest
 import subprocess
-import sys
 
 from health.azure import himl_download
-from health.azure import azure_util as util
 
 DOWNLOAD_SCRIPT_PATH = himl_download.__file__
 
@@ -39,4 +35,3 @@ def test_download_aml_run_no_runs(tmp_path: Path) -> None:
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--run_id", "madeuprun", "--output_dir", str(tmp_path)])
         assert "was not found" in str(e)
-
