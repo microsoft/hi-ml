@@ -49,7 +49,11 @@ def run_test(run: Run) -> None:
     print(f"Upload the first file set: {upload_files}")
     run.upload_folder(name=upload_folder_name, path=str(test_upload_folder))
 
-    upload_util.check_files(run, test_file_name_sets[0], set(), 1, upload_folder_name)
+    upload_util.check_folder(run=run,
+                             good_filenames=test_file_name_sets[0],
+                             bad_filenames=set(),
+                             step=1,
+                             upload_folder_name=upload_folder_name)
 
     # Step 2, upload the second file set
     upload_files = upload_files.union(test_file_name_sets[1])
@@ -64,4 +68,8 @@ def run_test(run: Run) -> None:
         for f in test_file_name_sets[0]:
             assert f"{f} already exists" in str(ex)
 
-    upload_util.check_files(run, test_file_name_sets[0], test_file_name_sets[1], 2, upload_folder_name)
+    upload_util.check_folder(run=run,
+                             good_filenames=test_file_name_sets[0],
+                             bad_filenames=test_file_name_sets[1],
+                             step=2,
+                             upload_folder_name=upload_folder_name)

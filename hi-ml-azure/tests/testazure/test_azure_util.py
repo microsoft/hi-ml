@@ -1177,6 +1177,30 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     assert found_file_contents == file_contents
 
 
+def check_upload(tmp_path: Path, module_name: str) -> None:
+    """
+    Common tests for upload_file, upload_files, upload_folder.
+
+    :param tmp_path: Temporary folder for test.
+    :param module_name: Specific upload test file.
+    :return: None.
+    """
+    extra_options: Dict[str, str] = {
+        'imports': f"""
+import sys
+import {module_name}""",
+        'body': f"""
+    {module_name}.run_test(run_info.run)
+"""
+    }
+
+    extra_args: List[str] = []
+    shutil.copy(here / 'test_data' / 'simple' / f'{module_name}.py', tmp_path)
+    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    check_run_completed(tmp_path)
+
+
 def check_run_completed(tmp_path: Path) -> None:
     """
     Check that run completed with correct status.
@@ -1195,21 +1219,7 @@ def test_run_upload_file(tmp_path: Path) -> None:
     Test that run_upload_file works even if the file is already uploaded or changed.
     """
     upload_file.init_test(tmp_path)
-
-    extra_options: Dict[str, str] = {
-        'imports': """
-import sys
-import upload_file""",
-        'body': """
-    upload_file.run_test(run_info.run)
-"""
-    }
-
-    extra_args: List[str] = []
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_file.py', tmp_path)
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    check_run_completed(tmp_path)
+    check_upload(tmp_path, "upload_file")
 
 
 def test_run_upload_files(tmp_path: Path) -> None:
@@ -1217,21 +1227,7 @@ def test_run_upload_files(tmp_path: Path) -> None:
     Test that run_upload_files works even if some files is already uploaded or changed.
     """
     upload_files.init_test(tmp_path)
-
-    extra_options: Dict[str, str] = {
-        'imports': """
-import sys
-import upload_files""",
-        'body': """
-    upload_files.run_test(run_info.run)
-"""
-    }
-
-    extra_args: List[str] = []
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_files.py', tmp_path)
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    check_run_completed(tmp_path)
+    check_upload(tmp_path, "upload_files")
 
 
 def test_run_upload_folder(tmp_path: Path) -> None:
@@ -1240,20 +1236,7 @@ def test_run_upload_folder(tmp_path: Path) -> None:
     or changed.
     """
     upload_folder.init_test(tmp_path)
-
-    extra_options: Dict[str, str] = {
-        'imports': """
-import sys
-import upload_folder""",
-        'body': """
-    upload_folder.run_test(run_info.run)
-"""
-    }
-    extra_args: List[str] = []
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_folder.py', tmp_path)
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    check_run_completed(tmp_path)
+    check_upload(tmp_path, "upload_folder")
 
 
 def test_run_upload_folder_min(tmp_path: Path) -> None:
@@ -1261,18 +1244,4 @@ def test_run_upload_folder_min(tmp_path: Path) -> None:
     Minimal test of how run_upload_folder behaves when called twice with the same file in the folder both times.
     """
     upload_folder_min.init_test(tmp_path)
-
-    extra_options: Dict[str, str] = {
-        'imports': """
-import sys
-import upload_folder_min""",
-        'body': """
-    upload_folder_min.run_test(run_info.run)
-"""
-    }
-
-    extra_args: List[str] = []
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_folder_min.py', tmp_path)
-    shutil.copy(here / 'test_data' / 'simple' / 'upload_util.py', tmp_path)
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-    check_run_completed(tmp_path)
+    check_upload(tmp_path, "upload_folder_min")

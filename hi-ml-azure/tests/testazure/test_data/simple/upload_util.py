@@ -13,6 +13,8 @@ from uuid import uuid4
 from azureml.core.run import Run
 from azureml.exceptions import AzureMLException
 
+from health.azure.azure_util import hash_file, run_download_file_name
+
 
 # A file to store the ordered list of test files.
 _filenames_file_name = "filenames.txt"
@@ -91,16 +93,93 @@ def rm_test_file_name_set(test_upload_folder: Path) -> None:
     test_upload_folder.mkdir()
 
 
-def check_files(run: Run,
-                good_filenames: Set[str],
-                bad_filenames: Set[str],
-                step: int,
-                upload_folder_name: str) -> None:
+def assert_folder_contents(filenames: Set[str], download_folder: Path) -> None:
+    """
+    Compare hashes of two sets of files.
+
+    :param good_filenames: Set of filenames that should have been uploaded without an error.
+    :param download_folder: Folder with downloaded files.
+    :return: None.
+    """
+    for filename in filenames:
+        uploaded_file = Path(_base_data_folder_name) / filename
+        uploaded_file_hash = hash_file(uploaded_file)
+        downloaded_file = download_folder / filename
+        downloaded_file_hash = hash_file(downloaded_file)
+        assert uploaded_file_hash == downloaded_file_hash
+
+
+def check_file(run: Run,
+               name: str,
+               good_filename: str,
+               bad_filename: str,
+               step: int,
+               upload_folder_name: str) -> None:
+    """
+    Check that a file that has been uploaded to the run is as expected.
+
+    :param run: AzureML run.
+    :param name: Name of file on AzureML run.
+    :param good_filename: Source filename that was expected to have been uploaded without an error.
+    :param bad_filename: Source filename that was expected to have been uploaded with an error.
+    :param step: Which step of the test, used for logging and creating temporary folders.
+    :param upload_folder_name: Upload folder name.
+    :return: None.
+    """
+    print_prefix = f"check_file_{step}_{upload_folder_name}:"
+    print(f"{print_prefix} name:{name}")
+    print(f"{print_prefix} good_filename:{good_filename}")
+    print(f"{print_prefix} bad_filename:{bad_filename}")
+    filename = good_filename or bad_filename
+
+    # Download all the file names for this run with the expected name
+    run_file_names = {f for f in run.get_file_names() if f == name}
+    print(f"{print_prefix} run_file_names:{sorted(run_file_names)}")
+    # This should be just the name, since duplicates are not allowed.
+    assert run_file_names == {name}
+
+    # Make a folder to download it
+    download_folder_all = Path(f"outputs/download_file_{step}_{upload_folder_name}")
+    download_folder_all.mkdir()
+
+    if not bad_filename:
+        # With no bad filename, it should be possible to just download it.
+        run.download_file(name=name,
+                          output_file_path=str(download_folder_all))
+    else:
+        # With bad filenames, run.download_file will raise an exception.
+        try:
+            run.download_file(name=name,
+                              output_file_path=str(download_folder_all))
+        except AzureMLException as ex:
+            print(f"Expected error in download_file: {str(ex)}")
+            assert "Failed to flush task queue within 120 seconds" in str(ex)
+
+    # Glob the list of all the files that have been downloaded relative to the download folder.
+    downloaded_all_local_files = {str(f.relative_to(download_folder_all))
+                                  for f in download_folder_all.rglob("*") if f.is_file()}
+    print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
+    # This should be the same as the filename.
+    assert downloaded_all_local_files == {run_download_file_name(name)}
+
+    uploaded_file = Path(_base_data_folder_name) / filename
+    uploaded_file_hash = hash_file(uploaded_file)
+    downloaded_file = download_folder_all / run_download_file_name(name)
+    downloaded_file_hash = hash_file(downloaded_file)
+    assert uploaded_file_hash == downloaded_file_hash
+
+
+def check_folder(run: Run,
+                 good_filenames: Set[str],
+                 bad_filenames: Set[str],
+                 step: int,
+                 upload_folder_name: str) -> None:
     """
     Check that the list of files that have been uploaded to the run for this folder name are as expected.
 
-    :param good_filenames: Set of filenames that should have been uploaded without error.
-    :param bad_filenames: Sett of filenames that are expected to have been uploaded with an error.
+    :param run: AzureML run.
+    :param good_filenames: Set of filenames that should have been uploaded without an error.
+    :param bad_filenames: Set of filenames that are expected to have been uploaded with an error.
     :param step: Which step of the test, used for logging and creating temporary folders.
     :param upload_folder_name: Upload folder name.
     :return: None.
@@ -128,7 +207,7 @@ def check_files(run: Run,
                            output_directory=str(download_folder_all),
                            append_prefix=False)
     else:
-        # With bad filenames, run.download_files with raise an exception.
+        # With bad filenames, run.download_files will raise an exception.
         try:
             run.download_files(prefix=upload_folder_name,
                                output_directory=str(download_folder_all),
@@ -143,6 +222,7 @@ def check_files(run: Run,
     print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
     # This should be the same as the list of good and bad filenames.
     assert downloaded_all_local_files == all_filenames
+    assert_folder_contents(good_filenames, download_folder_all)
 
     # Make a folder to download them individually
     download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
@@ -175,3 +255,4 @@ def check_files(run: Run,
     print(f"{print_prefix} downloaded_ind_local_files:{sorted(downloaded_ind_local_files)}")
     # This should be the same as the list of good and bad filenames.
     assert downloaded_ind_local_files == all_filenames
+    assert_folder_contents(good_filenames, download_folder_ind)

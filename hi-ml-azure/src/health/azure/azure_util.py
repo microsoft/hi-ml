@@ -909,7 +909,7 @@ def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_fo
                                validate_checksum=True)
 
 
-def hash_file(filename: str) -> str:
+def hash_file(file: Path) -> str:
     """
     Compute a SHA1 hash of a file in 64 KB chunks.
 
@@ -918,13 +918,23 @@ def hash_file(filename: str) -> str:
     """
     BLOCKSIZE = 65536
     sha1 = hashlib.sha1()
-    with open(filename, 'rb') as afile:
+    with open(file, 'rb') as afile:
         while True:
             data = afile.read(BLOCKSIZE)
             if not data:
                 break
             sha1.update(data)
     return sha1.hexdigest()
+
+
+def run_download_file_name(name: str) -> str:
+    """
+    If the uploaded name is foo/bar/file.txt then it will just download as file.txt. Return this end fragment.
+
+    :param name: AzureML uploaded file name.
+    :return: Expected file name once downloaded.
+    """
+    return Path(name).name
 
 
 def run_upload_file(run: Run,
@@ -949,7 +959,7 @@ def run_upload_file(run: Run,
     # Get list of files in the local folder
     local_files = {Path(path_or_stream)}
 
-    local_file_named = {(name, str(f), f.name) for f in local_files}
+    local_file_named = {(name, f) for f in local_files}
     # Filter out the files that are both local and already uploaded
     dup_files = [f for f in local_file_named if f[0] in existing_file_names]
 
@@ -966,8 +976,9 @@ def run_upload_file(run: Run,
                 run.download_file(name=f[0],
                                   output_file_path=d)
                 # If the uploaded filename is foo/bar/file.txt then it will just download as file.txt.
-                downloaded_file = Path(d) / ((Path(d) / f[0]).name)
-                downloaded_file_hash = hash_file(str(downloaded_file))
+                downloaded_file = Path(d) / run_download_file_name(f[0])
+                downloaded_file_hash = hash_file(downloaded_file)
+                downloaded_file.unlink()
 
                 local_file_hash = hash_file(f[1])
                 if downloaded_file_hash != local_file_hash:
@@ -1029,7 +1040,7 @@ def run_upload_folder(run: Run,
     # Get list of files in the local folder
     local_files = {f for f in Path(path).rglob("*") if f.is_file()}
     # Get list of file names as they would be after upload
-    local_file_named = {(f"{name}/{f.relative_to(path)}", str(f), f.name) for f in local_files}
+    local_file_named = {(f"{name}/{f.relative_to(path)}", f) for f in local_files}
     # Filter out the files that are both local and already uploaded
     dup_files = [f for f in local_file_named if f[0] in existing_file_names]
     # Filter out the files that are local but not uploaded.
@@ -1045,12 +1056,13 @@ def run_upload_folder(run: Run,
             for f in dup_files:
                 run.download_file(name=f[0],
                                   output_file_path=d)
-                downloaded_file = Path(d) / f[2]
-                downloaded_file_hash = hash_file(str(downloaded_file))
+                downloaded_file = Path(d) / f[1].name
+                downloaded_file_hash = hash_file(downloaded_file)
+                downloaded_file.unlink()
 
                 local_file_hash = hash_file(f[1])
                 if downloaded_file_hash != local_file_hash:
-                    raise Exception(f"Trying to upload file {f[1]} but that file already exists in the run. \n"
+                    raise Exception(f"Trying to upload file {str(f[1])} but that file already exists in the run. \n"
                                     f"The existing file on the run has hash {downloaded_file_hash}, \n"
                                     f"but the local file has hash {local_file_hash}.\n"
                                     "Unable to reconcile those differences.")
