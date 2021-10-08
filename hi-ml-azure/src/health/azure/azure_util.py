@@ -25,6 +25,8 @@ from azureml.core.authentication import InteractiveLoginAuthentication, ServiceP
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
+from health.azure.himl import PathOrString
+
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
 
@@ -962,10 +964,15 @@ def run_download_file_name(name: str) -> str:
     return Path(name).name
 
 
+def _path_to_str(s: PathOrString) -> str:
+    if isinstance(s, Path):
+        return str(s)
+    return s
+
+
 def run_upload_file(run: Run,
                     name: str,
-                    path_or_stream: str,
-                    datastore_name: Optional[str] = None) -> None:
+                    path_or_string: PathOrString) -> None:
     """
     Wrap a call to run.upload_file with extra checks to see if the file already exists. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -976,13 +983,13 @@ def run_upload_file(run: Run,
 
     :param run: AzureML run to upload folder to.
     :param name: The name of the file to upload.
-    :param path_or_stream: The relative local path or stream to the file to upload.
-    :param datastore_name: Optional DataStore name
+    :param path_or_string: The local path to the file to upload.
     """
     # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f == name}
+    path = _path_to_str(path_or_string)
     # Get list of files in the local folder
-    local_files = {Path(path_or_stream)}
+    local_files = {Path(path)}
 
     local_file_named = {(name, f) for f in local_files}
     # Filter out the files that are both local and already uploaded
@@ -992,8 +999,7 @@ def run_upload_file(run: Run,
     if len(dup_files) == 0:
         # If there are no duplicate files, then use upload_file
         return run.upload_file(name=name,
-                               path_or_stream=path_or_stream,
-                               datastore_name=datastore_name)
+                               path_or_stream=path)
     else:
         # Check the duplicate file.
         with TemporaryDirectory() as d:
@@ -1018,10 +1024,7 @@ def run_upload_file(run: Run,
 
 def run_upload_files(run: Run,
                      names: List[str],
-                     paths: List[str],
-                     return_artifacts: bool = False,
-                     timeout_seconds: Optional[int] = None,
-                     datastore_name: str = None) -> Union[Tuple[dict, map], map]:
+                     path_or_strings: List[PathOrString]) -> None:
     """
     Wrap a call to run.upload_files with extra checks to see if files already exist. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -1030,23 +1033,18 @@ def run_upload_files(run: Run,
     For more details on these parameters please see the original documentation here:
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-files-names--paths--return-artifacts-false--timeout-seconds-none--datastore-name-none-
 
-    :param names: The names of the files to upload. If set, paths must also be set.
-    :param paths: The relative local paths to the files to upload. If set, names is required.
-    :param return_artifacts: Indicates that an artifact object should be returned for each file uploaded.
-    :param timeout_seconds: The timeout for uploading files.
-    :param datastore_name: Optional DataStore name
+    :param names: The names of the files to upload.
+    :param path_or_strings: The local paths to the files to upload.
     """
-    return run.upload_files(names=names,
-                            paths=paths,
-                            return_artifacts=return_artifacts,
-                            timeout_seconds=timeout_seconds,
-                            datastore_name=datastore_name)
+    paths = [_path_to_str(path_or_string) for path_or_string in path_or_strings]
+
+    run.upload_files(names=names,
+                     paths=paths)
 
 
 def run_upload_folder(run: Run,
                       name: str,
-                      path: str,
-                      datastore_name: Optional[str] = None) -> Union[Tuple[dict, map], map]:
+                      path_or_string: PathOrString) -> None:
     """
     Wrap a call to run.upload_folder with extra checks to see if files already exist. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -1057,9 +1055,9 @@ def run_upload_folder(run: Run,
 
     :param run: AzureML run to upload folder to.
     :param name: The name of the folder of files to upload.
-    :param path: The relative local path to the folder to upload.
-    :param datastore_name: Optional DataStore name
+    :param path_or_string: The local path to the folder to upload.
     """
+    path = _path_to_str(path_or_string)
     # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
     # Get list of files in the local folder
@@ -1074,7 +1072,7 @@ def run_upload_folder(run: Run,
     # If there are duplicate files then upload_folder fails
     if len(dup_files) == 0:
         # If there are no duplicate files, then use upload_folder
-        return run.upload_folder(name=name, path=path, datastore_name=datastore_name)
+        run.upload_folder(name=name, path=path)
     else:
         # Check the duplicate files.
         with TemporaryDirectory() as d:
@@ -1093,6 +1091,5 @@ def run_upload_folder(run: Run,
                                     "Unable to reconcile those differences.")
 
         # Upload the new files.
-        return run.upload_files(names=list(map(itemgetter(0), new_files)),
-                                paths=list(map(itemgetter(1), new_files)),
-                                datastore_name=datastore_name)
+        run.upload_files(names=list(map(itemgetter(0), new_files)),
+                         paths=list(map(itemgetter(1), new_files)))

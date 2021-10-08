@@ -94,7 +94,7 @@ def assert_folder_contents(filenames: Set[str], download_folder: Path) -> None:
     """
     Compare hashes of two sets of files.
 
-    :param good_filenames: Set of filenames that should have been uploaded without an error.
+    :param filenames: Set of filenames that should have been uploaded without an error.
     :param download_folder: Folder with downloaded files.
     :return: None.
     """
@@ -160,20 +160,16 @@ def check_folder(run: Run,
     :param upload_folder_name: Upload folder name.
     :return: None.
     """
-    print_prefix = f"check_files_{step}_{upload_folder_name}:"
-    print(f"{print_prefix} good_filenames:{sorted(good_filenames)}")
-    print(f"{print_prefix} bad_filenames:{sorted(bad_filenames)}")
     all_filenames = good_filenames.union(bad_filenames)
 
     # Download all the file names for this upload_folder_name, stripping off the leading upload_folder_name and /
     run_file_names = {f[len(upload_folder_name) + 1:]
                       for f in run.get_file_names() if f.startswith(f"{upload_folder_name}/")}
-    print(f"{print_prefix} run_file_names:{sorted(run_file_names)}")
     # This should be the same as the list of good and bad filenames combined.
     assert run_file_names == all_filenames
 
     # Make a folder to download them all at once
-    download_folder_all = Path(f"outputs/download_folder_all_{step}_{upload_folder_name}")
+    download_folder_all = Path("outputs") / f"check_folder_all_{step}"
     download_folder_all.mkdir()
 
     if len(bad_filenames) == 0:
@@ -195,13 +191,12 @@ def check_folder(run: Run,
     # Glob the list of all the files that have been downloaded relative to the download folder.
     downloaded_all_local_files = {str(f.relative_to(download_folder_all))
                                   for f in download_folder_all.rglob("*") if f.is_file()}
-    print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
     # This should be the same as the list of good and bad filenames.
     assert downloaded_all_local_files == all_filenames
     assert_folder_contents(good_filenames, download_folder_all)
 
     # Make a folder to download them individually
-    download_folder_ind = Path(f"outputs/download_folder_ind_{step}_{upload_folder_name}")
+    download_folder_ind = Path("outputs") / f"check_folder_ind_{step}"
     download_folder_ind.mkdir()
 
     for f in all_filenames:
@@ -221,14 +216,12 @@ def check_folder(run: Run,
                 assert "Download of file failed with error: The specified blob does not exist. " \
                        "ErrorCode: BlobNotFound" in str(ex)
             else:
-                print(f"Unexpected error in download_file: {f}: {str(ex)}")
                 # Otherwise, reraise the exception to terminate the run.
                 raise ex
 
     # Glob the list of all the files that have been downloaded relative to the download folder.
     downloaded_ind_local_files = {str(f.relative_to(download_folder_ind))
                                   for f in download_folder_ind.rglob("*") if f.is_file()}
-    print(f"{print_prefix} downloaded_ind_local_files:{sorted(downloaded_ind_local_files)}")
     # This should be the same as the list of good and bad filenames.
     assert downloaded_ind_local_files == all_filenames
     assert_folder_contents(good_filenames, download_folder_ind)
