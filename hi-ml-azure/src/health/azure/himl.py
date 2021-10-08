@@ -29,7 +29,8 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from health.azure.azure_util import (create_python_environment, create_run_recovery_id, _find_file,
                                      is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                      run_duration_string_to_seconds,
-                                     to_azure_friendly_string, RUN_CONTEXT, get_workspace)
+                                     to_azure_friendly_string, RUN_CONTEXT, get_workspace,
+                                     PathOrString, _str_to_path)
 from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
@@ -44,8 +45,6 @@ OUTPUT_FOLDER = "outputs"
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
-
-PathOrString = Union[Path, str]
 
 
 @dataclass
@@ -263,12 +262,6 @@ def submit_run(workspace: Workspace,
                              "runs failed.")
         print("AzureML completed.")
     return run
-
-
-def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
-    if isinstance(s, str):
-        return Path(s)
-    return s
 
 
 def submit_to_azure_if_needed(  # type: ignore

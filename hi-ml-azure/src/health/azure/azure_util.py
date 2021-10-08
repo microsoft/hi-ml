@@ -25,7 +25,9 @@ from azureml.core.authentication import InteractiveLoginAuthentication, ServiceP
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
-from health.azure.himl import PathOrString
+
+PathOrString = Union[Path, str]
+
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -54,6 +56,18 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 
 RUN_CONTEXT = Run.get_context()
 WORKSPACE_CONFIG_JSON = "config.json"
+
+
+def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
+    if isinstance(s, str):
+        return Path(s)
+    return s
+
+
+def _path_to_str(s: PathOrString) -> str:
+    if isinstance(s, Path):
+        return str(s)
+    return s
 
 
 def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
@@ -964,15 +978,9 @@ def run_download_file_name(name: str) -> str:
     return Path(name).name
 
 
-def _path_to_str(s: PathOrString) -> str:
-    if isinstance(s, Path):
-        return str(s)
-    return s
-
-
 def run_upload_file(run: Run,
                     name: str,
-                    path_or_string: PathOrString) -> None:
+                    path: PathOrString) -> None:
     """
     Wrap a call to run.upload_file with extra checks to see if the file already exists. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -983,11 +991,11 @@ def run_upload_file(run: Run,
 
     :param run: AzureML run to upload folder to.
     :param name: The name of the file to upload.
-    :param path_or_string: The local path to the file to upload.
+    :param path: The local path to the file to upload.
     """
     # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f == name}
-    path = _path_to_str(path_or_string)
+    path = _path_to_str(path)
     # Get list of files in the local folder
     local_files = {Path(path)}
 
@@ -1024,7 +1032,7 @@ def run_upload_file(run: Run,
 
 def run_upload_files(run: Run,
                      names: List[str],
-                     path_or_strings: List[PathOrString]) -> None:
+                     paths: List[PathOrString]) -> None:
     """
     Wrap a call to run.upload_files with extra checks to see if files already exist. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -1034,9 +1042,9 @@ def run_upload_files(run: Run,
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-files-names--paths--return-artifacts-false--timeout-seconds-none--datastore-name-none-
 
     :param names: The names of the files to upload.
-    :param path_or_strings: The local paths to the files to upload.
+    :param paths: The local paths to the files to upload.
     """
-    paths = [_path_to_str(path_or_string) for path_or_string in path_or_strings]
+    paths = [_path_to_str(path) for path in paths]
 
     run.upload_files(names=names,
                      paths=paths)
@@ -1044,7 +1052,7 @@ def run_upload_files(run: Run,
 
 def run_upload_folder(run: Run,
                       name: str,
-                      path_or_string: PathOrString) -> None:
+                      path: PathOrString) -> None:
     """
     Wrap a call to run.upload_folder with extra checks to see if files already exist. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -1055,9 +1063,9 @@ def run_upload_folder(run: Run,
 
     :param run: AzureML run to upload folder to.
     :param name: The name of the folder of files to upload.
-    :param path_or_string: The local path to the folder to upload.
+    :param path: The local path to the folder to upload.
     """
-    path = _path_to_str(path_or_string)
+    path = _path_to_str(path)
     # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f.startswith(f"{name}/")}
     # Get list of files in the local folder
