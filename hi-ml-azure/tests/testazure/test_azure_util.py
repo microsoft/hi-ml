@@ -7,11 +7,12 @@ Tests for the functions in health.azure.azure_util
 """
 import os
 import logging
+import os
 import shutil
 import time
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -29,8 +30,7 @@ import health.azure.azure_util as util
 from health.azure import himl
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import repository_root, DEFAULT_WORKSPACE, change_working_directory, check_config_json
-
+from testazure.util import DEFAULT_WORKSPACE, change_working_directory, check_config_json, repository_root
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -65,6 +65,23 @@ def test_find_file(tmp_path: Path) -> None:
     os.chdir(where_are_we_now)
 
 
+def test_is_running_in_azureml() -> None:
+    """
+    Test if the code correctly recognizes that it is executed in AzureML
+    """
+    # These tests would always run outside of AzureML, on local box or Azure build agents. Function should return
+    # False in all those cases
+    assert not util.is_running_in_azure_ml()
+    assert not util.is_running_in_azure_ml(util.RUN_CONTEXT)
+    # When in AzureML, the Run has a field "experiment"
+    mock_workspace = "foo"
+    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+        # We can't try that with the default argument because of Python's handling of mutable default arguments
+        # (default argument value has been assigned already before mocking)
+        assert util.is_running_in_azure_ml(util.RUN_CONTEXT)
+
+
 @pytest.mark.fast
 @patch("health.azure.azure_util.Workspace.from_config")
 @patch("health.azure.azure_util.get_authentication")
@@ -74,18 +91,17 @@ def test_get_workspace(
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock,
         tmp_path: Path) -> None:
-
     # Test the case when running on AML
-    with patch("health.azure.azure_util.is_running_on_azure_agent") as mock_is_is_running_on_azure_agent:
-        mock_is_is_running_on_azure_agent.return_value = True
-        with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
-            mock_run_context.experiment = MagicMock(workspace=mock_workspace)
-            workspace = util.get_workspace(None, None)
-            assert workspace == mock_workspace
+    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
+        workspace = util.get_workspace(None, None)
+        assert workspace == mock_workspace
 
-    # Test the case when a workspace object is provided
-    workspace = util.get_workspace(mock_workspace, None)
-    assert workspace == mock_workspace
+    # Test the case when a workspace object is provided. The test always runs outside AzureML, and should return the
+    # workspace object unchanged
+    mock_workspace2 = "foo"
+    workspace = util.get_workspace(mock_workspace2, None)  # type: ignore
+    assert workspace == mock_workspace2
 
     # Test the case when a workspace config path is provided
     mock_get_authentication.return_value = "auth"
@@ -112,12 +128,6 @@ def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     mock_run.experiment.name = EXPERIMENT_NAME
     recovery_id = util.create_run_recovery_id(mock_run)
     assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
-
-
-@pytest.mark.parametrize("on_azure", [True, False])
-def test_is_running_on_azure_agent(on_azure: bool) -> None:
-    with mock.patch.dict(os.environ, {"AGENT_OS": "LINUX" if on_azure else ""}):
-        assert on_azure == util.is_running_on_azure_agent()
 
 
 @patch("health.azure.azure_util.Workspace")
@@ -383,7 +393,7 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
-        ) -> None:
+) -> None:
     just_conda_str_env_name = "HealthML-a26b35a434dd27a44a8224c709fb4760"
     conda_str = """name: simple-env
 dependencies:
@@ -852,7 +862,6 @@ def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
 @pytest.mark.parametrize("dummy_env_vars", [{}, {util.ENV_LOCAL_RANK: "1"}])
 @pytest.mark.parametrize("prefix", ["", "abc"])
 def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], Optional[str]], prefix: str) -> None:
-
     # Assert that 'downloaded' paths don't exist to begin with
     dummy_paths = [Path(x) for x in _get_file_names(pref=prefix)]
     expected_paths = [tmp_path / dummy_path for dummy_path in dummy_paths]
@@ -1171,6 +1180,27 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
                 break
 
     assert found_file_contents == file_contents
+
+
+@pytest.mark.parametrize(("available", "initialized", "expected_barrier_called"),
+                         [(False, True, False),
+                          (True, False, False),
+                          (False, False, False),
+                          (True, True, True)])
+@pytest.mark.fast
+def test_torch_barrier(available: bool,
+                       initialized: bool,
+                       expected_barrier_called: bool) -> None:
+    distributed = mock.MagicMock()
+    distributed.is_available.return_value = available
+    distributed.is_initialized.return_value = initialized
+    distributed.barrier = mock.MagicMock()
+    with mock.patch.dict("sys.modules", {"torch": mock.MagicMock(distributed=distributed)}):
+        util.torch_barrier()
+        if expected_barrier_called:
+            distributed.barrier.assert_called_once()
+        else:
+            assert distributed.barrier.call_count == 0
 
 
 def check_upload(tmp_path: Path, module_name: str) -> None:
