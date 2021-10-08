@@ -968,6 +968,16 @@ def hash_file(file: Path) -> str:
     return sha1.hexdigest()
 
 
+def run_download_folder_name(name: str) -> Path:
+    """
+    If the uploaded name is foo/bar/file.txt then it will just download as file.txt. Return the parent fragment.
+
+    :param name: AzureML uploaded file name.
+    :return: A folder name to use for download.
+    """
+    return Path(name).parent
+
+
 def run_download_file_name(name: str) -> str:
     """
     If the uploaded name is foo/bar/file.txt then it will just download as file.txt. Return this end fragment.
@@ -980,7 +990,7 @@ def run_download_file_name(name: str) -> str:
 
 def run_upload_file(run: Run,
                     name: str,
-                    path: PathOrString) -> None:
+                    path_or_stream: PathOrString) -> None:
     """
     Wrap a call to run.upload_file with extra checks to see if the file already exists. This is intended to make it safe
     to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
@@ -995,7 +1005,7 @@ def run_upload_file(run: Run,
     """
     # Get list of files already uploaded to the run with this name
     existing_file_names = {f for f in run.get_file_names() if f == name}
-    path = _path_to_str(path)
+    path = _path_to_str(path_or_stream)
     # Get list of files in the local folder
     local_files = {Path(path)}
 

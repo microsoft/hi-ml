@@ -13,7 +13,7 @@ from uuid import uuid4
 from azureml.core.run import Run
 from azureml.exceptions import AzureMLException
 
-from health.azure.azure_util import hash_file, run_download_file_name
+from health.azure.azure_util import hash_file, run_download_folder_name
 
 
 # The folder where the test files have been created. Since they are in a subfolder of the script, they should
@@ -119,30 +119,55 @@ def check_file(run: Run,
     :param step: Which step of the test, used for logging and creating temporary folders.
     :return: None.
     """
-    # Download all the file names for this run with the expected name
-    run_file_names = {f for f in run.get_file_names() if f == name}
-    # This should be just the name, since duplicates are not allowed.
-    assert run_file_names == {name}
+    check_files(run=run,
+                names=[name],
+                filenames=[filename],
+                step=step)
 
-    # Make a folder to download it
-    download_folder = Path("outputs") / f"check_file_{step}"
+
+def check_files(run: Run,
+                names: List[str],
+                filenames: List[str],
+                step: int) -> None:
+    """
+    Check that files that have been uploaded to the run iare as expected.
+
+    :param run: AzureML run.
+    :param names: Names of files on AzureML run.
+    :param filenames: Source filenames that was expected to have been uploaded without an error.
+    :param step: Which step of the test, used for logging and creating temporary folders.
+    :return: None.
+    """
+    # Download all the file names for this run with the expected names
+    run_file_names = {f for f in run.get_file_names() if f in names}
+    # This should be just the name, since duplicates are not allowed.
+    assert run_file_names == set(names)
+
+    # Make a folder to download them
+    download_folder = Path("outputs") / f"check_files_{step}"
     download_folder.mkdir()
 
-    # Download the file.
-    run.download_file(name=name,
-                      output_file_path=str(download_folder))
+    # Download the files.
+    for name in names:
+        output_file_path = download_folder / run_download_folder_name(name)
+        if not output_file_path.exists():
+            output_file_path.mkdir(parents=True)
+
+        run.download_file(name=name,
+                          output_file_path=str(output_file_path))
 
     # Glob the list of all the files that have been downloaded relative to the download folder.
     downloaded_all_local_files = {str(f.relative_to(download_folder))
                                   for f in download_folder.rglob("*") if f.is_file()}
-    # This should be the same as the filename.
-    assert downloaded_all_local_files == {run_download_file_name(name)}
+    # This should be the same as the filenames.
+    assert downloaded_all_local_files == set(names)
 
-    uploaded_file = _base_data_folder / filename
-    uploaded_file_hash = hash_file(uploaded_file)
-    downloaded_file = download_folder / run_download_file_name(name)
-    downloaded_file_hash = hash_file(downloaded_file)
-    assert uploaded_file_hash == downloaded_file_hash
+    for name, filename in zip(names, filenames):
+        uploaded_file = _base_data_folder / filename
+        uploaded_file_hash = hash_file(uploaded_file)
+        downloaded_file = download_folder / name
+        downloaded_file_hash = hash_file(downloaded_file)
+        assert uploaded_file_hash == downloaded_file_hash
 
 
 def check_folder(run: Run,
