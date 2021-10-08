@@ -25,7 +25,7 @@ def run_test(run: Run) -> None:
     :param run: AzureML run.
     """
     # Create test files.
-    upload_util.create_test_files(None, range(0, 18))
+    upload_util.create_test_files(None, range(0, 12))
 
     # Extract the list of test file names
     filenames = upload_util.get_test_file_names()
@@ -78,17 +78,19 @@ def run_test(run: Run) -> None:
                             step=step)
 
     # Step 3, upload a second set of three x three files with the same names as the first
-    new_paths = [test_upload_folder / f for f in filenames[9:18]]
+    for i in range(0, 3):
+        new_paths = paths.copy()
+        new_paths[3 * i] = test_upload_folder / filenames[9 + i]
 
-    print(f"Upload a second file with same name as the first: {names}={new_paths}, "
-          "this should fail since first file already there")
-    try:
-        util.run_upload_files(run=run,
-                              names=names,
-                              paths=new_paths)
-    except Exception as ex:
-        print(f"Expected error in run.upload_file: {str(ex)}")
-        for name in names:
+        print(f"Upload a second file with same name as the first: {names}={new_paths}, "
+              "this should fail since first file already there")
+        try:
+            util.run_upload_files(run=run,
+                                  names=names,
+                                  paths=new_paths)
+        except Exception as ex:
+            print(f"Expected error in run_upload_files: {str(ex)}")
+            name = names[3 * i]
             assert f"Trying to upload file {name} but that file already exists in the run." in str(ex)
 
     step = step + 1

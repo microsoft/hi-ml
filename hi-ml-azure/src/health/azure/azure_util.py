@@ -1001,25 +1001,46 @@ def run_upload_file(run: Run,
 
     :param run: AzureML run to upload folder to.
     :param name: The name of the file to upload.
-    :param path: The local path to the file to upload.
+    :param path_or_stream: The local path to the file to upload.
     """
-    # Get list of files already uploaded to the run with this name
-    existing_file_names = {f for f in run.get_file_names() if f == name}
-    path = _path_to_str(path_or_stream)
-    # Get list of files in the local folder
-    local_files = {Path(path)}
+    run_upload_files(run=run,
+                     names=[name],
+                     paths=[path_or_stream])
 
-    local_file_named = {(name, f) for f in local_files}
+
+def run_upload_files(run: Run,
+                     names: List[str],
+                     paths: List[PathOrString]) -> None:
+    """
+    Wrap a call to run.upload_files with extra checks to see if files already exist. This is intended to make it safe
+    to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
+    exception will be raised, it is only safe for files that are not changed or partially uploaded.
+
+    For more details on these parameters please see the original documentation here:
+    https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-files-names--paths--return-artifacts-false--timeout-seconds-none--datastore-name-none-
+
+    :param run: AzureML run to upload folder to.
+    :param names: The names of the files to upload.
+    :param paths: The local paths to the files to upload.
+    """
+    paths = [_path_to_str(path) for path in paths]
+
+    # Get list of files already uploaded to the run with this name
+    existing_file_names = {f for f in run.get_file_names() if f in names}
+    # Get list of files in the local folder
+    local_file_named = list(zip(names, paths))
     # Filter out the files that are both local and already uploaded
     dup_files = [f for f in local_file_named if f[0] in existing_file_names]
+    # Filter out the files that are local but not uploaded.
+    new_files = [f for f in local_file_named if f[0] not in existing_file_names]
 
     # If there are duplicate files then upload_file fails
     if len(dup_files) == 0:
-        # If there are no duplicate files, then use upload_file
-        return run.upload_file(name=name,
-                               path_or_stream=path)
+        # If there are no duplicate files, then use upload_files
+        return run.upload_files(names=names,
+                                paths=paths)
     else:
-        # Check the duplicate file.
+        # Check the duplicate files.
         with TemporaryDirectory() as d:
             for f in dup_files:
                 run.download_file(name=f[0],
@@ -1036,28 +1057,9 @@ def run_upload_file(run: Run,
                                     f"but the local file has hash {local_file_hash}.\n"
                                     "Unable to reconcile those differences.")
 
-        # File has not changed, nothing to do.
-        pass
-
-
-def run_upload_files(run: Run,
-                     names: List[str],
-                     paths: List[PathOrString]) -> None:
-    """
-    Wrap a call to run.upload_files with extra checks to see if files already exist. This is intended to make it safe
-    to use repeatedly, for example if the run is pre-empted and resumed. Note though that if a file changes then an
-    exception will be raised, it is only safe for files that are not changed or partially uploaded.
-
-    For more details on these parameters please see the original documentation here:
-    https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-files-names--paths--return-artifacts-false--timeout-seconds-none--datastore-name-none-
-
-    :param names: The names of the files to upload.
-    :param paths: The local paths to the files to upload.
-    """
-    paths = [_path_to_str(path) for path in paths]
-
-    run.upload_files(names=names,
-                     paths=paths)
+        # Upload the new files.
+        run.upload_files(names=list(map(itemgetter(0), new_files)),
+                         paths=list(map(itemgetter(1), new_files)))
 
 
 def run_upload_folder(run: Run,
