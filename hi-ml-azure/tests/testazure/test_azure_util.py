@@ -5,7 +5,6 @@
 """
 Tests for the functions in health.azure.azure_util
 """
-import os
 import logging
 import os
 import shutil

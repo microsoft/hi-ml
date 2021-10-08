@@ -18,7 +18,6 @@ from health.azure import submit_to_azure_if_needed
 from health.azure.azure_util import WORKSPACE_CONFIG_JSON
 {{ imports }}
 
-
 try:
     hi_ml_dist = pkg_resources.get_distribution("hi-ml-azure")
     print(f"hi_ml_dist, location: {hi_ml_dist.location}, version: {hi_ml_dist.version}")

@@ -950,7 +950,7 @@ def torch_barrier() -> None:
         torch.distributed.barrier()
 
 
-def hash_file(file: Path) -> str:
+def hash_file(file: PathOrString) -> str:
     """
     Compute a SHA1 hash of a file in 64 KB chunks.
 
@@ -970,7 +970,8 @@ def hash_file(file: Path) -> str:
 
 def run_download_folder_name(name: str) -> Path:
     """
-    If the uploaded name is foo/bar/file.txt then it will just download as file.txt. Return the parent fragment.
+    If the uploaded name is foo/bar/file.txt then it will just download as file.txt. Return the parent fragment,
+    i.e. foo/bar. This is to help create a folder structure for download that reflects the file name.
 
     :param name: AzureML uploaded file name.
     :return: A folder name to use for download.
@@ -1000,7 +1001,7 @@ def run_upload_file(run: Run,
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-file-name--path-or-stream--datastore-name-none-
 
     :param run: AzureML run to upload folder to.
-    :param name: The name of the file to upload.
+    :param name: The name of the file to upload. This will be the name of the file once uploaded to the run.
     :param path_or_stream: The local path to the file to upload.
     """
     run_upload_files(run=run,
@@ -1020,8 +1021,8 @@ def run_upload_files(run: Run,
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-files-names--paths--return-artifacts-false--timeout-seconds-none--datastore-name-none-
 
     :param run: AzureML run to upload folder to.
-    :param names: The names of the files to upload.
-    :param paths: The local paths to the files to upload.
+    :param names: The names of the files to upload. These will be the names of the files once uploaded to the run.
+    :param paths: The local paths to the files to upload. Note that the names and paths list must have equal length.
     """
     paths = [_path_to_str(path) for path in paths]
 
@@ -1074,7 +1075,7 @@ def run_upload_folder(run: Run,
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-folder-name--path--datastore-name-none-
 
     :param run: AzureML run to upload folder to.
-    :param name: The name of the folder of files to upload.
+    :param name: The name of the folder of files to upload. This will be the name of the folder once uploaded to the run.
     :param path: The local path to the folder to upload.
     """
     path = _path_to_str(path)

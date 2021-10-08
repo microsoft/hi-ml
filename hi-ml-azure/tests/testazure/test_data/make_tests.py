@@ -89,7 +89,6 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['wait_for_completion_show_output'] = 'True'
     default_options['args'] = ''
     default_options['body'] = ''
-    default_options['imports'] = ''
 
     all_options = dict(default_options, **extra_options)
 
