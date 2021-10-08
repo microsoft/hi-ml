@@ -5,6 +5,7 @@
 from pathlib import Path
 
 import health.azure.himl as himl
+from health.azure.azure_util import WORKSPACE_CONFIG_JSON
 from health.azure.datasets import get_datastore
 
 
@@ -12,7 +13,7 @@ def main() -> None:
     path = Path(__file__).parent.resolve()
 
     workspace = himl.get_workspace(aml_workspace=None,
-                                   workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+                                   workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
     datastore = get_datastore(workspace=workspace,
                               datastore_name="himldatasets")

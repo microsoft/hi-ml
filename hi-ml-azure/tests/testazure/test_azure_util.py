@@ -27,6 +27,7 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health.azure.azure_util as util
 from health.azure import himl
+from health.azure.azure_util import WORKSPACE_CONFIG_JSON
 from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.util import DEFAULT_WORKSPACE, change_working_directory, check_config_json, repository_root
@@ -1232,7 +1233,7 @@ def check_run_completed(tmp_path: Path) -> None:
     """
     with check_config_json(tmp_path):
         workspace = himl.get_workspace(aml_workspace=None,
-                                       workspace_config_path=tmp_path / himl.WORKSPACE_CONFIG_JSON)
+                                       workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
 
     run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                                    workspace=workspace)
