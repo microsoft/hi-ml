@@ -7,10 +7,9 @@ import param
 from pathlib import Path
 
 import health.azure.azure_util as util
-from health.azure.himl import get_workspace
 
 
-class HimlDownloadConfig(util.ScriptConfig):
+class HimlDownloadConfig(util.AmlRunScriptConfig):
     output_dir: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                            doc="Path to directory to store files downloaded from the AML Run")
     config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
@@ -22,19 +21,17 @@ class HimlDownloadConfig(util.ScriptConfig):
 def main() -> None:  # pragma: no cover
 
     download_config = HimlDownloadConfig.parse_args()
-    config_path = download_config.config_file
     output_dir = download_config.output_dir
-    prefix = download_config.prefix
-
     output_dir.mkdir(exist_ok=True)
-    workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
-    runs = util.get_runs_from_script_config(download_config, workspace)
+    runs = download_config.run if isinstance(download_config.run, list) else [download_config.run]
     for run in runs:
+        run: util.RunIdType
         output_folder = output_dir / run.id
 
         try:  # pragma: no cover
-            util.download_run_files(run, output_dir=output_folder, prefix=prefix)
+            util.download_files_from_run_id(run.id, output_folder=output_folder, prefix=download_config.prefix,
+                                            workspace_config_path=download_config.config_file)
             print(f"Downloaded file(s) to '{output_folder}'")
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Failed to download files from run {run.id}: {e}")

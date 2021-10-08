@@ -26,7 +26,7 @@ OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_DIR = ROOT_DIR / "tensorboard_logs"
 
 
-class HimlTensorboardConfig(util.ScriptConfig):
+class HimlTensorboardConfig(util.AmlRunScriptConfig):
     log_dir: Path = param.ClassSelector(class_=Path, default=Path("outputs"), instantiate=False,
                                         doc="Path to directory in which Tensorboard  files"
                                             "(summarywriter and TB logs) are stored")
@@ -123,7 +123,7 @@ def main() -> None:  # pragma: no cover
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
-    runs = util.get_runs_from_script_config(tb_config, workspace)
+    runs = util._get_runs_from_script_config(tb_config, workspace)
 
     print(f"Runs:\n{runs}")
     if len(runs) == 0:

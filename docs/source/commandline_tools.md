@@ -41,3 +41,31 @@ The files associated with your Run will be downloaded to the location specified 
 If you choose to specify `--experiment`, you can also specify `--tags` to filter by.
 
 If your AML config path is not `ROOT_DIR/config.json`, you must also specify `--config_file`.
+
+
+## Creating your own command line tools
+
+When creating your own command line tools that interact with the Azure ML ecosystem, you may wish to use the
+ `AmlRunScriptConfig` class for argument parsing. This gives you a quickstart way for accepting command line arguments to 
+ specify the following
+   
+  - experiment_name: to retrieve AML runs from an existing Experiment
+  - tags: to filter the runs within the given experiment
+  - num_runs: to define the number of most recent runs to return from the experiment
+  - run: to instead define one or more run ids from which to retrieve runs (also supports the older format of run recovery ideas although these are obsolete now)
+  - latest_run_file: to instead provide a path to a file containing the id of your latest run, for retrieval.
+  - config_path: to specify a config.json file in which your workspace settings are defined
+ 
+You can extend this list of arguments by creating a child class that inherits from AMLRunScriptConfig. 
+
+### Defining your own argument types
+
+Additional arguments can have any of the following types: `bool`, `integer`, `float`, `string`, `list`, `class/class instance`
+with no additional work required. You can also define your own custom type, by providing a custom class in your code that 
+inherits from CustomTypeParam. It must define 2 methods: 
+1. `_val(self, x: Any)`: which should raise a `ValueError` if x is not of the type you expect, and should also make a call 
+`super()._validate(val)`
+2. `from_string(self, y: string)` which takes in the command line arg as a string (`y`) and returns an instance of the type
+that you want. For example, if your custom type is a tuple, this method should create a tuple from the input string and return that.
+An example of a custom type can be seen in our own custom type: `RunIdOrListParam`, which accepts a string representing one or more
+run ids (or run recovery ids) and returns either a List or a single RunId object (or RunRecoveryId object if appropriate) 

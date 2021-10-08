@@ -8,14 +8,17 @@ Utility functions for interacting with AzureML runs
 import hashlib
 import logging
 import os
+from enum import Enum
+
 import param
 import re
 from argparse import ArgumentParser, OPTIONAL
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, Set
 
 import conda_merge
+import pytest
 import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
@@ -56,15 +59,18 @@ WORKSPACE_CONFIG_JSON = "config.json"
 PathOrString = Union[Path, str]
 
 
+
 class RunSource:
-    def __init__(self) -> None:
+    def __init__(self, val: str) -> None:
         pass
+        self.val = val
 
 
 class RunId(RunSource):
     def __init__(self, val: str) -> None:
-        super().__init__()
-        self.val = val
+        super().__init__(val)
+        self.id = val
+        # self.val = val
 
     def __str__(self) -> str:
         return self.val
@@ -75,8 +81,9 @@ class RunId(RunSource):
 
 class RunRecoveryId(RunSource):
     def __init__(self, val: str) -> None:
-        super().__init__()
-        self.val = val
+        super().__init__(val)
+        self.id = val
+        # self.val = val
 
     def __str__(self) -> str:
         return self.val
@@ -186,20 +193,10 @@ class GenericConfig(param.Parameterized):
                 p_type = lambda x: [_p.class_(item) for item in x.split(',')]
             elif isinstance(_p, param.ClassSelector):
                 p_type = _p.class_
-            elif isinstance(_p, RunIdOrListParam):
-                def list_or_string(x: str) -> Union[RunId, RunRecoveryId, List]:
+            # elif isinstance(_p, RunIdOrListParam):
+            elif hasattr(_p, "from_string"):
+                p_type = _p.from_string
 
-                    res = [str(item) for item in x.split(',')]
-                    if not isinstance(res, List):
-                        raise ValueError(f"Parameter of type {_p} should resolve to List or string")
-                    if len(res) == 1:
-                        # string
-                        return determine_run_id_type(res[0])
-                    else:
-                        # list
-                        return [determine_run_id_type(x) for x in res]
-
-                p_type = list_or_string
             else:
                 raise TypeError("Parameter of type: {} is not supported".format(_p))
 
@@ -272,8 +269,90 @@ class GenericConfig(param.Parameterized):
             return "callable"
         return None
 
+    def apply_overrides(self, values: Optional[Dict[str, Any]], should_validate: bool = True,
+                        keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
+        """
+        Applies the provided `values` overrides to the config.
+        Only properties that are marked as overridable are actually overwritten.
+        :param values: A dictionary mapping from field name to value.
+        :param should_validate: If true, run the .validate() method after applying overrides.
+        :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
+        :return: A dictionary with all the fields that were modified.
+        """
 
-class RunIdOrListParam(param.Parameter):
+        def _apply(_overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+            applied: Dict[str, Any] = {}
+            if _overrides is not None:
+                overridable_parameters = self.get_overridable_parameters().keys()
+                for k, v in _overrides.items():
+                    if k in overridable_parameters:
+                        applied[k] = v
+                        setattr(self, k, v)
+
+            return applied
+
+        actual_overrides = _apply(values)
+        if keys_to_ignore is not None:
+            self.report_on_overrides(values, keys_to_ignore)  # type: ignore
+        if should_validate:
+            self.validate()
+        return actual_overrides
+
+    def report_on_overrides(self, values: Dict[str, Any], keys_to_ignore: Set[str]) -> None:
+        """
+        Logs a warning for every parameter whose value is not as given in "values", other than those
+        in keys_to_ignore.
+        :param values: override dictionary, parameter names to values
+        :param keys_to_ignore: set of dictionary keys not to report on
+        :return: None
+        """
+        for key, desired in values.items():
+            # If this isn't an AzureConfig instance, we don't want to warn on keys intended for it.
+            if key in keys_to_ignore:
+                continue
+            actual = getattr(self, key, None)
+            if actual == desired:
+                continue
+            if key not in self.params():
+                reason = "parameter is undefined"
+            else:
+                val = self.params()[key]
+                reason = self.reason_not_overridable(val)  # type: ignore
+                if reason is None:
+                    reason = "for UNKNOWN REASONS"
+                else:
+                    reason = f"parameter is {reason}"
+            # We could raise an error here instead - to be discussed.
+            logging.warning(f"Override {key}={desired} failed: {reason} in class {self.__class__.name}")
+
+
+def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T]) -> T:
+    """
+    Creates an object of the given target class, and then copies all attributes from the `from_object` to
+    the newly created object, if there is a matching attribute. The target class must be a subclass of
+    param.Parameterized.
+    :param from_object: The object to read attributes from.
+    :param cls_: The name of the class for the newly created object.
+    :return: An instance of cls_
+    """
+    c = cls_()
+    if not isinstance(c, param.Parameterized):
+        raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
+    for param_name, p in c.params().items():
+        if not p.constant and not p.readonly:
+            setattr(c, param_name, getattr(from_object, param_name))
+    return c
+
+
+class CustomTypeParam(param.Parameter):
+    def _validate(self, val: Any) -> None:
+        super()._validate(val)
+
+    def from_string(self, x: str) -> None:
+        raise NotImplementedError()
+
+
+class RunIdOrListParam(CustomTypeParam):
     """
     Wrapper class to allow either a List or string inside of a Parameterized object.
     """
@@ -283,6 +362,17 @@ class RunIdOrListParam(param.Parameter):
             if not (isinstance(val, List) or isinstance(val, RunId) or isinstance(val, RunRecoveryId)):
                 raise ValueError(f"{val} must be an instance of List or string, found {type(val)}")
         super()._validate(val)
+
+    def from_string(self, x: str) -> Union[RunId, RunRecoveryId, List]:
+        res = [str(item) for item in x.split(',')]
+        if not isinstance(res, List):
+            raise ValueError(f"Parameter should resolve to List or string")
+        if len(res) == 1:
+            # string
+            return determine_run_id_type(res[0])
+        else:
+            # list
+            return [determine_run_id_type(x) for x in res]
 
 
 def is_private_field_name(name: str) -> bool:
@@ -977,7 +1067,14 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     logging.info(f"Uploaded data to {str(remote_path)}")
 
 
-class ScriptConfig(GenericConfig):
+class AmlRunScriptConfig(GenericConfig):
+    """
+    Base config for a script that handles Azure ML Runs, which can be retrieved with either a run id, latest_run_file,
+    or by giving the experiment name (optionally alongside tags and number of runs to retrieve). A config file path can
+    also be presented, to specify the Workspace settings. It is assumed that every AML script would have these
+    parameters by default. This class can be inherited from if you wish to add additional command line arguments
+    to your script (see HimlDownloadConfig and HimlTensorboardConfig for examples)
+    """
     latest_run_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
                                                 doc="Optional path to most_recent_run.txt where the ID of the"
                                                     "latest run is stored")
@@ -995,7 +1092,7 @@ class ScriptConfig(GenericConfig):
                                                       "recommended")
 
 
-def get_runs_from_script_config(script_config: ScriptConfig, workspace: Workspace) -> List[Run]:
+def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: Workspace) -> List[Run]:
     if script_config.run is None:
         if script_config.experiment_name is None:
             # default to latest run file
