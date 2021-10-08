@@ -108,60 +108,39 @@ def assert_folder_contents(filenames: Set[str], download_folder: Path) -> None:
 
 def check_file(run: Run,
                name: str,
-               good_filename: str,
-               bad_filename: str,
-               step: int,
-               upload_folder_name: str) -> None:
+               filename: str,
+               step: int) -> None:
     """
     Check that a file that has been uploaded to the run is as expected.
 
     :param run: AzureML run.
     :param name: Name of file on AzureML run.
-    :param good_filename: Source filename that was expected to have been uploaded without an error.
-    :param bad_filename: Source filename that was expected to have been uploaded with an error.
+    :param filename: Source filename that was expected to have been uploaded without an error.
     :param step: Which step of the test, used for logging and creating temporary folders.
-    :param upload_folder_name: Upload folder name.
     :return: None.
     """
-    print_prefix = f"check_file_{step}_{upload_folder_name}:"
-    print(f"{print_prefix} name:{name}")
-    print(f"{print_prefix} good_filename:{good_filename}")
-    print(f"{print_prefix} bad_filename:{bad_filename}")
-    filename = good_filename or bad_filename
-
     # Download all the file names for this run with the expected name
     run_file_names = {f for f in run.get_file_names() if f == name}
-    print(f"{print_prefix} run_file_names:{sorted(run_file_names)}")
     # This should be just the name, since duplicates are not allowed.
     assert run_file_names == {name}
 
     # Make a folder to download it
-    download_folder_all = Path(f"outputs/download_file_{step}_{upload_folder_name}")
-    download_folder_all.mkdir()
+    download_folder = Path("outputs") / f"check_file_{step}"
+    download_folder.mkdir()
 
-    if not bad_filename:
-        # With no bad filename, it should be possible to just download it.
-        run.download_file(name=name,
-                          output_file_path=str(download_folder_all))
-    else:
-        # With bad filenames, run.download_file will raise an exception.
-        try:
-            run.download_file(name=name,
-                              output_file_path=str(download_folder_all))
-        except AzureMLException as ex:
-            print(f"Expected error in download_file: {str(ex)}")
-            assert "Failed to flush task queue within 120 seconds" in str(ex)
+    # Download the file.
+    run.download_file(name=name,
+                      output_file_path=str(download_folder))
 
     # Glob the list of all the files that have been downloaded relative to the download folder.
-    downloaded_all_local_files = {str(f.relative_to(download_folder_all))
-                                  for f in download_folder_all.rglob("*") if f.is_file()}
-    print(f"{print_prefix} downloaded_all_local_files:{sorted(downloaded_all_local_files)}")
+    downloaded_all_local_files = {str(f.relative_to(download_folder))
+                                  for f in download_folder.rglob("*") if f.is_file()}
     # This should be the same as the filename.
     assert downloaded_all_local_files == {run_download_file_name(name)}
 
     uploaded_file = _base_data_folder / filename
     uploaded_file_hash = hash_file(uploaded_file)
-    downloaded_file = download_folder_all / run_download_file_name(name)
+    downloaded_file = download_folder / run_download_file_name(name)
     downloaded_file_hash = hash_file(downloaded_file)
     assert uploaded_file_hash == downloaded_file_hash
 

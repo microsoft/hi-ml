@@ -28,121 +28,68 @@ def run_test(run: Run) -> None:
     # Extract the list of test file names
     filenames = upload_util.get_test_file_names()
 
-    def amlupload_file(run: Run,
-                       name: str,
-                       path_or_stream: str) -> None:
-        """
-        Upload a folder using AzureML directly.
-        """
-        run.upload_file(name, path_or_stream)
-
-    def himlupload_file(run: Run,
-                        name: str,
-                        path_or_stream: str) -> None:
-        """
-        Upload a folder using the HI-ML wrapper function.
-        """
-        util.run_upload_file(run, name, path_or_stream)
-
-    # Test against two different methods. AzureML directly and using the HI-ML wrapper
-    upload_datas = [
-        # Test against AzureML. This takes a long time because of two minute timeouts trying to download
-        # corrupted files.
-        # ("upload_file_aml", amlupload_file, True),
-        # Test against HI-ML wrapper function.
-        ("upload_file_himl", himlupload_file, False)
+    # List of name prefixes
+    test_file_name_name_prefixes = [
+        "",
+        "sub1/",
+        "sub1/sub2/sub3/",
     ]
 
-    alias = "test_file0_txt.txt"
-
-    # List of pairs of name prefixes and files
-    test_file_name_names = [
-        ("", filenames[0]),
-        ("sub1/", filenames[1]),
-        ("sub1/sub2/sub3/", filenames[2]),
-        ("", filenames[3]),
-        ("sub1/", filenames[4]),
-        ("sub1/sub2/sub3/", filenames[5]),
-    ]
+    # Common name suffix
+    suffix = "test_file0_txt.txt"
 
     test_upload_folder = Path(upload_util.test_upload_folder_name)
-
-    # Step 1, upload the first set of three files
     upload_util.copy_test_file_name_set(test_upload_folder, set(filenames))
 
+    # Step 1, upload the first set of three files
     step = 0
-    for upload_folder_name, upload_fn, errors in upload_datas:
-        for i in range(0, 3):
-            prefix, filename = test_file_name_names[i]
-            name = f"{prefix}{upload_folder_name}_{alias}"
-            print(f"Upload the first files: {upload_folder_name}, {name}={filename}")
-            upload_fn(run=run,
-                      name=name,
-                      path_or_stream=str(test_upload_folder / filename))
+    for i, prefix in enumerate(test_file_name_name_prefixes):
+        name = f"{prefix}{suffix}"
+        filename = filenames[i]
+        print(f"Upload the first file: {name}={filename}")
+        util.run_upload_file(run=run,
+                             name=name,
+                             path_or_stream=str(test_upload_folder / filename))
 
-            step = step + 1
-            upload_util.check_file(run=run,
-                                   name=name,
-                                   good_filename=filename,
-                                   bad_filename="",
-                                   step=step,
-                                   upload_folder_name=upload_folder_name)
+        step = step + 1
+        upload_util.check_file(run=run,
+                               name=name,
+                               filename=filename,
+                               step=step)
 
     # Step 2, upload the first set of three files again
-    for upload_folder_name, upload_fn, errors in upload_datas:
-        for i in range(0, 3):
-            prefix, filename = test_file_name_names[i]
-            name = f"{prefix}{upload_folder_name}_{alias}"
-            print(f"Upload the first files again: {upload_folder_name}, {name}={filename}, \
-                  this should fail since first file already there")
-            try:
-                upload_fn(run=run,
-                          name=name,
-                          path_or_stream=str(test_upload_folder / filename))
-            except Exception as ex:
-                print(f"Expected error in run.upload_file: {str(ex)}")
-                if errors:
-                    assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-                    assert f"{name} already exists" in str(ex)
-                else:
-                    # File is the same, so nothing should have happened
-                    raise ex
+    for i, prefix in enumerate(test_file_name_name_prefixes):
+        name = f"{prefix}{suffix}"
+        filename = filenames[i]
+        print(f"Upload the first file again: {name}={filename}, "
+              "these files should be silently ignored since they are the same.")
 
-            step = step + 1
-            upload_util.check_file(run=run,
-                                   name=name,
-                                   good_filename=(filename if not errors else ""),
-                                   bad_filename=("" if not errors else filename),
-                                   step=step,
-                                   upload_folder_name=upload_folder_name)
+        util.run_upload_file(run=run,
+                             name=name,
+                             path_or_stream=str(test_upload_folder / filename))
 
-    # Step 3, upload a second set of three files with the same alias as the first
-    for upload_folder_name, upload_fn, errors in upload_datas:
-        for i in range(3, 6):
-            prefix, filename = test_file_name_names[i]
-            name = f"{prefix}{upload_folder_name}_{alias}"
-            print(f"Upload a second files with same name as the first: {upload_folder_name}, {name}={filename}, \
-                  this should fail since first file already there")
-            try:
-                upload_fn(run=run,
-                          name=name,
-                          path_or_stream=str(test_upload_folder / filename))
-            except Exception as ex:
-                print(f"Expected error in run.upload_file: {str(ex)}")
-                if errors:
-                    assert "UserError: Resource Conflict: ArtifactId ExperimentRun/dcid.test_script_" in str(ex)
-                    assert f"{name} already exists" in str(ex)
-                else:
-                    assert f"Trying to upload file {name} but that file already exists in the run." \
-                            "in str(ex)"
+        step = step + 1
+        upload_util.check_file(run=run,
+                               name=name,
+                               filename=filename,
+                               step=step)
 
-            _, existing_filename = test_file_name_names[i - 3]
+    # Step 3, upload a second set of three files with the same suffix as the first
+    for i, prefix in enumerate(test_file_name_name_prefixes):
+        name = f"{prefix}{suffix}"
+        filename = filenames[i + 3]
+        print(f"Upload a second file with same name as the first: {name}={filename}, "
+              "this should fail since first file already there")
+        try:
+            util.run_upload_file(run=run,
+                                 name=name,
+                                 path_or_stream=str(test_upload_folder / filename))
+        except Exception as ex:
+            print(f"Expected error in run.upload_file: {str(ex)}")
+            assert f"Trying to upload file {name} but that file already exists in the run." in str(ex)
 
-            step = step + 1
-            upload_util.check_file(run=run,
-                                   name=name,
-                                   good_filename=(existing_filename if not errors else ""),
-                                   bad_filename=("" if not errors else filename),
-                                   step=step,
-                                   upload_folder_name=upload_folder_name)
-
+        step = step + 1
+        upload_util.check_file(run=run,
+                               name=name,
+                               filename=filenames[i],  # Check that the original file is still there.
+                               step=step)
