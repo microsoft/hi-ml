@@ -64,31 +64,21 @@ def run_test(run: Run) -> None:
 
     # Split into distinct sets for each stage of the test
     test_file_name_sets = [
-        # 0. Base level files
-        set(filenames[:3]),
-        # 1. Second set of base level files, distinct from the first
-        set(filenames[3:6]),
-        # 2. sub1 level files to check folder handling
-        set(filenames[12:15]),
-        # 3. Second set of sub1 level files, distinct from the first
-        set(filenames[15:18]),
-        # 4. sub1/sub2/sub3 level files to check folder handling when an extra level inserted
-        set(filenames[24:27]),
-        # 5. Second set of sub1/sub2/sub3 level files, distinct from the first
-        set(filenames[27:30]),
-        # 6. Third set of sub1 level files, same filenames as the first
-        set(filenames[36:39]),
-        # 7. Third set of sub1/sub2/sub3 level files, same filenames as the third
-        set(filenames[45:48]),
-        # 8. Hold back base level files to test overlaps
-        set(filenames[6:9]),
-        # 9. Hold back sub1 level files to test overlaps
-        set(filenames[18:21]),
-        # 10. Hold back sub1/sub2/sub3 level files to test overlaps
-        set(filenames[30:33]),
-        # 11. Repeat already loaded files to get duplicates, with the same filenames
+        # 0. A set of files at base, sub1, and sub1/sub2/sub3 level to check
+        #  file and folder handling.
+        set(filenames[:3]).union(set(filenames[12:15])).union(set(filenames[24:27])),
+        # 1. A distinct set of files to 0, with different filenames, in the same folders to
+        #  check adding files to existing folders.
+        set(filenames[3:6]).union(set(filenames[15:18])).union(set(filenames[27:30])),
+        # 2. A distinct set of files to 0 and 1, but with the same filenames as 0, in different
+        #  folders to check repeating the filename but in a subfolder
+        set(filenames[36:39]).union(set(filenames[45:48])),
+        # 3. A distinct set of files to 0, 1 and 2, with different filenames to check uploading some
+        #  duplicate files and some new files.
+        set(filenames[6:9]).union(set(filenames[18:21])).union(set(filenames[30:33])),
+        # 4. A set of files that all have the same filenames but different folders, that have already been uploaded
         set(filenames[0:3]).union(set(filenames[36:39])).union(set(filenames[45:48])),
-        # 12. Hold back sub1, and sub1/sub2/sub3 level files to test overlaps, new files, with the same filenames
+        # 5. A distinct set of files, all with the same filename, but in different folders.
         set(filenames[9:12]).union(set(filenames[21:24])).union(set(filenames[33:36]))
     ]
 
@@ -121,7 +111,7 @@ def run_test(run: Run) -> None:
 
     # Step 1, upload distinct file sets
     step = 0
-    for i in range(0, 8):
+    for i in range(0, 3):
         # Remove any existing test files
         upload_util.rm_test_file_name_set(test_upload_folder)
         # Copy in the new test file set
@@ -144,7 +134,7 @@ def run_test(run: Run) -> None:
                                      upload_folder_name=upload_data.folder_name)
 
     # Step 2, upload the overlapping file sets
-    for (k, i) in [(1, 8), (3, 9), (5, 10), (11, 12)]:
+    for (k, i) in [(0, 3), (4, 5)]:
         upload_util.rm_test_file_name_set(test_upload_folder)
         upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[k])
         upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[i])
@@ -180,7 +170,7 @@ this should be fine, since overlaps handled")
                                      upload_folder_name=upload_data.folder_name)
 
     # Step 3, modify the original set
-    for k in [1, 3, 5]:
+    for k in [1, 2, 4]:
         upload_util.rm_test_file_name_set(test_upload_folder)
         upload_util.copy_test_file_name_set(test_upload_folder, test_file_name_sets[k])
         upload_files = test_file_name_sets[k]
