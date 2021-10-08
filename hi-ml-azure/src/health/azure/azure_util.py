@@ -1075,7 +1075,8 @@ def run_upload_folder(run: Run,
     https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-folder-name--path--datastore-name-none-
 
     :param run: AzureML run to upload folder to.
-    :param name: The name of the folder of files to upload. This will be the name of the folder once uploaded to the run.
+    :param name: The name of the folder of files to upload. This will be the name of the folder once uploaded to the
+    run.
     :param path: The local path to the folder to upload.
     """
     path = _path_to_str(path)

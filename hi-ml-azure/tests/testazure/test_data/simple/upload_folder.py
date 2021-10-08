@@ -7,6 +7,7 @@ Testing run_upload_folder.
 """
 
 from pathlib import Path
+from typing import Set
 
 from azureml.core.run import Run
 
@@ -52,7 +53,7 @@ def run_test(run: Run) -> None:
 
     folder_name = "uploaded_folder"
     # Set of files that should have been uploaded without an error
-    good_filenames = set()
+    good_filenames: Set[str] = set()
 
     test_upload_folder = Path(upload_util.test_upload_folder_name)
 
