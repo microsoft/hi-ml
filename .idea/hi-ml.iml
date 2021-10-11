@@ -9,7 +9,7 @@
       <sourceFolder url="file://$MODULE_DIR$/hi-ml/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/hi-ml/tests" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="3.7 @ Ubuntu-20.04 (2)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="3.7 @ Ubuntu-20.04" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
