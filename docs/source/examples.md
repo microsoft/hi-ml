@@ -17,7 +17,7 @@ python sample.py -n 103
 The sample [examples/2/sample.py](examples/2/sample.rst) shows the minimal modifications to run this in AzureML. Firstly create an AzureML workspace and download the config file, as explained [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). The config file should be placed in the same folder as the sample script. A sample [Conda environment file](examples/2/environment.rst) is supplied. Import the [hi-ml package](https://pypi.org/project/hi-ml/) into the current environment. Finally add the following to the sample script:
 
 ```python
-from health.azure.himl import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
     ...
 def main() -> None:
     _ = submit_to_azure_if_needed(
@@ -57,6 +57,7 @@ The sample [examples/3/sample.py](examples/3/sample.rst) demonstrates output fil
 Make the following additions:
 
 ```python
+    from health_azure import submit_to_azure_if_needed
     run_info = submit_to_azure_if_needed(
     ...
     parser.add_argument("-o", "--output", type=str, default="primes.txt", required=False, help="Output file name")
@@ -76,6 +77,7 @@ The sample [examples/4/sample.py](examples/4/sample.rst) demonstrates output dat
 In this case, the following parameters are added to `submit_to_azure_if_needed`:
 
 ```python
+    from health_azure import submit_to_azure_if_needed
     run_info = submit_to_azure_if_needed(
         ...
         default_datastore="himldatasets",
@@ -85,7 +87,7 @@ In this case, the following parameters are added to `submit_to_azure_if_needed`:
 The `default_datastore` is required if using the simplest configuration for an output dataset, to just use the blob container name. There is an alternative that doesn't require the `default_datastore` and allows a different datastore for each dataset:
 
 ```python
-from health.azure.datasets import DatasetConfig
+from health_azure import DatasetConfig, submit_to_azure_if_needed
     ...
     run_info = submit_to_azure_if_needed(
         ...
@@ -179,7 +181,7 @@ The `default_datastore` is required if using the simplest configuration for an i
 alternatives that do not require the `default_datastore` and allows a different datastore for each dataset, for example:
 
 ```python
-from health.azure.datasets import DatasetConfig
+from health_azure import DatasetConfig, submit_to_azure_if_needed
     ...
     run_info = submit_to_azure_if_needed(
         ...

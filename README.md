@@ -53,7 +53,7 @@ With the `hi-ml-azure` package, you can turn that script into one that runs on t
 
 ```python
 from pathlib import Path
-from health.azure.himl import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 if __name__ == '__main__':
     current_file = Path(__file__)
     run_info = submit_to_azure_if_needed(compute_cluster_name="preprocess-ds12",
