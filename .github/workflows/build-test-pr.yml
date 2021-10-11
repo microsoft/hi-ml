@@ -70,19 +70,23 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: Install dependencies
-        if: ${{ matrix.folder != 'hi-ml-azure' }}
-        run: |
-          cd hi-ml-azure
-
-          # Install local package in editable mode
-          make pip_local
-
-      - name: Test with pytest, fast only
         run: |
           cd ${{ matrix.folder }}
 
           # Install local package in editable mode
           make pip_local
+
+      - name: Install local version of hi-ml-azure
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          # hi-ml-azure gets installed from pypi when installing hi-ml. Remove and replace with local version
+          pip uninstall hi-ml-azure
+          cd hi-ml-azure
+          make pip_local
+
+      - name: Test with pytest, fast only
+        run: |
+          cd ${{ matrix.folder }}
 
           # Run fast tests
           make pytest_fast
