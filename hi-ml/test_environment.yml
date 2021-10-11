@@ -1,4 +1,4 @@
-name: himl
+name: test-env
 channels:
   - defaults
   - pytorch
@@ -7,7 +7,4 @@ dependencies:
   - python=3.7.3
   - pytorch=1.8.0
   - pip:
-      - -r build_requirements.txt
-      - -r hi-ml/run_requirements.txt
-      - -r hi-ml-azure/run_requirements.txt
       - -r test_requirements.txt

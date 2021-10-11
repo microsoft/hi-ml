@@ -286,7 +286,7 @@ jobs:
       - name: Show published TestPyPI package version
         run: |
           echo "Install this package version via:"
-          echo "pip install --extra-index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
+          echo "pip install --index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
   test-testpypi-pkg-pip:
     runs-on: ubuntu-latest
@@ -363,7 +363,7 @@ jobs:
           cd ${{ matrix.folder }}
 
           # Set up conda environment
-          $CONDA/bin/conda env update --file ../test_environment.yml --name base
+          $CONDA/bin/conda env update --file test_environment.yml --name base
 
           # Install test package
           while ! $CONDA/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ${{ steps.download.outputs.package_version }}

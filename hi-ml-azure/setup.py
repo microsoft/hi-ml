@@ -86,8 +86,8 @@ setup(
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'himl-tb = health.azure.himl_tensorboard:main',
-            'himl-download = health.azure.himl_download:main'
+            'himl-tb = health_azure.himl_tensorboard:main',
+            'himl-download = health_azure.himl_download:main'
         ]
     }
 )

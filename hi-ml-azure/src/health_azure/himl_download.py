@@ -6,10 +6,10 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from health.azure.azure_util import AzureRunIdSource, _download_files_from_run, get_aml_runs
+from health_azure.utils import AzureRunIdSource, _download_files_from_run, get_aml_runs
 
-from health.azure.himl import get_workspace
-from health.azure.himl_tensorboard import determine_run_id_source
+from health_azure.himl import get_workspace
+from health_azure.himl_tensorboard import determine_run_id_source
 
 
 def determine_output_dir_name(args: Namespace, run_id_source: AzureRunIdSource, output_dir: Path) -> Path:

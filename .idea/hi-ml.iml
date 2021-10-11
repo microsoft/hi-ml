@@ -3,13 +3,12 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/hi-ml-azure/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/hi-ml-azure/tests" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/hi-ml/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/hi-ml/tests" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hi-ml-azure/testazure" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hi-ml/testhiml" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="3.7 @ Ubuntu-20.04" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="3.7 @ Ubuntu-20.04 (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">

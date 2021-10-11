@@ -4,9 +4,17 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
+import numbers
+import operator
+from typing import Any, Callable, Dict, Mapping, Optional
 
-from health.azure import is_running_in_azure_ml
+import torch
+from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.utilities import rank_zero_only
+
+from health_azure import is_running_in_azure_ml
+from health_azure.utils import RUN_CONTEXT
 
 
 class AzureMLLogger(LightningLoggerBase):

@@ -26,14 +26,14 @@ from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
-from health.azure.azure_util import (create_python_environment, create_run_recovery_id, _find_file,
-                                     is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
-                                     run_duration_string_to_seconds,
-                                     to_azure_friendly_string, RUN_CONTEXT, get_workspace)
-from health.azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
+from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
+                                is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
+                                run_duration_string_to_seconds,
+                                to_azure_friendly_string, RUN_CONTEXT, get_workspace)
+from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets)
 
-logger = logging.getLogger('health.azure')
+logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
 
 AML_IGNORE_FILE = ".amlignore"
@@ -474,10 +474,14 @@ def convert_himl_to_azureml_datasets(
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
         consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        if consumption.name in inputs:
+            raise ValueError(f"There is already an input dataset with name '{consumption.name}' set up?")
         inputs[consumption.name] = consumption
     outputs = {}
     for index, d in enumerate(cleaned_output_datasets):
         out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+        if out.name in outputs:
+            raise ValueError(f"There is already an output dataset with name '{out.name}' set up?")
         outputs[out.name] = out
     return inputs, outputs
 

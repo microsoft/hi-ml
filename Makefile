@@ -28,7 +28,7 @@ pip_local: pip_upgrade call_pip_local
 # pip install everything for local development and testing
 pip: pip_build pip_test call_pip_local
 
-# set the conda environment
+# Set the conda environment for local development work, that contains all packages need for both hi-ml and hi-ml-azure
 conda:
 	conda env update --file environment.yml
 

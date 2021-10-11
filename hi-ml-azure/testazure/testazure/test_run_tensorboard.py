@@ -8,8 +8,8 @@ import subprocess
 from pathlib import Path
 from unittest import mock
 
-from health.azure import himl_tensorboard
-from health.azure.himl_tensorboard import WrappedTensorboard, ROOT_DIR
+from health_azure import himl_tensorboard
+from health_azure.himl_tensorboard import WrappedTensorboard, ROOT_DIR
 
 from azureml.core import Experiment, Workspace
 

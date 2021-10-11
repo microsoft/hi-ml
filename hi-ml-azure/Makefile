@@ -51,7 +51,7 @@ flake8: pip_test call_flake8
 call_mypy:
 	mypy --config=../mypy.ini --install-types --non-interactive setup.py
 	mypy --config=../mypy.ini --install-types --non-interactive -p src
-	mypy --config=../mypy.ini --install-types --non-interactive -p tests
+	mypy --config=../mypy.ini --install-types --non-interactive -p testazure
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
@@ -64,21 +64,21 @@ check: pip_test call_check
 
 # run pytest on package, assuming test requirements already installed
 call_pytest:
-	pytest tests
+	pytest testazure
 
 # install test requirements and run tests
 pytest: pip_test call_pytest
 
 # run pytest fast subset on package, assuming test requirements already installed
 call_pytest_fast:
-	pytest -m fast tests
+	pytest -m fast testazure
 
 # install test requirements and run pytest fast subset
 pytest_fast: pip_test call_pytest_fast
 
 # run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
 call_pytest_and_coverage:
-	pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml tests
+	pytest --cov=health --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testazure
 	pycobertura show --format text --output coverage.txt coverage.xml
 
 # install test requirements and run pytest coverage

@@ -2,8 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from unittest import mock
 
-from health.utils import log_on_epoch, log_learning_rate, AzureMLLogger
+import pytest
+import torch
+
+from health_ml.utils import log_on_epoch, log_learning_rate, AzureMLLogger
 
 def test_log_on_epoch() -> None:
     """
@@ -79,7 +83,8 @@ def test_log_learning_rate_singleton() -> None:
     lr = 1.234
     scheduler.get_last_lr = mock.MagicMock(return_value=[lr])
     module.lr_schedulers = mock.MagicMock(return_value=scheduler)
-    with mock.patch("InnerEye.ML.lightning_loggers.log_on_epoch") as mock_log_on_epoch:
+    module.trainer = mock.MagicMock(world_size = 1)
+    with mock.patch("health_ml.utils.logging.log_on_epoch") as mock_log_on_epoch:
         log_learning_rate(module)
         assert mock_log_on_epoch.call_args[0] == (module,)
         assert mock_log_on_epoch.call_args[1] == {'metrics': {'learning_rate': lr}}
@@ -97,9 +102,34 @@ def test_log_learning_rate_multiple() -> None:
     scheduler2.get_last_lr = mock.MagicMock(return_value=lr2)
     module = mock.MagicMock()
     module.lr_schedulers = mock.MagicMock(return_value=[scheduler1, scheduler2])
-    with mock.patch("InnerEye.ML.lightning_loggers.log_on_epoch") as mock_log_on_epoch:
+    with mock.patch("health_ml.utils.logging.log_on_epoch") as mock_log_on_epoch:
         log_learning_rate(module, name="foo")
         assert mock_log_on_epoch.call_args[0] == (module,)
         assert mock_log_on_epoch.call_args[1] == {'metrics': {'foo/0/0': lr1[0],
                                                               'foo/1/0': lr2[0],
                                                               'foo/1/1': lr2[1]}}
+
+
+def test_azureml_logger() -> None:
+    """
+    Tests logging to an AzureML run via PytorchLightning
+    """
+    logger = AzureMLLogger()
+    # On all build agents, this should not be detected as an AzureML run.
+    assert logger.is_running_in_azure_ml == False
+    # No logging should happen when outside AzureML
+    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
+        logger.log_metrics({"foo": 1.0})
+        assert log_mock.call_count == 0
+    # Pretend to be running in AzureML
+    logger.is_running_in_azure_ml = True
+    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
+        logger.log_metrics({"foo": 1.0})
+        assert log_mock.call_count == 1
+        assert log_mock.call_args[0] == ("foo", 1.0), "Should be called with the unrolled dictionary of metrics"
+    # All the following methods of LightningLoggerBase are not implemented
+    assert logger.name() == ""
+    assert logger.version() == 0
+    assert logger.experiment() is None
+    assert logger.experiment() is None
+    logger.log_hyperparams(params=None)

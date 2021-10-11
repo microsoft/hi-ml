@@ -9,7 +9,7 @@ from typing import Generator
 
 import pytest
 
-from health.azure.himl import _package_setup
+from health_azure.himl import _package_setup
 
 
 def outputs_for_tests() -> Path:

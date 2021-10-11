@@ -8,15 +8,15 @@ from pathlib import Path
 import pytest
 import subprocess
 
-from health.azure import himl_download
-from health.azure.azure_util import AzureRunIdSource
+from health_azure import himl_download
+from health_azure.utils import AzureRunIdSource
 
 DOWNLOAD_SCRIPT_PATH = himl_download.__file__
 
 
 def test_download_aml_run_args(tmp_path: Path) -> None:
     # if no required args are passed, will fail
-    # TODO: Create a Run and afterwards check that expected dirs have been downloaded
+    # Better solution would be to create a Run and afterwards check that expected dirs have been downloaded
     tmp_output_dir = tmp_path / "tmp_dir"
 
     with pytest.raises(Exception) as e:

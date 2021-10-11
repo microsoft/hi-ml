@@ -16,7 +16,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from health.azure.himl import submit_to_azure_if_needed
+from health_azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:
