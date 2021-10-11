@@ -142,16 +142,6 @@ jobs:
           folder: hi-ml-azure
           package_type: ${{ matrix.packageName }}
 
-      - name: Install dependencies
-        if: ${{ matrix.folder != 'hi-ml-azure' }}
-        run: |
-          cd hi-ml-azure
-
-          make pip_upgrade
-
-          # Install package
-          pip install ${{ steps.download_dep.outputs.package_filename }}
-
       - name: Download package artifacts
         id: download
         uses: ./.github/actions/download_package_artifacts
@@ -159,7 +149,7 @@ jobs:
           folder: ${{ matrix.folder }}
           package_type: ${{ matrix.packageName }}
 
-      - name: Install artifact and test
+      - name: Install artifact
         run: |
           cd ${{ matrix.folder }}
 
@@ -167,6 +157,19 @@ jobs:
 
           # Install package
           pip install ${{ steps.download.outputs.package_filename }}
+
+      - name: Install dependencies from current build
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install package
+          pip uninstall --yes hi-ml-azure
+          pip install ${{ steps.download_dep.outputs.package_filename }}
+
+      - name: Test artifact
+        run: |
+          cd ${{ matrix.folder }}
 
           if [ ${{ matrix.packageName }} = '*.whl' ]; then
             # Set env vars so wheel is sent to azureml as a private package
