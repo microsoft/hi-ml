@@ -976,6 +976,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     # call the script here
     extra_options = {
         "imports": """
+import sys
 from azureml.core import Run
 from health.azure.azure_util import _download_files_from_run""",
         "args": """
