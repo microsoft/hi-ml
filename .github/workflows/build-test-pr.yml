@@ -80,7 +80,7 @@ jobs:
         if: ${{ matrix.folder != 'hi-ml-azure' }}
         run: |
           # hi-ml-azure gets installed from pypi when installing hi-ml. Remove and replace with local version
-          pip uninstall hi-ml-azure
+          pip uninstall --yes hi-ml-azure
           cd hi-ml-azure
           make pip_local
 
