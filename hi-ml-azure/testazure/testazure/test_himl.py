@@ -303,7 +303,7 @@ def test_submit_to_azure_if_needed_azure_return(
     # The presence of the "experiment" flag is the trigger to recognize an AzureML run.
     mock_run_context.experiment = mock.MagicMock(workspace=mock_workspace)
     # This import needs to be local, after mocking the RUN_CONTEXT
-    import health
+    import health_azure
     assert is_running_in_azure_ml(health_azure.himl.RUN_CONTEXT)
     expected_run_info = himl.AzureRunInfo(
         run=mock_run,

@@ -7,7 +7,8 @@ from unittest import mock
 import pytest
 import torch
 
-from health_ml.utils import log_on_epoch, log_learning_rate, AzureMLLogger
+from health_ml.utils import AzureMLLogger, log_learning_rate, log_on_epoch
+
 
 def test_log_on_epoch() -> None:
     """
@@ -83,7 +84,7 @@ def test_log_learning_rate_singleton() -> None:
     lr = 1.234
     scheduler.get_last_lr = mock.MagicMock(return_value=[lr])
     module.lr_schedulers = mock.MagicMock(return_value=scheduler)
-    module.trainer = mock.MagicMock(world_size = 1)
+    module.trainer = mock.MagicMock(world_size=1)
     with mock.patch("health_ml.utils.logging.log_on_epoch") as mock_log_on_epoch:
         log_learning_rate(module)
         assert mock_log_on_epoch.call_args[0] == (module,)
@@ -116,7 +117,7 @@ def test_azureml_logger() -> None:
     """
     logger = AzureMLLogger()
     # On all build agents, this should not be detected as an AzureML run.
-    assert logger.is_running_in_azure_ml == False
+    assert not logger.is_running_in_azure_ml
     # No logging should happen when outside AzureML
     with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
         logger.log_metrics({"foo": 1.0})
