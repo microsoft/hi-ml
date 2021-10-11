@@ -163,7 +163,8 @@ jobs:
         run: |
           cd hi-ml-azure
 
-          # Install package
+          # Install package for hi-ml-azure from the current build. The package version from pypi got installed
+          # via the install above, hence have to uninstall and install from the wheel
           pip uninstall --yes hi-ml-azure
           pip install ${{ steps.download_dep.outputs.package_filename }}
 
