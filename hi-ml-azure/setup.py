@@ -39,7 +39,7 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 
 # Otherwise, if running from a GitHub Action, but not a tagged commit then GITHUB_RUN_NUMBER will be populated.
 # Use this as a post release number. For example if GITHUB_RUN_NUMBER = 124 then the version string will be
-# '0.1.2.post124'. Although this is discouraged, see:
+# '99.99.post124'. Although this is discouraged, see:
 # https://www.python.org/dev/peps/pep-0440/#post-releases
 # it is necessary here to avoid duplicate packages in Test.PyPI.
 if not version:
