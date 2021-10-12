@@ -29,7 +29,8 @@ created.
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) PyTorch Lightning logger for AzureML. Helper functions for consistent logging
 
 ### Changed
-- ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made large changes to module names, from `health.azure` to `health_azure`.
+- ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made large breaking changes to module names, 
+from `health.azure` to `health_azure`.
 
 ## 0.1.8 (2021-10-06)
 
