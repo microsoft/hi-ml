@@ -88,7 +88,6 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          # Run fast tests
           make pytest_fast
 
   build-python:
@@ -149,7 +148,7 @@ jobs:
           folder: ${{ matrix.folder }}
           package_type: ${{ matrix.packageName }}
 
-      - name: Install artifact
+      - name: Install artifact and dependencies
         run: |
           cd ${{ matrix.folder }}
 
@@ -208,29 +207,22 @@ jobs:
         with:
           folder: hi-ml-azure
 
-      - name: Install dependencies
-        run: |
-          cd hi-ml-azure
-
-          make pip_upgrade
-
-          # Install package
-          pip install ${{ steps.download_dep.outputs.package_filename }}
-
       - name: Download package artifacts
         id: download
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: hi-ml
 
-      - name: Install artifact and test
+      - name: Install artifact and dependencies
         run: |
           cd hi-ml
 
           make pip_upgrade
 
-          # Install package
+          # Install package, remove the hi-ml-azure package from PyPi, and re-install from the wheels
           pip install ${{ steps.download.outputs.package_filename }}
+          pip uninstall --yes hi-ml-azure
+          pip install ${{ steps.download_dep.outputs.package_filename }}
 
       - name: Download coverage artifacts
         uses: ./.github/actions/download_coverage_artifacts
@@ -318,15 +310,7 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Install dependencies
-        if: ${{ matrix.folder != 'hi-ml-azure' }}
-        run: |
-          cd hi-ml-azure
-
-          # Install local package in editable mode
-          make pip_local
-
-      - name: Install and test package
+      - name: Install test.PyPi package
         run: |
           cd ${{ matrix.folder }}
 
@@ -338,7 +322,19 @@ jobs:
             sleep 10
           done
 
-          # Test with pytest, fast only
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode, overwriting hi-ml-azure from pypi
+          pip uninstall --yes hi-ml-azure
+          make pip_local
+
+      - name: Run fast tests
+        run: |
+          cd ${{ matrix.folder }}
+
           make pytest_fast
 
   test-testpypi-pkg-conda:
@@ -358,15 +354,7 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Install dependencies
-        if: ${{ matrix.folder != 'hi-ml-azure' }}
-        run: |
-          cd hi-ml-azure
-
-          # Install local package in editable mode
-          make pip_local
-
-      - name: Install test.PyPI package and test with Conda
+      - name: Install test.PyPI package
         run: |
           cd ${{ matrix.folder }}
 
@@ -379,6 +367,19 @@ jobs:
             echo waiting for test.pypi
             sleep 10
           done
+
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode, overwriting hi-ml-azure from pypi
+          pip uninstall --yes hi-ml-azure
+          make pip_local
+
+      - name: Run fast tests with Conda
+        run: |
+          cd ${{ matrix.folder }}
 
           $CONDA/bin/pytest -m fast tests
 
@@ -437,15 +438,7 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Install dependencies
-        if: ${{ matrix.folder != 'hi-ml-azure' }}
-        run: |
-          cd hi-ml-azure
-
-          # Install local package in editable mode
-          make pip_local
-
-      - name: Install PyPI package and test
+      - name: Install PyPI package
         run: |
           cd ${{ matrix.folder }}
 
@@ -457,5 +450,17 @@ jobs:
             sleep 10
           done
 
-          # Test with pytest, fast only
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode, overwriting hi-ml-azure from pypi
+          pip uninstall --yes hi-ml-azure
+          make pip_local
+
+      - name: Run fast tests
+        run: |
+          cd ${{ matrix.folder }}
+
           make pytest_fast
