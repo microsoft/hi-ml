@@ -9,9 +9,9 @@ from typing import Tuple, Union
 import numpy as np
 import pytest
 
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.ML.utils.hdf5_util import HDF5Object
-from InnerEye.ML.utils.io_util import is_hdf5_file_path
+from health.common.fixed_paths_for_tests import full_ml_test_data_path
+from health.utils.hdf5_util import HDF5Object
+from health.utils.io_util import is_hdf5_file_path
 
 n_classes = 11
 root = full_ml_test_data_path()
@@ -24,19 +24,6 @@ test_data = [
      '0011',
      datetime(2011, 7, 14).isoformat(),
      np.array([4, 5, 7])),
-]
-
-test_data_single_patient_multiple_scans = [
-    ([
-         root / "hdf5_data" / "patient_hdf5s" / "d316cfe5-e62a-3c0e-afda-72c3cf5ea2d8.h5",
-         root / "hdf5_data" / "patient_hdf5s" / "b3200426-1a58-bfea-4aba-cbacbe66ea5e.h5"],
-     '1101',
-     [
-         datetime(2001, 12, 2).isoformat(),
-         datetime(2003, 5, 5).isoformat()],
-     [
-         np.array([4, 5, 7]),
-         np.array([4, 5, 7])])
 ]
 
 

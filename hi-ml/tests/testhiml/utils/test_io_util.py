@@ -16,13 +16,10 @@ import pytest
 import torch
 from skimage.transform import resize
 
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
-from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
-from InnerEye.ML.utils import io_util
-from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
-from InnerEye.ML.utils.io_util import ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
+from health.common.fixed_paths_for_tests import full_ml_test_data_path
+from health.common.output_directories import OutputFolderForTests
+from health.utils import io_util
+from health.utils.io_util import ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
     is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
     load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
 from Tests.ML.util import assert_file_contains_string
@@ -68,66 +65,6 @@ def test_nii_load_zyx(test_output_dirs: OutputFolderForTests) -> None:
     np.testing.assert_allclose(image_header.header.spacing, (3.0, 1.0, 1.0), rtol=0.1)
 
 
-@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0")])
-@pytest.mark.parametrize("image_channel", [None, known_nii_path, f"{good_h5_path}|volume|0", good_npy_path])
-@pytest.mark.parametrize("ground_truth_channel",
-                         [None, known_nii_path, f"{good_h5_path}|segmentation|0|1", good_npy_path])
-@pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
-@pytest.mark.parametrize("check_exclusive", [True, False])
-def test_load_images_from_dataset_source(
-        metadata: Optional[str],
-        image_channel: Optional[str],
-        ground_truth_channel: Optional[str],
-        mask_channel: Optional[str],
-        check_exclusive: bool) -> None:
-    """
-    Test if images are loaded as expected from channels
-    """
-    # metadata, image and GT channels must be present. Mask is optional
-    if None in [metadata, image_channel, ground_truth_channel]:
-        with pytest.raises(Exception):
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
-                                            check_exclusive)
-    else:
-        if check_exclusive:
-            with pytest.raises(ValueError) as mutually_exclusive_labels_error:
-                _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
-                                                check_exclusive)
-            assert 'not mutually exclusive' in str(mutually_exclusive_labels_error.value)
-        else:
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
-                                            check_exclusive)
-
-
-def _test_load_images_from_channels(
-        metadata: Any,
-        image_channel: Any,
-        ground_truth_channel: Any,
-        mask_channel: Any,
-        check_exclusive: bool) -> None:
-    """
-    Test if images are loaded as expected from channels
-    """
-    sample = io_util.load_images_from_dataset_source(
-        PatientDatasetSource(
-            metadata=metadata,
-            image_channels=[image_channel] * 2,
-            ground_truth_channels=[ground_truth_channel] * 4,
-            mask_channel=mask_channel
-        ),
-        check_exclusive=check_exclusive
-    )
-    if image_channel:
-        image_with_header = io_util.load_image(image_channel)
-        assert list(sample.image.shape) == [2] + list(image_with_header.image.shape)
-        assert all([np.array_equal(x, image_with_header.image) for x in sample.image])  # type: ignore
-        if mask_channel:
-            assert np.array_equal(sample.mask, image_with_header.image)
-        if ground_truth_channel:
-            assert list(sample.labels.shape) == [5] + list(image_with_header.image.shape)
-            assert np.all(sample.labels[0] == 0) and np.all(sample.labels[1:] == 1)
-
-
 @pytest.mark.parametrize("value, expected",
                          [(["apple"], "apple"),
                           (["apple", "butter"], "apple\nbutter\n")])
@@ -164,49 +101,6 @@ def test_hdf5_loading_multimap_class_do_not_exists() -> None:
     """
     seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|555555555555")
     assert np.all(seg_header.image == 0)
-
-
-def test_save_dataset_example(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test if the example dataset can be saved as expected.
-    """
-    image_size = (10, 20, 30)
-    label_size = (2,) + image_size
-    spacing = (1, 2, 3)
-    np.random.seed(0)
-    # Image should look similar to what a photonormalized image looks like: Centered around 0
-    image = np.random.rand(*image_size) * 2 - 1
-    # Labels are expected in one-hot encoding, predictions as class index
-    labels = np.zeros(label_size, dtype=int)
-    labels[0] = 1
-    labels[0, 5:6, 10:11, 15:16] = 0
-    labels[1, 5:6, 10:11, 15:16] = 1
-    prediction = np.zeros(image_size, dtype=int)
-    prediction[4:7, 9:12, 14:17] = 1
-    dataset_sample = DatasetExample(epoch=1,
-                                    patient_id=2,
-                                    header=ImageHeader(origin=(0, 1, 0), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1),
-                                                       spacing=spacing),
-                                    image=image,
-                                    prediction=prediction,
-                                    labels=labels)
-
-    images_folder = test_output_dirs.root_dir
-    config = SegmentationModelBase(should_validate=False, norm_method=PhotometricNormalizationMethod.Unchanged)
-    config.set_output_to(images_folder)
-    store_and_upload_example(dataset_sample, config)
-    image_from_disk = io_util.load_nifti_image(os.path.join(config.example_images_folder, "p2_e_1_image.nii.gz"))
-    labels_from_disk = io_util.load_nifti_image(os.path.join(config.example_images_folder, "p2_e_1_label.nii.gz"))
-    prediction_from_disk = io_util.load_nifti_image(os.path.join(config.example_images_folder, "p2_e_1_prediction.nii.gz"))
-    assert image_from_disk.header.spacing == spacing
-    # When no photometric normalization is provided when saving, image is multiplied by 1000.
-    # It is then rounded to int64, but converted back to float when read back in.
-    expected_from_disk = (image * 1000).astype(np.int16).astype(np.float64)
-    assert np.array_equal(image_from_disk.image, expected_from_disk)
-    assert labels_from_disk.header.spacing == spacing
-    assert np.array_equal(labels_from_disk.image, np.argmax(labels, axis=0))
-    assert prediction_from_disk.header.spacing == spacing
-    assert np.array_equal(prediction_from_disk.image, prediction)
 
 
 @pytest.mark.parametrize("input", [("foo.txt", False),
@@ -629,63 +523,3 @@ def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     assert image_header.image.shape == expected_shape
     assert image_header.header.spacing is not None
     np.testing.assert_allclose(image_header.header.spacing, (2.5, 1.269531, 1.269531), rtol=0.1)
-
-
-def zip_known_dicom_series(zip_file_path: Path) -> None:
-    """
-    Create a zipped reference DICOM series.
-
-    Zip the reference DICOM series from test_data into zip_file_path.
-
-    :param zip_file_path: Target zip file.
-    """
-    zip_file_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(dicom_series_folder))
-
-
-def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test that a DICOM series can be created.
-
-    :param test_output_dirs: Test output directories.
-    :return: None.
-    """
-    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
-    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
-    series_folder = test_output_dirs.root_dir / "series"
-    series_folder.mkdir()
-    # Create the series
-    image_data = io_util.create_dicom_series(series_folder, test_shape, test_spacing)
-    # Load it in
-    loaded_image = io_util.load_dicom_series(series_folder)
-    # GetSize returns (width, height, depth)
-    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
-    assert loaded_image.GetSpacing() == test_spacing
-    # Get the data from the loaded series and compare it.
-    loaded_image_data = sitk.GetArrayFromImage(loaded_image).astype(np.float)
-    assert loaded_image_data.shape == test_shape
-    # Data is saved 16 bit, so need a generous tolerance.
-    assert np.allclose(loaded_image_data, image_data, atol=1e-1)
-
-
-def test_zip_random_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test that a DICOM series can be created.
-        :param test_output_dirs: Test output directories.
-    :return: None.
-    """
-    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
-    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
-    zip_file_path = test_output_dirs.root_dir / "pack" / "random.zip"
-    scratch_folder = test_output_dirs.root_dir / "scratch"
-    io_util.zip_random_dicom_series(test_shape, test_spacing, zip_file_path, scratch_folder)
-
-    assert zip_file_path.is_file()
-    series_folder = test_output_dirs.root_dir / "unpack"
-    with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
-        zip_file.extractall(series_folder)
-    # Load it in
-    loaded_image = io_util.load_dicom_series(series_folder)
-    # GetSize returns (width, height, depth)
-    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
-    assert loaded_image.GetSpacing() == test_spacing
