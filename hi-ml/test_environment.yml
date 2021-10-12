@@ -7,4 +7,4 @@ dependencies:
   - python=3.7.3
   - pytorch=1.8.0
   - pip:
-      - -r test_requirements.txt
+      - -r ../test_requirements.txt
