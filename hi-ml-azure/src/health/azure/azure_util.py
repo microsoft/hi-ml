@@ -6,6 +6,7 @@
 Utility functions for interacting with AzureML runs
 """
 import hashlib
+import json
 import logging
 import os
 from enum import Enum
@@ -59,6 +60,19 @@ WORKSPACE_CONFIG_JSON = "config.json"
 PathOrString = Union[Path, str]
 
 
+class IntTuple(param.NumericTuple):
+    """
+    Parameter class that must always have integer values
+    """
+
+    def _validate(self, val: Any) -> None:
+        super()._validate(val)
+        if val is not None:
+            for i, n in enumerate(val):
+                if not isinstance(n, int):
+                    raise ValueError("{}: tuple element at index {} with value {} in {} is not an integer"
+                                     .format(self.name, i, n, val))
+
 
 class RunSource:
     def __init__(self, val: str) -> None:
@@ -70,26 +84,14 @@ class RunId(RunSource):
     def __init__(self, val: str) -> None:
         super().__init__(val)
         self.id = val
-        # self.val = val
-
-    def __str__(self) -> str:
-        return self.val
-
-    def __repr__(self) -> str:
-        return f"RunId(value={self.val})"
+        self.val = val
 
 
 class RunRecoveryId(RunSource):
     def __init__(self, val: str) -> None:
         super().__init__(val)
         self.id = val
-        # self.val = val
-
-    def __str__(self) -> str:
-        return self.val
-
-    def __repr__(self) -> str:
-        return f"RunRecoveryId(value={self.val})"
+        self.val = val
 
 
 RunIdType = Union[RunId, RunRecoveryId]
@@ -109,7 +111,7 @@ class GenericConfig(param.Parameterized):
         illegal = [k for k, v in params.items() if (k in self.params().keys()) and (k not in legal_params)]
 
         if illegal:
-            raise ValueError(f"The following parameters cannot be overriden as they are either "
+            raise ValueError(f"The following parameters cannot be overridden as they are either "
                              f"readonly, constant, or private members : {illegal}")
         if throw_if_unknown_param:
             # check if parameters not defined by the config class are passed in
@@ -191,9 +193,11 @@ class GenericConfig(param.Parameterized):
                 p_type = str
             elif isinstance(_p, param.List):
                 p_type = lambda x: [_p.class_(item) for item in x.split(',')]
+            elif isinstance(_p, param.NumericTuple):
+                float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
+                p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
             elif isinstance(_p, param.ClassSelector):
                 p_type = _p.class_
-            # elif isinstance(_p, RunIdOrListParam):
             elif hasattr(_p, "from_string"):
                 p_type = _p.from_string
 
@@ -298,7 +302,7 @@ class GenericConfig(param.Parameterized):
             self.validate()
         return actual_overrides
 
-    def report_on_overrides(self, values: Dict[str, Any], keys_to_ignore: Set[str]) -> None:
+    def report_on_overrides(self, values: Dict[str, Any], keys_to_ignore: Optional[Set[str]] = None) -> None:
         """
         Logs a warning for every parameter whose value is not as given in "values", other than those
         in keys_to_ignore.
@@ -308,7 +312,7 @@ class GenericConfig(param.Parameterized):
         """
         for key, desired in values.items():
             # If this isn't an AzureConfig instance, we don't want to warn on keys intended for it.
-            if key in keys_to_ignore:
+            if keys_to_ignore and (key in keys_to_ignore):
                 continue
             actual = getattr(self, key, None)
             if actual == desired:
@@ -350,6 +354,30 @@ class CustomTypeParam(param.Parameter):
 
     def from_string(self, x: str) -> None:
         raise NotImplementedError()
+
+
+class ListOrDictParam(CustomTypeParam):
+    """
+    Wrapper class to allow either a List or Dict inside of a Parameterized object.
+    """
+
+    def _validate(self, val: Any) -> None:
+        if not (self.allow_None and val is None):
+            if not (isinstance(val, List) or isinstance(val, Dict)):
+                raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
+        super()._validate(val)
+
+    def from_string(self, x: str) -> Union[Dict, List]:
+        if x.startswith("{") or x.startswith('['):
+            res = json.loads(x.replace("'", "\""))
+        else:
+            res = [str(item) for item in x.split(',')]
+        if isinstance(res, Dict):
+            return res
+        elif isinstance(res, List):
+            return res
+        else:
+            raise ValueError(f"Parameter should resolve to List or Dict")
 
 
 class RunIdOrListParam(CustomTypeParam):

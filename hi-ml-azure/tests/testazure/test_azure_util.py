@@ -11,7 +11,7 @@ import sys
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any, Tuple, Type
+from typing import Callable, Dict, List, Optional, Union, Any, Tuple, Type
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -516,6 +516,7 @@ class MockRun:
         pass
 
 
+@pytest.mark.fast
 @patch("health.azure.azure_util.fetch_run")
 @patch("azureml.core.Workspace")
 def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMock, tmp_path: Path) -> None:
@@ -539,6 +540,7 @@ def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:
     return [r for r in all_runs if r.tags == tags] if tags else all_runs
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("num_runs, tags, expected_num_returned", [
     (1, {"completed": "True"}, 1),
     (3, {}, 3),
@@ -587,6 +589,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
     assert retrieved_runs[0].get_tags() == tags
 
 
+@pytest.mark.fast
 @patch("health.azure.azure_util.fetch_run")
 @patch("health.azure.azure_util.Workspace")
 @pytest.mark.parametrize("mock_run_id, run_id_type", [
@@ -1040,21 +1043,20 @@ class ParamEnum(Enum):
     EnumValue1 = "1",
     EnumValue2 = "2"
 
-class IntTuple(param.NumericTuple):
-    """
-    Parameter class that must always have integer values
-    """
 
-    def _validate(self, val: Any) -> None:
+class IllegalCustomTypeNoFromString(param.Parameter):
+    def _validate(self, val):
         super()._validate(val)
-        if val is not None:
-            for i, n in enumerate(val):
-                if not isinstance(n, int):
-                    raise ValueError("{}: tuple element at index {} with value {} in {} is not an integer"
-                                     .format(self.name, i, n, val))
+
+
+class IllegalCustomTypeNoValidate(util.CustomTypeParam):
+    def from_string(self, x: str):
+        return x
 
 
 class ParamClass(util.GenericConfig):
+
+
     name: str = param.String(None, doc="Name")
     seed: int = param.Integer(42, doc="Seed")
     flag: bool = param.Boolean(False, doc="Flag")
@@ -1065,11 +1067,12 @@ class ParamClass(util.GenericConfig):
     optional_float: Optional[float] = param.Number(None, doc="Optional float")
     floats: List[float] = param.List(None, class_=float)
     tuple1: Tuple[int, float] = param.NumericTuple((1, 2.3), length=2, doc="Tuple")
-    int_tuple: Tuple[int, int, int] = IntTuple((1, 1, 1), length=3, doc="Integer Tuple")
+    int_tuple: Tuple[int, int, int] = util.IntTuple((1, 1, 1), length=3, doc="Integer Tuple")
     enum: ParamEnum = param.ClassSelector(default=ParamEnum.EnumValue1, class_=ParamEnum, instantiate=False)
     readonly: str = param.String("Nope", readonly=True)
     _non_override: str = param.String("Nope")
     constant: str = param.String("Nope", constant=True)
+    other_args = util.ListOrDictParam(None, doc="List or dictionary of other args")
 
 
 class ClassFrom(param.Parameterized):
@@ -1091,8 +1094,7 @@ class NotParameterized:
     foo = 1
 
 
-
-
+@pytest.mark.fast
 def test_overridable_parameter() -> None:
     """
     Test to check overridable parameters are correctly identified.
@@ -1109,68 +1111,19 @@ def test_overridable_parameter() -> None:
     assert "tuple1" in param_dict
     assert "int_tuple" in param_dict
     assert "enum" in param_dict
+    assert "other_args" in param_dict
+
     assert "readonly" not in param_dict
     assert "_non_override" not in param_dict
     assert "constant" not in param_dict
 
 
-def test_create_parser() -> None:
+@pytest.mark.fast
+def test_parser_defaults():
     """
-    Check that parse_args works as expected, with both non default and default values.
+    Check that default values are created as expected, and that the non-overridable parameters
+    are omitted.
     """
-
-    def check(arg: List[str], expected_key: str, expected_value: Any) -> None:
-        parsed = ParamClass.parse_args(arg)
-        assert getattr(parsed, expected_key) == expected_value
-
-    def check_fails(arg: List[str]) -> None:
-        with pytest.raises(SystemExit) as e:
-            ParamClass.parse_args(arg)
-        assert e.type == SystemExit
-        assert e.value.code == 2
-
-    check(["--name=foo"], "name", "foo")
-    check(["--seed", "42"], "seed", 42)
-    check(["--seed", ""], "seed", 42)
-    check(["--number", "2.17"], "number", 2.17)
-    check(["--number", ""], "number", 3.14)
-    check(["--integers", "1,2,3"], "integers", [1, 2, 3])
-    check(["--optional_int", ""], "optional_int", None)
-    check(["--optional_int", "2"], "optional_int", 2)
-    check(["--optional_float", ""], "optional_float", None)
-    check(["--optional_float", "3.14"], "optional_float", 3.14)
-    check(["--tuple1", "1,2"], "tuple1", (1, 2.0))
-    check(["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3))
-    check(["--enum=2"], "enum", ParamEnum.EnumValue2)
-    check(["--floats=1,2,3.14"], "floats", [1., 2., 3.14])
-    check(["--integers=1,2,3"], "integers", [1, 2, 3])
-    # Check all the ways of passing in True, with and without the first letter capitialized
-    for flag in ('on', 't', 'true', 'y', 'yes', '1'):
-        check([f"--flag={flag}"], "flag", True)
-        check([f"--flag={flag.capitalize()}"], "flag", True)
-        check([f"--not_flag={flag}"], "not_flag", True)
-        check([f"--not_flag={flag.capitalize()}"], "not_flag", True)
-    # Check all the ways of passing in False, with and without the first letter capitialized
-    for flag in ('off', 'f', 'false', 'n', 'no', '0'):
-        check([f"--flag={flag}"], "flag", False)
-        check([f"--flag={flag.capitalize()}"], "flag", False)
-        check([f"--not_flag={flag}"], "not_flag", False)
-        check([f"--not_flag={flag.capitalize()}"], "not_flag", False)
-    # Check that passing no value to flag sets it to True (the opposite of its default)
-    check(["--flag"], "flag", True)
-    # Check that no-flag is not an option
-    check_fails(["--no-flag"])
-    # Check that passing no value to not_flag fails
-    check_fails(["--not_flag"])
-    # Check that --no-not_flag is an option and sets it to False (the opposite of its default)
-    check(["--no-not_flag"], "not_flag", False)
-    # Check that both not_flag and no-not_flag cannot be passed at the same time
-    check_fails(["--not_flag=false", "--no-not_flag"])
-    # Check that invalid bools are caught
-    check_fails(["--flag=Falsf"])
-    check_fails(["--flag=Truf"])
-    # Check that default values are created as expected, and that the non-overridable parameters
-    # are omitted.
     defaults = vars(ParamClass.create_argparser().parse_args([]))
     assert defaults["seed"] == 42
     assert defaults["tuple1"] == (1, 2.3)
@@ -1185,7 +1138,73 @@ def test_create_parser() -> None:
     # upon errors.
 
 
-def test_apply_overrides() -> None:
+def check_parsing_succeeds(arg: List[str], expected_key: str, expected_value: Any) -> None:
+    parsed = ParamClass.parse_args(arg)
+    assert getattr(parsed, expected_key) == expected_value
+
+
+def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expected_value: Optional[Any] = None) -> None:
+    with pytest.raises(SystemExit) as e:
+        ParamClass.parse_args(arg)
+    assert e.type == SystemExit
+    assert e.value.code == 2
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("args, expected_key, expected_value, expected_pass", [
+    (["--name=foo"], "name", "foo", True),
+    (["--seed", "42"], "seed", 42, True),
+    (["--seed", ""], "seed", 42, True),
+    (["--number", "2.17"], "number", 2.17, True),
+    (["--number", ""], "number", 3.14, True),
+    (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
+    (["--optional_int", ""], "optional_int", None, True),
+    (["--optional_int", "2"], "optional_int", 2, True),
+    (["--optional_float", ""], "optional_float", None, True),
+    (["--optional_float", "3.14"], "optional_float", 3.14, True),
+    (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
+    (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
+    (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
+    (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
+    (["--integers=1,2,3"], "integers", [1, 2, 3], True),
+    (["--flag"], "flag", True, True),
+    (["--no-flag"], None, None, False),
+    (["--not_flag"], None, None, False),
+    (["--no-not_flag"], "not_flag", False, True),
+    (["--not_flag=false", "--no-not_flag"], None, None, False),
+    (["--flag=Falsf"], None, None, False),
+    (["--flag=Truf"], None, None, False),
+    (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
+])
+def test_create_parser(args: List[str], expected_key: str, expected_value: Any, expected_pass: bool) -> None:
+    """
+    Check that parse_args works as expected, with both non default and default values.
+    """
+    if expected_pass:
+        check_parsing_succeeds(args, expected_key, expected_value)
+    else:
+        check_parsing_fails(args)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("flag, expected_value", [
+    ('on', True), ('t', True), ('true', True), ('y', True), ('yes', True), ('1', True),
+    ('off', False), ('f', False), ('false', False), ('n', False), ('no', False), ('0', False)
+])
+def test_parsing_bools(flag: str, expected_value: bool):
+    """
+    Check all the ways of passing in True and False, with and without the first letter capitialized
+    """
+    check_parsing_succeeds([f"--flag={flag}"], "flag", expected_value)
+    check_parsing_succeeds([f"--flag={flag.capitalize()}"], "flag", expected_value)
+    check_parsing_succeeds([f"--not_flag={flag}"], "not_flag", expected_value)
+    check_parsing_succeeds([f"--not_flag={flag.capitalize()}"], "not_flag", expected_value)
+
+
+@pytest.mark.fast
+@patch("health.azure.azure_util.GenericConfig.report_on_overrides")
+@patch("health.azure.azure_util.GenericConfig.validate")
+def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: MagicMock) -> None:
     """
     Test that overrides are applied correctly, ond only to overridable parameters,
     """
@@ -1203,7 +1222,29 @@ def test_apply_overrides() -> None:
     assert m.seed == 123
     assert m.constant == old_constant
 
+    # Check the call count of mock_validate and check it doesn't increase if should_validate is set to False
+    # and that setting this flag doesn't affect on the outputs
+    mock_validate_call_count = mock_validate.call_count
+    actual_overrides = m.apply_overrides(values=overrides, should_validate=False)
+    assert actual_overrides == overrides
+    assert mock_validate.call_count == mock_validate_call_count
 
+    # Check that report_on_overrides has not yet been called, but is called if keys_to_ignore is not None
+    # and that setting this flag doesn't affect on the outputs
+    assert mock_report_on_overrides.call_count == 0
+    actual_overrides = m.apply_overrides(values=overrides, keys_to_ignore={"name"})
+    assert actual_overrides == overrides
+    assert mock_report_on_overrides.call_count == 1
+
+
+@patch("health.azure.azure_util.logging.warning")
+def test_report_on_overrides():
+    m = ParamClass()
+    overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
+    m.report_on_overrides(values=overrides)
+
+
+@pytest.mark.fast
 @pytest.mark.parametrize("value_idx_0", [1.0, 1])
 @pytest.mark.parametrize("value_idx_1", [2.0, 2])
 @pytest.mark.parametrize("value_idx_2", [3.0, 3])
@@ -1220,6 +1261,7 @@ def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: A
         m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
 
 
+@pytest.mark.fast
 def test_create_from_matching_params() -> None:
     """
     Test if Parameterized objects can be cloned by looking at matching fields.
@@ -1240,3 +1282,60 @@ def test_create_from_matching_params() -> None:
         util.create_from_matching_params(class_from, NotParameterized)
     assert "subclass of param.Parameterized" in str(ex)
     assert "NotParameterized" in str(ex)
+
+
+def test_parse_illegal_params():
+    with pytest.raises(ValueError) as e:
+        ParamClass(readonly="abc")
+        assert "cannot be overridden" in e.message
+
+
+def test_parse_throw_if_unknown():
+    with pytest.raises(ValueError) as e:
+        ParamClass(throw_if_unknown_param=True, idontexist="hello")
+        assert "parameters do not exist" in e.message
+
+
+@pytest.mark.parametrize("should_validate, expected_call_count", [(None, 0), (False, 0), (True, 1)])
+@patch("health.azure.azure_util.GenericConfig.validate")
+def test_config_validate(mock_validate: MagicMock, should_validate: Optional[bool], expected_call_count: int):
+    _ = ParamClass(should_validate=should_validate)
+    assert mock_validate.call_count == expected_call_count
+
+
+def test_config_add_and_validate():
+    config = ParamClass.parse_args([])
+    assert config.name == "ParamClass"
+    config.add_and_validate({"name": "foo"})
+    assert config.name == "foo"
+
+    assert hasattr(config, "new_property" ) is False
+    config.add_and_validate({"new_property": "bar"})
+    assert hasattr(config, "new_property" ) is True
+    assert config.new_property == "bar"
+
+
+class CustomType(util.CustomTypeParam):
+    def __init__(self) -> None:
+        pass
+
+    def _validate(self) -> None:
+        pass
+
+    def from_string(self, x: str) -> None:
+        pass
+
+
+class IllegalParamClassNoString(util.GenericConfig):
+    custom_type_no_from_string = IllegalCustomTypeNoFromString(
+        None, doc="This should fail since from_string method is missing"
+    )
+
+
+def test_cant_parse_param_type():
+    """
+    Assert that a TypeError is raised when trying to add a custom type with no from_string method as an argument
+    """
+    with pytest.raises(TypeError) as e:
+        IllegalParamClassNoString.parse_args([])
+        assert "is not supported" in e.message
