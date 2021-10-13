@@ -1,7 +1,7 @@
 .. AzureRunInfo should be documented including its members, but that does not work together with automodapi
 
-API
-=================================
+.. automodapi:: health_azure
+   :no-inheritance-diagram:
 
-.. automodapi:: health.azure
+.. automodapi:: health_ml.utils
    :no-inheritance-diagram:
