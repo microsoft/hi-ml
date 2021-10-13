@@ -4,8 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
-import health.azure.himl as himl
-from health.azure.azure_util import get_most_recent_run
+import health_azure.himl as himl
+from health_azure.utils import get_most_recent_run
 
 
 def main() -> None:

@@ -14,8 +14,8 @@ from typing import Any, Optional
 from azureml._run_impl.run_watcher import RunWatcher
 from azureml.tensorboard import Tensorboard
 
-from health.azure.azure_util import get_aml_runs, determine_run_id_source
-from health.azure.himl import get_workspace
+from health_azure.utils import get_aml_runs, determine_run_id_source
+from health_azure.himl import get_workspace
 
 from concurrent.futures import ThreadPoolExecutor
 from subprocess import PIPE, Popen
