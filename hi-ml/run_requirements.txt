@@ -1,6 +1,8 @@
 azureml-sdk==1.32.0
 azureml-tensorboard==1.32.0
 conda-merge==0.1.5
+fpdf2==2.4.5
 hi-ml-azure>=0.1.0
 ruamel.yaml==0.16.12
+scikit-learn==1.0
 tensorboard==2.6.0
