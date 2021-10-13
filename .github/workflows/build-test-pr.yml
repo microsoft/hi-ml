@@ -375,11 +375,13 @@ jobs:
       - name: Test hi-ml-azure with Conda
         if: ${{ matrix.folder == 'hi-ml-azure' }}
         run: |
+          cd ${{ matrix.folder }}
           $CONDA/bin/pytest -m fast testazure
 
       - name: Test hi-ml with Conda
         if: ${{ matrix.folder == 'hi-ml' }}
         run: |
+          cd ${{ matrix.folder }}
           $CONDA/bin/pytest -m fast testhiml
 
   publish-pypi-pkg:
