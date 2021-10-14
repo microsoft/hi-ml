@@ -53,6 +53,22 @@ jobs:
 
       - name: mypy
         run: make mypy
+  pyright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: pyright
+        run: make pyright
 
   pytest_fast:
     runs-on: ubuntu-latest
