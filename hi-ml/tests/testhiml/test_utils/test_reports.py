@@ -173,16 +173,26 @@ def dummy_custom_plot(report):
 
 
 def dummy_image(output_folder, report):
+    img_path = Path(output_folder) / f"img_00.png"
+    img_array = np.random.randint(0, 255, [200, 200]).astype(np.uint8)
+    np.save(str(str(img_path).split(".")[0]), img_array)
+    im = Image.fromarray(img_array)
+    im.save(img_path, "PNG")
+
+    report.add_image(img_path)
+
+
+def dummy_gallery(output_folder, report):
     img_paths = []
-    for i in range(1):
+    for i in range(4):
         img_path = Path(output_folder) / f"img_{i}.png"
-        img_array = np.random.randint(0, 255, [250, 250]).astype(np.uint8)
+        img_array = np.random.randint(0, 255, [150, 150]).astype(np.uint8)
         np.save(str(str(img_path).split(".")[0]), img_array)
         im = Image.fromarray(img_array)
         im.save(img_path, "PNG")
         img_paths.append(str(img_path))
 
-    report.add_image(img_paths[0])
+    report.add_image_gallery(img_paths, border=2)
 
 
 def generate_dummy_report(args: Namespace) -> None:
@@ -192,29 +202,43 @@ def generate_dummy_report(args: Namespace) -> None:
     report.cell(txt="A short description of this report", center=True, align="C")
     report.add_break(2)
 
+    report.add_header("Table with formatting")
     dummy_table(report)
+    report.add_break()
 
+    report.add_header("Table with plain formatting")
+    dummy_performers_table(report)
+    report.add_break()
+
+    report.add_header("Multiple charts in a subplot")
     dummy_line_subplot(report)
     report.add_break()
 
+    report.add_header("PR & ROC plots")
     dummy_pr_roc_curves(report)
     report.add_break()
 
+    report.add_header(("Box plots"))
     dummy_boxplot(report)
     report.add_break()
 
+    report.add_header("Custom plot")
     dummy_custom_plot(report)
     report.add_break()
 
+    report.add_header("Single image")
     dummy_image(args.output_folder, report)
-    report.add_break
+    report.add_break()
 
+    report.add_header("Gallery of mutiple images")
+    dummy_gallery(args.output_folder, report)
+    report.add_break()
+
+    report.add_header("Cross val PR ROC plots")
     dummy_pr_roc_curves_crossval(report)
     report.add_break()
 
-    dummy_performers_table(report)
-
-    report.cell(txt="End of report", ln=1)
+    report.cell(txt="Some text at the end of the report", ln=1)
     report.save_report()
 
 

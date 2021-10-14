@@ -1,3 +1,5 @@
+import json
+import logging
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -46,9 +48,9 @@ def is_png(file: Path) -> bool:
     return _file_matches_extension(file, VALID_PNG_EXTENSIONS)
 
 
-def load_png(path: Path) -> Image:
-    with Image.open(path) as im:
-        yield im
+def load_png(path: Path, mode='RGB') -> Image:
+    im = Image.open(path)
+    return im.convert(mode)
 
 
 def load_numpy_image(path: Path, image_type: Optional[Type] = None) -> Image:
@@ -99,38 +101,6 @@ class Report(FPDF):
         self.set_table_style(font_style="B", font_size=16)
         self.cell(txt=heading_str, ln=1)
 
-    @staticmethod
-    def _reduce_largest_col_with(header_widths: List[float]) -> List[float]:
-        max_header_width = max(header_widths)
-        largest_idx = header_widths.index(max_header_width)
-        header_widths[largest_idx] = max_header_width * 0.8
-        return header_widths
-
-    def get_string_width_(self, x: str) -> int:
-        x = str(x) if not isinstance(x, str) else x
-        string_width = len(x) * self.font_size_pt
-        # add additional leeway for special characters
-        # r = re.compile(r'\[^a-zA-Z !@#$%&*_+-=|:";<>,./\(\)\[]\{\}']')
-        # special_chars = r.findall(x)
-        return np.ceil(string_width)  # + 2 * len(special_chars))
-
-    def _get_column_widths(self, headers: List[str], data: List[List[str]], col_distribution: str = "avg"):
-        # TODO: col distr -> enum
-        page_width = self.epw
-        avg_col_size = page_width / len(headers)
-        if col_distribution == "avg":
-            widths = [avg_col_size] * len(headers)
-        elif col_distribution == "fitted":
-            # num_chars = len(header_text)
-            header_widths = [self.get_string_width_(header_text) for header_text in headers]
-            data_widths = [self.get_string_width_(header_text) for header_text in data[0]]
-            widths = [max(header_widths[i], data_widths[i]) for i in range(len(header_widths))]
-            while sum(widths) > page_width:
-                widths = self._reduce_largest_col_with(widths)
-        else:
-            raise ValueError("col_distribution must be one of avg or fitted")
-        return widths
-
     def set_table_style(self,
                         fill_color: Tuple[int, int, int] = (255, 255, 255),
                         text_color: int = 0,
@@ -162,25 +132,44 @@ class Report(FPDF):
         # self.cell(sum(w), 0, "", "T", ln=1)
         self.add_break(num_lines=1)
 
-    def add_table(self, headers: List[str], data: List[List[str]], header_color=(0, 0, 255), header_font_color=0,
+    # @staticmethod
+    # def _update_precision(data: List[List[str]], headers: List[str], precision: Dict[str, int]):
+    #     df = pd.DataFrame(data)
+    #     df.columns = headers
+    #     for col, desired_precision in precision.items():
+    #         df[col] = df[col].round(desired_precision)
+    #     return df.values.tolist()
+
+    def add_table(self, headers: List[str] = None, data: Union[pd.DataFrame, List[List[str]]] = None,
+                  data_path: Path = None, header_color=(153, 204, 204), header_font_color=0,
                   header_line_color=(0, 0, 0), header_line_width=0.3, body_line_color=(0, 0, 0), body_line_width=0.3,
-                  alternate_fill=True, alternate_fill_color=(224, 235, 255)):
+                  alternate_fill=True, alternate_fill_color=(229, 229, 229), cell_precision: Dict[str, int] = None,
+                  col_distribution="fitted", font_size=None, table_width=None):
 
         self.set_table_style(fill_color=header_color, text_color=header_font_color, font_style="B",
-                             line_color=header_line_color, line_width=header_line_width)
+                             line_color=header_line_color, line_width=header_line_width,
+                             font_size=font_size or self.font_size_pt)
 
-        # Colors, line width and bold font
+        table = Table(data=data, data_path=data_path, headers=headers, font_size_pt=self.font_size_pt,
+                      table_width=table_width or self.epw)
+        if cell_precision:
+            table.update_precision(cell_precision)
+
+        col_widths = table.get_column_widths(col_distribution=col_distribution)
         table_line_height = 7
+        # padd all haders to same length as hack to make
 
-        col_widths = self._get_column_widths(headers, data, col_distribution="fitted")
-
-        for width, header_text in zip(col_widths, headers):
+        max_header_length = max([len(x) for x in headers])
+        padded_headers = [h+' '*(max_header_length - len(h)) for h in headers]
+        for i, (width, header_text) in enumerate(zip(col_widths, padded_headers)):
             # self.cell(w=width, h=7, txt=header_text, border=1, align="C", fill=True)
-            self.cell(w=width, h=table_line_height, txt=header_text, fill=True)
+            ln = 1 if i == len(headers)-1 else 3
+            self.multi_cell(w=width, h=table_line_height, txt=header_text, fill=True, ln=ln)
 
         self.ln()
-        self.set_table_style(fill_color=alternate_fill_color, line_color=body_line_color, line_width=body_line_width)
-
+        self.set_table_style(fill_color=alternate_fill_color, line_color=body_line_color, line_width=body_line_width,
+                             font_size=self.font_size_pt)
+        data = table.to_list()
         self._populate_table_rows(headers, data, col_widths, table_line_height, alternate_fill=alternate_fill,
                                   border=None)
 
@@ -208,19 +197,19 @@ class Report(FPDF):
         assert len(headers) == len(data[0])
         self.add_table(headers, data)
 
-    def read_table_from_file(self, data_path: Path) -> pd.DataFrame:
-        suffix = data_path.suffix
-        if suffix == ".csv":
-            df = pd.read_csv(data_path)
-        elif suffix in [".xls", ".xlsx"]:
-            df = pd.read_excel(data_path)
-        else:
-            # TODO: load more file types
-            # with open(data_path, "r") as f_path:
-            #     txt = f_path.read()
-            #     lines = txt.split()
-            raise ValueError(f"Can only read data from .csv, .xls or .xlsx files. Found {suffix}")
-        return df
+    # def read_table_from_file(self, data_path: Path) -> pd.DataFrame:
+    #     suffix = data_path.suffix
+    #     if suffix == ".csv":
+    #         df = pd.read_csv(data_path)
+    #     elif suffix in [".xls", ".xlsx"]:
+    #         df = pd.read_excel(data_path)
+    #     else:
+    #         # TODO: load more file types
+    #         # with open(data_path, "r") as f_path:
+    #         #     txt = f_path.read()
+    #         #     lines = txt.split()
+    #         raise ValueError(f"Can only read data from .csv, .xls or .xlsx files. Found {suffix}")
+    #     return df
 
     def add_table_from_file(self, data_path: Path):
         df = self.read_table_from_file(data_path)
@@ -240,8 +229,140 @@ class Report(FPDF):
                             image_width=image_width, alt_text=alt_text)
 
     def add_image(self, image_path):
-        # image: Image = load_image_in_known_formats(image_path)
-        self.image(image_path)
+        image: Image = load_image_in_known_formats(image_path)
+        self.image(image)
+        image.close()
+
+    def add_image_gallery(self, image_paths: List[str], mode="RGB", border=0):
+        images = [Image.open(img_path).convert(mode) for img_path in image_paths]
+        widths, heights = [], []
+        for img in images:
+            widths.append(img.size[0])
+            heights.append(img.size[1])
+
+        max_height = max(heights)
+        total_width = sum(widths)
+        if total_width > self.epw:
+            # TODO: split across rows
+            pass
+
+        combined_image = Image.new('RGB', (total_width, max_height))
+
+        x_offset = 0
+        for im in images:
+            combined_image.paste(im, (x_offset, 0))
+            x_offset += im.size[0] + border
+
+        self.image(combined_image)
+        [image.close() for image in images]
+
+
+class Table:
+    def __init__(self, headers: Optional[List[str]] = None, data: Union[pd.DataFrame, List[List[str]]] = None,
+                 data_path=None, font_size_pt=None, table_width=None):
+        self.headers = headers
+        # Calling the below may update headers attribute
+        self.df = self._get_data(data=data, data_path=data_path)
+        self.font_size_pt = font_size_pt
+        self.table_width = table_width
+
+    def _get_data(self, data=None, data_path=None) -> pd.DataFrame:
+        """
+        If data is provided, will return that (in the form of a Pandas DataFrame if not already). Otherwise
+        if a path to a data file is provided, load it as a Pandas DataFrame and return that
+
+        :param data:
+        :param data_path:
+        :return:
+        """
+        if data is not None:
+            if isinstance(data, pd.DataFrame):
+                return data
+            else:
+                return pd.DataFrame(data, columns=self.headers)
+        elif data_path is not None:
+            return self._load_data_from_file(data_path)
+        else:
+            raise ValueError("One of data or data_path must be provided to create a data table")
+
+    def _load_data_from_file(self, data_path: str) -> pd.DataFrame:
+        if data_path.endswith(".txt"):
+            raise NotImplementedError("Cant currently load from text file")
+            # with open(data_path, 'r') as f_path:
+            #      data = f_path.read()  --> convert
+            # return pd.read_csv('file.txt', sep="\t")
+        elif data_path.endswith(".csv"):
+            df = pd.read_csv(data_path)
+            self.headers = df.columns
+            return df
+        elif data_path.endswith(".xls") or data_path.endswith(".xlsx"):
+            df = pd.read_excel(data_path)
+            self.headers = df.columns
+            return df
+        elif data_path.endswith(".json"):
+            with open(data_path, "r") as f_path:
+                # data = json.load(f_path)
+                # self.headers = self.headers or data.keys()
+                return pd.read_json(f_path)
+        elif data_path.endswith(".jsonl"):
+            with open(data_path, "r") as f_path:
+                data = [json.loads(line) for line in f_path]
+                # self.headers = self.headers or data[0].keys()
+                # return data
+            return pd.DataFrame.from_records(data)
+        else:
+            raise ValueError("Unexpected file format. Can't load data")
+
+    def to_list(self) -> List[List[str]]:
+        return self.df.values.tolist()
+
+    # def to_dataframe(self, data: List[Any]):
+    #     if isinstance(data, pd.DataFrame):
+    #         logging.warning("Data is already a pandas DataFrame. Doing nothing")
+    #         return data
+    #     return pd.DataFrame(data, columns=self.headers)
+
+    def update_precision(self, precision: Dict[str, int]):
+        for col, desired_precision in precision.items():
+            self.df[col] = self.df[col].round(desired_precision)
+
+    def get_string_width_(self, x: str) -> int:
+        if self.font_size_pt is None:
+            raise ValueError("Cannot get string width if self.font_size_pt is None")
+        x = str(x) if not isinstance(x, str) else x
+        string_width = len(x) * self.font_size_pt
+        # add additional leeway for special characters
+        # r = re.compile(r'\[^a-zA-Z !@#$%&*_+-=|:";<>,./\(\)\[]\{\}']')
+        # special_chars = r.findall(x)
+        return np.floor(string_width)  # + 2 * len(special_chars))
+
+    @staticmethod
+    def _reduce_largest_col_with(header_widths: List[float]) -> List[float]:
+        max_header_width = max(header_widths)
+        largest_idx = header_widths.index(max_header_width)
+        header_widths[largest_idx] = max_header_width * 0.8
+        return header_widths
+
+    def get_column_widths(self, col_distribution: str = "avg"):
+        # TODO: col distr -> enum
+        table_width = self.table_width
+        if table_width is None:
+            raise ValueError("Cannot determine optimal column widths if self.page_width is not known")
+        avg_col_size = table_width / len(self.headers)
+        if col_distribution == "avg":
+            widths = [avg_col_size] * len(self.headers)
+        elif col_distribution == "fitted":
+            # TODO: figure out how to do multiline headers and then set col width equal to data width
+            # num_chars = len(header_text)
+            header_widths = [self.get_string_width_(header_text) for header_text in self.headers]
+            data_widths = [self.get_string_width_(col_text) for col_text in self.df.iloc[0].tolist()]
+            widths = data_widths  # [max(header_widths[i], data_widths[i]) for i in range(len(header_widths))]
+            while sum(widths) > table_width:
+                # print(widths)
+                widths = self._reduce_largest_col_with(widths)
+        else:
+            raise ValueError("col_distribution must be one of avg or fitted")
+        return widths
 
 
 class Plot:
@@ -331,9 +452,6 @@ class Plot:
                                 scoring_fn: Callable[[Tuple[List[Any], List[Any]]], Tuple[np.ndarray, np.ndarray]],
                                 interval_width: float = .8,
                                 ax: Optional[Axes] = None) -> Tuple[List, Any]:
-        """
-
-        """
         if ax is None:
             ax = plt.gca()
         x_grid = np.linspace(0, 1, 101)
@@ -378,11 +496,6 @@ class Plot:
         # plot PR curve
         self.plot_scores_and_summary(labels, model_outputs, scoring_fn=get_pr_xy, ax=self.next_empty_axis,
                                      interval_width=interval_width)
-
-        # format_pr_or_roc_axes('roc', axs[0])
-        # format_pr_or_roc_axes('pr', axs[1])
-
-        plt.show()
 
     def add_box_plot(self, data, labels, title="", x_label="", y_label="", superimpose=False):
         if self.current_axis is None or superimpose is False:
