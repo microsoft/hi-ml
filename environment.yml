@@ -8,6 +8,4 @@ dependencies:
   - pytorch=1.8.0
   - pip:
       - -r build_requirements.txt
-      - -r hi-ml/run_requirements.txt
-      - -r hi-ml-azure/run_requirements.txt
       - -r test_requirements.txt
