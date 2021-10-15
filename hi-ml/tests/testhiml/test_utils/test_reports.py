@@ -132,6 +132,7 @@ def dummy_pr_roc_curves_crossval(report):
 
     report.image(plot_path, x=None, y=None, h=image_height, w=image_width, alt_text=alt_text)
 
+
 def dummy_boxplot(report):
     num_boxes = 5
     spreads = [np.random.rand(50) * 100 for _ in range(num_boxes)]
@@ -195,6 +196,22 @@ def dummy_gallery(output_folder, report):
     report.add_image_gallery(img_paths, border=2)
 
 
+def dummy_df_plot(output_folder, report):
+    chart_title = "Dataframe"
+    image_width = 200
+    image_height = 100
+    alt_text = "dataframe"
+    plot = report_util.Plot(figsize=(12.8, 6.0), fig_folder=report.report_folder, fig_title=chart_title)
+
+    headers = ["Experiment", "Epochs", "loss", "Average ROC AUC"]
+    data = [[1, 150, 5, 0.8], [2, 150, 4.9, 0.91]]
+    df = pd.DataFrame(data=data, columns=headers)
+
+    plot.plot_dataframe(df)
+    plot_path = plot.save_chart()
+    report.image(plot_path, x=None, y=None, h=image_height, w=image_width, alt_text=alt_text)
+
+
 def generate_dummy_report(args: Namespace) -> None:
     # Generate PDF report
     report = report_util.initialize_report(report_title = args.report_title, output_folder = args.output_folder)
@@ -236,6 +253,9 @@ def generate_dummy_report(args: Namespace) -> None:
 
     report.add_header("Cross val PR ROC plots")
     dummy_pr_roc_curves_crossval(report)
+    report.add_break()
+
+    dummy_df_plot(args.output_folder, report)
     report.add_break()
 
     report.cell(txt="Some text at the end of the report", ln=1)

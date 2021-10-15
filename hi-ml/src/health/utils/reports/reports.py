@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from PIL import Image
 from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
+from pandas.plotting import table as pd_table
 
 from fpdf import FPDF
 
@@ -172,6 +173,7 @@ class Report(FPDF):
         data = table.to_list()
         self._populate_table_rows(headers, data, col_widths, table_line_height, alternate_fill=alternate_fill,
                                   border=None)
+
 
     def add_table_from_dataframe(self, df: pd.DataFrame, cols_to_print: Optional[List[str]] = None,
                                  print_index: bool = False, override_headers: List[str] = None):
@@ -525,6 +527,15 @@ class Plot:
         ax.set_title(title)
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
+
+    def plot_dataframe(self, df: pd.DataFrame):
+        ax = self.next_empty_axis
+        ax.set_axis_off()
+        ax.set_frame_on(False)
+
+        ax.table(cellText=df.values, colLabels=df.keys())#, loc='center')
+
+
 
 
 def get_data_from_tensorboard_log():
