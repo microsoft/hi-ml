@@ -42,7 +42,7 @@ point in the `outputs` and `logs` folders will be saved to the cloud.
 
 At some later point, the job will be assigned a virtual machine again. When re-started, all the files that the job had
 produced in its previous run will be available on disk again where they were before interruption, mounted at the same
-path. That is, if the interrupted job wrote a file `outputs/foo.txt`, this file will be accessible as `outputs/foo.txt` 
+path. That is, if the interrupted job wrote a file `outputs/foo.txt`, this file will be accessible as `outputs/foo.txt`
 also after the restart.
 
 Note that all AzureML-internal log files that the job produced in a previous run will be **overwritten**
@@ -53,8 +53,8 @@ then **append** to the metrics that had been written in the previous run. This t
 metrics, as illustrated here:
 ![lowpriority_interrupted_lr.png](lowpriority_interrupted_lr.png)
 In this example, the learning rate was increasing for the first 6 or so epochs. Then the job got preempted, and started
-training from scratch, with the initial learning rate and schedule. Note that this behaviour is only an artifact of
-how the metrics are stored in AzureML, the actual training is doing the right thing.
+training from scratch, with the initial learning rate and schedule. Note that this behaviour is only an artifact of how
+the metrics are stored in AzureML, the actual training is doing the right thing.
 
 How do you verify that your job got interrupted? Usually, you would see a warning displayed on the job page in the
 AzureML UI, that says something along the lines of "Low priority compute preemption warning: a node has been preempted."
@@ -127,4 +127,3 @@ checkpoint, and `on_load_checkpoint` to load it back in.
 For more information about persisting state, check
 the [PyTorch Lightning documentation](https://pytorch-lightning.readthedocs.io/en/latest/extensions/callbacks.html?highlight=callback#persisting-state)
 .
-
