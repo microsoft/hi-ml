@@ -565,6 +565,8 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
     workspace described in your config.json file, under an experiment defined by AML_TESTS_EXPERIMENT
     """
     ws = DEFAULT_WORKSPACE.workspace
+    assert True
+
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
     config = ScriptRunConfig(
         source_directory=".",
@@ -575,6 +577,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
     first_run = experiment.submit(config)
     tags = {"experiment_type": "great_experiment"}
     first_run.set_tags(tags)
+    first_run.wait_for_completion()
 
     # Create second run and ensure no tags
     second_run = experiment.submit(config)

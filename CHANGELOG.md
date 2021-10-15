@@ -31,6 +31,8 @@ created.
 ### Changed
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names, 
 from `health.azure` to `health_azure`.
+- ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace
+argparsing with parametrized classes.
 
 ## 0.1.8 (2021-10-06)
 
