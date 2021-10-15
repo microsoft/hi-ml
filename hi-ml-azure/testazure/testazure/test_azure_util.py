@@ -11,7 +11,7 @@ import sys
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union, Any, Tuple, Type
+from typing import Dict, List, Optional, Union, Any, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -516,7 +516,7 @@ class MockRun:
 
 
 @pytest.mark.fast
-@patch("health.azure.azure_util.fetch_run")
+@patch("health_azure.utils.fetch_run")
 @patch("azureml.core.Workspace")
 def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMock, tmp_path: Path) -> None:
     mock_run_id = "run_abc_123"
@@ -548,8 +548,8 @@ def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:
 def test_get_latest_aml_run_from_experiment(num_runs: int, tags: Dict[str, str], expected_num_returned: int) -> None:
     mock_experiment_name = "MockExperiment"
 
-    with mock.patch("health.azure.azure_util.Experiment") as mock_experiment:
-        with mock.patch("health.azure.azure_util.Workspace",
+    with mock.patch("health_azure.utils.Experiment") as mock_experiment:
+        with mock.patch("health_azure.utils.Workspace",
                         experiments={mock_experiment_name: mock_experiment}
                         ) as mock_workspace:
             mock_experiment.get_runs.return_value = _get_experiment_runs(tags)
@@ -589,8 +589,8 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
 
 
 @pytest.mark.fast
-@patch("health.azure.azure_util.fetch_run")
-@patch("health.azure.azure_util.Workspace")
+@patch("health_azure.utils.fetch_run")
+@patch("health_azure.utils.Workspace")
 @pytest.mark.parametrize("mock_run_id, run_id_type", [
     ("run_abc_123", util.RunId),
     ("experiment1:run_bcd_456", util.RunRecoveryId)
@@ -670,9 +670,9 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
                 assert not any([p.exists() for p in expected_paths])
 
 
-@patch("health.azure.azure_util.get_workspace")
-@patch("health.azure.azure_util.get_aml_run_from_run_id")
-@patch("health.azure.azure_util._download_files_from_run")
+@patch("health_azure.utils.get_workspace")
+@patch("health_azure.utils.get_aml_run_from_run_id")
+@patch("health_azure.utils._download_files_from_run")
 def test_download_files_from_run_id(mock_download_run_files: MagicMock,
                                     mock_get_aml_run_from_run_id: MagicMock,
                                     mock_workspace: MagicMock) -> None:
@@ -934,8 +934,8 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[List[util.Run
             assert script_config.run.val == run_id.val
 
 
-@patch("health.azure.azure_util.download_files_from_run_id")
-@patch("health.azure.azure_util.get_workspace")
+@patch("health_azure.utils.download_files_from_run_id")
+@patch("health_azure.utils.get_workspace")
 def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files: MagicMock) -> None:
     mock_workspace = MagicMock()
     mock_get_workspace.return_value = mock_workspace
@@ -1116,7 +1116,7 @@ def test_overridable_parameter() -> None:
 
 
 @pytest.mark.fast
-def test_parser_defaults():
+def test_parser_defaults() -> None:
     """
     Check that default values are created as expected, and that the non-overridable parameters
     are omitted.
@@ -1200,8 +1200,8 @@ def test_parsing_bools(flag: str, expected_value: bool) -> None:
 
 
 @pytest.mark.fast
-@patch("health.azure.azure_util.GenericConfig.report_on_overrides")
-@patch("health.azure.azure_util.GenericConfig.validate")
+@patch("health_azure.utils.GenericConfig.report_on_overrides")
+@patch("health_azure.utils.GenericConfig.validate")
 def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: MagicMock) -> None:
     """
     Test that overrides are applied correctly, ond only to overridable parameters,
@@ -1215,7 +1215,7 @@ def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: Mag
     # Attempt to change seed and constant, but the latter should be ignored.
     change_seed = {"seed": 123}
     old_constant = m.constant
-    changes2 = m.apply_overrides({**change_seed, "constant": "Nothing"})
+    changes2 = m.apply_overrides({**change_seed, "constant": "Nothing"})  # type: ignore
     assert changes2 == change_seed
     assert m.seed == 123
     assert m.constant == old_constant
@@ -1235,11 +1235,10 @@ def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: Mag
     assert mock_report_on_overrides.call_count == 1
 
 
-@patch("health.azure.azure_util.logging.warning")
 def test_report_on_overrides() -> None:
     m = ParamClass()
     overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
-    m.report_on_overrides(values=overrides)
+    m.report_on_overrides(overrides)
 
 
 @pytest.mark.fast
@@ -1285,19 +1284,18 @@ def test_create_from_matching_params() -> None:
 def test_parse_illegal_params() -> None:
     with pytest.raises(ValueError) as e:
         ParamClass(readonly="abc")
-        assert "cannot be overridden" in e.message
+        assert "cannot be overridden" in str(e.value)
 
 
 def test_parse_throw_if_unknown() -> None:
     with pytest.raises(ValueError) as e:
         ParamClass(throw_if_unknown_param=True, idontexist="hello")
-        assert "parameters do not exist" in e.message
+        assert "parameters do not exist" in str(e.value)
 
 
 @pytest.mark.parametrize("should_validate, expected_call_count", [(None, 0), (False, 0), (True, 1)])
-@patch("health.azure.azure_util.GenericConfig.validate")
-def test_config_validate(mock_validate: MagicMock, should_validate: Optional[bool], expected_call_count: int
-                        ) -> None:
+@patch("health_azure.utils.GenericConfig.validate")
+def test_config_validate(mock_validate: MagicMock, should_validate: Optional[bool], expected_call_count: int) -> None:
     _ = ParamClass(should_validate=should_validate)
     assert mock_validate.call_count == expected_call_count
 
@@ -1308,9 +1306,9 @@ def test_config_add_and_validate() -> None:
     config.add_and_validate({"name": "foo"})
     assert config.name == "foo"
 
-    assert hasattr(config, "new_property" ) is False
+    assert hasattr(config, "new_property") is False
     config.add_and_validate({"new_property": "bar"})
-    assert hasattr(config, "new_property" ) is True
+    assert hasattr(config, "new_property") is True
     assert config.new_property == "bar"
 
 
@@ -1337,4 +1335,4 @@ def test_cant_parse_param_type() -> None:
     """
     with pytest.raises(TypeError) as e:
         IllegalParamClassNoString.parse_args([])
-        assert "is not supported" in e.message
+        assert "is not supported" in str(e.value)

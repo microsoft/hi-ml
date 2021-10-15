@@ -26,7 +26,6 @@ def main() -> None:  # pragma: no cover
 
     runs = download_config.run if isinstance(download_config.run, list) else [download_config.run]
     for run in runs:
-        run: azure_util.RunIdType
         output_folder = output_dir / run.id
 
         try:  # pragma: no cover

@@ -109,8 +109,7 @@ from health_azure.utils import is_running_in_azure_ml
     remote_root = str(local_root.relative_to(tmp_path)) + "/"
 
     ts = WrappedTensorboard(remote_root=remote_root, local_root=str(local_root), runs=[run], port=6006)
-    url = ts.start()
-    assert url == "http://localhost:6006/"
+    _ = ts.start()
     assert ts.remote_root == str(remote_root)
     assert ts._local_root == str(local_root)
     ts.stop()

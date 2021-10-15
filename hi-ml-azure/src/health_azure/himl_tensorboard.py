@@ -17,7 +17,7 @@ from typing import Any, Optional
 from azureml._run_impl.run_watcher import RunWatcher
 from azureml.tensorboard import Tensorboard
 
-from health_azure import util as azure_util
+from health_azure import utils as azure_util
 from health_azure.himl import get_workspace
 
 

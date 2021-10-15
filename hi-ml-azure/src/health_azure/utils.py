@@ -9,7 +9,6 @@ import hashlib
 import json
 import logging
 import os
-from enum import Enum
 
 import param
 import re
@@ -19,7 +18,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, Set
 
 import conda_merge
-import pytest
 import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
@@ -352,7 +350,7 @@ class CustomTypeParam(param.Parameter):
     def _validate(self, val: Any) -> None:
         super()._validate(val)
 
-    def from_string(self, x: str) -> None:
+    def from_string(self, x: str) -> Any:
         raise NotImplementedError()
 
 
@@ -394,7 +392,7 @@ class RunIdOrListParam(CustomTypeParam):
     def from_string(self, x: str) -> Union[RunId, RunRecoveryId, List]:
         res = [str(item) for item in x.split(',')]
         if not isinstance(res, List):
-            raise ValueError(f"Parameter should resolve to List or string")
+            raise ValueError("Parameter should resolve to List or string")
         if len(res) == 1:
             # string
             return determine_run_id_type(res[0])
