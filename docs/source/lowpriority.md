@@ -5,8 +5,8 @@ price, see references below for details). This comes with the risk, though, of h
 re-started. This document describes the inner workings of Low Priority compute, and how to best make use of it.
 
 Because the jobs can get interrupted, low priority machines are not suitable for production workload where time is
-critical. They do offer a lot of benefits though for long-running training jobs, that would otherwise be expensive to
-carry out.
+critical. They do offer a lot of benefits though for long-running training jobs or large scale experimentation, that
+would otherwise be expensive to carry out.
 
 ## Setting up the Compute Cluster
 
@@ -41,13 +41,20 @@ is no signal that we can make use of to do cleanup or something. All the files t
 point in the `outputs` and `logs` folders will be saved to the cloud.
 
 At some later point, the job will be assigned a virtual machine again. When re-started, all the files that the job had
-produced in its previous run will be available on disk again where they were before interruption.
+produced in its previous run will be available on disk again where they were before interruption, mounted at the same
+path. That is, if the interrupted job wrote a file `outputs/foo.txt`, this file will be accessible as `outputs/foo.txt` 
+also after the restart.
 
-Note that all AzureML-internal log files that the job produced in a previous run will be overwritten (this behaviour may
-change in the future). The metrics that were written to AzureML (via `Run.log`, for example) will be available when the
-job restarts. The re-started job will append to the metrics written in the previous run. This typically leads to sudden
-jumps in metrics, as illustrated here:
+Note that all AzureML-internal log files that the job produced in a previous run will be **overwritten**
+(this behaviour may change in the future). That is in contrast to the behaviour for metrics that the interrupted job had
+saved to AzureML already (for example, metrics written by a call like `Run.log("loss", loss_tensor.item())`):
+Those metrics are already stored in AzureML, and will still be there when the job restarts. The re-started job will
+then **append** to the metrics that had been written in the previous run. This typically shows as sudden jumps in
+metrics, as illustrated here:
 ![lowpriority_interrupted_lr.png](lowpriority_interrupted_lr.png)
+In this example, the learning rate was increasing for the first 6 or so epochs. Then the job got preempted, and started
+training from scratch, with the initial learning rate and schedule. Note that this behaviour is only an artifact of
+how the metrics are stored in AzureML, the actual training is doing the right thing.
 
 How do you verify that your job got interrupted? Usually, you would see a warning displayed on the job page in the
 AzureML UI, that says something along the lines of "Low priority compute preemption warning: a node has been preempted."
@@ -89,37 +96,21 @@ RECOVERY_CHECKPOINT_FILE_NAME = "recovery_"
 CHECKPOINT_FOLDER = "outputs/checkpoints"
 
 
-class RecoveryCheckpointCallback(ModelCheckpoint):
-    """
-    This callback is used to save recovery checkpoints every 10 epochs. It ensures that there is a logged 
-    quantity to monitor if we want to log more then one recent checkpoint.
-    """
-
-    def __init__(self):
-        super().__init__(dirpath=CHECKPOINT_FOLDER,
-                         monitor="epoch_started",
-                         filename=RECOVERY_CHECKPOINT_FILE_NAME + "{epoch}",
-                         period=10,
-                         save_top_k=1,
-                         mode="max",
-                         save_last=False)
-
-    def on_train_epoch_start(self, trainer, pl_module, unused: bool = None) -> None:
-        # The metric to monitor must be logged on all ranks in distributed training
-        pl_module.log("epoch_started", trainer.current_epoch, on_epoch=True, on_step=False, sync_dist=False)
-
-
 def get_latest_recovery_checkpoint():
     all_recovery_files = [f for f in Path(CHECKPOINT_FOLDER).glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
     if len(all_recovery_files) == 0:
         return None
+    # Get recovery checkpoint with highest epoch number    
     recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in all_recovery_files]
     idx_max_epoch = int(np.argmax(recovery_epochs))
     return str(all_recovery_files[idx_max_epoch])
 
 
+recovery_checkpoint = ModelCheckpoint(dirpath=CHECKPOINT_FOLDER,
+                                      filename=RECOVERY_CHECKPOINT_FILE_NAME + "{epoch}",
+                                      period=10)
 trainer = Trainer(default_root_dir="outputs",
-                  callbacks=[RecoveryCheckpointCallback()],
+                  callbacks=[recovery_checkpoint],
                   logger=[AzureMLLogger()],
                   resume_from_checkpoint=get_latest_recovery_checkpoint())
 ```
@@ -134,5 +125,6 @@ own optimizer. Such callbacks need to correctly implement the `on_save_checkpoin
 checkpoint, and `on_load_checkpoint` to load it back in.
 
 For more information about persisting state, check
-the [PyTorch Lightning documentation](https://pytorch-lightning.readthedocs.io/en/latest/extensions/callbacks.html?highlight=callback#persisting-state).
+the [PyTorch Lightning documentation](https://pytorch-lightning.readthedocs.io/en/latest/extensions/callbacks.html?highlight=callback#persisting-state)
+.
 

@@ -23,10 +23,11 @@ created.
 ### Deprecated
 
 
-## 0.1.9 (2021-10-11)
+## 0.1.9 (2021-10-15)
 
 ### Added
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) PyTorch Lightning logger for AzureML. Helper functions for consistent logging
+- ([#136](https://github.com/microsoft/hi-ml/pull/136)) Documentation for using low priority nodes
 
 ### Changed
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names, 
