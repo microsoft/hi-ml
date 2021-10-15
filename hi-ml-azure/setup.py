@@ -39,15 +39,16 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 
 # Otherwise, if running from a GitHub Action, but not a tagged commit then GITHUB_RUN_NUMBER will be populated.
 # Use this as a post release number. For example if GITHUB_RUN_NUMBER = 124 then the version string will be
-# '0.1.2.post124'. Although this is discouraged, see:
+# '99.99.post124'. Although this is discouraged, see:
 # https://www.python.org/dev/peps/pep-0440/#post-releases
 # it is necessary here to avoid duplicate packages in Test.PyPI.
 if not version:
-    # TODO: Replace this with more principled package version management for the package wheels built during local test
-    # runs, one which circumvents AzureML's apparent package caching:
     build_number = os.getenv('GITHUB_RUN_NUMBER')
     if build_number:
-        version = '0.1.0.post' + build_number
+        # In github workflows, tests for hi-ml pull in hi-ml-azure as a dependency. Usually, we have a condition like
+        # hi-ml-azure>=0.1.5. This means that a package version from PyPi would trump the local wheels. For this reason,
+        # use an extremely large version number to give the local wheel priority.
+        version = '99.99.post' + build_number
     else:
         default_random_version_number = floor(random() * 10_000_000_000)
         version = f'0.1.0.post{str(default_random_version_number)}'
@@ -86,8 +87,8 @@ setup(
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'himl-tb = health.azure.himl_tensorboard:main',
-            'himl-download = health.azure.himl_download:main'
+            'himl-tb = health_azure.himl_tensorboard:main',
+            'himl-download = health_azure.himl_download:main'
         ]
     }
 )

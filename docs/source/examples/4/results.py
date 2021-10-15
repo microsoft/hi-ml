@@ -4,8 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
-import health.azure.himl as himl
-from health.azure.datasets import get_datastore
+import health_azure.himl as himl
+from health_azure.datasets import get_datastore
 
 
 def main() -> None:

@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from sklearn import datasets
 
-from health.azure import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 
 
 def main() -> None:

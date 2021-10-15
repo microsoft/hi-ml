@@ -27,10 +27,10 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
-import health.azure.himl as himl
-from health.azure.azure_util import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
-                                     get_workspace, is_running_in_azure_ml)
-from health.azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
+import health_azure.himl as himl
+from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
+from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
+                                get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
@@ -38,7 +38,7 @@ INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 
-logger = logging.getLogger('test.health.azure')
+logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
 
 
@@ -79,7 +79,7 @@ def _is_running_in_github_pipeline() -> bool:
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.Run")
+@patch("health_azure.himl.Run")
 def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     # recovery file does not exist:
     mock_run.id = uuid4().hex
@@ -101,9 +101,9 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
 
 @pytest.mark.fast
 @patch("azureml.data.OutputFileDatasetConfig")
-@patch("health.azure.himl.DatasetConsumptionConfig")
-@patch("health.azure.himl.Workspace")
-@patch("health.azure.himl.DatasetConfig")
+@patch("health_azure.himl.DatasetConsumptionConfig")
+@patch("health_azure.himl.Workspace")
+@patch("health_azure.himl.DatasetConfig")
 def test_to_datasets(
         mock_dataset_config: mock.MagicMock,
         mock_workspace: mock.MagicMock,
@@ -119,11 +119,21 @@ def test_to_datasets(
     mock_output_file_dataset_config.name = "An Output File Dataset Config"
     mock_dataset_config.to_input_dataset = to_input_dataset
     mock_dataset_config.to_output_dataset = to_output_dataset
+    with pytest.raises(ValueError) as ex1:
+        himl.convert_himl_to_azureml_datasets(
+            cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
+            cleaned_output_datasets=[],
+            workspace=mock_workspace)
+        assert "already an input dataset with name" in str(ex1)
+    with pytest.raises(ValueError) as ex2:
+        himl.convert_himl_to_azureml_datasets(
+            cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
+            cleaned_output_datasets=[],
+            workspace=mock_workspace)
+        assert "already an output dataset with name" in str(ex2)
+
     cleaned_input_datasets = [mock_dataset_config]
-    # TODO: There's something wrong here. We feed 2 datasets in, but only get one out. When creating the dictionary,
-    # we should check if the names are unique. In practice, this is unlikely to happen because the names are
-    # INPUT_0, INPUT_1, etc
-    cleaned_output_datasets = [mock_dataset_config, mock_dataset_config]
+    cleaned_output_datasets = [mock_dataset_config]
     inputs, outputs = himl.convert_himl_to_azureml_datasets(
         cleaned_input_datasets=cleaned_input_datasets,
         cleaned_output_datasets=cleaned_output_datasets,
@@ -135,9 +145,9 @@ def test_to_datasets(
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.register_environment")
-@patch("health.azure.himl.create_python_environment")
-@patch("health.azure.himl.Workspace")
+@patch("health_azure.himl.register_environment")
+@patch("health_azure.himl.create_python_environment")
+@patch("health_azure.himl.Workspace")
 def test_create_run_configuration_fails(
         mock_workspace: mock.MagicMock,
         _: mock.MagicMock,
@@ -160,11 +170,11 @@ def test_create_run_configuration_fails(
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.DockerConfiguration")
-@patch("health.azure.datasets.DatasetConfig.to_output_dataset")
-@patch("health.azure.datasets.DatasetConfig.to_input_dataset")
-@patch("health.azure.himl.Environment.get")
-@patch("health.azure.himl.Workspace")
+@patch("health_azure.himl.DockerConfiguration")
+@patch("health_azure.datasets.DatasetConfig.to_output_dataset")
+@patch("health_azure.datasets.DatasetConfig.to_input_dataset")
+@patch("health_azure.himl.Environment.get")
+@patch("health_azure.himl.Workspace")
 def test_create_run_configuration(
         mock_workspace: mock.MagicMock,
         mock_environment_get: mock.MagicMock,
@@ -260,7 +270,7 @@ def test_get_script_params() -> None:
 
 
 @pytest.mark.fast
-@patch("health.azure.azure_util.is_running_in_azure_ml")
+@patch("health_azure.utils.is_running_in_azure_ml")
 def test_get_workspace_no_config(
         mock_is_running_in_azure: mock.MagicMock,
         tmp_path: Path) -> None:
@@ -277,10 +287,10 @@ def test_get_workspace_no_config(
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.Run")
-@patch("health.azure.himl.Workspace")
-@patch("health.azure.himl._generate_azure_datasets")
-@patch("health.azure.himl.RUN_CONTEXT")
+@patch("health_azure.himl.Run")
+@patch("health_azure.himl.Workspace")
+@patch("health_azure.himl._generate_azure_datasets")
+@patch("health_azure.himl.RUN_CONTEXT")
 def test_submit_to_azure_if_needed_azure_return(
         mock_run_context: mock.MagicMock,
         mock_generate_azure_datasets: mock.MagicMock,
@@ -293,8 +303,8 @@ def test_submit_to_azure_if_needed_azure_return(
     # The presence of the "experiment" flag is the trigger to recognize an AzureML run.
     mock_run_context.experiment = mock.MagicMock(workspace=mock_workspace)
     # This import needs to be local, after mocking the RUN_CONTEXT
-    import health
-    assert is_running_in_azure_ml(health.azure.himl.RUN_CONTEXT)
+    import health_azure
+    assert is_running_in_azure_ml(health_azure.himl.RUN_CONTEXT)
     expected_run_info = himl.AzureRunInfo(
         run=mock_run,
         input_datasets=[],
@@ -313,8 +323,8 @@ def test_submit_to_azure_if_needed_azure_return(
 
 
 @pytest.mark.fast
-@patch("health.azure.himl.DatasetConfig")
-@patch("health.azure.himl.RUN_CONTEXT")
+@patch("health_azure.himl.DatasetConfig")
+@patch("health_azure.himl.RUN_CONTEXT")
 def test_generate_azure_datasets(
         mock_run_context: mock.MagicMock,
         mock_dataset_config: mock.MagicMock) -> None:
@@ -392,9 +402,9 @@ class TestTagOption(Enum):
 @pytest.mark.parametrize("wait_for_completion", [True, False])
 @pytest.mark.parametrize("set_tags", [
     TestTagOption.TAGS, TestTagOption.NO_TAGS, TestTagOption.ARGS, TestTagOption.HYPER])
-@patch("health.azure.himl.Run")
-@patch("health.azure.himl.Experiment")
-@patch("health.azure.himl.Workspace")
+@patch("health_azure.himl.Run")
+@patch("health_azure.himl.Experiment")
+@patch("health_azure.himl.Workspace")
 def test_submit_run(mock_workspace: mock.MagicMock,
                     mock_experiment: mock.MagicMock,
                     mock_run: mock.MagicMock,
@@ -511,7 +521,7 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
 
 def render_and_run_test_script(path: Path,
                                run_target: RunTarget,
-                               extra_options: Dict[str, str],
+                               extra_options: Dict[str, Union[str, List[str]]],
                                extra_args: List[str],
                                expected_pass: bool,
                                suppress_config_creation: bool = False) -> str:
@@ -560,7 +570,7 @@ def render_and_run_test_script(path: Path,
         # No packages found, so copy the src folder as a fallback
         src_path = repository_root() / "hi-ml-azure" / "src"
         if src_path.is_dir():
-            shutil.copytree(src=src_path / 'health', dst=path / 'health')
+            shutil.copytree(src=src_path / 'health_azure', dst=path / 'health_azure')
             run_requirements = True
             print("Copied 'src' folder.")
 
@@ -678,7 +688,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     assert expected_output in output
 
 
-@patch("health.azure.himl.submit_to_azure_if_needed")
+@patch("health_azure.himl.submit_to_azure_if_needed")
 def test_calling_script_directly(mock_submit_to_azure_if_needed: mock.MagicMock) -> None:
     with mock.patch("sys.argv", ["",
                                  "--workspace_config_file", "1",

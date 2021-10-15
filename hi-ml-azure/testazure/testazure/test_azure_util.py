@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 """
-Tests for the functions in health.azure.azure_util
+Tests for the functions in health_azure.azure_util
 """
 import logging
 import os
@@ -26,9 +26,9 @@ from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
-import health.azure.azure_util as util
-from health.azure import himl
-from health.azure.himl import AML_IGNORE_FILE, append_to_amlignore
+import health_azure.utils as util
+from health_azure import himl
+from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root
 
@@ -74,7 +74,7 @@ def test_is_running_in_azureml() -> None:
     assert not util.is_running_in_azure_ml(util.RUN_CONTEXT)
     # When in AzureML, the Run has a field "experiment"
     mock_workspace = "foo"
-    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+    with patch("health_azure.utils.RUN_CONTEXT") as mock_run_context:
         mock_run_context.experiment = MagicMock(workspace=mock_workspace)
         # We can't try that with the default argument because of Python's handling of mutable default arguments
         # (default argument value has been assigned already before mocking)
@@ -82,16 +82,16 @@ def test_is_running_in_azureml() -> None:
 
 
 @pytest.mark.fast
-@patch("health.azure.azure_util.Workspace.from_config")
-@patch("health.azure.azure_util.get_authentication")
-@patch("health.azure.azure_util.Workspace")
+@patch("health_azure.utils.Workspace.from_config")
+@patch("health_azure.utils.get_authentication")
+@patch("health_azure.utils.Workspace")
 def test_get_workspace(
         mock_workspace: mock.MagicMock,
         mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock,
         tmp_path: Path) -> None:
     # Test the case when running on AML
-    with patch("health.azure.azure_util.RUN_CONTEXT") as mock_run_context:
+    with patch("health_azure.utils.RUN_CONTEXT") as mock_run_context:
         mock_run_context.experiment = MagicMock(workspace=mock_workspace)
         workspace = util.get_workspace(None, None)
         assert workspace == mock_workspace
@@ -118,7 +118,7 @@ def test_get_workspace(
     assert "Workspace config file does not exist" in str(ex)
 
 
-@patch("health.azure.azure_util.Run")
+@patch("health_azure.utils.Run")
 def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     """
     The recovery id created for a run
@@ -129,18 +129,17 @@ def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
 
 
-@patch("health.azure.azure_util.Workspace")
-@patch("health.azure.azure_util.Experiment")
-@patch("health.azure.azure_util.Run")
+@patch("health_azure.utils.Workspace")
+@patch("health_azure.utils.Experiment")
+@patch("health_azure.utils.Run")
 def test_fetch_run(mock_run: MagicMock, mock_experiment: MagicMock, mock_workspace: MagicMock) -> None:
     mock_run.id = RUN_ID
     mock_run.experiment = mock_experiment
     mock_experiment.name = EXPERIMENT_NAME
     recovery_id = EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
     mock_run.number = RUN_NUMBER
-    with mock.patch("health.azure.azure_util.get_run", return_value=mock_run):
+    with mock.patch("health_azure.utils.get_run", return_value=mock_run):
         run_to_recover = util.fetch_run(mock_workspace, recovery_id)
-        # TODO: should we assert that the correct string is logged?
         assert run_to_recover.number == RUN_NUMBER
     mock_experiment.side_effect = oh_no
     with pytest.raises(Exception) as e:
@@ -148,9 +147,9 @@ def test_fetch_run(mock_run: MagicMock, mock_experiment: MagicMock, mock_workspa
     assert str(e.value).startswith(f"Unable to retrieve run {RUN_ID}")
 
 
-@patch("health.azure.azure_util.Run")
-@patch("health.azure.azure_util.Experiment")
-@patch("health.azure.azure_util.get_run")
+@patch("health_azure.utils.Run")
+@patch("health_azure.utils.Experiment")
+@patch("health_azure.utils.get_run")
 def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock, mock_run: MagicMock) -> None:
     get_run.side_effect = oh_no
     mock_run.id = RUN_ID
@@ -162,7 +161,7 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
     assert str(e.value) == exp
 
 
-@patch("health.azure.azure_util.InteractiveLoginAuthentication")
+@patch("health_azure.utils.InteractiveLoginAuthentication")
 def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
     with mock.patch.dict(os.environ, {}, clear=True):
         util.get_authentication()
@@ -319,26 +318,26 @@ dependencies:
     def raise_a_merge_error() -> None:
         raise conda_merge.MergeError("raising an exception")
 
-    with mock.patch("health.azure.azure_util.conda_merge.merge_channels") as mock_merge_channels:
+    with mock.patch("health_azure.utils.conda_merge.merge_channels") as mock_merge_channels:
         mock_merge_channels.side_effect = lambda _: raise_a_merge_error()
         with pytest.raises(conda_merge.MergeError):
             util.merge_conda_files(files, merged_file)
     assert "Failed to merge channel priorities" in caplog.text  # type: ignore
 
     # If there are no channels do not produce any merge of them
-    with mock.patch("health.azure.azure_util.conda_merge.merge_channels") as mock_merge_channels:
+    with mock.patch("health_azure.utils.conda_merge.merge_channels") as mock_merge_channels:
         mock_merge_channels.return_value = []
         util.merge_conda_files(files, merged_file)
         assert "channels:" not in merged_file.read_text()
 
-    with mock.patch("health.azure.azure_util.conda_merge.merge_dependencies") as mock_merge_dependencies:
+    with mock.patch("health_azure.utils.conda_merge.merge_dependencies") as mock_merge_dependencies:
         mock_merge_dependencies.side_effect = lambda _: raise_a_merge_error()
         with pytest.raises(conda_merge.MergeError):
             util.merge_conda_files(files, merged_file)
     assert "Failed to merge dependencies" in caplog.text  # type: ignore
 
     # If there are no dependencies then something is wrong with the conda files or our parsing of them
-    with mock.patch("health.azure.azure_util.conda_merge.merge_dependencies") as mock_merge_dependencies:
+    with mock.patch("health_azure.utils.conda_merge.merge_dependencies") as mock_merge_dependencies:
         mock_merge_dependencies.return_value = []
         with pytest.raises(ValueError) as e:
             util.merge_conda_files(files, merged_file)
@@ -388,7 +387,7 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
     os.chdir(cwd)
 
 
-@patch("health.azure.azure_util.Workspace")
+@patch("health_azure.utils.Workspace")
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
@@ -432,7 +431,7 @@ dependencies:
     assert env.docker.base_image == docker_base_image
 
     private_pip_wheel_url = "https://some.blob/private/wheel"
-    with mock.patch("health.azure.azure_util.Environment") as mock_environment:
+    with mock.patch("health_azure.utils.Environment") as mock_environment:
         mock_environment.add_private_pip_wheel.return_value = private_pip_wheel_url
         env = util.create_python_environment(
             conda_environment_file=conda_environment_file,
@@ -451,8 +450,8 @@ dependencies:
     assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
 
 
-@patch("health.azure.azure_util.Environment")
-@patch("health.azure.azure_util.Workspace")
+@patch("health_azure.utils.Environment")
+@patch("health_azure.utils.Workspace")
 def test_register_environment(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
@@ -656,7 +655,7 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 
     mock_run = MockRun(run_id="id123")
     with mock.patch.dict(os.environ, dummy_env_vars):
-        with patch("health.azure.azure_util.get_run_file_names") as mock_get_run_paths:
+        with patch("health_azure.utils.get_run_file_names") as mock_get_run_paths:
             mock_get_run_paths.return_value = dummy_paths  # type: ignore
             mock_run.download_file = MagicMock()  # type: ignore
             mock_run.download_file.side_effect = _mock_download_file
@@ -762,7 +761,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     extra_options = {
         "imports": """
 from azureml.core import Run
-from health.azure.azure_util import _download_files_from_run""",
+from health_azure.utils import _download_files_from_run""",
         "args": """
     parser.add_argument("--output_path", type=str, required=True)
         """,
@@ -1045,18 +1044,16 @@ class ParamEnum(Enum):
 
 
 class IllegalCustomTypeNoFromString(param.Parameter):
-    def _validate(self, val):
+    def _validate(self, val: Any) -> None:
         super()._validate(val)
 
 
 class IllegalCustomTypeNoValidate(util.CustomTypeParam):
-    def from_string(self, x: str):
+    def from_string(self, x: str) -> Any:
         return x
 
 
 class ParamClass(util.GenericConfig):
-
-
     name: str = param.String(None, doc="Name")
     seed: int = param.Integer(42, doc="Seed")
     flag: bool = param.Boolean(False, doc="Flag")
@@ -1143,7 +1140,8 @@ def check_parsing_succeeds(arg: List[str], expected_key: str, expected_value: An
     assert getattr(parsed, expected_key) == expected_value
 
 
-def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expected_value: Optional[Any] = None) -> None:
+def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expected_value: Optional[Any] = None
+                        ) -> None:
     with pytest.raises(SystemExit) as e:
         ParamClass.parse_args(arg)
     assert e.type == SystemExit
@@ -1191,7 +1189,7 @@ def test_create_parser(args: List[str], expected_key: str, expected_value: Any, 
     ('on', True), ('t', True), ('true', True), ('y', True), ('yes', True), ('1', True),
     ('off', False), ('f', False), ('false', False), ('n', False), ('no', False), ('0', False)
 ])
-def test_parsing_bools(flag: str, expected_value: bool):
+def test_parsing_bools(flag: str, expected_value: bool) -> None:
     """
     Check all the ways of passing in True and False, with and without the first letter capitialized
     """
@@ -1238,7 +1236,7 @@ def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: Mag
 
 
 @patch("health.azure.azure_util.logging.warning")
-def test_report_on_overrides():
+def test_report_on_overrides() -> None:
     m = ParamClass()
     overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
     m.report_on_overrides(values=overrides)
@@ -1284,13 +1282,13 @@ def test_create_from_matching_params() -> None:
     assert "NotParameterized" in str(ex)
 
 
-def test_parse_illegal_params():
+def test_parse_illegal_params() -> None:
     with pytest.raises(ValueError) as e:
         ParamClass(readonly="abc")
         assert "cannot be overridden" in e.message
 
 
-def test_parse_throw_if_unknown():
+def test_parse_throw_if_unknown() -> None:
     with pytest.raises(ValueError) as e:
         ParamClass(throw_if_unknown_param=True, idontexist="hello")
         assert "parameters do not exist" in e.message
@@ -1298,12 +1296,13 @@ def test_parse_throw_if_unknown():
 
 @pytest.mark.parametrize("should_validate, expected_call_count", [(None, 0), (False, 0), (True, 1)])
 @patch("health.azure.azure_util.GenericConfig.validate")
-def test_config_validate(mock_validate: MagicMock, should_validate: Optional[bool], expected_call_count: int):
+def test_config_validate(mock_validate: MagicMock, should_validate: Optional[bool], expected_call_count: int
+                        ) -> None:
     _ = ParamClass(should_validate=should_validate)
     assert mock_validate.call_count == expected_call_count
 
 
-def test_config_add_and_validate():
+def test_config_add_and_validate() -> None:
     config = ParamClass.parse_args([])
     assert config.name == "ParamClass"
     config.add_and_validate({"name": "foo"})
@@ -1332,7 +1331,7 @@ class IllegalParamClassNoString(util.GenericConfig):
     )
 
 
-def test_cant_parse_param_type():
+def test_cant_parse_param_type() -> None:
     """
     Assert that a TypeError is raised when trying to add a custom type with no from_string method as an argument
     """

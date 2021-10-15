@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import List
 from unittest import mock
 
-from health.azure import himl_tensorboard, himl
-from health.azure import azure_util as util
-from health.azure.himl_tensorboard import WrappedTensorboard
+from health_azure import himl_tensorboard, himl
+from health_azure import utils as azure_util
+from health_azure.himl_tensorboard import WrappedTensorboard
 from testazure.test_himl import render_and_run_test_script, RunTarget
 from testazure.util import DEFAULT_WORKSPACE
 
@@ -67,7 +67,7 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
         "conda_channels": ["pytorch"],
         "conda_dependencies": ["pytorch=1.4.0"],
         "imports": """
-from health.azure.azure_util import is_running_in_azure_ml
+from health_azure.utils import is_running_in_azure_ml
 """,
 
         "body": """
@@ -99,8 +99,8 @@ from health.azure.azure_util import is_running_in_azure_ml
     extra_args: List[str] = []
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
 
-    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                   workspace=ws)
+    run = azure_util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                         workspace=ws)
     run.wait_for_completion()
 
     log_dir = "outputs"

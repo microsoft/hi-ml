@@ -14,7 +14,7 @@ from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml._restclient.exceptions import ServiceException
-from health.azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
+from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
 from testazure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
 
@@ -144,7 +144,7 @@ def test_get_dataset() -> None:
         try:
             existing_dataset.unregister_all_versions()
         except ServiceException:
-            # TODO Sometimes unregister_all_versions() raises a ServiceException.
+            # Sometimes unregister_all_versions() raises a ServiceException.
             pass
     except Exception as ex:
         assert "Cannot find dataset registered" in str(ex)
@@ -158,7 +158,7 @@ def test_get_dataset() -> None:
         # Delete the dataset again
         dataset2.unregister_all_versions()
     except (ServiceException, UserErrorException):
-        # TODO Sometimes unregister_all_versions() raises a ServiceException or a UserErrorException.
+        # Sometimes unregister_all_versions() raises a ServiceException or a UserErrorException.
         pass
 
 

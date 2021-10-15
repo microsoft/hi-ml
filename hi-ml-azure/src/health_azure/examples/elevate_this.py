@@ -10,12 +10,12 @@ Invoke like this:
 or:
     python elevate_this.py --message='Hello World' --azureml
 
-N.B. The --azureml flag mus match the constant AZUREML_COMMANDLINE_FLAG in health.azure.himl
+N.B. The --azureml flag mus match the constant AZUREML_COMMANDLINE_FLAG in health_azure.himl
 """
 from argparse import ArgumentParser
 from pathlib import Path
 
-from health.azure.himl import submit_to_azure_if_needed
+from health_azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:

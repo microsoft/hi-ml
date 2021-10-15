@@ -16,7 +16,7 @@ The `hi-ml` toolbox provides
 
 .. toctree::
    :maxdepth: 1
-   :caption: Overview
+   :caption: Working with Azure
 
    first_steps.md
    authentication.md
@@ -25,6 +25,12 @@ The `hi-ml` toolbox provides
    commandline_tools.md
    downloading.md
    examples.md
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Machine Learning
+
+   logging.md
 
 .. toctree::
    :maxdepth: 1

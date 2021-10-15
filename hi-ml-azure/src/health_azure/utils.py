@@ -377,7 +377,7 @@ class ListOrDictParam(CustomTypeParam):
         elif isinstance(res, List):
             return res
         else:
-            raise ValueError(f"Parameter should resolve to List or Dict")
+            raise ValueError("Parameter should resolve to List or Dict")
 
 
 class RunIdOrListParam(CustomTypeParam):

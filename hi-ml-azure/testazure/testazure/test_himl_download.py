@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import subprocess
 
-from health.azure import himl_download
+from health_azure import himl_download
 
 DOWNLOAD_SCRIPT_PATH = himl_download.__file__
 
