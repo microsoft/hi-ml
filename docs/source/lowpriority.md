@@ -1,8 +1,8 @@
 # Using Cheap Low Priority VMs
 
 By using Low Priority machines in AzureML, we can run training at greatly reduced costs (around 20% of the original
-price). This comes with the risk, though, of having the job interrupted and later re-started. This document describes
-the inner workings of Low Priority compute, and how to best make use of it.
+price, see references below for details). This comes with the risk, though, of having the job interrupted and later
+re-started. This document describes the inner workings of Low Priority compute, and how to best make use of it.
 
 Because the jobs can get interrupted, low priority machines are not suitable for production workload where time is
 critical. They do offer a lot of benefits though for long-running training jobs, that would otherwise be expensive to
@@ -26,17 +26,22 @@ One of the setting to tweak when creating the compute cluster is whether the mac
   else.
 
 In order to get a compute cluster that operates at the lowest price point, choose
+
 * Low priority machines
 * Set "Minimum number of nodes" to 0, so that the cluster removes all idle machines if no jobs are running.
+
+For details on pricing, check
+[this Azure price calculator](https://azure.microsoft.com/en-us/pricing/details/virtual-machine-scale-sets/linux/),
+choose "Category: GPU". The price for low priority VMs is given in the "Spot" column
 
 ## Behaviour of Low Priority VMs
 
 Jobs can be interrupted at any point, this is called "low priority preemption". When interrupted, the job stops - there
 is no signal that we can make use of to do cleanup or something. All the files that the job has produced up to that
-point will be saved to the cloud.
+point in the `outputs` and `logs` folders will be saved to the cloud.
 
 At some later point, the job will be assigned a virtual machine again. When re-started, all the files that the job had
-produced in its previous run will be available on disk.
+produced in its previous run will be available on disk again where they were before interruption.
 
 Note that all AzureML-internal log files that the job produced in a previous run will be overwritten (this behaviour may
 change in the future). The metrics that were written to AzureML (via `Run.log`, for example) will be available when the
@@ -64,7 +69,7 @@ uploading huge checkpoint files to Azure. When trying to upload again after rest
 
 When using PyTorch Lightning, you can add a checkpoint callback to your trainer, that ensures that you save the model
 and optimizer to disk in regular intervals. This callback needs to be added to your `Trainer` object. Note that these
-recovery checkpoints need to be written to the "outputs" folder, because only files in this folder get saved to Azure
+recovery checkpoints need to be written to the `outputs` folder, because only files in this folder get saved to Azure
 automatically when the job gets interrupted.
 
 When starting training, your code needs to check if there is already a recovery checkpoint present on disk. If so,
@@ -118,3 +123,16 @@ trainer = Trainer(default_root_dir="outputs",
                   logger=[AzureMLLogger()],
                   resume_from_checkpoint=get_latest_recovery_checkpoint())
 ```
+
+## Additional Optimizers and Other State
+
+In order to be resilient to interruption, your jobs need to save all their state to disk. In PyTorch Lightning training,
+this would include all optimizers that you are using. The "normal" optimizer for model training is saved to the
+checkpoint by Lightning already. However, you may be using callbacks or other components that maintain state. As an
+example, training a linear head for self-supervised learning can be done in a callback, and that callback can have its
+own optimizer. Such callbacks need to correctly implement the `on_save_checkpoint` method to save their state to the
+checkpoint, and `on_load_checkpoint` to load it back in.
+
+For more information about persisting state, check
+the [PyTorch Lightning documentation](https://pytorch-lightning.readthedocs.io/en/latest/extensions/callbacks.html?highlight=callback#persisting-state).
+
