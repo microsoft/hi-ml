@@ -1104,9 +1104,8 @@ class AmlRunScriptConfig(GenericConfig):
     latest_run_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
                                                 doc="Optional path to most_recent_run.txt where the ID of the"
                                                     "latest run is stored")
-    experiment_name: str = param.String(default=None, allow_None=True,
-                                        doc="The name of the AML Experiment that you wish to "
-                                            "download Run files from")
+    experiment: str = param.String(default=None, allow_None=True,
+                                   doc="The name of the AML Experiment that you wish to download Run files from")
     num_runs: int = param.Integer(default=1, allow_None=True, doc="The number of runs to download from the "
                                                                   "named experiment")
     config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
@@ -1120,13 +1119,13 @@ class AmlRunScriptConfig(GenericConfig):
 
 def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: Workspace) -> List[Run]:
     if script_config.run is None:
-        if script_config.experiment_name is None:
+        if script_config.experiment is None:
             # default to latest run file
             latest_run_file = _find_file("most_recent_run.txt")
             runs = [get_most_recent_run(latest_run_file, workspace)]
         else:
             # get latest runs from experiment
-            runs = get_latest_aml_runs_from_experiment(script_config.experiment_name, tags=script_config.tags,
+            runs = get_latest_aml_runs_from_experiment(script_config.experiment, tags=script_config.tags,
                                                        num_runs=script_config.num_runs, aml_workspace=workspace)
     else:
         run_ids: List[Union[RunId, RunRecoveryId]]

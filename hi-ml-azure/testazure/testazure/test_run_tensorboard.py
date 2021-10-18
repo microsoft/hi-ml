@@ -7,7 +7,7 @@ import subprocess
 
 from pathlib import Path
 from typing import List
-from unittest import mock
+from unittest.mock import MagicMock, patch
 
 from health_azure import himl_tensorboard, himl
 from health_azure import utils as azure_util
@@ -40,7 +40,7 @@ def test_run_tensorboard_no_runs(tmp_path: Path) -> None:
 
 
 def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
-    mock_run = mock.MagicMock()
+    mock_run = MagicMock()
     mock_run.id = "id123"
     local_root = Path("test_data") / "dummy_summarywriter_logs"
     remote_root = tmp_path / "tensorboard_logs"
@@ -52,9 +52,19 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     ts.stop()
 
 
+def test_tb_proc_already_exists(tmp_path: Path) -> None:
+    mock_run = MagicMock()
+    mock_run.id = "id123"
+    local_root = Path("test_data") / "dummy_summarywriter_logs"
+    remote_root = tmp_path / "tensorboard_logs"
+    with patch.object(himl_tensorboard.Tensorboard, "_tb_proc", new="something"):
+        ts = WrappedTensorboard(remote_root=str(remote_root), local_root=str(local_root), runs=[mock_run])
+    assert ts is None
+
+
 def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     """
-    This test will create a new run under an experiment named "test_script" in your default Workspace.
+    This test will create a new run under an experiment named "test_script" in yo: ur default Workspace.
     The run will create some dummy TensorBoard-compatible logs. The run is then passed to the
     WrappedTensorboard class to ensure that it works as expected.
     If running for the first time it may take a while longer since it will install PyTorch in the

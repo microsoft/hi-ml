@@ -24,7 +24,11 @@ def main() -> None:  # pragma: no cover
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 
-    runs = download_config.run if isinstance(download_config.run, list) else [download_config.run]
+    if download_config.run is not None:
+        runs = download_config.run if isinstance(download_config.run, list) else [download_config.run]
+    elif download_config.experiment is not None:
+        r
+
     for run in runs:
         output_folder = output_dir / run.id
 
