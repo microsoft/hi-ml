@@ -4,12 +4,7 @@
     "hi-ml",
     "hi-ml-azure"
   ],
-
-  "exclude": [
-    ".**"
-  ],
   "useLibraryCodeForTypes ": true,
-
   "reportMissingImports": true,
   "reportMissingTypeStubs": false
 }
