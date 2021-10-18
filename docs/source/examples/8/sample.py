@@ -52,8 +52,8 @@ def main() -> None:
                         help='Penalty parameter of the error term')
 
     args = parser.parse_args()
-    run.log('Kernel type', np.str0(args.kernel))
-    run.log('Penalty', np.float32(args.penalty))
+    run.log(f'Kernel type{args.kernel}')
+    run.log(f'Penalty {args.penalty}')
 
     # X -> features, y -> label
     input_folder = run_info.input_datasets[0] or Path("inputs")
