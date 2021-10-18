@@ -18,6 +18,9 @@ created.
 
 ### Fixed
 
+- ([#133](https://github.com/microsoft/hi-ml/pull/134)) Fixed repo references and added pyright to enforce global checking
+
+
 ### Removed
 
 ### Deprecated
