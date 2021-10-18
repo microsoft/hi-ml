@@ -60,7 +60,7 @@ call_pyright:
 	npm install -g pyright
 
 # pip install test requirements and run pyright
-pyright: conda pip call_pyright
+pyright: pip call_pyright
 
 # run basic checks
 call_check: call_flake8 call_mypy
