@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, Mapping, Optional
 import torch
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from health_azure import is_running_in_azure_ml
 from health_azure.utils import RUN_CONTEXT
@@ -78,7 +78,7 @@ def log_on_epoch(module: LightningModule,
     assert module.trainer is not None, "No trainer is set for this module."
     if operator.xor(name is None, value is None):
         raise ValueError("Both or neither of 'name' and 'value' must be provided.")
-    sync_dist = module.trainer.world_size > 1 if sync_dist is None else sync_dist
+    is_sync_dist = module.trainer.world_size > 1 if sync_dist is None else sync_dist
     metrics = metrics or {}
     if name is not None:
         metrics[name] = value  # type: ignore
@@ -91,7 +91,7 @@ def log_on_epoch(module: LightningModule,
     module.log_dict(metrics_as_tensors,
                     on_epoch=True,
                     on_step=False,
-                    sync_dist=sync_dist,
+                    sync_dist=is_sync_dist,
                     reduce_fx=reduce_fx,
                     sync_dist_op=sync_dist_op)
 

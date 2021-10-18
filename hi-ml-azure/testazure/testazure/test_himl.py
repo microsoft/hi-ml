@@ -132,8 +132,8 @@ def test_to_datasets(
             workspace=mock_workspace)
         assert "already an output dataset with name" in str(ex2)
 
-    cleaned_input_datasets = [mock_dataset_config]
-    cleaned_output_datasets = [mock_dataset_config]
+    cleaned_input_datasets: List[DatasetConfig] = [mock_dataset_config]
+    cleaned_output_datasets: List[DatasetConfig] = [mock_dataset_config]
     inputs, outputs = himl.convert_himl_to_azureml_datasets(
         cleaned_input_datasets=cleaned_input_datasets,
         cleaned_output_datasets=cleaned_output_datasets,
@@ -302,9 +302,7 @@ def test_submit_to_azure_if_needed_azure_return(
     """
     # The presence of the "experiment" flag is the trigger to recognize an AzureML run.
     mock_run_context.experiment = mock.MagicMock(workspace=mock_workspace)
-    # This import needs to be local, after mocking the RUN_CONTEXT
-    import health_azure
-    assert is_running_in_azure_ml(health_azure.himl.RUN_CONTEXT)
+    assert is_running_in_azure_ml(himl.RUN_CONTEXT)
     expected_run_info = himl.AzureRunInfo(
         run=mock_run,
         input_datasets=[],

@@ -53,6 +53,22 @@ jobs:
 
       - name: mypy
         run: make mypy
+  pyright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: InnerEye
+          auto-activate-base: false
+          environment-file: environment.yml
+      - name: pyright
+        run: make pyright
 
   pytest_fast:
     runs-on: ubuntu-latest

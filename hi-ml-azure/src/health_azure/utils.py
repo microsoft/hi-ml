@@ -464,8 +464,10 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     :param run_recovery_file: The path of the run recovery file
     :return: The run id
     """
-    assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous \
-                                         training run"
+    assert (
+        run_recovery_file.is_file()
+        ), "When running in cloud builds, this should pick up the ID of a previous training run"
+
     run_id = run_recovery_file.read_text().strip()
     logging.info(f"Read this run ID from file: {run_id}.")
     return run_id
@@ -924,9 +926,9 @@ def torch_barrier() -> None:
     immediately.
     """
     try:
-        import torch
+        from torch import distributed
     except ModuleNotFoundError:
         logging.info("Skipping the barrier because PyTorch is not available.")
         return
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-        torch.distributed.barrier()
+    if distributed.is_available() and distributed.is_initialized():
+        distributed.barrier()
