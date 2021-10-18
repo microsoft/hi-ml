@@ -62,11 +62,11 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+      - uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: ${{ env.pythonVersion }}
-
+          activate-environment: InnerEye
+          auto-activate-base: false
+          environment-file: environment.yml
       - name: pyright
         run: make pyright
 
