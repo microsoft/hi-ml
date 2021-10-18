@@ -924,9 +924,9 @@ def torch_barrier() -> None:
     immediately.
     """
     try:
-        import torch
+        import torch.distributed as distributed
     except ModuleNotFoundError:
         logging.info("Skipping the barrier because PyTorch is not available.")
         return
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-        torch.distributed.barrier()
+    if distributed.is_available() and distributed.is_initialized():
+        distributed.barrier()
