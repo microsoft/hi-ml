@@ -71,7 +71,7 @@ def main() -> None:
     # model accuracy for X_test
     accuracy = svm_model_linear.score(X_test, y_test)
     print('Accuracy of SVM classifier on test set: {:.2f}'.format(accuracy))
-    run.log('Accuracy', np.float32(accuracy))
+    run.log(f'Accuracy {accuracy}')
     # creating a confusion matrix
     cm = confusion_matrix(y_test, svm_predictions)
     print(cm)
