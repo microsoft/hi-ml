@@ -572,16 +572,19 @@ def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
             assert aml_run.id == mock_run_id
 
     # if path doesn't exist, expect error
-    with pytest.raises(Exception):
+    with pytest.raises(AssertionError) as ex:
         mock_args = parser.parse_args(["--latest_run_file", "idontexist"])
         with mock.patch("health_azure.utils.Workspace") as mock_workspace:
             util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
+    expected_str = "When running in cloud builds, this should pick up the ID of a previous training run"
+    assert str(ex.value) == expected_str
 
     # if arg not provided, expect error
-    with pytest.raises(Exception):
+    with pytest.raises(AssertionError) as assertionException:
         mock_args = parser.parse_args(["--latest_run_file", None])  # type: ignore
         with mock.patch("health_azure.utils.Workspace") as mock_workspace:
             util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
+    assert str(assertionException.value) == expected_str
 
 
 def test_get_latest_aml_runs_from_experiment() -> None:
