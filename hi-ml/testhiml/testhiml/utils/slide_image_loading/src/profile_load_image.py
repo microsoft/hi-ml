@@ -75,10 +75,10 @@ def profile_folder(mount_path: Path,
 
 
 def main() -> None:
-    print(cucim.is_available())
-    print(cucim.is_available("skimage"))
-    print(cucim.is_available("core"))
-    print(cucim.is_available("clara"))
+    print(f"cucim.is_available(): {cucim.is_available()}")
+    print(f"cucim.is_available('skimage'): {cucim.is_available('skimage')}")
+    print(f"cucim.is_available('core'): {cucim.is_available('core')}")
+    print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
 
     run_context = Run.get_context()
     if hasattr(run_context, 'experiment'):
@@ -103,18 +103,18 @@ def main() -> None:
                        output_folder,
                        "train_label_masks")
 
-        #root_output_dir = output_folder / "tiles"
-        #root_output_dir.mkdir(exist_ok=True)
+        root_output_dir = output_folder / "tiles"
+        root_output_dir.mkdir(exist_ok=True)
 
-        #from preprocessing.create_tiles_dataset import main
-        #main(panda_dir="/tmp/datasets/PANDA",
-        #    root_output_dir=root_output_dir,
-        #    level=1,
-        #    tile_size=224,
-        #    margin=64,
-        #    occupancy_threshold=0.05,
-        #    parallel=False,
-        #    overwrite=True)
+        from Histopathology.preprocessing.create_tiles_dataset import main
+        main(panda_dir="/tmp/datasets/panda",
+             root_output_dir=root_output_dir,
+             level=1,
+             tile_size=224,
+             margin=64,
+             occupancy_threshold=0.05,
+             parallel=False,
+             overwrite=True)
 
 
 if __name__ == '__main__':
