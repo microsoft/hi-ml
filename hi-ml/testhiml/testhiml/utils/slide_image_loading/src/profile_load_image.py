@@ -1,20 +1,23 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from pathlib import Path
 import os
 
 import cucim
 import numpy as np
-from cucim import CuImage
 from openslide import OpenSlide
-from pathlib import Path
 from PIL import Image
 
-from azureml.core import Dataset, Datastore, Run, Workspace
+from azureml.core import Dataset, Run, Workspace
 
 
-# @profile
+@profile
 def profile_cucim(input_file: Path,
                   output_file: Path) -> None:
-    img = CuImage(str(input_file))
+    img = cucim.CuImage(str(input_file))
 
     count = img.resolutions['level_count']
     dimensions = img.resolutions['level_dimensions']
@@ -24,7 +27,7 @@ def profile_cucim(input_file: Path,
 
     print(img.metadata)
 
-    region = img.read_region(location=(0,0),
+    region = img.read_region(location=(0, 0),
                              size=dimensions[count-1],
                              level=count-1)
     np_img_arr = np.asarray(region)
@@ -32,7 +35,7 @@ def profile_cucim(input_file: Path,
     img2.save(output_file)
 
 
-# @profile
+@profile
 def profile_openslide(input_file: Path,
                       output_file: Path) -> None:
     with OpenSlide(str(input_file)) as img:
@@ -45,12 +48,13 @@ def profile_openslide(input_file: Path,
         for k, v in img.properties.items():
             print(k, v)
 
-        region = img.read_region(location=(0,0),
+        region = img.read_region(location=(0, 0),
                                  level=count-1,
                                  size=dimensions[count-1])
         region.save(output_file)
 
 
+@profile
 def profile_folder(mount_path: Path,
                    output_folder: Path,
                    subfolder: str) -> None:
@@ -70,7 +74,7 @@ def profile_folder(mount_path: Path,
         profile_openslide(image_file, openslide_output_folder / output_filename)
 
 
-if __name__ == '__main__':
+def main() -> None:
     print(cucim.is_available())
     print(cucim.is_available("skimage"))
     print(cucim.is_available("core"))
@@ -111,3 +115,7 @@ if __name__ == '__main__':
         #    occupancy_threshold=0.05,
         #    parallel=False,
         #    overwrite=True)
+
+
+if __name__ == '__main__':
+    main()

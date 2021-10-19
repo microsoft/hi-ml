@@ -13,8 +13,8 @@ from monai.data import Dataset
 from monai.data.image_reader import WSIReader
 from tqdm import tqdm
 
-from preprocessing import tiling
-from preprocessing.panda_dataset import PandaDataset, LoadPandaROId
+from Histopathology.preprocessing import tiling
+from Histopathology.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
 CSV_COLUMNS = ['slide_id', 'tile_id', 'image', 'mask', 'tile_x', 'tile_y', 'occupancy',
@@ -213,8 +213,7 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
 
 if __name__ == '__main__':
     main(panda_dir="/tmp/datasets/PANDA",
-         # root_output_dir="/datadrive",
-         root_output_dir=Path("output") / "datadrive",
+         root_output_dir="/datadrive",
          level=1,
          tile_size=224,
          margin=64,
