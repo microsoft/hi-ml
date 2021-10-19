@@ -4,12 +4,16 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
+import math
 import numbers
 import operator
+import sys
+import time
 from typing import Any, Callable, Dict, Mapping, Optional
 
 import torch
-from pytorch_lightning import LightningModule
+from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning.callbacks import ProgressBarBase
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.distributed import rank_zero_only
 
@@ -29,14 +33,36 @@ class AzureMLLogger(LightningLoggerBase):
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+        """
+        Writes the given metrics dictionary to the AzureML run context. If the metrics dictionary has an `epoch` key,
+        the `step` value (x-axis for plots) is left empty. If there is no `epoch` key, the `step` value is taken
+        from the function argument. This is the case for metrics that are logged with the `on_step=True` flag.
+        :param metrics: A dictionary with metrics to log. Keys are strings, values are floating point numbers.
+        :param step: The trainer global step for logging.
+        """
         logging.debug(f"AzureMLLogger step={step}: {metrics}")
+        is_epoch_metric = "epoch" in metrics
         if self.is_running_in_azure_ml:
             for key, value in metrics.items():
-                RUN_CONTEXT.log(key, value)
+                # Log all epoch-level metrics without the step information
+                # All step-level metrics with step
+                RUN_CONTEXT.log(key, value, step=None if is_epoch_metric else step)
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
-        pass
+        """
+        Logs the given model hyperparameters to AzureML as a table. Namespaces are converted to dictionaries.
+        Nested dictionaries are flattened out.
+        :return:
+        """
+        # Convert from Namespace to dictionary
+        params = self._convert_params(params)
+        # Convert nested dictionaries to folder-like structure
+        params = self._flatten_dict(params)
+        # Convert anything that is not a primitive type to str
+        params = self._sanitize_params(params)
+        if len(params) > 0:
+            RUN_CONTEXT.log_table("hyperparams", params)
 
     def experiment(self) -> Any:
         return None
@@ -46,6 +72,138 @@ class AzureMLLogger(LightningLoggerBase):
 
     def version(self) -> int:
         return 0
+
+
+class AzureMLProgressBar(ProgressBarBase):
+    """
+    A PL progress bar that works better in AzureML. It prints timestamps for each message, and works well with a setup
+    where there is no direct access to the console.
+    """
+
+    PROGRESS_STAGE_TRAIN = "Training"
+    PROGRESS_STAGE_VAL = "Validation"
+    PROGRESS_STAGE_TEST = "Testing"
+    PROGRESS_STAGE_PREDICT = "Prediction"
+
+    def __init__(self,
+                 refresh_rate: int = 50,
+                 write_to_logging_info: bool = False
+                 ):
+        """
+        Creates a new AzureML progress bar.
+        :param refresh_rate: The number of steps after which the progress should be printed out.
+        :param write_to_logging_info: If True, the progress information will be printed via logging.info. If False,
+        it will be printed to stdout via print.
+        """
+        super().__init__()
+        self._refresh_rate = refresh_rate
+        self._enabled = True
+        self.stage = ""
+        self.stage_start_time = 0.0
+        self.max_batch_count = 0
+        self.progress_print_fn = logging.info if write_to_logging_info else print
+        self.flush_fn = None if write_to_logging_info else sys.stdout.flush
+
+    @property
+    def refresh_rate(self) -> int:
+        return self._refresh_rate
+
+    @property
+    def is_enabled(self) -> bool:
+        return self._enabled and self.refresh_rate > 0
+
+    @property
+    def is_disabled(self) -> bool:
+        return not self.is_enabled
+
+    def disable(self) -> None:
+        self._enabled = False
+
+    def enable(self) -> None:
+        self._enabled = True
+
+    def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_train_epoch_start(trainer, pl_module)
+        self.start_stage(self.PROGRESS_STAGE_TRAIN, self.total_train_batches)
+
+    def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_validation_start(trainer, pl_module)
+        self.start_stage(self.PROGRESS_STAGE_VAL, self.total_val_batches)
+
+    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_test_epoch_start(trainer, pl_module)
+        self.start_stage(self.PROGRESS_STAGE_TEST, self.total_test_batches)
+
+    def on_predict_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_predict_epoch_start(trainer, pl_module)
+        self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches)
+
+    def start_stage(self, stage: str, max_batch_count: int) -> None:
+        """
+        Sets the information that a new stage of the PL loop is starting. The stage will be available in
+        self.stage, max_batch_count in self.max_batch_count. The time when this method was called is recorded in
+        self.stage_start_time
+        :param stage: The string name of the stage that has just started.
+        :param max_batch_count: The total number of batches that need to be processed in this stage.
+        """
+        self.stage = stage
+        self.max_batch_count = max_batch_count
+        self.stage_start_time = time.time()
+
+    def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                           batch_idx: int, dataloader_idx: int) -> None:
+        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        self.update_progress(batches_processed=self.train_batch_idx)
+
+    def on_validation_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                                batch_idx: int, dataloader_idx: int) -> None:
+        super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        self.update_progress(batches_processed=self.val_batch_idx)
+
+    def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                          batch_idx: int, dataloader_idx: int) -> None:
+        super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        self.update_progress(batches_processed=self.test_batch_idx)
+
+    def on_predict_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                             batch_idx: int, dataloader_idx: int) -> None:
+        super().on_predict_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        self.update_progress(batches_processed=self.predict_batch_idx)
+
+    def update_progress(self, batches_processed: int):
+        """
+        Writes progress information once the refresh interval is full.
+        :param batches_processed: The number of batches that have been processed for the current stage.
+        """
+        should_update = self.is_enabled and \
+                        (batches_processed % self.refresh_rate == 0 or batches_processed == self.max_batch_count)
+        if not should_update:
+            return
+        prefix = f"{self.stage}"
+        if self.stage in [self.PROGRESS_STAGE_TRAIN, self.PROGRESS_STAGE_VAL]:
+            prefix += f" epoch {self.trainer.current_epoch}"
+        if self.stage == self.PROGRESS_STAGE_TRAIN:
+            prefix += f" (step {self.trainer.lightning_module.global_step})"
+        prefix += ": "
+        if math.isinf(self.max_batch_count):
+            # Can't print out per-cent progress or time estimates if the data is infinite
+            message = f"{prefix}{batches_processed:4} batches completed"
+        else:
+            fraction_completed = batches_processed / self.max_batch_count
+            percent_completed = int(fraction_completed * 100)
+            time_elapsed = time.time() - self.stage_start_time
+            estimated_epoch_duration = time_elapsed / fraction_completed
+
+            def to_minutes(time_sec: float) -> str:
+                minutes = int(time_sec / 60)
+                seconds = int(time_sec % 60)
+                return f"{minutes:02}:{seconds:02}"
+
+            message = (f"{prefix}{batches_processed:4}/{self.max_batch_count} ({percent_completed:3}%) completed. "
+                       f"{to_minutes(time_elapsed)} elapsed, total epoch time ~ {to_minutes(estimated_epoch_duration)}")
+        self.progress_print_fn(message)
+        if self.flush_fn:
+            self.flush_fn()
 
 
 def log_on_epoch(module: LightningModule,
