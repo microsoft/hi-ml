@@ -42,6 +42,12 @@ The `hi-ml` toolbox provides
 
 .. toctree::
    :maxdepth: 1
+   :caption: Guidelines
+
+   whole_slide_images.md
+
+.. toctree::
+   :maxdepth: 1
    :caption: Changelog
 
    CHANGELOG.md
