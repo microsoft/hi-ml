@@ -8,13 +8,13 @@ import os
 
 import cucim
 import numpy as np
+from line_profiler import LineProfiler
 from openslide import OpenSlide
 from PIL import Image
 
 from azureml.core import Dataset, Run, Workspace
 
 
-@profile
 def profile_cucim(input_file: Path,
                   output_file: Path) -> None:
     img = cucim.CuImage(str(input_file))
@@ -35,7 +35,6 @@ def profile_cucim(input_file: Path,
     img2.save(output_file)
 
 
-@profile
 def profile_openslide(input_file: Path,
                       output_file: Path) -> None:
     with OpenSlide(str(input_file)) as img:
@@ -54,7 +53,6 @@ def profile_openslide(input_file: Path,
         region.save(output_file)
 
 
-@profile
 def profile_folder(mount_path: Path,
                    output_folder: Path,
                    subfolder: str) -> None:
@@ -106,16 +104,47 @@ def main() -> None:
         root_output_dir = output_folder / "tiles"
         root_output_dir.mkdir(exist_ok=True)
 
-        from Histopathology.preprocessing.create_tiles_dataset import main
-        main(panda_dir="/tmp/datasets/panda",
-             root_output_dir=root_output_dir,
-             level=1,
-             tile_size=224,
-             margin=64,
-             occupancy_threshold=0.05,
-             parallel=False,
-             overwrite=True)
+        from Histopathology.preprocessing.create_tiles_dataset import (
+            main,
+            process_slide_cucim_no_save,
+            process_slide_open_slide_no_save,
+            process_slide_cucim,
+            process_slide_openslide)
+
+        for process in [process_slide_cucim_no_save,
+                        process_slide_open_slide_no_save,
+                        process_slide_cucim,
+                        process_slide_openslide]:
+            main(process,
+                 'process_slide',
+                 panda_dir="/tmp/datasets/panda",
+                 root_output_dir=root_output_dir,
+                 level=1,
+                 tile_size=224,
+                 margin=64,
+                 occupancy_threshold=0.05,
+                 parallel=False,
+                 overwrite=True)
 
 
 if __name__ == '__main__':
-    main()
+    from Histopathology.preprocessing.create_tiles_dataset import (
+        process_slide_cucim_no_save,
+        process_slide_open_slide_no_save,
+        process_slide_cucim,
+        process_slide_openslide, save_tile, generate_tiles)
+
+    lp = LineProfiler()
+    lp.add_function(profile_cucim)
+    lp.add_function(profile_openslide)
+    lp.add_function(profile_folder)
+    lp.add_function(process_slide_cucim_no_save)
+    lp.add_function(process_slide_open_slide_no_save)
+    lp.add_function(process_slide_cucim)
+    lp.add_function(process_slide_openslide)
+    lp.add_function(save_tile)
+    lp.add_function(generate_tiles)
+    lp_wrapper = lp(main)
+    lp_wrapper()
+    with open("outputs/profile.txt", "w", encoding="utf-8") as f:
+        lp.print_stats(f)

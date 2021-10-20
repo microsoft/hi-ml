@@ -5,7 +5,7 @@ import shutil
 import traceback
 import warnings
 from pathlib import Path
-from typing import Sequence, Tuple, Union
+from typing import Callable, Sequence, Tuple, Union
 
 import numpy as np
 import PIL
@@ -100,8 +100,123 @@ def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
     return tile_metadata
 
 
-def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+def process_slide_open_slide_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
                   output_dir: Path, tile_progress: bool = False) -> None:
+    slide_id = sample['image_id']
+    slide_dir: Path = output_dir / (slide_id + "/")
+    logging.info(f">>> Slide dir {slide_dir}")
+    if slide_dir.exists():  # already processed slide - skip
+        logging.info(f">>> Skipping {slide_dir} - already processed")
+        return
+    else:
+        slide_dir.mkdir(parents=True)
+
+        dataset_csv_path = slide_dir / "dataset.csv"
+        dataset_csv_file = dataset_csv_path.open('w')
+        dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
+
+        failed_tiles_csv_path = slide_dir / "failed_tiles.csv"
+        failed_tiles_file = failed_tiles_csv_path.open('w')
+        failed_tiles_file.write('tile_id' + '\n')
+
+        logging.info(f"Loading slide {slide_id} ...")
+        loader = LoadPandaROId(WSIReader(), WSIReader(), level=level, margin=margin)
+        sample = loader(sample)  # load 'image' and 'mask' from disk
+
+        logging.info(f"Tiling slide {slide_id} ...")
+        image_tiles, mask_tiles, tile_locations, occupancies, _ = \
+            generate_tiles(sample, tile_size, occupancy_threshold)
+        return image_tiles, mask_tiles, tile_locations, occupancies
+
+
+def process_slide_cucim_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                                output_dir: Path, tile_progress: bool = False) -> None:
+    slide_id = sample['image_id']
+    slide_dir: Path = output_dir / (slide_id + "/")
+    logging.info(f">>> Slide dir {slide_dir}")
+    if slide_dir.exists():  # already processed slide - skip
+        logging.info(f">>> Skipping {slide_dir} - already processed")
+        return
+    else:
+        slide_dir.mkdir(parents=True)
+
+        dataset_csv_path = slide_dir / "dataset.csv"
+        dataset_csv_file = dataset_csv_path.open('w')
+        dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
+
+        failed_tiles_csv_path = slide_dir / "failed_tiles.csv"
+        failed_tiles_file = failed_tiles_csv_path.open('w')
+        failed_tiles_file.write('tile_id' + '\n')
+
+        logging.info(f"Loading slide {slide_id} ...")
+        loader = LoadPandaROId(WSIReader('cucim'), WSIReader(), level=level, margin=margin)
+        sample = loader(sample)  # load 'image' and 'mask' from disk
+
+        logging.info(f"Tiling slide {slide_id} ...")
+        image_tiles, mask_tiles, tile_locations, occupancies, _ = \
+            generate_tiles(sample, tile_size, occupancy_threshold)
+        return image_tiles, mask_tiles, tile_locations, occupancies
+
+
+def process_slide_openslide(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                            output_dir: Path, tile_progress: bool = False) -> None:
+    slide_id = sample['image_id']
+    slide_dir: Path = output_dir / (slide_id + "/")
+    logging.info(f">>> Slide dir {slide_dir}")
+    if slide_dir.exists():  # already processed slide - skip
+        logging.info(f">>> Skipping {slide_dir} - already processed")
+        return
+    else:
+        try:
+            slide_dir.mkdir(parents=True)
+
+            dataset_csv_path = slide_dir / "dataset.csv"
+            dataset_csv_file = dataset_csv_path.open('w')
+            dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
+
+            tiles_failure = 0
+            failed_tiles_csv_path = slide_dir / "failed_tiles.csv"
+            failed_tiles_file = failed_tiles_csv_path.open('w')
+            failed_tiles_file.write('tile_id' + '\n')
+
+            logging.info(f"Loading slide {slide_id} ...")
+            loader = LoadPandaROId(WSIReader(), WSIReader(), level=level, margin=margin)
+            sample = loader(sample)  # load 'image' and 'mask' from disk
+
+            logging.info(f"Tiling slide {slide_id} ...")
+            image_tiles, mask_tiles, tile_locations, occupancies, _ = \
+                generate_tiles(sample, tile_size, occupancy_threshold)
+            n_tiles = image_tiles.shape[0]
+
+            for i in tqdm(range(n_tiles), f"Tiles ({slide_id[:6]}…)", unit="img", disable=not tile_progress):
+                try:
+                    tile_metadata = save_tile(sample, image_tiles[i], mask_tiles[i], tile_locations[i],
+                                              slide_dir)
+                    tile_metadata['occupancy'] = occupancies[i]
+                    tile_metadata['image'] = os.path.join(slide_dir.name, tile_metadata['image'])
+                    tile_metadata['mask'] = os.path.join(slide_dir.name, tile_metadata['mask'])
+                    dataset_row = ','.join(str(tile_metadata[column]) for column in CSV_COLUMNS)
+                    dataset_csv_file.write(dataset_row + '\n')
+                except Exception as e:
+                    tiles_failure += 1
+                    descriptor = get_tile_descriptor(tile_locations[i]) + '\n'
+                    failed_tiles_file.write(descriptor)
+                    traceback.print_exc()
+                    warnings.warn(f"An error occurred while saving tile "
+                                  f"{get_tile_id(slide_id, tile_locations[i])}: {e}")
+
+            dataset_csv_file.close()
+            failed_tiles_file.close()
+            if tiles_failure > 0:
+                # TODO what we want to do with slides that have some failed tiles?
+                logging.warning(f"{slide_id} is incomplete. {tiles_failure} tiles failed.")
+        except Exception as e:
+            traceback.print_exc()
+            warnings.warn(f"An error occurred while processing slide {slide_id}: {e}")
+
+
+def process_slide_cucim(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                        output_dir: Path, tile_progress: bool = False) -> None:
     slide_id = sample['image_id']
     slide_dir: Path = output_dir / (slide_id + "/")
     logging.info(f">>> Slide dir {slide_dir}")
@@ -176,21 +291,22 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     return full_csv
 
 
-def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: int, tile_size: int,
+def main(process: Callable, label: str,
+         panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: int, tile_size: int,
          margin: int, occupancy_threshold: float, parallel: bool = False, overwrite: bool = False) -> None:
 
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
     dataset = Dataset(PandaDataset(panda_dir))  # type: ignore
 
-    output_dir = Path(root_output_dir) / f"panda_tiles_level{level}_{tile_size}"
+    output_dir = Path(root_output_dir) / label / f"panda_tiles_level{level}_{tile_size}"
     logging.info(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
 
     if overwrite and output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
 
-    func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
+    func = functools.partial(process, level=level, margin=margin, tile_size=tile_size,
                              occupancy_threshold=occupancy_threshold, output_dir=output_dir,
                              tile_progress=not parallel)
 
@@ -212,7 +328,9 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
 
 
 if __name__ == '__main__':
-    main(panda_dir="/tmp/datasets/PANDA",
+    main(process_slide_openslide,
+         'process_slide',
+         panda_dir="/tmp/datasets/PANDA",
          root_output_dir="/datadrive",
          level=1,
          tile_size=224,

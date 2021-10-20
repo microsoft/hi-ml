@@ -14,11 +14,8 @@ env = Environment.from_dockerfile(name="jontri_image_load",
 
 compute_target = ComputeTarget(workspace=ws, name='jontri1')
 
-command = 'kernprof -l profile_load_image.py && ' \
-          'python -m line_profiler profile_load_image.py.lprof > outputs/profile.txt'.split()
-
 config = ScriptRunConfig(source_directory='./src',
-                         command=command,
+                         script='profile_load_image.py',
                          compute_target=compute_target,
                          environment=env)
 
