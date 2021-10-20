@@ -1,6 +1,4 @@
 import json
-import logging
-import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Dict, Any, Iterable, Type, Callable
@@ -10,8 +8,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from PIL import Image
-from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
-from pandas.plotting import table as pd_table
+from sklearn.metrics import precision_recall_curve, roc_curve
 
 from fpdf import FPDF
 
@@ -97,10 +94,12 @@ class Report(FPDF):
     def add_title_header(self, title_str: str):
         self.set_table_style(font_style="B", font_size=18)
         self.cell(txt=title_str, ln=1, align="C", center=True)
+        self.set_table_style()
 
     def add_header(self, heading_str: str):
         self.set_table_style(font_style="B", font_size=16)
         self.cell(txt=heading_str, ln=1)
+        self.set_table_style()
 
     def set_table_style(self,
                         fill_color: Tuple[int, int, int] = (255, 255, 255),
@@ -109,7 +108,7 @@ class Report(FPDF):
                         line_width: float = 0.3,
                         font_style: str = "",
                         font_family: str = "helvetica",
-                        font_size: int = 10) -> None:
+                        font_size: int = 0) -> None:
         # set the table style, including background, font and line colours, line width and font style
         self.set_fill_color(*fill_color)
         self.set_text_color(text_color)
@@ -145,14 +144,15 @@ class Report(FPDF):
                   data_path: Path = None, header_color=(153, 204, 204), header_font_color=0,
                   header_line_color=(0, 0, 0), header_line_width=0.3, body_line_color=(0, 0, 0), body_line_width=0.3,
                   alternate_fill=True, alternate_fill_color=(229, 229, 229), cell_precision: Dict[str, int] = None,
-                  col_distribution="fitted", font_size=None, table_width=None):
+                  col_distribution="fitted", font_size=0, table_width=None):
 
         self.set_table_style(fill_color=header_color, text_color=header_font_color, font_style="B",
                              line_color=header_line_color, line_width=header_line_width,
-                             font_size=font_size or self.font_size_pt)
+                             font_size=font_size)
 
         table = Table(data=data, data_path=data_path, headers=headers, font_size_pt=self.font_size_pt,
                       table_width=table_width or self.epw)
+
         if cell_precision:
             table.update_precision(cell_precision)
 
@@ -163,9 +163,9 @@ class Report(FPDF):
         max_header_length = max([len(x) for x in headers])
         padded_headers = [h+' '*(max_header_length - len(h)) for h in headers]
         for i, (width, header_text) in enumerate(zip(col_widths, padded_headers)):
-            # self.cell(w=width, h=7, txt=header_text, border=1, align="C", fill=True)
-            ln = 1 if i == len(headers)-1 else 3
-            self.multi_cell(w=width, h=table_line_height, txt=header_text, fill=True, ln=ln)
+            self.cell(w=width, h=7, txt=header_text, align="L", fill=True)
+            # ln = 1 if i == len(headers)-1 else 3
+            # self.multi_cell(w=width, h=table_line_height, txt=header_text, fill=True, ln=ln)
 
         self.ln()
         self.set_table_style(fill_color=alternate_fill_color, line_color=body_line_color, line_width=body_line_width,

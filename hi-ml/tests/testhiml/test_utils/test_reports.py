@@ -60,7 +60,7 @@ def test_get_string_width_(string_to_test: str, font_size: int, expected_width: 
 # -------------------
 
 def dummy_table(report):
-    headers = ["Experiment", "Epochs", "loss", "Average ROC AUC"]
+    headers = ["Experiment", "Epochs", "loss", "Avg ROC AUC"]
     data = [[1, 150, 5, 0.8], [2, 150, 4.9, 0.91]]
     df = pd.DataFrame(data=data, columns=headers)
     report.add_table_from_dataframe(df)
@@ -215,7 +215,7 @@ def dummy_df_plot(output_folder, report):
 def generate_dummy_report(args: Namespace) -> None:
     # Generate PDF report
     report = report_util.initialize_report(report_title = args.report_title, output_folder = args.output_folder)
-
+    report.set_font_size(8)
     report.cell(txt="A short description of this report", center=True, align="C")
     report.add_break(2)
 
