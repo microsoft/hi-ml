@@ -4,19 +4,32 @@
 #  ------------------------------------------------------------------------------------------
 
 from pathlib import Path
-import os
 
-import cucim
-import numpy as np
 from line_profiler import LineProfiler
 from openslide import OpenSlide
 from PIL import Image
+import cucim
+import numpy as np
 
 from azureml.core import Dataset, Run, Workspace
+
+from Histopathology.preprocessing.create_tiles_dataset import (
+    process_slide_cucim_no_save,
+    process_slide_open_slide_no_save,
+    process_slide_cucim,
+    process_slide_openslide,
+    save_tile, generate_tiles)
 
 
 def profile_cucim(input_file: Path,
                   output_file: Path) -> None:
+    """
+    Load an input_file with cuCIM, print out basic properties, and save as output_file.
+
+    :param input_file: Input file path.
+    :param output_file: Output file path.
+    :return: None
+    """
     img = cucim.CuImage(str(input_file))
 
     count = img.resolutions['level_count']
@@ -37,6 +50,13 @@ def profile_cucim(input_file: Path,
 
 def profile_openslide(input_file: Path,
                       output_file: Path) -> None:
+    """
+    Load an input_file with OpenSlide, print out basic properties, and save as output_file.
+
+    :param input_file: Input file path.
+    :param output_file: Output file path.
+    :return: None
+    """
     with OpenSlide(str(input_file)) as img:
         count = img.level_count
         dimensions = img.level_dimensions
@@ -56,6 +76,15 @@ def profile_openslide(input_file: Path,
 def profile_folder(mount_path: Path,
                    output_folder: Path,
                    subfolder: str) -> None:
+    """
+    For each *.tiff image file in the given subfolder or the mount_path,
+    load each with cuCIM or OpenSlide, print out basic properties, and save as a png.
+
+    :param mount_path: Base path for source images.
+    :param output_folder: Base path to save output images.
+    :param subfolder: Subfolder of mount_path to search for tiffs.
+    :return: None.
+    """
     cucim_output_folder = output_folder / "cc" / subfolder
     cucim_output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -68,11 +97,16 @@ def profile_folder(mount_path: Path,
         try:
             profile_cucim(image_file, cucim_output_folder / output_filename)
         except Exception as ex:
-            print(f"Error calling cucum: {str(ex)}")
+            print(f"Error calling cuCIM: {str(ex)}")
         profile_openslide(image_file, openslide_output_folder / output_filename)
 
 
 def main() -> None:
+    """
+    Load some tiffs with cuCIM and OpenSlide, then run image tiling with both libraries.
+
+    :return: None.
+    """
     print(f"cucim.is_available(): {cucim.is_available()}")
     print(f"cucim.is_available('skimage'): {cucim.is_available('skimage')}")
     print(f"cucim.is_available('core'): {cucim.is_available('core')}")
@@ -89,35 +123,28 @@ def main() -> None:
     dataset = Dataset.get_by_name(ws, name='panda')
 
     with dataset.mount("/tmp/datasets/panda") as mount_context:
-        mount_point = mount_context.mount_point
-        print(f"Mount point: {mount_point}")
-        print(os.listdir(mount_point))
+        mount_point = Path(mount_context.mount_point)
 
-        profile_folder(Path(mount_point),
+        profile_folder(mount_point,
                        output_folder,
                        "train_images")
 
-        profile_folder(Path(mount_point),
+        profile_folder(mount_point,
                        output_folder,
                        "train_label_masks")
 
         root_output_dir = output_folder / "tiles"
         root_output_dir.mkdir(exist_ok=True)
 
-        from Histopathology.preprocessing.create_tiles_dataset import (
-            main,
-            process_slide_cucim_no_save,
-            process_slide_open_slide_no_save,
-            process_slide_cucim,
-            process_slide_openslide)
+        from Histopathology.preprocessing.create_tiles_dataset import main
 
-        for process in [process_slide_cucim_no_save,
-                        process_slide_open_slide_no_save,
-                        process_slide_cucim,
-                        process_slide_openslide]:
+        for i, process in enumerate([process_slide_cucim_no_save,
+                                     process_slide_open_slide_no_save,
+                                     process_slide_cucim,
+                                     process_slide_openslide]):
             main(process,
-                 'process_slide',
-                 panda_dir="/tmp/datasets/panda",
+                 f'process_slide_{i}',
+                 panda_dir=mount_point,
                  root_output_dir=root_output_dir,
                  level=1,
                  tile_size=224,
@@ -127,13 +154,11 @@ def main() -> None:
                  overwrite=True)
 
 
-if __name__ == '__main__':
-    from Histopathology.preprocessing.create_tiles_dataset import (
-        process_slide_cucim_no_save,
-        process_slide_open_slide_no_save,
-        process_slide_cucim,
-        process_slide_openslide, save_tile, generate_tiles)
-
+def profile_main() -> None:
+    """
+    Create a line profiler, add interesting functions, run main, and write profile output to
+    a text file in outputs.
+    """
     lp = LineProfiler()
     lp.add_function(profile_cucim)
     lp.add_function(profile_openslide)
@@ -148,3 +173,6 @@ if __name__ == '__main__':
     lp_wrapper()
     with open("outputs/profile.txt", "w", encoding="utf-8") as f:
         lp.print_stats(f)
+
+if __name__ == '__main__':
+    main()

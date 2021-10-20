@@ -7,12 +7,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     #
-    && apt-get -y install --no-install-recommends make \
-    #
-    # Install C compilers (gcc not enough, so just went with build-essential which admittedly might be overkill),
-    # needed to build pandas C extensions
-    && apt-get -y install build-essential \
-    #
     # openslide c libs
     && apt-get -y install openslide-tools \
     #
