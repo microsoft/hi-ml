@@ -18,6 +18,7 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
+from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
@@ -453,7 +454,7 @@ dependencies:
 def test_register_environment(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
-        caplog: CaptureFixture,
+        caplog: LogCaptureFixture,
 ) -> None:
     env_name = "an environment"
     env_version = "an environment"
@@ -462,10 +463,14 @@ def test_register_environment(
     mock_environment.version = env_version
     with caplog.at_level(logging.INFO):  # type: ignore
         _ = util.register_environment(mock_workspace, mock_environment)
-        assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
+        caplog_text: str = caplog.text  # for mypy
+        assert f"Using existing Python environment '{env_name}' with version '{env_version}'" in caplog_text
+
         mock_environment.get.side_effect = oh_no
         _ = util.register_environment(mock_workspace, mock_environment)
-        assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
+        caplog_text = caplog.text  # for mypy
+        assert f"environment '{env_name}' does not yet exist, creating and registering it with version" \
+               f" '{env_version}'" in caplog_text
 
 
 def test_set_environment_variables_for_multi_node(
