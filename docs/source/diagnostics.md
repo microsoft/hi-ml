@@ -49,7 +49,9 @@ The callback will log a set of metrics:
 * `timing/train/batch_time [sec] avg` and `timing/train/batch_time [sec] max`: Average and maximum time that it takes
   for batches to train/validate
 * `timing/train/batch_loading_over_threshold [sec]` is the total time wasted per epoch in waiting for the next batch of
-  data.
+  data. This is computed by looking at all batches where the batch loading time was over the threshold
+  `max_item_load_time_seconds` (that is set in the constructor of the callback), and totalling the batch loading time
+  for those batches.
 * `timing/train/epoch_time [sec]` is the time for an epoch to complete.
 
 ### Caveats

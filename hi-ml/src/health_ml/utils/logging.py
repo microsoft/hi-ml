@@ -187,8 +187,8 @@ class AzureMLProgressBar(ProgressBarBase):
         Writes progress information once the refresh interval is full.
         :param batches_processed: The number of batches that have been processed for the current stage.
         """
-        should_update = self.is_enabled and \
-                        (batches_processed % self.refresh_rate == 0 or batches_processed == self.max_batch_count)
+        should_update = (self.is_enabled and (batches_processed % self.refresh_rate == 0
+                                              or batches_processed == self.max_batch_count))
         if not should_update:
             return
         prefix = f"{self.stage}"
@@ -223,8 +223,6 @@ class AzureMLProgressBar(ProgressBarBase):
         else:
             print(message)
             sys.stdout.flush()
-
-
 
 
 def log_on_epoch(module: LightningModule,

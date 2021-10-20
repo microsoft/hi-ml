@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 import math
-from typing import List
 from unittest import mock
 
 import pytest
@@ -165,6 +164,9 @@ def test_progress_bar(capsys: SysCapture) -> None:
     bar.on_init_end(mock_trainer)  # type: ignore
     assert bar.trainer == mock_trainer
 
+    def latest_message() -> str:
+        return capsys.readouterr().out.splitlines()[-1]  # type: ignore
+
     # Messages in training
     bar.on_train_epoch_start(None, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TRAIN
@@ -174,8 +176,9 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert bar.predict_batch_idx == 0
     bar.on_train_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.train_batch_idx == 1
-    assert "Training epoch 12 (step 34)" in capsys.s[-1]
-    assert "1/10 ( 10%) completed" in messages[-1]
+    latest = latest_message()
+    assert "Training epoch 12 (step 34)" in latest
+    assert "1/10 ( 10%) completed" in latest
     # When starting the next training epoch, the counters should be reset
     bar.on_train_epoch_start(None, None)  # type: ignore
     assert bar.train_batch_idx == 0
@@ -188,8 +191,9 @@ def test_progress_bar(capsys: SysCapture) -> None:
     bar.max_batch_count = 5
     bar.on_validation_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.val_batch_idx == 1
-    assert "Validation epoch 12: " in messages[-1]
-    assert "1/5 ( 20%) completed" in messages[-1]
+    latest = latest_message()
+    assert "Validation epoch 12: " in latest
+    assert "1/5 ( 20%) completed" in latest
     # Messages in testing
     bar.on_test_epoch_start(None, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TEST
@@ -197,8 +201,9 @@ def test_progress_bar(capsys: SysCapture) -> None:
     for _ in range(test_count):
         bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.test_batch_idx == test_count
-    assert "Testing:" in messages[-1]
-    assert f"{test_count}/20 ( 10%)" in messages[-1]
+    latest = latest_message()
+    assert "Testing:" in latest
+    assert f"{test_count}/20 ( 10%)" in latest
     # Messages in prediction
     bar.on_predict_epoch_start(None, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_PREDICT
@@ -206,10 +211,11 @@ def test_progress_bar(capsys: SysCapture) -> None:
     for _ in range(predict_count):
         bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.predict_batch_idx == predict_count
-    assert "Prediction:" in messages[-1]
-    assert f"{predict_count}/30 ( 10%)" in messages[-1]
+    latest = latest_message()
+    assert "Prediction:" in latest
+    assert f"{predict_count}/30 ( 10%)" in latest
     # Test behaviour when a batch count is infinity
     bar.max_batch_count = math.inf
     bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.predict_batch_idx == 4
-    assert "4 batches completed" in messages[-1]
+    assert "4 batches completed" in latest_message()
