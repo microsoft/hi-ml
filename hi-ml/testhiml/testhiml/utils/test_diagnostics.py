@@ -20,7 +20,7 @@ def test_epoch_timers(caplog: LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO)
     batch_index = 123
     epoch = 24
-    timer = EpochTimers(max_item_load_time_seconds=100)
+    timer = EpochTimers(max_batch_load_time_seconds=100)
     assert timer.total_load_time == 0.0
 
     # First batch should always generate a message
@@ -37,7 +37,7 @@ def test_epoch_timers(caplog: LogCaptureFixture) -> None:
     # Second minibatch should only generate a message if above load time threshold. Set threshold very high
     old_num_messages = len(caplog.messages)
     old_total_load_time = timer.total_load_time
-    timer.max_item_load_time_seconds = 10.0
+    timer.max_batch_load_time_seconds = 10.0
     assert timer.num_load_time_exceeded == 0
     timer.batch_start(batch_index=batch_index, epoch=epoch, message_prefix="prefix")
     # This should be updated in any case
@@ -50,7 +50,7 @@ def test_epoch_timers(caplog: LogCaptureFixture) -> None:
 
     # Third minibatch considered as above threshold: set threshold to 0 for that
     old_total_load_time = timer.total_load_time
-    timer.max_item_load_time_seconds = 0.0
+    timer.max_batch_load_time_seconds = 0.0
     timer.batch_start(batch_index=batch_index, epoch=epoch, message_prefix="prefix")
     # This should be updated in any case
     assert timer.total_load_time > old_total_load_time
@@ -138,7 +138,7 @@ def test_batch_time_callback(caplog: LogCaptureFixture) -> None:
     # Hack the timers to trigger the warning message for validation only
     callback.val_timers.num_load_time_exceeded = 1
     callback.val_timers.total_extra_load_time = 100.00
-    callback.val_timers.max_item_load_time_seconds = 2.0
+    callback.val_timers.max_batch_load_time_seconds = 2.0
     assert callback.val_timers.should_warn_in_this_epoch
     old_val_epoch_end_time = callback.train_timers.epoch_end_time
     callback.on_validation_epoch_end(None, None)  # type: ignore

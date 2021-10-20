@@ -17,18 +17,18 @@ class EpochTimers:
     """
 
     def __init__(self,
-                 max_item_load_time_seconds: float = 0.5,
+                 max_batch_load_time_seconds: float = 0.5,
                  max_load_time_warnings: int = 3,
                  max_load_time_epochs: int = 5
                  ) -> None:
         """
         Creates a new instance of the class.
-        :param max_item_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
+        :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
         If the loading time exceeds this threshold, a warning is printed.
         :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
         :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
         """
-        self.max_item_load_time_seconds = max_item_load_time_seconds
+        self.max_batch_load_time_seconds = max_batch_load_time_seconds
         self.max_load_time_warnings = max_load_time_warnings
         self.max_load_time_epochs = max_load_time_epochs
         self.load_time_warning_epochs: Set[int] = set()
@@ -96,7 +96,7 @@ class EpochTimers:
         # are spawned. Later, the load time should be zero.
         if batch_index == 0:
             logging.info(f"{message_prefix}: Loaded the first minibatch of data in {item_load_time:0.2f} sec.")
-        elif item_load_time > self.max_item_load_time_seconds:
+        elif item_load_time > self.max_batch_load_time_seconds:
             self.load_time_warning_epochs.add(epoch)
             self.num_load_time_exceeded += 1
             self.total_extra_load_time += item_load_time
@@ -135,7 +135,7 @@ class BatchTimeCallback(Callback):
     Usage example:
         >>>from health_ml.utils import BatchTimeCallback
         >>>from pytorch_lightning import Trainer
-        >>>batchtime = BatchTimeCallback(max_item_load_time_seconds=0.5)
+        >>>batchtime = BatchTimeCallback(max_batch_load_time_seconds=0.5)
         >>>trainer = Trainer(callbacks=[batchtime])
     """
 
@@ -147,23 +147,23 @@ class BatchTimeCallback(Callback):
     VAL_PREFIX = "val/"
 
     def __init__(self,
-                 max_item_load_time_seconds: float = 0.5,
+                 max_batch_load_time_seconds: float = 0.5,
                  max_load_time_warnings: int = 3,
                  max_load_time_epochs: int = 5
                  ) -> None:
         """
         Creates a new instance of the class.
 
-        :param max_item_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
+        :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
         If the loading time exceeds this threshold, a warning is printed.
         :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
         :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
         """
         # Timers for monitoring data loading time
-        self.train_timers = EpochTimers(max_item_load_time_seconds=max_item_load_time_seconds,
+        self.train_timers = EpochTimers(max_batch_load_time_seconds=max_batch_load_time_seconds,
                                         max_load_time_warnings=max_load_time_warnings,
                                         max_load_time_epochs=max_load_time_epochs)
-        self.val_timers = EpochTimers(max_item_load_time_seconds=max_item_load_time_seconds,
+        self.val_timers = EpochTimers(max_batch_load_time_seconds=max_batch_load_time_seconds,
                                       max_load_time_warnings=max_load_time_warnings,
                                       max_load_time_epochs=max_load_time_epochs)
         self.module: Optional[LightningModule] = None
@@ -284,7 +284,7 @@ class BatchTimeCallback(Callback):
                      f"for data took {timers.total_load_time:0.2f} sec total.")
         if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
             logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                            f"{timers.max_item_load_time_seconds:0.2f}sec.")
+                            f"{timers.max_batch_load_time_seconds:0.2f}sec.")
             logging.warning(
                 f"In this epoch, {timers.num_load_time_exceeded} out of {timers.num_batches} batches exceeded the load "
                 f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec.")

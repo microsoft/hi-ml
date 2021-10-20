@@ -50,7 +50,7 @@ The callback will log a set of metrics:
   for batches to train/validate
 * `timing/train/batch_loading_over_threshold [sec]` is the total time wasted per epoch in waiting for the next batch of
   data. This is computed by looking at all batches where the batch loading time was over the threshold
-  `max_item_load_time_seconds` (that is set in the constructor of the callback), and totalling the batch loading time
+  `max_batch_load_time_seconds` (that is set in the constructor of the callback), and totalling the batch loading time
   for those batches.
 * `timing/train/epoch_time [sec]` is the time for an epoch to complete.
 
@@ -67,7 +67,7 @@ The callback will log a set of metrics:
 from health_ml.utils import BatchTimeCallback
 from pytorch_lightning import Trainer
 
-batchtime = BatchTimeCallback(max_item_load_time_seconds=0.5)
+batchtime = BatchTimeCallback(max_batch_load_time_seconds=0.5)
 trainer = Trainer(callbacks=[batchtime])
 ```
 
