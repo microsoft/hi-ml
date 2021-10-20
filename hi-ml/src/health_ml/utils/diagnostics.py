@@ -4,11 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
-from typing import Any, Set
+from typing import Any, Optional, Set
 
 import torch
 from pytorch_lightning import Callback, LightningModule, Trainer
-from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.utilities.distributed import rank_zero_only
 
 
 class EpochTimers:
@@ -166,6 +166,7 @@ class BatchTimeCallback(Callback):
         self.val_timers = EpochTimers(max_item_load_time_seconds=max_item_load_time_seconds,
                                       max_load_time_warnings=max_load_time_warnings,
                                       max_load_time_epochs=max_load_time_epochs)
+        self.module: Optional[LightningModule] = None
 
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """
@@ -245,6 +246,7 @@ class BatchTimeCallback(Callback):
         `on_validation_batch_start`.
         """
         timers = self.get_timers(is_training=is_training)
+        assert self.module is not None
         epoch = self.module.current_epoch
         message_prefix = f"Epoch {epoch} {'training' if is_training else 'validation'}"
         timers.batch_start(batch_index=batch_idx, epoch=epoch, message_prefix=message_prefix)
@@ -277,6 +279,7 @@ class BatchTimeCallback(Callback):
         timers = self.get_timers(is_training=is_training)
         epoch_time_seconds = timers.total_epoch_time
         status = "training" if is_training else "validation"
+        assert self.module is not None
         logging.info(f"Epoch {self.module.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting "
                      f"for data took {timers.total_load_time:0.2f} sec total.")
         if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
@@ -308,7 +311,8 @@ class BatchTimeCallback(Callback):
         # Metrics are only written at rank 0, and hence must not be synchronized. Trying to synchronize will
         # block training.
         prefix = self.TRAIN_PREFIX if is_training else self.VAL_PREFIX
-        self.module.log(name=self.METRICS_PREFIX + prefix + name_suffix, value=value,
+        assert self.module is not None
+        self.module.log(name=self.METRICS_PREFIX + prefix + name_suffix, value=value,  # type: ignore
                         on_step=False, on_epoch=True, sync_dist=False,
                         reduce_fx=max if reduce_max else torch.mean)
 

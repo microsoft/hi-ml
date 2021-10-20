@@ -215,7 +215,7 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert "Prediction:" in latest
     assert f"{predict_count}/30 ( 10%)" in latest
     # Test behaviour when a batch count is infinity
-    bar.max_batch_count = math.inf
+    bar.max_batch_count = math.inf  # type: ignore
     bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.predict_batch_idx == 4
     assert "4 batches completed" in latest_message()

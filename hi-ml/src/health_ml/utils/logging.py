@@ -182,7 +182,7 @@ class AzureMLProgressBar(ProgressBarBase):
         super().on_predict_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
         self.update_progress(batches_processed=self.predict_batch_idx)
 
-    def update_progress(self, batches_processed: int):
+    def update_progress(self, batches_processed: int) -> None:
         """
         Writes progress information once the refresh interval is full.
         :param batches_processed: The number of batches that have been processed for the current stage.
