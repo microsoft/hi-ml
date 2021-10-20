@@ -30,7 +30,7 @@ import health_azure.utils as util
 from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root
+from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -505,16 +505,6 @@ def test_set_environment_variables_for_multi_node(
     assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
 
 
-class MockRun:
-    def __init__(self, run_id: str = 'run1234', tags: Optional[Dict[str, str]] = None) -> None:
-        self.id = run_id
-        self.tags = tags
-
-    def download_file(self) -> None:
-        # for mypy
-        pass
-
-
 @pytest.mark.fast
 @patch("health_azure.utils.fetch_run")
 @patch("azureml.core.Workspace")
@@ -932,9 +922,9 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[List[util.Run
 
         if isinstance(run_id, list):
             for script_config_run, expected_run in zip(script_config.run, run_id):
-                assert script_config_run.val == expected_run.val
+                assert script_config_run.id == expected_run.val
         else:
-            assert script_config.run.val == run_id.val
+            assert script_config.run.id == run_id.id
 
 
 @patch("health_azure.utils.download_files_from_run_id")

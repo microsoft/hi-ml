@@ -5,6 +5,9 @@
 #  ------------------------------------------------------------------------------------------
 import param
 from pathlib import Path
+from typing import List
+
+from azureml.core import Run
 
 import health_azure.utils as azure_util
 
@@ -18,16 +21,46 @@ class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
     prefix: str = param.String(default=None, allow_None=True, doc="Optional prefix to filter Run files by")
 
 
+def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
+    """
+    Retrieve a list of AML Run objects, given a HimlDownloadConfig object which contains values for either run
+    (one or more run ids), experiment (experiment name) or latest_run_file. If none of these are provided,
+    the parent directories of this script will be searched for a "most_recent_run.txt" file, and the run id will
+    be extracted from there, to retrieve the run object(s). If no Runs are found, a ValueError will be raised.
+
+    :param download_config: A HimlDownloadConfig object containing run information (e.g. run ids or experiment name)
+    :return: List of AML Run objects
+    """
+    if download_config.run is not None:
+        run_ = download_config.run
+        run_ids = [r.id for r in run_] if isinstance(run_, list) else [run_.id]
+        runs = [azure_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
+        if len(runs) == 0:
+            raise ValueError(f"Did not find any runs with the given run id(s): {download_config.run}")
+    elif download_config.experiment is not None:
+        runs = azure_util.get_latest_aml_runs_from_experiment(download_config.experiment,
+                                                              download_config.num_runs,
+                                                              download_config.tags,
+                                                              workspace_config_path=download_config.config_file)
+        if len(runs) == 0:
+            raise ValueError(f"Did not find any runs under the given experiment name: {download_config.experiment}")
+    else:
+        run_or_recovery_id = azure_util.get_most_recent_run_id(download_config.latest_run_file)
+        runs = [azure_util.get_aml_run_from_run_id(run_or_recovery_id,
+                                                   workspace_config_path=download_config.config_file)]
+        if len(runs) == 0:
+            raise ValueError(f"Did not find any runs with run id {run_or_recovery_id} as found in"
+                             f" {download_config.latest_run_file}")
+    return runs
+
+
 def main() -> None:  # pragma: no cover
 
     download_config = HimlDownloadConfig.parse_args()
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 
-    if download_config.run is not None:
-        runs = download_config.run if isinstance(download_config.run, list) else [download_config.run]
-    elif download_config.experiment is not None:
-        r
+    runs = retrieve_runs(download_config)
 
     for run in runs:
         output_folder = output_dir / run.id

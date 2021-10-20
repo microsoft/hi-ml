@@ -82,14 +82,12 @@ class RunId(RunSource):
     def __init__(self, val: str) -> None:
         super().__init__(val)
         self.id = val
-        self.val = val
 
 
 class RunRecoveryId(RunSource):
     def __init__(self, val: str) -> None:
         super().__init__(val)
         self.id = val
-        self.val = val
 
 
 RunIdType = Union[RunId, RunRecoveryId]

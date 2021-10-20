@@ -11,7 +11,7 @@ import os
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import Dict, Generator, Optional
 
 from azureml.core import Workspace
 
@@ -20,6 +20,16 @@ from health_azure.utils import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WOR
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
+
+
+class MockRun:
+    def __init__(self, run_id: str = 'run1234', tags: Optional[Dict[str, str]] = None) -> None:
+        self.id = run_id
+        self.tags = tags
+
+    def download_file(self) -> None:
+        # for mypy
+        pass
 
 
 def himl_azure_root() -> Path:
