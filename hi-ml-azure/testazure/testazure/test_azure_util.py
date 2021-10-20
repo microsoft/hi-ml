@@ -18,6 +18,7 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
+from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
@@ -453,7 +454,7 @@ dependencies:
 def test_register_environment(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
-        caplog: CaptureFixture,
+        caplog: LogCaptureFixture,
 ) -> None:
     env_name = "an environment"
     env_version = "an environment"
@@ -467,7 +468,7 @@ def test_register_environment(
 
         mock_environment.get.side_effect = oh_no
         _ = util.register_environment(mock_workspace, mock_environment)
-        caplog_text: str = caplog.text  # for mypy
+        caplog_text = caplog.text  # for mypy
         assert f"environment '{env_name}' does not yet exist, creating and registering it with version" \
                f" '{env_version}'" in caplog_text
 

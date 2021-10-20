@@ -17,6 +17,8 @@ created.
 ### Changed
 
 ### Fixed
+- ([#139](https://github.com/microsoft/hi-ml/pull/139) Fix register_environment, which was ignoring existing environemnts
+previously. Also ensure that the environment is given version 1 by default instead of "autosave")
 
 ### Removed
 
