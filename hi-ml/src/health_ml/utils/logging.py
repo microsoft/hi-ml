@@ -217,7 +217,7 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def _print(self, message: str) -> None:
         if self.print_timestamp:
-            message = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ") + message
+            message = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ ") + message
         if self.write_to_logging_info:
             logging.info(message)
         else:

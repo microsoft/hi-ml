@@ -9,6 +9,7 @@ from unittest import mock
 
 import pytest
 import torch
+from _pytest.capture import SysCapture
 
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
 
@@ -153,7 +154,7 @@ def test_progress_bar_enable() -> None:
     assert bar.is_enabled
 
 
-def test_progress_bar() -> None:
+def test_progress_bar(capsys: SysCapture) -> None:
     bar = AzureMLProgressBar(refresh_rate=1)
     mock_trainer = mock.MagicMock(current_epoch=12,
                                   lightning_module=mock.MagicMock(global_step=34),
@@ -163,13 +164,7 @@ def test_progress_bar() -> None:
                                   num_predict_batches=[30])
     bar.on_init_end(mock_trainer)  # type: ignore
     assert bar.trainer == mock_trainer
-    messages: List[str] = []
 
-    def write_message(message: str) -> None:
-        messages.append(message)
-
-    bar.progress_print_fn = write_message
-    bar.flush_fn = None
     # Messages in training
     bar.on_train_epoch_start(None, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TRAIN
@@ -179,7 +174,7 @@ def test_progress_bar() -> None:
     assert bar.predict_batch_idx == 0
     bar.on_train_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.train_batch_idx == 1
-    assert "Training epoch 12 (step 34)" in messages[-1]
+    assert "Training epoch 12 (step 34)" in capsys.s[-1]
     assert "1/10 ( 10%) completed" in messages[-1]
     # When starting the next training epoch, the counters should be reset
     bar.on_train_epoch_start(None, None)  # type: ignore
