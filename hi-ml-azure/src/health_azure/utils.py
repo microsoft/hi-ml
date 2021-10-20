@@ -369,21 +369,26 @@ def create_python_environment(conda_environment_file: Path,
 
 def register_environment(workspace: Workspace, environment: Environment) -> Environment:
     """
-    Try to get the AzureML environment by name and version from the AzureML workspace. If that fails, register the
-    environment on the workspace.
+    Try to get the AzureML environment by name and version from the AzureML workspace. If it succeeds, return that
+    environment object. If that fails, register the environment on the workspace. If the version is not specified
+    on the environment object, uses the value of ENVIRONMENT_VERSION.
 
     :param workspace: The AzureML workspace to use.
     :param environment: An AzureML execution environment.
-    :return: An AzureML execution environment. If the environment did already exist on the workspace, the return value
-        is the environment as registered on the workspace, otherwise it is equal to the environment argument.
+    :return: An AzureML Environment object. If the environment did already exist on the workspace, returns that,
+        otherwise returns the newly registered environment.
     """
     try:
         env = Environment.get(workspace, name=environment.name, version=environment.version)
-        logging.info(f"Using existing Python environment '{env.name}'.")
-    except Exception:
-        logging.info(f"Python environment '{environment.name}' does not yet exist, creating and registering it.")
-        environment.register(workspace)
-    return environment
+        logging.info(f"Using existing Python environment '{env.name}' with version '{env.version}'.")
+        return env
+    # If environment doesn't exist, AML raises a generic Exception
+    except Exception:  # type: ignore
+        if environment.version is None:
+            environment.version = ENVIRONMENT_VERSION
+        logging.info(f"Python environment '{environment.name}' does not yet exist, creating and registering it"
+                     f" with version '{environment.version}'")
+        return environment.register(workspace)
 
 
 def run_duration_string_to_seconds(s: str) -> Optional[int]:
