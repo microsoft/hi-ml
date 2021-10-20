@@ -9,6 +9,7 @@ import numbers
 import operator
 import sys
 import time
+from datetime import datetime
 from typing import Any, Callable, Dict, Mapping, Optional
 
 import torch
@@ -55,6 +56,8 @@ class AzureMLLogger(LightningLoggerBase):
         Nested dictionaries are flattened out.
         :return:
         """
+        if params is None or len(params) == 0:
+            return
         # Convert from Namespace to dictionary
         params = self._convert_params(params)
         # Convert nested dictionaries to folder-like structure
@@ -78,6 +81,12 @@ class AzureMLProgressBar(ProgressBarBase):
     """
     A PL progress bar that works better in AzureML. It prints timestamps for each message, and works well with a setup
     where there is no direct access to the console.
+
+    Usage example:
+        >>> from health_ml.utils import AzureMLProgressBar
+        >>> from pytorch_lightning import Trainer
+        >>> progress = AzureMLProgressBar(refresh_rate=100)
+        >>> trainer = Trainer(callbacks=[progress])
     """
 
     PROGRESS_STAGE_TRAIN = "Training"
@@ -87,11 +96,14 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def __init__(self,
                  refresh_rate: int = 50,
+                 print_timestamp: bool = True,
                  write_to_logging_info: bool = False
                  ):
         """
         Creates a new AzureML progress bar.
         :param refresh_rate: The number of steps after which the progress should be printed out.
+        :param print_timestamp: If True, each message that the progress bar prints will be prefixed with the current
+        time in UTC. If False, no such prefix will be added.
         :param write_to_logging_info: If True, the progress information will be printed via logging.info. If False,
         it will be printed to stdout via print.
         """
@@ -101,8 +113,8 @@ class AzureMLProgressBar(ProgressBarBase):
         self.stage = ""
         self.stage_start_time = 0.0
         self.max_batch_count = 0
-        self.progress_print_fn = logging.info if write_to_logging_info else print
-        self.flush_fn = None if write_to_logging_info else sys.stdout.flush
+        self.write_to_logging_info = write_to_logging_info
+        self.print_timestamp = print_timestamp
 
     @property
     def refresh_rate(self) -> int:
@@ -201,9 +213,18 @@ class AzureMLProgressBar(ProgressBarBase):
 
             message = (f"{prefix}{batches_processed:4}/{self.max_batch_count} ({percent_completed:3}%) completed. "
                        f"{to_minutes(time_elapsed)} elapsed, total epoch time ~ {to_minutes(estimated_epoch_duration)}")
-        self.progress_print_fn(message)
-        if self.flush_fn:
-            self.flush_fn()
+        self._print(message)
+
+    def _print(self, message: str) -> None:
+        if self.print_timestamp:
+            message = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ") + message
+        if self.write_to_logging_info:
+            logging.info(message)
+        else:
+            print(message)
+            sys.stdout.flush()
+
+
 
 
 def log_on_epoch(module: LightningModule,

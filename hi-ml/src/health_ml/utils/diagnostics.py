@@ -131,6 +131,12 @@ class BatchTimeCallback(Callback):
     end time of the previous minibatch. It will consequently also include other operations that happen between the
     end of a batch and the start of the next one. For example, computationally expensive callbacks could also
     drive up this time.
+
+    Usage example:
+        >>>from health_ml.utils import BatchTimeCallback
+        >>>from pytorch_lightning import Trainer
+        >>>batchtime = BatchTimeCallback(max_item_load_time_seconds=0.5)
+        >>>trainer = Trainer(callbacks=[batchtime])
     """
 
     EPOCH_TIME = "epoch_time [sec]"
@@ -140,10 +146,26 @@ class BatchTimeCallback(Callback):
     TRAIN_PREFIX = "train/"
     VAL_PREFIX = "val/"
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 max_item_load_time_seconds: float = 0.5,
+                 max_load_time_warnings: int = 3,
+                 max_load_time_epochs: int = 5
+                 ) -> None:
+        """
+        Creates a new instance of the class.
+
+        :param max_item_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
+        If the loading time exceeds this threshold, a warning is printed.
+        :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
+        :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
+        """
         # Timers for monitoring data loading time
-        self.train_timers = EpochTimers()
-        self.val_timers = EpochTimers()
+        self.train_timers = EpochTimers(max_item_load_time_seconds=max_item_load_time_seconds,
+                                        max_load_time_warnings=max_load_time_warnings,
+                                        max_load_time_epochs=max_load_time_epochs)
+        self.val_timers = EpochTimers(max_item_load_time_seconds=max_item_load_time_seconds,
+                                      max_load_time_warnings=max_load_time_warnings,
+                                      max_load_time_epochs=max_load_time_epochs)
 
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """
@@ -152,15 +174,18 @@ class BatchTimeCallback(Callback):
         """
         self.module = pl_module
 
+    @rank_zero_only
     def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.train_timers.epoch_start()
 
+    @rank_zero_only
     def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.val_timers.epoch_start()
         # In Lightning, the validation epoch is running "inside" the training. If we get here, it means that training
         # is done for this epoch, even though the on_training_epoch hook has not yet been called.
         self.train_timers.epoch_end()
 
+    @rank_zero_only
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """
         This is a hook called at the end of a training or validation epoch. In here, we can still write
@@ -211,6 +236,7 @@ class BatchTimeCallback(Callback):
                                 ) -> None:
         self.batch_end(is_training=False)
 
+    @rank_zero_only
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
         """
         Shared code to keep track of minibatch loading times. This is only done on rank zero.
@@ -223,6 +249,7 @@ class BatchTimeCallback(Callback):
         message_prefix = f"Epoch {epoch} {'training' if is_training else 'validation'}"
         timers.batch_start(batch_index=batch_idx, epoch=epoch, message_prefix=message_prefix)
 
+    @rank_zero_only
     def batch_end(self, is_training: bool) -> None:
         """
         Shared code to keep track of IO-related metrics when loading a minibatch.

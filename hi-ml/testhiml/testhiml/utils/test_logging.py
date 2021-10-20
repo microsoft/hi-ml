@@ -2,6 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
+import math
+from typing import List
 from unittest import mock
 
 import pytest
@@ -136,14 +139,6 @@ def test_azureml_logger() -> None:
     logger.log_hyperparams(params=None)
 
 
-import logging
-import math
-from typing import Callable, Dict, List, Optional
-from unittest import mock
-
-import torch
-from _pytest.logging import LogCaptureFixture
-
 def test_progress_bar_enable() -> None:
     """
     Test the logic for disabling the progress bar.
@@ -223,4 +218,3 @@ def test_progress_bar() -> None:
     bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
     assert bar.predict_batch_idx == 4
     assert "4 batches completed" in messages[-1]
-
