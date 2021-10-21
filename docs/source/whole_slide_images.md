@@ -34,3 +34,8 @@ cuCIM is much easier to install, it can be done entirely with the Python package
 * It supports only a subset of tiff image files.
 
 The suitable AzureML base Docker images are therefore the ones containing `cuda11`, and the compute instance must contain a GPU.
+
+## Performance
+
+An exploratory script is at [slide_image_loading](./hi-ml/testhiml/utils/slide_image_loading) for comparing loading images with OpenSlide or cuCIM, and performing tiling using both libraries.
+

@@ -101,6 +101,15 @@ def profile_folder(mount_path: Path,
         profile_openslide(image_file, openslide_output_folder / output_filename)
 
 
+def print_cache_state(cache) -> None:
+    """
+    Print out cuCIM cache state
+    """
+    print(f"cache_hit: {cache.hit_count}, cache_miss: {cache.miss_count}")
+    print(f"items in cache: {cache.size}/{cache.capacity}, "
+          f"memory usage in cache: {cache.memory_size}/{cache.memory_capacity}")
+
+
 def main() -> None:
     """
     Load some tiffs with cuCIM and OpenSlide, then run image tiling with both libraries.
@@ -111,6 +120,11 @@ def main() -> None:
     print(f"cucim.is_available('skimage'): {cucim.is_available('skimage')}")
     print(f"cucim.is_available('core'): {cucim.is_available('core')}")
     print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
+
+    cucim.CuImage.cache("per_process", memory_capacity=2048, record_stat=True)
+    cache = cucim.CuImage.cache()
+    print(f"cucim.cache.config: {cache.config}")
+    print_cache_state(cache)
 
     run_context = Run.get_context()
     if hasattr(run_context, 'experiment'):
@@ -133,6 +147,8 @@ def main() -> None:
                        output_folder,
                        "train_label_masks")
 
+        print_cache_state(cache)
+
         root_output_dir = output_folder / "tiles"
         root_output_dir.mkdir(exist_ok=True)
 
@@ -152,6 +168,8 @@ def main() -> None:
                  occupancy_threshold=0.05,
                  parallel=False,
                  overwrite=True)
+
+            print_cache_state(cache)
 
 
 def profile_main() -> None:
@@ -173,6 +191,7 @@ def profile_main() -> None:
     lp_wrapper()
     with open("outputs/profile.txt", "w", encoding="utf-8") as f:
         lp.print_stats(f)
+
 
 if __name__ == '__main__':
     main()
