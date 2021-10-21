@@ -9,6 +9,7 @@ import argparse
 from pathlib import Path
 
 from azureml.core import ScriptRunConfig
+from azureml.core.run import Run
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, choice
 from azureml.train.hyperdrive.sampling import RandomParameterSampling
 
@@ -16,7 +17,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from health.azure.himl import submit_to_azure_if_needed
+from health_azure.himl import submit_to_azure_if_needed
 
 
 def main() -> None:
@@ -40,7 +41,9 @@ def main() -> None:
         wait_for_completion=True,
         wait_for_completion_show_output=True,
         hyperdrive_config=hyperdrive_config)
-    run = run_info.run
+    if run_info.run is None:
+        raise ValueError(f"run_info.run is None")
+    run: Run = run_info.run
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--kernel', type=str, default='linear',
@@ -49,8 +52,8 @@ def main() -> None:
                         help='Penalty parameter of the error term')
 
     args = parser.parse_args()
-    run.log('Kernel type', np.str(args.kernel))
-    run.log('Penalty', np.float(args.penalty))
+    run.log(f'Kernel type{args.kernel}')
+    run.log(f'Penalty {args.penalty}')
 
     # X -> features, y -> label
     input_folder = run_info.input_datasets[0] or Path("inputs")
@@ -68,7 +71,7 @@ def main() -> None:
     # model accuracy for X_test
     accuracy = svm_model_linear.score(X_test, y_test)
     print('Accuracy of SVM classifier on test set: {:.2f}'.format(accuracy))
-    run.log('Accuracy', np.float(accuracy))
+    run.log(f'Accuracy {accuracy}')
     # creating a confusion matrix
     cm = confusion_matrix(y_test, svm_predictions)
     print(cm)

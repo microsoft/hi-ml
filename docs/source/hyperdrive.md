@@ -11,7 +11,7 @@ one of three possible values for the learning rate commandline argument `learnin
 ```python
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
-from health.azure.himl import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 hyperdrive_config = HyperDriveConfig(
             run_config=ScriptRunConfig(source_directory=""),
             hyperparameter_sampling=GridParameterSampling(

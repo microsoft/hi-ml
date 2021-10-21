@@ -73,7 +73,7 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = []  # type: ignore
 
-modindex_common_prefix = ["health."]
+modindex_common_prefix = ["health_azure.", "health_ml."]
 
 source_suffix = {
     '.rst': 'restructuredtext',

@@ -3,7 +3,9 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 import torch
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
+import torch.nn as nn
+import torch.optim as optim
 
 
 def main() -> None:
@@ -14,9 +16,9 @@ def main() -> None:
     x = torch.arange(-20, 20, 0.1).view(-1, 1)
     y = -2 * x + 0.1 * torch.randn(x.size())
 
-    model = torch.nn.Linear(1, 1)
-    criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    model = nn.Linear(1, 1)
+    criterion = nn.MSELoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.1)
 
     for epoch in range(10):
         y1 = model(x)
