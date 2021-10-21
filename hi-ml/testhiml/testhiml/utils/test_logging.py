@@ -6,6 +6,7 @@ import logging
 import math
 from argparse import Namespace
 from datetime import datetime
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -175,7 +176,7 @@ def test_azureml_logger_hyperparams2() -> None:
     """
 
     class Dummy:
-        def __str__(self):
+        def __str__(self) -> str:
             return "dummy"
 
     logger = AzureMLLogger()
@@ -188,7 +189,7 @@ def test_azureml_logger_hyperparams2() -> None:
         logger.log_hyperparams(fake_namespace)
         assert log_mock.call_count == 1
         # Complex objects are converted to str
-        expected_dict = {"foo": "bar", "complex_object": "dummy"}
+        expected_dict: Dict[str, Any] = {"foo": "bar", "complex_object": "dummy"}
         assert log_mock.call_args[0] == ("hyperparams", expected_dict)
 
     # Logging of hyperparameters that are nested dictionaries. They should first be flattened, than each complex
