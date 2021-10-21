@@ -202,6 +202,27 @@ def test_azureml_logger_hyperparams2() -> None:
         assert log_mock.call_args[0] == ("hyperparams", expected_dict)
 
 
+def test_azureml_logger_step() -> None:
+    """
+    Test if the AzureML logger correctly handles epoch-level and step metrics
+    """
+    logger = AzureMLLogger()
+    # Pretend to be running in AzureML
+    logger.is_running_in_azure_ml = True
+    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
+        logger.log_metrics(metrics={"foo": 1.0, "epoch": 123}, step=78)
+        assert log_mock.call_count == 2
+        assert log_mock.call_args_list[0][0] == ("foo", 1.0)
+        assert log_mock.call_args_list[0][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
+        assert log_mock.call_args_list[1][0] == ("epoch", 123)
+        assert log_mock.call_args_list[1][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
+    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
+        logger.log_metrics(metrics={"foo": 1.0}, step=78)
+        assert log_mock.call_count == 1
+        assert log_mock.call_args[0] == ("foo", 1.0), "Should be called with the unrolled dictionary of metrics"
+        assert log_mock.call_args[1] == {"step": 78}, "For step-level metrics, the step argument should be provided"
+
+
 def test_progress_bar_enable() -> None:
     """
     Test the logic for disabling the progress bar.
