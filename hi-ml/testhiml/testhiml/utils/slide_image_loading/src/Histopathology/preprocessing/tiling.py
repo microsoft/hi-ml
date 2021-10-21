@@ -25,7 +25,7 @@ def pad_for_tiling_2d(array: np.ndarray, tile_size: int, channels_first: Optiona
         original array to obtain indices for the padded array.
     """
     height, width = array.shape[1:] if channels_first else array.shape[:-1]
-    padding_h = get_1d_padding(height, tile_size) 
+    padding_h = get_1d_padding(height, tile_size)
     padding_w = get_1d_padding(width, tile_size)
     padding = [padding_h, padding_w]
     channels_axis = 0 if channels_first else 2

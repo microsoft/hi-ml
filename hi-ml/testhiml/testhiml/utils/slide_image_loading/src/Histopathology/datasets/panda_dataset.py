@@ -26,8 +26,8 @@ class PandaDataset(Dataset):
         self.root_dir = Path(root_dir)
         self.train_df = pd.read_csv(self.root_dir / "train.csv", index_col='image_id')
         if n_slides or frac_slides:
-            self.train_df = self.train_df.sample(n=n_slides, frac=frac_slides, replace=False, 
-                                                          random_state=1234)
+            self.train_df = self.train_df.sample(n=n_slides, frac=frac_slides, replace=False,
+                                                 random_state=1234)
 
     def __len__(self) -> int:
         return self.train_df.shape[0]
@@ -74,7 +74,8 @@ class LoadPandaROId(MapTransform):
     - `'level'` (int): chosen magnification level
     - `'scale'` (float): corresponding scale, loaded from the file
     """
-    def __init__(self, image_reader: WSIReader, mask_reader: WSIReader, image_key: str = 'image', mask_key: str = 'mask',
+    def __init__(self, image_reader: WSIReader, mask_reader: WSIReader,
+                 image_key: str = 'image', mask_key: str = 'mask',
                  level: int = 0, margin: int = 0, **kwargs: Any) -> None:
         """
         :param reader: And instance of MONAI's `WSIReader`.
