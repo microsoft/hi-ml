@@ -12,7 +12,7 @@ conda activate himl
 ## Installing `pyright`
 We are using static typechecking for our code via `mypy` and `pyright`. The latter requires a separate installation
 outside the Conda environment. For WSL, these are the required steps (see also 
-[here]()):
+[here](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)):
 ```shell
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 nvm install node

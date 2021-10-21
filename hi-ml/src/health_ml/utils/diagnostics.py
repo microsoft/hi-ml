@@ -23,6 +23,7 @@ class EpochTimers:
                  ) -> None:
         """
         Creates a new instance of the class.
+
         :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
         If the loading time exceeds this threshold, a warning is printed.
         :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
@@ -74,7 +75,6 @@ class EpochTimers:
         """
         Returns True if warnings about loading time should be printed in the present epoch. Returns False if
         this warning has been printed already in more than self.max_load_time_epochs epochs.
-        :return:
         """
         return len(self.load_time_warning_epochs) <= self.max_load_time_epochs
 
@@ -84,6 +84,7 @@ class EpochTimers:
         (computed between now and the end of the previous minibatch)
         and adds it to the internal bookkeeping. If the minibatch loading time exceeds a threshold, then warnings
         are printed (unless too many warnings have been printed already)
+
         :param message_prefix: A prefix string that is added to all diagnostic output.
         :param epoch: The index of the current epoch.
         :param batch_index: The index of the current minibatch.
@@ -112,6 +113,7 @@ class EpochTimers:
         """
         Called after a minibatch has been processed (training or validation step completed). Returns the time it took
         to process the current batch (including loading).
+
         :return: The time it took to process the current batch, in seconds.
         """
         current_time = time.time()
@@ -241,6 +243,7 @@ class BatchTimeCallback(Callback):
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
         """
         Shared code to keep track of minibatch loading times. This is only done on rank zero.
+
         :param batch_idx: The index of the current minibatch.
         :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
         `on_validation_batch_start`.
@@ -255,6 +258,7 @@ class BatchTimeCallback(Callback):
     def batch_end(self, is_training: bool) -> None:
         """
         Shared code to keep track of IO-related metrics when loading a minibatch.
+
         :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
         `on_validation_batch_end`.
         """
@@ -273,6 +277,7 @@ class BatchTimeCallback(Callback):
         """
         Reads the IO timers for either the training or validation epoch, writes them to the console, and logs the
         time per epoch.
+
         :param is_training: If True, show and log the data for the training epoch. If False, use the data for the
         validation epoch.
         """
@@ -302,6 +307,7 @@ class BatchTimeCallback(Callback):
         """
         Write a metric given as a name/value pair to the currently trained module. The full name of the metric is
         composed of a fixed prefix "timing/", followed by either "train/" or "val/", and then the given suffix.
+
         :param name_suffix: The suffix for the logged metric name.
         :param value: The value to log.
         :param is_training: If True, use "train/" in the metric name, otherwise "val/"

@@ -38,6 +38,7 @@ class AzureMLLogger(LightningLoggerBase):
         Writes the given metrics dictionary to the AzureML run context. If the metrics dictionary has an `epoch` key,
         the `step` value (x-axis for plots) is left empty. If there is no `epoch` key, the `step` value is taken
         from the function argument. This is the case for metrics that are logged with the `on_step=True` flag.
+
         :param metrics: A dictionary with metrics to log. Keys are strings, values are floating point numbers.
         :param step: The trainer global step for logging.
         """
@@ -54,7 +55,6 @@ class AzureMLLogger(LightningLoggerBase):
         """
         Logs the given model hyperparameters to AzureML as a table. Namespaces are converted to dictionaries.
         Nested dictionaries are flattened out.
-        :return:
         """
         if params is None or len(params) == 0:
             return
@@ -101,6 +101,7 @@ class AzureMLProgressBar(ProgressBarBase):
                  ):
         """
         Creates a new AzureML progress bar.
+
         :param refresh_rate: The number of steps after which the progress should be printed out.
         :param print_timestamp: If True, each message that the progress bar prints will be prefixed with the current
         time in UTC. If False, no such prefix will be added.
@@ -155,6 +156,7 @@ class AzureMLProgressBar(ProgressBarBase):
         Sets the information that a new stage of the PL loop is starting. The stage will be available in
         self.stage, max_batch_count in self.max_batch_count. The time when this method was called is recorded in
         self.stage_start_time
+
         :param stage: The string name of the stage that has just started.
         :param max_batch_count: The total number of batches that need to be processed in this stage.
         """
@@ -185,6 +187,7 @@ class AzureMLProgressBar(ProgressBarBase):
     def update_progress(self, batches_processed: int) -> None:
         """
         Writes progress information once the refresh interval is full.
+
         :param batches_processed: The number of batches that have been processed for the current stage.
         """
         should_update = (self.is_enabled and (batches_processed % self.refresh_rate == 0
