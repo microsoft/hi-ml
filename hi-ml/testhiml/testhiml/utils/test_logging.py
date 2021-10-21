@@ -138,8 +138,6 @@ def test_azureml_logger() -> None:
     assert logger.name() == ""
     assert logger.version() == 0
     assert logger.experiment() is None
-    assert logger.experiment() is None
-    logger.log_hyperparams(params=None)
 
 
 def test_azureml_logger_hyperparams() -> None:
