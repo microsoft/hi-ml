@@ -986,6 +986,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     run = experiment.submit(config)
 
     file_contents = "Hello world"
+    file_name = ""  # for pyright
     for i in range(num_dummy_files):
         file_name = f"dummy_checkpoint_{i}.txt"
         large_file_path = tmp_path / file_name
@@ -1013,6 +1014,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     download_file_path = output_file_dir / prefix / "dummy_checkpoint_0.txt"
     assert (output_file_dir / prefix).is_dir()
     assert len(list((output_file_dir / prefix).iterdir())) == num_dummy_files
+    found_file_contents = ""  # for pyright
     with open(str(download_file_path), "rb") as f_path:
         for line in f_path:
             chunk = line.strip(b'\x00')
@@ -1170,29 +1172,29 @@ def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expe
 
 @pytest.mark.fast
 @pytest.mark.parametrize("args, expected_key, expected_value, expected_pass", [
-    # (["--name=foo"], "name", "foo", True),
-    # (["--seed", "42"], "seed", 42, True),
-    # (["--seed", ""], "seed", 42, True),
-    # (["--number", "2.17"], "number", 2.17, True),
-    # (["--number", ""], "number", 3.14, True),
-    # (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
-    # (["--optional_int", ""], "optional_int", None, True),
-    # (["--optional_int", "2"], "optional_int", 2, True),
-    # (["--optional_float", ""], "optional_float", None, True),
-    # (["--optional_float", "3.14"], "optional_float", 3.14, True),
-    # (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
-    # (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
-    # (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
-    # (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
-    # (["--integers=1,2,3"], "integers", [1, 2, 3], True),
-    # (["--flag"], "flag", True, True),
-    # (["--no-flag"], None, None, False),
-    # (["--not_flag"], None, None, False),
-    # (["--no-not_flag"], "not_flag", False, True),
-    # (["--not_flag=false", "--no-not_flag"], None, None, False),
-    # (["--flag=Falsf"], None, None, False),
-    # (["--flag=Truf"], None, None, False),
-    # (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
+    (["--name=foo"], "name", "foo", True),
+    (["--seed", "42"], "seed", 42, True),
+    (["--seed", ""], "seed", 42, True),
+    (["--number", "2.17"], "number", 2.17, True),
+    (["--number", ""], "number", 3.14, True),
+    (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
+    (["--optional_int", ""], "optional_int", None, True),
+    (["--optional_int", "2"], "optional_int", 2, True),
+    (["--optional_float", ""], "optional_float", None, True),
+    (["--optional_float", "3.14"], "optional_float", 3.14, True),
+    (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
+    (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
+    (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
+    (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
+    (["--integers=1,2,3"], "integers", [1, 2, 3], True),
+    (["--flag"], "flag", True, True),
+    (["--no-flag"], None, None, False),
+    (["--not_flag"], None, None, False),
+    (["--no-not_flag"], "not_flag", False, True),
+    (["--not_flag=false", "--no-not_flag"], None, None, False),
+    (["--flag=Falsf"], None, None, False),
+    (["--flag=Truf"], None, None, False),
+    (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
     (["--other_args=['foo']"], "other_args", ["foo"], True),
     (["--other_args={'learning':3"], None, None, False),
     (["--other_args=['foo','bar'"], None, None, False)
@@ -1316,11 +1318,16 @@ def test_parse_throw_if_unknown() -> None:
         assert "parameters do not exist" in str(e.value)
 
 
-@pytest.mark.parametrize("should_validate, expected_call_count", [(None, 0), (False, 0), (True, 1)])
 @patch("health_azure.utils.GenericConfig.validate")
-def test_config_validate(mock_validate: MagicMock, should_validate: Optional[bool], expected_call_count: int) -> None:
-    _ = ParamClass(should_validate=should_validate)
-    assert mock_validate.call_count == expected_call_count
+def test_config_validate(mock_validate: MagicMock) -> None:
+    _ = ParamClass(should_validate=False)
+    assert mock_validate.call_count == 0
+
+    _ = ParamClass(should_validate=True)
+    assert mock_validate.call_count == 1
+
+    _ = ParamClass()
+    assert mock_validate.call_count == 2
 
 
 def test_config_add_and_validate() -> None:

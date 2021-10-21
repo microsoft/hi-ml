@@ -47,6 +47,8 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
     else:
         pip = ""
 
+    options = {'pip': pip}
+
     if extra_options:
         if 'pip' in extra_options:
             for pckg in extra_options['pip']:
@@ -62,7 +64,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
             for dep in extra_options['conda_dependencies']:
                 conda_deps += f"  - {dep}\n"
 
-    options = {'pip': pip, 'channels': channels, 'conda_dependencies': conda_deps}
+        options.update({'channels': channels, 'conda_dependencies': conda_deps})
 
     r = t.render(options)
     environment_yaml_path.write_text(r)

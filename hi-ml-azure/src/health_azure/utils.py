@@ -1117,6 +1117,8 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
         if script_config.experiment is None:
             # default to latest run file
             latest_run_file = _find_file("most_recent_run.txt")
+            if latest_run_file is None:
+                raise ValueError("Could not find most_recent_run.txt")
             runs = [get_most_recent_run(latest_run_file, workspace)]
         else:
             # get latest runs from experiment
