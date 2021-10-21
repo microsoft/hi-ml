@@ -18,15 +18,12 @@ created.
 
 ### Fixed
 
-- ([#133](https://github.com/microsoft/hi-ml/pull/134)) Fixed repo references and added pyright to enforce global checking
-
-
 ### Removed
 
 ### Deprecated
 
 
-## 0.1.9 (2021-10-15)
+## 0.1.9 (2021-10-20)
 
 ### Added
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) PyTorch Lightning logger for AzureML. Helper functions for consistent logging
@@ -35,6 +32,13 @@ created.
 ### Changed
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names, 
 from `health.azure` to `health_azure`.
+- ([#144])(https://github.com/microsoft/hi-ml/pull/141) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
+
+### Fixed
+- ([#134](https://github.com/microsoft/hi-ml/pull/134)) Fixed repo references and added pyright to enforce global checking
+- ([#139](https://github.com/microsoft/hi-ml/pull/139) Fix register_environment, which was ignoring existing environemnts
+previously. Also ensure that the environment is given version 1 by default instead of "autosave")
+
 
 ## 0.1.8 (2021-10-06)
 

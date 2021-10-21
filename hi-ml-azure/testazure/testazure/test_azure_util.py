@@ -18,6 +18,7 @@ from uuid import uuid4
 import conda_merge
 import pytest
 from _pytest.capture import CaptureFixture
+from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
 from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
@@ -448,24 +449,49 @@ dependencies:
     assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
 
 
+class MockEnvironment:
+    def __init__(self, name: str, version: str = "autosave") -> None:
+        self.name = name
+        self.version = version
+
+
 @patch("health_azure.utils.Environment")
 @patch("health_azure.utils.Workspace")
 def test_register_environment(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
-        caplog: CaptureFixture,
+        caplog: LogCaptureFixture,
 ) -> None:
+    def _mock_env_get(workspace: Workspace, name: str = "", version: Optional[str] = None) -> MockEnvironment:
+        if version is None:
+            raise Exception("not found")
+        return MockEnvironment(name, version=version)
+
     env_name = "an environment"
-    env_version = "an environment"
+    env_version = "environment version"
     mock_environment.get.return_value = mock_environment
     mock_environment.name = env_name
     mock_environment.version = env_version
     with caplog.at_level(logging.INFO):  # type: ignore
         _ = util.register_environment(mock_workspace, mock_environment)
-        assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
+        caplog_text: str = caplog.text  # for mypy
+        assert f"Using existing Python environment '{env_name}' with version '{env_version}'" in caplog_text
+
+        # test that log is correct when exception is triggered
         mock_environment.get.side_effect = oh_no
         _ = util.register_environment(mock_workspace, mock_environment)
-        assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
+        caplog_text = caplog.text  # for mypy
+        assert f"environment '{env_name}' does not yet exist, creating and registering it with version" \
+               f" '{env_version}'" in caplog_text
+
+        # test that environment version equals ENVIRONMENT_VERSION when exception is triggered
+        # rather than default value of "autosave"
+        mock_environment.version = None
+        with patch.object(mock_environment, "get", _mock_env_get):
+            with patch.object(mock_environment, "register") as mock_register:
+                mock_register.return_value = mock_environment
+                env = util.register_environment(mock_workspace, mock_environment)
+                assert env.version == util.ENVIRONMENT_VERSION
 
 
 def test_set_environment_variables_for_multi_node(
