@@ -5,7 +5,7 @@
 from argparse import ArgumentParser
 from typing import List
 
-from health_azure.himl import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 
 
 def sieve(n: int) -> List[int]:

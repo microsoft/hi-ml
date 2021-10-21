@@ -1,2 +1,2 @@
 .. literalinclude:: inputs.py
-   :emphasize-lines: 28-39
+   :emphasize-lines: 28-36

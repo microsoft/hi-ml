@@ -53,6 +53,7 @@ jobs:
 
       - name: mypy
         run: make mypy
+
   pyright:
     runs-on: ubuntu-latest
     steps:

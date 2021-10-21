@@ -9,6 +9,16 @@ conda env create --file environment.yml
 conda activate himl
 ```
 
+## Installing `pyright`
+We are using static typechecking for our code via `mypy` and `pyright`. The latter requires a separate installation
+outside the Conda environment. For WSL, these are the required steps (see also 
+[here](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)):
+```shell
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+nvm install node
+npm install -g pyright
+```
+
 ## Using specific versions `hi-ml` in your Python environments 
 
 If you'd like to test specific changes to the `hi-ml` package in your code, you can use two different routes:

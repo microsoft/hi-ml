@@ -4,20 +4,20 @@
 #  ------------------------------------------------------------------------------------------
 
 # From:
-# https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train-hyperparameter-tune-deploy-with-sklearn/train_iris.py
+# https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/ml-frameworks/scikit-learn/train
+# -hyperparameter-tune-deploy-with-sklearn/train_iris.py
 import argparse
 from pathlib import Path
 
+import numpy as np
 from azureml.core import ScriptRunConfig
 from azureml.core.run import Run
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, choice
 from azureml.train.hyperdrive.sampling import RandomParameterSampling
-
-import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from health_azure.himl import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 
 
 def main() -> None:
