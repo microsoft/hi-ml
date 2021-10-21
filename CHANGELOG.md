@@ -14,6 +14,8 @@ created.
 
 ### Added
 
+- ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
+
 ### Changed
 
 ### Fixed
