@@ -457,7 +457,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
         pythonpaths=pythonpaths)
 
 
-def get_workspace(aml_workspace: Optional[Workspace], workspace_config_path: Optional[Path]) -> Workspace:
+def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
     """
     Retrieve an Azure ML Workspace from one of several places:
       1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace

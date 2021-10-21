@@ -13,6 +13,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#142](https://github.com/microsoft/hi-ml/pull/142)) Adding AzureML progress bar and diagnostics for batch loading
 
 ### Changed
 - ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace

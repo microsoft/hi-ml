@@ -2,10 +2,11 @@
 # Adapted from the example at https://pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
+
 import torch
-from torch.utils.tensorboard.writer import SummaryWriter
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.tensorboard.writer import SummaryWriter
 
 
 def main() -> None:

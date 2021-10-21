@@ -3,12 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from health_azure.utils import WORKSPACE_CONFIG_JSON
 
 import numpy as np
 from sklearn import datasets
 
-import health_azure.himl as himl
+from health_azure import get_workspace
 from health_azure.datasets import get_datastore
 
 
@@ -24,10 +23,7 @@ def main() -> None:
     y_csv = inputs / "y.csv"
     np.savetxt(y_csv, y, delimiter=',')
 
-    path = Path(__file__).parent.resolve()
-
-    workspace = himl.get_workspace(aml_workspace=None,
-                                   workspace_config_path=path / WORKSPACE_CONFIG_JSON)
+    workspace = get_workspace()
 
     datastore = get_datastore(workspace=workspace,
                               datastore_name="himldatasets")
