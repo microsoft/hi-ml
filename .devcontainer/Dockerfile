@@ -13,7 +13,6 @@ RUN npm install -g @vercel/ncc
 # copy "noop.txt" so the COPY instruction does not fail if no environment.yml exists.
 COPY environment.yml* .devcontainer/noop.txt /tmp/conda-tmp/
 COPY build_requirements.txt test_requirements.txt /tmp/conda-tmp/
-COPY hi-ml-azure/run_requirements.txt /tmp/conda-tmp/hi-ml-azure/
 RUN /opt/conda/bin/conda env update -n base -f /tmp/conda-tmp/environment.yml \
     && rm -rf /tmp/conda-tmp
 

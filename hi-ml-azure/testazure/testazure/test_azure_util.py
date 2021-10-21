@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 import time
+from argparse import ArgumentParser
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -20,6 +21,7 @@ import conda_merge
 import param
 import pytest
 from _pytest.capture import CaptureFixture
+from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
 from azureml.core import Experiment, ScriptRunConfig
 from azureml.core.authentication import ServicePrincipalAuthentication
@@ -450,24 +452,49 @@ dependencies:
     assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
 
 
+class MockEnvironment:
+    def __init__(self, name: str, version: str = "autosave") -> None:
+        self.name = name
+        self.version = version
+
+
 @patch("health_azure.utils.Environment")
 @patch("health_azure.utils.Workspace")
 def test_register_environment(
         mock_workspace: mock.MagicMock,
         mock_environment: mock.MagicMock,
-        caplog: CaptureFixture,
+        caplog: LogCaptureFixture,
 ) -> None:
+    def _mock_env_get(workspace: Workspace, name: str = "", version: Optional[str] = None) -> MockEnvironment:
+        if version is None:
+            raise Exception("not found")
+        return MockEnvironment(name, version=version)
+
     env_name = "an environment"
-    env_version = "an environment"
+    env_version = "environment version"
     mock_environment.get.return_value = mock_environment
     mock_environment.name = env_name
     mock_environment.version = env_version
     with caplog.at_level(logging.INFO):  # type: ignore
         _ = util.register_environment(mock_workspace, mock_environment)
-        assert f"Using existing Python environment '{env_name}'" in caplog.text  # type: ignore
+        caplog_text: str = caplog.text  # for mypy
+        assert f"Using existing Python environment '{env_name}' with version '{env_version}'" in caplog_text
+
+        # test that log is correct when exception is triggered
         mock_environment.get.side_effect = oh_no
         _ = util.register_environment(mock_workspace, mock_environment)
-        assert f"environment '{env_name}' does not yet exist, creating and registering" in caplog.text  # type: ignore
+        caplog_text = caplog.text  # for mypy
+        assert f"environment '{env_name}' does not yet exist, creating and registering it with version" \
+               f" '{env_version}'" in caplog_text
+
+        # test that environment version equals ENVIRONMENT_VERSION when exception is triggered
+        # rather than default value of "autosave"
+        mock_environment.version = None
+        with patch.object(mock_environment, "get", _mock_env_get):
+            with patch.object(mock_environment, "register") as mock_register:
+                mock_register.return_value = mock_environment
+                env = util.register_environment(mock_workspace, mock_environment)
+                assert env.version == util.ENVIRONMENT_VERSION
 
 
 def test_set_environment_variables_for_multi_node(
@@ -518,8 +545,39 @@ def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMoc
     latest_path.touch()
     latest_path.write_text(mock_run_id)
 
-    mock_workspace.get_run.return_value = MagicMock()
-    util.get_most_recent_run(latest_path, mock_workspace)
+    run = util.get_most_recent_run(latest_path, mock_workspace)
+    assert run.id == mock_run_id 
+
+
+def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
+    mock_run_id = 'mockrunid123'
+    mock_latest_run_path = tmp_path / "most_recent_run.txt"
+    with open(mock_latest_run_path, 'w+') as f_path:
+        f_path.write(mock_run_id)
+    parser = ArgumentParser()
+    parser.add_argument("--latest_run_file", type=str)
+    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
+    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
+        with mock.patch("health_azure.utils.get_aml_run_from_run_id") as mock_fetch_run:
+            mock_fetch_run.return_value = MockRun(mock_run_id)
+            aml_run = util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
+            mock_fetch_run.assert_called_once_with(mock_run_id, aml_workspace=mock_workspace)
+            assert aml_run.id == mock_run_id
+
+    # if path doesn't exist, expect error
+    with pytest.raises(AssertionError) as ex:
+        mock_args = parser.parse_args(["--latest_run_file", "idontexist"])
+        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
+            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
+    expected_str = "When running in cloud builds, this should pick up the ID of a previous training run"
+    assert str(ex.value) == expected_str
+
+    # if arg not provided, expect error
+    with pytest.raises(AssertionError) as assertionException:
+        mock_args = parser.parse_args(["--latest_run_file", None])  # type: ignore
+        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
+            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
+    assert str(assertionException.value) == expected_str
 
 
 def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:

@@ -33,7 +33,7 @@ pip: pip_build pip_test call_pip_local
 # we want to consume that from source rather than pypi.
 conda:
 	conda env update --file environment.yml
-	pip uninstall hi-ml-azure
+
 
 ## Actions
 
@@ -61,6 +61,13 @@ call_mypy:
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
+
+# run pyright, assuming test requirements already installed
+call_pyright:
+	npm install -g pyright
+
+# pip install test requirements and run pyright
+pyright: pip call_pyright
 
 # run basic checks
 call_check: call_flake8 call_mypy

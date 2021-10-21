@@ -56,6 +56,7 @@ class WrappedTensorboard(Tensorboard):
         # Make a run watcher for each run we are monitoring
         self._run_watchers = []
         local_log_dirs = []
+        run_local_root: str = ""
         for run in self._runs:
             run_local_root = os.path.join(self._local_root, run.id)
             local_log_dirs.append(f"{run.id}:{run_local_root}")

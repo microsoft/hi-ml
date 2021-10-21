@@ -22,6 +22,7 @@ The `hi-ml` toolbox provides
    authentication.md
    datasets.md
    hyperdrive.md
+   lowpriority.md
    commandline_tools.md
    downloading.md
    examples.md
