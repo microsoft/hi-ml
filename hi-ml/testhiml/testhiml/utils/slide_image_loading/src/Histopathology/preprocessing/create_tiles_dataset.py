@@ -5,7 +5,7 @@ import shutil
 import traceback
 import warnings
 from pathlib import Path
-from typing import Callable, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import PIL
@@ -103,7 +103,7 @@ def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
 def process_slide(image_wsi_reader: str, save_images: bool,
                   sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
                   output_dir: Path, tile_progress: bool = False) -> \
-                      Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                      Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     slide_id = sample['image_id']
     slide_dir: Path = output_dir / (slide_id + "/")
     logging.info(f">>> Slide dir {slide_dir}")

@@ -125,7 +125,7 @@ def wrap_profile_folders(mount_point: Path,
 
     :return: None.
     """
-    def wrap_profile_folders():
+    def wrap_profile_folders() -> None:
         profile_folders(mount_point, output_folder)
 
     lp = LineProfiler()
@@ -142,7 +142,7 @@ def profile_main(mount_point: Path,
                  output_folder: Path,
                  label: str,
                  process: Callable) -> None:
-    def wrap_main():
+    def wrap_main() -> None:
         from Histopathology.preprocessing.create_tiles_dataset import main
         main(process,
              panda_dir=mount_point,
