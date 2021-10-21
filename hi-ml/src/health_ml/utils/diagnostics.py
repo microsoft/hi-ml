@@ -22,10 +22,8 @@ class EpochTimers:
                  max_load_time_epochs: int = 5
                  ) -> None:
         """
-        Creates a new instance of the class.
-
         :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
-        If the loading time exceeds this threshold, a warning is printed.
+            If the loading time exceeds this threshold, a warning is printed.
         :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
         :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
         """
@@ -126,8 +124,10 @@ class EpochTimers:
 class BatchTimeCallback(Callback):
     """
     This callback provides tools to measure batch loading time and other diagnostic information.
-    It prints alerts if the batch loading time is over a threshold for several epochs.
-    All logging will only happen on rank 0.
+    It prints alerts to the console or to `logging` if the batch loading time is over a threshold for several epochs.
+    Metrics for loading time, as well as epoch time, and maximum and average batch processing time are logged to
+    the loggers that are set up on the module.
+    In distributed training, all logging to the console and to the Lightning loggers will only happen on global rank 0.
 
     The loading time for a minibatch is estimated by the difference between the start time of a minibatch and the
     end time of the previous minibatch. It will consequently also include other operations that happen between the
@@ -135,18 +135,24 @@ class BatchTimeCallback(Callback):
     drive up this time.
 
     Usage example:
-        >>>from health_ml.utils import BatchTimeCallback
-        >>>from pytorch_lightning import Trainer
-        >>>batchtime = BatchTimeCallback(max_batch_load_time_seconds=0.5)
-        >>>trainer = Trainer(callbacks=[batchtime])
+        >>> from health_ml.utils import BatchTimeCallback
+        >>> from pytorch_lightning import Trainer
+        >>> batchtime = BatchTimeCallback(max_batch_load_time_seconds=0.5)
+        >>> trainer = Trainer(callbacks=[batchtime])
     """
 
     EPOCH_TIME = "epoch_time [sec]"
+    """The name that is used to log the execution time per epoch """
     BATCH_TIME = "batch_time [sec]"
+    """The name that is used to log the execution time per batch."""
     EXCESS_LOADING_TIME = "batch_loading_over_threshold [sec]"
+    """The name that is used to log the time spent loading all the batches that exceeding the loading time threshold."""
     METRICS_PREFIX = "timing/"
+    """The prefix for all metrics collected by this callback."""
     TRAIN_PREFIX = "train/"
+    """The prefix for all metrics collected during training."""
     VAL_PREFIX = "val/"
+    """The prefix for all metrics collected during validation."""
 
     def __init__(self,
                  max_batch_load_time_seconds: float = 0.5,
@@ -154,12 +160,16 @@ class BatchTimeCallback(Callback):
                  max_load_time_epochs: int = 5
                  ) -> None:
         """
-        Creates a new instance of the class.
-
         :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
-        If the loading time exceeds this threshold, a warning is printed.
-        :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
+            If the loading time exceeds this threshold, a warning is printed. The maximum number of such warnings is
+            controlled by the other arguments.
+        :param max_load_time_warnings: The maximum number of warnings about increased loading time that will be printed
+            per epoch. For example, if max_load_time_warnings=3, at most 3 of these warnings will be printed within an
+            epoch. The 4th minibatch with loading time over the threshold would not generate any warning anymore.
+            If set to 0, no warnings are printed at all.
         :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
+            For example, if max_load_time_epochs=2, and at least 1 batch with increased loading time is observed in epochs
+            0 and 3, no further warnings about increased loading time would be printed from epoch 4 onwards.
         """
         # Timers for monitoring data loading time
         self.train_timers = EpochTimers(max_batch_load_time_seconds=max_batch_load_time_seconds,
@@ -242,11 +252,11 @@ class BatchTimeCallback(Callback):
     @rank_zero_only
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
         """
-        Shared code to keep track of minibatch loading times. This is only done on rank zero.
+        Shared code to keep track of minibatch loading times. This is only done on global rank zero.
 
         :param batch_idx: The index of the current minibatch.
         :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
-        `on_validation_batch_start`.
+            `on_validation_batch_start`.
         """
         timers = self.get_timers(is_training=is_training)
         assert self.module is not None
@@ -257,10 +267,10 @@ class BatchTimeCallback(Callback):
     @rank_zero_only
     def batch_end(self, is_training: bool) -> None:
         """
-        Shared code to keep track of IO-related metrics when loading a minibatch.
+        Shared code to keep track of minibatch loading times. This is only done on global rank zero.
 
         :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
-        `on_validation_batch_end`.
+            `on_validation_batch_end`.
         """
         timers = self.get_timers(is_training=is_training)
         batch_time = timers.batch_end()
@@ -279,7 +289,7 @@ class BatchTimeCallback(Callback):
         time per epoch.
 
         :param is_training: If True, show and log the data for the training epoch. If False, use the data for the
-        validation epoch.
+            validation epoch.
         """
         timers = self.get_timers(is_training=is_training)
         epoch_time_seconds = timers.total_epoch_time
@@ -312,9 +322,9 @@ class BatchTimeCallback(Callback):
         :param value: The value to log.
         :param is_training: If True, use "train/" in the metric name, otherwise "val/"
         :param reduce_max: If True, use torch.max as the aggregation function for the logged values. If False, use
-        torch.mean
+            torch.mean
         """
-        # Metrics are only written at rank 0, and hence must not be synchronized. Trying to synchronize will
+        # Metrics are only written at global rank 0, and hence must not be synchronized. Trying to synchronize will
         # block training.
         prefix = self.TRAIN_PREFIX if is_training else self.VAL_PREFIX
         assert self.module is not None

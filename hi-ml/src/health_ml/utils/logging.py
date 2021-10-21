@@ -90,9 +90,13 @@ class AzureMLProgressBar(ProgressBarBase):
     """
 
     PROGRESS_STAGE_TRAIN = "Training"
+    """A string that indicates that the trainer loop is presently in training mode."""
     PROGRESS_STAGE_VAL = "Validation"
+    """A string that indicates that the trainer loop is presently in validation mode."""
     PROGRESS_STAGE_TEST = "Testing"
+    """A string that indicates that the trainer loop is presently in testing mode."""
     PROGRESS_STAGE_PREDICT = "Prediction"
+    """A string that indicates that the trainer loop is presently in prediction mode."""
 
     def __init__(self,
                  refresh_rate: int = 50,
@@ -100,20 +104,18 @@ class AzureMLProgressBar(ProgressBarBase):
                  write_to_logging_info: bool = False
                  ):
         """
-        Creates a new AzureML progress bar.
-
         :param refresh_rate: The number of steps after which the progress should be printed out.
         :param print_timestamp: If True, each message that the progress bar prints will be prefixed with the current
-        time in UTC. If False, no such prefix will be added.
+            time in UTC. If False, no such prefix will be added.
         :param write_to_logging_info: If True, the progress information will be printed via logging.info. If False,
-        it will be printed to stdout via print.
+            it will be printed to stdout via print.
         """
         super().__init__()
         self._refresh_rate = refresh_rate
         self._enabled = True
         self.stage = ""
         self.stage_start_time = 0.0
-        self.max_batch_count = 0
+        self.total_num_batches = 0
         self.write_to_logging_info = write_to_logging_info
         self.print_timestamp = print_timestamp
 
@@ -151,17 +153,18 @@ class AzureMLProgressBar(ProgressBarBase):
         super().on_predict_epoch_start(trainer, pl_module)
         self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches)
 
-    def start_stage(self, stage: str, max_batch_count: int) -> None:
+    def start_stage(self, stage: str, total_num_batches: int) -> None:
         """
         Sets the information that a new stage of the PL loop is starting. The stage will be available in
-        self.stage, max_batch_count in self.max_batch_count. The time when this method was called is recorded in
+        self.stage, total_num_batches in self.total_num_batches. The time when this method was called is recorded in
         self.stage_start_time
 
         :param stage: The string name of the stage that has just started.
-        :param max_batch_count: The total number of batches that need to be processed in this stage.
+        :param total_num_batches: The total number of batches that need to be processed in this stage. This is used
+            only for progress reporting.
         """
         self.stage = stage
-        self.max_batch_count = max_batch_count
+        self.total_num_batches = total_num_batches
         self.stage_start_time = time.time()
 
     def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
@@ -190,8 +193,14 @@ class AzureMLProgressBar(ProgressBarBase):
 
         :param batches_processed: The number of batches that have been processed for the current stage.
         """
+
+        def to_minutes(time_sec: float) -> str:
+            minutes = int(time_sec / 60)
+            seconds = int(time_sec % 60)
+            return f"{minutes:02}:{seconds:02}"
+
         should_update = (self.is_enabled and (batches_processed % self.refresh_rate == 0
-                                              or batches_processed == self.max_batch_count))
+                                              or batches_processed == self.total_num_batches))
         if not should_update:
             return
         prefix = f"{self.stage}"
@@ -200,22 +209,18 @@ class AzureMLProgressBar(ProgressBarBase):
         if self.stage == self.PROGRESS_STAGE_TRAIN:
             prefix += f" (step {self.trainer.lightning_module.global_step})"
         prefix += ": "
-        if math.isinf(self.max_batch_count):
+        time_elapsed = time.time() - self.stage_start_time
+        time_elapsed_min = to_minutes(time_elapsed)
+        if math.isinf(self.total_num_batches):
             # Can't print out per-cent progress or time estimates if the data is infinite
-            message = f"{prefix}{batches_processed:4} batches completed"
+            message = f"{prefix}{batches_processed:4} batches completed, {time_elapsed_min} since epoch start"
         else:
-            fraction_completed = batches_processed / self.max_batch_count
+            fraction_completed = batches_processed / self.total_num_batches
             percent_completed = int(fraction_completed * 100)
-            time_elapsed = time.time() - self.stage_start_time
             estimated_epoch_duration = time_elapsed / fraction_completed
-
-            def to_minutes(time_sec: float) -> str:
-                minutes = int(time_sec / 60)
-                seconds = int(time_sec % 60)
-                return f"{minutes:02}:{seconds:02}"
-
-            message = (f"{prefix}{batches_processed:4}/{self.max_batch_count} ({percent_completed:3}%) completed. "
-                       f"{to_minutes(time_elapsed)} elapsed, total epoch time ~ {to_minutes(estimated_epoch_duration)}")
+            message = (f"{prefix}{batches_processed:4}/{self.total_num_batches} ({percent_completed:3}%) completed. "
+                       f"{time_elapsed_min} since epoch start, estimated total epoch time ~ "
+                       f"{to_minutes(estimated_epoch_duration)}")
         self._print(message)
 
     def _print(self, message: str) -> None:
@@ -248,12 +253,12 @@ def log_on_epoch(module: LightningModule,
     :param metrics: A dictionary with metrics to log.
     :param module: The PyTorch Lightning module where the metrics should be logged.
     :param sync_dist: If not None, use this value for the sync_dist argument to module.log. If None,
-    set it automatically depending on the use of DDP. Set this to False if you want to log metrics that are only
-    available on Rank 0 of a DDP job.
+        set it automatically depending on the use of DDP. Set this to False if you want to log metrics that are only
+        available on Rank 0 of a DDP job.
     :param reduce_fx: The reduce function to apply to the per-step values, after synchronizing the tensors across GPUs.
-    Default: torch.mean
+        Default: torch.mean
     :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
-    a value recognized by sync_ddp: 'sum', 'mean', 'avg'
+        a value recognized by sync_ddp: 'sum', 'mean', 'avg'
     """
     assert module.trainer is not None, "No trainer is set for this module."
     if operator.xor(name is None, value is None):
