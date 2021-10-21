@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from pathlib import Path
+from typing import Callable
 
 from line_profiler import LineProfiler
 from openslide import OpenSlide
@@ -14,6 +15,7 @@ import numpy as np
 from azureml.core import Dataset, Run, Workspace
 
 from Histopathology.preprocessing.create_tiles_dataset import (
+    process_slide,
     process_slide_cucim_no_save,
     process_slide_open_slide_no_save,
     process_slide_cucim,
@@ -73,16 +75,16 @@ def profile_openslide(input_file: Path,
         region.save(output_file)
 
 
-def profile_folder(mount_path: Path,
+def profile_folder(mount_point: Path,
                    output_folder: Path,
                    subfolder: str) -> None:
     """
-    For each *.tiff image file in the given subfolder or the mount_path,
+    For each *.tiff image file in the given subfolder or the mount_point,
     load each with cuCIM or OpenSlide, print out basic properties, and save as a png.
 
-    :param mount_path: Base path for source images.
+    :param mount_point: Base path for source images.
     :param output_folder: Base path to save output images.
-    :param subfolder: Subfolder of mount_path to search for tiffs.
+    :param subfolder: Subfolder of mount_point to search for tiffs.
     :return: None.
     """
     cucim_output_folder = output_folder / "cc" / subfolder
@@ -91,7 +93,7 @@ def profile_folder(mount_path: Path,
     openslide_output_folder = output_folder / "slide" / subfolder
     openslide_output_folder.mkdir(parents=True, exist_ok=True)
 
-    for image_file in (mount_path / subfolder).glob("*.tiff"):
+    for image_file in (mount_point / subfolder).glob("*.tiff"):
         output_filename = image_file.with_suffix(".png").name
 
         try:
@@ -101,13 +103,65 @@ def profile_folder(mount_path: Path,
         profile_openslide(image_file, openslide_output_folder / output_filename)
 
 
-def print_cache_state(cache) -> None:
+def profile_folders(mount_point: Path,
+                    output_folder: Path) -> None:
+    profile_folder(mount_point, output_folder, "train_images")
+    profile_folder(mount_point, output_folder, "train_label_masks")
+
+
+def print_cache_state(cache) -> None:  # type: ignore
     """
     Print out cuCIM cache state
     """
     print(f"cache_hit: {cache.hit_count}, cache_miss: {cache.miss_count}")
     print(f"items in cache: {cache.size}/{cache.capacity}, "
           f"memory usage in cache: {cache.memory_size}/{cache.memory_capacity}")
+
+
+def wrap_profile_folders(mount_point: Path,
+                         output_folder: Path) -> None:
+    """
+    Load some tiffs with cuCIM and OpenSlide, save them, and run line_profile.
+
+    :return: None.
+    """
+    def wrap_profile_folders():
+        profile_folders(mount_point, output_folder)
+
+    lp = LineProfiler()
+    lp.add_function(profile_cucim)
+    lp.add_function(profile_openslide)
+    lp.add_function(profile_folder)
+    lp_wrapper = lp(wrap_profile_folders)
+    lp_wrapper()
+    with open("outputs/profile_folders.txt", "w", encoding="utf-8") as f:
+        lp.print_stats(f)
+
+
+def profile_main(mount_point: Path,
+                 output_folder: Path,
+                 label: str,
+                 process: Callable) -> None:
+    def wrap_main():
+        from Histopathology.preprocessing.create_tiles_dataset import main
+        main(process,
+             panda_dir=mount_point,
+             root_output_dir=output_folder / label,
+             level=1,
+             tile_size=224,
+             margin=64,
+             occupancy_threshold=0.05,
+             parallel=False,
+             overwrite=True)
+
+    lp = LineProfiler()
+    lp.add_function(process_slide)
+    lp.add_function(save_tile)
+    lp.add_function(generate_tiles)
+    lp_wrapper = lp(wrap_main)
+    lp_wrapper()
+    with open(f"outputs/profile_{label}.txt", "w", encoding="utf-8") as f:
+        lp.print_stats(f)
 
 
 def main() -> None:
@@ -139,58 +193,18 @@ def main() -> None:
     with dataset.mount("/tmp/datasets/panda") as mount_context:
         mount_point = Path(mount_context.mount_point)
 
-        profile_folder(mount_point,
-                       output_folder,
-                       "train_images")
-
-        profile_folder(mount_point,
-                       output_folder,
-                       "train_label_masks")
+        wrap_profile_folders(mount_point, output_folder)
 
         print_cache_state(cache)
-
-        root_output_dir = output_folder / "tiles"
-        root_output_dir.mkdir(exist_ok=True)
-
-        from Histopathology.preprocessing.create_tiles_dataset import main
 
         for i, process in enumerate([process_slide_cucim_no_save,
                                      process_slide_open_slide_no_save,
                                      process_slide_cucim,
                                      process_slide_openslide]):
-            main(process,
-                 f'process_slide_{i}',
-                 panda_dir=mount_point,
-                 root_output_dir=root_output_dir,
-                 level=1,
-                 tile_size=224,
-                 margin=64,
-                 occupancy_threshold=0.05,
-                 parallel=False,
-                 overwrite=True)
+            label = f'process_slide_{i}'
+            profile_main(mount_point, output_folder, label, process)
 
             print_cache_state(cache)
-
-
-def profile_main() -> None:
-    """
-    Create a line profiler, add interesting functions, run main, and write profile output to
-    a text file in outputs.
-    """
-    lp = LineProfiler()
-    lp.add_function(profile_cucim)
-    lp.add_function(profile_openslide)
-    lp.add_function(profile_folder)
-    lp.add_function(process_slide_cucim_no_save)
-    lp.add_function(process_slide_open_slide_no_save)
-    lp.add_function(process_slide_cucim)
-    lp.add_function(process_slide_openslide)
-    lp.add_function(save_tile)
-    lp.add_function(generate_tiles)
-    lp_wrapper = lp(main)
-    lp_wrapper()
-    with open("outputs/profile.txt", "w", encoding="utf-8") as f:
-        lp.print_stats(f)
 
 
 if __name__ == '__main__':
