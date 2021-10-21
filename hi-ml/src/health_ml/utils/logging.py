@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import argparse
 import logging
 import math
 import numbers
@@ -10,7 +10,7 @@ import operator
 import sys
 import time
 from datetime import datetime
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional, Union
 
 import torch
 from pytorch_lightning import LightningModule, Trainer
@@ -51,12 +51,14 @@ class AzureMLLogger(LightningLoggerBase):
                 RUN_CONTEXT.log(key, value, step=None if is_epoch_metric else step)
 
     @rank_zero_only
-    def log_hyperparams(self, params: Any) -> None:
+    def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
         """
         Logs the given model hyperparameters to AzureML as a table. Namespaces are converted to dictionaries.
         Nested dictionaries are flattened out.
         """
-        if params is None or len(params) == 0:
+        if not self.is_running_in_azure_ml:
+            return
+        if params is None:
             return
         # Convert from Namespace to dictionary
         params = self._convert_params(params)
@@ -64,6 +66,8 @@ class AzureMLLogger(LightningLoggerBase):
         params = self._flatten_dict(params)
         # Convert anything that is not a primitive type to str
         params = self._sanitize_params(params)
+        if not isinstance(params, dict):
+            raise ValueError(f"Expected the hyperparameters to be a dictionary, but got {type(params)}")
         if len(params) > 0:
             RUN_CONTEXT.log_table("hyperparams", params)
 
@@ -225,7 +229,8 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def _print(self, message: str) -> None:
         if self.print_timestamp:
-            message = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ ") + message
+            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ ")
+            message = timestamp + message
         if self.write_to_logging_info:
             logging.info(message)
         else:
