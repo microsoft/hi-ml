@@ -87,10 +87,10 @@ def profile_folder(mount_point: Path,
     :param subfolder: Subfolder of mount_point to search for tiffs.
     :return: None.
     """
-    cucim_output_folder = output_folder / "cc" / subfolder
+    cucim_output_folder = output_folder / "image_cucim" / subfolder
     cucim_output_folder.mkdir(parents=True, exist_ok=True)
 
-    openslide_output_folder = output_folder / "slide" / subfolder
+    openslide_output_folder = output_folder / "image_openslide" / subfolder
     openslide_output_folder.mkdir(parents=True, exist_ok=True)
 
     for image_file in (mount_point / subfolder).glob("*.tiff"):
@@ -175,11 +175,6 @@ def main() -> None:
     print(f"cucim.is_available('core'): {cucim.is_available('core')}")
     print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
 
-    cucim.CuImage.cache("per_process", memory_capacity=2048, record_stat=True)
-    cache = cucim.CuImage.cache()
-    print(f"cucim.cache.config: {cache.config}")
-    print_cache_state(cache)
-
     run_context = Run.get_context()
     if hasattr(run_context, 'experiment'):
         ws = run_context.experiment.workspace
@@ -195,14 +190,24 @@ def main() -> None:
 
         wrap_profile_folders(mount_point, output_folder)
 
-        print_cache_state(cache)
+        labels = ['tile_cucim_no_save', 'tile_openslide_no_save', 'tile_cucim', 'tile_openslide']
 
         for i, process in enumerate([process_slide_cucim_no_save,
                                      process_slide_open_slide_no_save,
                                      process_slide_cucim,
                                      process_slide_openslide]):
-            label = f'process_slide_{i}'
-            profile_main(mount_point, output_folder, label, process)
+            profile_main(mount_point, output_folder, labels[i], process)
+
+        cucim.CuImage.cache("per_process", memory_capacity=2048, record_stat=True)
+        cache = cucim.CuImage.cache()
+        print(f"cucim.cache.config: {cache.config}")
+        print_cache_state(cache)
+
+        labels = ['tile_cucim_no_save_cache', 'tile_cucim_cache']
+
+        for i, process in enumerate([process_slide_cucim_no_save,
+                                     process_slide_cucim]):
+            profile_main(mount_point, output_folder, labels[i], process)
 
             print_cache_state(cache)
 
