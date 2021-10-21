@@ -13,6 +13,7 @@ import cucim
 import numpy as np
 
 from azureml.core import Dataset, Run, Workspace
+from health_azure import get_workspace, is_running_in_azure_ml
 
 from Histopathology.preprocessing.create_tiles_dataset import (
     process_slide,
@@ -175,15 +176,10 @@ def main() -> None:
     print(f"cucim.is_available('core'): {cucim.is_available('core')}")
     print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
 
-    run_context = Run.get_context()
-    if hasattr(run_context, 'experiment'):
-        ws = run_context.experiment.workspace
-        output_folder = Path("outputs")
-    else:
-        ws = Workspace.from_config()
-        output_folder = Path("../outputs")
-
+    ws = get_workspace()
     dataset = Dataset.get_by_name(ws, name='panda')
+
+    output_folder = Path("outputs") if is_running_in_azure_ml() else Path("../outputs")
 
     with dataset.mount("/tmp/datasets/panda") as mount_context:
         mount_point = Path(mount_context.mount_point)
