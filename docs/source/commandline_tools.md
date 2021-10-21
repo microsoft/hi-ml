@@ -62,10 +62,34 @@ You can extend this list of arguments by creating a child class that inherits fr
 
 Additional arguments can have any of the following types: `bool`, `integer`, `float`, `string`, `list`, `class/class instance`
 with no additional work required. You can also define your own custom type, by providing a custom class in your code that 
-inherits from CustomTypeParam. It must define 2 methods: 
+inherits from `CustomTypeParam`. It must define 2 methods: 
 1. `_validate(self, x: Any)`: which should raise a `ValueError` if x is not of the type you expect, and should also make a call 
 `super()._validate(val)`
 2. `from_string(self, y: string)` which takes in the command line arg as a string (`y`) and returns an instance of the type
 that you want. For example, if your custom type is a tuple, this method should create a tuple from the input string and return that.
 An example of a custom type can be seen in our own custom type: `RunIdOrListParam`, which accepts a string representing one or more
 run ids (or run recovery ids) and returns either a List or a single RunId object (or RunRecoveryId object if appropriate) 
+
+### Example:
+
+```python
+class EvenNumberParam(util.CustomTypeParam):
+    """ Our custom type param for even numbers"""
+
+    def _validate(self, val: Any) -> None:
+        if not (self.allow_None and val is None):
+            if val % 2 != 0:
+                raise ValueError(f"{val} is not an even number")
+        super()._validate(val)  # type: ignore
+
+    def from_string(self, x: str) -> int:
+        return int(x)
+
+
+class MyScriptConfig(util.AmlRunScriptConfig):
+    # example of a generic param
+    simple_string: str = param.String(default="")
+    # example of a custom param
+    even_number = EvenNumberParam(2, doc="your choice of even number")
+
+```

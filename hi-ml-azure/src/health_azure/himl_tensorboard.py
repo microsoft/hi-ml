@@ -116,12 +116,6 @@ def main() -> None:  # pragma: no cover
         logging.info("You have not provided a config path. Therefore we will try to find one in your "
                      "current directory, and its parents")
 
-    if not config_path or config_path.is_file():
-        raise ValueError(
-            "You must provide a config.json file in the root folder to connect"
-            "to an AML workspace. This can be downloaded from your AML workspace (see README.md)"
-        )
-
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
     runs = azure_util._get_runs_from_script_config(tb_config, workspace)

@@ -204,7 +204,7 @@ class AzureMLProgressBar(ProgressBarBase):
             return f"{minutes:02}:{seconds:02}"
 
         should_update = (self.is_enabled and (batches_processed % self.refresh_rate == 0
-                                              or batches_processed == self.total_num_batches))
+                                              or batches_processed == self.total_num_batches))  # noqa: W503
         if not should_update:
             return
         prefix = f"{self.stage}"

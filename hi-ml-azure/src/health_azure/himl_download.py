@@ -16,7 +16,9 @@ class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
     output_dir: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                            doc="Path to directory to store files downloaded from the AML Run")
     config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
-                                            doc="Path to config.json where Workspace name is defined")
+                                            doc="Path to config.json where Workspace name is defined. If not provided, "
+                                                "the code will try to locate a config.json file in any of the parent "
+                                                "folders of the current working directory")
 
     prefix: str = param.String(default=None, allow_None=True, doc="Optional prefix to filter Run files by")
 
@@ -33,7 +35,7 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
     """
     if download_config.run is not None:
         run_ = download_config.run
-        run_ids = [r.id for r in run_] if isinstance(run_, list) else [run_.id]
+        run_ids = [r for r in run_] if isinstance(run_, list) else [run_]
         runs = [azure_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
         if len(runs) == 0:
             raise ValueError(f"Did not find any runs with the given run id(s): {download_config.run}")

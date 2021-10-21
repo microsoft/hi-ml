@@ -9,9 +9,9 @@ import logging
 import os
 import sys
 import time
-from argparse import ArgumentParser
 from enum import Enum
 from pathlib import Path
+from random import randint
 from typing import Dict, List, Optional, Union, Any, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -609,23 +609,20 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
 
 
 @pytest.mark.fast
-@patch("health_azure.utils.fetch_run")
 @patch("health_azure.utils.Workspace")
-@pytest.mark.parametrize("mock_run_id, run_id_type", [
-    ("run_abc_123", util.RunId),
-    ("experiment1:run_bcd_456", util.RunRecoveryId)
-])
-def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_fetch_run: MagicMock, mock_run_id: str,
-                                 run_id_type: util.RunSource) -> None:
-    mock_run = MockRun(mock_run_id)
-    mock_workspace.get_run.return_value = mock_run
-    mock_fetch_run.return_value = mock_run
+@pytest.mark.parametrize("mock_run_id", ["run_abc_123", "experiment1:run_bcd_456"])
+def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_run_id: str) -> None:
+    def _mock_get_run(run_id: str) -> MockRun:
+        if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+            return MockRun(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1])
+        return MockRun(mock_run_id)
+
+    mock_workspace.get_run = _mock_get_run
 
     aml_run = util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
-    if run_id_type == util.RunId:
-        mock_workspace.get_run.assert_called_with(mock_run_id)
-    else:
-        mock_fetch_run.assert_called_with(mock_workspace, mock_run_id)
+    if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+        mock_run_id = mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
+
     assert aml_run.id == mock_run_id
 
 
@@ -829,23 +826,23 @@ def test_is_local_rank_zero() -> None:
         assert not util.is_local_rank_zero()
 
 
-@pytest.mark.parametrize("dummy_recovery_id, expected_id_type", [
-    ("expt:run_abc_1234", util.RunRecoveryId),
-    ("['expt:abc_432','expt2:def_111']", util.RunRecoveryId),
-    ("run_ghi_1234", util.RunId),
-    ("['run_jkl_1234','run_mno_7654']", util.RunId)
+@pytest.mark.parametrize("dummy_recovery_id", [
+    "expt:run_abc_1234",
+    "['expt:abc_432','expt2:def_111']",
+    "run_ghi_1234",
+    "['run_jkl_1234','run_mno_7654']"
 ])
 def test_get_run_source(dummy_recovery_id: str,
-                        expected_id_type: Union[util.RunId, util.RunRecoveryId]) -> None:
+                        ) -> None:
     arguments = ["", "--run", dummy_recovery_id]
     with patch.object(sys, "argv", arguments):
 
         run_source = util.AmlRunScriptConfig.parse_args()
 
         if isinstance(run_source.run, List):
-            assert isinstance(run_source.run[0], expected_id_type)
+            assert isinstance(run_source.run[0], str)
         else:
-            assert isinstance(run_source.run, expected_id_type)
+            assert isinstance(run_source.run, str)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -939,19 +936,22 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
 
 
 @pytest.mark.parametrize("arguments, run_id", [
-    (["", "--run", "run_abc_123"], util.RunId("run_abc_123")),
-    (["", "--run", "run_abc_123,run_def_456"], [util.RunId("run_abc_123"), util.RunId("run_def_456")]),
-    (["", "--run", "expt_name:run_abc_123"], util.RunRecoveryId("expt_name:run_abc_123")),
+    (["", "--run", "run_abc_123"], "run_abc_123"),
+    (["", "--run", "run_abc_123,run_def_456"], ["run_abc_123", "run_def_456"]),
+    (["", "--run", "expt_name:run_abc_123"], "expt_name:run_abc_123"),
 ])
-def test_script_config_run_src(arguments: List[str], run_id: Union[List[util.RunId], util.RunId]) -> None:
+def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
     with patch.object(sys, "argv", arguments):
         script_config = util.AmlRunScriptConfig.parse_args()
 
         if isinstance(run_id, list):
-            for script_config_run, expected_run in zip(script_config.run, run_id):
-                assert script_config_run.id == expected_run.val
+            for script_config_run, expected_run_id in zip(script_config.run, run_id):
+                assert script_config_run == expected_run_id
         else:
-            assert script_config.run.id == run_id.id
+            if len(run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+                assert script_config.run == run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
+            else:
+                assert script_config.run == run_id
 
 
 @patch("health_azure.utils.download_files_from_run_id")
@@ -1170,29 +1170,32 @@ def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expe
 
 @pytest.mark.fast
 @pytest.mark.parametrize("args, expected_key, expected_value, expected_pass", [
-    (["--name=foo"], "name", "foo", True),
-    (["--seed", "42"], "seed", 42, True),
-    (["--seed", ""], "seed", 42, True),
-    (["--number", "2.17"], "number", 2.17, True),
-    (["--number", ""], "number", 3.14, True),
-    (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
-    (["--optional_int", ""], "optional_int", None, True),
-    (["--optional_int", "2"], "optional_int", 2, True),
-    (["--optional_float", ""], "optional_float", None, True),
-    (["--optional_float", "3.14"], "optional_float", 3.14, True),
-    (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
-    (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
-    (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
-    (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
-    (["--integers=1,2,3"], "integers", [1, 2, 3], True),
-    (["--flag"], "flag", True, True),
-    (["--no-flag"], None, None, False),
-    (["--not_flag"], None, None, False),
-    (["--no-not_flag"], "not_flag", False, True),
-    (["--not_flag=false", "--no-not_flag"], None, None, False),
-    (["--flag=Falsf"], None, None, False),
-    (["--flag=Truf"], None, None, False),
-    (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
+    # (["--name=foo"], "name", "foo", True),
+    # (["--seed", "42"], "seed", 42, True),
+    # (["--seed", ""], "seed", 42, True),
+    # (["--number", "2.17"], "number", 2.17, True),
+    # (["--number", ""], "number", 3.14, True),
+    # (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
+    # (["--optional_int", ""], "optional_int", None, True),
+    # (["--optional_int", "2"], "optional_int", 2, True),
+    # (["--optional_float", ""], "optional_float", None, True),
+    # (["--optional_float", "3.14"], "optional_float", 3.14, True),
+    # (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
+    # (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
+    # (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
+    # (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
+    # (["--integers=1,2,3"], "integers", [1, 2, 3], True),
+    # (["--flag"], "flag", True, True),
+    # (["--no-flag"], None, None, False),
+    # (["--not_flag"], None, None, False),
+    # (["--no-not_flag"], "not_flag", False, True),
+    # (["--not_flag=false", "--no-not_flag"], None, None, False),
+    # (["--flag=Falsf"], None, None, False),
+    # (["--flag=Truf"], None, None, False),
+    # (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
+    (["--other_args=['foo']"], "other_args", ["foo"], True),
+    (["--other_args={'learning':3"], None, None, False),
+    (["--other_args=['foo','bar'"], None, None, False)
 ])
 def test_create_parser(args: List[str], expected_key: str, expected_value: Any, expected_pass: bool) -> None:
     """
@@ -1332,17 +1335,6 @@ def test_config_add_and_validate() -> None:
     assert config.new_property == "bar"
 
 
-class CustomType(util.CustomTypeParam):
-    def __init__(self) -> None:
-        pass
-
-    def _validate(self) -> None:
-        pass
-
-    def from_string(self, x: str) -> None:
-        pass
-
-
 class IllegalParamClassNoString(util.GenericConfig):
     custom_type_no_from_string = IllegalCustomTypeNoFromString(
         None, doc="This should fail since from_string method is missing"
@@ -1356,3 +1348,33 @@ def test_cant_parse_param_type() -> None:
     with pytest.raises(TypeError) as e:
         IllegalParamClassNoString.parse_args([])
         assert "is not supported" in str(e.value)
+
+
+# Another custom type (from docs/source/conmmandline_tools.md)
+class EvenNumberParam(util.CustomTypeParam):
+    """ Our custom type param for even numbers """
+
+    def _validate(self, val: Any) -> None:
+        if not (self.allow_None and val is None):
+            if val % 2 != 0:
+                raise ValueError(f"{val} is not an even number")
+        super()._validate(val)  # type: ignore
+
+    def from_string(self, x: str) -> int:
+        return int(x)
+
+
+class MyScriptConfig(util.AmlRunScriptConfig):
+    simple_string: str = param.String(default="")
+    even_number: int = EvenNumberParam(2, doc="your choice of even number")
+
+
+def test_my_script_config() -> None:
+    even_number = randint(0, 100) * 2
+    odd_number = even_number + 1
+
+    config = MyScriptConfig.parse_args(["--even_number", f"{even_number}"])
+    assert config.even_number == even_number
+
+    with pytest.raises(ValueError):
+        MyScriptConfig.parse_args(["--even_number", f"{odd_number}"])

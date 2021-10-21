@@ -72,27 +72,6 @@ class IntTuple(param.NumericTuple):
                                      .format(self.name, i, n, val))
 
 
-class RunSource:
-    def __init__(self, val: str) -> None:
-        pass
-        self.val = val
-
-
-class RunId(RunSource):
-    def __init__(self, val: str) -> None:
-        super().__init__(val)
-        self.id = val
-
-
-class RunRecoveryId(RunSource):
-    def __init__(self, val: str) -> None:
-        super().__init__(val)
-        self.id = val
-
-
-RunIdType = Union[RunId, RunRecoveryId]
-
-
 class GenericConfig(param.Parameterized):
     def __init__(self, should_validate: bool = True, throw_if_unknown_param: bool = False, **params: Any):
         """
@@ -194,7 +173,7 @@ class GenericConfig(param.Parameterized):
                 p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
             elif isinstance(_p, param.ClassSelector):
                 p_type = _p.class_
-            elif hasattr(_p, "from_string"):
+            elif isinstance(_p, CustomTypeParam):
                 p_type = _p.from_string
 
             else:
@@ -364,6 +343,19 @@ class ListOrDictParam(CustomTypeParam):
         super()._validate(val)
 
     def from_string(self, x: str) -> Union[Dict, List]:
+        """
+        Parse a string as either a dictionary or list or, if not possible, raise a ValueError.
+
+        For example:
+            - from_string('{"x":3, "y":2}') will return a dictionary object
+            - from_string('["a", "b", "c"]') will return a list object
+            - from_string("['foo']") will return a list object
+            - from_string('["foo","bar"') will raise an Exception (missing close bracket)
+            - from_string({'learning':3"') will raise an Exception (missing close bracket)
+
+        :param x:
+        :return:
+        """
         if x.startswith("{") or x.startswith('['):
             res = json.loads(x.replace("'", "\""))
         else:
@@ -383,14 +375,12 @@ class RunIdOrListParam(CustomTypeParam):
 
     def _validate(self, val: Any) -> None:
         if not (self.allow_None and val is None):
-            if not (isinstance(val, List) or isinstance(val, RunId) or isinstance(val, RunRecoveryId)):
+            if len(val) == 0 or not (isinstance(val, str) or isinstance(val, list)):
                 raise ValueError(f"{val} must be an instance of List or string, found {type(val)}")
         super()._validate(val)
 
-    def from_string(self, x: str) -> Union[RunId, RunRecoveryId, List]:
+    def from_string(self, x: str) -> Union[str, List]:
         res = [str(item) for item in x.split(',')]
-        if not isinstance(res, List):
-            raise ValueError("Parameter should resolve to List or string")
         if len(res) == 1:
             # string
             return determine_run_id_type(res[0])
@@ -406,21 +396,24 @@ def is_private_field_name(name: str) -> bool:
     return name.startswith("_")
 
 
-def determine_run_id_type(run_or_recovery_id: str) -> RunIdType:
+def determine_run_id_type(run_or_recovery_id: str) -> str:
     """
     Determine whether a run id is of type "run id" or "run recovery id". This distinction is made
     by checking for telltale patterns within the string. Run recovery ideas take the form "experiment_name:run_id"
-    whereas run_ids follow the pattern of a mixture of strings and decimals, separated by underscores.
+    whereas run_ids follow the pattern of a mixture of strings and decimals, separated by underscores. If the input
+    string takes the format of a run recovery id, only the run id part will be returned. If it is a run id already,
+    it will be returned without transformation. If neither, a ValueError is raised.
 
     :param run_or_recovery_id: The id to determine as either a run id or a run recovery id
-    :return: Either a RunId object or a RunRecoveryId object as appropriate
+    :return: A string representing the run id
     """
     if run_or_recovery_id is None:
         raise ValueError("Expected run_id or run_recovery_id but got None")
     elif len(run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)) > 1:
-        return RunRecoveryId(run_or_recovery_id)
+        # return only the run_id, which comes after the colon
+        return run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)[1]
     elif re.search(r"\d", run_or_recovery_id) and re.search('_', run_or_recovery_id):
-        return RunId(run_or_recovery_id)
+        return run_or_recovery_id
     else:
         raise ValueError("Unknown run type. Expected run_id or run_recovery id")
 
@@ -881,10 +874,7 @@ def get_aml_run_from_run_id(run_id: str,
     """
     run_id_ = determine_run_id_type(run_id)
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    if isinstance(run_id_, RunId):
-        return workspace.get_run(run_id_.val)
-    elif isinstance(run_id_, RunRecoveryId):
-        return fetch_run(workspace, run_id_.val)
+    return workspace.get_run(run_id_)
 
 
 def get_latest_aml_runs_from_experiment(experiment_name: str,
@@ -1133,9 +1123,9 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
             runs = get_latest_aml_runs_from_experiment(script_config.experiment, tags=script_config.tags,
                                                        num_runs=script_config.num_runs, aml_workspace=workspace)
     else:
-        run_ids: List[Union[RunId, RunRecoveryId]]
+        run_ids: List[str]
         run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]  # type: ignore
-        runs = [get_aml_run_from_run_id(run_id.val, aml_workspace=workspace) for run_id in run_ids]
+        runs = [get_aml_run_from_run_id(run_id, aml_workspace=workspace) for run_id in run_ids]
     return runs
 
 

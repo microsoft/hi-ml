@@ -9,7 +9,6 @@ import pytest
 import subprocess
 
 from health_azure import himl_download
-from health_azure import utils as azure_utils
 from testazure.util import MockRun
 
 DOWNLOAD_SCRIPT_PATH = himl_download.__file__
@@ -44,6 +43,6 @@ def test_retrieve_runs() -> None:
     with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
         dummy_run_id = "run_id_123"
         mock_get_run.return_value = MockRun(dummy_run_id)
-        dummy_download_config = himl_download.HimlDownloadConfig(run=azure_utils.RunId(dummy_run_id))
+        dummy_download_config = himl_download.HimlDownloadConfig(run=dummy_run_id)
         _ = himl_download.retrieve_runs(dummy_download_config)
         mock_get_run.assert_called_once_with(dummy_run_id)

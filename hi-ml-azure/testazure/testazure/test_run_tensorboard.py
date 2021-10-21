@@ -7,7 +7,7 @@ import subprocess
 
 from pathlib import Path
 from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from health_azure import himl_tensorboard, himl
 from health_azure import utils as azure_util
