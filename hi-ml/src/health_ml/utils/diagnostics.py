@@ -168,8 +168,8 @@ class BatchTimeCallback(Callback):
             epoch. The 4th minibatch with loading time over the threshold would not generate any warning anymore.
             If set to 0, no warnings are printed at all.
         :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
-            For example, if max_load_time_epochs=2, and at least 1 batch with increased loading time is observed in epochs
-            0 and 3, no further warnings about increased loading time would be printed from epoch 4 onwards.
+            For example, if max_load_time_epochs=2, and at least 1 batch with increased loading time is observed in
+            epochs 0 and 3, no further warnings about increased loading time would be printed from epoch 4 onwards.
         """
         # Timers for monitoring data loading time
         self.train_timers = EpochTimers(max_batch_load_time_seconds=max_batch_load_time_seconds,
