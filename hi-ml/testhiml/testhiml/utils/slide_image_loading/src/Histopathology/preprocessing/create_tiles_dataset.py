@@ -27,7 +27,7 @@ logger.setLevel(logging.DEBUG)
 
 
 def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
-        -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
+        -> Tuple[np.ndarray, np.ndarray]:
     if occupancy_threshold < 0. or occupancy_threshold > 1.:
         raise ValueError("Tile occupancy threshold must be between 0 and 1")
     foreground_mask = mask_tile > 0
@@ -183,7 +183,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
 
 def process_slide_open_slide_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
                                      output_dir: Path, tile_progress: bool = False) -> \
-                      Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                                        Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     return process_slide('openslide', False,
                          sample, level, margin, tile_size, occupancy_threshold,
                          output_dir, tile_progress)
@@ -191,7 +191,7 @@ def process_slide_open_slide_no_save(sample: dict, level: int, margin: int, tile
 
 def process_slide_cucim_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
                                 output_dir: Path, tile_progress: bool = False) -> \
-                                    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                                    Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     return process_slide('cucim', False,
                          sample, level, margin, tile_size, occupancy_threshold,
                          output_dir, tile_progress)
