@@ -22,7 +22,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import RunConfiguration, ScriptRunConfig, Workspace, Environment
+from azureml.core import RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -32,8 +32,7 @@ from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dat
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
                                 get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root, \
-    DEFAULT_WORKSPACE
+from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"

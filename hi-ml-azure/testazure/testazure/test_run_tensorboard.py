@@ -49,17 +49,11 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     assert url is not None
     assert ts.remote_root == str(remote_root)
     assert ts._local_root == str(local_root)
+
+    # If start is called again, should not return a new url
+    new_url = ts.start()
+    assert new_url is None
     ts.stop()
-
-
-def test_tb_proc_already_exists(tmp_path: Path) -> None:
-    mock_run = MagicMock()
-    mock_run.id = "id123"
-    local_root = Path("test_data") / "dummy_summarywriter_logs"
-    remote_root = tmp_path / "tensorboard_logs"
-    with patch.object(himl_tensorboard.Tensorboard, "_tb_proc", new="something"):
-        ts = WrappedTensorboard(remote_root=str(remote_root), local_root=str(local_root), runs=[mock_run])
-    assert ts is None
 
 
 def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:

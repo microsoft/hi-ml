@@ -844,7 +844,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     """
     assert (
         run_recovery_file.is_file()
-        ), "When running in cloud builds, this should pick up the ID of a previous training run"
+    ), "When running in cloud builds, this should pick up the ID of a previous training run"
 
     run_id = run_recovery_file.read_text().strip()
     logging.info(f"Read this run ID from file: {run_id}.")

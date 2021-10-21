@@ -23,7 +23,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
-from azureml.core import Experiment, ScriptRunConfig
+from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -546,38 +546,7 @@ def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMoc
     latest_path.write_text(mock_run_id)
 
     run = util.get_most_recent_run(latest_path, mock_workspace)
-    assert run.id == mock_run_id 
-
-
-def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
-    mock_run_id = 'mockrunid123'
-    mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    with open(mock_latest_run_path, 'w+') as f_path:
-        f_path.write(mock_run_id)
-    parser = ArgumentParser()
-    parser.add_argument("--latest_run_file", type=str)
-    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.get_aml_run_from_run_id") as mock_fetch_run:
-            mock_fetch_run.return_value = MockRun(mock_run_id)
-            aml_run = util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-            mock_fetch_run.assert_called_once_with(mock_run_id, aml_workspace=mock_workspace)
-            assert aml_run.id == mock_run_id
-
-    # if path doesn't exist, expect error
-    with pytest.raises(AssertionError) as ex:
-        mock_args = parser.parse_args(["--latest_run_file", "idontexist"])
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-    expected_str = "When running in cloud builds, this should pick up the ID of a previous training run"
-    assert str(ex.value) == expected_str
-
-    # if arg not provided, expect error
-    with pytest.raises(AssertionError) as assertionException:
-        mock_args = parser.parse_args(["--latest_run_file", None])  # type: ignore
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-    assert str(assertionException.value) == expected_str
+    assert run.id == mock_run_id
 
 
 def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:
