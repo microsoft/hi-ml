@@ -4,7 +4,15 @@
     "hi-ml",
     "hi-ml-azure"
   ],
-  "useLibraryCodeForTypes ": true,
+  "useLibraryCodeForTypes": true,
   "reportMissingImports": true,
-  "reportMissingTypeStubs": false
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.7",
+  "pythonPlatform": "Linux",
+  "executionEnvironments": [
+    {
+      "root": "hi-ml/testhiml/testhiml/utils/slide_image_loading/src",
+      "reportPrivateImageUsage": false,
+    },
+  ],
 }
