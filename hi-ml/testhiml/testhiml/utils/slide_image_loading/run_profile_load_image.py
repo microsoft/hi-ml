@@ -2,12 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 
-from azureml.core import Environment, Experiment, ScriptRunConfig, Workspace
+from azureml.core import Environment, ScriptRunConfig
 from azureml.core.compute import ComputeTarget
 
+from health_azure import get_workspace, submit_run
+from health_azure.utils import WORKSPACE_CONFIG_JSON
 
-workspace = Workspace.from_config()
+
+here = Path(__file__).parent.resolve()
+
+workspace = get_workspace(aml_workspace=None,
+                          workspace_config_path=here / WORKSPACE_CONFIG_JSON)
 
 environment = Environment.from_dockerfile(name='image_load_env',
                                           dockerfile='./Dockerfile',
@@ -20,9 +27,8 @@ config = ScriptRunConfig(source_directory='./src',
                          compute_target=compute_target,
                          environment=environment)
 
-experiment = Experiment(workspace=workspace,
-                        name='image_load_exp')
-
-run = experiment.submit(config)
-print(run.get_portal_url())
-run.wait_for_completion(show_output=True)
+run = submit_run(workspace=workspace,
+                 experiment_name='image_load_exp',
+                 script_run_config=config,
+                 wait_for_completion=True,
+                 wait_for_completion_show_output=True)

@@ -4,8 +4,8 @@ channels:
 dependencies:
   - pip=20.1.1
   - python=3.7.3
-  - line_profiler=3.3.1
   - pip:
       - azureml-defaults
       - hi-ml-azure==0.1.9
+      - line_profiler==3.3.1
       - monai[all]==0.7.0

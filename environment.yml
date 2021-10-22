@@ -7,8 +7,8 @@ dependencies:
   - python=3.7.3
   - pytorch=1.8.0
   - scikit-learn=0.24.2
-  - line_profiler=3.3.1
   - pip:
-      - monai[all]==0.7.0
+    - line_profiler==3.3.1
+    - monai[all]==0.7.0
       - -r build_requirements.txt
       - -r test_requirements.txt

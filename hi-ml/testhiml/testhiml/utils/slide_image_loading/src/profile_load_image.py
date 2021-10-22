@@ -12,7 +12,7 @@ from PIL import Image
 import cucim
 import numpy as np
 
-from azureml.core import Dataset, Run, Workspace
+from azureml.core import Dataset
 from health_azure import get_workspace, is_running_in_azure_ml
 
 from Histopathology.preprocessing.create_tiles_dataset import (
@@ -176,7 +176,7 @@ def main() -> None:
     print(f"cucim.is_available('core'): {cucim.is_available('core')}")
     print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
 
-    ws = get_workspace()
+    ws = get_workspace(aml_workspace=None, workspace_config_path=None)
     dataset = Dataset.get_by_name(ws, name='panda')
 
     output_folder = Path("outputs") if is_running_in_azure_ml() else Path("../outputs")
