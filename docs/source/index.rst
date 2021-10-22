@@ -32,6 +32,7 @@ The `hi-ml` toolbox provides
    :caption: Machine Learning
 
    logging.md
+   diagnostics.md
 
 .. toctree::
    :maxdepth: 1

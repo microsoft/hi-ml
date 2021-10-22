@@ -65,6 +65,7 @@ mypy: pip_test call_mypy
 # run pyright, assuming test requirements already installed
 call_pyright:
 	npm install -g pyright
+	pyright
 
 # pip install test requirements and run pyright
 pyright: pip call_pyright

@@ -6,7 +6,6 @@ dependencies:
   - pip=20.1.1
   - python=3.7.3
   - pytorch=1.8.0
-  - scikit-learn=0.24.2
   - pip:
     - line_profiler==3.3.1
     - monai[all]==0.7.0
