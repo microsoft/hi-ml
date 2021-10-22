@@ -63,8 +63,11 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - name: Set Conda environment
-        run: $CONDA/bin/conda env update --file environment.yml --name base
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: ""
+          auto-activate-base: true
+          environment-file: environment.yml
       - name: pyright
         run: make pyright
 
