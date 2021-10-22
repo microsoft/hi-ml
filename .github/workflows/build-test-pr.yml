@@ -69,6 +69,7 @@ jobs:
           auto-activate-base: true
           environment-file: environment.yml
       - name: pyright
+        shell: bash -l {0}
         run: make pyright
 
   pytest_fast:
