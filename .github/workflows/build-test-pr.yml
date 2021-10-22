@@ -70,7 +70,9 @@ jobs:
       - name: pyright
         run: |
           pip list
-          $CONDA/bin/conda env update --file environment.yml --name base
+          $CONDA/bin/conda env update --file environment.yml
+          pip list
+          $CONDA/bin/conda activate base
           pip list
           make pyright
 
