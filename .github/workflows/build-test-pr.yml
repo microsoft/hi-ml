@@ -63,15 +63,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - name: Install Conda environment
-        run: |
-          $CONDA/bin/conda env update --file environment.yml --name base
-          pip list
       - name: pyright
         run: |
-          pip list
           $CONDA/bin/conda env update --file environment.yml --name base
-          pip list
           make pyright
 
   pytest_fast:

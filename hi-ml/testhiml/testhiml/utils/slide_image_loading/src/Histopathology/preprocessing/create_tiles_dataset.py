@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import PIL
+from PIL import Image
 from monai.data import Dataset
 from monai.data.image_reader import WSIReader
 from tqdm import tqdm
@@ -43,12 +43,11 @@ def get_tile_id(slide_id: str, tile_location: Sequence[int]) -> str:
     return f"{slide_id}.{get_tile_descriptor(tile_location)}"
 
 
-def save_image(array_chw: np.ndarray, path: Path) -> PIL.Image:
+def save_image(array_chw: np.ndarray, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     array_hwc = np.moveaxis(array_chw, 0, -1).astype(np.uint8).squeeze()
-    pil_image = PIL.Image.fromarray(array_hwc)
+    pil_image = Image.fromarray(array_hwc)
     pil_image.convert('RGB').save(path)
-    return pil_image
 
 
 def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
@@ -241,7 +240,7 @@ def main(process_slide: Callable,
     list(tqdm(map_func(func, dataset), desc="Slides", unit="img", total=len(dataset)))  # type: ignore
 
     if parallel:
-        pool.close()
+        pool.close()  # type: ignore
 
     logging.info("Merging slide files in a single file")
     merge_dataset_csv_files(output_dir)
