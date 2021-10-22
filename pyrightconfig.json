@@ -7,10 +7,13 @@
   "useLibraryCodeForTypes": false,
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
+  "reportPrivateImportUsage": false,
   "executionEnvironments": [
     {
-      "root": "hi-ml/testhiml/testhiml/utils/slide_image_loading/src",
-      "reportPrivateImageUsage": false,
+      "root": "hi-ml/testhiml/testhiml/utils/slide_image_loading/src/Histopathology",
+      "extraPaths": [
+        "hi-ml/testhiml/testhiml/utils/slide_image_loading/src"
+      ]
     },
   ],
 }
