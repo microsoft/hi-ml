@@ -66,8 +66,13 @@ jobs:
       - name: Install Conda environment
         run: |
           $CONDA/bin/conda env update --file environment.yml --name base
+          pip list
       - name: pyright
-        run: make pyright
+        run: |
+          pip list
+          $CONDA/bin/conda env update --file environment.yml --name base
+          pip list
+          make pyright
 
   pytest_fast:
     runs-on: ubuntu-latest
