@@ -72,6 +72,7 @@ jobs:
           pip list
           $CONDA/bin/conda env update --file environment.yml
           pip list
+          source $CONDA/bin/activate
           $CONDA/bin/conda activate base
           pip list
           make pyright
