@@ -63,11 +63,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          activate-environment: "himl"
-          auto-activate-base: false
-          environment-file: environment.yml
+      - name: Set Conda environment
+        run: $CONDA/bin/conda env update --file environment.yml --name base
       - name: pyright
         shell: bash -l {0}
         run: |
