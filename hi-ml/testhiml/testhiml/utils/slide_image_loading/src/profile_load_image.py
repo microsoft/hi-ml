@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional, Tuple
 
 from line_profiler import LineProfiler
 from openslide import OpenSlide
@@ -15,13 +15,7 @@ import numpy as np
 from azureml.core import Dataset
 from health_azure import get_workspace, is_running_in_azure_ml
 
-from Histopathology.preprocessing.create_tiles_dataset import (
-    process_slide,
-    process_slide_cucim_no_save,
-    process_slide_open_slide_no_save,
-    process_slide_cucim,
-    process_slide_openslide,
-    save_tile, generate_tiles)
+from Histopathology.preprocessing.create_tiles_dataset import process_slide, save_tile, generate_tiles
 
 
 def profile_cucim(input_file: Path,
@@ -163,6 +157,36 @@ def profile_main(mount_point: Path,
     lp_wrapper()
     with open(f"outputs/profile_{label}.txt", "w", encoding="utf-8") as f:
         lp.print_stats(f)
+
+
+def process_slide_open_slide_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                                     output_dir: Path, tile_progress: bool = False) -> \
+                                        Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+    return process_slide('openslide', False,
+                         sample, level, margin, tile_size, occupancy_threshold,
+                         output_dir, tile_progress)
+
+
+def process_slide_cucim_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                                output_dir: Path, tile_progress: bool = False) -> \
+                                    Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+    return process_slide('cucim', False,
+                         sample, level, margin, tile_size, occupancy_threshold,
+                         output_dir, tile_progress)
+
+
+def process_slide_openslide(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                            output_dir: Path, tile_progress: bool = False) -> None:
+    process_slide('openslide', True,
+                  sample, level, margin, tile_size, occupancy_threshold,
+                  output_dir, tile_progress)
+
+
+def process_slide_cucim(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
+                        output_dir: Path, tile_progress: bool = False) -> None:
+    process_slide('cucim', True,
+                  sample, level, margin, tile_size, occupancy_threshold,
+                  output_dir, tile_progress)
 
 
 def main() -> None:

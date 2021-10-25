@@ -180,36 +180,6 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     return full_csv
 
 
-def process_slide_open_slide_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                                     output_dir: Path, tile_progress: bool = False) -> \
-                                        Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-    return process_slide('openslide', False,
-                         sample, level, margin, tile_size, occupancy_threshold,
-                         output_dir, tile_progress)
-
-
-def process_slide_cucim_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                                output_dir: Path, tile_progress: bool = False) -> \
-                                    Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-    return process_slide('cucim', False,
-                         sample, level, margin, tile_size, occupancy_threshold,
-                         output_dir, tile_progress)
-
-
-def process_slide_openslide(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                            output_dir: Path, tile_progress: bool = False) -> None:
-    process_slide('openslide', True,
-                  sample, level, margin, tile_size, occupancy_threshold,
-                  output_dir, tile_progress)
-
-
-def process_slide_cucim(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                        output_dir: Path, tile_progress: bool = False) -> None:
-    process_slide('cucim', True,
-                  sample, level, margin, tile_size, occupancy_threshold,
-                  output_dir, tile_progress)
-
-
 def main(process_slide: Callable,
          panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: int, tile_size: int,
          margin: int, occupancy_threshold: float, parallel: bool = False, overwrite: bool = False) -> None:
@@ -244,15 +214,3 @@ def main(process_slide: Callable,
 
     logging.info("Merging slide files in a single file")
     merge_dataset_csv_files(output_dir)
-
-
-if __name__ == '__main__':
-    main(process_slide_openslide,
-         panda_dir="/tmp/datasets/PANDA",
-         root_output_dir="/datadrive",
-         level=1,
-         tile_size=224,
-         margin=64,
-         occupancy_threshold=0.05,
-         parallel=True,
-         overwrite=False)
