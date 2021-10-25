@@ -64,10 +64,14 @@ jobs:
         with:
           node-version: '14'
       - name: Set Conda environment
-        run: $CONDA/bin/conda env update --file environment.yml --name base
+        run: |
+          $CONDA/bin/conda env update --file environment.yml --name base
+          $CONDA/bin/conda init bash
       - name: pyright
         shell: bash -l {0}
         run: |
+          conda info
+          conda activate bash
           conda info
           conda list
           make pyright
