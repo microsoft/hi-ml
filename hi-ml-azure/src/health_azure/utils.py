@@ -51,6 +51,8 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 RUN_CONTEXT = Run.get_context()
 WORKSPACE_CONFIG_JSON = "config.json"
 
+PathOrString = Union[Path, str]
+
 
 def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
     """

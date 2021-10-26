@@ -10,6 +10,8 @@ from azureml.core import Dataset, Datastore, Workspace
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
+from health_azure.utils import PathOrString
+
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
     """
@@ -76,7 +78,7 @@ class DatasetConfig:
                  datastore: str = "",
                  version: Optional[int] = None,
                  use_mounting: Optional[bool] = None,
-                 target_folder: str = "",
+                 target_folder: Optional[PathOrString] = None,
                  local_folder: Optional[Path] = None):
         """
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
@@ -122,7 +124,7 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
-        path_on_compute = self.target_folder or None
+        path_on_compute = str(self.target_folder) or None if self.target_folder is not None else None
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
             status += "mounted at "
@@ -154,7 +156,7 @@ class DatasetConfig:
                                           destination=(datastore, self.name + "/"))
         # TODO: Can we get tags into here too?
         dataset = dataset.register_on_complete(name=self.name)
-        if self.target_folder:
+        if bool(self.target_folder):
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
         if use_mounting:
