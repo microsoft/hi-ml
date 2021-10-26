@@ -78,7 +78,7 @@ class LoadPandaROId(MapTransform):
                  image_key: str = 'image', mask_key: str = 'mask',
                  level: int = 0, margin: int = 0, **kwargs: Any) -> None:
         """
-        :param reader: And instance of MONAI's `WSIReader`.
+        :param reader: An instance of MONAI's `WSIReader`.
         :param image_key: Image key in the input and output dictionaries.
         :param mask_key: Mask key in the input and output dictionaries.
         :param level: Magnification level to load from the raw multi-scale files.

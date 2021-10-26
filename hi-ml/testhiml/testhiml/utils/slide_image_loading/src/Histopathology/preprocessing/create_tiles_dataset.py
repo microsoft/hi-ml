@@ -163,10 +163,6 @@ def process_slide(image_wsi_reader: str, save_images: bool,
 
 def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     full_csv = dataset_dir / "dataset.csv"
-    # TODO change how we retrieve these filenames, probably because mounted, the operation is slow
-    #  and it seems to find many more files
-    # print("List of files")
-    # print([str(file) + '\n' for file in dataset_dir.glob("*/dataset.csv")])
     with full_csv.open('w') as full_csv_file:
         # full_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
         first_file = True

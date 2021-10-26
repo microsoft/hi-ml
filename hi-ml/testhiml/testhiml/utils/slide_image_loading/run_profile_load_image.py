@@ -11,6 +11,9 @@ from health_azure import get_workspace, submit_run
 from health_azure.utils import WORKSPACE_CONFIG_JSON
 
 
+# A compute instance, with a GPU, required for running cuCIM.
+GPU_TESTING_INSTANCE_NAME = "testing-standard-nc6"
+
 here = Path(__file__).parent.resolve()
 
 workspace = get_workspace(aml_workspace=None,
@@ -20,7 +23,7 @@ environment = Environment.from_dockerfile(name='image_load_env',
                                           dockerfile='./Dockerfile',
                                           conda_specification='./environment.yml')
 
-compute_target = ComputeTarget(workspace=workspace, name='jontri1')
+compute_target = ComputeTarget(workspace=workspace, name=GPU_TESTING_INSTANCE_NAME)
 
 config = ScriptRunConfig(source_directory='./src',
                          script='profile_load_image.py',
