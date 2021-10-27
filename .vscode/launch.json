@@ -4,7 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "Python: Current File",
             "type": "python",
@@ -60,11 +59,19 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: HI-ML-AZURE Make Tests",
+            "type": "python",
+            "request": "launch",
+            "module": "testazure.test_data.make_tests",
+            "cwd": "${workspaceFolder}/hi-ml-azure/testazure/",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Examples Hyperdrive Sample",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/docs/source/examples/8/sample.py",
-            "cwd": "${workspaceFolder}/docs/source/examples/8/n.log",
+            "cwd": "${workspaceFolder}/docs/source/examples/8/",
             "args": [
                 "--azureml"
             ],
