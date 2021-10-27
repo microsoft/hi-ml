@@ -28,9 +28,12 @@ pip_local: pip_upgrade call_pip_local
 # pip install everything for local development and testing
 pip: pip_build pip_test call_pip_local
 
-# set the conda environment
+# Set the conda environment for local development work, that contains all packages need for both hi-ml and hi-ml-azure
+# This is built from the package requirements, which pull in hi-ml-azure as a dependency, but for local dev work,
+# we want to consume that from source rather than pypi.
 conda:
 	conda env update --file environment.yml
+
 
 ## Actions
 
@@ -58,6 +61,13 @@ call_mypy:
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
+
+# run pyright, assuming test requirements already installed
+call_pyright:
+	npm install -g pyright
+
+# pip install test requirements and run pyright
+pyright: pip call_pyright
 
 # run basic checks
 call_check: call_flake8 call_mypy

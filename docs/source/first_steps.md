@@ -34,7 +34,7 @@ blob storage, and write the results back to blob storage**, so that we can later
 You can achieve that by adding a call to `submit_to_azure_if_needed` from the `hi-ml` package:
 ```python
 from pathlib import Path
-from health.azure import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 if __name__ == '__main__':
     current_file = Path(__file__)
     run_info = submit_to_azure_if_needed(compute_cluster_name="preprocess-ds12",

@@ -1,0 +1,10 @@
+{
+  "include": [
+    "docs",
+    "hi-ml",
+    "hi-ml-azure"
+  ],
+  "useLibraryCodeForTypes ": true,
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false
+}

@@ -43,7 +43,7 @@ just reference the name of the folder, and the package will create a dataset for
 The simplest way of specifying that your script uses a folder of data from blob storage is as follows: Add the
 `input_datasets` argument to your call of `submit_to_azure_if_needed` like this:
 ```python
-from health.azure import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      default_datastore="my_datastore")
@@ -67,7 +67,7 @@ Output datasets are helpful if you would like to run, for example, a script that
 
 You can use that via the `output_datasets` argument:
 ```python
-from health.azure import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      output_datasets=["new_dataset"],
@@ -93,7 +93,7 @@ Mounting and downloading can be triggered by passing in `DatasetConfig` objects 
 like this:
 
 ```python
-from health.azure import DatasetConfig, submit_to_azure_if_needed
+from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder", datastore="my_datastore", use_mounting=True)
 output_dataset = DatasetConfig(name="new_dataset", datastore="my_datastore", use_mounting=True)
 run_info = submit_to_azure_if_needed(...,
@@ -111,7 +111,7 @@ There are two ways of achieving that: Firstly, you can specific an equivalent lo
 `DatasetConfig` objects:
 ```python
 from pathlib import Path
-from health.azure import DatasetConfig, submit_to_azure_if_needed
+from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder", 
                               datastore="my_datastore",
                               local_folder=Path("/datasets/my_folder_local"))
@@ -124,7 +124,7 @@ Secondly, you can check the returned path in `run_info`, and replace it with som
 `run_info.input_datasets[0]` will be `None` if the script runs outside of AzureML, and no `local_folder` is available.
 ```python
 from pathlib import Path
-from health.azure import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      default_datastore="my_datastore")
@@ -138,7 +138,7 @@ Occasionally, scripts expect the input dataset at a fixed location, for example,
 AzureML has the capability to download/mount a dataset to such a fixed location. With the `hi-ml` package, you can
 trigger that behaviour via an additional option in the `DatasetConfig` objects:
 ```python
-from health.azure import DatasetConfig, submit_to_azure_if_needed
+from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder", 
                               datastore="my_datastore", 
                               use_mounting=True,
@@ -155,7 +155,7 @@ AzureML datasets can have versions, starting at 1. You can view the different ve
 workspace. In the `hi-ml` toolbox, you would always use the latest version of a dataset unless specified otherwise.
 If you do need a specific version, use the `version` argument in the `DatasetConfig` objects:
 ```python
-from health.azure import DatasetConfig, submit_to_azure_if_needed
+from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder", 
                               datastore="my_datastore",
                               version=7)
