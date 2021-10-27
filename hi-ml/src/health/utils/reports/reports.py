@@ -1,10 +1,13 @@
 import json
+import random
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Dict, Any, Iterable, Type, Callable
 
+import jinja2
 import numpy as np
 import pandas as pd
+import weasyprint as wsp
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from PIL import Image
@@ -161,7 +164,7 @@ class Report(FPDF):
         # padd all haders to same length as hack to make
 
         max_header_length = max([len(x) for x in headers])
-        padded_headers = [h+' '*(max_header_length - len(h)) for h in headers]
+        padded_headers = [h + ' ' * (max_header_length - len(h)) for h in headers]
         for i, (width, header_text) in enumerate(zip(col_widths, padded_headers)):
             self.cell(w=width, h=7, txt=header_text, align="L", fill=True)
             # ln = 1 if i == len(headers)-1 else 3
@@ -173,7 +176,6 @@ class Report(FPDF):
         data = table.to_list()
         self._populate_table_rows(headers, data, col_widths, table_line_height, alternate_fill=alternate_fill,
                                   border=None)
-
 
     def add_table_from_dataframe(self, df: pd.DataFrame, cols_to_print: Optional[List[str]] = None,
                                  print_index: bool = False, override_headers: List[str] = None):
@@ -533,13 +535,133 @@ class Plot:
         ax.set_axis_off()
         ax.set_frame_on(False)
 
-        ax.table(cellText=df.values, colLabels=df.keys())#, loc='center')
+        ax.table(cellText=df.values, colLabels=df.keys())  # , loc='center')
 
 
+class HTMLReport:
+    def __init__(self, title: str = "Report", output_folder: str = "outputs"):
+        self.report_title = title
+        self.output_folder = output_folder
+
+        report_folder = Path(output_folder)  # / title.lower().replace(" ", "_")
+        report_folder.mkdir(exist_ok=True, parents=True)
+
+        self.report_folder = report_folder
+        self.report_path = report_folder / (title.lower().replace(" ", "_") + '.html')
+        self.template = ""
+        self.template_path = self._create_template()
+
+        self.env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader('/')
+        )
+        self.render_kwargs: Dict[str, Any] = {"title": title}
+
+    @staticmethod
+    def _remove_html_end(report_stream):
+        return report_stream.replace("</p>\n</body>\n</html>", "")
+
+    def _create_template(self):
+        template_path = self.report_folder / "template.html"
+        template_path.touch(exist_ok=True)
+
+        self.template += """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+<title> {{title}} </title>
+</head>
+<body>
+<div class="container-fluid justify-content-center align-items-center">
+<div class="container">
+<h1> {{title}} </h1>
+</div>
+<p>
+</p>
+</div>
+</body>
+</html>
+"""
+
+        # with open(template_path, "w+") as f_path:
+        #
+        #     f_path.write(self.template)
+        return template_path
+
+    def add_table(self, df: pd.DataFrame):
+
+        # First update the template to expect a table
+        # with open(self.template_path, "r+") as f_path:
+        #     template = f_path.read()
+        self.template = self._remove_html_end(self.template)
+
+        table_key = "tables"
+        while f"% for table in {table_key} %" in self.template:
+            table_key += f"_{str(random.randint(0, 10))}"
+
+        self.template += """<div class="container">
+{% for table in """ + table_key + """ %}
+{{ table.to_html(classes=["table table-striped w-auto"]) | safe }}
+{% endfor %}
+</div>
+</p>
+</body>
+</div>
+</html>"""
+        # f_path.seek(0)
+        # f_path.write(template)
+
+        self.render_kwargs.update({table_key: [df]})
+
+    def add_image(self, image_path: str):
+        if image_path.startswith(str(self.report_folder)):
+            img_path = Path(image_path).relative_to(self.report_folder)
+        else:
+            img_path = Path(image_path)
+
+        # with open(self.template_path, "r+") as f_path:
+        #     report = f_path.read()
+        self.template = self._remove_html_end(self.template)
+
+        image_key = "image_paths"
+        while f"% for table in {image_key} %" in self.template:
+            image_key += f"_{str(random.randint(0, 10))}"
+
+        self.template += """<div class="container">
+{% for image_path in """ + image_key + """ %}
+<img src={{image_path}} alt={{image_path}}>
+{% endfor %}
+</div>
+</p>
+</body>
+</div>
+</html>"""
+        # f_path.seek(0)
+        # f_path.write(report)
+
+        self.render_kwargs.update({image_key: [img_path]})
+
+    def render(self) -> None:
+        """
+        Render the report
+        """
+
+        # Now render the report
+        # subs = self.env.get_template(str(self.template_path)).render(
+        #     **self.render_kwargs
+        # )
+        subs = self.env.from_string(self.template).render(**self.render_kwargs)
+        # write the substitution to a file
+        with open(self.report_path, 'w') as f_path:
+            f_path.write(subs)
+
+    def to_pdf(self):
+        html = wsp.HTML(self.report_path)
+        html.write_pdf(str(self.report_path).replace(".html", ".pdf"))
 
 
 def get_data_from_tensorboard_log():
-    # TOOD
+    # TODO
     pass
 
 
@@ -564,11 +686,3 @@ def parse_arguments(args: List[str]) -> Namespace:
     parser.add_argument("--report_title", type=str, default=None, help="The title of the report")
     args = parser.parse_args()
     return args
-
-#
-# def main():
-#     args = parse_arguments(sys.argv[1:])
-#
-#
-# if __name__ == "__main__":
-#     main()

@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import sys
 from argparse import Namespace
 
@@ -9,7 +10,6 @@ import pandas as pd
 import pytest
 
 from PIL import Image
-
 
 from health.utils.reports import reports as report_util
 
@@ -55,6 +55,7 @@ def test_get_string_width_(string_to_test: str, font_size: int, expected_width: 
     report.set_font_size(font_size)
     assert report.get_string_width_(string_to_test) == expected_width
 
+
 # -------------------
 # GENERATE DUMMY REPORT
 # -------------------
@@ -68,7 +69,7 @@ def dummy_table(report):
 
 def dummy_performers_table(report):
     headers = ["Top 5 false positives"]
-    data = [['Id 11 score 1.0'],['Id 2 score 0.9'], ['Id 3 score 0.89'], ['Id 4 score 0.85']]
+    data = [['Id 11 score 1.0'], ['Id 2 score 0.9'], ['Id 3 score 0.89'], ['Id 4 score 0.85']]
     report.add_table(headers, data, header_color=(255, 255, 255), alternate_fill=False, body_line_width=0.0)
 
 
@@ -166,7 +167,7 @@ def dummy_custom_plot(report):
         x = np.random.randint(0, 20, 20).tolist()
         y = np.random.randint(0, 20, 20).tolist()
         scale = 200.0 * np.random.rand(20)
-        plot.custom_plot("scatter", (x, y), {'c': color, 's': scale, 'label':color},
+        plot.custom_plot("scatter", (x, y), {'c': color, 's': scale, 'label': color},
                          x_label="X", y_label="Y", title="My chart", superimpose=True)
 
     plot_path = plot.save_chart()
@@ -214,7 +215,7 @@ def dummy_df_plot(output_folder, report):
 
 def generate_dummy_report(args: Namespace) -> None:
     # Generate PDF report
-    report = report_util.initialize_report(report_title = args.report_title, output_folder = args.output_folder)
+    report = report_util.initialize_report(report_title=args.report_title, output_folder=args.output_folder)
     report.set_font_size(8)
     report.cell(txt="A short description of this report", center=True, align="C")
     report.add_break(2)
@@ -276,3 +277,26 @@ def test_generate_dummy_report(tmp_path: Path):
     for expected_file in expected_files:
         expected_file_path = tmp_path / report_title_formatted / expected_file
         assert expected_file_path.exists()
+
+
+def test_generate_dummy_html_report(tmp_path: Path):
+    report_title = "Dummy HTML report"
+    report_dir = tmp_path / report_title.replace(" ", "_")
+    html_report = report_util.HTMLReport(title=report_title, output_folder=str(report_dir))
+
+    df = pd.DataFrame({"A": [1.23345, 12.456345, 7.345345345, 7.45234, 6.345234], "B": [2, 5, 6, 7, 8]})
+    html_report.add_table(df)
+
+    df.plot(x="A", y="B", kind="scatter")
+    fig_path = report_dir / "fig1.png"
+    plt.savefig(fig_path)
+    html_report.add_image(str(fig_path))
+
+    df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"]})
+    html_report.add_table(df2)
+
+    html_report.render()
+
+    html_report.to_pdf()
+
+    assert html_report.report_path.exists()
