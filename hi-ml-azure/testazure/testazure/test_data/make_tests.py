@@ -131,8 +131,8 @@ if __name__ == '__main__':
             DatasetConfig(name="output_blob3", datastore="datastore3",
                           use_mounting=False),
         ]""",
-        'wait_for_completion': False,
-        'wait_for_completion_show_output': False,
+        'wait_for_completion': "False",
+        'wait_for_completion_show_output': "False",
         'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
         'body': 'print(f"The message was: {args.message}")',
         'imports': """

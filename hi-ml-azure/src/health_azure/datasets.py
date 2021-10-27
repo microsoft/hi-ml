@@ -117,7 +117,7 @@ class DatasetConfig:
         :param workspace: The AzureML workspace to read from.
         :return: Path to dataset if use_mounting or List of paths to files otherwise.
         """
-        if self.local_folder:
+        if self.local_folder or workspace is None:
             return self.local_folder
 
         status = f"Dataset {self.name} will be "
@@ -134,7 +134,7 @@ class DatasetConfig:
         else:
             status += "downloaded to "
             result = azureml_dataset.download(target_path=local_path, overwrite=False)
-            result = map(Path, result)
+            result = [Path(f) for f in result]
         if local_path:
             status += f"{local_path}."
         else:

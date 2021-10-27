@@ -380,9 +380,14 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
+        try:
+            workspace = get_workspace(aml_workspace, workspace_config_path)
+        except Exception as e:
+            workspace = None
+
         return AzureRunInfo(
-            input_datasets=[d.to_local_dataset() for d in cleaned_input_datasets],
-            output_datasets=[d.to_local_dataset() for d in cleaned_output_datasets],
+            input_datasets=[d.to_local_dataset(workspace) for d in cleaned_input_datasets],
+            output_datasets=[d.to_local_dataset(workspace) for d in cleaned_output_datasets],
             run=None,
             is_running_in_azure_ml=False,
             output_folder=output_folder,
