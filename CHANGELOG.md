@@ -14,8 +14,8 @@ created.
 
 ### Added
 - ([#142](https://github.com/microsoft/hi-ml/pull/142)) Adding AzureML progress bar and diagnostics for batch loading
-
 - ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
+- ([#145](https://github.com/microsoft/hi-ml/pull/145)) Add ability to mount datasets when running locally
 
 ### Changed
 

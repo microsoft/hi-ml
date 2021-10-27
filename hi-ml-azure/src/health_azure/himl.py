@@ -381,8 +381,8 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder.mkdir(exist_ok=True)
 
         return AzureRunInfo(
-            input_datasets=[d.local_folder for d in cleaned_input_datasets],
-            output_datasets=[d.local_folder for d in cleaned_output_datasets],
+            input_datasets=[d.to_local_dataset() for d in cleaned_input_datasets],
+            output_datasets=[d.to_local_dataset() for d in cleaned_output_datasets],
             run=None,
             is_running_in_azure_ml=False,
             output_folder=output_folder,

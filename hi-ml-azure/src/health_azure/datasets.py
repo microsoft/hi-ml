@@ -109,6 +109,39 @@ class DatasetConfig:
         self.target_folder = target_folder
         self.local_folder = local_folder
 
+    def to_local_dataset(self, workspace: Workspace) -> Union[Path, List[Path]]:
+        """
+        Return a local path to the dataset when outside of an AzureML run. If local_folder is supplied, then this is
+        assumed to be a local dataset. Otherwise the dataset is mounted to the target folder and that is returned.
+
+        :param workspace: The AzureML workspace to read from.
+        :return: Path to dataset if use_mounting or List of paths to files otherwise.
+        """
+        if self.local_folder:
+            return self.local_folder
+
+        status = f"Dataset {self.name} will be "
+        azureml_dataset = get_or_create_dataset(workspace=workspace,
+                                                dataset_name=self.name,
+                                                datastore_name=self.datastore)
+        local_path = str(self.target_folder) or None if self.target_folder is not None else None
+        use_mounting = False if self.use_mounting is None else self.use_mounting
+        if use_mounting:
+            status += "mounted at "
+            mount_context = azureml_dataset.mount(mount_point=local_path)
+            mount_context.start()
+            result = Path(mount_context.mount_point)
+        else:
+            status += "downloaded to "
+            result = azureml_dataset.download(target_path=local_path, overwrite=False)
+            result = map(Path, result)
+        if local_path:
+            status += f"{local_path}."
+        else:
+            status += "a randomly chosen folder."
+        logging.info(status)
+        return result
+
     def to_input_dataset(self,
                          workspace: Workspace,
                          dataset_index: int) -> DatasetConsumptionConfig:
