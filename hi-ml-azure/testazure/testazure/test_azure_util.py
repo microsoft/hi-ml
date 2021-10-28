@@ -946,9 +946,9 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str
                 assert script_config_run == expected_run_id
         else:
             if len(run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-                assert script_config.run == run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
+                assert script_config.run == [run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
             else:
-                assert script_config.run == run_id
+                assert script_config.run == [run_id]
 
 
 @patch("health_azure.utils.download_files_from_run_id")
