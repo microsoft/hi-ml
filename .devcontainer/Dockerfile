@@ -40,6 +40,7 @@ COPY build_requirements.txt test_requirements.txt /tmp/conda-tmp/
 RUN /opt/conda/bin/conda env update -n base -f /tmp/conda-tmp/environment.yml \
     && rm -rf /tmp/conda-tmp
 
-ENV HIML_RESOURCE_GROUP="health-ml"
-ENV HIML_SUBSCRIPTION_ID="a85ceddd-892e-4637-ae4b-67d15ddf5f2b"
-ENV HIML_WORKSPACE_NAME="hi-ml"
+# [Optional] Uncomment this section to hard code HIML test environment variables into image.
+# ENV HIML_RESOURCE_GROUP="<< YOUR_HIML_RESOURCE_GROUP >>"
+# ENV HIML_SUBSCRIPTION_ID="<< YOUR_HIML_SUBSCRIPTION_ID >>"
+# ENV HIML_WORKSPACE_NAME="<< YOUR_HIML_WORKSPACE_NAME >>"

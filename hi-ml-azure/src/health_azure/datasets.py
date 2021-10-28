@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
@@ -130,8 +131,8 @@ class DatasetConfig:
         local_path = str(self.target_folder) or None if self.target_folder is not None else None
         target_path = local_path
         if target_path is None:
-            d = tempfile.TemporaryDirectory()
-            target_path = d.name
+            target_path = tempfile.mkdtemp()
+            print(f"+ using temp dir: {target_path}")
 
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
@@ -140,13 +141,22 @@ class DatasetConfig:
             mount_context.start()
         else:
             status += "downloaded to "
+            Path(target_path).mkdir(parents=True, exist_ok=True)
             result = azureml_dataset.download(target_path=target_path, overwrite=False)
             logging.info(f"Downloaded files: {result}")
+            print("\n\n\n")
+            print(f"+ Downloaded files: {result}")
+            print("\n\n\n")
+            actual_files = os.listdir(target_path)
+            print("\n\n\n")
+            print(f"+ Actual downloaded files: {actual_files}")
+            print("\n\n\n")
         if local_path:
             status += f"{local_path}."
         else:
             status += f"a randomly chosen folder: {target_path}."
         logging.info(status)
+        print("+ " + status)
         return Path(target_path)
 
     def to_input_dataset(self,
