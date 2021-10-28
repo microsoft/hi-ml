@@ -7,17 +7,19 @@ from typing import List, Optional, Tuple, Union, Dict, Any, Iterable, Type, Call
 import jinja2
 import numpy as np
 import pandas as pd
-import weasyprint as wsp
+# import pypandoc
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from PIL import Image
 from sklearn.metrics import precision_recall_curve, roc_curve
+from xhtml2pdf import pisa
 
 from fpdf import FPDF
 
+IMAGE_KEY_HTML = "image_paths_html"
+IMAGE_KEY_PDF = "image_paths_pdf"
 VALID_PNG_EXTENSIONS = [".png"]
 VALID_NUMPY_EXTENSIONS = (".npy", ".npz")
-
 
 def _file_matches_extension(file: Path, valid_extensions: Iterable[str]) -> bool:
     """
@@ -547,7 +549,9 @@ class HTMLReport:
         report_folder.mkdir(exist_ok=True, parents=True)
 
         self.report_folder = report_folder
-        self.report_path = report_folder / (title.lower().replace(" ", "_") + '.html')
+        self.report_path_html = report_folder / (title.lower().replace(" ", "_") + '.html')
+        self.report_path_pdf = report_folder / (title.lower().replace(" ", "_") + '.pdf')
+        self.report_html = ""
         self.template = ""
         self.template_path = self._create_template()
 
@@ -558,7 +562,7 @@ class HTMLReport:
 
     @staticmethod
     def _remove_html_end(report_stream):
-        return report_stream.replace("</p>\n</body>\n</html>", "")
+        return report_stream.replace("</p>\n</div>\n</body>\n</html>", "")
 
     def _create_template(self):
         template_path = self.report_folder / "template.html"
@@ -580,8 +584,7 @@ class HTMLReport:
 </p>
 </div>
 </body>
-</html>
-"""
+</html>"""
 
         # with open(template_path, "w+") as f_path:
         #
@@ -605,8 +608,8 @@ class HTMLReport:
 {% endfor %}
 </div>
 </p>
-</body>
 </div>
+</body>
 </html>"""
         # f_path.seek(0)
         # f_path.write(template)
@@ -615,33 +618,38 @@ class HTMLReport:
 
     def add_image(self, image_path: str):
         if image_path.startswith(str(self.report_folder)):
-            img_path = Path(image_path).relative_to(self.report_folder)
+            img_path_html = Path(image_path).relative_to(self.report_folder)
         else:
-            img_path = Path(image_path)
+            img_path_html = Path(image_path)
+
+        image_path_pdf = Path(image_path)
 
         # with open(self.template_path, "r+") as f_path:
         #     report = f_path.read()
         self.template = self._remove_html_end(self.template)
 
-        image_key = "image_paths"
-        while f"% for table in {image_key} %" in self.template:
-            image_key += f"_{str(random.randint(0, 10))}"
+        image_key_html = IMAGE_KEY_HTML
+        image_key_pdf = IMAGE_KEY_PDF
+        while f"% for table in {image_key_html} %" in self.template:
+            random_int = f"_{str(random.randint(0, 10))}"
+            image_key_html += random_int
+            image_key_pdf += random_int
 
         self.template += """<div class="container">
-{% for image_path in """ + image_key + """ %}
+{% for image_path in """ + image_key_html + """ %}
 <img src={{image_path}} alt={{image_path}}>
 {% endfor %}
 </div>
 </p>
-</body>
 </div>
+</body>
 </html>"""
         # f_path.seek(0)
         # f_path.write(report)
 
-        self.render_kwargs.update({image_key: [img_path]})
+        self.render_kwargs.update({image_key_html: [img_path_html], image_key_pdf: [image_path_pdf]})
 
-    def render(self) -> None:
+    def render(self, save_html=True) -> None:
         """
         Render the report
         """
@@ -651,13 +659,33 @@ class HTMLReport:
         #     **self.render_kwargs
         # )
         subs = self.env.from_string(self.template).render(**self.render_kwargs)
+        self.report_html = subs
         # write the substitution to a file
-        with open(self.report_path, 'w') as f_path:
-            f_path.write(subs)
+        if save_html:
+            with open(self.report_path_html, 'w') as f_path:
+                f_path.write(subs)
 
     def to_pdf(self):
-        html = wsp.HTML(self.report_path)
-        html.write_pdf(str(self.report_path).replace(".html", ".pdf"))
+        # html = wsp.HTML(self.report_path)
+        # html.write_pdf(str(self.report_path).replace(".html", ".pdf"))
+
+        # To render images we need to replace the relative path for HTML rendering with the absolute path
+        if IMAGE_KEY_PDF in self.render_kwargs:
+            img_keys_pdf = [k for k in self.render_kwargs.keys() if k.startswith(IMAGE_KEY_PDF)]
+            for img_key_pdf in img_keys_pdf:
+                corresponding_key_html = img_key_pdf.replace("pdf", "html")
+                assert corresponding_key_html in self.template
+                self.template = self.template.replace(corresponding_key_html, img_key_pdf)
+
+        # Now rerender the HTML (without overwriting the saved HTML file) and convert this updated HTML to PDF
+        self.render(save_html=False)
+
+        with open(self.report_path_pdf, "wb+") as f_path:
+            pisa_status = pisa.CreatePDF(self.report_html, dest=f_path)
+
+        # self.report_path_pdf.mkdir(exist_ok=True)
+        # pypandoc.convert_file(str(self.report_path_html), 'pdf', outputfile=str(self.report_path_pdf), format='html',
+        #                       extra_args=['--pdf-engine','xelatex'])
 
 
 def get_data_from_tensorboard_log():

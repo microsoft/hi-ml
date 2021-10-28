@@ -11,7 +11,7 @@ import pytest
 
 from PIL import Image
 
-from health.utils.reports import reports as report_util
+from health_ml.utils.reports import reports as report_util
 
 
 @pytest.mark.parametrize("args, attr_name, attr_val", [
@@ -299,4 +299,5 @@ def test_generate_dummy_html_report(tmp_path: Path):
 
     html_report.to_pdf()
 
-    assert html_report.report_path.exists()
+    assert html_report.report_path_html.exists()
+    assert html_report.report_path_pdf.exists()

@@ -7,4 +7,4 @@ jinja2
 ruamel.yaml==0.16.12
 scikit-learn==1.0
 tensorboard==2.6.0
-weasyprint
+xhtml2pdf==0.2.5
