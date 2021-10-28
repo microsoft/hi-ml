@@ -542,7 +542,6 @@ def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMoc
     mock_fetch_run.return_value = mock_run
 
     latest_path = tmp_path / "most_recent_run.txt"
-    latest_path.touch()
     latest_path.write_text(mock_run_id)
 
     run = util.get_most_recent_run(latest_path, mock_workspace)
@@ -868,7 +867,6 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress:
         dummy_filename = f"dummy_data_{i}.txt"
         dummy_filenames.append(dummy_filename)
         data_to_upload_path = local_data_path / dummy_filename
-        data_to_upload_path.touch()
         data_to_upload_path.write_text(dummy_file_content)
     default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
     existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
@@ -921,7 +919,6 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     # Create a dummy data file and upload to datastore
     data_to_upload_path = tmp_path / dummy_file_name
     data_to_upload_path.parent.mkdir(exist_ok=True, parents=True)
-    data_to_upload_path.touch()
     data_to_upload_path.write_text(dummy_file_content)
 
     util.upload_to_datastore(default_datastore.name, data_to_upload_path.parent, Path(remote_data_dir),
@@ -1362,9 +1359,10 @@ class EvenNumberParam(util.CustomTypeParam):
     """ Our custom type param for even numbers """
 
     def _validate(self, val: Any) -> None:
-        if not (self.allow_None and val is None):
-            if val % 2 != 0:
-                raise ValueError(f"{val} is not an even number")
+        if (not self.allow_None) and val is None:
+            raise ValueError("Value must not be None")
+        if val % 2 != 0:
+            raise ValueError(f"{val} is not an even number")
         super()._validate(val)  # type: ignore
 
     def from_string(self, x: str) -> int:
@@ -1373,15 +1371,29 @@ class EvenNumberParam(util.CustomTypeParam):
 
 class MyScriptConfig(util.AmlRunScriptConfig):
     simple_string: str = param.String(default="")
-    even_number: int = EvenNumberParam(2, doc="your choice of even number")
+    even_number: int = EvenNumberParam(2, doc="your choice of even number", allow_None=False)
 
 
 def test_my_script_config() -> None:
     even_number = randint(0, 100) * 2
     odd_number = even_number + 1
+    none_number = "None"
 
     config = MyScriptConfig.parse_args(["--even_number", f"{even_number}"])
     assert config.even_number == even_number
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as e:
         MyScriptConfig.parse_args(["--even_number", f"{odd_number}"])
+        assert "not an even number" in str(e.value)
+
+    # If parser can't parse type, will raise a SystemExit
+    with pytest.raises(SystemExit):
+        MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
+
+    # Mock from_string to check test _validate
+    mock_from_string_none = lambda a, b: None
+    with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
+        # Check that _validate fails with None value
+        with pytest.raises(ValueError) as e:
+            MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
+            assert "must not be None" in str(e.value)

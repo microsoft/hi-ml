@@ -64,6 +64,12 @@ class IntTuple(param.NumericTuple):
     """
 
     def _validate(self, val: Any) -> None:
+        """
+        Check that input "val" is indeed a tuple of integers. If it is a tuple of some other type, raises
+        a ValueError
+
+        :param val: The value to be checked
+        """
         super()._validate(val)
         if val is not None:
             for i, n in enumerate(val):
@@ -76,6 +82,7 @@ class GenericConfig(param.Parameterized):
     def __init__(self, should_validate: bool = True, throw_if_unknown_param: bool = False, **params: Any):
         """
         Instantiates the config class, ignoring parameters that are not overridable.
+
         :param should_validate: If True, the validate() method is called directly after init.
         :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that does not
                                 correspond to an attribute of the class.
@@ -108,6 +115,10 @@ class GenericConfig(param.Parameterized):
         """
         Add further parameters and, if validate is True, validate. We first try set_param, but that
         fails when the parameter has a setter.
+
+        :param kwargs: A dictionary of key, value pairs where each key represents a parameter to be added
+            and val represents its value
+        :param validate: Whether to validate the value of the parameter after adding.
         """
         for key, value in kwargs.items():
             try:
@@ -121,6 +132,7 @@ class GenericConfig(param.Parameterized):
     def create_argparser(cls) -> ArgumentParser:
         """
         Creates an ArgumentParser with all fields of the given argparser that are overridable.
+
         :return: ArgumentParser
         """
         parser = ArgumentParser()
@@ -133,6 +145,7 @@ class GenericConfig(param.Parameterized):
         """
         Adds all overridable fields of the current class to the given argparser.
         Fields that are marked as readonly, constant or private are ignored.
+
         :param parser: Parser to add properties to.
         """
 
@@ -141,6 +154,7 @@ class GenericConfig(param.Parameterized):
             Parse a string as a bool. Supported values are case insensitive and one of:
             'on', 't', 'true', 'y', 'yes', '1' for True
             'off', 'f', 'false', 'n', 'no', '0' for False.
+
             :param x: string to test.
             :return: Bool value if string valid, otherwise a ValueError is raised.
             """
@@ -155,6 +169,7 @@ class GenericConfig(param.Parameterized):
             """
             Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
             Throw exception if it is not supported.
+
             :param _p: parameter to get type and nargs for.
             :return: Type
             """
@@ -186,6 +201,7 @@ class GenericConfig(param.Parameterized):
             Add a boolean argument.
             If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
             If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
+
             :param parser: parser to add a boolean argument to.
             :param k: argument name.
             :param p: boolean parameter.
@@ -220,6 +236,8 @@ class GenericConfig(param.Parameterized):
     def parse_args(cls: Type[T], args: Optional[List[str]] = None) -> T:
         """
         Creates an argparser based on the params class and parses stdin args (or the args provided)
+
+        :param args: The arguments to be parsed
         """
         return cls(**vars(cls.create_argparser().parse_args(args)))  # type: ignore
 
@@ -227,6 +245,7 @@ class GenericConfig(param.Parameterized):
     def get_overridable_parameters(cls) -> Dict[str, param.Parameter]:
         """
         Get properties that are not constant, readonly or private (eg: prefixed with an underscore).
+
         :return: A dictionary of parameter names and their definitions.
         """
         return dict((k, v) for k, v in cls.params().items()
@@ -235,6 +254,10 @@ class GenericConfig(param.Parameterized):
     @staticmethod
     def reason_not_overridable(value: param.Parameter) -> Optional[str]:
         """
+        Given a parameter, check for attributes that denote it is not overrideable (e.g. readonly, constant,
+        private etc). If such an attribute exists, return a string containing a single-word description of the
+        reason. Otherwise returns None.
+
         :param value: a parameter value
         :return: None if the parameter is overridable; otherwise a one-word string explaining why not.
         """
@@ -253,6 +276,7 @@ class GenericConfig(param.Parameterized):
         """
         Applies the provided `values` overrides to the config.
         Only properties that are marked as overridable are actually overwritten.
+
         :param values: A dictionary mapping from field name to value.
         :param should_validate: If true, run the .validate() method after applying overrides.
         :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
@@ -281,6 +305,7 @@ class GenericConfig(param.Parameterized):
         """
         Logs a warning for every parameter whose value is not as given in "values", other than those
         in keys_to_ignore.
+
         :param values: override dictionary, parameter names to values
         :param keys_to_ignore: set of dictionary keys not to report on
         :return: None
@@ -310,6 +335,7 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     Creates an object of the given target class, and then copies all attributes from the `from_object` to
     the newly created object, if there is a matching attribute. The target class must be a subclass of
     param.Parameterized.
+
     :param from_object: The object to read attributes from.
     :param cls_: The name of the class for the newly created object.
     :return: An instance of cls_
@@ -325,9 +351,22 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
 
 class CustomTypeParam(param.Parameter):
     def _validate(self, val: Any) -> None:
+        """
+        Validate that the input "val" has the expected format. For example, if this custom type should represent a
+        list, verify here that it is so.
+
+        :param val: the value to be verified
+        """
         super()._validate(val)
 
     def from_string(self, x: str) -> Any:
+        """
+        Base method for taking an input string and returning it evaluated as its expected type (e.g. from_string("3")
+        would most likely return int("3")"
+
+        :param x: The string to be evaluated
+        :return: The evaluated format of the string
+        """
         raise NotImplementedError()
 
 
@@ -337,9 +376,15 @@ class ListOrDictParam(CustomTypeParam):
     """
 
     def _validate(self, val: Any) -> None:
-        if not (self.allow_None and val is None):
-            if not (isinstance(val, List) or isinstance(val, Dict)):
-                raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
+        """
+        Checks that input "val" is indeed a List or Dict object
+
+        :param val: the value to be checked
+        """
+        if (not self.allow_None) and val is None:
+            raise ValueError("Value must not be None")
+        if not (isinstance(val, List) or isinstance(val, Dict)):
+            raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
         super()._validate(val)
 
     def from_string(self, x: str) -> Union[Dict, List]:
@@ -353,8 +398,8 @@ class ListOrDictParam(CustomTypeParam):
             - from_string('["foo","bar"') will raise an Exception (missing close bracket)
             - from_string({'learning':3"') will raise an Exception (missing close bracket)
 
-        :param x:
-        :return:
+        :param x: the string to parse
+        :return: a List or Dict object, as evaluated from the input string
         """
         if x.startswith("{") or x.startswith('['):
             res = json.loads(x.replace("'", "\""))
@@ -374,24 +419,37 @@ class RunIdOrListParam(CustomTypeParam):
     """
 
     def _validate(self, val: Any) -> None:
-        if not (self.allow_None and val is None):
-            if len(val) == 0 or not (isinstance(val, str) or isinstance(val, list)):
-                raise ValueError(f"{val} must be an instance of List or string, found {type(val)}")
+        """
+        Checks that the input "val" is indeed a non-empty list or string
+
+        :param val: The value to check
+        """
+        if val is None:
+            if not self.allow_None:
+                raise ValueError("Value must not be None")
+            else:
+                return
+        if len(val) == 0 or not (isinstance(val, str) or isinstance(val, list)):
+            raise ValueError(f"{val} must be an instance of List or string, found {type(val)}")
         super()._validate(val)
 
-    def from_string(self, x: str) -> Union[str, List]:
+    def from_string(self, x: str) -> List[str]:
+        """
+        Given a string representing one or more run_ids, first attempts to split into a list, and then
+        evaluates each item in the list as a genuine run id
+
+        :param x: The string to evaluate
+        :return: a list of one or more strings representing run ids
+        """
         res = [str(item) for item in x.split(',')]
-        if len(res) == 1:
-            # string
-            return determine_run_id_type(res[0])
-        else:
-            # list
-            return [determine_run_id_type(x) for x in res]
+        return [determine_run_id_type(x) for x in res]
 
 
 def is_private_field_name(name: str) -> bool:
     """
     A private field is any Python class member that starts with an underscore eg: _hello
+
+    :param name: a string representing the name of the class member
     """
     return name.startswith("_")
 
@@ -495,27 +553,27 @@ def create_run_recovery_id(run: Run) -> str:
     return str(run.experiment.name + EXPERIMENT_RUN_SEPARATOR + run.id)
 
 
-def split_recovery_id(id: str) -> Tuple[str, str]:
+def split_recovery_id(id_str: str) -> Tuple[str, str]:
     """
     Splits a run ID into the experiment name and the actual run.
     The argument can be in the format 'experiment_name:run_id',
     or just a run ID like user_branch_abcde12_123. In the latter case, everything before the last
     two alphanumeric parts is assumed to be the experiment name.
 
-    :param id: The string run ID.
+    :param id_str: The string run ID.
     :return: experiment name and run name
     """
-    components = id.strip().split(EXPERIMENT_RUN_SEPARATOR)
+    components = id_str.strip().split(EXPERIMENT_RUN_SEPARATOR)
     if len(components) > 2:
-        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id))
+        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id_str))
     elif len(components) == 2:
         return components[0], components[1]
     else:
         recovery_id_regex = r"^(\w+)_\d+_[0-9a-f]+$|^(\w+)_\d+$"
-        match = re.match(recovery_id_regex, id)
+        match = re.match(recovery_id_regex, id_str)
         if not match:
-            raise ValueError("The recovery ID was not in the expected format: {}".format(id))
-        return (match.group(1) or match.group(2)), id
+            raise ValueError("The recovery ID was not in the expected format: {}".format(id_str))
+        return (match.group(1) or match.group(2)), id_str
 
 
 def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
@@ -711,7 +769,7 @@ def create_python_environment(conda_environment_file: Path,
     if workspace is not None and private_pip_wheel_path is not None:
         if private_pip_wheel_path.is_file():
             whl_url = Environment.add_private_pip_wheel(workspace=workspace,
-                                                        file_path=private_pip_wheel_path,
+                                                        file_path=str(private_pip_wheel_path),
                                                         exist_ok=True)
             conda_dependencies.add_pip_package(whl_url)
             print(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
@@ -815,11 +873,11 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     :return: True if the run and all child runs completed successfully.
     """
 
-    def is_completed(run: Run) -> bool:
-        status = run.get_status()
-        if run.status == RunStatus.COMPLETED:
+    def is_completed(run_: Run) -> bool:
+        status = run_.get_status()
+        if run_.status == RunStatus.COMPLETED:
             return True
-        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
+        logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
         return False
 
     runs = list(run.get_children())
@@ -830,14 +888,14 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
 def get_most_recent_run_id(run_recovery_file: Path) -> str:
     """
     Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
-    file when running on the cloud.
+    file.
 
     :param run_recovery_file: The path of the run recovery file
     :return: The run id
     """
     assert (
         run_recovery_file.is_file()
-    ), "When running in cloud builds, this should pick up the ID of a previous training run"
+    ), f"No such file: {run_recovery_file}"
 
     run_id = run_recovery_file.read_text().strip()
     logging.info(f"Read this run ID from file: {run_id}.")
@@ -1106,13 +1164,24 @@ class AmlRunScriptConfig(GenericConfig):
     config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
                                             doc="Path to config.json where Workspace name is defined")
     tags: Dict[str, Any] = param.Dict()
-    run: Union[List[str], str] = RunIdOrListParam(default=None,
-                                                  doc="Either single or multiple run id(s). Also "
-                                                      "supports run_recovery_ids but this is not "
-                                                      "recommended")
+    run: List[str] = RunIdOrListParam(default=None, allow_None=True,
+                                      doc="Either single or multiple run id(s). Will be stored as a list"
+                                          " of strings. Also supports run_recovery_ids but this is not "
+                                          "recommended")
 
 
 def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: Workspace) -> List[Run]:
+    """
+    Given an AMLRunScriptConfig object, retrieve a run id, given the supplied arguments. For example,
+    if "run" has been specified, retrieve the AML Run that corresponds to the supplied run id(s). Alternatively,
+    if "experiment" has been specified, retrieve "num_runs" (defaults to 1) latest runs from that experiment. If
+    neither is supplied, looks for a file named "most_recent_run.txt" in the current directory and its parents.
+    If found, reads the latest run id from there are retrieves the corresponding run. Otherwise, raises a ValueError.
+
+    :param script_config: The AMLRunScriptConfig object which contains the parsed arguments
+    :param workspace: an AML Workspace object
+    :return: a List of one or more retrieved AML Runs
+    """
     if script_config.run is None:
         if script_config.experiment is None:
             # default to latest run file

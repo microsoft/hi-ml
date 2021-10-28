@@ -74,12 +74,13 @@ run ids (or run recovery ids) and returns either a List or a single RunId object
 
 ```python
 class EvenNumberParam(util.CustomTypeParam):
-    """ Our custom type param for even numbers"""
+    """ Our custom type param for even numbers """
 
     def _validate(self, val: Any) -> None:
-        if not (self.allow_None and val is None):
-            if val % 2 != 0:
-                raise ValueError(f"{val} is not an even number")
+        if (not self.allow_None) and val is None:
+            raise ValueError("Value must not be None")
+        if val % 2 != 0:
+            raise ValueError(f"{val} is not an even number")
         super()._validate(val)  # type: ignore
 
     def from_string(self, x: str) -> int:

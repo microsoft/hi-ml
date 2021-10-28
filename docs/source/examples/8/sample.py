@@ -42,7 +42,7 @@ def main() -> None:
         wait_for_completion_show_output=True,
         hyperdrive_config=hyperdrive_config)
     if run_info.run is None:
-        raise ValueError(f"run_info.run is None")
+        raise ValueError("run_info.run is None")
     run: Run = run_info.run
     parser = argparse.ArgumentParser()
 
