@@ -381,8 +381,12 @@ class ListOrDictParam(CustomTypeParam):
 
         :param val: the value to be checked
         """
-        if (not self.allow_None) and val is None:
-            raise ValueError("Value must not be None")
+
+        if val is None:
+            if not self.allow_None:
+                raise ValueError("Value must not be None")
+            else:
+                return
         if not (isinstance(val, List) or isinstance(val, Dict)):
             raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
         super()._validate(val)
