@@ -382,7 +382,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
         try:
             workspace = get_workspace(aml_workspace, workspace_config_path)
-        except Exception as e:
+        except Exception:
             workspace = None
 
         return AzureRunInfo(

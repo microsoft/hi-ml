@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -109,13 +110,15 @@ class DatasetConfig:
         self.target_folder = target_folder
         self.local_folder = local_folder
 
-    def to_local_dataset(self, workspace: Workspace) -> Union[Path, List[Path]]:
+    def to_local_dataset(self, workspace: Optional[Workspace]) -> Optional[Path]:
         """
-        Return a local path to the dataset when outside of an AzureML run. If local_folder is supplied, then this is
-        assumed to be a local dataset. Otherwise the dataset is mounted to the target folder and that is returned.
+        Return a local path to the dataset when outside of an AzureML run.
+        If local_folder is supplied, then this is
+        assumed to be a local dataset, and this is returned.
+        Otherwise the dataset is mounted or downloaded to the target folder and that is returned.
 
         :param workspace: The AzureML workspace to read from.
-        :return: Path to dataset if use_mounting or List of paths to files otherwise.
+        :return: Path to dataset if possible, None otherwise.
         """
         if self.local_folder or workspace is None:
             return self.local_folder
@@ -125,22 +128,26 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
         local_path = str(self.target_folder) or None if self.target_folder is not None else None
+        target_path = local_path
+        if target_path is None:
+            d = tempfile.TemporaryDirectory()
+            target_path = d.name
+
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
             status += "mounted at "
-            mount_context = azureml_dataset.mount(mount_point=local_path)
+            mount_context = azureml_dataset.mount(mount_point=target_path)
             mount_context.start()
-            result = Path(mount_context.mount_point)
         else:
             status += "downloaded to "
-            result = azureml_dataset.download(target_path=local_path, overwrite=False)
-            result = [Path(f) for f in result]
+            result = azureml_dataset.download(target_path=target_path, overwrite=False)
+            logging.info(f"Downloaded files: {result}")
         if local_path:
             status += f"{local_path}."
         else:
-            status += "a randomly chosen folder."
+            status += f"a randomly chosen folder: {target_path}."
         logging.info(status)
-        return result
+        return Path(target_path)
 
     def to_input_dataset(self,
                          workspace: Workspace,

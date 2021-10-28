@@ -35,6 +35,7 @@ clean:
 	rm -vrf `find . -type d -name logs`
 	rm -vrf `find . -type d -name outputs`
 	rm -vrf ./.mypy_cache ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
+	rm -vrf ./testazure/testazure/test_data/test_make_tests
 	rm -vf ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
 
 # build package, assuming build requirements already installed
