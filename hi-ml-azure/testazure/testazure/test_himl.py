@@ -786,12 +786,17 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
-def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
+@pytest.mark.parametrize(["run_target", "local_folder"],
+                         [(RunTarget.LOCAL, False),
+                          (RunTarget.LOCAL, True),
+                          (RunTarget.AZUREML, False)])
+def test_invoking_hello_world_datasets(run_target: RunTarget, local_folder: bool, tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
     and that datasets are mounted in all combinations.
+
     :param run_target: Where to run the script.
+    :param local_folder: True to use data in local folder when running locally, False to mount/download data.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     input_count = 4
@@ -821,7 +826,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
             location=input_dataset.blob_name,
             tmp_path=tmp_path)
 
-        if run_target == RunTarget.LOCAL:
+        if run_target == RunTarget.LOCAL and local_folder:
             # For running locally, download the test files from blobstore
             downloaded = datastore.download(
                 target_path=input_dataset.folder_name,
