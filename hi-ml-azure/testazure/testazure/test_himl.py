@@ -776,6 +776,8 @@ class TestInputDataset:
     folder_name: Path
     # Contents of test file.
     contents: str = ""
+    # Local folder str
+    local_folder: str = ""
 
 
 @dataclass
@@ -786,20 +788,25 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.parametrize(["run_target", "local_folder"],
-                         [(RunTarget.LOCAL, False),
-                          (RunTarget.LOCAL, True),
-                          (RunTarget.AZUREML, False)])
-def test_invoking_hello_world_datasets(run_target: RunTarget, local_folder: bool, tmp_path: Path) -> None:
+@pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
+                         [(RunTarget.LOCAL, False, False),
+                          (RunTarget.LOCAL, True, False),
+                          (RunTarget.LOCAL, True, True),
+                          (RunTarget.AZUREML, False, False)])
+def test_invoking_hello_world_datasets(run_target: RunTarget,
+                                       local_folder: bool,
+                                       suppress_config_creation: bool,
+                                       tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
     and that datasets are mounted in all combinations.
 
     :param run_target: Where to run the script.
     :param local_folder: True to use data in local folder when running locally, False to mount/download data.
+    :param suppress_config_creation: Do not create a config.json file if none exists
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    input_count = 4
+    input_count = 5
     input_datasets = [TestInputDataset(
         filename=f"{uuid4().hex}.txt",
         blob_name=f"himl_dataset_test_input{i}",
@@ -839,6 +846,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, local_folder: bool
             downloaded_dummy_txt_file = input_dataset.folder_name / input_dataset.blob_name / input_dataset.filename
             # Check it has expected contents
             assert input_dataset.contents == downloaded_dummy_txt_file.read_text()
+            input_dataset.local_folder = f", local_folder='{input_dataset.folder_name / input_dataset.blob_name}'"
 
     if run_target == RunTarget.LOCAL:
         for output_dataset in output_datasets:
@@ -869,17 +877,24 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, local_folder: bool
 
     extra_options: Dict[str, str] = {
         'prequel': """
-    target_folder = "foo"
+    target_folders = ["foo", "bar"]
         """,
         'ignored_folders': '[".config", ".mypy_cache", "hello_world_output"]',
         'default_datastore': f'"{DEFAULT_DATASTORE}"',
         'input_datasets': f"""[
             "{input_datasets[0].blob_name}",
-            DatasetConfig(name="{input_datasets[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
-            DatasetConfig(name="{input_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
-                          target_folder=target_folder),
-            DatasetConfig(name="{input_datasets[3].blob_name}", datastore="{DEFAULT_DATASTORE}",
-                          use_mounting=True),
+            DatasetConfig(name="{input_datasets[1].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}"{input_datasets[1].local_folder}),
+            DatasetConfig(name="{input_datasets[2].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}",
+                          target_folder=target_folders[0]{input_datasets[2].local_folder}),
+            DatasetConfig(name="{input_datasets[3].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}",
+                          use_mounting=True{input_datasets[3].local_folder}),
+            DatasetConfig(name="{input_datasets[4].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}",
+                          target_folder=target_folders[1],
+                          use_mounting=True{input_datasets[4].local_folder}),
         ]""",
         'output_datasets': f"""[
             "{output_datasets[0].blob_name}",
@@ -905,7 +920,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, local_folder: bool
         """
     }
     extra_args: List[str] = []
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True, suppress_config_creation)
 
     for input_dataset in input_datasets:
         for output_dataset in output_datasets:
