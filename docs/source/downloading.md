@@ -8,7 +8,7 @@ To download all files from an AML Run, given its run id, perform the following:
 
 ```python
 from pathlib import Path
-from health.azure.azure_util import download_files_from_run_id
+from health_azure import download_files_from_run_id
 run_id = "example_run_id_123"
 output_folder = Path("path/to/save")
 download_files_from_run_id(run_id, output_folder)
@@ -34,7 +34,7 @@ To download checkpoint files from an Azure ML Run, perform the following:
 
 ```python
 from pathlib import Path
-from health.azure.azure_util import download_checkpoints_from_run_id
+from health_azure import download_checkpoints_from_run_id
 download_checkpoints_from_run_id("example_run_id_123", Path("path/to/checkpoint/directory"))
 ```
 
@@ -52,7 +52,7 @@ All processes will be synchronized to only exit the downloading method once it h
 To download data from an Azure ML Datastore within your Workspace, follow this example:
 ```python
 from pathlib import Path
-from health.azure.azure_util import download_from_datastore
+from health_azure import download_from_datastore
 download_from_datastore("datastore_name", "prefix", Path("path/to/output/directory") )
 ```
 
@@ -74,7 +74,7 @@ If show_progress is set to True, the progress of the file download will be visib
 To upload data to an Azure ML Datastore within your workspace, perform the following:
 ```python
 from pathlib import Path
-from health.azure.azure_util import upload_to_datastore
+from health_azure import upload_to_datastore
 upload_to_datastore("datastore_name", Path("path/to/local/data/folder"), Path("path/to/datastore/folder") )
 ```
 

@@ -2,8 +2,8 @@
 
 ## Overview
 
-This toolbox aims at providing low-level building blocks for Machine Learning / AI researchers and
-practitioners. It helps by providing cloud integration tools.
+This toolbox provides cloud integration tools for Machine Learning / AI researchers and
+practitioners. ML components can be found in the sibling package `hi-ml`.
 
 ## Installation
 

@@ -13,6 +13,9 @@ created.
 ## Upcoming
 
 ### Added
+- ([#142](https://github.com/microsoft/hi-ml/pull/142)) Adding AzureML progress bar and diagnostics for batch loading
+
+- ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
 
 ### Changed
 
@@ -21,6 +24,24 @@ created.
 ### Removed
 
 ### Deprecated
+
+
+## 0.1.9 (2021-10-20)
+
+### Added
+- ([#133](https://github.com/microsoft/hi-ml/pull/133)) PyTorch Lightning logger for AzureML. Helper functions for consistent logging
+- ([#136](https://github.com/microsoft/hi-ml/pull/136)) Documentation for using low priority nodes
+
+### Changed
+- ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names, 
+from `health.azure` to `health_azure`.
+- ([#144])(https://github.com/microsoft/hi-ml/pull/141) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
+
+### Fixed
+- ([#134](https://github.com/microsoft/hi-ml/pull/134)) Fixed repo references and added pyright to enforce global checking
+- ([#139](https://github.com/microsoft/hi-ml/pull/139) Fix register_environment, which was ignoring existing environemnts
+previously. Also ensure that the environment is given version 1 by default instead of "autosave")
+
 
 ## 0.1.8 (2021-10-06)
 

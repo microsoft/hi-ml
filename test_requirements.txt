@@ -6,3 +6,4 @@ pycobertura==2.0.1
 pytest==6.2.2
 pytest-cov==2.11.1
 types-requests==2.25.6
+scikit-learn==1.0

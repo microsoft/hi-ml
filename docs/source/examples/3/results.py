@@ -4,17 +4,16 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
-import health.azure.himl as himl
-from health.azure.azure_util import get_most_recent_run
+from health_azure import get_most_recent_run, get_workspace
+from health_azure.himl import RUN_RECOVERY_FILE
 
 
 def main() -> None:
     path = Path(__file__).parent.resolve()
 
-    workspace = himl.get_workspace(aml_workspace=None,
-                                   workspace_config_path=path / himl.WORKSPACE_CONFIG_JSON)
+    workspace = get_workspace()
 
-    run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
+    run = get_most_recent_run(run_recovery_file=path / RUN_RECOVERY_FILE,
                               workspace=workspace)
 
     # Either download all outputs:

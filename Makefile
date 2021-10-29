@@ -18,19 +18,24 @@ pip_build: pip_upgrade
 pip_test: pip_upgrade
 	pip install -r test_requirements.txt
 
-# pip install local package in editable mode for development and testing
+# pip install local packages in editable mode for development and testing
 call_pip_local:
 	$(call call_packages,call_pip_local)
 
-# pip upgrade and install local package in editable mode
+# pip upgrade and install local packages in editable mode
 pip_local: pip_upgrade call_pip_local
 
 # pip install everything for local development and testing
 pip: pip_build pip_test call_pip_local
 
-# set the conda environment
-conda:
-	conda env update --file environment.yml
+# update current conda environment
+conda_update:
+	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml
+	conda env update -n $(CONDA_DEFAULT_ENV) --file hi-ml/testhiml/testhiml/utils/slide_image_loading/environment.yml
+
+# Set the conda environment for local development work, that contains all packages need for both hi-ml and hi-ml-azure
+# with hi-ml and hi-ml-azure installed in editable mode
+conda: conda_update call_pip_local
 
 ## Actions
 
@@ -58,6 +63,14 @@ call_mypy:
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
+
+# run pyright, assuming test requirements already installed
+call_pyright:
+	npm install -g pyright
+	pyright
+
+# conda install test requirements and run pyright
+pyright: conda call_pyright
 
 # run basic checks
 call_check: call_flake8 call_mypy
