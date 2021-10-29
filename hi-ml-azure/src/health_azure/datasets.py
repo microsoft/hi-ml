@@ -128,7 +128,7 @@ class DatasetConfig:
             return Path(self.local_folder)
 
         if workspace is None:
-            status += f"None - neither local_folder or workspace available"
+            status += "None - neither local_folder or workspace available"
             logging.info(status)
             return None
 

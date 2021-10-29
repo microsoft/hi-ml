@@ -12,8 +12,7 @@ from PIL import Image
 import cucim
 import numpy as np
 
-from azureml.core import Dataset
-from health_azure import get_workspace, is_running_in_azure_ml
+from health_azure import DatasetConfig, submit_to_azure_if_needed
 
 from Histopathology.preprocessing.create_tiles_dataset import process_slide, save_tile, generate_tiles
 
@@ -195,41 +194,46 @@ def main() -> None:
 
     :return: None.
     """
+    panda_folder = "/tmp/datasets/panda"
+    run_info = submit_to_azure_if_needed(
+        compute_cluster_name="lite-testing-ds2",
+        input_datasets=[DatasetConfig(name='panda',
+                                      use_mounting=True,
+                                      target_folder=panda_folder)],
+        wait_for_completion=True,
+        wait_for_completion_show_output=True)
+
     print(f"cucim.is_available(): {cucim.is_available()}")
     print(f"cucim.is_available('skimage'): {cucim.is_available('skimage')}")
     print(f"cucim.is_available('core'): {cucim.is_available('core')}")
     print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
 
-    ws = get_workspace(aml_workspace=None, workspace_config_path=None)
-    dataset = Dataset.get_by_name(ws, name='panda')
+    mount_point = run_info.input_datasets[0]
 
-    output_folder = Path("outputs") if is_running_in_azure_ml() else Path("../outputs")
+    output_folder = run_info.output_folder
 
-    with dataset.mount("/tmp/datasets/panda") as mount_context:
-        mount_point = Path(mount_context.mount_point)
+    wrap_profile_folders(mount_point, output_folder)
 
-        wrap_profile_folders(mount_point, output_folder)
+    labels = ['tile_cucim_no_save', 'tile_openslide_no_save', 'tile_cucim', 'tile_openslide']
 
-        labels = ['tile_cucim_no_save', 'tile_openslide_no_save', 'tile_cucim', 'tile_openslide']
+    for i, process in enumerate([process_slide_cucim_no_save,
+                                 process_slide_open_slide_no_save,
+                                 process_slide_cucim,
+                                 process_slide_openslide]):
+        profile_main(mount_point, output_folder, labels[i], process)
 
-        for i, process in enumerate([process_slide_cucim_no_save,
-                                     process_slide_open_slide_no_save,
-                                     process_slide_cucim,
-                                     process_slide_openslide]):
-            profile_main(mount_point, output_folder, labels[i], process)
+    cucim.CuImage.cache("per_process", memory_capacity=2048, record_stat=True)
+    cache = cucim.CuImage.cache()
+    print(f"cucim.cache.config: {cache.config}")
+    print_cache_state(cache)
 
-        cucim.CuImage.cache("per_process", memory_capacity=2048, record_stat=True)
-        cache = cucim.CuImage.cache()
-        print(f"cucim.cache.config: {cache.config}")
+    labels = ['tile_cucim_no_save_cache', 'tile_cucim_cache']
+
+    for i, process in enumerate([process_slide_cucim_no_save,
+                                 process_slide_cucim]):
+        profile_main(mount_point, output_folder, labels[i], process)
+
         print_cache_state(cache)
-
-        labels = ['tile_cucim_no_save_cache', 'tile_cucim_cache']
-
-        for i, process in enumerate([process_slide_cucim_no_save,
-                                     process_slide_cucim]):
-            profile_main(mount_point, output_folder, labels[i], process)
-
-            print_cache_state(cache)
 
 
 if __name__ == '__main__':
