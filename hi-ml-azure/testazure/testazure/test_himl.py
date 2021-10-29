@@ -788,6 +788,7 @@ class TestOutputDataset:
     folder_name: Path
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
                          [(RunTarget.LOCAL, False, False),
                           (RunTarget.LOCAL, True, False),
