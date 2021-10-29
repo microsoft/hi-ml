@@ -201,7 +201,10 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
         present
     """
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
-    print(f"Obtained service_principal: {"None" if service_principal_id is None else len(service_principal_id)}")
+    if service_principal_id is None:
+        print("Obtained service_principal: None")
+    else:
+        print(f"Obtained service_principal: {len(service_principal_id)}")
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
