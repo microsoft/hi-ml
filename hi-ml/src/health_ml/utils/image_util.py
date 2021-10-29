@@ -10,7 +10,6 @@ import numpy as np
 import torch
 
 from health.common import common_util
-from health.common.common_util import any_pairwise_larger
 from health.common.type_annotations import TupleFloat3, TupleFloat9, TupleInt2, TupleInt3
 
 
