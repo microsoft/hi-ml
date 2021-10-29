@@ -292,7 +292,9 @@ def test_generate_dummy_html_report(tmp_path: Path):
     plt.savefig(fig_path)
     html_report.add_image(str(fig_path))
 
-    df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"]})
+    df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"],
+                        "A very very very very very very very very very very very very very very very long title": [
+                            1, 2, 3]})
     html_report.add_table(df2)
 
     html_report.render()

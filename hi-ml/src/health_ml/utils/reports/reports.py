@@ -13,6 +13,7 @@ from matplotlib.axes import Axes
 from PIL import Image
 from sklearn.metrics import precision_recall_curve, roc_curve
 from xhtml2pdf import pisa
+from xhtml2pdf.default import DEFAULT_CSS
 
 from fpdf import FPDF
 
@@ -20,6 +21,7 @@ IMAGE_KEY_HTML = "image_paths_html"
 IMAGE_KEY_PDF = "image_paths_pdf"
 VALID_PNG_EXTENSIONS = [".png"]
 VALID_NUMPY_EXTENSIONS = (".npy", ".npz")
+
 
 def _file_matches_extension(file: Path, valid_extensions: Iterable[str]) -> bool:
     """
@@ -541,6 +543,11 @@ class Plot:
 
 
 class HTMLReport:
+    """
+    Create an HTML report which Azure ML is able to render. Note that the method convert_to_pdf will not
+    apply bootstrap formatting. Very limited CSS properties are applied to the PDF
+    (see [here](https://xhtml2pdf.readthedocs.io/en/latest/reference.html#supported-css-properties))
+    """
     def __init__(self, title: str = "Report", output_folder: str = "outputs"):
         self.report_title = title
         self.output_folder = output_folder
@@ -572,7 +579,28 @@ class HTMLReport:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style type="text/css">
+    @page body{
+        size: A4 portrait;
+        @frame header_frame {
+            -pdf-frame-content: header_content;
+            left: 50pt; width: 512pt; top: 50pt; height: 40pt;
+        }
+        @frame content_frame {
+            left: 50pt; width: 512pt; top: 90pt; height: 632pt;
+        }
+        @frame footer_frame {
+            -pdf-frame-content: footer_content;
+            left: 50pt; width: 512pt; top: 772pt; height: 20pt;
+        }
+    }
+    tbody td {
+        text-align: center;
+        vertical-align: middle}
+    thead th {
+        text-align: center;}
+</style>
 <title> {{title}} </title>
 </head>
 <body>
@@ -589,6 +617,7 @@ class HTMLReport:
         # with open(template_path, "w+") as f_path:
         #
         #     f_path.write(self.template)
+
         return template_path
 
     def add_table(self, df: pd.DataFrame):
@@ -602,11 +631,12 @@ class HTMLReport:
         while f"% for table in {table_key} %" in self.template:
             table_key += f"_{str(random.randint(0, 10))}"
 
-        self.template += """<div class="container">
+        self.template += """<div class="container" >
 {% for table in """ + table_key + """ %}
-{{ table.to_html(classes=["table table-striped w-auto"]) | safe }}
+{{ table.to_html(classes=[ "table"], justify="center") | safe }}
 {% endfor %}
 </div>
+<br>
 </p>
 </div>
 </body>
@@ -640,6 +670,7 @@ class HTMLReport:
 <img src={{image_path}} alt={{image_path}}>
 {% endfor %}
 </div>
+<br>
 </p>
 </div>
 </body>
@@ -658,7 +689,7 @@ class HTMLReport:
         # subs = self.env.get_template(str(self.template_path)).render(
         #     **self.render_kwargs
         # )
-        subs = self.env.from_string(self.template).render(**self.render_kwargs)
+        subs: str = self.env.from_string(self.template).render(**self.render_kwargs)
         self.report_html = subs
         # write the substitution to a file
         if save_html:
