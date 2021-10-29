@@ -208,12 +208,15 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
+        print("Returning ServicePrincipalAuthentication")
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
             service_principal_id=service_principal_id,
             service_principal_password=service_principal_password)
     logging.info("Using interactive login to Azure. To use Service Principal authentication, set the environment "
                  f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}")
+    print(f"Returning InteractiveLoginAuthentication: {len(service_principal_id)},"
+          f"{len(tenant_id)}, and {len(service_principal_password)}.")
     return InteractiveLoginAuthentication()
 
 
