@@ -381,11 +381,11 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder.mkdir(exist_ok=True)
 
         try:
-            logging.info(f"Looking for workspace for datasets at: {aml_workspace} / {workspace_config_path}")
+            print(f"Looking for workspace for datasets at: {aml_workspace} / {workspace_config_path}")
             workspace = get_workspace(aml_workspace, workspace_config_path)
-            logging.info(f"Found workspace for datasets: {workspace.name}")
+            print(f"Found workspace for datasets: {workspace.name}")
         except Exception:
-            logging.info("Could not find workspace for datasets")
+            print("Could not find workspace for datasets")
             workspace = None
 
         return AzureRunInfo(
