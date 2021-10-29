@@ -790,10 +790,11 @@ class TestOutputDataset:
 
 @pytest.mark.fast
 @pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
-                         [(RunTarget.LOCAL, False, False),
-                          (RunTarget.LOCAL, True, False),
-                          (RunTarget.LOCAL, True, True),
-                          (RunTarget.AZUREML, False, False)])
+                         [(RunTarget.LOCAL, False, False)])
+#                         [(RunTarget.LOCAL, False, False),
+#                          (RunTarget.LOCAL, True, False),
+#                          (RunTarget.LOCAL, True, True),
+#                          (RunTarget.AZUREML, False, False)])
 def test_invoking_hello_world_datasets(run_target: RunTarget,
                                        local_folder: bool,
                                        suppress_config_creation: bool,
