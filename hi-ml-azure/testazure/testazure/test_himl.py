@@ -910,9 +910,10 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
         {script_output_datasets}
     ]
     for i, (filename, input_blob_name, input_folder_name) in enumerate(input_datasets):
+        print(f"input_folder: {{run_info.input_datasets[i]}} or {{input_folder_name / input_blob_name}}")
         input_folder = run_info.input_datasets[i] or input_folder_name / input_blob_name
         for j, (output_blob_name, output_folder_name) in enumerate(output_datasets):
-            print(f"output_dataset: {{run_info.output_datasets[j]}} or {{output_folder_name / output_blob_name}}")
+            print(f"output_folder: {{run_info.output_datasets[j]}} or {{output_folder_name / output_blob_name}}")
             output_folder = run_info.output_datasets[j] or output_folder_name / output_blob_name
             file = input_folder / filename
             shutil.copy(file, output_folder)

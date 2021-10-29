@@ -209,6 +209,9 @@ def main() -> None:
     print(f"cucim.is_available('clara'): {cucim.is_available('clara')}")
 
     mount_point = run_info.input_datasets[0]
+    if mount_point is None:
+        print("Unable to mount panda dataset")
+        return
 
     output_folder = run_info.output_folder
 
