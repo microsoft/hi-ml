@@ -145,7 +145,7 @@ class DatasetConfig:
             target_path = tempfile.mkdtemp()
 
         use_mounting = False if self.use_mounting is None else self.use_mounting
-        if use_mounting:
+        if use_mounting and False:
             status += "mounted at "
             mount_context = azureml_dataset.mount(mount_point=target_path)
             mount_context.start()
