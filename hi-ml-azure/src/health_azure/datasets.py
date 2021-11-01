@@ -125,11 +125,13 @@ class DatasetConfig:
         if self.local_folder is not None:
             status += f"obtained from local folder {self.local_folder}"
             logging.info(status)
+            print("to_input_dataset_local:" + status)
             return Path(self.local_folder)
 
         if workspace is None:
             status += "None - neither local_folder or workspace available"
             logging.info(status)
+            print("to_input_dataset_local:" + status)
             return None
 
         azureml_dataset = get_or_create_dataset(workspace=workspace,
@@ -154,6 +156,7 @@ class DatasetConfig:
         else:
             status += f"a randomly chosen folder: {target_path}."
         logging.info(status)
+        print("to_input_dataset_local:" + status)
         return Path(target_path)
 
     def to_input_dataset(self,
