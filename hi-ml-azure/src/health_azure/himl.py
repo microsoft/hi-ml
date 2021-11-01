@@ -24,6 +24,7 @@ from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptR
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
@@ -63,6 +64,9 @@ class AzureRunInfo:
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
          datasets are specified, the list is empty."""
+    mount_contexts: List[MountContext]
+    """A list of mount contexts for input datasets when running outside Azure. There will be a mount context
+    for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set."""
     run: Optional[Run]
     """An AzureML Run object if the present script is executing inside AzureML, or None if outside of AzureML.
     The Run object has methods to log metrics, upload files, etc."""
@@ -388,9 +392,23 @@ def submit_to_azure_if_needed(  # type: ignore
             print("Could not find workspace for datasets")
             workspace = None
 
+        inputs = [d.to_input_dataset_local(workspace) for d in cleaned_input_datasets]
+
+        def item_or_none(x: Optional[Tuple[Path, Optional[MountContext]]], index: int) \
+                -> Optional[Union[Path, MountContext]]:
+            return x[index] if x is not None else None
+
+        input_datasets: List[Optional[Path]] = [item_or_none(input, 0) for input in inputs]
+        all_mount_contexts: List[Optional[MountContext]] = [item_or_none(input, 1) for input in inputs]
+        mount_contexts: List[MountContext] = [mc for mc in all_mount_contexts if mc is not None]
+
+        for mc in mount_contexts:
+            mc.start()
+
         return AzureRunInfo(
-            input_datasets=[d.to_input_dataset_local(workspace) for d in cleaned_input_datasets],
+            input_datasets=input_datasets,
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
+            mount_contexts=mount_contexts,
             run=None,
             is_running_in_azure_ml=False,
             output_folder=output_folder,
