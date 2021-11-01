@@ -47,8 +47,10 @@ def get_or_create_dataset(workspace: Workspace, datastore_name: str, dataset_nam
         raise ValueError("No dataset name provided.")
     try:
         logging.info(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
+        print(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
         azureml_dataset = Dataset.get_by_name(workspace, name=dataset_name)
         logging.info("Dataset found.")
+        print("Dataset found.")
     except Exception:
         logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
         datastore = get_datastore(workspace, datastore_name)
