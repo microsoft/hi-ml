@@ -6,14 +6,16 @@
 Utility functions for interacting with AzureML runs
 """
 import hashlib
+import json
 import logging
 import os
+
+import param
 import re
-from argparse import Namespace
-from enum import Enum
+from argparse import ArgumentParser, OPTIONAL
 from itertools import islice
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, Set
 
 import conda_merge
 import ruamel.yaml
@@ -22,6 +24,8 @@ from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
+
+T = TypeVar('T')
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -50,6 +54,430 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 
 RUN_CONTEXT = Run.get_context()
 WORKSPACE_CONFIG_JSON = "config.json"
+
+PathOrString = Union[Path, str]
+
+
+class IntTuple(param.NumericTuple):
+    """
+    Parameter class that must always have integer values
+    """
+
+    def _validate(self, val: Any) -> None:
+        """
+        Check that input "val" is indeed a tuple of integers. If it is a tuple of some other type, raises
+        a ValueError
+
+        :param val: The value to be checked
+        """
+        super()._validate(val)
+        if val is not None:
+            for i, n in enumerate(val):
+                if not isinstance(n, int):
+                    raise ValueError("{}: tuple element at index {} with value {} in {} is not an integer"
+                                     .format(self.name, i, n, val))
+
+
+class GenericConfig(param.Parameterized):
+    def __init__(self, should_validate: bool = True, throw_if_unknown_param: bool = False, **params: Any):
+        """
+        Instantiates the config class, ignoring parameters that are not overridable.
+
+        :param should_validate: If True, the validate() method is called directly after init.
+        :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that does not
+                                correspond to an attribute of the class.
+        :param params: Parameters to set.
+        """
+        # check if illegal arguments are passed in
+        legal_params = self.get_overridable_parameters()
+        illegal = [k for k, v in params.items() if (k in self.params().keys()) and (k not in legal_params)]
+
+        if illegal:
+            raise ValueError(f"The following parameters cannot be overridden as they are either "
+                             f"readonly, constant, or private members : {illegal}")
+        if throw_if_unknown_param:
+            # check if parameters not defined by the config class are passed in
+            unknown = [k for k, v in params.items() if (k not in self.params().keys())]
+            if unknown:
+                raise ValueError(f"The following parameters do not exist: {unknown}")
+        # set known arguments
+        super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
+        if should_validate:
+            self.validate()
+
+    def validate(self) -> None:
+        """
+        Validation method called directly after init to be overridden by children if required
+        """
+        pass
+
+    def add_and_validate(self, kwargs: Dict[str, Any], validate: bool = True) -> None:
+        """
+        Add further parameters and, if validate is True, validate. We first try set_param, but that
+        fails when the parameter has a setter.
+
+        :param kwargs: A dictionary of key, value pairs where each key represents a parameter to be added
+            and val represents its value
+        :param validate: Whether to validate the value of the parameter after adding.
+        """
+        for key, value in kwargs.items():
+            try:
+                self.set_param(key, value)
+            except ValueError:
+                setattr(self, key, value)
+        if validate:
+            self.validate()
+
+    @classmethod
+    def create_argparser(cls) -> ArgumentParser:
+        """
+        Creates an ArgumentParser with all fields of the given argparser that are overridable.
+
+        :return: ArgumentParser
+        """
+        parser = ArgumentParser()
+        cls.add_args(parser)
+
+        return parser
+
+    @classmethod
+    def add_args(cls, parser: ArgumentParser) -> ArgumentParser:
+        """
+        Adds all overridable fields of the current class to the given argparser.
+        Fields that are marked as readonly, constant or private are ignored.
+
+        :param parser: Parser to add properties to.
+        """
+
+        def parse_bool(x: str) -> bool:
+            """
+            Parse a string as a bool. Supported values are case insensitive and one of:
+            'on', 't', 'true', 'y', 'yes', '1' for True
+            'off', 'f', 'false', 'n', 'no', '0' for False.
+
+            :param x: string to test.
+            :return: Bool value if string valid, otherwise a ValueError is raised.
+            """
+            sx = str(x).lower()
+            if sx in ('on', 't', 'true', 'y', 'yes', '1'):
+                return True
+            if sx in ('off', 'f', 'false', 'n', 'no', '0'):
+                return False
+            raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
+
+        def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
+            """
+            Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
+            Throw exception if it is not supported.
+
+            :param _p: parameter to get type and nargs for.
+            :return: Type
+            """
+            if isinstance(_p, param.Boolean):
+                p_type: Callable = parse_bool
+            elif isinstance(_p, param.Integer):
+                p_type = lambda x: _p.default if x == "" else int(x)
+            elif isinstance(_p, param.Number):
+                p_type = lambda x: _p.default if x == "" else float(x)
+            elif isinstance(_p, param.String):
+                p_type = str
+            elif isinstance(_p, param.List):
+                p_type = lambda x: [_p.class_(item) for item in x.split(',')]
+            elif isinstance(_p, param.NumericTuple):
+                float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
+                p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
+            elif isinstance(_p, param.ClassSelector):
+                p_type = _p.class_
+            elif isinstance(_p, CustomTypeParam):
+                p_type = _p.from_string
+
+            else:
+                raise TypeError("Parameter of type: {} is not supported".format(_p))
+
+            return p_type
+
+        def add_boolean_argument(parser: ArgumentParser, k: str, p: param.Parameter) -> None:
+            """
+            Add a boolean argument.
+            If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
+            If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
+
+            :param parser: parser to add a boolean argument to.
+            :param k: argument name.
+            :param p: boolean parameter.
+            """
+            if not p.default:
+                # If the parameter default is False then use nargs="?" (OPTIONAL).
+                # This means that the argument is optional.
+                # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
+                # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
+                parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False,
+                                    nargs=OPTIONAL, const=True)
+            else:
+                # If the parameter default is True then create an exclusive group of arguments.
+                # Either --flag=value as usual
+                # Or --no-flag to store False in the parameter k.
+                group = parser.add_mutually_exclusive_group(required=False)
+                group.add_argument("--" + k, help=p.doc, type=parse_bool)
+                group.add_argument('--no-' + k, dest=k, action='store_false')
+                parser.set_defaults(**{k: p.default})
+
+        for k, p in cls.get_overridable_parameters().items():
+            # param.Booleans need to be handled separately, they are more complicated because they have
+            # an optional argument.
+            if isinstance(p, param.Boolean):
+                add_boolean_argument(parser, k, p)
+            else:
+                parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
+
+        return parser
+
+    @classmethod
+    def parse_args(cls: Type[T], args: Optional[List[str]] = None) -> T:
+        """
+        Creates an argparser based on the params class and parses stdin args (or the args provided)
+
+        :param args: The arguments to be parsed
+        """
+        return cls(**vars(cls.create_argparser().parse_args(args)))  # type: ignore
+
+    @classmethod
+    def get_overridable_parameters(cls) -> Dict[str, param.Parameter]:
+        """
+        Get properties that are not constant, readonly or private (eg: prefixed with an underscore).
+
+        :return: A dictionary of parameter names and their definitions.
+        """
+        return dict((k, v) for k, v in cls.params().items()
+                    if cls.reason_not_overridable(v) is None)
+
+    @staticmethod
+    def reason_not_overridable(value: param.Parameter) -> Optional[str]:
+        """
+        Given a parameter, check for attributes that denote it is not overrideable (e.g. readonly, constant,
+        private etc). If such an attribute exists, return a string containing a single-word description of the
+        reason. Otherwise returns None.
+
+        :param value: a parameter value
+        :return: None if the parameter is overridable; otherwise a one-word string explaining why not.
+        """
+        if value.readonly:
+            return "readonly"
+        elif value.constant:
+            return "constant"
+        elif is_private_field_name(value.name):
+            return "private"
+        elif isinstance(value, param.Callable):
+            return "callable"
+        return None
+
+    def apply_overrides(self, values: Optional[Dict[str, Any]], should_validate: bool = True,
+                        keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
+        """
+        Applies the provided `values` overrides to the config.
+        Only properties that are marked as overridable are actually overwritten.
+
+        :param values: A dictionary mapping from field name to value.
+        :param should_validate: If true, run the .validate() method after applying overrides.
+        :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
+        :return: A dictionary with all the fields that were modified.
+        """
+
+        def _apply(_overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+            applied: Dict[str, Any] = {}
+            if _overrides is not None:
+                overridable_parameters = self.get_overridable_parameters().keys()
+                for k, v in _overrides.items():
+                    if k in overridable_parameters:
+                        applied[k] = v
+                        setattr(self, k, v)
+
+            return applied
+
+        actual_overrides = _apply(values)
+        if keys_to_ignore is not None:
+            self.report_on_overrides(values, keys_to_ignore)  # type: ignore
+        if should_validate:
+            self.validate()
+        return actual_overrides
+
+    def report_on_overrides(self, values: Dict[str, Any], keys_to_ignore: Optional[Set[str]] = None) -> None:
+        """
+        Logs a warning for every parameter whose value is not as given in "values", other than those
+        in keys_to_ignore.
+
+        :param values: override dictionary, parameter names to values
+        :param keys_to_ignore: set of dictionary keys not to report on
+        :return: None
+        """
+        for key, desired in values.items():
+            # If this isn't an AzureConfig instance, we don't want to warn on keys intended for it.
+            if keys_to_ignore and (key in keys_to_ignore):
+                continue
+            actual = getattr(self, key, None)
+            if actual == desired:
+                continue
+            if key not in self.params():
+                reason = "parameter is undefined"
+            else:
+                val = self.params()[key]
+                reason = self.reason_not_overridable(val)  # type: ignore
+                if reason is None:
+                    reason = "for UNKNOWN REASONS"
+                else:
+                    reason = f"parameter is {reason}"
+            # We could raise an error here instead - to be discussed.
+            logging.warning(f"Override {key}={desired} failed: {reason} in class {self.__class__.name}")
+
+
+def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T]) -> T:
+    """
+    Creates an object of the given target class, and then copies all attributes from the `from_object` to
+    the newly created object, if there is a matching attribute. The target class must be a subclass of
+    param.Parameterized.
+
+    :param from_object: The object to read attributes from.
+    :param cls_: The name of the class for the newly created object.
+    :return: An instance of cls_
+    """
+    c = cls_()
+    if not isinstance(c, param.Parameterized):
+        raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
+    for param_name, p in c.params().items():
+        if not p.constant and not p.readonly:
+            setattr(c, param_name, getattr(from_object, param_name))
+    return c
+
+
+class CustomTypeParam(param.Parameter):
+    def _validate(self, val: Any) -> None:
+        """
+        Validate that the input "val" has the expected format. For example, if this custom type should represent a
+        list, verify here that it is so.
+
+        :param val: the value to be verified
+        """
+        super()._validate(val)
+
+    def from_string(self, x: str) -> Any:
+        """
+        Base method for taking an input string and returning it evaluated as its expected type (e.g. from_string("3")
+        would most likely return int("3")"
+
+        :param x: The string to be evaluated
+        :return: The evaluated format of the string
+        """
+        raise NotImplementedError()
+
+
+class ListOrDictParam(CustomTypeParam):
+    """
+    Wrapper class to allow either a List or Dict inside of a Parameterized object.
+    """
+
+    def _validate(self, val: Any) -> None:
+        """
+        Checks that input "val" is indeed a List or Dict object
+
+        :param val: the value to be checked
+        """
+
+        if val is None:
+            if not self.allow_None:
+                raise ValueError("Value must not be None")
+            else:
+                return
+        if not (isinstance(val, List) or isinstance(val, Dict)):
+            raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
+        super()._validate(val)
+
+    def from_string(self, x: str) -> Union[Dict, List]:
+        """
+        Parse a string as either a dictionary or list or, if not possible, raise a ValueError.
+
+        For example:
+            - from_string('{"x":3, "y":2}') will return a dictionary object
+            - from_string('["a", "b", "c"]') will return a list object
+            - from_string("['foo']") will return a list object
+            - from_string('["foo","bar"') will raise an Exception (missing close bracket)
+            - from_string({'learning':3"') will raise an Exception (missing close bracket)
+
+        :param x: the string to parse
+        :return: a List or Dict object, as evaluated from the input string
+        """
+        if x.startswith("{") or x.startswith('['):
+            res = json.loads(x.replace("'", "\""))
+        else:
+            res = [str(item) for item in x.split(',')]
+        if isinstance(res, Dict):
+            return res
+        elif isinstance(res, List):
+            return res
+        else:
+            raise ValueError("Parameter should resolve to List or Dict")
+
+
+class RunIdOrListParam(CustomTypeParam):
+    """
+    Wrapper class to allow either a List or string inside of a Parameterized object.
+    """
+
+    def _validate(self, val: Any) -> None:
+        """
+        Checks that the input "val" is indeed a non-empty list or string
+
+        :param val: The value to check
+        """
+        if val is None:
+            if not self.allow_None:
+                raise ValueError("Value must not be None")
+            else:
+                return
+        if len(val) == 0 or not (isinstance(val, str) or isinstance(val, list)):
+            raise ValueError(f"{val} must be an instance of List or string, found {type(val)}")
+        super()._validate(val)
+
+    def from_string(self, x: str) -> List[str]:
+        """
+        Given a string representing one or more run_ids, first attempts to split into a list, and then
+        evaluates each item in the list as a genuine run id
+
+        :param x: The string to evaluate
+        :return: a list of one or more strings representing run ids
+        """
+        res = [str(item) for item in x.split(',')]
+        return [determine_run_id_type(x) for x in res]
+
+
+def is_private_field_name(name: str) -> bool:
+    """
+    A private field is any Python class member that starts with an underscore eg: _hello
+
+    :param name: a string representing the name of the class member
+    """
+    return name.startswith("_")
+
+
+def determine_run_id_type(run_or_recovery_id: str) -> str:
+    """
+    Determine whether a run id is of type "run id" or "run recovery id". This distinction is made
+    by checking for telltale patterns within the string. Run recovery ideas take the form "experiment_name:run_id"
+    whereas run_ids follow the pattern of a mixture of strings and decimals, separated by underscores. If the input
+    string takes the format of a run recovery id, only the run id part will be returned. If it is a run id already,
+    it will be returned without transformation. If neither, a ValueError is raised.
+
+    :param run_or_recovery_id: The id to determine as either a run id or a run recovery id
+    :return: A string representing the run id
+    """
+    if run_or_recovery_id is None:
+        raise ValueError("Expected run_id or run_recovery_id but got None")
+    elif len(run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)) > 1:
+        # return only the run_id, which comes after the colon
+        return run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)[1]
+    elif re.search(r"\d", run_or_recovery_id) and re.search('_', run_or_recovery_id):
+        return run_or_recovery_id
+    else:
+        raise ValueError("Unknown run type. Expected run_id or run_recovery id")
 
 
 def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
@@ -129,27 +557,27 @@ def create_run_recovery_id(run: Run) -> str:
     return str(run.experiment.name + EXPERIMENT_RUN_SEPARATOR + run.id)
 
 
-def split_recovery_id(id: str) -> Tuple[str, str]:
+def split_recovery_id(id_str: str) -> Tuple[str, str]:
     """
     Splits a run ID into the experiment name and the actual run.
     The argument can be in the format 'experiment_name:run_id',
     or just a run ID like user_branch_abcde12_123. In the latter case, everything before the last
     two alphanumeric parts is assumed to be the experiment name.
 
-    :param id: The string run ID.
+    :param id_str: The string run ID.
     :return: experiment name and run name
     """
-    components = id.strip().split(EXPERIMENT_RUN_SEPARATOR)
+    components = id_str.strip().split(EXPERIMENT_RUN_SEPARATOR)
     if len(components) > 2:
-        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id))
+        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id_str))
     elif len(components) == 2:
         return components[0], components[1]
     else:
         recovery_id_regex = r"^(\w+)_\d+_[0-9a-f]+$|^(\w+)_\d+$"
-        match = re.match(recovery_id_regex, id)
+        match = re.match(recovery_id_regex, id_str)
         if not match:
-            raise ValueError("The recovery ID was not in the expected format: {}".format(id))
-        return (match.group(1) or match.group(2)), id
+            raise ValueError("The recovery ID was not in the expected format: {}".format(id_str))
+        return (match.group(1) or match.group(2)), id_str
 
 
 def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
@@ -345,7 +773,7 @@ def create_python_environment(conda_environment_file: Path,
     if workspace is not None and private_pip_wheel_path is not None:
         if private_pip_wheel_path.is_file():
             whl_url = Environment.add_private_pip_wheel(workspace=workspace,
-                                                        file_path=private_pip_wheel_path,
+                                                        file_path=str(private_pip_wheel_path),
                                                         exist_ok=True)
             conda_dependencies.add_pip_package(whl_url)
             print(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
@@ -449,11 +877,11 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     :return: True if the run and all child runs completed successfully.
     """
 
-    def is_completed(run: Run) -> bool:
-        status = run.get_status()
-        if run.status == RunStatus.COMPLETED:
+    def is_completed(run_: Run) -> bool:
+        status = run_.get_status()
+        if run_.status == RunStatus.COMPLETED:
             return True
-        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
+        logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
         return False
 
     runs = list(run.get_children())
@@ -464,14 +892,14 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
 def get_most_recent_run_id(run_recovery_file: Path) -> str:
     """
     Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
-    file when running on the cloud.
+    file.
 
     :param run_recovery_file: The path of the run recovery file
     :return: The run id
     """
     assert (
         run_recovery_file.is_file()
-        ), "When running in cloud builds, this should pick up the ID of a previous training run"
+    ), f"No such file: {run_recovery_file}"
 
     run_id = run_recovery_file.read_text().strip()
     logging.info(f"Read this run ID from file: {run_id}.")
@@ -481,228 +909,60 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
 def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
     """
     Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+
     :param run_recovery_file: The path of the run recovery file
     :param workspace: Azure ML Workspace
     :return: The Run
     """
     run_or_recovery_id = get_most_recent_run_id(run_recovery_file)
-    # Check if the id loaded is of run_recovery_id format
-    if len(run_or_recovery_id.split(":")) > 1:
-        return fetch_run(workspace, run_or_recovery_id)
-    # Otherwise treat it as a run_id
     return get_aml_run_from_run_id(run_or_recovery_id, aml_workspace=workspace)
 
 
-class AzureRunIdSource(Enum):
-    LATEST_RUN_FILE = 1
-    EXPERIMENT_LATEST = 2
-    RUN_ID = 3
-    RUN_IDS = 4
-    RUN_RECOVERY_ID = 5
-    RUN_RECOVERY_IDS = 6
-
-
-def determine_run_id_source(args: Namespace) -> AzureRunIdSource:
-    """
-    From the args inputted, determine what is the source of Runs to be downloaded and plotted
-    (e.g. extract id from latest run file, or take most recent run of an Experiment etc. )
-
-    :param args: Arguments for determining the source of AML Runs to be retrieved
-    :raises ValueError: If none of expected args for retrieving Runs are provided
-    :return: The source from which to extract the latest Run id(s)
-    """
-    if "latest_run_file" in args and args.latest_run_file is not None:
-        return AzureRunIdSource.LATEST_RUN_FILE
-    if "experiment" in args and args.experiment is not None:
-        return AzureRunIdSource.EXPERIMENT_LATEST
-    if "run_recovery_ids" in args and args.run_recovery_ids is not None and len(args.run_recovery_ids) > 0:
-        return AzureRunIdSource.RUN_RECOVERY_IDS
-    if "run_recovery_id" in args and args.run_recovery_id is not None:
-        return AzureRunIdSource.RUN_RECOVERY_ID
-    if "run_id" in args and args.run_id is not None:
-        return AzureRunIdSource.RUN_ID
-    if "run_ids" in args and args.run_ids is not None and len(args.run_ids) > 0:
-        return AzureRunIdSource.RUN_IDS
-    raise ValueError("One of latest_run_file, experiment, run_recovery_id(s) or run_id(s) must be provided")
-
-
-def get_aml_run_from_latest_run_file(args: Namespace, workspace: Workspace) -> Run:
-    """
-    Returns the Run object corresponding to the id found in the most recent run file.
-
-    :param args: command line args including latest_run_file
-    :param workspace: An Azure ML Workspace object
-    :return the Run object corresponding to the id found in the most recent run file.
-    """
-    latest_run_path = Path(args.latest_run_file)
-    return get_most_recent_run(latest_run_path, workspace)
-
-
-def get_latest_aml_runs_from_experiment(args: Namespace, workspace: Workspace) -> List[Run]:
-    """
-    Get latest 'num_runs' runs from an AML experiment
-
-    :param args: command line args including experiment name and number of runs to return
-    :param workspace: AML Workspace
-    :raises ValueError: If Experiment experiment doesn't exist within Workspace
-    :return: List of AML Runs
-    """
-    experiment_name = args.experiment
-    tags = args.tags or None
-    num_runs = args.num_runs if 'num_runs' in args else 1
-
-    if experiment_name not in workspace.experiments:
-        raise ValueError(f"No such experiment {experiment_name} in workspace")
-
-    experiment: Experiment = workspace.experiments[experiment_name]
-    return list(islice(experiment.get_runs(tags=tags), num_runs))
-
-
-def get_aml_runs_from_recovery_ids(args: Namespace, aml_workspace: Optional[Workspace] = None,
-                                   workspace_config_path: Optional[Path] = None) -> List[Run]:
-    """
-    Retrieve multiple Azure ML Runs for each of the run_recovery_ids specified in args.
-
-    :param args: command line arguments
-    :param aml_workspace: Optional Azure ML Workspace object
-    :param workspace_config_path: Optional path containing AML Workspace settings
-    :return: List of AML Runs
-    """
-
-    def _get_run_recovery_ids_from_args(args: Namespace) -> List[str]:  # pragma: no cover
-        """
-        Retrieve a list of run recovery ids from the args as long as more than one is supplied.
-
-        :param args: The command line arguments
-        :return: A list of run_recovery_ids as passed in to the command line
-        """
-        if "run_recovery_ids" not in args or len(args.run_recovery_ids) == 0:
-            raise ValueError("Expected to find run_recovery_ids in args but did not")
-        else:
-            return args.run_recovery_ids
-
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-
-    run_recovery_ids = _get_run_recovery_ids_from_args(args)
-
-    runs = [fetch_run(workspace, run_id) for run_id in run_recovery_ids]
-    return [r for r in runs if r is not None]
-
-
-def get_aml_run_from_recovery_id(args: Namespace, aml_workspace: Optional[Workspace] = None,
-                                 workspace_config_path: Optional[Path] = None) -> Run:
-    """
-    Retrieve a single Azure ML Run for the run_recovery_id specified in args.
-
-    :param args: command line arguments
-    :param aml_workspace: Optional Azure ML Workspace object
-    :param workspace_config_path: Optional path containing AML Workspace settings
-    :return: A single AML Run
-    """
-    if "run_recovery_id" in args and args.run_recovery_id:
-        run_recovery_id = args.run_recovery_id
-    else:
-        raise ValueError("No run_recovery_id in args")
-
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-
-    return fetch_run(workspace, run_recovery_id)
-
-
-def get_aml_run_from_run_id(run_id: str, aml_workspace: Optional[Workspace] = None,
+def get_aml_run_from_run_id(run_id: str,
+                            aml_workspace: Optional[Workspace] = None,
                             workspace_config_path: Optional[Path] = None) -> Run:
     """
-    Retrieve an Azure ML Run, firstly by retrieving the corresponding Workspace, and then getting the
-    run according to the specified run_id. If running in AML, will take the current workspace. Otherwise, if
-    neither aml_workspace nor workspace_config_path are provided, will try to locate a config.json file
-    in any of the parent folders of the current working directory.
+    Returns an AML Run object, given the run id (run recovery id will also be accepted but is not recommended
+    since AML no longer requires the experiment name in order to find the run from a workspace).
 
-    :param run_id: the parameter corresponding to the 'id' property of the Run
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param run_id: The run id of the run to download. Can optionally be a run recovery id
+    :param aml_workspace: Optional AML Workspace object
+    :param workspace_config_path: Optional path to config file containing AML Workspace settings
+    :return: An Azure ML Run object
+    """
+    run_id_ = determine_run_id_type(run_id)
+    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    return workspace.get_run(run_id_)
+
+
+def get_latest_aml_runs_from_experiment(experiment_name: str,
+                                        num_runs: int = 1,
+                                        tags: Optional[Dict[str, str]] = None,
+                                        aml_workspace: Optional[Workspace] = None,
+                                        workspace_config_path: Optional[Path] = None
+                                        ) -> List[Run]:
+    """
+    Retrieves the experiment <experiment_name> from the identified workspace and returns <num_runs> latest
+    runs from it, optionally filtering by tags - e.g. {'tag_name':'tag_value'}
+
+    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+    file will be used to create the workspace.
+
+    :param experiment_name: The experiment name to download runs from
+    :param num_runs: The number of most recent runs to return
+    :param tags: Optional tags to filter experiments by
     :param aml_workspace: Optional Azure ML Workspace object
-    :param workspace_config_path: Optional path to a Workspace config file
-    :return: The Azure ML Run object with the given run_id
+    :param workspace_config_path: Optional config file containing settings for the AML Workspace
+    :return: a list of one or more Azure ML Run objects
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    run = workspace.get_run(run_id)
-    return run
-
-
-def get_aml_run_from_run_id_args(args: Namespace, aml_workspace: Optional[Workspace] = None,
-                                 workspace_config_path: Optional[Path] = None) -> Run:
-    """
-    Lookup the run_id arg and then retrieve the Azure ML Run object with this id.
-
-    :param args: Command line args
-    :param aml_workspace: Optional Azure ML Workspace object
-    :param workspace_config_path: Optional path to a Workspace config file
-    :return: The Azure ML Run object with the id as specified by args.run_id
-    """
-    if "run_id" in args and args.run_id:
-        run_id = args.run_id
-    else:
-        raise ValueError("No run_id in args")
-    return get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-
-
-def get_aml_runs_from_run_ids(args: Namespace, aml_workspace: Optional[Workspace] = None,
-                              workspace_config_path: Optional[Path] = None) -> List[Run]:
-    """
-    Retrieve AzureML Runs for each of the Run Ids specified in args. If running in AML, will take the
-    current workspace. Otherwise, if neither aml_workspace nor workspace_config_path are provided,
-    will try to locate a config.json file in any of the parent folders of the current working directory.
-
-    :param args: command line args including experiment name and number of runs to return
-    :param aml_workspace: Optional Azure ML Workspace object
-    :param workspace_config_path: Optional path containing AML Workspace settings
-    :return: List of AML Runs
-    """
-
-    def _get_run_ids_from_args(args: Namespace) -> List[str]:  # pragma: no cover
-        """
-        Retrieve a list of run  ids from the args as long as more than one is supplied.
-
-        :param args: The command line arguments
-        :return: A list of run_ids as passed in to the command line
-        """
-        if len(args.run_ids) == 0:
-            raise ValueError("Expected to find run_ids in args but did not")
-        else:
-            return args.run_ids
-
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    run_ids = _get_run_ids_from_args(args)
-
-    runs = [get_aml_run_from_run_id(r_id, aml_workspace=workspace) for r_id in run_ids]
-    return [r for r in runs if r is not None]
-
-
-def get_aml_runs(args: Namespace, workspace: Workspace, run_id_source: AzureRunIdSource) -> List[Run]:
-    """
-    Download runs from Azure ML. Runs are specified either in file specified in latest_run_file,
-    by run_recovery_ids, or else the latest 'num_runs' runs from experiment 'experiment_name' as
-    specified in args.
-
-    :param args: Arguments for determining the source of AML Runs to be retrieved
-    :param workspace: Azure ML Workspace
-    :param run_id_source: The source from which to download AML Runs
-    :raises ValueError: If experiment_name in args does not exist in the Workspace
-    :return: List of Azure ML Runs, or an empty list if none are retrieved
-    """
-    if run_id_source == AzureRunIdSource.LATEST_RUN_FILE:
-        runs = [get_aml_run_from_latest_run_file(args, workspace)]
-    elif run_id_source == AzureRunIdSource.EXPERIMENT_LATEST:
-        runs = get_latest_aml_runs_from_experiment(args, workspace)
-    elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
-        runs = [get_aml_run_from_recovery_id(args, workspace)]
-    elif run_id_source == AzureRunIdSource.RUN_RECOVERY_IDS:
-        runs = get_aml_runs_from_recovery_ids(args, workspace)
-    elif run_id_source == AzureRunIdSource.RUN_ID:
-        runs = [get_aml_run_from_run_id_args(args, workspace)]
-    elif run_id_source == AzureRunIdSource.RUN_IDS:
-        runs = get_aml_runs_from_run_ids(args, workspace)
-    else:
-        raise ValueError(f"Unrecognised RunIdSource: {run_id_source}")
-    return [run for run in runs if run is not None]
+    experiment: Experiment = workspace.experiments[experiment_name]
+    return list(islice(experiment.get_runs(tags=tags), num_runs))
 
 
 def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
@@ -890,7 +1150,61 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     logging.info(f"Uploaded data to {str(remote_path)}")
 
 
-def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_folder: Path,
+class AmlRunScriptConfig(GenericConfig):
+    """
+    Base config for a script that handles Azure ML Runs, which can be retrieved with either a run id, latest_run_file,
+    or by giving the experiment name (optionally alongside tags and number of runs to retrieve). A config file path can
+    also be presented, to specify the Workspace settings. It is assumed that every AML script would have these
+    parameters by default. This class can be inherited from if you wish to add additional command line arguments
+    to your script (see HimlDownloadConfig and HimlTensorboardConfig for examples)
+    """
+    latest_run_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
+                                                doc="Optional path to most_recent_run.txt where the ID of the"
+                                                    "latest run is stored")
+    experiment: str = param.String(default=None, allow_None=True,
+                                   doc="The name of the AML Experiment that you wish to download Run files from")
+    num_runs: int = param.Integer(default=1, allow_None=True, doc="The number of runs to download from the "
+                                                                  "named experiment")
+    config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
+                                            doc="Path to config.json where Workspace name is defined")
+    tags: Dict[str, Any] = param.Dict()
+    run: List[str] = RunIdOrListParam(default=None, allow_None=True,
+                                      doc="Either single or multiple run id(s). Will be stored as a list"
+                                          " of strings. Also supports run_recovery_ids but this is not "
+                                          "recommended")
+
+
+def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: Workspace) -> List[Run]:
+    """
+    Given an AMLRunScriptConfig object, retrieve a run id, given the supplied arguments. For example,
+    if "run" has been specified, retrieve the AML Run that corresponds to the supplied run id(s). Alternatively,
+    if "experiment" has been specified, retrieve "num_runs" (defaults to 1) latest runs from that experiment. If
+    neither is supplied, looks for a file named "most_recent_run.txt" in the current directory and its parents.
+    If found, reads the latest run id from there are retrieves the corresponding run. Otherwise, raises a ValueError.
+
+    :param script_config: The AMLRunScriptConfig object which contains the parsed arguments
+    :param workspace: an AML Workspace object
+    :return: a List of one or more retrieved AML Runs
+    """
+    if script_config.run is None:
+        if script_config.experiment is None:
+            # default to latest run file
+            latest_run_file = _find_file("most_recent_run.txt")
+            if latest_run_file is None:
+                raise ValueError("Could not find most_recent_run.txt")
+            runs = [get_most_recent_run(latest_run_file, workspace)]
+        else:
+            # get latest runs from experiment
+            runs = get_latest_aml_runs_from_experiment(script_config.experiment, tags=script_config.tags,
+                                                       num_runs=script_config.num_runs, aml_workspace=workspace)
+    else:
+        run_ids: List[str]
+        run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]  # type: ignore
+        runs = [get_aml_run_from_run_id(run_id, aml_workspace=workspace) for run_id in run_ids]
+    return runs
+
+
+def download_checkpoints_from_run_id(run_id: str, checkpoint_path_or_folder: str, output_folder: Path,
                                      aml_workspace: Optional[Workspace] = None,
                                      workspace_config_path: Optional[Path] = None) -> None:
     """
@@ -901,13 +1215,14 @@ def download_checkpoints_from_run_id(run_id: str, checkpoint_dir: str, output_fo
     parent folders of the current working directory.
 
     :param run_id: The id of the run to download checkpoints from
-    :param checkpoint_dir: The path to the checkpoints directory within the run files
+    :param checkpoint_path_or_folder: The path to the either a single checkpoint file, or a directory of
+        checkpoints within the run files. If a folder is provided, all files within it will be downloaded.
     :param output_folder: The path to which the checkpoints should be stored
     :param aml_workspace: Optional AML workspace object
     :param workspace_config_path: Optional workspace config file
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    download_files_from_run_id(run_id, output_folder, prefix=checkpoint_dir, workspace=workspace,
+    download_files_from_run_id(run_id, output_folder, prefix=checkpoint_path_or_folder, workspace=workspace,
                                validate_checksum=True)
 
 

@@ -38,8 +38,8 @@ def profile_cucim(input_file: Path,
     print(img.metadata)
 
     region = img.read_region(location=(0, 0),
-                             size=dimensions[count-1],
-                             level=count-1)
+                             size=dimensions[count - 1],
+                             level=count - 1)
     np_img_arr = np.asarray(region)
     img2 = Image.fromarray(np_img_arr)
     img2.save(output_file)
@@ -65,8 +65,8 @@ def profile_openslide(input_file: Path,
             print(k, v)
 
         region = img.read_region(location=(0, 0),
-                                 level=count-1,
-                                 size=dimensions[count-1])
+                                 level=count - 1,
+                                 size=dimensions[count - 1])
         region.save(output_file)
 
 
@@ -160,16 +160,16 @@ def profile_main(mount_point: Path,
 
 
 def process_slide_open_slide_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                                     output_dir: Path, tile_progress: bool = False) -> \
-                                        Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+                                     output_dir: Path, tile_progress: bool = False
+                                     ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     return process_slide('openslide', False,
                          sample, level, margin, tile_size, occupancy_threshold,
                          output_dir, tile_progress)
 
 
 def process_slide_cucim_no_save(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                                output_dir: Path, tile_progress: bool = False) -> \
-                                    Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+                                output_dir: Path, tile_progress: bool = False
+                                ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     return process_slide('cucim', False,
                          sample, level, margin, tile_size, occupancy_threshold,
                          output_dir, tile_progress)

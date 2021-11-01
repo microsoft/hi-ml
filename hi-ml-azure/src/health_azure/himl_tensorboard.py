@@ -4,29 +4,37 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import param
 import sys
 import logging
-from argparse import ArgumentParser
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from requests import Session
+from subprocess import PIPE, Popen
+from threading import Event
 from typing import Any, Optional
 
 from azureml._run_impl.run_watcher import RunWatcher
 from azureml.tensorboard import Tensorboard
 
-from health_azure.utils import get_aml_runs, determine_run_id_source
+from health_azure import utils as azure_util
 from health_azure.himl import get_workspace
 
-from concurrent.futures import ThreadPoolExecutor
-from subprocess import PIPE, Popen
-from threading import Event
 
 ROOT_DIR = Path.cwd()
 OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_DIR = ROOT_DIR / "tensorboard_logs"
 
 
+class HimlTensorboardConfig(azure_util.AmlRunScriptConfig):
+    log_dir: Path = param.ClassSelector(class_=Path, default=Path("outputs"), instantiate=False,
+                                        doc="Path to directory in which Tensorboard  files"
+                                            "(summarywriter and TB logs) are stored")
+    port: int = param.Integer(default=6006, doc="The port to run Tensorboard on")
+
+
 class WrappedTensorboard(Tensorboard):
+
     def __init__(self, remote_root: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.remote_root = remote_root
@@ -100,89 +108,24 @@ class WrappedTensorboard(Tensorboard):
 
 
 def main() -> None:  # pragma: no cover
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        default="config.json",
-        required=False,
-        help="Path to config.json where Workspace name is defined"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=6006,
-        required=False,
-        help="The port to run Tensorboard on"
-    )
-    parser.add_argument(
-        "--log_dir",
-        type=str,
-        default="outputs",
-        required=False,
-        help="Path to directory in which Tensorboard  files (summarywriter and TB logs) are stored"
-    )
-    parser.add_argument(
-        "--latest_run_file",
-        type=str,
-        required=False,
-        help="Optional path to most_recent_run.txt where details on latest run are stored"
-    )
-    parser.add_argument(
-        "--experiment",
-        type=str,
-        required=False,
-        help="The name of the AML Experiment that you wish to view Runs from"
-    )
-    parser.add_argument(
-        "--num_runs",
-        type=int,
-        default=1,
-        required=False,
-        help="Specify this in conjunction with --experiment, to specify the number of Runs to plot"
-             " from a given experiment"
-    )
-    parser.add_argument(
-        "--tags",
-        action="append",
-        default=None,
-        required=False,
-        help="Optional experiment tags to restrict the AML Runs that are returned"
-    )
-    parser.add_argument(
-        "--run_recovery_ids",
-        default=[],
-        nargs="+",
-        required=False,
-        help="Optional run recovery ids of the runs to plot"
-    )
-    parser.add_argument(
-        "--run_ids",
-        default=[],
-        nargs="+",
-        required=False,
-        help="Optional run ids of the runs to plot"
-    )
 
-    args = parser.parse_args()
+    tb_config = HimlTensorboardConfig.parse_args()
+    config_path = tb_config.config_file
 
-    config_path = Path(args.config_file)
-    if not config_path.is_file():
-        raise ValueError(
-            "You must provide a config.json file in the root folder to connect"
-            "to an AML workspace. This can be downloaded from your AML workspace (see README.md)"
-        )
+    if not config_path:
+        logging.info("You have not provided a config path. Therefore we will try to find one in your "
+                     "current directory, and its parents")
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
-    run_id_source = determine_run_id_source(args)
-    runs = get_aml_runs(args, workspace, run_id_source)
+    runs = azure_util._get_runs_from_script_config(tb_config, workspace)
 
     print(f"Runs:\n{runs}")
     if len(runs) == 0:
         raise ValueError("No runs were found")
 
-    local_logs_dir = ROOT_DIR / args.log_dir
+    local_logs_dir = ROOT_DIR / tb_config.log_dir
+    logging.info(f"Creating directory {local_logs_dir} to store TensorBoard logs in")
     local_logs_dir.mkdir(exist_ok=True, parents=True)
 
     remote_logs_dir = local_logs_dir.relative_to(ROOT_DIR)

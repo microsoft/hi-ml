@@ -3,114 +3,76 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from argparse import ArgumentParser, Namespace
+import param
 from pathlib import Path
+from typing import List
 
-from health_azure.utils import AzureRunIdSource, _download_files_from_run, get_aml_runs
+from azureml.core import Run
 
-from health_azure.himl import get_workspace
-from health_azure.himl_tensorboard import determine_run_id_source
+import health_azure.utils as azure_util
 
 
-def determine_output_dir_name(args: Namespace, run_id_source: AzureRunIdSource, output_dir: Path) -> Path:
+class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
+    output_dir: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
+                                           doc="Path to directory to store files downloaded from the AML Run")
+    config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
+                                            doc="Path to config.json where Workspace name is defined. If not provided, "
+                                                "the code will try to locate a config.json file in any of the parent "
+                                                "folders of the current working directory")
+
+    prefix: str = param.String(default=None, allow_None=True, doc="Optional prefix to filter Run files by")
+
+
+def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
     """
-    Determine the name of the directory in which to store downloaded AML Run files
+    Retrieve a list of AML Run objects, given a HimlDownloadConfig object which contains values for either run
+    (one or more run ids), experiment (experiment name) or latest_run_file. If none of these are provided,
+    the parent directories of this script will be searched for a "most_recent_run.txt" file, and the run id will
+    be extracted from there, to retrieve the run object(s). If no Runs are found, a ValueError will be raised.
 
-    :param args: Arguments for determining the source of the AML Runs
-    :param run_id_source: The source from which to download AML Runs
-    :param output_dir: The path to the outputs directory in which to create this new directory
-    :return: The path in which to store the AML Run files
+    :param download_config: A HimlDownloadConfig object containing run information (e.g. run ids or experiment name)
+    :return: List of AML Run objects
     """
-    if run_id_source == AzureRunIdSource.EXPERIMENT_LATEST:
-        output_path = output_dir / args.experiment
-    elif run_id_source == AzureRunIdSource.LATEST_RUN_FILE:
-        output_path = output_dir / Path(args.latest_run_file).stem
-    elif run_id_source == AzureRunIdSource.RUN_RECOVERY_ID:
-        output_path = output_dir / args.run_recovery_id.replace(":", "")
-    else:  # run_id_source == AzureRunIdSource.RUN_ID:
-        output_path = output_dir / args.run_id
-
-    output_path.mkdir(exist_ok=True)
-    return output_path
+    if download_config.run is not None:
+        run_ = download_config.run
+        run_ids = [r for r in run_] if isinstance(run_, list) else [run_]
+        runs = [azure_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
+        if len(runs) == 0:
+            raise ValueError(f"Did not find any runs with the given run id(s): {download_config.run}")
+    elif download_config.experiment is not None:
+        runs = azure_util.get_latest_aml_runs_from_experiment(download_config.experiment,
+                                                              download_config.num_runs,
+                                                              download_config.tags,
+                                                              workspace_config_path=download_config.config_file)
+        if len(runs) == 0:
+            raise ValueError(f"Did not find any runs under the given experiment name: {download_config.experiment}")
+    else:
+        run_or_recovery_id = azure_util.get_most_recent_run_id(download_config.latest_run_file)
+        runs = [azure_util.get_aml_run_from_run_id(run_or_recovery_id,
+                                                   workspace_config_path=download_config.config_file)]
+        if len(runs) == 0:
+            raise ValueError(f"Did not find any runs with run id {run_or_recovery_id} as found in"
+                             f" {download_config.latest_run_file}")
+    return runs
 
 
 def main() -> None:  # pragma: no cover
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="outputs",
-        required=False,
-        help="Path to directory to store files downloaded from the AML Run"
-    )
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        default="config.json",
-        required=False,
-        help="Path to config.json where Workspace name is defined"
-    )
-    parser.add_argument(
-        "--latest_run_file",
-        type=str,
-        required=False,
-        help="Optional path to most_recent_run.txt where the ID of the latest run is stored"
-    )
-    parser.add_argument(
-        "--experiment",
-        type=str,
-        required=False,
-        help="The name of the AML Experiment that you wish to download Run files from"
-    )
-    parser.add_argument(
-        "--tags",
-        action="append",
-        default=None,
-        required=False,
-        help="Optional experiment tags to restrict the AML Runs that are returned"
-    )
-    parser.add_argument(
-        "--run_id",
-        type=str,
-        default=None,
-        required=False,
-        help="Optional Run ID of the run that you wish to download files from"
-    )
-    parser.add_argument(
-        "--run_recovery_id",
-        type=str,
-        default=None,
-        required=False,
-        help="Optional run recovery ID of the run to download files from"
-    )
-    parser.add_argument(
-        "--prefix",
-        type=str,
-        default="",
-        required=False,
-        help="Optional prefix to filter Run files by"
-    )
-    args = parser.parse_args()
 
-    output_dir = Path(args.output_dir)
+    download_config = HimlDownloadConfig.parse_args()
+    output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 
-    config_path = Path(args.config_file)
+    runs = retrieve_runs(download_config)
 
-    workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
+    for run in runs:
+        output_folder = output_dir / run.id
 
-    run_id_source = determine_run_id_source(args)
-    output_path = determine_output_dir_name(args, run_id_source, output_dir)
-    prefix = args.prefix
-
-    run = get_aml_runs(args, workspace, run_id_source)[0]
-
-    # TODO: extend to multiple runs?
-    try:  # pragma: no cover
-        _download_files_from_run(run, output_dir=output_path, prefix=prefix)
-        print(f"Downloaded file(s) to '{output_path}'")
-    except Exception as e:  # pragma: no cover
-        raise ValueError(f"Couldn't download files from run {args.run_id}: {e}")
+        try:  # pragma: no cover
+            azure_util.download_files_from_run_id(run.id, output_folder=output_folder, prefix=download_config.prefix,
+                                                  workspace_config_path=download_config.config_file)
+            print(f"Downloaded file(s) to '{output_folder}'")
+        except Exception as e:  # pragma: no cover
+            raise ValueError(f"Failed to download files from run {run.id}: {e}")
 
 
 if __name__ == "__main__":  # pragma: no cover

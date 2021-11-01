@@ -149,3 +149,5 @@ docs/source/api
 node_modules/
 !.github/actions/format_coverage/dist/
 package-lock.json
+
+logs/

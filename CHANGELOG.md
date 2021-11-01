@@ -18,7 +18,8 @@ created.
 - ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
 
 ### Changed
-
+- ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace
+argparsing with parametrized classes.
 ### Fixed
 
 ### Removed
