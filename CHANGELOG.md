@@ -18,7 +18,8 @@ created.
 - ([#145](https://github.com/microsoft/hi-ml/pull/145)) Add ability to mount datasets when running locally
 
 ### Changed
-
+- ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace
+argparsing with parametrized classes.
 ### Fixed
 
 ### Removed

@@ -8,7 +8,7 @@ Transform the templates into valid Python test code.
 """
 
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from jinja2 import Template
 
@@ -17,13 +17,15 @@ from testazure.util import himl_azure_root
 here = Path(__file__).parent.resolve()
 
 
-def render_environment_yaml(environment_yaml_path: Path, version: str, run_requirements: bool) -> None:
+def render_environment_yaml(environment_yaml_path: Path, version: str, run_requirements: bool,
+                            extra_options: Optional[Dict[str, str]] = None) -> None:
     """
     Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
     :param environment_yaml_path: Where to save environment.yml.
     :param version: hi-ml-azure package version.
     :param run_requirements: True to include run_requirements.txt.
+    :param extra_options: Extra options for template rendering, e.g. additional Conda channels and dependencies.
     :return: None
     """
     environment_yaml_template = (here / 'simple' / 'environment.yml.template').read_text()
@@ -46,6 +48,23 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
         pip = ""
 
     options = {'pip': pip}
+
+    if extra_options:
+        if 'pip' in extra_options:
+            for pckg in extra_options['pip']:
+                pip += f"    - {pckg}\n"
+
+        channels = ""
+        if 'conda_channels' in extra_options:
+            for channel in extra_options['conda_channels']:
+                channels += f"   - {channel}\n"
+
+        conda_deps = ""
+        if 'conda_dependencies' in extra_options:
+            for dep in extra_options['conda_dependencies']:
+                conda_deps += f"  - {dep}\n"
+
+        options.update({'channels': channels, 'conda_dependencies': conda_deps})
 
     r = t.render(options)
     environment_yaml_path.write_text(r)

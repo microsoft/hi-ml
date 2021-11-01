@@ -6,13 +6,14 @@ import pytest
 import subprocess
 
 from pathlib import Path
-from unittest import mock
+from typing import List
+from unittest.mock import MagicMock
 
-from health_azure import himl_tensorboard
-from health_azure.himl_tensorboard import WrappedTensorboard, ROOT_DIR
-
-from azureml.core import Experiment, Workspace
-
+from health_azure import himl_tensorboard, himl
+from health_azure import utils as azure_util
+from health_azure.himl_tensorboard import WrappedTensorboard
+from testazure.test_himl import render_and_run_test_script, RunTarget
+from testazure.util import DEFAULT_WORKSPACE
 
 TENSORBOARD_SCRIPT_PATH = himl_tensorboard.__file__
 
@@ -39,7 +40,7 @@ def test_run_tensorboard_no_runs(tmp_path: Path) -> None:
 
 
 def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
-    mock_run = mock.MagicMock()
+    mock_run = MagicMock()
     mock_run.id = "id123"
     local_root = Path("test_data") / "dummy_summarywriter_logs"
     remote_root = tmp_path / "tensorboard_logs"
@@ -48,31 +49,71 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     assert url is not None
     assert ts.remote_root == str(remote_root)
     assert ts._local_root == str(local_root)
+
+    # If start is called again, should not return a new url
+    new_url = ts.start()
+    assert new_url is None
     ts.stop()
 
 
-@pytest.mark.skip
 def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     """
-    This test expects an experiment called 'tensorboard_test' in your workspace, with at least 1 associated run
-    See the scripts in test_tensorboard to create this Experiment & Run.
-    :param tmp_path:
-    :return:
+    This test will create a new run under an experiment named "test_script" in yo: ur default Workspace.
+    The run will create some dummy TensorBoard-compatible logs. The run is then passed to the
+    WrappedTensorboard class to ensure that it works as expected.
+    If running for the first time it may take a while longer since it will install PyTorch in the
+    AML environment
     """
-    # get the latest run in this experiment
-    ws = Workspace.from_config(ROOT_DIR / "config.json")
-    expt = Experiment(ws, 'tensorboard_test')
-    run = next(expt.get_runs())
+    ws = DEFAULT_WORKSPACE.workspace
+
+    # call the script here
+    extra_options = {
+        "conda_channels": ["pytorch"],
+        "conda_dependencies": ["pytorch=1.4.0"],
+        "imports": """
+from health_azure.utils import is_running_in_azure_ml
+""",
+
+        "body": """
+    if is_running_in_azure_ml():
+        import torch
+        from torch.utils.tensorboard import SummaryWriter
+    log_dir = Path("outputs")
+    log_dir.mkdir(exist_ok=True)
+    writer = SummaryWriter(log_dir=str(log_dir))
+
+    x = torch.arange(-20, 20, 0.1).view(-1, 1)
+    y = -2 * x + 0.1 * torch.randn(x.size())
+
+    model = torch.nn.Linear(1, 1)
+    criterion = torch.nn.MSELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+    for epoch in range(10):
+        y1 = model(x)
+        loss = criterion(y1, y)
+        writer.add_scalar("Loss/train", loss, epoch)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    writer.flush()
+            """
+    }
+
+    extra_args: List[str] = []
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+
+    run = azure_util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                                         workspace=ws)
+    run.wait_for_completion()
 
     log_dir = "outputs"
-
     local_root = tmp_path / log_dir
     local_root.mkdir(exist_ok=True)
     remote_root = str(local_root.relative_to(tmp_path)) + "/"
 
     ts = WrappedTensorboard(remote_root=remote_root, local_root=str(local_root), runs=[run], port=6006)
-    url = ts.start()
-    assert url == "http://localhost:6006/"
+    _ = ts.start()
     assert ts.remote_root == str(remote_root)
     assert ts._local_root == str(local_root)
     ts.stop()

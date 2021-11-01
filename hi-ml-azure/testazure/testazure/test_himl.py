@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -519,7 +519,7 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
 
 def render_and_run_test_script(path: Path,
                                run_target: RunTarget,
-                               extra_options: Dict[str, str],
+                               extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
                                suppress_config_creation: bool = False) -> str:
@@ -573,7 +573,7 @@ def render_and_run_test_script(path: Path,
             print("Copied 'src' folder.")
 
     environment_yaml_path = path / "environment.yml"
-    render_environment_yaml(environment_yaml_path, version, run_requirements)
+    render_environment_yaml(environment_yaml_path, version, run_requirements, extra_options=extra_options)
 
     entry_script_path = path / "test_script.py"
     workspace_config_file_arg = "None" if suppress_config_creation else "WORKSPACE_CONFIG_JSON"

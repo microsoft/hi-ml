@@ -7,15 +7,18 @@ Tests for the functions in health_azure.azure_util
 """
 import logging
 import os
+import sys
 import time
-from argparse import ArgumentParser
+from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from random import randint
+from typing import Dict, List, Optional, Union, Any, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import conda_merge
+import param
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
@@ -29,7 +32,7 @@ import health_azure.utils as util
 from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root
+from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -350,7 +353,7 @@ dependencies:
                              ("1.5h", 90 * 60),
                              ("1.0d", 24 * 3600),
                              ("", None),
-                         ])
+                         ])  # NOQA
 def test_run_duration(s: str, expected: Optional[float]) -> None:
     actual = util.run_duration_string_to_seconds(s)
     assert actual == expected
@@ -529,325 +532,97 @@ def test_set_environment_variables_for_multi_node(
     assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
 
 
-class MockRun:
-    def __init__(self, run_id: str = 'run1234') -> None:
-        self.id = run_id
+@pytest.mark.fast
+@patch("health_azure.utils.fetch_run")
+@patch("azureml.core.Workspace")
+def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMock, tmp_path: Path) -> None:
+    mock_run_id = "run_abc_123"
+    mock_run = MockRun(mock_run_id)
+    mock_workspace.get_run.return_value = mock_run
+    mock_fetch_run.return_value = mock_run
 
-    def download_file(self) -> None:
-        # for mypy
-        pass
+    latest_path = tmp_path / "most_recent_run.txt"
+    latest_path.write_text(mock_run_id)
 
-
-def test_determine_run_id_source(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--latest_run_file", type=str)
-    parser.add_argument("--experiment", type=str)
-
-    # If latest run path provided, expect source to be latest run file
-    mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.LATEST_RUN_FILE
-
-    # If experiment name is provided, expect source to be experiment
-    mock_args = parser.parse_args(["--experiment", "fake_experiment"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.EXPERIMENT_LATEST
-
-    parser = ArgumentParser()
-    parser.add_argument("--run_recovery_id", type=str)
-    parser.add_argument("--run_id", type=str)
-
-    # If single run recovery id is provided, expect source to be run_recovery_id
-    mock_args = parser.parse_args(["--run_recovery_id", "experiment:run1234"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_ID
-
-    # If run id provided, expect source to be run_id
-    mock_args = parser.parse_args(["--run_id", "run1234"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_ID
-
-    parser = ArgumentParser()
-    parser.add_argument("--run_recovery_ids", nargs="+")
-    parser.add_argument("--run_ids", nargs="+")
-
-    # If run recovery ids are provided, expect source to be run_recovery_id
-    mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run1234", "experiment:5432"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_RECOVERY_IDS
-
-    # If run ids provided, expect source to be run_id
-    mock_args = parser.parse_args(["--run_ids", "run1234", "run5432"])
-    assert util.determine_run_id_source(mock_args) == util.AzureRunIdSource.RUN_IDS
-
-    # if none of the expected run source options are provided, assert that Exception is raised
-    mock_args = parser.parse_args([])
-    with pytest.raises(Exception):
-        util.determine_run_id_source(mock_args)
+    run = util.get_most_recent_run(latest_path, mock_workspace)
+    assert run.id == mock_run_id
 
 
-def test_get_aml_runs_from_latest_run_file(tmp_path: Path) -> None:
-    mock_run_id = 'mockrunid123'
-    mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    with open(mock_latest_run_path, 'w+') as f_path:
-        f_path.write(mock_run_id)
-    parser = ArgumentParser()
-    parser.add_argument("--latest_run_file", type=str)
-    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.get_aml_run_from_run_id") as mock_fetch_run:
-            mock_fetch_run.return_value = MockRun(mock_run_id)
-            aml_run = util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-            mock_fetch_run.assert_called_once_with(mock_run_id, aml_workspace=mock_workspace)
-            assert aml_run.id == mock_run_id
-
-    # if path doesn't exist, expect error
-    with pytest.raises(AssertionError) as ex:
-        mock_args = parser.parse_args(["--latest_run_file", "idontexist"])
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-    expected_str = "When running in cloud builds, this should pick up the ID of a previous training run"
-    assert str(ex.value) == expected_str
-
-    # if arg not provided, expect error
-    with pytest.raises(AssertionError) as assertionException:
-        mock_args = parser.parse_args(["--latest_run_file", None])  # type: ignore
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            util.get_aml_run_from_latest_run_file(mock_args, mock_workspace)
-    assert str(assertionException.value) == expected_str
+def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:
+    mock_run_no_tags = MockRun()
+    mock_run_tags = MockRun(tags={"completed": "True"})
+    all_runs = [mock_run_no_tags for _ in range(5)] + [mock_run_tags for _ in range(5)]
+    return [r for r in all_runs if r.tags == tags] if tags else all_runs
 
 
-def test_get_latest_aml_runs_from_experiment() -> None:
-    def _get_experiment_runs() -> List[MockRun]:
-        return [MockRun(), MockRun(), MockRun(), MockRun()]
-
+@pytest.mark.fast
+@pytest.mark.parametrize("num_runs, tags, expected_num_returned", [
+    (1, {"completed": "True"}, 1),
+    (3, {}, 3),
+    (2, {"Completed: False"}, 0)
+])
+def test_get_latest_aml_run_from_experiment(num_runs: int, tags: Dict[str, str], expected_num_returned: int) -> None:
     mock_experiment_name = "MockExperiment"
-    parser = ArgumentParser()
-    parser.add_argument("--experiment", type=str)
-    parser.add_argument("--tags", action="append", default=[])
-    parser.add_argument("--num_runs", type=int, default=1)
-    mock_args = parser.parse_args(["--experiment", mock_experiment_name])
+
     with mock.patch("health_azure.utils.Experiment") as mock_experiment:
         with mock.patch("health_azure.utils.Workspace",
                         experiments={mock_experiment_name: mock_experiment}
                         ) as mock_workspace:
-            mock_experiment.get_runs.return_value = _get_experiment_runs()
-            aml_runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)
-            assert len(aml_runs) == 1  # if num_runs not provided, returns 1 by default
-            assert aml_runs[0].id == "run1234"
-
-    # Test that correct number of runs are returned if both experiment_name and num_runs are provided
-    mock_args = parser.parse_args(["--experiment", mock_experiment_name, "--num_runs", "3"])
-    with mock.patch("health_azure.utils.Experiment") as mock_experiment:
-        mock_experiment.get_runs.return_value = _get_experiment_runs()
-        with mock.patch("health_azure.utils.Workspace",
-                        experiments={mock_experiment_name: mock_experiment}
-                        ) as mock_workspace:
-            runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 3
-    assert runs[0].id == "run1234"
-
-    # Test that correct number of returns if both experiment and tags are provided
-    mock_args = parser.parse_args(["--experiment", mock_experiment_name, "--tags", "3"])
-    with mock.patch("health_azure.utils.Experiment") as mock_experiment:
-        mock_experiment.get_runs.return_value = _get_experiment_runs()
-        with mock.patch("health_azure.utils.Workspace",
-                        experiments={mock_experiment_name: mock_experiment}
-                        ) as mock_workspace:
-            runs = util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 1
-    assert runs[0].id == "run1234"
-
-    # Test that value error is raised if experiment name is not in workspace
-    mock_args = parser.parse_args(["--experiment", "idontexist"])
-    with pytest.raises(Exception):
-        with mock.patch("health_azure.utils.Workspace",
-                        experiments={mock_experiment_name: mock_experiment}
-                        ) as mock_workspace:
-            util.get_latest_aml_runs_from_experiment(mock_args, mock_workspace)  # type: ignore
+            mock_experiment.get_runs.return_value = _get_experiment_runs(tags)
+            aml_runs = util.get_latest_aml_runs_from_experiment(mock_experiment_name, num_runs=num_runs,
+                                                                tags=tags, aml_workspace=mock_workspace)
+            assert len(aml_runs) == expected_num_returned
 
 
-def _mock_get_most_recent_run(path: Path, workspace: Workspace) -> MockRun:
-    return MockRun()
-
-
-def test_get_aml_runs_from_recovery_ids() -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--run_recovery_ids", default=[], nargs="+")
-
-    # Test that the correct number of runs are returned when run_recovery_ids are provided
-    mock_args = parser.parse_args(["--run_recovery_ids", "expt:run123", "expt:5432"])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.fetch_run", _mock_get_most_recent_run):
-            runs = util.get_aml_runs_from_recovery_ids(mock_args, mock_workspace)  # type: ignore
-    assert len(runs) == 2
-    assert runs[0].id == "run1234"  # this is the id of the MockRun
-
-    # Test that Exception is raised if run_recovery_ids not provided
-    mock_args = parser.parse_args([])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.fetch_run", _mock_get_most_recent_run):
-            with pytest.raises(Exception):
-                util.get_aml_runs_from_recovery_ids(mock_args, mock_workspace)  # type: ignore
-
-
-def test_get_aml_run_from_recovery_id() -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--run_recovery_id", type=str, default="")
-
-    # Test that a single run is returned if run_recovery_id is provided
-    mock_args = parser.parse_args(["--run_recovery_id", "expt:run123"])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.fetch_run", _mock_get_most_recent_run):
-            run = util.get_aml_run_from_recovery_id(mock_args, mock_workspace)  # type: ignore
-    assert run.id == "run1234"
-
-    # Test that Exception is raised if run_recovery_id is not provided
-    mock_args = parser.parse_args([])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.fetch_run", _mock_get_most_recent_run):
-            with pytest.raises(Exception):
-                util.get_aml_run_from_recovery_id(mock_args, mock_workspace)  # type: ignore
-
-
-def test_get_aml_run_from_run_id() -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--run_id", type=str, default="")
-
-    # assert single run returned
-    mock_run_id = "run123"
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        mock_workspace.get_run.return_value = MockRun(mock_run_id)
-        aml_run = util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
-        mock_workspace.get_run.assert_called_with(mock_run_id)
-        assert aml_run.id == mock_run_id
-
-
-def test_get_aml_run_from_run_id_args() -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--run_id", type=str, default="")
-
-    # assert single run returned (mock the workspace since this run doesnt really exist)
-    mock_run_id = "run123"
-    mock_args = parser.parse_args(["--run_id", mock_run_id])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        mock_workspace.get_run.return_value = MockRun(mock_run_id)
-        aml_run = util.get_aml_run_from_run_id_args(mock_args, aml_workspace=mock_workspace)
-        mock_workspace.get_run.assert_called_with(mock_run_id)
-        assert aml_run.id == mock_run_id
-
-    # Test that Exception is raised if run_id is not provided. Not necessary to mock the workspace.
-    mock_args = parser.parse_args([])
+def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
+    """
+    Test that a remote run with particular tags can be correctly retrieved, ignoring any more recent
+    experiments which do not have the correct tags. Note: this test will instantiate 2 new Runs in the
+    workspace described in your config.json file, under an experiment defined by AML_TESTS_EXPERIMENT
+    """
     ws = DEFAULT_WORKSPACE.workspace
-    with pytest.raises(Exception):
-        util.get_aml_run_from_run_id_args(mock_args, aml_workspace=ws)
+    assert True
+
+    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    config = ScriptRunConfig(
+        source_directory=".",
+        command=["cd ."],  # command that does nothing
+        compute_target="local"
+    )
+    # Create first run and tag
+    first_run = experiment.submit(config)
+    tags = {"experiment_type": "great_experiment"}
+    first_run.set_tags(tags)
+    first_run.wait_for_completion()
+
+    # Create second run and ensure no tags
+    second_run = experiment.submit(config)
+    if any(second_run.get_tags()):
+        second_run.remove_tags(tags)
+
+    # Retrieve latest run with given tags (expect first_run to be returned)
+    retrieved_runs = util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
+    assert len(retrieved_runs) == 1
+    assert retrieved_runs[0].id == first_run.id
+    assert retrieved_runs[0].get_tags() == tags
 
 
-def test_get_aml_runs_from_run_ids() -> None:
-    parser = ArgumentParser()
-    parser.add_argument("--run_ids", nargs="+", default=[])
+@pytest.mark.fast
+@patch("health_azure.utils.Workspace")
+@pytest.mark.parametrize("mock_run_id", ["run_abc_123", "experiment1:run_bcd_456"])
+def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_run_id: str) -> None:
+    def _mock_get_run(run_id: str) -> MockRun:
+        if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+            return MockRun(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1])
+        return MockRun(mock_run_id)
 
-    # assert correct number of runs is returned
-    mock_run_id = "run123"
-    mock_run_id_2 = "run456"
-    mock_args = parser.parse_args(["--run_ids", mock_run_id, mock_run_id_2])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        mock_workspace.get_run.return_value = MockRun(mock_run_id_2)  # both MockRuns will get this id
-        aml_runs = util.get_aml_runs_from_run_ids(mock_args, mock_workspace)
+    mock_workspace.get_run = _mock_get_run
 
-        assert len(aml_runs) == 2
-        assert aml_runs[1].id == mock_run_id_2
+    aml_run = util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
+    if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+        mock_run_id = mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
 
-    # Test that Exception is raised if run_ids are not provided
-    mock_args = parser.parse_args([])
-    with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-        with mock.patch("health_azure.utils.fetch_run", _mock_get_most_recent_run):
-            with pytest.raises(Exception):
-                util.get_aml_runs_from_run_ids(mock_args, aml_workspace=mock_workspace)
-
-
-def test_get_aml_runs_file(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    mock_latest_run_path = tmp_path / "most_recent_run.txt"
-    parser.add_argument("--latest_run_file", type=str)
-
-    # if latest run path has been provided:
-    mock_args = parser.parse_args(["--latest_run_file", str(mock_latest_run_path)])
-    run_id_source = util.AzureRunIdSource.LATEST_RUN_FILE
-    with mock.patch("health_azure.utils.get_aml_run_from_latest_run_file") as mock_get_from_run_path:
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            _ = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
-            mock_get_from_run_path.assert_called_once()
-
-
-def test_get_aml_runs_experiment(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    # if experiment name has been provided:
-    parser.add_argument("--experiment", type=str)
-    mock_args = parser.parse_args(["--experiment", "mockExperiment"])
-    run_id_source = util.AzureRunIdSource.EXPERIMENT_LATEST
-    with mock.patch("health_azure.utils.get_latest_aml_runs_from_experiment") as mock_get_from_experiment:
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            _ = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
-            mock_get_from_experiment.assert_called_once()
-
-
-def test_get_aml_runs_recovery_ids(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    # if run_recovery_ids has been provided:
-    parser.add_argument("--run_recovery_ids", nargs="+", default=[])
-    mock_args = parser.parse_args(["--run_recovery_ids", "experiment:run1234", "experiment:4321"])
-    run_id_source = util.AzureRunIdSource.RUN_RECOVERY_IDS
-    with mock.patch("health_azure.utils.get_aml_runs_from_recovery_ids",
-                    return_value=[MockRun(), MockRun()]) as mock_get_from_recovery_ids:
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            aml_runs = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
-            assert len(aml_runs) == 2
-            mock_get_from_recovery_ids.assert_called_once()
-
-
-def test_get_aml_runs_recovery_id(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    # if run_recovery_id has been provided:
-    parser.add_argument("--run_recovery_id", type=str)
-    mock_args = parser.parse_args(["--run_recovery_id", "experiment:run1234"])
-    run_id_source = util.AzureRunIdSource.RUN_RECOVERY_ID
-    with mock.patch("health_azure.utils.get_aml_run_from_recovery_id") as mock_get_from_recovery_id:
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            _ = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
-            mock_get_from_recovery_id.assert_called_once()
-
-
-def test_get_aml_runs_run_ids(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    # if run_ids has been provided:
-    parser.add_argument("--run_ids", nargs="+", default=[])
-    mock_args = parser.parse_args(["--run_ids", "run1234", "run5432"])
-    run_id_source = util.AzureRunIdSource.RUN_IDS
-    with mock.patch("health_azure.utils.get_aml_runs_from_run_ids",
-                    return_value=[MockRun(), MockRun()]) as mock_get_from_run_ids:
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            aml_runs = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
-            assert len(aml_runs) == 2
-            mock_get_from_run_ids.assert_called_once()
-
-
-def test_get_aml_runs_run_id(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    # if run_id has been provided:
-    parser.add_argument("--run_id", type=str)
-    mock_args = parser.parse_args(["--run_id", "run1234"])
-    run_id_source = util.AzureRunIdSource.RUN_ID
-    with mock.patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_from_run_id:
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            _ = util.get_aml_runs(mock_args, mock_workspace, run_id_source)
-            mock_get_from_run_id.assert_called_once()
-
-
-def test_get_aml_runs_run_unknown_source(tmp_path: Path) -> None:
-    parser = ArgumentParser()
-    # otherwise assert Exception raised
-    mock_args = parser.parse_args([])
-    run_id_source = None
-    with pytest.raises(Exception):
-        with mock.patch("health_azure.utils.Workspace") as mock_workspace:
-            util.get_aml_runs(mock_args, mock_workspace, run_id_source)  # type: ignore
+    assert aml_run.id == mock_run_id
 
 
 def _get_file_names(pref: str = "") -> List[str]:
@@ -914,9 +689,9 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 @patch("health_azure.utils.get_workspace")
 @patch("health_azure.utils.get_aml_run_from_run_id")
 @patch("health_azure.utils._download_files_from_run")
-def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
-                                        mock_get_aml_run_from_run_id: MagicMock,
-                                        mock_workspace: MagicMock) -> None:
+def test_download_files_from_run_id(mock_download_run_files: MagicMock,
+                                    mock_get_aml_run_from_run_id: MagicMock,
+                                    mock_workspace: MagicMock) -> None:
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
     util.download_files_from_run_id("run123", Path(__file__))
@@ -925,7 +700,7 @@ def test_download_run_files_from_run_id(mock_download_run_files: MagicMock,
 
 @pytest.mark.parametrize("dummy_env_vars, expect_file_downloaded", [({}, True), ({util.ENV_LOCAL_RANK: "1"}, False)])
 @patch("azureml.core.Run", MockRun)
-def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expect_file_downloaded: bool) -> None:
+def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], expect_file_downloaded: bool) -> None:
     dummy_filename = "filetodownload.txt"
     expected_file_path = tmp_path / dummy_filename
 
@@ -945,7 +720,7 @@ def test_download_run_file(tmp_path: Path, dummy_env_vars: Dict[str, str], expec
             assert not expected_file_path.exists()
 
 
-def test_download_run_file_remote(tmp_path: Path) -> None:
+def test_download_file_from_run_remote(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
@@ -1050,6 +825,25 @@ def test_is_local_rank_zero() -> None:
         assert not util.is_local_rank_zero()
 
 
+@pytest.mark.parametrize("dummy_recovery_id", [
+    "expt:run_abc_1234",
+    "['expt:abc_432','expt2:def_111']",
+    "run_ghi_1234",
+    "['run_jkl_1234','run_mno_7654']"
+])
+def test_get_run_source(dummy_recovery_id: str,
+                        ) -> None:
+    arguments = ["", "--run", dummy_recovery_id]
+    with patch.object(sys, "argv", arguments):
+
+        run_source = util.AmlRunScriptConfig.parse_args()
+
+        if isinstance(run_source.run, List):
+            assert isinstance(run_source.run[0], str)
+        else:
+            assert isinstance(run_source.run, str)
+
+
 @pytest.mark.parametrize("overwrite", [True, False])
 @pytest.mark.parametrize("show_progress", [True, False])
 def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress: bool) -> None:
@@ -1073,7 +867,6 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool, show_progress:
         dummy_filename = f"dummy_data_{i}.txt"
         dummy_filenames.append(dummy_filename)
         data_to_upload_path = local_data_path / dummy_filename
-        data_to_upload_path.touch()
         data_to_upload_path.write_text(dummy_file_content)
     default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
     existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
@@ -1126,7 +919,6 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     # Create a dummy data file and upload to datastore
     data_to_upload_path = tmp_path / dummy_file_name
     data_to_upload_path.parent.mkdir(exist_ok=True, parents=True)
-    data_to_upload_path.touch()
     data_to_upload_path.write_text(dummy_file_content)
 
     util.upload_to_datastore(default_datastore.name, data_to_upload_path.parent, Path(remote_data_dir),
@@ -1138,6 +930,25 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
     # delete the blob from Blob Storage
     existing_blob: Blob = existing_blobs[0]
     default_datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+
+
+@pytest.mark.parametrize("arguments, run_id", [
+    (["", "--run", "run_abc_123"], "run_abc_123"),
+    (["", "--run", "run_abc_123,run_def_456"], ["run_abc_123", "run_def_456"]),
+    (["", "--run", "expt_name:run_abc_123"], "expt_name:run_abc_123"),
+])
+def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
+    with patch.object(sys, "argv", arguments):
+        script_config = util.AmlRunScriptConfig.parse_args()
+
+        if isinstance(run_id, list):
+            for script_config_run, expected_run_id in zip(script_config.run, run_id):
+                assert script_config_run == expected_run_id
+        else:
+            if len(run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+                assert script_config.run == [run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
+            else:
+                assert script_config.run == [run_id]
 
 
 @patch("health_azure.utils.download_files_from_run_id")
@@ -1172,6 +983,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     run = experiment.submit(config)
 
     file_contents = "Hello world"
+    file_name = ""  # for pyright
     for i in range(num_dummy_files):
         file_name = f"dummy_checkpoint_{i}.txt"
         large_file_path = tmp_path / file_name
@@ -1189,22 +1001,38 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     output_file_dir = tmp_path
     assert not (output_file_dir / prefix).exists()
 
+    whole_file_path = prefix + file_name
     start_time = time.perf_counter()
-    util.download_checkpoints_from_run_id(run.id, prefix, output_file_dir, aml_workspace=ws)
+    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
 
+    download_file_path = output_file_dir / prefix / "dummy_checkpoint_0.txt"
     assert (output_file_dir / prefix).is_dir()
     assert len(list((output_file_dir / prefix).iterdir())) == num_dummy_files
-    found_file_contents = None
-    with open(str(output_file_dir / prefix / "dummy_checkpoint_0.txt"), "rb") as f_path:
+    found_file_contents = ""  # for pyright
+    with open(str(download_file_path), "rb") as f_path:
         for line in f_path:
             chunk = line.strip(b'\x00')
             if chunk:
                 found_file_contents = chunk.decode("utf-8")
                 break
 
+    assert found_file_contents == file_contents
+
+    # Delete the file downloaded file and check that download_checkpoints also works on a single checkpoint file
+    download_file_path.unlink()
+    assert not download_file_path.exists()
+
+    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
+    assert download_file_path.exists()
+    with open(str(download_file_path), "rb") as f_path:
+        for line in f_path:
+            chunk = line.strip(b'\x00')
+            if chunk:
+                found_file_contents = chunk.decode("utf-8")
+                break
     assert found_file_contents == file_contents
 
 
@@ -1227,3 +1055,345 @@ def test_torch_barrier(available: bool,
             distributed.barrier.assert_called_once()
         else:
             assert distributed.barrier.call_count == 0
+
+
+class ParamEnum(Enum):
+    EnumValue1 = "1",
+    EnumValue2 = "2"
+
+
+class IllegalCustomTypeNoFromString(param.Parameter):
+    def _validate(self, val: Any) -> None:
+        super()._validate(val)
+
+
+class IllegalCustomTypeNoValidate(util.CustomTypeParam):
+    def from_string(self, x: str) -> Any:
+        return x
+
+
+class ParamClass(util.GenericConfig):
+    name: str = param.String(None, doc="Name")
+    seed: int = param.Integer(42, doc="Seed")
+    flag: bool = param.Boolean(False, doc="Flag")
+    not_flag: bool = param.Boolean(True, doc="Not Flag")
+    number: float = param.Number(3.14)
+    integers: List[int] = param.List(None, class_=int)
+    optional_int: Optional[int] = param.Integer(None, doc="Optional int")
+    optional_float: Optional[float] = param.Number(None, doc="Optional float")
+    floats: List[float] = param.List(None, class_=float)
+    tuple1: Tuple[int, float] = param.NumericTuple((1, 2.3), length=2, doc="Tuple")
+    int_tuple: Tuple[int, int, int] = util.IntTuple((1, 1, 1), length=3, doc="Integer Tuple")
+    enum: ParamEnum = param.ClassSelector(default=ParamEnum.EnumValue1, class_=ParamEnum, instantiate=False)
+    readonly: str = param.String("Nope", readonly=True)
+    _non_override: str = param.String("Nope")
+    constant: str = param.String("Nope", constant=True)
+    other_args = util.ListOrDictParam(None, doc="List or dictionary of other args")
+
+
+class ClassFrom(param.Parameterized):
+    foo = param.String("foo")
+    bar = param.Integer(1)
+    baz = param.String("baz")
+    _private = param.String("private")
+    constant = param.String("constant", constant=True)
+
+
+class ClassTo(param.Parameterized):
+    foo = param.String("foo2")
+    bar = param.Integer(2)
+    _private = param.String("private2")
+    constant = param.String("constant2", constant=True)
+
+
+class NotParameterized:
+    foo = 1
+
+
+@pytest.mark.fast
+def test_overridable_parameter() -> None:
+    """
+    Test to check overridable parameters are correctly identified.
+    """
+    param_dict = ParamClass.get_overridable_parameters()
+    assert "name" in param_dict
+    assert "flag" in param_dict
+    assert "not_flag" in param_dict
+    assert "seed" in param_dict
+    assert "number" in param_dict
+    assert "integers" in param_dict
+    assert "optional_int" in param_dict
+    assert "optional_float" in param_dict
+    assert "tuple1" in param_dict
+    assert "int_tuple" in param_dict
+    assert "enum" in param_dict
+    assert "other_args" in param_dict
+
+    assert "readonly" not in param_dict
+    assert "_non_override" not in param_dict
+    assert "constant" not in param_dict
+
+
+@pytest.mark.fast
+def test_parser_defaults() -> None:
+    """
+    Check that default values are created as expected, and that the non-overridable parameters
+    are omitted.
+    """
+    defaults = vars(ParamClass.create_argparser().parse_args([]))
+    assert defaults["seed"] == 42
+    assert defaults["tuple1"] == (1, 2.3)
+    assert defaults["int_tuple"] == (1, 1, 1)
+    assert defaults["enum"] == ParamEnum.EnumValue1
+    assert not defaults["flag"]
+    assert defaults["not_flag"]
+    assert "readonly" not in defaults
+    assert "constant" not in defaults
+    assert "_non_override" not in defaults
+    # We can't test if all invalid cases are handled because argparse call sys.exit
+    # upon errors.
+
+
+def check_parsing_succeeds(arg: List[str], expected_key: str, expected_value: Any) -> None:
+    parsed = ParamClass.parse_args(arg)
+    assert getattr(parsed, expected_key) == expected_value
+
+
+def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expected_value: Optional[Any] = None
+                        ) -> None:
+    with pytest.raises(SystemExit) as e:
+        ParamClass.parse_args(arg)
+    assert e.type == SystemExit
+    assert e.value.code == 2
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("args, expected_key, expected_value, expected_pass", [
+    (["--name=foo"], "name", "foo", True),
+    (["--seed", "42"], "seed", 42, True),
+    (["--seed", ""], "seed", 42, True),
+    (["--number", "2.17"], "number", 2.17, True),
+    (["--number", ""], "number", 3.14, True),
+    (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
+    (["--optional_int", ""], "optional_int", None, True),
+    (["--optional_int", "2"], "optional_int", 2, True),
+    (["--optional_float", ""], "optional_float", None, True),
+    (["--optional_float", "3.14"], "optional_float", 3.14, True),
+    (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
+    (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
+    (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
+    (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
+    (["--integers=1,2,3"], "integers", [1, 2, 3], True),
+    (["--flag"], "flag", True, True),
+    (["--no-flag"], None, None, False),
+    (["--not_flag"], None, None, False),
+    (["--no-not_flag"], "not_flag", False, True),
+    (["--not_flag=false", "--no-not_flag"], None, None, False),
+    (["--flag=Falsf"], None, None, False),
+    (["--flag=Truf"], None, None, False),
+    (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
+    (["--other_args=['foo']"], "other_args", ["foo"], True),
+    (["--other_args={'learning':3"], None, None, False),
+    (["--other_args=['foo','bar'"], None, None, False)
+])
+def test_create_parser(args: List[str], expected_key: str, expected_value: Any, expected_pass: bool) -> None:
+    """
+    Check that parse_args works as expected, with both non default and default values.
+    """
+    if expected_pass:
+        check_parsing_succeeds(args, expected_key, expected_value)
+    else:
+        check_parsing_fails(args)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("flag, expected_value", [
+    ('on', True), ('t', True), ('true', True), ('y', True), ('yes', True), ('1', True),
+    ('off', False), ('f', False), ('false', False), ('n', False), ('no', False), ('0', False)
+])
+def test_parsing_bools(flag: str, expected_value: bool) -> None:
+    """
+    Check all the ways of passing in True and False, with and without the first letter capitialized
+    """
+    check_parsing_succeeds([f"--flag={flag}"], "flag", expected_value)
+    check_parsing_succeeds([f"--flag={flag.capitalize()}"], "flag", expected_value)
+    check_parsing_succeeds([f"--not_flag={flag}"], "not_flag", expected_value)
+    check_parsing_succeeds([f"--not_flag={flag.capitalize()}"], "not_flag", expected_value)
+
+
+@pytest.mark.fast
+@patch("health_azure.utils.GenericConfig.report_on_overrides")
+@patch("health_azure.utils.GenericConfig.validate")
+def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: MagicMock) -> None:
+    """
+    Test that overrides are applied correctly, ond only to overridable parameters,
+    """
+    m = ParamClass()
+    overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
+    actual_overrides = m.apply_overrides(overrides)
+    assert actual_overrides == overrides
+    assert all([x == i and isinstance(x, int) for i, x in enumerate(m.int_tuple)])
+    assert m.name == "newName"
+    # Attempt to change seed and constant, but the latter should be ignored.
+    change_seed = {"seed": 123}
+    old_constant = m.constant
+    changes2 = m.apply_overrides({**change_seed, "constant": "Nothing"})  # type: ignore
+    assert changes2 == change_seed
+    assert m.seed == 123
+    assert m.constant == old_constant
+
+    # Check the call count of mock_validate and check it doesn't increase if should_validate is set to False
+    # and that setting this flag doesn't affect on the outputs
+    mock_validate_call_count = mock_validate.call_count
+    actual_overrides = m.apply_overrides(values=overrides, should_validate=False)
+    assert actual_overrides == overrides
+    assert mock_validate.call_count == mock_validate_call_count
+
+    # Check that report_on_overrides has not yet been called, but is called if keys_to_ignore is not None
+    # and that setting this flag doesn't affect on the outputs
+    assert mock_report_on_overrides.call_count == 0
+    actual_overrides = m.apply_overrides(values=overrides, keys_to_ignore={"name"})
+    assert actual_overrides == overrides
+    assert mock_report_on_overrides.call_count == 1
+
+
+def test_report_on_overrides() -> None:
+    m = ParamClass()
+    overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
+    m.report_on_overrides(overrides)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("value_idx_0", [1.0, 1])
+@pytest.mark.parametrize("value_idx_1", [2.0, 2])
+@pytest.mark.parametrize("value_idx_2", [3.0, 3])
+def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: Any) -> None:
+    """
+    Test integer tuple parameter is validated correctly.
+    """
+    m = ParamClass()
+    val = (value_idx_0, value_idx_1, value_idx_2)
+    if not all([isinstance(x, int) for x in val]):
+        with pytest.raises(ValueError):
+            m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
+    else:
+        m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
+
+
+@pytest.mark.fast
+def test_create_from_matching_params() -> None:
+    """
+    Test if Parameterized objects can be cloned by looking at matching fields.
+    """
+    class_from = ClassFrom()
+    class_to = util.create_from_matching_params(class_from, cls_=ClassTo)
+    assert isinstance(class_to, ClassTo)
+    assert class_to.foo == "foo"
+    assert class_to.bar == 1
+    # Constant fields should not be touched
+    assert class_to.constant == "constant2"
+    # Private fields must be copied over.
+    assert class_to._private == "private"
+    # Baz is only present in the "from" object, and should not be copied to the new object
+    assert not hasattr(class_to, "baz")
+
+    with pytest.raises(ValueError) as ex:
+        util.create_from_matching_params(class_from, NotParameterized)
+    assert "subclass of param.Parameterized" in str(ex)
+    assert "NotParameterized" in str(ex)
+
+
+def test_parse_illegal_params() -> None:
+    with pytest.raises(ValueError) as e:
+        ParamClass(readonly="abc")
+        assert "cannot be overridden" in str(e.value)
+
+
+def test_parse_throw_if_unknown() -> None:
+    with pytest.raises(ValueError) as e:
+        ParamClass(throw_if_unknown_param=True, idontexist="hello")
+        assert "parameters do not exist" in str(e.value)
+
+
+@patch("health_azure.utils.GenericConfig.validate")
+def test_config_validate(mock_validate: MagicMock) -> None:
+    _ = ParamClass(should_validate=False)
+    assert mock_validate.call_count == 0
+
+    _ = ParamClass(should_validate=True)
+    assert mock_validate.call_count == 1
+
+    _ = ParamClass()
+    assert mock_validate.call_count == 2
+
+
+def test_config_add_and_validate() -> None:
+    config = ParamClass.parse_args([])
+    assert config.name == "ParamClass"
+    config.add_and_validate({"name": "foo"})
+    assert config.name == "foo"
+
+    assert hasattr(config, "new_property") is False
+    config.add_and_validate({"new_property": "bar"})
+    assert hasattr(config, "new_property") is True
+    assert config.new_property == "bar"
+
+
+class IllegalParamClassNoString(util.GenericConfig):
+    custom_type_no_from_string = IllegalCustomTypeNoFromString(
+        None, doc="This should fail since from_string method is missing"
+    )
+
+
+def test_cant_parse_param_type() -> None:
+    """
+    Assert that a TypeError is raised when trying to add a custom type with no from_string method as an argument
+    """
+    with pytest.raises(TypeError) as e:
+        IllegalParamClassNoString.parse_args([])
+        assert "is not supported" in str(e.value)
+
+
+# Another custom type (from docs/source/conmmandline_tools.md)
+class EvenNumberParam(util.CustomTypeParam):
+    """ Our custom type param for even numbers """
+
+    def _validate(self, val: Any) -> None:
+        if (not self.allow_None) and val is None:
+            raise ValueError("Value must not be None")
+        if val % 2 != 0:
+            raise ValueError(f"{val} is not an even number")
+        super()._validate(val)  # type: ignore
+
+    def from_string(self, x: str) -> int:
+        return int(x)
+
+
+class MyScriptConfig(util.AmlRunScriptConfig):
+    simple_string: str = param.String(default="")
+    even_number: int = EvenNumberParam(2, doc="your choice of even number", allow_None=False)
+
+
+def test_my_script_config() -> None:
+    even_number = randint(0, 100) * 2
+    odd_number = even_number + 1
+    none_number = "None"
+
+    config = MyScriptConfig.parse_args(["--even_number", f"{even_number}"])
+    assert config.even_number == even_number
+
+    with pytest.raises(ValueError) as e:
+        MyScriptConfig.parse_args(["--even_number", f"{odd_number}"])
+        assert "not an even number" in str(e.value)
+
+    # If parser can't parse type, will raise a SystemExit
+    with pytest.raises(SystemExit):
+        MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
+
+    # Mock from_string to check test _validate
+    mock_from_string_none = lambda a, b: None
+    with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
+        # Check that _validate fails with None value
+        with pytest.raises(ValueError) as e:
+            MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
+            assert "must not be None" in str(e.value)
