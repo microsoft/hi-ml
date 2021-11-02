@@ -22,7 +22,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import Dataset, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -789,6 +789,27 @@ class TestOutputDataset:
 
 
 @pytest.mark.fast
+def test_mounting_dataset(tmp_path: Path) -> None:
+    with check_config_json(tmp_path):
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        dataset = Dataset.get_by_name(workspace, name='panda')
+
+        subfolder = "train_images"
+        target_path = tmp_path / "test_mount" / "panda"
+        target_path.mkdir(parents=True)
+        with dataset.mount(str(target_path)) as mount_context:
+            mount_point = Path(mount_context.mount_point)
+            mounted = os.listdir(mount_point)
+            print(f"mounted: {mounted}")
+            logging.info(f"mounted: {mounted}")
+            assert len(mounted) > 1
+            for image_file in (mount_point / subfolder).glob("*.tiff"):
+                print(f"image_file: {str(image_file)}")
+                logging.info(f"image_file: {str(image_file)}")
+
+
+#@pytest.mark.fast
 @pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
                          [(RunTarget.LOCAL, False, False)])
 #                         [(RunTarget.LOCAL, False, False),
