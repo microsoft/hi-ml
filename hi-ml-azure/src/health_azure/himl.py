@@ -17,7 +17,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
@@ -395,19 +395,20 @@ def submit_to_azure_if_needed(  # type: ignore
 
         inputs = [d.to_input_dataset_local(workspace) for d in cleaned_input_datasets]
 
-        def item_or_none(x: Optional[Tuple[Path, Optional[MountContext]]], index: int) \
-                -> Optional[Union[Path, MountContext]]:
-            return x[index] if x is not None else None
+        def item_or_none(x: Optional[Tuple[Path, Any]]) -> Optional[Path]:
+            return x[0] if x is not None else None
 
-        input_datasets: List[Optional[Path]] = [item_or_none(input, 0) for input in inputs]
-        all_mount_contexts: List[Optional[MountContext]] = [item_or_none(input, 1) for input in inputs]
-        mount_contexts: List[MountContext] = [mc for mc in all_mount_contexts if mc is not None]
-
-        for mc in mount_contexts:
-            mc.start()
+        mounted_input_datasets: List[Optional[Path]] = [item_or_none(input) for input in inputs]
+        mount_contexts: List[MountContext] = []
+        for input in inputs:
+            if input is not None:
+                mc: MountContext = input[1]
+                if mc is not None:
+                    mc.start()
+                    mount_contexts.append(mc)
 
         return AzureRunInfo(
-            input_datasets=input_datasets,
+            input_datasets=mounted_input_datasets,
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             mount_contexts=mount_contexts,
             run=None,
