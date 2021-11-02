@@ -307,6 +307,7 @@ def test_submit_to_azure_if_needed_azure_return(
         run=mock_run,
         input_datasets=[],
         output_datasets=[],
+        mount_contexts=[],
         is_running_in_azure_ml=True,
         output_folder=Path.cwd(),
         logs_folder=Path.cwd())
@@ -798,6 +799,8 @@ def test_mounting_dataset(tmp_path: Path) -> None:
         subfolder = "train_images"
         target_path = tmp_path / "test_mount" / "panda"
         target_path.mkdir(parents=True)
+        existing_mounted = os.listdir(target_path)
+        assert len(existing_mounted) == 0
         with dataset.mount(str(target_path)) as mount_context:
             mount_point = Path(mount_context.mount_point)
             mounted = os.listdir(mount_point)

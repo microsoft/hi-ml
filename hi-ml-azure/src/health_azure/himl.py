@@ -539,6 +539,7 @@ def _generate_azure_datasets(
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
+        mount_contexts=[],
         run=RUN_CONTEXT,
         is_running_in_azure_ml=True,
         output_folder=Path.cwd() / OUTPUT_FOLDER,
