@@ -767,6 +767,62 @@ def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
     return dummy_txt_file_contents
 
 
+def log_and_print(s: str) -> None:
+    logging.info(s)
+    print(s)
+
+
+@pytest.mark.fast
+@pytest.mark.timeout(300)
+def test_mounting_dataset(tmp_path: Path) -> None:
+    log_and_print("creating config.json")
+    with check_config_json(tmp_path):
+        log_and_print("get_workspace")
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        log_and_print("Dataset.get_by_name")
+        dataset = Dataset.get_by_name(workspace, name='panda')
+        subfolder = "train_images"
+        target_path = tmp_path / "test_mount" / "panda"
+        target_path.mkdir(parents=True)
+        existing_mounted = os.listdir(target_path)
+        assert len(existing_mounted) == 0
+        log_and_print("ready to mount")
+        with dataset.mount(str(target_path)) as mount_context:
+            mount_point = Path(mount_context.mount_point)
+            log_and_print("mount done, run listdir")
+            mounted = os.listdir(mount_point)
+            log_and_print(f"mounted: {mounted}")
+            assert len(mounted) > 1
+            for image_file in (mount_point / subfolder).glob("*.tiff"):
+                log_and_print(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+
+
+@pytest.mark.fast
+@pytest.mark.timeout(60)
+def test_downloading_dataset(tmp_path: Path) -> None:
+    log_and_print("creating config.json")
+    with check_config_json(tmp_path):
+        log_and_print("get_workspace")
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        log_and_print("Dataset.get_by_name")
+        dataset = Dataset.get_by_name(workspace, name='panda')
+        subfolder = "train_images"
+        target_path = tmp_path / "test_mount" / "panda"
+        target_path.mkdir(parents=True)
+        existing_downloaded = os.listdir(target_path)
+        assert len(existing_downloaded) == 0
+        log_and_print("ready to download")
+        dataset.download(target_path=str(target_path), overwrite=False)
+        log_and_print("download done, run listdir")
+        downloaded = os.listdir(target_path)
+        log_and_print(f"downloaded: {downloaded}")
+        assert len(downloaded) > 1
+        for image_file in (target_path / subfolder).glob("*.tiff"):
+            log_and_print(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+
+
 @dataclass
 class TestInputDataset:
     # Test file name. This will be populated with test data and uploaded to blob storage.
@@ -789,36 +845,11 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.fast
-def test_mounting_dataset(tmp_path: Path) -> None:
-    with check_config_json(tmp_path):
-        workspace = get_workspace(aml_workspace=None,
-                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        dataset = Dataset.get_by_name(workspace, name='panda')
-
-        subfolder = "train_images"
-        target_path = tmp_path / "test_mount" / "panda"
-        target_path.mkdir(parents=True)
-        existing_mounted = os.listdir(target_path)
-        assert len(existing_mounted) == 0
-        with dataset.mount(str(target_path)) as mount_context:
-            mount_point = Path(mount_context.mount_point)
-            mounted = os.listdir(mount_point)
-            print(f"mounted: {mounted}")
-            logging.info(f"mounted: {mounted}")
-            assert len(mounted) > 1
-            for image_file in (mount_point / subfolder).glob("*.tiff"):
-                print(f"image_file: {str(image_file)}")
-                logging.info(f"image_file: {str(image_file)}")
-
-
-#@pytest.mark.fast
 @pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
-                         [(RunTarget.LOCAL, False, False)])
-#                         [(RunTarget.LOCAL, False, False),
-#                          (RunTarget.LOCAL, True, False),
-#                          (RunTarget.LOCAL, True, True),
-#                          (RunTarget.AZUREML, False, False)])
+                         [(RunTarget.LOCAL, False, False),
+                          (RunTarget.LOCAL, True, False),
+                          (RunTarget.LOCAL, True, True),
+                          (RunTarget.AZUREML, False, False)])
 def test_invoking_hello_world_datasets(run_target: RunTarget,
                                        local_folder: bool,
                                        suppress_config_creation: bool,

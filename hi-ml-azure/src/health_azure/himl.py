@@ -66,7 +66,8 @@ class AzureRunInfo:
          datasets are specified, the list is empty."""
     mount_contexts: List[MountContext]
     """A list of mount contexts for input datasets when running outside Azure. There will be a mount context
-    for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set."""
+    for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set.
+    This list is maintained only to prevent exit from these contexts until the RunInfo object is deleted."""
     run: Optional[Run]
     """An AzureML Run object if the present script is executing inside AzureML, or None if outside of AzureML.
     The Run object has methods to log metrics, upload files, etc."""

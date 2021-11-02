@@ -121,20 +121,20 @@ class DatasetConfig:
         Otherwise the dataset is mounted or downloaded to the target folder and that is returned.
 
         :param workspace: The AzureML workspace to read from.
-        :return: Path to dataset if possible to download, MountContext if mounting, None otherwise.
+        :return: Pair of path to dataset and optional mountcontext.
         """
         status = f"Dataset {self.name} will be "
 
         if self.local_folder is not None:
             status += f"obtained from local folder {self.local_folder}"
             logging.info(status)
-            print("to_input_dataset_local:" + status)
+            print(status)
             return Path(self.local_folder), None
 
         if workspace is None:
-            status += "None - neither local_folder or workspace available"
+            status += "'None' - neither local_folder or workspace available"
             logging.info(status)
-            print("to_input_dataset_local:" + status)
+            print(status)
             return None
 
         azureml_dataset = get_or_create_dataset(workspace=workspace,
@@ -160,7 +160,7 @@ class DatasetConfig:
         else:
             status += f"a randomly chosen folder: {target_path}."
         logging.info(status)
-        print("to_input_dataset_local:" + status)
+        print(status)
         return result
 
     def to_input_dataset(self,
@@ -210,7 +210,7 @@ class DatasetConfig:
                                           destination=(datastore, self.name + "/"))
         # TODO: Can we get tags into here too?
         dataset = dataset.register_on_complete(name=self.name)
-        if bool(self.target_folder):
+        if self.target_folder:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
         if use_mounting:
