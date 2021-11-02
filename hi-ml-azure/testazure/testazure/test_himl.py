@@ -22,7 +22,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import RunConfiguration, ScriptRunConfig, Workspace, Environment
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -32,7 +32,8 @@ from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dat
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
                                 get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
+from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root, \
+    DEFAULT_WORKSPACE
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -920,3 +921,52 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
 # endregion Elevate to AzureML unit tests
+
+
+@pytest.mark.fast
+# Azure ML expects run_config to be instance of ScriptRunConfig
+@patch("azureml.train.hyperdrive.runconfig.isinstance", return_value=True)
+@pytest.mark.parametrize("num_crossval_splits, metric_name", [
+    (-1, "val/loss"), (0, "loss"), (1, "val/acc"), (5, "accuracy")
+])
+def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: int, metric_name: str) -> None:
+    with patch("azureml.core.ScriptRunConfig") as mock_script_run_config:
+        if num_crossval_splits < 1:
+            with pytest.raises(Exception):
+                himl.create_crossval_hyperdrive_config(mock_script_run_config,
+                                                       num_cross_validation_splits=num_crossval_splits)
+        else:
+            crossval_config = himl.create_crossval_hyperdrive_config(mock_script_run_config,
+                                                                     num_cross_validation_splits=num_crossval_splits,
+                                                                     metric_name=metric_name)
+            assert isinstance(crossval_config, HyperDriveConfig)
+            assert crossval_config._primary_metric_config.get("name") == metric_name
+            assert crossval_config._primary_metric_config.get("goal") == "minimize"
+            assert crossval_config._max_total_runs == num_crossval_splits
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("cross_validation_metric_name", [None, "accuracy"])
+@patch("sys.argv")
+@patch("health_azure.himl.exit")
+def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, mock_exit: MagicMock,
+                                                   cross_validation_metric_name: Optional[str]) -> None:
+    """
+    Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
+    """
+    mock_sys_args.return_value = ["", "--azureml"]
+    with patch.object(Environment, "get", return_value="dummy_env"):
+        with patch("azureml.core.Workspace") as mock_workspace:
+            mock_workspace.compute_targets = ["foo", "bar"]
+            with patch("health_azure.himl.submit_run") as mock_submit_run:
+                with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
+                    himl.submit_to_azure_if_needed(
+                        aml_workspace=mock_workspace,
+                        entry_script=Path(__file__),
+                        compute_cluster_name="foo",
+                        aml_environment_name="dummy_env",
+                        submit_to_azureml=True,
+                        num_cross_validation_splits=5,
+                        cross_validation_metric_name=cross_validation_metric_name)
+                    mock_submit_run.assert_called_once()
+                    mock_hyperdrive_config.assert_called_once()

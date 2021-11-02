@@ -274,3 +274,39 @@ By default, the `hi-ml` package assumes that you supply a commandline argument `
 the commandline) to trigger a submission of the present script to AzureML. If you wish to control it via a different
 flag, coming out of your own argument parser, use the `submit_to_azureml` argument of the function
 `health.azure.himl.submit_to_azure_if_needed`. 
+
+## Training with k-fold cross validation in Azure ML
+The example [sample 10](examples/10/sample.rst) demonstrates how to enable cross validation, by specifying the number
+of splits required.  If this number is > 1, a parent run is instantiated, with a number of child runs equalling the
+specified splits. For example,
+```python
+ run_info = submit_to_azure_if_needed(
+        ...
+        number_of_crossval_splits=5
+)
+```
+ this would create a parent (HyperDrive) Run, with 5 children - each one associated with a different data split.
+ 
+ **NOTE** the ensuing parent run will expect to find the metric "val/loss" logged by each of its associated child runs,
+ [as described here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning),
+ therefore, ensure that you include the following lines in your training script:
+ 
+ ```python
+from azureml.core import Run
+
+# Assumes you have a variable called my_metric
+run_log = Run.get_context()
+run_log.log("val/loss", loss)
+```
+
+If you wish to use an alternative metric, alter the above snippet to suit your needs, and also edit your call to
+`submit_to_azure_if_needed` as follows:
+```python
+ run_info = submit_to_azure_if_needed(
+        ...
+        number_of_crossval_splits=5,
+        cross_validation_metric_name
+)
+```
+ 
+ **TODO**: add description of cross val metrics aggregation here 
