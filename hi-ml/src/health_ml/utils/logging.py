@@ -173,7 +173,7 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
                            batch_idx: int, dataloader_idx: int) -> None:
-        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)  # type: ignore
         self.update_progress(batches_processed=self.train_batch_idx)
 
     def on_validation_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
