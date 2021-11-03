@@ -93,15 +93,13 @@ When running the tests locally, they can either be run against the source direct
 ## Creating a New Release
 
 To create a new package release, follow these steps:
-* Modify `CHANGELOG.md` as follows:
-  * Copy the whole section called "Upcoming", including its subsections for "Added/Removed/..." to a new section,
-  that has the desired package version and the current date as the title. For example, to release package version 
-  `0.12.17` on Oct 10th, that section would be called "0.12.17 (2021-10-21)". 
-  * In the section for the new release, remove any empty subsections if needed.
-  * Clean up all PR links from the "Upcoming" section, to effectively create an empty template for the next release.
-* Create a PR for this change. While creating the PR, add the "no changelog needed" label that exists on the repo.
-  *Important*: This label needs to be added right when the PR is created, not afterwards - the github workflows will
-  not pick it up if added afterwards. In the worst case, you can added the label afterwards, and push a whitespace
-  change to the PR.
-* Once the PR with the updated `CHANGELOG.md` is in, create a tag that has the desired version number, plus a "v" 
-  prefix. For example, to create package version 0.12.17, create a tag `v0.12.17`
+* Double-check that `CHANGELOG.md` is up-to-date: It should contain a section for the next package version with
+  subsections Added/Changed/...
+* On the repository's github page, click on "Releases", then "Draft a new release"
+* In the "Draft a new release" page, click "Choose a tag". In the text box, enter a (new) tag name that has 
+  the desired version number, plus a "v" prefix. For example, to create package version 0.12.17, create a 
+  tag `v0.12.17`. Then choose "+ Create new tag" below the text box.
+* Enter a "Release title" that highlights the main feature(s) of this new package version.
+* Click "Auto-generate  release notes" to pull in the titles of the Pull Requests since the last release.
+* Before the auto-generated "What's changed" section, add a few sentences that summarize what's new.
+* Click "Publish release"
