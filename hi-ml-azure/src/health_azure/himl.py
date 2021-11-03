@@ -376,7 +376,7 @@ def submit_to_azure_if_needed(  # type: ignore
     if not submit_to_azureml:
         # Set the environment variables for local execution.
         environment_variables = {
-            **DEFAULT_ENVIRONMENT_VARIABLES,
+            # **DEFAULT_ENVIRONMENT_VARIABLES,
             **(environment_variables or {})
         }
 

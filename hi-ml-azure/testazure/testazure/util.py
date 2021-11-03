@@ -132,7 +132,6 @@ def check_github_action_runner() -> bool:
     Check if hosted in a github action runner.
 
     See: https://docs.github.com/en/actions/learn-github-actions/environment-variables
-    :return: True if
+    :return: True if running in a github action runner, False otherwise.
     """
-    logging.info(f"check github_ref: {os.getenv('GITHUB_REF')}")
-    return os.getenv('GITHUB_REF', "false") == "true"
+    return False  # len(os.getenv('GITHUB_REF', "")) > 0
