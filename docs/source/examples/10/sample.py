@@ -62,27 +62,28 @@ def main() -> None:
     from sklearn.preprocessing import LabelBinarizer
 
     # Parent run should perform the dataset split for k-fold cv
-    x_splits_file = str(input_folder / "x_splits.csv")
-    y_splits_file = str(input_folder / "y_splits.csv")
+    train_splits_file = str(input_folder / "x_splits.csv")
+    test_splits_file = str(input_folder / "y_splits.csv")
 
     # if we aren't running inside a child run, create the dataset if it doesn't already exist
-    if args.cross_validation_split_index is None and not Path(x_splits_file).is_file():
+    if args.cross_validation_split_index is None and not Path(train_splits_file).is_file():
+        print("Creating splits")
         k_folds = KFold(n_splits=int(args.num_cross_validation_splits), shuffle=True, random_state=0)
         splits = np.array(list(k_folds.split(X)))
-        indices_x_splits, indices_y_splits = [], []
+        indices_train_splits, indices_test_splits = [], []
         for split in splits:
-            indices_x_splits.append(split[0])
-            indices_y_splits.append(split[1])
-        np.savetxt(x_splits_file, np.vstack(indices_x_splits), delimiter=",")
-        np.savetxt(y_splits_file, np.vstack(indices_y_splits), delimiter=",")
+            indices_train_splits.append(split[0])
+            indices_test_splits.append(split[1])
+        np.savetxt(train_splits_file, np.vstack(indices_train_splits), delimiter=",")
+        np.savetxt(test_splits_file, np.vstack(indices_test_splits), delimiter=",")
 
     else:
-        x_splits = np.loadtxt(fname=x_splits_file, delimiter=",").astype(int)
-        y_splits = np.loadtxt(fname=y_splits_file, delimiter=",").astype(int)
+        train_splits_indices = np.loadtxt(fname=train_splits_file, delimiter=",").astype(int)
+        test_splits_indices = np.loadtxt(fname=test_splits_file, delimiter=",").astype(int)
 
         fold = int(args.cross_validation_split_index)
-        fold_train_idx = x_splits[fold]
-        fold_test_idx = y_splits[fold]
+        fold_train_idx = train_splits_indices[fold]
+        fold_test_idx = test_splits_indices[fold]
 
         X_train, X_test = X[fold_train_idx], X[fold_test_idx]
         y_train, y_test = y[fold_train_idx], y[fold_test_idx]

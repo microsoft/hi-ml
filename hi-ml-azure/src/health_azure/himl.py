@@ -463,7 +463,7 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperdrive_config = create_crossval_hyperdrive_config(script_run_config, num_cross_validation_splits,
                                                               metric_name=cross_validation_metric_name)
         tags = {} if tags is None else tags
-        tags["num_cross_validation_splits"] = num_cross_validation_splits
+        tags["num_cross_validation_splits"] = str(num_cross_validation_splits)
 
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config

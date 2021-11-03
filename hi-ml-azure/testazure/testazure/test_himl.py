@@ -6,6 +6,7 @@
 Tests for hi-ml-azure.
 """
 import logging
+import numpy as np
 import os
 import pathlib
 import shutil
@@ -26,6 +27,7 @@ from azureml.core import RunConfiguration, ScriptRunConfig, Workspace, Environme
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
+from sklearn import datasets
 
 import health_azure.himl as himl
 from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
@@ -523,7 +525,8 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool = False) -> str:
+                               suppress_config_creation: bool = False,
+                               hyperdrive: bool = False) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -533,6 +536,7 @@ def render_and_run_test_script(path: Path,
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
+    :param hyperdrive: Whether this is a HyperDrive run (in which case the logs will differ)
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml-azure package version, if specified in an environment variable.
@@ -609,6 +613,7 @@ def render_and_run_test_script(path: Path,
         assert EXPECTED_QUEUED not in captured
         return captured
     else:
+        expected_log_file = "hyperdrive.txt" if hyperdrive else "70_driver_log.txt"
         assert EXPECTED_QUEUED in captured
         with check_config_json(path):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
@@ -619,7 +624,7 @@ def render_and_run_test_script(path: Path,
         log_root = path / "logs"
         log_root.mkdir(exist_ok=False)
         run.get_all_logs(destination=log_root)
-        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+        driver_log = log_root / "azureml-logs" / expected_log_file
         log_text = driver_log.read_text()
         return log_text
 
@@ -920,6 +925,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
+
 # endregion Elevate to AzureML unit tests
 
 
@@ -970,3 +976,115 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
                         cross_validation_metric_name=cross_validation_metric_name)
                     mock_submit_run.assert_called_once()
                     mock_hyperdrive_config.assert_called_once()
+
+
+def test_submit_to_azure_hyperdrive_remote(tmp_path: Path):
+    from sklearn.model_selection import KFold
+
+    # First create the data locally (this will be removed after the test)
+    iris = datasets.load_iris()
+    X = iris.data[:, :2]  # we only take the first two features.
+    y = iris.target
+    test_data_folder = Path(__file__).parent.parent.parent / "src" / "health_azure" / "test_data"
+    test_data_folder.mkdir(exist_ok=False)
+
+    iris_data_filename = "iris_data.csv"
+    iris_targets_filename = "iris_targets.csv"
+    X_csv = test_data_folder / iris_data_filename
+    np.savetxt(X_csv, X, delimiter=',')
+    y_csv = test_data_folder / iris_targets_filename
+    np.savetxt(y_csv, y, delimiter=',')
+
+    # Save the data split indices
+    iris_data_splits_filename = "iris_data_splits.csv"
+    iris_targets_splits_filename = "iris_targets_splits.csv"
+    X = np.loadtxt(fname=test_data_folder / iris_data_filename, delimiter=',').astype(float)
+    x_splits_file = str(test_data_folder / iris_data_splits_filename)
+    y_splits_file = str(test_data_folder / iris_targets_splits_filename)
+
+    num_cross_validation_splits = 2
+    if not Path(x_splits_file).is_file():
+        print("Creating splits")
+        k_folds = KFold(n_splits=int(num_cross_validation_splits), shuffle=True, random_state=0)
+        splits = np.array(list(k_folds.split(X)))
+        indices_x_splits, indices_y_splits = [], []
+        for split in splits:
+            indices_x_splits.append(split[0])
+            indices_y_splits.append(split[1])
+        np.savetxt(x_splits_file, np.vstack(indices_x_splits), delimiter=",")
+        np.savetxt(y_splits_file, np.vstack(indices_y_splits), delimiter=",")
+
+    extra_options = {
+        "conda_dependencies": ["scikit-learn"],
+        "num_cross_validation_splits": 2,
+        "imports": """
+import numpy as np
+from azureml.core.run import Run
+        """,
+        "args": """
+    parser.add_argument('--kernel', type=str, default='linear',
+                   help='Kernel type to be used in the algorithm')
+    parser.add_argument('--penalty', type=float, default=1.0,
+                   help='Penalty parameter of the error term')
+    parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
+                                                          "run represents in k-fold cross-validation")
+    parser.add_argument("--num_cross_validation_splits", help="The total number of splits being used for k-fold"
+                                                         "cross validation")
+        """,
+        "body": """
+    
+    print(f"Current directory: {Path.cwd()}")
+    print(os.listdir("./"))
+    
+    if run_info.run is None:
+        raise ValueError("run_info.run is None")
+    run: Run = run_info.run
+    
+    test_data_folder = Path(__file__).parent / "health_azure"/ "test_data"
+
+    # training a linear SVM classifier
+    from sklearn.svm import SVC
+    from sklearn.metrics import log_loss
+    from sklearn.preprocessing import LabelBinarizer
+    
+    # Parent run should perform the dataset split for k-fold cv
+    train_splits_file = str(test_data_folder / "iris_data_splits.csv")
+    test_splits_file = str(test_data_folder / "iris_targets_splits.csv")
+
+    if args.cross_validation_split_index is not None:
+        train_splits = np.loadtxt(fname=train_splits_file, delimiter=",").astype(int)
+        test_splits = np.loadtxt(fname=test_splits_file, delimiter=",").astype(int)
+        
+        fold = int(args.cross_validation_split_index)
+        fold_train_idx = train_splits[fold]
+        fold_test_idx = test_splits[fold]
+        
+        X = np.loadtxt(fname=test_data_folder / "iris_data.csv", delimiter=',').astype(float)
+        y = np.loadtxt(fname=test_data_folder / "iris_targets.csv", delimiter=',').astype(float)
+         
+        X_train, X_test = X[fold_train_idx], X[fold_test_idx]
+        y_train, y_test = y[fold_train_idx], y[fold_test_idx]
+        
+        svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
+        svm_predictions = svm_model_linear.predict(X_test)
+        lb = LabelBinarizer()
+        y_pred = lb.fit_transform(svm_predictions)
+        
+        # model accuracy for X_test
+        loss = log_loss(y_test, y_pred)
+        
+        print(f"Loss for fold {fold}: {loss}")
+        # log val/loss
+        run.log('val/loss', loss)"""}
+
+    ws = DEFAULT_WORKSPACE.workspace
+    extra_args = ["--azureml"]
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, expected_pass=True,
+                               hyperdrive=True)
+
+    run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
+                              workspace=ws)
+    shutil.rmtree(test_data_folder)
+
+    assert run.status == "Completed"
+
