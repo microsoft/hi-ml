@@ -129,7 +129,7 @@ class DatasetConfig:
             return Path(self.local_folder), None
 
         if workspace is None:
-            status += "'None' - neither local_folder or workspace available"
+            status += "'None' - neither local_folder nor workspace available"
             logging.info(status)
             return None, None
 
@@ -148,7 +148,6 @@ class DatasetConfig:
             result = Path(target_path), mount_context
         else:
             status += "downloaded to "
-            Path(target_path).mkdir(parents=True, exist_ok=True)
             azureml_dataset.download(target_path=target_path, overwrite=False)
             result = Path(target_path), None
         if local_path:
@@ -238,6 +237,20 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
 def setup_local_datasets(aml_workspace: Optional[Workspace],
                          workspace_config_path: Optional[Path],
                          dataset_configs: List[DatasetConfig]) -> Tuple[List[Optional[Path]], List[MountContext]]:
+    """
+    When running outside of AzureML, setup datasets to be used locally.
+
+    For each DatasetConfig, if local_folder is supplied, then this is assumed to be a local dataset, and this is
+    used. Otherwise the dataset is mounted or downloaded to either the target folder or a temporary folder and that is
+    used.
+
+    :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
+        to pass it in as a parameter.
+    :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
+        Azure portal from which we can retrieve the existing Workspace.
+    :param dataset_configs: List of DatasetConfig describing the input datasets.
+    :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
+    """
     workspace: Workspace = None
 
     # Check whether an attempt will be made to mount or download a dataset when running locally.

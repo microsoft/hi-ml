@@ -41,7 +41,7 @@ conda: conda_update call_pip_local
 
 # clean build artifacts
 clean:
-	rm -vrf ./.mypy_cache ./.pytest_cache ./coverage ./logs ./outouts
+	rm -vrf ./.mypy_cache ./.pytest_cache ./coverage ./logs ./outputs
 	rm -vf ./coverage.txt ./coverage.xml ./most_recent_run.txt
 	$(call call_packages,clean)
 

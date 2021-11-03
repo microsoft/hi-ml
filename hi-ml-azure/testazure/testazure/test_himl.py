@@ -768,11 +768,6 @@ def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
     return dummy_txt_file_contents
 
 
-def log_and_print(s: str) -> None:
-    logging.info(s)
-    print(s)
-
-
 @pytest.mark.fast
 @pytest.mark.timeout(300)
 def test_mounting_dataset(tmp_path: Path) -> None:
@@ -781,52 +776,52 @@ def test_mounting_dataset(tmp_path: Path) -> None:
         # requires interactive authentication.
         return
 
-    log_and_print("creating config.json")
+    logging.info("creating config.json")
     with check_config_json(tmp_path):
-        log_and_print("get_workspace")
+        logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        log_and_print("Dataset.get_by_name")
+        logging.info("Dataset.get_by_name")
         dataset = Dataset.get_by_name(workspace, name='panda')
         subfolder = "train_images"
         target_path = tmp_path / "test_mount" / "panda"
         target_path.mkdir(parents=True)
         existing_mounted = os.listdir(target_path)
         assert len(existing_mounted) == 0
-        log_and_print("ready to mount")
+        logging.info("ready to mount")
         with dataset.mount(str(target_path)) as mount_context:
             mount_point = Path(mount_context.mount_point)
-            log_and_print("mount done, run listdir")
+            logging.info("mount done, run listdir")
             mounted = os.listdir(mount_point)
-            log_and_print(f"mounted: {mounted}")
+            logging.info(f"mounted: {mounted}")
             assert len(mounted) > 1
             for image_file in (mount_point / subfolder).glob("*.tiff"):
-                log_and_print(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
 
 
 @pytest.mark.fast
 @pytest.mark.timeout(60)
 def test_downloading_dataset(tmp_path: Path) -> None:
-    log_and_print("creating config.json")
+    logging.info("creating config.json")
     with check_config_json(tmp_path):
-        log_and_print("get_workspace")
+        logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        log_and_print("Dataset.get_by_name")
+        logging.info("Dataset.get_by_name")
         dataset = Dataset.get_by_name(workspace, name='panda')
         subfolder = "train_images"
-        target_path = tmp_path / "test_mount" / "panda"
+        target_path = tmp_path / "test_download" / "panda"
         target_path.mkdir(parents=True)
         existing_downloaded = os.listdir(target_path)
         assert len(existing_downloaded) == 0
-        log_and_print("ready to download")
+        logging.info("ready to download")
         dataset.download(target_path=str(target_path), overwrite=False)
-        log_and_print("download done, run listdir")
+        logging.info("download done, run listdir")
         downloaded = os.listdir(target_path)
-        log_and_print(f"downloaded: {downloaded}")
+        logging.info(f"downloaded: {downloaded}")
         assert len(downloaded) > 1
         for image_file in (target_path / subfolder).glob("*.tiff"):
-            log_and_print(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
 
 
 @dataclass

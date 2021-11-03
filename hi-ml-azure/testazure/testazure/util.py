@@ -134,4 +134,5 @@ def check_github_action_runner() -> bool:
     See: https://docs.github.com/en/actions/learn-github-actions/environment-variables
     :return: True if
     """
+    logging.info(f"check github_ref: {os.getenv('GITHUB_REF')}")
     return os.getenv('GITHUB_REF', "false") == "true"
