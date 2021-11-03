@@ -978,7 +978,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
                     mock_hyperdrive_config.assert_called_once()
 
 
-def test_submit_to_azure_hyperdrive_remote(tmp_path: Path):
+def test_submit_to_azure_hyperdrive_remote(tmp_path: Path) -> None:
     from sklearn.model_selection import KFold
 
     # First create the data locally (this will be removed after the test)
@@ -1032,21 +1032,20 @@ from azureml.core.run import Run
                                                          "cross validation")
         """,
         "body": """
-    
     print(f"Current directory: {Path.cwd()}")
     print(os.listdir("./"))
-    
+
     if run_info.run is None:
         raise ValueError("run_info.run is None")
     run: Run = run_info.run
-    
+
     test_data_folder = Path(__file__).parent / "health_azure"/ "test_data"
 
     # training a linear SVM classifier
     from sklearn.svm import SVC
     from sklearn.metrics import log_loss
     from sklearn.preprocessing import LabelBinarizer
-    
+
     # Parent run should perform the dataset split for k-fold cv
     train_splits_file = str(test_data_folder / "iris_data_splits.csv")
     test_splits_file = str(test_data_folder / "iris_targets_splits.csv")
@@ -1054,25 +1053,25 @@ from azureml.core.run import Run
     if args.cross_validation_split_index is not None:
         train_splits = np.loadtxt(fname=train_splits_file, delimiter=",").astype(int)
         test_splits = np.loadtxt(fname=test_splits_file, delimiter=",").astype(int)
-        
+
         fold = int(args.cross_validation_split_index)
         fold_train_idx = train_splits[fold]
         fold_test_idx = test_splits[fold]
-        
+
         X = np.loadtxt(fname=test_data_folder / "iris_data.csv", delimiter=',').astype(float)
         y = np.loadtxt(fname=test_data_folder / "iris_targets.csv", delimiter=',').astype(float)
-         
+
         X_train, X_test = X[fold_train_idx], X[fold_test_idx]
         y_train, y_test = y[fold_train_idx], y[fold_test_idx]
-        
+
         svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
         svm_predictions = svm_model_linear.predict(X_test)
         lb = LabelBinarizer()
         y_pred = lb.fit_transform(svm_predictions)
-        
+
         # model accuracy for X_test
         loss = log_loss(y_test, y_pred)
-        
+
         print(f"Loss for fold {fold}: {loss}")
         # log val/loss
         run.log('val/loss', loss)"""}
@@ -1087,4 +1086,3 @@ from azureml.core.run import Run
     shutil.rmtree(test_data_folder)
 
     assert run.status == "Completed"
-
