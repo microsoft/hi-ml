@@ -32,7 +32,8 @@ from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dat
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
                                 get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
+from testazure.util import (DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root,
+                            check_github_action_runner)
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -775,6 +776,11 @@ def log_and_print(s: str) -> None:
 @pytest.mark.fast
 @pytest.mark.timeout(300)
 def test_mounting_dataset(tmp_path: Path) -> None:
+    if check_github_action_runner():
+        # Mounting in the context of a github action runner is not currently supported because it
+        # requires interactive authentication.
+        return
+
     log_and_print("creating config.json")
     with check_config_json(tmp_path):
         log_and_print("get_workspace")
@@ -932,6 +938,10 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
         for output_dataset in output_datasets]
     script_output_datasets = ',\n        '.join(output_file_names)
 
+    # Mounting in the context of a github action runner is not currently supported because it
+    # requires interactive authentication.
+    use_mounting = "False" if check_github_action_runner() else "True"
+
     extra_options: Dict[str, str] = {
         'prequel': """
     target_folders = ["foo", "bar"]
@@ -947,11 +957,11 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
                           target_folder=target_folders[0]{input_datasets[2].local_folder}),
             DatasetConfig(name="{input_datasets[3].blob_name}",
                           datastore="{DEFAULT_DATASTORE}",
-                          use_mounting=True{input_datasets[3].local_folder}),
+                          use_mounting={use_mounting}{input_datasets[3].local_folder}),
             DatasetConfig(name="{input_datasets[4].blob_name}",
                           datastore="{DEFAULT_DATASTORE}",
                           target_folder=target_folders[1],
-                          use_mounting=True{input_datasets[4].local_folder}),
+                          use_mounting={use_mounting}{input_datasets[4].local_folder}),
         ]""",
         'output_datasets': f"""[
             "{output_datasets[0].blob_name}",

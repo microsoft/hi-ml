@@ -17,7 +17,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
@@ -30,9 +30,9 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString)
+                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
-                                   _replace_string_datasets)
+                                   _replace_string_datasets, setup_local_datasets)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -375,9 +375,13 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
         # Set the environment variables for local execution.
-        if environment_variables is not None:
-            for k, v in environment_variables.items():
-                os.environ[k] = v
+        environment_variables = {
+            **DEFAULT_ENVIRONMENT_VARIABLES,
+            **(environment_variables or {})
+        }
+
+        for k, v in environment_variables.items():
+            os.environ[k] = v
 
         output_folder = Path.cwd() / OUTPUT_FOLDER
         output_folder.mkdir(exist_ok=True)
@@ -385,27 +389,9 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
-        try:
-            print(f"Looking for workspace for datasets at: {aml_workspace} / {workspace_config_path}")
-            workspace = get_workspace(aml_workspace, workspace_config_path)
-            print(f"Found workspace for datasets: {workspace.name}")
-        except Exception:
-            print("Could not find workspace for datasets")
-            workspace = None
-
-        inputs = [d.to_input_dataset_local(workspace) for d in cleaned_input_datasets]
-
-        def item_or_none(x: Optional[Tuple[Path, Any]]) -> Optional[Path]:
-            return x[0] if x is not None else None
-
-        mounted_input_datasets: List[Optional[Path]] = [item_or_none(input) for input in inputs]
-        mount_contexts: List[MountContext] = []
-        for input in inputs:
-            if input is not None:
-                mc: MountContext = input[1]
-                if mc is not None:
-                    mc.start()
-                    mount_contexts.append(mc)
+        mounted_input_datasets, mount_contexts = setup_local_datasets(aml_workspace,
+                                                                      workspace_config_path,
+                                                                      cleaned_input_datasets)
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,

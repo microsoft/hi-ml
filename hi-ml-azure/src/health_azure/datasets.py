@@ -12,7 +12,7 @@ from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import PathOrString
+from health_azure.utils import PathOrString, get_workspace
 
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
@@ -48,10 +48,8 @@ def get_or_create_dataset(workspace: Workspace, datastore_name: str, dataset_nam
         raise ValueError("No dataset name provided.")
     try:
         logging.info(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
-        print(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
         azureml_dataset = Dataset.get_by_name(workspace, name=dataset_name)
         logging.info("Dataset found.")
-        print("Dataset found.")
     except Exception:
         logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
         datastore = get_datastore(workspace, datastore_name)
@@ -113,29 +111,27 @@ class DatasetConfig:
         self.target_folder = target_folder
         self.local_folder = local_folder
 
-    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Optional[Tuple[Path, Optional[MountContext]]]:
+    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Optional[Path], Optional[MountContext]]:
         """
         Return a local path to the dataset when outside of an AzureML run.
-        If local_folder is supplied, then this is
-        assumed to be a local dataset, and this is returned.
-        Otherwise the dataset is mounted or downloaded to the target folder and that is returned.
+        If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
+        Otherwise the dataset is mounted or downloaded to either the target folder or a temporary folder and that is
+        returned.
 
         :param workspace: The AzureML workspace to read from.
-        :return: Pair of path to dataset and optional mountcontext.
+        :return: Pair of optional path to dataset and optional mountcontext.
         """
         status = f"Dataset {self.name} will be "
 
         if self.local_folder is not None:
             status += f"obtained from local folder {self.local_folder}"
             logging.info(status)
-            print(status)
             return Path(self.local_folder), None
 
         if workspace is None:
             status += "'None' - neither local_folder or workspace available"
             logging.info(status)
-            print(status)
-            return None
+            return None, None
 
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
@@ -160,7 +156,6 @@ class DatasetConfig:
         else:
             status += f"a randomly chosen folder: {target_path}."
         logging.info(status)
-        print(status)
         return result
 
     def to_input_dataset(self,
@@ -238,3 +233,32 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
     """
     return [DatasetConfig(name=d, datastore=default_datastore_name) if isinstance(d, str) else d
             for d in datasets]
+
+
+def setup_local_datasets(aml_workspace: Optional[Workspace],
+                         workspace_config_path: Optional[Path],
+                         dataset_configs: List[DatasetConfig]) -> Tuple[List[Optional[Path]], List[MountContext]]:
+    workspace: Workspace = None
+
+    # Check whether an attempt will be made to mount or download a dataset when running locally.
+    # If so, try to get the AzureML workspace.
+    if any(dc.local_folder is None for dc in dataset_configs):
+        try:
+            workspace = get_workspace(aml_workspace, workspace_config_path)
+            logging.info(f"Found workspace for datasets: {workspace.name}")
+        except Exception:
+            logging.info("Could not find workspace for datasets.")
+
+    mounted_input_datasets: List[Optional[Path]] = []
+    mount_contexts: List[MountContext] = []
+
+    for d in dataset_configs:
+        target_path, mount_context = d.to_input_dataset_local(workspace)
+
+        mounted_input_datasets.append(target_path)
+
+        if mount_context is not None:
+            mount_context.start()
+            mount_contexts.append(mount_context)
+
+    return mounted_input_datasets, mount_contexts
