@@ -171,24 +171,20 @@ class AzureMLProgressBar(ProgressBarBase):
         self.total_num_batches = total_num_batches
         self.stage_start_time = time.time()
 
-    def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
-                           batch_idx: int, dataloader_idx: int) -> None:
-        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)  # type: ignore
+    def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
+        super().on_train_batch_end(*args, **kwargs)
         self.update_progress(batches_processed=self.train_batch_idx)
 
-    def on_validation_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
-                                batch_idx: int, dataloader_idx: int) -> None:
-        super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+    def on_validation_batch_end(self, *args: Any, **kwargs: Any) -> None:
+        super().on_validation_batch_end(*args, **kwargs)
         self.update_progress(batches_processed=self.val_batch_idx)
 
-    def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
-                          batch_idx: int, dataloader_idx: int) -> None:
-        super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+    def on_test_batch_end(self, *args: Any, **kwargs: Any) -> None:
+        super().on_test_batch_end(*args, **kwargs)
         self.update_progress(batches_processed=self.test_batch_idx)
 
-    def on_predict_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
-                             batch_idx: int, dataloader_idx: int) -> None:
-        super().on_predict_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+    def on_predict_batch_end(self, *args: Any, **kwargs: Any) -> None:
+        super().on_predict_batch_end(*args, **kwargs)
         self.update_progress(batches_processed=self.predict_batch_idx)
 
     def update_progress(self, batches_processed: int) -> None:
