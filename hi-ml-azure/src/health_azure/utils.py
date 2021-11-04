@@ -1270,6 +1270,8 @@ def aggregate_hyperdrive_metrics(run_id: str, workspace: Workspace) -> pd.DataFr
     | accuracy     | [0.7, 0.8, 0.9] | [0.71, 0.82, 0.91] |
     | loss         | [0.5, 0.4, 0.3] | [0.45, 0.37, 0.29] |
 
+    here each column is one of the splits/ child runs, and each row is one of the metrics you have logged to the run.
+
     It is possible to log rows and tables in Azure ML by calling run.log_table and run.log_row respectively.
     In this case, the DataFrame will contain a Dictionary entry instead of a list, where the keys are the
     table columns (or keywords provided to log_row), and the values are the table values. e.g.

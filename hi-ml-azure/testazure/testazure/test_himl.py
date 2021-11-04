@@ -6,7 +6,6 @@
 Tests for hi-ml-azure.
 """
 import logging
-import numpy as np
 import os
 import pathlib
 import shutil
@@ -27,15 +26,13 @@ from azureml.core import RunConfiguration, ScriptRunConfig, Workspace, Environme
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
-from sklearn import datasets
 
 import health_azure.himl as himl
-from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
+from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore)
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
-                                get_workspace, is_running_in_azure_ml, get_latest_aml_runs_from_experiment)
+                                get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root, \
-    DEFAULT_WORKSPACE
+from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -934,23 +931,27 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 @pytest.mark.fast
 # Azure ML expects run_config to be instance of ScriptRunConfig
 @patch("azureml.train.hyperdrive.runconfig.isinstance", return_value=True)
-@pytest.mark.parametrize("num_crossval_splits, metric_name", [
-    (-1, "val/loss"), (0, "loss"), (1, "val/acc"), (5, "accuracy")
+@pytest.mark.parametrize("num_crossval_splits, metric_name, cross_val_split_name", [
+    (-1, "val/loss", "cross_validation_split_index"),
+    (0, "loss", "cross_validation_split_index"),
+    (1, "val/acc", "split"),
+    (5, "accuracy", "data_split")
 ])
-def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: int, metric_name: str) -> None:
-    with patch("azureml.core.ScriptRunConfig") as mock_script_run_config:
-        if num_crossval_splits < 1:
-            with pytest.raises(Exception):
-                himl.create_crossval_hyperdrive_config(mock_script_run_config,
-                                                       num_cross_validation_splits=num_crossval_splits)
-        else:
-            crossval_config = himl.create_crossval_hyperdrive_config(mock_script_run_config,
-                                                                     num_cross_validation_splits=num_crossval_splits,
-                                                                     metric_name=metric_name)
-            assert isinstance(crossval_config, HyperDriveConfig)
-            assert crossval_config._primary_metric_config.get("name") == metric_name
-            assert crossval_config._primary_metric_config.get("goal") == "minimize"
-            assert crossval_config._max_total_runs == num_crossval_splits
+def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: int, metric_name: str,
+                                           cross_val_split_name: str) -> None:
+    if num_crossval_splits < 1:
+        with pytest.raises(Exception):
+            himl.create_crossval_hyperdrive_config(num_cross_validation_splits=num_crossval_splits,
+                                                   cross_val_split_name=cross_val_split_name,
+                                                   metric_name=metric_name)
+    else:
+        crossval_config = himl.create_crossval_hyperdrive_config(num_cross_validation_splits=num_crossval_splits,
+                                                                 cross_val_split_name=cross_val_split_name,
+                                                                 metric_name=metric_name)
+        assert isinstance(crossval_config, HyperDriveConfig)
+        assert crossval_config._primary_metric_config.get("name") == metric_name
+        assert crossval_config._primary_metric_config.get("goal") == "minimize"
+        assert crossval_config._max_total_runs == num_crossval_splits
 
 
 @pytest.mark.fast
@@ -969,122 +970,16 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
             mock_workspace.compute_targets = ["foo", "bar"]
             with patch("health_azure.himl.submit_run") as mock_submit_run:
                 with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
+                    crossval_config = himl.create_crossval_hyperdrive_config(
+                        num_cross_validation_splits=2,
+                        cross_val_split_name="cross_val_split_index",
+                        metric_name=cross_validation_metric_name)
                     himl.submit_to_azure_if_needed(
                         aml_workspace=mock_workspace,
                         entry_script=Path(__file__),
                         compute_cluster_name="foo",
                         aml_environment_name="dummy_env",
                         submit_to_azureml=True,
-                        num_cross_validation_splits=5,
-                        cross_validation_metric_name=cross_validation_metric_name)
+                        hyperdrive_config=crossval_config)
                     mock_submit_run.assert_called_once()
                     mock_hyperdrive_config.assert_called_once()
-
-
-def test_submit_to_azure_hyperdrive_remote(tmp_path: Path) -> None:
-    from sklearn.model_selection import KFold
-
-    # First create the data locally (this will be removed after the test)
-    iris = datasets.load_iris()
-    X = iris.data[:, :2]  # we only take the first two features.
-    y = iris.target
-    test_data_folder = Path(__file__).parent.parent.parent / "src" / "health_azure" / "test_data"
-    test_data_folder.mkdir(exist_ok=False)
-
-    iris_data_filename = "iris_data.csv"
-    iris_targets_filename = "iris_targets.csv"
-    X_csv = test_data_folder / iris_data_filename
-    np.savetxt(X_csv, X, delimiter=',')
-    y_csv = test_data_folder / iris_targets_filename
-    np.savetxt(y_csv, y, delimiter=',')
-
-    # Save the data split indices
-    iris_data_splits_filename = "iris_data_splits.csv"
-    iris_targets_splits_filename = "iris_targets_splits.csv"
-    X = np.loadtxt(fname=test_data_folder / iris_data_filename, delimiter=',').astype(float)
-    x_splits_file = str(test_data_folder / iris_data_splits_filename)
-    y_splits_file = str(test_data_folder / iris_targets_splits_filename)
-
-    num_cross_validation_splits = 2
-    if not Path(x_splits_file).is_file():
-        print("Creating splits")
-        k_folds = KFold(n_splits=int(num_cross_validation_splits), shuffle=True, random_state=0)
-        splits = np.array(list(k_folds.split(X)))
-        indices_x_splits, indices_y_splits = [], []
-        for split in splits:
-            indices_x_splits.append(split[0])
-            indices_y_splits.append(split[1])
-        np.savetxt(x_splits_file, np.vstack(indices_x_splits), delimiter=",")
-        np.savetxt(y_splits_file, np.vstack(indices_y_splits), delimiter=",")
-
-    extra_options = {
-        "conda_dependencies": ["scikit-learn"],
-        "num_cross_validation_splits": 2,
-        "imports": """
-import numpy as np
-from azureml.core.run import Run
-        """,
-        "args": """
-    parser.add_argument('--kernel', type=str, default='linear',
-                   help='Kernel type to be used in the algorithm')
-    parser.add_argument('--penalty', type=float, default=1.0,
-                   help='Penalty parameter of the error term')
-    parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
-                                                          "run represents in k-fold cross-validation")
-    parser.add_argument("--num_cross_validation_splits", help="The total number of splits being used for k-fold"
-                                                         "cross validation")
-        """,
-        "body": """
-    print(f"Current directory: {Path.cwd()}")
-    print(os.listdir("./"))
-
-    if run_info.run is None:
-        raise ValueError("run_info.run is None")
-    run: Run = run_info.run
-
-    test_data_folder = Path(__file__).parent / "health_azure"/ "test_data"
-
-    # training a linear SVM classifier
-    from sklearn.svm import SVC
-    from sklearn.metrics import log_loss
-    from sklearn.preprocessing import LabelBinarizer
-
-    # Parent run should perform the dataset split for k-fold cv
-    train_splits_file = str(test_data_folder / "iris_data_splits.csv")
-    test_splits_file = str(test_data_folder / "iris_targets_splits.csv")
-
-    if args.cross_validation_split_index is not None:
-        train_splits = np.loadtxt(fname=train_splits_file, delimiter=",").astype(int)
-        test_splits = np.loadtxt(fname=test_splits_file, delimiter=",").astype(int)
-
-        fold = int(args.cross_validation_split_index)
-        fold_train_idx = train_splits[fold]
-        fold_test_idx = test_splits[fold]
-
-        X = np.loadtxt(fname=test_data_folder / "iris_data.csv", delimiter=',').astype(float)
-        y = np.loadtxt(fname=test_data_folder / "iris_targets.csv", delimiter=',').astype(float)
-
-        X_train, X_test = X[fold_train_idx], X[fold_test_idx]
-        y_train, y_test = y[fold_train_idx], y[fold_test_idx]
-
-        svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
-        svm_predictions = svm_model_linear.predict(X_test)
-        lb = LabelBinarizer()
-        y_pred = lb.fit_transform(svm_predictions)
-
-        # model accuracy for X_test
-        loss = log_loss(y_test, y_pred)
-
-        print(f"Loss for fold {fold}: {loss}")
-        # log val/loss
-        run.log('val/loss', loss)"""}
-
-    ws = DEFAULT_WORKSPACE.workspace
-    extra_args = ["--azureml"]
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, expected_pass=True,
-                               hyperdrive=True)
-    run = get_latest_aml_runs_from_experiment("test_script", aml_workspace=ws)[0]
-
-    shutil.rmtree(test_data_folder)
-
-    assert run.status == "Completed"

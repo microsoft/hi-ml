@@ -276,37 +276,85 @@ flag, coming out of your own argument parser, use the `submit_to_azureml` argume
 `health.azure.himl.submit_to_azure_if_needed`. 
 
 ## Training with k-fold cross validation in Azure ML
-The example [sample 10](examples/10/sample.rst) demonstrates how to enable cross validation, by specifying the number
-of splits required.  If this number is > 1, a parent run is instantiated, with a number of child runs equalling the
-specified splits. For example,
-```python
- run_info = submit_to_azure_if_needed(
-        ...
-        number_of_crossval_splits=5
-)
-```
- this would create a parent (HyperDrive) Run, with 5 children - each one associated with a different data split.
- 
- **NOTE** the ensuing parent run will expect to find the metric "val/loss" logged by each of its associated child runs,
- [as described here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning),
- therefore, ensure that you include the following lines in your training script:
- 
- ```python
-from azureml.core import Run
+To train with k-fold cross validation, you must do two things.
 
-# Assumes you have a variable called my_metric
-run_log = Run.get_context()
-run_log.log("val/loss", loss)
-```
+1. Call the helper function `create_crossval_hyperdrive_config`
+to create an AML HyperDriveConfig object representing your parent run. It will have one child run for each of the k-fold
+splits you request, as follows
+    
+    ```python
+    from health_azure import create_crossval_hyperdrive_config
+    
+     hyperdrive_config = create_crossval_hyperdrive_config(num_cross_validation_splits,
+                                                           cross_val_split_name=cross_val_split_name,
+                                                           metric_name=metric_name)
+    ```
+    where:
+    - `num_cross_validation_splits` is the number of k-fold cross validation splits you require
+    - `cross_val_split_name` is the name of the argument given to each child run, whose value denotes which split that child represents (this parameter
+    defaults to 'cross_validation_split_index', in which case, supposing you specified 2 cross validation splits, one would 
+    receive the arguments ['cross_validation_split_index' '0'] and the other would receive ['cross_validation_split_index' '1']].
+    It is up to you to then use these args to retrieve the correct split from your data.
+    - `metrics_name` represents the name of a metric that you will compare your child runs by. **NOTE** the
+    run will expect to find this metric, otherwise it will fail [as described here](
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning
+    )
+    You can log this metric in your training script as follows:
+     ```python
+    from azureml.core import Run
+    
+    # Example of logging a metric called <metric_name> to an AML Run.
+    loss = <my_loss_calc>
+    run_log = Run.get_context()
+    run_log.log(metric_name, loss)
+    ```
+   See the [documentation here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-log-view-metrics) for
+   further explanation.
 
-If you wish to use an alternative metric, alter the above snippet to suit your needs, and also edit your call to
-`submit_to_azure_if_needed` as follows:
+2. The hyperdrive_config returned above must be passed into the function `submit_to_azure_if_needed` as follows:
+    
+    ```python
+     run_info = submit_to_azure_if_needed(
+            ...
+            hyperdrive_config=hyperdrive_config
+    )
+    ```
+    This will create a parent (HyperDrive) Run, with `num_cross_validation_split` children - each one associated with a different data split.
+
+## Retrieving the aggregated results of a cross validation/ HyperDrive run
+
+You can retrieve a Pandas DataFrame of the aggregated results from your cross validation run as follows: 
+
 ```python
- run_info = submit_to_azure_if_needed(
-        ...
-        number_of_crossval_splits=5,
-        cross_validation_metric_name
-)
+from health_azure import utils
+
+df = utils.aggregate_hyperdrive_metrics(run.id, workspace)
 ```
+where `run` **must** be an instance of an AML HyperDriveRun, and workspace is an AML Workspace object (see
+ `health_azure.get_workspace` for how to retrieve this).
+
+If your HyperDrive run has 2 children, each logging the metrics epoch, accuracy and loss, the result would look like this:
+    
+    |              | 0               | 1                  |
+    |--------------|-----------------|--------------------|
+    | epoch        | [1, 2, 3]       | [1, 2, 3]          |
+    | accuracy     | [0.7, 0.8, 0.9] | [0.71, 0.82, 0.91] |
+    | loss         | [0.5, 0.4, 0.3] | [0.45, 0.37, 0.29] |
  
- **TODO**: add description of cross val metrics aggregation here 
+ here each column is one of the splits/ child runs, and each row is one of the metrics you have logged to the run.   
+    
+It is possible to log rows and tables in Azure ML by calling run.log_table and run.log_row respectively.
+In this case, the DataFrame will contain a Dictionary entry instead of a list, where the keys are the
+table columns (or keywords provided to log_row), and the values are the table values. e.g.
+
+    |                | 0                                        | 1                                         |
+    |----------------|------------------------------------------|-------------------------------------------|
+    | accuracy_table |{'epoch': [1, 2], 'accuracy': [0.7, 0.8]} | {'epoch': [1, 2], 'accuracy': [0.8, 0.9]} |
+
+It is also posisble to log plots in Azure ML by calling run.log_image and passing in a matplotlib plot. In
+this case, the DataFrame will contain a string representing the path to the artifact that is generated by AML
+(the saved plot in the Logs & Outputs pane of your run on the AML portal). E.g.
+
+    |                | 0                                       | 1                                     |
+    |----------------|-----------------------------------------|---------------------------------------|
+    | accuracy_plot  | aml://artifactId/ExperimentRun/dcid.... | aml://artifactId/ExperimentRun/dcid...|

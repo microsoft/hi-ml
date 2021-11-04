@@ -105,10 +105,10 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['output_datasets'] = 'None'
     default_options['wait_for_completion'] = 'True'
     default_options['wait_for_completion_show_output'] = 'True'
-    default_options['num_cross_validation_splits'] = '1'
     default_options['args'] = ''
     default_options['body'] = ''
     default_options['imports'] = ''
+    default_options["tags"] = '{}'
 
     all_options = dict(default_options, **extra_options)
 

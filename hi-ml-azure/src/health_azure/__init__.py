@@ -9,7 +9,7 @@ from health_azure.utils import (download_checkpoints_from_run_id, download_files
                                 upload_to_datastore, RUN_CONTEXT)
 from health_azure.datasets import DatasetConfig
 from health_azure.himl import (AzureRunInfo, create_run_configuration, create_script_run, get_workspace, submit_run,
-                               submit_to_azure_if_needed)
+                               submit_to_azure_if_needed, create_crossval_hyperdrive_config)
 
 __all__ = [
     "AzureRunInfo",
@@ -30,4 +30,5 @@ __all__ = [
     "submit_to_azure_if_needed",
     "torch_barrier",
     "upload_to_datastore",
+    "create_crossval_hyperdrive_config"
 ]

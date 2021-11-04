@@ -1,2 +1,2 @@
 .. literalinclude:: sample.py
-   :emphasize-lines: 28, 62
+   :emphasize-lines: 31, 101

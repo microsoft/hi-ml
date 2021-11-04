@@ -166,16 +166,16 @@ def create_run_configuration(workspace: Workspace,
     return run_config
 
 
-def create_crossval_hyperdrive_config(run_config: ScriptRunConfig, num_cross_validation_splits: int,
+def create_crossval_hyperdrive_config(num_cross_validation_splits: int,
+                                      cross_val_split_name: str = "cross_validation_split_index",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
     """
     Creates an Azure ML HyperDriveConfig object for running cross validation. Note: this config expects a metric
     named <metric_name> to be logged in your training script([see here](
     https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
-
-    :param run_config: an Azure ML ScriptRunConfig object which contains details about environment, compute and
-        input/output datasets
     :param num_cross_validation_splits: The number of splits for k-fold cross validation
+    :param cross_val_split_name: The name of the argument received by each of the child runs that indicates which
+        split that child represents.
     :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
@@ -184,10 +184,10 @@ def create_crossval_hyperdrive_config(run_config: ScriptRunConfig, num_cross_val
     logging.info(f"Creating a HyperDriveConfig. Please be aware that this expects to find the metric {metric_name}"
                  f" logged to the Run during your training script.")
     return HyperDriveConfig(
-        run_config=run_config,
+        run_config=ScriptRunConfig(""),
         hyperparameter_sampling=GridParameterSampling(
             {
-                "cross_validation_split_index": choice(list(range(num_cross_validation_splits)))
+                cross_val_split_name: choice(list(range(num_cross_validation_splits)))
             }),
         primary_metric_name=metric_name,
         primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
@@ -326,9 +326,7 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None,
-        num_cross_validation_splits: int = 1,
-        cross_validation_metric_name: str = "val/loss"
+        hyperdrive_config: Optional[HyperDriveConfig] = None
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -381,11 +379,6 @@ def submit_to_azure_if_needed(  # type: ignore
         for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
-    :param num_cross_validation_splits: The number of splits to use for k-fold cross validation. If 1 (default) does
-        not perform cross-validation.
-    :param cross_validation_metric_name: The name of the metric that the HyperDriveConfig will compare runs by.
-        Please note that it is your responsibility to make sure a metric with this name is logged to the Run in your
-         training script
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -458,12 +451,6 @@ def submit_to_azure_if_needed(  # type: ignore
                                           entry_script=entry_script,
                                           script_params=script_params)
     script_run_config.run_config = run_config
-
-    if num_cross_validation_splits > 1:
-        hyperdrive_config = create_crossval_hyperdrive_config(script_run_config, num_cross_validation_splits,
-                                                              metric_name=cross_validation_metric_name)
-        tags = {} if tags is None else tags
-        tags["num_cross_validation_splits"] = str(num_cross_validation_splits)
 
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
@@ -623,8 +610,6 @@ def main() -> None:
     parser.add_argument("-t", "--entry_script", type=str, required=True,
                         help="The script to run in AzureML")
     parser.add_argument("-d", "--conda_environment_file", type=str, required=True, help="The environment to use")
-    parser.add_argument("-x", "--cross_val_splits", type=int, default=1,
-                        help="The number of splits for k-fold cross validation")
 
     args = parser.parse_args()
 
@@ -634,7 +619,6 @@ def main() -> None:
         snapshot_root_directory=Path(args.snapshot_root_directory),
         entry_script=Path(args.entry_script),
         conda_environment_file=Path(args.conda_environment_file),
-        num_cross_validation_splits=args.cross_val_splits
     )
 
 

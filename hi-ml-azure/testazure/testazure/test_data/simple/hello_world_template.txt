@@ -52,7 +52,7 @@ def main() -> None:
         output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }},
-        num_cross_validation_splits={{ num_cross_validation_splits }})
+        tags={{ tags }})
 
     parser = ArgumentParser()
     {{ args }}
