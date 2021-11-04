@@ -120,8 +120,8 @@ run_info = submit_to_azure_if_needed(...,
 input_folder = run_info.input_datasets[0]
 ```
 
-Secondly, you can check the returned path in `run_info`, and replace it with something for local execution. 
-`run_info.input_datasets[0]` will be `None` if the script runs outside of AzureML, and no `local_folder` is available.
+Secondly, if `local_folder` is not specified, then if an AzureML workspace cannot be found then `run_info.input_datasets[0]` will be `None` and you can check the returned path in `run_info`, and replace it with something for local execution. 
+
 ```python
 from pathlib import Path
 from health_azure import submit_to_azure_if_needed
@@ -131,6 +131,12 @@ run_info = submit_to_azure_if_needed(...,
 input_folder = run_info.input_datasets[0] or Path("/datasets/my_folder_local")
 ```
 
+Otherwise if an AzureML workspace can be found then the dataset will either be downloaded or mounted to a temporary folder locally, depending on the `use_mounting` flag, and the path to it will be available in `run_info` as above.
+```python
+input_folder = run_info.input_datasets[0]
+```
+
+Note that mounting the dataset locally is only supported on Linux because it requires the use of the native package [libfuse](https://github.com/libfuse/libfuse/), which must first be installed. Also, if running in a Docker container, it must be started with additional arguments. For more details see here: [azureml.data.filedataset.mount](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.data.filedataset?view=azure-ml-py#mount-mount-point-none----kwargs-).
 
 ### Making a dataset available at a fixed folder location
 
@@ -149,6 +155,7 @@ run_info = submit_to_azure_if_needed(...,
 input_folder = run_info.input_datasets[0]
 ```
 
+This is also true when running locally - if `local_folder` is not specified and an AzureML workspace can be found, then the dataset will be downloaded or mounted to the `target_folder`.
 
 ### Dataset versions
 AzureML datasets can have versions, starting at 1. You can view the different versions of a dataset in the AzureML 
