@@ -20,9 +20,9 @@ def main() -> None:
     num_cross_validation_splits = 2
     metric_name = "val/loss"
     hyperdrive_config = create_crossval_hyperdrive_config(num_cross_validation_splits,
-                                                          cross_val_split_name="cross_validation_split_index",
+                                                          cross_val_index_arg_name="cross_validation_split_index",
                                                           metric_name=metric_name)
-    # tags{"num_cross_validation_splits": str(num_cross_validation_splits)}
+    # tags{"num_splits": str(num_splits)}
     tags = {}
     run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
@@ -48,7 +48,7 @@ def main() -> None:
                         help='Penalty parameter of the error term')
     parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
                                                                "run represents in k-fold cross-validation")
-    parser.add_argument("--num_cross_validation_splits", help="The total number of splits being used for k-fold"
+    parser.add_argument("--num_splits", help="The total number of splits being used for k-fold"
                                                               "cross validation")
 
     args = parser.parse_args()

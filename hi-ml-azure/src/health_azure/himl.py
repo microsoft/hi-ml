@@ -147,7 +147,7 @@ def create_run_configuration(workspace: Workspace,
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
 
-    # Create MPI configuration for distributed jobs (unless num_cross_validation_splits > 1, in which case
+    # Create MPI configuration for distributed jobs (unless num_splits > 1, in which case
     # an AML HyperdriveConfig is instantiated instead
     if num_nodes > 1:
         distributed_job_config = MpiConfiguration(node_count=num_nodes)
@@ -166,32 +166,32 @@ def create_run_configuration(workspace: Workspace,
     return run_config
 
 
-def create_crossval_hyperdrive_config(num_cross_validation_splits: int,
-                                      cross_val_split_name: str = "cross_validation_split_index",
+def create_crossval_hyperdrive_config(num_splits: int,
+                                      cross_val_index_arg_name: str = "cross_validation_split_index",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
     """
     Creates an Azure ML HyperDriveConfig object for running cross validation. Note: this config expects a metric
     named <metric_name> to be logged in your training script([see here](
     https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
-    :param num_cross_validation_splits: The number of splits for k-fold cross validation
-    :param cross_val_split_name: The name of the argument received by each of the child runs that indicates which
+
+    :param num_splits: The number of splits for k-fold cross validation
+    :param cross_val_index_arg_name: The name of the argument received by each of the child runs that indicates which
         split that child represents.
     :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    # TODO: do we need to ensure that run_config isn't MPIConfig?
     logging.info(f"Creating a HyperDriveConfig. Please be aware that this expects to find the metric {metric_name}"
                  f" logged to the Run during your training script.")
     return HyperDriveConfig(
         run_config=ScriptRunConfig(""),
         hyperparameter_sampling=GridParameterSampling(
             {
-                cross_val_split_name: choice(list(range(num_cross_validation_splits)))
+                cross_val_index_arg_name: choice(list(range(num_splits)))
             }),
         primary_metric_name=metric_name,
         primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-        max_total_runs=num_cross_validation_splits
+        max_total_runs=num_splits
     )
 
 
@@ -559,7 +559,7 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
     the context.
     If the file does not exist yet, it will be created, the contents written, and deleted when leaving the context.
 
-    :param lines_to_append: The text lines that should be added at the end of the .amlignore file
+    :param lines_to_append: The text lines that should be added at the enund of the .amlignore file
     :param amlignore: The path of the .amlignore file that should be modified. If not given, the function
         looks for a file in the current working directory.
     """

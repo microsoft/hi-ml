@@ -931,22 +931,22 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
 @pytest.mark.fast
 # Azure ML expects run_config to be instance of ScriptRunConfig
 @patch("azureml.train.hyperdrive.runconfig.isinstance", return_value=True)
-@pytest.mark.parametrize("num_crossval_splits, metric_name, cross_val_split_name", [
+@pytest.mark.parametrize("num_crossval_splits, metric_name, cross_val_index_arg_name", [
     (-1, "val/loss", "cross_validation_split_index"),
     (0, "loss", "cross_validation_split_index"),
     (1, "val/acc", "split"),
     (5, "accuracy", "data_split")
 ])
 def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: int, metric_name: str,
-                                           cross_val_split_name: str) -> None:
+                                           cross_val_index_arg_name: str) -> None:
     if num_crossval_splits < 1:
         with pytest.raises(Exception):
-            himl.create_crossval_hyperdrive_config(num_cross_validation_splits=num_crossval_splits,
-                                                   cross_val_split_name=cross_val_split_name,
+            himl.create_crossval_hyperdrive_config(num_splits=num_crossval_splits,
+                                                   cross_val_index_arg_name=cross_val_index_arg_name,
                                                    metric_name=metric_name)
     else:
-        crossval_config = himl.create_crossval_hyperdrive_config(num_cross_validation_splits=num_crossval_splits,
-                                                                 cross_val_split_name=cross_val_split_name,
+        crossval_config = himl.create_crossval_hyperdrive_config(num_splits=num_crossval_splits,
+                                                                 cross_val_index_arg_name=cross_val_index_arg_name,
                                                                  metric_name=metric_name)
         assert isinstance(crossval_config, HyperDriveConfig)
         assert crossval_config._primary_metric_config.get("name") == metric_name
@@ -971,8 +971,8 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
             with patch("health_azure.himl.submit_run") as mock_submit_run:
                 with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
                     crossval_config = himl.create_crossval_hyperdrive_config(
-                        num_cross_validation_splits=2,
-                        cross_val_split_name="cross_val_split_index",
+                        num_splits=2,
+                        cross_val_index_arg_name="cross_val_split_index",
                         metric_name=cross_validation_metric_name)
                     himl.submit_to_azure_if_needed(
                         aml_workspace=mock_workspace,

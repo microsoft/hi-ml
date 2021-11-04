@@ -1404,7 +1404,7 @@ def test_my_script_config() -> None:
 class MockChildRun:
     def __init__(self, run_id: str, cross_val_index: int):
         self.run_id = run_id
-        self.tags = {"hyperparameters": json.dumps({"cross_validation_split_index": cross_val_index})}
+        self.tags = {"hyperparameters": json.dumps({"child_run_index": cross_val_index})}
 
     def get_metrics(self) -> Dict[str, Union[float, List[Union[int, float]]]]:
         num_epochs = 5
@@ -1433,7 +1433,7 @@ def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
     num_crossval_splits = 2
     with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
         mock_get_run.return_value = MockHyperDriveRun(num_crossval_splits)
-        df = util.aggregate_hyperdrive_metrics("run_id_123", ws)
+        df = util.aggregate_hyperdrive_metrics("run_id_123", "child_run_index", aml_workspace=ws)
         num_rows, num_cols = df.shape
         assert num_rows == 7  # The number of metrics specified in MockChildRun.get_metrics
         assert num_cols == num_crossval_splits
@@ -1441,59 +1441,3 @@ def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
         assert isinstance(epochs[0], list)
         test_accuracies = df.loc["test/accuracy"]
         assert isinstance(test_accuracies[0], float)
-
-
-@pytest.mark.slow
-def test_aggregate_hyperdrive_metrics_remote(tmp_path: Path) -> None:
-    ws = DEFAULT_WORKSPACE.workspace
-
-    extra_options = {
-        "pip": ["matplotlib==3.4.3"],
-        "num_cross_validation_splits": 2,
-        "args": """
-    parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
-                                                          "run represents in k-fold cross-validation")
-    parser.add_argument("--num_cross_validation_splits", help="The total number of splits being used for k-fold"
-                                                         "cross validation")
-        """,
-        "imports": """
-import pandas as pd
-from azureml.core.run import Run
-from matplotlib import pyplot as plt
-    """,
-        "body": """
-    if run_info.run is None:
-        raise ValueError("run_info.run is None")
-    run: Run = run_info.run
-
-    run.log_list("epochs", [0,1,2,3,4,5])
-    accuracies = {"epochs": [], "accuracies": []}
-    num_epochs = 10
-    for i in range(num_epochs):
-        acc = i * 0.1
-        run.log("accuracy", acc)
-        run.log_row("train and test acc", train=0.5 - acc, test=0.6 - acc)
-        accuracies["accuracies"].append(acc)
-        accuracies["epochs"].append(i)
-    run.log_table("accuracy table", value=accuracies)
-    df = pd.DataFrame(accuracies, columns=["epochs", "accuracies"])
-    plt.scatter(df[["accuracies"]], df[["epochs"]])
-    run.log_image(name="accuracy plot", plot=plt)
-        """
-    }
-    extra_args = ["--azureml"]
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args,
-                               expected_pass=True, hyperdrive=True)
-    run = util.get_latest_aml_runs_from_experiment("test_script", aml_workspace=ws)[0]
-
-    assert run.status == "Completed"
-
-    df = util.aggregate_hyperdrive_metrics(run.id, ws)
-    num_rows, num_cols = df.shape
-    assert num_cols == 2
-    # assert the dataframe contains a row for each of the 4 things we are logging - accuracy, epochs,
-    # train & test acc, accuracy_table and accuracy_plot
-    assert num_rows == 5
-    assert isinstance(df.loc["epochs"][0], list)
-    assert isinstance(df.loc["train and test acc"][0], dict)
-    assert isinstance(df.loc["accuracy plot"][0], str)
