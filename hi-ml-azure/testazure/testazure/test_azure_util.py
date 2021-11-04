@@ -25,7 +25,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
-from azureml.core import Experiment, ScriptRunConfig, Workspace, Run
+from azureml.core import Experiment, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -1465,18 +1465,18 @@ from matplotlib import pyplot as plt
     if run_info.run is None:
         raise ValueError("run_info.run is None")
     run: Run = run_info.run
-    
+
     run.log_list("epochs", [0,1,2,3,4,5])
     accuracies = {"epochs": [], "accuracies": []}
     num_epochs = 10
     for i in range(num_epochs):
-        acc = 1 * 0.1
+        acc = i * 0.1
         run.log("accuracy", acc)
         run.log_row("train and test acc", train=0.5 - acc, test=0.6 - acc)
         accuracies["accuracies"].append(acc)
         accuracies["epochs"].append(i)
     run.log_table("accuracy table", value=accuracies)
-    df = pd.DataFrame(accuracies)
+    df = pd.DataFrame(accuracies, columns=["epochs", "accuracies"])
     plt.scatter(df[["accuracies"]], df[["epochs"]])
     run.log_image(name="accuracy plot", plot=plt)
         """
@@ -1491,7 +1491,9 @@ from matplotlib import pyplot as plt
     df = util.aggregate_hyperdrive_metrics(run.id, ws)
     num_rows, num_cols = df.shape
     assert num_cols == 2
-    assert num_rows == 4  # the 4 things we are logging - accuracy, train & test acc, accuracy_table and accuracy_plot
-    assert isinstance(df[[0]]["epochs"], list)
-    assert isinstance(df[[0]]["train and test acc"], dict)
-    assert isinstance(df[[0]]["train and test plot"], str)
+    # assert the dataframe contains a row for each of the 4 things we are logging - accuracy, epochs,
+    # train & test acc, accuracy_table and accuracy_plot
+    assert num_rows == 5
+    assert isinstance(df.loc["epochs"][0], list)
+    assert isinstance(df.loc["train and test acc"][0], dict)
+    assert isinstance(df.loc["accuracy plot"][0], str)
