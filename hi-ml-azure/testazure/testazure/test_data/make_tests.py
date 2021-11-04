@@ -12,7 +12,8 @@ from typing import Dict, Optional
 
 from jinja2 import Template
 
-from testazure.util import himl_azure_root
+from testazure.util import himl_azure_root, DEFAULT_IGNORE_FOLDERS
+
 
 here = Path(__file__).parent.resolve()
 
@@ -89,6 +90,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     t = Template(hello_world_template)
 
     default_options = {}
+    default_options['imports'] = 'import sys'
     default_options['prequel'] = ''
     default_options['compute_cluster_name'] = f'"{compute_cluster_name}"'
     default_options['entry_script'] = "Path(sys.argv[0])"
@@ -99,7 +101,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['environment_variables'] = 'None'
     default_options['pip_extra_index_url'] = '""'
     default_options['private_pip_wheel_path'] = 'None'
-    default_options['ignored_folders'] = '[".config", ".mypy_cache"]'
+    default_options['ignored_folders'] = str(DEFAULT_IGNORE_FOLDERS)
     default_options['default_datastore'] = '""'
     default_options['input_datasets'] = 'None'
     default_options['output_datasets'] = 'None'
@@ -107,7 +109,6 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['wait_for_completion_show_output'] = 'True'
     default_options['args'] = ''
     default_options['body'] = ''
-    default_options['imports'] = ''
 
     all_options = dict(default_options, **extra_options)
 

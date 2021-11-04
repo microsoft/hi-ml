@@ -730,6 +730,9 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     """
     message_guid = uuid4().hex
     extra_options: Dict[str, str] = {
+        "imports": """
+import os
+import sys""",
         'environment_variables': f"{{'message_guid': '{message_guid}'}}",
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
@@ -926,10 +929,13 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
     script_output_datasets = ',\n        '.join(output_file_names)
 
     extra_options: Dict[str, str] = {
+        'imports': """
+import shutil
+import sys
+""",
         'prequel': """
     target_folders = ["foo", "bar"]
         """,
-        'ignored_folders': '[".config", ".mypy_cache", "hello_world_output"]',
         'default_datastore': f'"{DEFAULT_DATASTORE}"',
         'input_datasets': f"""[
             "{input_datasets[0].blob_name}",

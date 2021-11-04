@@ -21,6 +21,10 @@ from health_azure.utils import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WOR
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 
+# List of root folders to add to .amlignore
+DEFAULT_IGNORE_FOLDERS = [".config", ".git", ".github", ".idea", ".mypy_cache", ".pytest_cache", ".vscode",
+                          "docs", "node_modules"]
+
 
 class MockRun:
     def __init__(self, run_id: str = 'run1234', tags: Optional[Dict[str, str]] = None) -> None:
