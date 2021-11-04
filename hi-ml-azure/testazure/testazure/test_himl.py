@@ -962,6 +962,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
+    cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
     with patch.object(Environment, "get", return_value="dummy_env"):
         with patch("azureml.core.Workspace") as mock_workspace:
