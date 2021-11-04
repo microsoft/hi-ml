@@ -126,12 +126,12 @@ class DatasetConfig:
 
         if self.local_folder is not None:
             status += f"obtained from local folder {str(self.local_folder)}"
-            logging.info(status)
+            print(status)
             return self.local_folder, None
 
         if workspace is None:
             status += "'None' - neither local_folder nor workspace available"
-            logging.info(status)
+            print(status)
             return None, None
 
         azureml_dataset = get_or_create_dataset(workspace=workspace,
@@ -152,7 +152,7 @@ class DatasetConfig:
             status += f"{str(self.target_folder)}."
         else:
             status += f"a randomly chosen folder: {target_path}."
-        logging.info(status)
+        print(status)
         return result
 
     def to_input_dataset(self,
@@ -182,7 +182,7 @@ class DatasetConfig:
             status += f"{path_on_compute}."
         else:
             status += "a randomly chosen folder."
-        logging.info(status)
+        print(status)
         return result
 
     def to_output_dataset(self,
@@ -232,6 +232,31 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
             for d in datasets]
 
 
+def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
+                                      workspace_config_path: Optional[Path],
+                                      dataset_configs: List[DatasetConfig]) -> Optional[Workspace]:
+    """
+    If any of the dataset_configs require an AzureML workspace then try to get one, otherwise return None.
+
+    :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
+        to pass it in as a parameter.
+    :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
+        Azure portal from which we can retrieve the existing Workspace.
+    :param dataset_configs: List of DatasetConfig describing the input datasets.
+    :return: Workspace if required, None otherwise.
+    """
+    workspace: Workspace = None
+    # Check whether an attempt will be made to mount or download a dataset when running locally.
+    # If so, try to get the AzureML workspace.
+    if any(dc.local_folder is None for dc in dataset_configs):
+        try:
+            workspace = get_workspace(aml_workspace, workspace_config_path)
+            logging.info(f"Found workspace for datasets: {workspace.name}")
+        except Exception:
+            logging.info("Could not find workspace for datasets.")
+    return workspace
+
+
 def setup_local_datasets(aml_workspace: Optional[Workspace],
                          workspace_config_path: Optional[Path],
                          dataset_configs: List[DatasetConfig]) -> Tuple[List[Optional[Path]], List[MountContext]]:
@@ -249,16 +274,7 @@ def setup_local_datasets(aml_workspace: Optional[Workspace],
     :param dataset_configs: List of DatasetConfig describing the input datasets.
     :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """
-    workspace: Workspace = None
-
-    # Check whether an attempt will be made to mount or download a dataset when running locally.
-    # If so, try to get the AzureML workspace.
-    if any(dc.local_folder is None for dc in dataset_configs):
-        try:
-            workspace = get_workspace(aml_workspace, workspace_config_path)
-            logging.info(f"Found workspace for datasets: {workspace.name}")
-        except Exception:
-            logging.info("Could not find workspace for datasets.")
+    workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
 
     mounted_input_datasets: List[Optional[Path]] = []
     mount_contexts: List[MountContext] = []

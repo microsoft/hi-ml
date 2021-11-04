@@ -107,7 +107,7 @@ output_folder = run_info.output_datasets[0]
 For debugging, it is essential to have the ability to run a script on a local machine, outside of AzureML.
 Clearly, your script needs to be able to access data in those runs too. 
 
-There are two ways of achieving that: Firstly, you can specific an equivalent local folder in the
+There are two ways of achieving that: Firstly, you can specify an equivalent local folder in the
 `DatasetConfig` objects:
 ```python
 from pathlib import Path
@@ -120,18 +120,7 @@ run_info = submit_to_azure_if_needed(...,
 input_folder = run_info.input_datasets[0]
 ```
 
-Secondly, if `local_folder` is not specified, then if an AzureML workspace cannot be found then `run_info.input_datasets[0]` will be `None` and you can check the returned path in `run_info`, and replace it with something for local execution. 
-
-```python
-from pathlib import Path
-from health_azure import submit_to_azure_if_needed
-run_info = submit_to_azure_if_needed(...,
-                                     input_datasets=["my_folder"],
-                                     default_datastore="my_datastore")
-input_folder = run_info.input_datasets[0] or Path("/datasets/my_folder_local")
-```
-
-Otherwise if an AzureML workspace can be found then the dataset will either be downloaded or mounted to a temporary folder locally, depending on the `use_mounting` flag, and the path to it will be available in `run_info` as above.
+Secondly, if `local_folder` is not specified, then the dataset will either be downloaded or mounted to a temporary folder locally, depending on the `use_mounting` flag. The path to it will be available in `run_info` as above.
 ```python
 input_folder = run_info.input_datasets[0]
 ```
