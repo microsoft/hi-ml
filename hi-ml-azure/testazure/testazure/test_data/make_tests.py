@@ -64,7 +64,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
             for dep in extra_options['conda_dependencies']:
                 conda_deps += f"  - {dep}\n"
 
-        options.update({'channels': channels, 'conda_dependencies': conda_deps})
+        options.update({'channels': channels, 'conda_dependencies': conda_deps, 'pip': pip})
 
     r = t.render(options)
     environment_yaml_path.write_text(r)

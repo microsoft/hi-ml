@@ -32,7 +32,7 @@ from sklearn import datasets
 import health_azure.himl as himl
 from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
-                                get_workspace, is_running_in_azure_ml)
+                                get_workspace, is_running_in_azure_ml, get_latest_aml_runs_from_experiment)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root, \
     DEFAULT_WORKSPACE
@@ -1080,9 +1080,8 @@ from azureml.core.run import Run
     extra_args = ["--azureml"]
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, expected_pass=True,
                                hyperdrive=True)
+    run = get_latest_aml_runs_from_experiment("test_script", aml_workspace=ws)[0]
 
-    run = get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                              workspace=ws)
     shutil.rmtree(test_data_folder)
 
     assert run.status == "Completed"
