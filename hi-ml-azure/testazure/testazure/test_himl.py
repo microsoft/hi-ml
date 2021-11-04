@@ -32,8 +32,7 @@ from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dat
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
                                 get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.util import (DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root,
-                            check_github_action_runner)
+from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -740,6 +739,55 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     assert expected_output in output
 
 
+@pytest.mark.timeout(300)
+def test_mounting_dataset(tmp_path: Path) -> None:
+    logging.info("creating config.json")
+    with check_config_json(tmp_path):
+        logging.info("get_workspace")
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        logging.info("Dataset.get_by_name")
+        dataset = Dataset.get_by_name(workspace, name='panda')
+        subfolder = "train_images"
+        target_path = tmp_path / "test_mount" / "panda"
+        target_path.mkdir(parents=True)
+        existing_mounted = os.listdir(target_path)
+        assert len(existing_mounted) == 0
+        logging.info("ready to mount")
+        with dataset.mount(str(target_path)) as mount_context:
+            mount_point = Path(mount_context.mount_point)
+            logging.info("mount done, run listdir")
+            mounted = os.listdir(mount_point)
+            logging.info(f"mounted: {mounted}")
+            assert len(mounted) > 1
+            for image_file in (mount_point / subfolder).glob("*.tiff"):
+                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+
+
+@pytest.mark.timeout(60)
+def test_downloading_dataset(tmp_path: Path) -> None:
+    logging.info("creating config.json")
+    with check_config_json(tmp_path):
+        logging.info("get_workspace")
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        logging.info("Dataset.get_by_name")
+        dataset = Dataset.get_by_name(workspace, name='panda')
+        subfolder = "train_images"
+        target_path = tmp_path / "test_download" / "panda"
+        target_path.mkdir(parents=True)
+        existing_downloaded = os.listdir(target_path)
+        assert len(existing_downloaded) == 0
+        logging.info("ready to download")
+        dataset.download(target_path=str(target_path), overwrite=False)
+        logging.info("download done, run listdir")
+        downloaded = os.listdir(target_path)
+        logging.info(f"downloaded: {downloaded}")
+        assert len(downloaded) > 1
+        for image_file in (target_path / subfolder).glob("*.tiff"):
+            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+
+
 def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
                                    filename: str, location: str, tmp_path: Path) -> str:
     # Create a dummy folder.
@@ -766,62 +814,6 @@ def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
     dummy_data_folder.rmdir()
 
     return dummy_txt_file_contents
-
-
-@pytest.mark.fast
-@pytest.mark.timeout(300)
-def test_mounting_dataset(tmp_path: Path) -> None:
-    if check_github_action_runner():
-        # Mounting in the context of a github action runner is not currently supported because it
-        # requires interactive authentication.
-        return
-
-    logging.info("creating config.json")
-    with check_config_json(tmp_path):
-        logging.info("get_workspace")
-        workspace = get_workspace(aml_workspace=None,
-                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_mount" / "panda"
-        target_path.mkdir(parents=True)
-        existing_mounted = os.listdir(target_path)
-        assert len(existing_mounted) == 0
-        logging.info("ready to mount")
-        with dataset.mount(str(target_path)) as mount_context:
-            mount_point = Path(mount_context.mount_point)
-            logging.info("mount done, run listdir")
-            mounted = os.listdir(mount_point)
-            logging.info(f"mounted: {mounted}")
-            assert len(mounted) > 1
-            for image_file in (mount_point / subfolder).glob("*.tiff"):
-                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
-
-
-@pytest.mark.fast
-@pytest.mark.timeout(60)
-def test_downloading_dataset(tmp_path: Path) -> None:
-    logging.info("creating config.json")
-    with check_config_json(tmp_path):
-        logging.info("get_workspace")
-        workspace = get_workspace(aml_workspace=None,
-                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_download" / "panda"
-        target_path.mkdir(parents=True)
-        existing_downloaded = os.listdir(target_path)
-        assert len(existing_downloaded) == 0
-        logging.info("ready to download")
-        dataset.download(target_path=str(target_path), overwrite=False)
-        logging.info("download done, run listdir")
-        downloaded = os.listdir(target_path)
-        logging.info(f"downloaded: {downloaded}")
-        assert len(downloaded) > 1
-        for image_file in (target_path / subfolder).glob("*.tiff"):
-            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
 
 
 @dataclass
@@ -933,10 +925,6 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
         for output_dataset in output_datasets]
     script_output_datasets = ',\n        '.join(output_file_names)
 
-    # Mounting in the context of a github action runner is not currently supported because it
-    # requires interactive authentication.
-    use_mounting = "False" if check_github_action_runner() else "True"
-
     extra_options: Dict[str, str] = {
         'prequel': """
     target_folders = ["foo", "bar"]
@@ -952,11 +940,11 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
                           target_folder=target_folders[0]{input_datasets[2].local_folder}),
             DatasetConfig(name="{input_datasets[3].blob_name}",
                           datastore="{DEFAULT_DATASTORE}",
-                          use_mounting={use_mounting}{input_datasets[3].local_folder}),
+                          use_mounting=True{input_datasets[3].local_folder}),
             DatasetConfig(name="{input_datasets[4].blob_name}",
                           datastore="{DEFAULT_DATASTORE}",
                           target_folder=target_folders[1],
-                          use_mounting={use_mounting}{input_datasets[4].local_folder}),
+                          use_mounting=True{input_datasets[4].local_folder}),
         ]""",
         'output_datasets': f"""[
             "{output_datasets[0].blob_name}",

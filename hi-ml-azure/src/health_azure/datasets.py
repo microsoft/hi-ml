@@ -81,7 +81,7 @@ class DatasetConfig:
                  version: Optional[int] = None,
                  use_mounting: Optional[bool] = None,
                  target_folder: Optional[PathOrString] = None,
-                 local_folder: Optional[Path] = None):
+                 local_folder: Optional[PathOrString] = None):
         """
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
             this will be the name given to the newly created dataset.
@@ -97,7 +97,8 @@ class DatasetConfig:
         :param target_folder: The folder into which the dataset should be downloaded or mounted. If left empty, a
             random folder on /tmp will be chosen.
         :param local_folder: The folder on the local machine at which the dataset is available. This
-            is used only for runs outside of AzureML.
+            is used only for runs outside of AzureML. If this is empty then the target_folder will be used to
+            mount or download the dataset.
         """
         # This class would be a good candidate for a dataclass, but having an explicit constructor makes
         # documentation tools in the editor work nicer.
@@ -108,8 +109,8 @@ class DatasetConfig:
         self.datastore = datastore
         self.version = version
         self.use_mounting = use_mounting
-        self.target_folder = target_folder
-        self.local_folder = local_folder
+        self.target_folder = Path(target_folder) if target_folder is not None else None
+        self.local_folder = Path(local_folder) if local_folder is not None else None
 
     def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Optional[Path], Optional[MountContext]]:
         """
@@ -124,9 +125,9 @@ class DatasetConfig:
         status = f"Dataset {self.name} will be "
 
         if self.local_folder is not None:
-            status += f"obtained from local folder {self.local_folder}"
+            status += f"obtained from local folder {str(self.local_folder)}"
             logging.info(status)
-            return Path(self.local_folder), None
+            return self.local_folder, None
 
         if workspace is None:
             status += "'None' - neither local_folder nor workspace available"
@@ -136,22 +137,19 @@ class DatasetConfig:
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
-        local_path = str(self.target_folder) or None if self.target_folder is not None else None
-        target_path = local_path
-        if target_path is None:
-            target_path = tempfile.mkdtemp()
 
-        use_mounting = False if self.use_mounting is None else self.use_mounting
+        target_path = self.target_folder or Path(tempfile.mkdtemp())
+        use_mounting = self.use_mounting if self.use_mounting is not None else False
         if use_mounting:
             status += "mounted at "
-            mount_context = azureml_dataset.mount(mount_point=target_path)
-            result = Path(target_path), mount_context
+            mount_context = azureml_dataset.mount(mount_point=str(target_path))
+            result = target_path, mount_context
         else:
             status += "downloaded to "
-            azureml_dataset.download(target_path=target_path, overwrite=False)
-            result = Path(target_path), None
-        if local_path:
-            status += f"{local_path}."
+            azureml_dataset.download(target_path=str(target_path), overwrite=False)
+            result = target_path, None
+        if self.target_folder is not None:
+            status += f"{str(self.target_folder)}."
         else:
             status += f"a randomly chosen folder: {target_path}."
         logging.info(status)
@@ -172,7 +170,7 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
-        path_on_compute = str(self.target_folder) or None if self.target_folder is not None else None
+        path_on_compute = str(self.target_folder) if self.target_folder is not None else None
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
             status += "mounted at "
@@ -204,7 +202,7 @@ class DatasetConfig:
                                           destination=(datastore, self.name + "/"))
         # TODO: Can we get tags into here too?
         dataset = dataset.register_on_complete(name=self.name)
-        if self.target_folder:
+        if self.target_folder is not None:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
         if use_mounting:

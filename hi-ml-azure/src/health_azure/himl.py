@@ -65,7 +65,7 @@ class AzureRunInfo:
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
          datasets are specified, the list is empty."""
     mount_contexts: List[MountContext]
-    """A list of mount contexts for input datasets when running outside Azure. There will be a mount context
+    """A list of mount contexts for input datasets when running outside AzureML. There will be a mount context
     for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set.
     This list is maintained only to prevent exit from these contexts until the RunInfo object is deleted."""
     run: Optional[Run]

@@ -125,13 +125,3 @@ def check_config_json(script_folder: Path) -> Generator:
         yield
     finally:
         target_config_json.unlink()
-
-
-def check_github_action_runner() -> bool:
-    """
-    Check if hosted in a github action runner.
-
-    See: https://docs.github.com/en/actions/learn-github-actions/environment-variables
-    :return: True if running in a github action runner, False otherwise.
-    """
-    return False  # len(os.getenv('GITHUB_REF', "")) > 0
