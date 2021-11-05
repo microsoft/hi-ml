@@ -5,21 +5,17 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generic, Iterable, Optional, Tuple, Type, TypeVar, Union
+from typing import Generic, Iterable, Optional, Tuple, Type, TypeVar
 
 import SimpleITK as sitk
-import h5py
 import numpy as np
 import pydicom as dicom
 import torch
 from numpy.lib.npyio import NpzFile
-from skimage.transform import resize
 
-from health import common_util
-from health.common.type_annotations import PathOrString, TupleFloat3, TupleInt3
-from health.utils.hdf5_util import HDF5Object
-from health.utils.image_util import ImageHeader, get_center_crop, \
-    get_unit_image_header
+from health_ml.common import common_util
+from health_ml.common.type_annotations import PathOrString, TupleFloat3
+from health_ml.utils.image_util import ImageHeader, get_unit_image_header
 
 TensorOrNumpyArray = TypeVar('TensorOrNumpyArray', torch.Tensor, np.ndarray)
 
@@ -90,16 +86,6 @@ class NumpyFile(Enum):
     NUMPY_COMPRESSED = ".npz"
 
 
-class HDF5FileType(Enum):
-    """
-    Supported file extensions that indicate HDF5 data.
-    """
-    HDF5 = ".h5"
-    HDF5_EXPLICIT = ".hdf5"
-    HDF5_COMPRESSED_GZ = ".h5.gz"
-    HDF5_COMPRESSED_SZ = ".h5.sz"
-
-
 class DicomFileType(Enum):
     """
     Supported file extensions that indicate Dicom data.
@@ -108,7 +94,6 @@ class DicomFileType(Enum):
 
 
 VALID_NIFTI_EXTENSIONS_TUPLE = tuple([f.value for f in MedicalImageFileType])
-VALID_HDF5_EXTENSIONS_TUPLE = tuple([f.value for f in HDF5FileType])
 VALID_NUMPY_EXTENSIONS_TUPLE = tuple([f.value for f in NumpyFile])
 VALID_DICOM_EXTENSIONS_TUPLE = tuple([f.value for f in DicomFileType])
 
@@ -146,17 +131,6 @@ def is_numpy_file_path(file: PathOrString) -> bool:
     :return: True if the file name indicates a Numpy file.
     """
     return _file_matches_extension(file, VALID_NUMPY_EXTENSIONS_TUPLE)
-
-
-def is_hdf5_file_path(file: PathOrString) -> bool:
-    """
-    Returns true if the given file name appears to belong to a compressed or uncompressed
-    HDF5 file. This is done based on extensions only. The file does not need to exist.
-
-    :param file: The file name to check.
-    :return: True if the file name indicates a HDF5 file.
-    """
-    return _file_matches_extension(file, VALID_HDF5_EXTENSIONS_TUPLE)
 
 
 def is_dicom_file_path(file: PathOrString) -> bool:
@@ -259,111 +233,13 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         else:
             raise ValueError("Unknown value for DICOM tag 0028,0103 PixelRepresentation")
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
-    return pixels.astype(np.float)
-
-
-def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray:
-    """
-    Loads a hdf5 dataset from a file as an ndarray
-    :param path_str: The path to the HDF5 file
-    :param dataset_name: The dataset name in the HDF5 file that we want to load
-    :return: ndarray
-    """
-    with h5py.File(str(path_str), 'r') as hdf5_file:
-        if dataset_name in hdf5_file:
-            img = np.array(hdf5_file.get(dataset_name))
-            return img
-    raise ValueError(f"File '{path_str}' does not contain dataset '{dataset_name}'")
-
-
-def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
-    """
-    Loads a single HDF5 file.
-    :param path_str: The path of the HDF5 file that should be loaded.
-    :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
-    False, the field will be set to None.
-    :return: HDF5Object
-    """
-
-    def _is_valid_hdf5_path(_path: Path) -> bool:
-        """
-        Validates a path for an image
-        :param _path:
-        :return:
-        """
-        return _path.is_file() and is_hdf5_file_path(_path)
-
-    path = Path(path_str)
-
-    if path is None or not _is_valid_hdf5_path(path):
-        raise ValueError(f"Invalid path: {path}")
-
-    return HDF5Object.from_file(path, load_segmentation=load_segmentation)
+    return pixels.astype(np.float)  # type: ignore
 
 
 @dataclass(frozen=True)
 class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
     images: TensorOrNumpyArray
     segmentations: Optional[TensorOrNumpyArray] = None
-
-
-def load_images_and_stack(files: Iterable[Path],
-                          load_segmentation: bool,
-                          center_crop_size: Optional[TupleInt3] = None,
-                          image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
-    """
-    Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
-    They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)
-    Images are returned as torch.float32 tensors, segmentations are returned as torch.uint8 tensors (multimaps).
-
-    :param files: The paths of the files to load.
-    :param load_segmentation: If True it loads segmentation if present on the same file as the image. This is only
-    supported for loading from HDF5 files.
-    :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will be
-    taken from the center of the image.
-    :param image_size: If supplied, all loaded images will be resized immediately after loading.
-    :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations
-    that were present in the files.
-    """
-    images = []
-    segmentations = []
-
-    def from_numpy_crop_and_resize(array: np.ndarray) -> torch.Tensor:
-        if image_size:
-            if not issubclass(array.dtype.type, np.floating):
-                raise ValueError("Array must be of type float.")
-            if array.shape[0] == 1 and not image_size[0] == 1:
-                raise ValueError(f"Input image is 2D with singleton dimension {array.shape}, but parameter "
-                                 f"image_shape has non-singleton first dimension {image_size}")
-            array = resize(array, image_size, anti_aliasing=True)
-        t = torch.from_numpy(array)
-        if center_crop_size:
-            if array.shape[0] == 1 and not center_crop_size[0] == 1:
-                raise ValueError(f"Input image is 2D with singleton dimension {array.shape}, but parameter "
-                                 f"center_crop_size has non-singleton first dimension {center_crop_size}")
-            return get_center_crop(t, center_crop_size)
-        return t
-
-    for file_path in files:
-        image_and_segmentation = load_image_in_known_formats(file_path, load_segmentation)
-        image_numpy = image_and_segmentation.images
-
-        if image_numpy.ndim == 4 and image_numpy.shape[0] == 1:
-            image_numpy = image_numpy.squeeze(axis=0)
-        elif image_numpy.ndim == 2:
-            image_numpy = image_numpy[None, ...]
-        elif image_numpy.ndim != 3:
-            raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
-
-        images.append(from_numpy_crop_and_resize(image_numpy))
-        if load_segmentation:
-            # Segmentations are loaded as UInt8. Convert to one-hot encoding as late as possible,
-            # that is only before feeding into the model
-            segmentations.append(from_numpy_crop_and_resize(image_and_segmentation.segmentations))  # notype
-
-    image_tensor = torch.stack(images, dim=0) if len(images) > 0 else torch.empty(0)
-    segmentation_tensor = torch.stack(segmentations, dim=0) if len(segmentations) > 0 else torch.empty(0)
-    return ImageAndSegmentations(images=image_tensor, segmentations=segmentation_tensor)
 
 
 def is_png(file: PathOrString) -> bool:
@@ -382,12 +258,7 @@ def load_image_in_known_formats(file: Path,
     :param load_segmentation: If True it loads segmentation if present on the same file as the image.
     :return: a wrapper class that contains the images and segmentation if present
     """
-    if is_hdf5_file_path(file):
-        hdf5_object = load_hdf5_file(path_str=file,
-                                     load_segmentation=load_segmentation)
-        return ImageAndSegmentations(images=hdf5_object.volume,
-                                     segmentations=hdf5_object.segmentation if load_segmentation else None)
-    elif is_nifti_file_path(file):
+    if is_nifti_file_path(file):
         return ImageAndSegmentations(images=load_nifti_image(path=file).image)
     elif is_numpy_file_path(file):
         return ImageAndSegmentations(images=load_numpy_image(path=file))
@@ -411,34 +282,15 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
     :param path: The path to the file
     :param image_type: The type of the image
     """
-    SEPARATOR = '|'
     if is_nifti_file_path(path):
         return load_nifti_image(path, image_type)
     elif is_numpy_file_path(path):
         image = load_numpy_image(path, image_type)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
-    elif SEPARATOR in str(path):
-        hdf5_path_split_by_colon = str(path).split(SEPARATOR)
-        if len(hdf5_path_split_by_colon) == 4:
-            # segmentation multimap
-            h5_path = hdf5_path_split_by_colon[0]
-            dataset = hdf5_path_split_by_colon[1]
-            channel = int(hdf5_path_split_by_colon[2])
-            segmentation_id = int(hdf5_path_split_by_colon[3])
-            image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel] == segmentation_id  # create mask
-            header = get_unit_image_header()
-            return ImageWithHeader(image, header)
-        elif len(hdf5_path_split_by_colon) == 3:
-            h5_path = hdf5_path_split_by_colon[0]
-            dataset = hdf5_path_split_by_colon[1]
-            channel = int(hdf5_path_split_by_colon[2])
-            image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel]
-            header = get_unit_image_header()
-            return ImageWithHeader(image, header)
     elif is_png(path):
         import imageio
-        image = imageio.imread(path).astype(np.float)
+        image = imageio.imread(path).astype(np.float)  # type: ignore
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")

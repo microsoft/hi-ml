@@ -4,13 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
 
-from health.common import common_util
-from health.common.type_annotations import TupleFloat3, TupleFloat9, TupleInt2, TupleInt3
+from health_ml.common import common_util
+from health_ml.common.type_annotations import TupleFloat3, TupleFloat9
 
 
 NumpyOrTorch = Union[np.ndarray, torch.Tensor]
