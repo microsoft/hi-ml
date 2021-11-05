@@ -14,6 +14,10 @@
   <component name="PackageRequirementsSettings">
     <option name="requirementsPath" value="" />
   </component>
+  <component name="PyDocumentationSettings">
+    <option name="format" value="REST" />
+    <option name="myDocStringFormat" value="reStructuredText" />
+  </component>
   <component name="TestRunnerService">
     <option name="PROJECT_TEST_RUNNER" value="pytest" />
   </component>

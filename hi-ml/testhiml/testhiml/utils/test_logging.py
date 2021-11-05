@@ -13,6 +13,7 @@ import pytest
 import torch
 from _pytest.capture import SysCapture
 from _pytest.logging import LogCaptureFixture
+from pytorch_lightning import Trainer
 
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
 
@@ -253,22 +254,23 @@ def test_progress_bar(capsys: SysCapture) -> None:
         return capsys.readouterr().out.splitlines()[-1]  # type: ignore
 
     # Messages in training
-    bar.on_train_epoch_start(None, None)  # type: ignore
+    trainer = Trainer()
+    bar.on_train_epoch_start(trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TRAIN
     assert bar.train_batch_idx == 0
     assert bar.val_batch_idx == 0
     assert bar.test_batch_idx == 0
     assert bar.predict_batch_idx == 0
-    bar.on_train_batch_end(None, None, None, None, None, None)  # type: ignore
+    bar.on_train_batch_end(None, None, None, None, None)  # type: ignore
     assert bar.train_batch_idx == 1
     latest = latest_message()
     assert "Training epoch 12 (step 34)" in latest
     assert "1/10 ( 10%) completed" in latest
     # When starting the next training epoch, the counters should be reset
-    bar.on_train_epoch_start(None, None)  # type: ignore
+    bar.on_train_epoch_start(trainer, None)  # type: ignore
     assert bar.train_batch_idx == 0
     # Messages in validation
-    bar.on_validation_start(None, None)  # type: ignore
+    bar.on_validation_start(trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_VAL
     assert bar.total_num_batches == 0
     assert bar.val_batch_idx == 0
@@ -280,7 +282,7 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert "Validation epoch 12: " in latest
     assert "1/5 ( 20%) completed" in latest
     # Messages in testing
-    bar.on_test_epoch_start(None, None)  # type: ignore
+    bar.on_test_epoch_start(trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TEST
     test_count = 2
     for _ in range(test_count):
@@ -290,7 +292,7 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert "Testing:" in latest
     assert f"{test_count}/20 ( 10%)" in latest
     # Messages in prediction
-    bar.on_predict_epoch_start(None, None)  # type: ignore
+    bar.on_predict_epoch_start(trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_PREDICT
     predict_count = 3
     for _ in range(predict_count):

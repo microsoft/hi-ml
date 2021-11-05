@@ -5,20 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-For each Pull Request, the affected code parts should be briefly described and added here in the "Upcoming" section.
-Once a release is prepared, the "Upcoming" section becomes the release changelog, and a new empty "Upcoming" should be
-created.
+This file has sections for all previous releases, and the next one. 
+For each Pull Request, the affected code parts should be briefly described and added in the section for the upcoming
+release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
+the section headers (Added/Changed/...) and incrementing the package version.
 
 
-## Upcoming
+## 0.1.10
 
 ### Added
+- ([#145](https://github.com/microsoft/hi-ml/pull/145)) Add ability to mount datasets when running locally.
 - ([#142](https://github.com/microsoft/hi-ml/pull/142)) Adding AzureML progress bar and diagnostics for batch loading
 - ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
 - ([#132](https://github.com/microsoft/hi-ml/pull/132)) Utilities for loading images.
 
 ### Changed
-
+- ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace
+argparsing with parametrized classes.
 ### Fixed
 
 ### Removed

@@ -42,7 +42,7 @@ def main() -> None:
         wait_for_completion_show_output=True,
         hyperdrive_config=hyperdrive_config)
     if run_info.run is None:
-        raise ValueError(f"run_info.run is None")
+        raise ValueError("run_info.run is None")
     run: Run = run_info.run
     parser = argparse.ArgumentParser()
 
@@ -52,8 +52,8 @@ def main() -> None:
                         help='Penalty parameter of the error term')
 
     args = parser.parse_args()
-    run.log(f'Kernel type{args.kernel}')
-    run.log(f'Penalty {args.penalty}')
+    run.log('Kernel type', np.str(args.kernel))  # type: ignore
+    run.log('Penalty', np.float(args.penalty))  # type: ignore
 
     # X -> features, y -> label
     input_folder = run_info.input_datasets[0] or Path("inputs")
@@ -71,7 +71,7 @@ def main() -> None:
     # model accuracy for X_test
     accuracy = svm_model_linear.score(X_test, y_test)
     print('Accuracy of SVM classifier on test set: {:.2f}'.format(accuracy))
-    run.log(f'Accuracy {accuracy}')
+    run.log('Accuracy', np.float(accuracy))  # type: ignore
     # creating a confusion matrix
     cm = confusion_matrix(y_test, svm_predictions)
     print(cm)
