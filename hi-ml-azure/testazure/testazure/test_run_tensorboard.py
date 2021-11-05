@@ -71,6 +71,7 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
         "conda_channels": ["pytorch"],
         "conda_dependencies": ["pytorch=1.4.0"],
         "imports": """
+import sys
 from health_azure.utils import is_running_in_azure_ml
 """,
 

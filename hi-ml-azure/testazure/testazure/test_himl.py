@@ -22,7 +22,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import RunConfiguration, ScriptRunConfig, Workspace, Environment
+from azureml.core import Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -307,6 +307,7 @@ def test_submit_to_azure_if_needed_azure_return(
         run=mock_run,
         input_datasets=[],
         output_datasets=[],
+        mount_contexts=[],
         is_running_in_azure_ml=True,
         output_folder=Path.cwd(),
         logs_folder=Path.cwd())
@@ -734,6 +735,9 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     """
     message_guid = uuid4().hex
     extra_options: Dict[str, str] = {
+        "imports": """
+import os
+import sys""",
         'environment_variables': f"{{'message_guid': '{message_guid}'}}",
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
@@ -741,6 +745,55 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     expected_output = f"The message_guid env var was: {message_guid}"
     assert expected_output in output
+
+
+@pytest.mark.timeout(300)
+def test_mounting_dataset(tmp_path: Path) -> None:
+    logging.info("creating config.json")
+    with check_config_json(tmp_path):
+        logging.info("get_workspace")
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        logging.info("Dataset.get_by_name")
+        dataset = Dataset.get_by_name(workspace, name='panda')
+        subfolder = "train_images"
+        target_path = tmp_path / "test_mount" / "panda"
+        target_path.mkdir(parents=True)
+        existing_mounted = os.listdir(target_path)
+        assert len(existing_mounted) == 0
+        logging.info("ready to mount")
+        with dataset.mount(str(target_path)) as mount_context:
+            mount_point = Path(mount_context.mount_point)
+            logging.info("mount done, run listdir")
+            mounted = os.listdir(mount_point)
+            logging.info(f"mounted: {mounted}")
+            assert len(mounted) > 1
+            for image_file in (mount_point / subfolder).glob("*.tiff"):
+                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+
+
+@pytest.mark.timeout(60)
+def test_downloading_dataset(tmp_path: Path) -> None:
+    logging.info("creating config.json")
+    with check_config_json(tmp_path):
+        logging.info("get_workspace")
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+        logging.info("Dataset.get_by_name")
+        dataset = Dataset.get_by_name(workspace, name='panda')
+        subfolder = "train_images"
+        target_path = tmp_path / "test_download" / "panda"
+        target_path.mkdir(parents=True)
+        existing_downloaded = os.listdir(target_path)
+        assert len(existing_downloaded) == 0
+        logging.info("ready to download")
+        dataset.download(target_path=str(target_path), overwrite=False)
+        logging.info("download done, run listdir")
+        downloaded = os.listdir(target_path)
+        logging.info(f"downloaded: {downloaded}")
+        assert len(downloaded) > 1
+        for image_file in (target_path / subfolder).glob("*.tiff"):
+            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
 
 
 def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
@@ -781,6 +834,8 @@ class TestInputDataset:
     folder_name: Path
     # Contents of test file.
     contents: str = ""
+    # Local folder str
+    local_folder: str = ""
 
 
 @dataclass
@@ -791,15 +846,25 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
-def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) -> None:
+@pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
+                         [(RunTarget.LOCAL, False, False),
+                          (RunTarget.LOCAL, True, False),
+                          (RunTarget.LOCAL, True, True),
+                          (RunTarget.AZUREML, False, False)])
+def test_invoking_hello_world_datasets(run_target: RunTarget,
+                                       local_folder: bool,
+                                       suppress_config_creation: bool,
+                                       tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
     and that datasets are mounted in all combinations.
+
     :param run_target: Where to run the script.
+    :param local_folder: True to use data in local folder when running locally, False to mount/download data.
+    :param suppress_config_creation: Do not create a config.json file if none exists
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    input_count = 4
+    input_count = 5
     input_datasets = [TestInputDataset(
         filename=f"{uuid4().hex}.txt",
         blob_name=f"himl_dataset_test_input{i}",
@@ -826,7 +891,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
             location=input_dataset.blob_name,
             tmp_path=tmp_path)
 
-        if run_target == RunTarget.LOCAL:
+        if run_target == RunTarget.LOCAL and local_folder:
             # For running locally, download the test files from blobstore
             downloaded = datastore.download(
                 target_path=input_dataset.folder_name,
@@ -839,6 +904,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
             downloaded_dummy_txt_file = input_dataset.folder_name / input_dataset.blob_name / input_dataset.filename
             # Check it has expected contents
             assert input_dataset.contents == downloaded_dummy_txt_file.read_text()
+            input_dataset.local_folder = f", local_folder='{input_dataset.folder_name / input_dataset.blob_name}'"
 
     if run_target == RunTarget.LOCAL:
         for output_dataset in output_datasets:
@@ -868,18 +934,28 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
     script_output_datasets = ',\n        '.join(output_file_names)
 
     extra_options: Dict[str, str] = {
+        'imports': """
+import shutil
+import sys
+""",
         'prequel': """
-    target_folder = "foo"
+    target_folders = ["foo", "bar"]
         """,
-        'ignored_folders': '[".config", ".mypy_cache", "hello_world_output"]',
         'default_datastore': f'"{DEFAULT_DATASTORE}"',
         'input_datasets': f"""[
             "{input_datasets[0].blob_name}",
-            DatasetConfig(name="{input_datasets[1].blob_name}", datastore="{DEFAULT_DATASTORE}"),
-            DatasetConfig(name="{input_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
-                          target_folder=target_folder),
-            DatasetConfig(name="{input_datasets[3].blob_name}", datastore="{DEFAULT_DATASTORE}",
-                          use_mounting=True),
+            DatasetConfig(name="{input_datasets[1].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}"{input_datasets[1].local_folder}),
+            DatasetConfig(name="{input_datasets[2].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}",
+                          target_folder=target_folders[0]{input_datasets[2].local_folder}),
+            DatasetConfig(name="{input_datasets[3].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}",
+                          use_mounting=True{input_datasets[3].local_folder}),
+            DatasetConfig(name="{input_datasets[4].blob_name}",
+                          datastore="{DEFAULT_DATASTORE}",
+                          target_folder=target_folders[1],
+                          use_mounting=True{input_datasets[4].local_folder}),
         ]""",
         'output_datasets': f"""[
             "{output_datasets[0].blob_name}",
@@ -895,8 +971,10 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         {script_output_datasets}
     ]
     for i, (filename, input_blob_name, input_folder_name) in enumerate(input_datasets):
+        print(f"input_folder: {{run_info.input_datasets[i]}} or {{input_folder_name / input_blob_name}}")
         input_folder = run_info.input_datasets[i] or input_folder_name / input_blob_name
         for j, (output_blob_name, output_folder_name) in enumerate(output_datasets):
+            print(f"output_folder: {{run_info.output_datasets[j]}} or {{output_folder_name / output_blob_name}}")
             output_folder = run_info.output_datasets[j] or output_folder_name / output_blob_name
             file = input_folder / filename
             shutil.copy(file, output_folder)
@@ -904,7 +982,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget, tmp_path: Path) ->
         """
     }
     extra_args: List[str] = []
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True, suppress_config_creation)
 
     for input_dataset in input_datasets:
         for output_dataset in output_datasets:

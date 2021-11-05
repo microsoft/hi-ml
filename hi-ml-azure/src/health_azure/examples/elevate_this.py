@@ -13,9 +13,8 @@ or:
 N.B. The --azureml flag mus match the constant AZUREML_COMMANDLINE_FLAG in health_azure.himl
 """
 from argparse import ArgumentParser
-from pathlib import Path
 
-from health_azure.himl import submit_to_azure_if_needed
+from health_azure import submit_to_azure_if_needed
 
 
 def main() -> None:
@@ -26,10 +25,6 @@ def main() -> None:
     """
     _ = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
-        workspace_config_file=Path("config.json").absolute(),
-        snapshot_root_directory=Path.cwd().parent.parent.parent,
-        entry_script=Path(__file__).absolute(),
-        conda_environment_file=Path("environment.yml").absolute(),
         wait_for_completion=True,
         wait_for_completion_show_output=True)
 

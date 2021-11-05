@@ -22,6 +22,9 @@ RUN apt-get update \
     # openslide c libs
     && apt-get -y install openslide-tools \
     #
+    # libfuse
+    && apt-get -y install libfuse-dev \
+    #
     # cleanup
     && apt-get autoremove -y \
     && apt-get clean -y \

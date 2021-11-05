@@ -58,6 +58,18 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 RUN_CONTEXT = Run.get_context()
 WORKSPACE_CONFIG_JSON = "config.json"
 
+# By default, define several environment variables that work around known issues in the software stack
+DEFAULT_ENVIRONMENT_VARIABLES = {
+    "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": "3600",
+    # Occasionally uploading data during the run takes too long, and makes the job fail. Default is 300.
+    "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC": "900",
+    "MKL_SERVICE_FORCE_INTEL": "1",
+    # Switching to a new software stack in AML for mounting datasets
+    "RSLEX_DIRECT_VOLUME_MOUNT": "true",
+    "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
+    "DATASET_MOUNT_CACHE_SIZE": "1",
+}
+
 PathOrString = Union[Path, str]
 
 
@@ -763,13 +775,7 @@ def create_python_environment(conda_environment_file: Path,
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # By default, define several environment variables that work around known issues in the software stack
     environment_variables = {
-        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": "3600",
-        # Occasionally uploading data during the run takes too long, and makes the job fail. Default is 300.
-        "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC": "900",
-        "MKL_SERVICE_FORCE_INTEL": "1",
-        # Switching to a new software stack in AML for mounting datasets
-        "RSLEX_DIRECT_VOLUME_MOUNT": "true",
-        "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
+        **DEFAULT_ENVIRONMENT_VARIABLES,
         **(environment_variables or {})
     }
     # See if this package as a whl exists, and if so, register it with AzureML environment.

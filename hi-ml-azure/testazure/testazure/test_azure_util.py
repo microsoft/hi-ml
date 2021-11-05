@@ -34,7 +34,9 @@ import health_azure.utils as util
 from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun
+from testazure.util import (DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun,
+                            DEFAULT_IGNORE_FOLDERS)
+
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -396,7 +398,7 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
 ) -> None:
-    just_conda_str_env_name = "HealthML-a26b35a434dd27a44a8224c709fb4760"
+    just_conda_str_env_name = "HealthML-6555b3cfac0b3ee24349701f07dad394"
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
@@ -592,13 +594,19 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
         compute_target="local"
     )
     # Create first run and tag
-    first_run = experiment.submit(config)
+    with append_to_amlignore(
+            amlignore=Path("") / AML_IGNORE_FILE,
+            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+        first_run = experiment.submit(config)
     tags = {"experiment_type": "great_experiment"}
     first_run.set_tags(tags)
     first_run.wait_for_completion()
 
     # Create second run and ensure no tags
-    second_run = experiment.submit(config)
+    with append_to_amlignore(
+            amlignore=Path("") / AML_IGNORE_FILE,
+            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+        second_run = experiment.submit(config)
     if any(second_run.get_tags()):
         second_run.remove_tags(tags)
 
@@ -731,7 +739,10 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
         command=["cd ."],  # command that does nothing
         compute_target="local"
     )
-    run = experiment.submit(config)
+    with append_to_amlignore(
+            amlignore=Path("") / AML_IGNORE_FILE,
+            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+        run = experiment.submit(config)
 
     file_to_upload = tmp_path / "dummy_file.txt"
     file_contents = "Hello world"
@@ -778,6 +789,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     # call the script here
     extra_options = {
         "imports": """
+import sys
 from azureml.core import Run
 from health_azure.utils import _download_files_from_run""",
         "args": """
@@ -982,7 +994,10 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
         command=["cd ."],  # command that does nothing
         compute_target="local"
     )
-    run = experiment.submit(config)
+    with append_to_amlignore(
+            amlignore=Path("") / AML_IGNORE_FILE,
+            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+        run = experiment.submit(config)
 
     file_contents = "Hello world"
     file_name = ""  # for pyright

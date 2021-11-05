@@ -3,12 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import tempfile
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from azureml.core import Dataset, Datastore, Workspace
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.dataprep.fuse.daemon import MountContext
+
+from health_azure.utils import PathOrString, get_workspace
 
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
@@ -76,8 +80,8 @@ class DatasetConfig:
                  datastore: str = "",
                  version: Optional[int] = None,
                  use_mounting: Optional[bool] = None,
-                 target_folder: str = "",
-                 local_folder: Optional[Path] = None):
+                 target_folder: Optional[PathOrString] = None,
+                 local_folder: Optional[PathOrString] = None):
         """
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
             this will be the name given to the newly created dataset.
@@ -93,7 +97,8 @@ class DatasetConfig:
         :param target_folder: The folder into which the dataset should be downloaded or mounted. If left empty, a
             random folder on /tmp will be chosen.
         :param local_folder: The folder on the local machine at which the dataset is available. This
-            is used only for runs outside of AzureML.
+            is used only for runs outside of AzureML. If this is empty then the target_folder will be used to
+            mount or download the dataset.
         """
         # This class would be a good candidate for a dataclass, but having an explicit constructor makes
         # documentation tools in the editor work nicer.
@@ -104,8 +109,51 @@ class DatasetConfig:
         self.datastore = datastore
         self.version = version
         self.use_mounting = use_mounting
-        self.target_folder = target_folder
-        self.local_folder = local_folder
+        self.target_folder = Path(target_folder) if target_folder is not None else None
+        self.local_folder = Path(local_folder) if local_folder is not None else None
+
+    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Optional[Path], Optional[MountContext]]:
+        """
+        Return a local path to the dataset when outside of an AzureML run.
+        If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
+        Otherwise the dataset is mounted or downloaded to either the target folder or a temporary folder and that is
+        returned.
+
+        :param workspace: The AzureML workspace to read from.
+        :return: Pair of optional path to dataset and optional mountcontext.
+        """
+        status = f"Dataset {self.name} will be "
+
+        if self.local_folder is not None:
+            status += f"obtained from local folder {str(self.local_folder)}"
+            print(status)
+            return self.local_folder, None
+
+        if workspace is None:
+            status += "'None' - neither local_folder nor workspace available"
+            print(status)
+            return None, None
+
+        azureml_dataset = get_or_create_dataset(workspace=workspace,
+                                                dataset_name=self.name,
+                                                datastore_name=self.datastore)
+
+        target_path = self.target_folder or Path(tempfile.mkdtemp())
+        use_mounting = self.use_mounting if self.use_mounting is not None else False
+        if use_mounting:
+            status += "mounted at "
+            mount_context = azureml_dataset.mount(mount_point=str(target_path))
+            result = target_path, mount_context
+        else:
+            status += "downloaded to "
+            azureml_dataset.download(target_path=str(target_path), overwrite=False)
+            result = target_path, None
+        if self.target_folder is not None:
+            status += f"{str(self.target_folder)}."
+        else:
+            status += f"a randomly chosen folder: {target_path}."
+        print(status)
+        return result
 
     def to_input_dataset(self,
                          workspace: Workspace,
@@ -122,7 +170,7 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
-        path_on_compute = self.target_folder or None
+        path_on_compute = str(self.target_folder) if self.target_folder is not None else None
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
             status += "mounted at "
@@ -134,7 +182,7 @@ class DatasetConfig:
             status += f"{path_on_compute}."
         else:
             status += "a randomly chosen folder."
-        logging.info(status)
+        print(status)
         return result
 
     def to_output_dataset(self,
@@ -154,7 +202,7 @@ class DatasetConfig:
                                           destination=(datastore, self.name + "/"))
         # TODO: Can we get tags into here too?
         dataset = dataset.register_on_complete(name=self.name)
-        if self.target_folder:
+        if self.target_folder is not None:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
         if use_mounting:
@@ -182,3 +230,62 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
     """
     return [DatasetConfig(name=d, datastore=default_datastore_name) if isinstance(d, str) else d
             for d in datasets]
+
+
+def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
+                                      workspace_config_path: Optional[Path],
+                                      dataset_configs: List[DatasetConfig]) -> Optional[Workspace]:
+    """
+    If any of the dataset_configs require an AzureML workspace then try to get one, otherwise return None.
+
+    :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
+        to pass it in as a parameter.
+    :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
+        Azure portal from which we can retrieve the existing Workspace.
+    :param dataset_configs: List of DatasetConfig describing the input datasets.
+    :return: Workspace if required, None otherwise.
+    """
+    workspace: Workspace = None
+    # Check whether an attempt will be made to mount or download a dataset when running locally.
+    # If so, try to get the AzureML workspace.
+    if any(dc.local_folder is None for dc in dataset_configs):
+        try:
+            workspace = get_workspace(aml_workspace, workspace_config_path)
+            logging.info(f"Found workspace for datasets: {workspace.name}")
+        except Exception:
+            logging.info("Could not find workspace for datasets.")
+    return workspace
+
+
+def setup_local_datasets(aml_workspace: Optional[Workspace],
+                         workspace_config_path: Optional[Path],
+                         dataset_configs: List[DatasetConfig]) -> Tuple[List[Optional[Path]], List[MountContext]]:
+    """
+    When running outside of AzureML, setup datasets to be used locally.
+
+    For each DatasetConfig, if local_folder is supplied, then this is assumed to be a local dataset, and this is
+    used. Otherwise the dataset is mounted or downloaded to either the target folder or a temporary folder and that is
+    used.
+
+    :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
+        to pass it in as a parameter.
+    :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
+        Azure portal from which we can retrieve the existing Workspace.
+    :param dataset_configs: List of DatasetConfig describing the input datasets.
+    :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
+    """
+    workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
+
+    mounted_input_datasets: List[Optional[Path]] = []
+    mount_contexts: List[MountContext] = []
+
+    for d in dataset_configs:
+        target_path, mount_context = d.to_input_dataset_local(workspace)
+
+        mounted_input_datasets.append(target_path)
+
+        if mount_context is not None:
+            mount_context.start()
+            mount_contexts.append(mount_context)
+
+    return mounted_input_datasets, mount_contexts
