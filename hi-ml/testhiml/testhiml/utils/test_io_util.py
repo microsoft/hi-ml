@@ -102,7 +102,7 @@ def test_load_numpy_image(test_output_dirs: OutputFolderForTests) -> None:
     np.save(npy_file, array)
     image = load_numpy_image(npy_file)
     assert image.shape == array_size
-    image_and_segmentation = load_image_in_known_formats(npy_file, load_segmentation=False)
+    image_and_segmentation = load_image_in_known_formats(npy_file)
     assert image_and_segmentation.images.shape == array_size
 
 
@@ -175,7 +175,7 @@ def test_load_dicom_image_ones(test_output_dirs: OutputFolderForTests,
     assert image.ndim == 2 and image.shape == array_size
     assert np.array_equal(image, array)
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    image_and_segmentation = load_image_in_known_formats(dcm_file)
     assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
     assert np.array_equal(image_and_segmentation.images, array)
 
@@ -192,7 +192,7 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
     if not is_signed:
         array = np.random.randint(0, 200, size=array_size, dtype='uint16')
     else:
-        array = np.random.randint(-200, 200, size=array_size, dtype='int16')
+        array = np.random.randint(-200, 200, size=array_size, dtype='int16')  # type: ignore
     assert array.shape == array_size
 
     if is_monochrome2:
@@ -201,7 +201,7 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
         if not is_signed:
             to_write = 2 ** bits_stored - 1 - array
         else:
-            to_write = -1 * array - 1
+            to_write = -1 * array - 1  # type: ignore
 
     dcm_file = test_output_dirs.root_dir / "file.dcm"
     assert is_dicom_file_path(dcm_file)
@@ -211,7 +211,7 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
     assert image.ndim == 2 and image.shape == array_size
     assert np.array_equal(image, array)
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    image_and_segmentation = load_image_in_known_formats(dcm_file)
     assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
     assert np.array_equal(image_and_segmentation.images, array)
 
@@ -223,7 +223,7 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
 ])
 def test_load_image(file_path: str, expected_shape: Tuple) -> None:
     full_file_path = full_ml_test_data_path() / file_path
-    image_and_segmentation = load_image_in_known_formats(full_file_path, load_segmentation=False)
+    image_and_segmentation = load_image_in_known_formats(full_file_path)
     assert image_and_segmentation.images.shape == expected_shape
 
 

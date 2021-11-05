@@ -5,7 +5,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generic, Iterable, Optional, Tuple, Type, TypeVar
+from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar
 
 import SimpleITK as sitk
 import numpy as np
@@ -254,7 +254,6 @@ def load_image_in_known_formats(file: Path) -> ImageAndSegmentations[np.ndarray]
     Loads an image from a file in the given path. At the moment, this supports Nifti, numpy and dicom files.
 
     :param file: The path of the file to load.
-    :param load_segmentation: If True it loads segmentation if present on the same file as the image.
     :return: a wrapper class that contains the images and segmentation if present
     """
     if is_nifti_file_path(file):
@@ -288,6 +287,21 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
+
+
+def save_lines_to_file(file: Path, values: List[str]) -> None:
+    """
+    Writes an array of lines into a file, one value per line. End of line character is hardcoded to be `\n`.
+    If the file exists already, it will be deleted.
+
+    :param file: The path where to save the file
+    :param values: A list of strings
+    """
+    if file.exists():
+        file.unlink()
+
+    lines = map(lambda l: l + "\n", values)
+    file.write_text("".join(lines))
 
 
 def reverse_tuple_float3(tuple: TupleFloat3) -> TupleFloat3:
