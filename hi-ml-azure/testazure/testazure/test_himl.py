@@ -22,13 +22,13 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import Dataset, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
-from health_azure.datasets import DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore
+from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore)
 from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
                                 get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
@@ -523,7 +523,8 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool = False) -> str:
+                               suppress_config_creation: bool = False,
+                               hyperdrive: bool = False) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -533,6 +534,7 @@ def render_and_run_test_script(path: Path,
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
+    :param hyperdrive: Whether this is a HyperDrive run (in which case the logs will differ)
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml-azure package version, if specified in an environment variable.
@@ -609,17 +611,20 @@ def render_and_run_test_script(path: Path,
         assert EXPECTED_QUEUED not in captured
         return captured
     else:
+        expected_log_file = "hyperdrive.txt" if hyperdrive else "70_driver_log.txt"
         assert EXPECTED_QUEUED in captured
         with check_config_json(path):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
+        if run.status not in ["Failed", "Completed"]:
+            run.wait_for_completion()
         assert run.status == "Completed"
         log_root = path / "logs"
         log_root.mkdir(exist_ok=False)
         run.get_all_logs(destination=log_root)
-        driver_log = log_root / "azureml-logs" / "70_driver_log.txt"
+        driver_log = log_root / "azureml-logs" / expected_log_file
         log_text = driver_log.read_text()
         return log_text
 
@@ -997,4 +1002,62 @@ import sys
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
+
 # endregion Elevate to AzureML unit tests
+
+
+@pytest.mark.fast
+# Azure ML expects run_config to be instance of ScriptRunConfig
+@patch("azureml.train.hyperdrive.runconfig.isinstance", return_value=True)
+@pytest.mark.parametrize("num_crossval_splits, metric_name, cross_val_index_arg_name", [
+    (-1, "val/loss", "cross_validation_split_index"),
+    (0, "loss", "cross_validation_split_index"),
+    (1, "val/acc", "split"),
+    (5, "accuracy", "data_split")
+])
+def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: int, metric_name: str,
+                                           cross_val_index_arg_name: str) -> None:
+    if num_crossval_splits < 1:
+        with pytest.raises(Exception):
+            himl.create_crossval_hyperdrive_config(num_splits=num_crossval_splits,
+                                                   cross_val_index_arg_name=cross_val_index_arg_name,
+                                                   metric_name=metric_name)
+    else:
+        crossval_config = himl.create_crossval_hyperdrive_config(num_splits=num_crossval_splits,
+                                                                 cross_val_index_arg_name=cross_val_index_arg_name,
+                                                                 metric_name=metric_name)
+        assert isinstance(crossval_config, HyperDriveConfig)
+        assert crossval_config._primary_metric_config.get("name") == metric_name
+        assert crossval_config._primary_metric_config.get("goal") == "minimize"
+        assert crossval_config._max_total_runs == num_crossval_splits
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("cross_validation_metric_name", [None, "accuracy"])
+@patch("sys.argv")
+@patch("health_azure.himl.exit")
+def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, mock_exit: MagicMock,
+                                                   cross_validation_metric_name: Optional[str]) -> None:
+    """
+    Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
+    """
+    cross_validation_metric_name = cross_validation_metric_name or ""
+    mock_sys_args.return_value = ["", "--azureml"]
+    with patch.object(Environment, "get", return_value="dummy_env"):
+        with patch("azureml.core.Workspace") as mock_workspace:
+            mock_workspace.compute_targets = ["foo", "bar"]
+            with patch("health_azure.himl.submit_run") as mock_submit_run:
+                with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
+                    crossval_config = himl.create_crossval_hyperdrive_config(
+                        num_splits=2,
+                        cross_val_index_arg_name="cross_val_split_index",
+                        metric_name=cross_validation_metric_name)
+                    himl.submit_to_azure_if_needed(
+                        aml_workspace=mock_workspace,
+                        entry_script=Path(__file__),
+                        compute_cluster_name="foo",
+                        aml_environment_name="dummy_env",
+                        submit_to_azureml=True,
+                        hyperdrive_config=crossval_config)
+                    mock_submit_run.assert_called_once()
+                    mock_hyperdrive_config.assert_called_once()

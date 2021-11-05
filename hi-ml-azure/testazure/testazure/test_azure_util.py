@@ -5,6 +5,7 @@
 """
 Tests for the functions in health_azure.azure_util
 """
+import json
 import logging
 import os
 import sys
@@ -18,6 +19,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import conda_merge
+import numpy as np
 import param
 import pytest
 from _pytest.capture import CaptureFixture
@@ -1412,3 +1414,45 @@ def test_my_script_config() -> None:
         with pytest.raises(ValueError) as e:
             MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
             assert "must not be None" in str(e.value)
+
+
+class MockChildRun:
+    def __init__(self, run_id: str, cross_val_index: int):
+        self.run_id = run_id
+        self.tags = {"hyperparameters": json.dumps({"child_run_index": cross_val_index})}
+
+    def get_metrics(self) -> Dict[str, Union[float, List[Union[int, float]]]]:
+        num_epochs = 5
+        return {
+            "epoch": list(range(num_epochs)),
+            "train/loss": [np.random.rand() for _ in range(num_epochs)],
+            "train/auroc": [np.random.rand() for _ in range(num_epochs)],
+            "val/loss": [np.random.rand() for _ in range(num_epochs)],
+            "val/recall": [np.random.rand() for _ in range(num_epochs)],
+            "test/f1score": np.random.rand(),
+            "test/accuracy": np.random.rand()
+        }
+
+
+class MockHyperDriveRun:
+    def __init__(self, num_children: int) -> None:
+        self.num_children = num_children
+
+    def get_children(self) -> List[MockChildRun]:
+        return [MockChildRun(f"run_abc_{i}456", i) for i in range(self.num_children)]
+
+
+@patch("health_azure.utils.isinstance", return_value=True)
+def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
+    ws = DEFAULT_WORKSPACE.workspace
+    num_crossval_splits = 2
+    with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
+        mock_get_run.return_value = MockHyperDriveRun(num_crossval_splits)
+        df = util.aggregate_hyperdrive_metrics("run_id_123", "child_run_index", aml_workspace=ws)
+        num_rows, num_cols = df.shape
+        assert num_rows == 7  # The number of metrics specified in MockChildRun.get_metrics
+        assert num_cols == num_crossval_splits
+        epochs = df.loc["epoch"]
+        assert isinstance(epochs[0], list)
+        test_accuracies = df.loc["test/accuracy"]
+        assert isinstance(test_accuracies[0], float)

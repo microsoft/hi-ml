@@ -24,8 +24,8 @@ from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptR
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
-from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
@@ -152,6 +152,8 @@ def create_run_configuration(workspace: Workspace,
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
 
+    # Create MPI configuration for distributed jobs (unless num_splits > 1, in which case
+    # an AML HyperdriveConfig is instantiated instead
     if num_nodes > 1:
         distributed_job_config = MpiConfiguration(node_count=num_nodes)
         run_config.mpi = distributed_job_config
@@ -167,6 +169,35 @@ def create_run_configuration(workspace: Workspace,
         run_config.output_data = outputs
 
     return run_config
+
+
+def create_crossval_hyperdrive_config(num_splits: int,
+                                      cross_val_index_arg_name: str = "cross_validation_split_index",
+                                      metric_name: str = "val/loss") -> HyperDriveConfig:
+    """
+    Creates an Azure ML HyperDriveConfig object for running cross validation. Note: this config expects a metric
+    named <metric_name> to be logged in your training script([see here](
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
+
+    :param num_splits: The number of splits for k-fold cross validation
+    :param cross_val_index_arg_name: The name of the argument received by each of the child runs that indicates which
+        split that child represents.
+    :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
+        your responsibility to make sure a metric with this name is logged to the Run in your training script
+    :return: an Azure ML HyperDriveConfig object
+    """
+    logging.info(f"Creating a HyperDriveConfig. Please be aware that this expects to find the metric {metric_name}"
+                 f" logged to the Run during your training script.")
+    return HyperDriveConfig(
+        run_config=ScriptRunConfig(""),
+        hyperparameter_sampling=GridParameterSampling(
+            {
+                cross_val_index_arg_name: choice(list(range(num_splits)))
+            }),
+        primary_metric_name=metric_name,
+        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+        max_total_runs=num_splits
+    )
 
 
 def create_script_run(snapshot_root_directory: Optional[Path] = None,
@@ -300,7 +331,8 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None) -> AzureRunInfo:  # pragma: no cover
+        hyperdrive_config: Optional[HyperDriveConfig] = None
+) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
     Use the commandline flag --azureml to submit to AzureML, and leave it out to run locally.
@@ -427,12 +459,13 @@ def submit_to_azure_if_needed(  # type: ignore
         num_nodes=num_nodes,
         max_run_duration=max_run_duration,
         input_datasets=cleaned_input_datasets,
-        output_datasets=cleaned_output_datasets,
+        output_datasets=cleaned_output_datasets
     )
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
                                           script_params=script_params)
     script_run_config.run_config = run_config
+
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
         config_to_submit._run_config = script_run_config
@@ -541,7 +574,7 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
     the context.
     If the file does not exist yet, it will be created, the contents written, and deleted when leaving the context.
 
-    :param lines_to_append: The text lines that should be added at the end of the .amlignore file
+    :param lines_to_append: The text lines that should be added at the enund of the .amlignore file
     :param amlignore: The path of the .amlignore file that should be modified. If not given, the function
         looks for a file in the current working directory.
     """
@@ -600,7 +633,8 @@ def main() -> None:
         compute_cluster_name=args.compute_cluster_name,
         snapshot_root_directory=Path(args.snapshot_root_directory),
         entry_script=Path(args.entry_script),
-        conda_environment_file=Path(args.conda_environment_file))
+        conda_environment_file=Path(args.conda_environment_file),
+    )
 
 
 if __name__ == "__main__":

@@ -48,7 +48,8 @@ def main() -> None:
         input_datasets={{ input_datasets }},
         output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},
-        wait_for_completion_show_output={{ wait_for_completion_show_output }})
+        wait_for_completion_show_output={{ wait_for_completion_show_output }},
+        tags={{ tags }})
 
     parser = ArgumentParser()
     {{ args }}
