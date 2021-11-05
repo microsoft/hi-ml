@@ -2,11 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from typing import Dict, Iterable, Optional, Tuple, TypeVar, Union
 
 T = TypeVar('T')
-PathOrString = Union[Path, str]
 TupleStringOptionalFloat = Tuple[str, Optional[float]]
 TupleInt2 = Tuple[int, int]
 TupleInt3 = Tuple[int, int, int]

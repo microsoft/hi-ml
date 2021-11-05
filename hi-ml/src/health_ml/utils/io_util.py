@@ -13,8 +13,9 @@ import pydicom as dicom
 import torch
 from numpy.lib.npyio import NpzFile
 
+from health_azure.utils import PathOrString
 from health_ml.common import common_util
-from health_ml.common.type_annotations import PathOrString, TupleFloat3
+from health_ml.common.type_annotations import TupleFloat3
 from health_ml.utils.image_util import ImageHeader, get_unit_image_header
 
 TensorOrNumpyArray = TypeVar('TensorOrNumpyArray', torch.Tensor, np.ndarray)
@@ -239,7 +240,6 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
 @dataclass(frozen=True)
 class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
     images: TensorOrNumpyArray
-    segmentations: Optional[TensorOrNumpyArray] = None
 
 
 def is_png(file: PathOrString) -> bool:
@@ -249,10 +249,9 @@ def is_png(file: PathOrString) -> bool:
     return _file_matches_extension(file, [".png"])
 
 
-def load_image_in_known_formats(file: Path,
-                                load_segmentation: bool) -> ImageAndSegmentations[np.ndarray]:
+def load_image_in_known_formats(file: Path) -> ImageAndSegmentations[np.ndarray]:
     """
-    Loads an image from a file in the given path. At the moment, this supports Nifti, HDF5, numpy and dicom files.
+    Loads an image from a file in the given path. At the moment, this supports Nifti, numpy and dicom files.
 
     :param file: The path of the file to load.
     :param load_segmentation: If True it loads segmentation if present on the same file as the image.
@@ -274,11 +273,6 @@ def load_image_in_known_formats(file: Path,
 def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
     """
     Loads an image with extension numpy or nifti
-    For HDF5 path suffix
-        For images |<dataset_name>|<channel index>
-        For segmentation binary |<dataset_name>|<channel index>
-        For segmentation multimap |<dataset_name>|<channel index>|<multimap value>
-        The expected dimensions to be (channel, Z, Y, X)
     :param path: The path to the file
     :param image_type: The type of the image
     """

@@ -4,31 +4,26 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-import shutil
 from typing import Any, Optional, Tuple
-from unittest import mock
-import zipfile
 
 import SimpleITK as sitk
 import numpy as np
 import pydicom
 import pytest
-import torch
-from skimage.transform import resize
 
-from health.common.fixed_paths_for_tests import full_ml_test_data_path
-from health.common.output_directories import OutputFolderForTests
-from health.utils import io_util
-from health.utils.io_util import ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
+from health_ml.common.fixed_paths_for_tests import full_ml_test_data_path
+from health_ml.common.output_directories import OutputFolderForTests
+from health_ml.utils import io_util
+from health_ml.utils.io_util import PhotometricInterpretation, \
     is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
-    load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
-from Tests.ML.util import assert_file_contains_string
+    load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
+from testhiml.utils.util import assert_file_contains_string
+
 
 known_nii_path = full_ml_test_data_path("test_good.nii.gz")
 known_array = np.ones((128, 128, 128))
 bad_nii_path = full_ml_test_data_path("test_bad.nii.gz")
 good_npy_path = full_ml_test_data_path("test_good.npz")
-good_h5_path = full_ml_test_data_path("data.h5")
 # A sample H&N DICOM series,
 dicom_series_folder = full_ml_test_data_path() / "dicom_series_data" / "HN"
 # A sample H&N segmentation
@@ -73,34 +68,6 @@ def test_save_file(value: Any, expected: Any) -> None:
     io_util.save_lines_to_file(Path(file), value)
     assert_file_contains_string(file, expected)
     os.remove(str(file))
-
-
-def test_hdf5_loading() -> None:
-    """
-    Check that when we access and invalid dataset we get a good exception
-    """
-    with pytest.raises(ValueError) as valueError:
-        io_util.load_image(f"{good_h5_path}|doesnotexist|0|1")
-    assert str(good_h5_path) in str(valueError.value)
-    assert "doesnotexist" in str(valueError.value)
-
-
-def test_hdf5_loading_multimap() -> None:
-    """
-    Check that multimap returns correct image
-    """
-    image_header = io_util.load_image(f"{good_h5_path}|segmentation|0")
-    seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|1")
-    expected = image_header.image == 1
-    assert np.array_equal(expected, seg_header.image)
-
-
-def test_hdf5_loading_multimap_class_do_not_exists() -> None:
-    """
-    Check that multimap returns correct image if class does not exist
-    """
-    seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|555555555555")
-    assert np.all(seg_header.image == 0)
 
 
 @pytest.mark.parametrize("input", [("foo.txt", False),
@@ -171,6 +138,7 @@ def write_test_dicom(array: np.ndarray, path: Path, is_monochrome2: bool = True,
     if bits_stored is not None:
         ds.BitsStored = bits_stored
     ds.save_as(path)
+
 
 @pytest.mark.parametrize("is_signed", [True, False])
 @pytest.mark.parametrize("is_monochrome2", [True, False])
@@ -252,261 +220,11 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
                          [
                              ("train_and_test_data/id1_mask.nii.gz", (75, 75, 75)),
                              ("hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5", (4, 5, 7)),
-                         ])
+])
 def test_load_image(file_path: str, expected_shape: Tuple) -> None:
     full_file_path = full_ml_test_data_path() / file_path
     image_and_segmentation = load_image_in_known_formats(full_file_path, load_segmentation=False)
     assert image_and_segmentation.images.shape == expected_shape
-
-
-@pytest.mark.parametrize(["file_path_str", "expected_shape"],
-                         [
-                             ("train_and_test_data/id1_mask.nii.gz", (75, 75, 75)),
-                             ("hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5", (4, 5, 7)),
-                         ])
-def test_load_and_stack(file_path_str: str, expected_shape: Tuple) -> None:
-    file_path = Path(file_path_str)
-    files = [full_ml_test_data_path() / f for f in [file_path, file_path]]
-    stacked = load_images_and_stack(files, load_segmentation=False)
-    assert torch.is_tensor(stacked.segmentations)
-    assert stacked.segmentations is not None
-    assert stacked.segmentations.shape == (0,)
-    assert torch.is_tensor(stacked.images)
-    assert stacked.images.shape == (2,) + expected_shape
-
-
-def test_load_and_stack_with_segmentation() -> None:
-    expected_shape = (4, 5, 7)
-    file_path = full_ml_test_data_path() / "hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5"
-    files = [file_path, file_path]
-    stacked = load_images_and_stack(files, load_segmentation=True)
-    assert stacked.segmentations is not None
-    assert torch.is_tensor(stacked.segmentations)
-    assert stacked.segmentations.dtype == torch.uint8
-    assert stacked.segmentations.shape == (2,) + expected_shape
-    assert torch.is_tensor(stacked.images)
-    assert stacked.images.dtype == torch.float16
-    assert stacked.images.shape == (2,) + expected_shape
-
-
-def test_load_and_stack_with_crop() -> None:
-    image_size = (10, 12, 14)
-    crop_shape = (4, 6, 8)
-    center_start = (3, 3, 3)
-    assert np.allclose(np.array(center_start) * 2 + np.array(crop_shape), np.array(image_size))
-    # Create a fake image that is all zeros apart from ones in the center, right where we expect the
-    # center crop to be taken from. We can later assert that the right crop was taken by checking that only
-    # values of 1.0 are in the image
-    image = np.zeros(image_size)
-    image[center_start[0]:center_start[0] + crop_shape[0],
-    center_start[1]:center_start[1] + crop_shape[1],
-    center_start[2]:center_start[2] + crop_shape[2]] = 1
-    segmentation = image * 2
-    mock_return = ImageAndSegmentations(image, segmentation)
-    with mock.patch("InnerEye.ML.utils.io_util.load_image_in_known_formats", return_value=mock_return):
-        stacked = load_images_and_stack([Path("doesnotmatter")], load_segmentation=True,
-                                        center_crop_size=crop_shape)
-        assert torch.is_tensor(stacked.images)
-        assert stacked.images.shape == (1,) + crop_shape
-        assert torch.all(stacked.images == 1.0)
-        assert torch.is_tensor(stacked.segmentations)
-        assert stacked.segmentations is not None
-        assert stacked.segmentations.shape == (1,) + crop_shape
-        assert torch.all(stacked.segmentations == 2.0)
-
-
-def test_load_images_when_empty() -> None:
-    stacked = load_images_and_stack([], load_segmentation=False)
-    assert stacked.images.shape == (0,)
-    assert stacked.segmentations is not None
-    assert stacked.segmentations.shape == (0,)
-
-
-def test_load_images_and_stack_2d_ones(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test load of 2D images filled with (int) ones.
-    """
-    image_size = (20, 30)
-
-    array = np.ones(image_size, dtype='uint16')
-    write_test_dicom(array, test_output_dirs.root_dir / "file1.dcm")
-    write_test_dicom(array, test_output_dirs.root_dir / "file2.dcm")
-    write_test_dicom(array, test_output_dirs.root_dir / "file3.dcm")
-
-    expected_tensor = torch.from_numpy(np.ones((3, 1) + image_size))
-
-    file_list = [test_output_dirs.root_dir / f"file{i}.dcm" for i in range(1, 4)]
-    imaging_data = load_images_and_stack(file_list,
-                                         load_segmentation=False,
-                                         image_size=(1,) + image_size)
-
-    assert len(imaging_data.images.shape) == 4
-    assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1] == 1
-    assert imaging_data.images.shape[2:] == image_size
-    assert torch.allclose(imaging_data.images, expected_tensor)
-
-
-def test_load_images_and_stack_2d_random(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test load of 2D images
-    """
-    image_size = (20, 30)
-    low = 0
-    high = 200
-
-    array1 = np.random.randint(low=low, high=high, size=image_size, dtype='uint16')
-    write_test_dicom(array1, test_output_dirs.root_dir / "file1.dcm")
-    array2 = np.random.randint(low=low, high=high, size=image_size, dtype='uint16')
-    write_test_dicom(array2, test_output_dirs.root_dir / "file2.dcm")
-    array3 = np.random.randint(low=low, high=high, size=image_size, dtype='uint16')
-    write_test_dicom(array3, test_output_dirs.root_dir / "file3.dcm")
-
-    expected_tensor = torch.from_numpy(np.expand_dims(np.stack([array1, array2, array3]).astype(float), axis=1))
-
-    file_list = [test_output_dirs.root_dir / f"file{i}.dcm" for i in range(1, 4)]
-    imaging_data = load_images_and_stack(file_list,
-                                         load_segmentation=False,
-                                         image_size=(1,) + image_size)
-
-    assert len(imaging_data.images.shape) == 4
-    assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1] == 1
-    assert imaging_data.images.shape[2:] == image_size
-    assert torch.allclose(imaging_data.images, expected_tensor)
-
-
-def test_load_images_and_stack_2d_with_resize_ones(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test load and resize of 2D images filled with (int) ones.
-    """
-    image_size = (20, 30)
-
-    array = np.ones((10, 20), dtype='uint16')
-    write_test_dicom(array, test_output_dirs.root_dir / "file1.dcm")
-    array = np.ones((20, 30), dtype='uint16')
-    write_test_dicom(array, test_output_dirs.root_dir / "file2.dcm")
-    array = np.ones((30, 10), dtype='uint16')
-    write_test_dicom(array, test_output_dirs.root_dir / "file3.dcm")
-
-    expected_tensor = torch.from_numpy(np.ones((3, 1) + image_size))
-
-    file_list = [test_output_dirs.root_dir / f"file{i}.dcm" for i in range(1, 4)]
-    imaging_data = load_images_and_stack(file_list,
-                                         load_segmentation=False,
-                                         image_size=(1,) + image_size)
-
-    assert len(imaging_data.images.shape) == 4
-    assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1] == 1
-    assert imaging_data.images.shape[2:] == image_size
-    assert torch.allclose(imaging_data.images, expected_tensor)
-
-
-def test_load_images_and_stack_2d_with_resize_random(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test load and resize of 2D images
-    """
-    image_size = (20, 30)
-    low = 0
-    high = 200
-
-    array1 = np.random.randint(low=low, high=high, size=(10, 20), dtype='uint16')
-    write_test_dicom(array1, test_output_dirs.root_dir / "file1.dcm")
-    array2 = np.random.randint(low=low, high=high, size=(20, 30), dtype='uint16')
-    write_test_dicom(array2, test_output_dirs.root_dir / "file2.dcm")
-    array3 = np.random.randint(low=low, high=high, size=(30, 20), dtype='uint16')
-    write_test_dicom(array3, test_output_dirs.root_dir / "file3.dcm")
-
-    array1 = resize(array1.astype(np.float), image_size, anti_aliasing=True)
-    array3 = resize(array3.astype(np.float), image_size, anti_aliasing=True)
-
-    expected_tensor = torch.from_numpy(np.expand_dims(np.stack([array1, array2, array3]).astype(float), axis=1))
-
-    file_list = [test_output_dirs.root_dir / f"file{i}.dcm" for i in range(1, 4)]
-    imaging_data = load_images_and_stack(file_list,
-                                         load_segmentation=False,
-                                         image_size=(1,) + image_size)
-
-    assert len(imaging_data.images.shape) == 4
-    assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1] == 1
-    assert imaging_data.images.shape[2:] == image_size
-    assert torch.allclose(imaging_data.images, expected_tensor)
-
-
-def test_load_images_and_stack_3d_with_resize_ones(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test load and resize of 3D images filled with (float) ones.
-    """
-    image_size = (20, 30, 20)
-
-    array = np.ones((10, 20, 10))
-    np.save(test_output_dirs.root_dir / "file1.npy", array)
-    array = np.ones((20, 30, 20))
-    np.save(test_output_dirs.root_dir / "file2.npy", array)
-    array = np.ones((30, 10, 30))
-    np.save(test_output_dirs.root_dir / "file3.npy", array)
-
-    expected_tensor = torch.from_numpy(np.ones((3,) + image_size))
-
-    file_list = [test_output_dirs.root_dir / f"file{i}.npy" for i in range(1, 4)]
-    imaging_data = load_images_and_stack(file_list,
-                                         load_segmentation=False,
-                                         image_size=image_size)
-
-    assert len(imaging_data.images.shape) == 4
-    assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1:] == image_size
-    assert torch.allclose(imaging_data.images, expected_tensor)
-
-
-def test_load_images_and_stack_3d_with_resize_random(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test load and resize of 3D images
-    """
-    image_size = (20, 30, 20)
-    low = -200
-    high = 200
-
-    array1 = np.random.randint(low=low, high=high, size=(10, 20, 10)).astype(np.float)
-    np.save(test_output_dirs.root_dir / "file1.npy", array1)
-    array2 = np.random.randint(low=low, high=high, size=(20, 30, 20)).astype(np.float)
-    np.save(test_output_dirs.root_dir / "file2.npy", array2)
-    array3 = np.random.randint(low=low, high=high, size=(30, 10, 30)).astype(np.float)
-    np.save(test_output_dirs.root_dir / "file3.npy", array3)
-
-    array1 = resize(array1.astype(np.float), image_size, anti_aliasing=True)
-    array3 = resize(array3.astype(np.float), image_size, anti_aliasing=True)
-
-    expected_tensor = torch.from_numpy(np.stack([array1, array2, array3]).astype(float))
-
-    file_list = [test_output_dirs.root_dir / f"file{i}.npy" for i in range(1, 4)]
-    imaging_data = load_images_and_stack(file_list,
-                                         load_segmentation=False,
-                                         image_size=image_size)
-
-    assert len(imaging_data.images.shape) == 4
-    assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1:] == image_size
-    assert torch.allclose(imaging_data.images, expected_tensor)
-
-
-def test_load_images_and_stack_with_resize_only_float(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Don't allow int type images to be loaded if image_size is set:
-    skimage.transform.resize will not resize these correctly
-    """
-    image_size = (20, 30, 20)
-
-    array = np.ones((10, 20, 20), dtype='uint16')
-    np.save(test_output_dirs.root_dir / "file.npy", array)
-    file_list = [test_output_dirs.root_dir / "file.npy"]
-
-    with pytest.raises(ValueError):
-        load_images_and_stack(file_list,
-                              load_segmentation=False,
-                              image_size=image_size)
 
 
 def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
