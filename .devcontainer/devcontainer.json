@@ -42,4 +42,11 @@
 
 	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	// "remoteUser": "vscode"
+	
+	// Extra settings to start the docker container in order to use libfuse, required for locally mounting datasets.
+	// More info: https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.data.filedataset?view=azure-ml-py#mount-mount-point-none----kwargs-
+	"runArgs": [
+		"--cap-add=SYS_ADMIN",
+		"--device=/dev/fuse"
+	],
 }

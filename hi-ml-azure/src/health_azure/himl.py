@@ -24,14 +24,15 @@ from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptR
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString)
+                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
-                                   _replace_string_datasets)
+                                   _replace_string_datasets, setup_local_datasets)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -63,6 +64,10 @@ class AzureRunInfo:
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
          datasets are specified, the list is empty."""
+    mount_contexts: List[MountContext]
+    """A list of mount contexts for input datasets when running outside AzureML. There will be a mount context
+    for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set.
+    This list is maintained only to prevent exit from these contexts until the RunInfo object is deleted."""
     run: Optional[Run]
     """An AzureML Run object if the present script is executing inside AzureML, or None if outside of AzureML.
     The Run object has methods to log metrics, upload files, etc."""
@@ -370,9 +375,13 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
         # Set the environment variables for local execution.
-        if environment_variables is not None:
-            for k, v in environment_variables.items():
-                os.environ[k] = v
+        environment_variables = {
+            **DEFAULT_ENVIRONMENT_VARIABLES,
+            **(environment_variables or {})
+        }
+
+        for k, v in environment_variables.items():
+            os.environ[k] = v
 
         output_folder = Path.cwd() / OUTPUT_FOLDER
         output_folder.mkdir(exist_ok=True)
@@ -380,9 +389,14 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
+        mounted_input_datasets, mount_contexts = setup_local_datasets(aml_workspace,
+                                                                      workspace_config_path,
+                                                                      cleaned_input_datasets)
+
         return AzureRunInfo(
-            input_datasets=[d.local_folder for d in cleaned_input_datasets],
+            input_datasets=mounted_input_datasets,
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
+            mount_contexts=mount_contexts,
             run=None,
             is_running_in_azure_ml=False,
             output_folder=output_folder,
@@ -513,6 +527,7 @@ def _generate_azure_datasets(
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
+        mount_contexts=[],
         run=RUN_CONTEXT,
         is_running_in_azure_ml=True,
         output_folder=Path.cwd() / OUTPUT_FOLDER,
