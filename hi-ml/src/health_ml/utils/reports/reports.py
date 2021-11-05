@@ -1,6 +1,7 @@
 import json
 import random
 from argparse import ArgumentParser, Namespace
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Dict, Any, Iterable, Type, Callable
 
@@ -17,8 +18,9 @@ from xhtml2pdf.default import DEFAULT_CSS
 
 from fpdf import FPDF
 
-IMAGE_KEY_HTML = "image_paths_html"
-IMAGE_KEY_PDF = "image_paths_pdf"
+IMAGE_KEY_HTML = "IMAGEPATHSHTML"
+IMAGE_KEY_PDF = "IMAGEKEYPDF"
+TABLE_KEY_HTML = "TABLEKEYHTML"
 VALID_PNG_EXTENSIONS = [".png"]
 VALID_NUMPY_EXTENSIONS = (".npy", ".npz")
 
@@ -139,14 +141,6 @@ class Report(FPDF):
         # self.cell(sum(w), 0, "", "T", ln=1)
         self.add_break(num_lines=1)
 
-    # @staticmethod
-    # def _update_precision(data: List[List[str]], headers: List[str], precision: Dict[str, int]):
-    #     df = pd.DataFrame(data)
-    #     df.columns = headers
-    #     for col, desired_precision in precision.items():
-    #         df[col] = df[col].round(desired_precision)
-    #     return df.values.tolist()
-
     def add_table(self, headers: List[str] = None, data: Union[pd.DataFrame, List[List[str]]] = None,
                   data_path: Path = None, header_color=(153, 204, 204), header_font_color=0,
                   header_line_color=(0, 0, 0), header_line_width=0.3, body_line_color=(0, 0, 0), body_line_width=0.3,
@@ -204,20 +198,6 @@ class Report(FPDF):
         data = df.to_numpy().tolist()
         assert len(headers) == len(data[0])
         self.add_table(headers, data)
-
-    # def read_table_from_file(self, data_path: Path) -> pd.DataFrame:
-    #     suffix = data_path.suffix
-    #     if suffix == ".csv":
-    #         df = pd.read_csv(data_path)
-    #     elif suffix in [".xls", ".xlsx"]:
-    #         df = pd.read_excel(data_path)
-    #     else:
-    #         # TODO: load more file types
-    #         # with open(data_path, "r") as f_path:
-    #         #     txt = f_path.read()
-    #         #     lines = txt.split()
-    #         raise ValueError(f"Can only read data from .csv, .xls or .xlsx files. Found {suffix}")
-    #     return df
 
     def add_table_from_file(self, data_path: Path):
         df = self.read_table_from_file(data_path)
@@ -323,12 +303,6 @@ class Table:
 
     def to_list(self) -> List[List[str]]:
         return self.df.values.tolist()
-
-    # def to_dataframe(self, data: List[Any]):
-    #     if isinstance(data, pd.DataFrame):
-    #         logging.warning("Data is already a pandas DataFrame. Doing nothing")
-    #         return data
-    #     return pd.DataFrame(data, columns=self.headers)
 
     def update_precision(self, precision: Dict[str, int]):
         for col, desired_precision in precision.items():
@@ -614,26 +588,18 @@ class HTMLReport:
 </body>
 </html>"""
 
-        # with open(template_path, "w+") as f_path:
-        #
-        #     f_path.write(self.template)
-
         return template_path
 
     def add_table(self, df: pd.DataFrame):
 
-        # First update the template to expect a table
-        # with open(self.template_path, "r+") as f_path:
-        #     template = f_path.read()
         self.template = self._remove_html_end(self.template)
 
-        table_key = "tables"
-        while f"% for table in {table_key} %" in self.template:
-            table_key += f"_{str(random.randint(0, 10))}"
+        num_existing_tables = self.template.count("table.to_html")
+        table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
 
         self.template += """<div class="container" >
 {% for table in """ + table_key + """ %}
-{{ table.to_html(classes=[ "table"], justify="center") | safe }}
+    {{ table.to_html(classes=[ "table"], justify="center") | safe }}
 {% endfor %}
 </div>
 <br>
@@ -641,8 +607,6 @@ class HTMLReport:
 </div>
 </body>
 </html>"""
-        # f_path.seek(0)
-        # f_path.write(template)
 
         self.render_kwargs.update({table_key: [df]})
 
@@ -654,20 +618,19 @@ class HTMLReport:
 
         image_path_pdf = Path(image_path)
 
-        # with open(self.template_path, "r+") as f_path:
-        #     report = f_path.read()
         self.template = self._remove_html_end(self.template)
 
-        image_key_html = IMAGE_KEY_HTML
-        image_key_pdf = IMAGE_KEY_PDF
-        while f"% for table in {image_key_html} %" in self.template:
-            random_int = f"_{str(random.randint(0, 10))}"
-            image_key_html += random_int
-            image_key_pdf += random_int
+        image_key_html = IMAGE_KEY_HTML + "_0"
+        image_key_pdf = IMAGE_KEY_PDF + "_0"
+        # Increment the image name so as not to replace other images
+        num_existing_images = self.template.count("<img src=")
+
+        image_key_html = image_key_html.split("_")[0] + f"_{num_existing_images}"
+        image_key_pdf = image_key_pdf.split("_")[0] + f"_{num_existing_images}"
 
         self.template += """<div class="container">
 {% for image_path in """ + image_key_html + """ %}
-<img src={{image_path}} alt={{image_path}}>
+    <img src={{image_path}} alt={{image_path}}>
 {% endfor %}
 </div>
 <br>
@@ -675,20 +638,25 @@ class HTMLReport:
 </div>
 </body>
 </html>"""
-        # f_path.seek(0)
-        # f_path.write(report)
 
+        # Add these keys and paths to the keyword args for rendering later
         self.render_kwargs.update({image_key_html: [img_path_html], image_key_pdf: [image_path_pdf]})
+
+    def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None):
+        if fig is not None:
+            # save the plot
+            plot_title = fig._suptitle.get_text() or fig.texts[0].get_text()
+            title = plot_title.replace(" ", "_") + ".png" if len(plot_title) > 1 else f"plot_{datetime.now()}.png"
+            plot_path = self.report_folder / title
+            fig.tight_layout()
+            fig.savefig(plot_path, bbox_inches='tight', dpi=150)
+
+        self.add_image(str(plot_path))
 
     def render(self, save_html=True) -> None:
         """
         Render the report
         """
-
-        # Now render the report
-        # subs = self.env.get_template(str(self.template_path)).render(
-        #     **self.render_kwargs
-        # )
         subs: str = self.env.from_string(self.template).render(**self.render_kwargs)
         self.report_html = subs
         # write the substitution to a file
@@ -713,10 +681,6 @@ class HTMLReport:
 
         with open(self.report_path_pdf, "wb+") as f_path:
             pisa_status = pisa.CreatePDF(self.report_html, dest=f_path)
-
-        # self.report_path_pdf.mkdir(exist_ok=True)
-        # pypandoc.convert_file(str(self.report_path_html), 'pdf', outputfile=str(self.report_path_pdf), format='html',
-        #                       extra_args=['--pdf-engine','xelatex'])
 
 
 def get_data_from_tensorboard_log():

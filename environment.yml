@@ -8,5 +8,8 @@ dependencies:
   - pytorch=1.8.0
   - scikit-learn=0.24.2
   - pip:
+      - fpdf2==2.4.5
+      - matplotlib==3.4.3
+      - xhtml2pdf==0.2.5
       - -r build_requirements.txt
       - -r test_requirements.txt
