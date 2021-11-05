@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
+import cv2
 from line_profiler import LineProfiler
 from PIL import Image
 
@@ -12,7 +13,13 @@ from azureml.core import Dataset
 from health_azure import get_workspace
 
 
-def convert_image(input_filename: Path, output_filename: Path) -> None:
+def convert_image_opencv(input_filename: Path, output_filename: Path) -> None:
+    im = cv2.imread(input_filename)
+    greyscale = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    cv2.imwrite(output_filename, greyscale)
+
+
+def convert_image_pillow(input_filename: Path, output_filename: Path) -> None:
     """
     Open an image file, convert it to greyscale, and save to another file.
 
@@ -44,7 +51,8 @@ def mount_and_process_folder() -> None:
 
         for image_file in input_folder.glob("*.png"):
             output_image_file = output_folder / image_file.name
-            convert_image(image_file, output_image_file)
+            convert_image_opencv(image_file)
+            convert_image_pillow(image_file, output_image_file)
 
 
 def main() -> None:
@@ -52,7 +60,8 @@ def main() -> None:
     Create a LineProfiler and time calls to convert_image, writing results to a text file.
     """
     lp = LineProfiler()
-    lp.add_function(convert_image)
+    lp.add_function(convert_image_opencv)
+    lp.add_function(convert_image_pillow)
     lp_wrapper = lp(mount_and_process_folder)
     lp_wrapper()
     with open("outputs/profile.txt", "w", encoding="utf-8") as f:

@@ -81,7 +81,7 @@
             "name": "Python: Profile Image Loading",
             "type": "python",
             "request": "launch",
-            "module": "testhiml.utils.test_image_loading",
+            "module": "testhiml.utils.image_loading.test_image_loading",
             "cwd": "${workspaceFolder}/hi-ml/testhiml/",
         },
     ]
