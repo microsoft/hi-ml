@@ -2,9 +2,11 @@ fpdf2==2.4.5
 hi-ml-azure>=0.1.10
 jinja2==3.0.2
 matplotlib==3.4.3
+pillow==8.4.0
 pytorch-lightning>=1.4.9
 ruamel.yaml==0.16.12
 scikit-learn==1.0
 tensorboard==2.6.0
 torch>=1.8
+wandb==0.9.2
 xhtml2pdf==0.2.5

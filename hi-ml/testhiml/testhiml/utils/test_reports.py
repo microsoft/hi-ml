@@ -2,14 +2,13 @@ import matplotlib.pyplot as plt
 import sys
 from argparse import Namespace
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
+import nbformat as nbf
 import numpy as np
 import pandas as pd
 import pytest
-
+from pathlib import Path
 from PIL import Image
+from unittest.mock import MagicMock, patch
 
 from health_ml.utils.reports import reports as report_util
 from health_ml.utils.reports.reports import HTMLReport
@@ -330,8 +329,8 @@ def test_html_report_add_plot(html_report: HTMLReport):
     image_paths_before = [k for k in render_kwargs_before.keys() if report_util.IMAGE_KEY_HTML in k]
     num_imgs_before = len(image_paths_before)
 
-    df = pd.DataFrame({"A": list(range(20)), "B": [3.14159*(r**2) for r in range(20)]})
-    fig, ax = plt.subplots(1,1)
+    df = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+    fig, ax = plt.subplots(1, 1)
     ax.plot(df[["A"]], df[["B"]])
     ax.set_xlabel("Radius")
     ax.set_ylabel("Area")
@@ -373,8 +372,8 @@ def test_html_report_render(html_report: HTMLReport):
                             1, 2, 3]})
     html_report.add_table(df2)
 
-    df3 = pd.DataFrame({"A": list(range(20)), "B": [3.14159*(r**2) for r in range(20)]})
-    fig, ax = plt.subplots(1,1)
+    df3 = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+    fig, ax = plt.subplots(1, 1)
     ax.plot(df3[["A"]], df3[["B"]])
     ax.set_xlabel("Radius")
     ax.set_ylabel("Area")
@@ -391,3 +390,104 @@ def test_html_report_render(html_report: HTMLReport):
     assert rendered_report.count("<body>") == rendered_report.count("</body>") == 1
     assert rendered_report.count("<html lang") == rendered_report.count("</html>") == 1
     assert html_report.report_path_html.exists()
+
+
+@pytest.fixture
+def nb_report(tmp_path: Path):
+    report_title = "Dummy HTML report"
+    report_dir = tmp_path / report_title.replace(" ", "_")
+    nb_report = report_util.JupyterReport(title=report_title, output_folder=str(report_dir))
+
+    nb_report.add_markdown("#Dummy report")
+    nb_report.add_code_cell("""\
+    %pylab inline
+    hist(normal(size=2000), bins=50);""")
+
+    return nb_report
+
+
+@pytest.fixture
+def dummy_img_filepath(tmp_path: Path):
+    # Add an image
+    a = np.random.randint(0, 255, (250, 250)).astype(np.uint8)
+    img = Image.fromarray(a)
+    # save this image outside of the report folder so we can check it gets correctly moved
+    img_filepath = tmp_path / "dummy_image.png"
+    img.save(img_filepath)
+    return img_filepath
+
+@pytest.fixture
+def dummy_df():
+    return pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+
+
+def test_load_existing_notebook(nb_report: nbf.NotebookNode, tmp_path: Path):
+    # First create the notebook path then attempt to read it back
+
+    nb_report.render()
+
+    read_notebook = report_util.JupyterReport(existing_notebook_path=nb_report.report_path)
+    assert len(read_notebook.nb.cells) == 2
+    assert read_notebook.nb.cells[0].get("cell_type") == "markdown"
+    assert read_notebook.nb.cells[1].get("cell_type") == "code"
+
+
+def test_add_table(nb_report: nbf.NotebookNode, dummy_df: pd.DataFrame):
+    num_nb_cells_before = len(nb_report.nb_cells)
+
+    nb_report.add_table(dummy_df)
+    assert len(nb_report.nb_cells) == num_nb_cells_before + 1
+    new_cell = nb_report.nb_cells[-1]
+    assert new_cell.get("cell_type") == "code"
+    assert "import pandas as pd" in new_cell.source
+    assert "pd.DataFrame(" in new_cell.source
+
+
+def test_add_image(nb_report: nbf.NotebookNode, dummy_img_filepath: Path):
+    num_nb_cells_before = len(nb_report.nb_cells)
+
+    # add the image to the report
+    nb_report.add_image(str(dummy_img_filepath))
+    assert len(nb_report.nb_cells) == num_nb_cells_before + 1
+    new_cell = nb_report.nb_cells[-1]
+    assert new_cell.get("cell_type") == "code"
+    assert "from PIL import Image" in new_cell.source
+    assert "Image.open(" in new_cell.source
+
+
+def test_render(nb_report: nbf.NotebookNode, dummy_img_filepath: Path, dummy_df: pd.DataFrame):
+    # Add a table
+    assert not nb_report.report_path.exists()
+
+    nb_report.add_table(dummy_df)
+
+    nb_report.add_image(str(dummy_img_filepath))
+
+    nb_report.render()
+    assert nb_report.nb.cells == nb_report.nb_cells
+    assert nb_report.report_path.exists()
+
+
+def test_export_as_html(nb_report: nbf.NotebookNode, dummy_img_filepath: Path, dummy_df: pd.DataFrame):
+    # Add a table
+    assert not nb_report.report_path.exists()
+
+    nb_report.add_table(dummy_df)
+
+    nb_report.add_image(str(dummy_img_filepath))
+
+    html = nb_report.export_html()
+    assert nb_report.report_path_html.exists()
+    assert html.count("<body>") == html.count("<body>") == 1
+
+
+def test_remove_input_cells(nb_report: nbf.NotebookNode, dummy_img_filepath: Path):
+    assert not nb_report.report_path.exists()
+    df = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+    nb_report.add_table(df)
+
+    nb_report.add_image(str(dummy_img_filepath))
+
+    html = nb_report.export_html()
+    assert nb_report.report_path_html.exists()
+    assert html.count("<body>") == html.count("<body>") == 1

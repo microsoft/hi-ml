@@ -1,20 +1,27 @@
+import logging
 import json
+import os
 import random
+import shutil
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Dict, Any, Iterable, Type, Callable
 
 import jinja2
+import nbformat as nbf
 import numpy as np
 import pandas as pd
 # import pypandoc
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
+from nbconvert import HTMLExporter
+from nbconvert.preprocessors import ExecutePreprocessor, TagRemovePreprocessor
 from PIL import Image
 from sklearn.metrics import precision_recall_curve, roc_curve
+from traitlets.config import Config
 from xhtml2pdf import pisa
-from xhtml2pdf.default import DEFAULT_CSS
+# from xhtml2pdf.default import DEFAULT_CSS
 
 from fpdf import FPDF
 
@@ -683,6 +690,153 @@ class HTMLReport:
             pisa_status = pisa.CreatePDF(self.report_html, dest=f_path)
 
 
+class JupyterReport:
+    def __init__(self, title: str = "Report", output_folder: str = "outputs",
+                 existing_notebook_path: Optional[str] = None):
+
+        self.executed = False
+        self.nb_cells = []
+        if existing_notebook_path:
+            self.nb = self._load_existing(existing_notebook_path)
+        else:
+            self.nb = self._start_notebook()
+
+        self.report_title = title
+        self.output_folder = output_folder
+
+        report_folder = Path(output_folder)
+        report_folder.mkdir(exist_ok=True, parents=True)
+
+        self.report_folder = report_folder
+
+        self.report_path = report_folder / (title.lower().replace(" ", "_") + ".ipynb")
+        self.report_path_html = self.report_path.with_suffix(".html")
+
+    @staticmethod
+    def _start_notebook():
+        return nbf.v4.new_notebook()
+
+    def _load_existing(self, nb_path: str):
+        notebook: nbf.NotebookNode = nbf.read(nb_path, as_version=4)
+        self.nb_cells = notebook.cells
+        return notebook
+
+    def add_markdown(self, text: str):
+        self.nb_cells.append(nbf.v4.new_markdown_cell(text))
+
+    def add_code_cell(self, cell_contents: str):
+        self.nb_cells.append(nbf.v4.new_code_cell(cell_contents))
+
+    def add_table(self, df: pd.DataFrame):
+        def _should_import_pandas():
+            return not any(["import pandas" in c for c in self.nb_cells])
+
+        df_values = df.values.tolist()
+        if len(df_values) == 0:
+            # passing an empty list will create an empty DataFrame, so we warn rather than raise an Exception
+            df_values = []
+            logging.warning("Adding empty DataFrame")
+
+        df_columns = list(df.columns)
+        if len(df_columns) == 0:
+            df_columns = None
+            logging.warning("Could not retrieve columns")
+
+        df_content = f"""
+df = pd.DataFrame({df_values}, columns={df_columns})
+df"""
+
+        if _should_import_pandas():
+            df_content = "import pandas as pd\n" + df_content
+
+        self.add_code_cell(df_content)
+
+    def add_image(self, image_path: str):
+        def _should_import_pillow():
+            return not any(["from PIL import Image" in c for c in self.nb_cells])
+
+        # TODO: copy this image to report path
+        # img_name = os.sep.join(image_path.split("/")[1:])
+        img_name = Path(image_path).name
+        report_image_path = self.report_folder / img_name
+        shutil.copy(image_path, str(report_image_path))
+
+        img_content = f"""\
+Image.open("{report_image_path}")"""
+
+        if _should_import_pillow():
+            img_content = "from PIL import Image\n" + img_content
+
+        self.add_code_cell(img_content)
+
+    def render(self):
+        self.nb['cells'] = self.nb_cells
+        nbf.write(self.nb, self.report_path)
+
+    def execute_nb(self):
+        if self.executed:
+            logging.warning("Attempting to execute a notebook that has already been executed")
+
+        # if not len(self.nb_cells) == len(self.nb_cells):
+        #     raise ValueError("The number of cells in your notebook does not match the number in memory. Try calling"
+        #                      "'render()' on your JupyterReport first")
+        if not self.report_path.exists():
+            self.render()
+
+        ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+        ep.preprocess(self.nb, {'metadata': {'path': str(self.report_folder)}})
+        with open(self.report_path, 'w', encoding='utf-8') as f:
+            nbf.write(self.nb, f)
+
+    def export_html(self):
+        """
+        Export the ipynb file to pdf. Note that this will not remove input cells
+
+        :return:
+        """
+        # Execute the notebook (this will create an ipynb file in your report folder)
+        self.execute_nb()
+
+        if len(self.nb_cells) == 0:
+            raise ValueError("Didn't find any cells to convert to HTML")
+        html_exporter = HTMLExporter()
+        html_exporter.template_name = "classic"
+
+        html_body, resources = html_exporter.from_notebook_node(self.nb)
+
+        # Write to output html file
+        with open(self.report_path_html, "w") as f:
+            f.write(html_body)
+
+        # save the html body
+        return html_body
+
+    def remove_input_cells(self):
+        """
+        Export the ipynb file to pdf, without input cells.
+
+        :return:
+        """
+        # first create the ipynb file if necessary
+        if not self.report_path.exists():
+            self.render()
+
+        c = Config()
+        c.TagRemovePreprocessor.remove_input_tags = ('remove_input',)
+        c.TagRemovePreprocessor.enabled = True
+        exporter = HTMLExporter(config=c)
+
+        exporter.register_preprocessor(TagRemovePreprocessor(config=c), True)
+
+        # Configure and run our exporter - returns a tuple - first element with html,
+        # second with notebook metadata
+        html_body, resources = HTMLExporter(config=c).from_filename(self.report_path)
+
+        # Write to output html file
+        with open(self.report_path_html, "w") as f:
+            f.write(html_body)
+
+
 def get_data_from_tensorboard_log():
     # TODO
     pass
@@ -699,6 +853,22 @@ def initialize_report(report_title: str = "Default Report", output_folder: str =
     report.set_table_style()
     report.set_title(report_title)
     return report
+
+
+def create_weights_and_biases_report():
+    import wandb
+
+    wandb.init(project="dummy-project")
+
+    fibonacci = np.array([0, 1, 1, 2, 3, 5, 8, 13, 21, 34])
+
+    # Log a histogram on each step
+    for i in range(1, 10):
+        wandb.log({"histograms":
+                       wandb.Histogram(fibonacci / i)})
+    # same as wandb.finish but that is throwing error for some reason?
+    wandb.join()
+
 
 
 def parse_arguments(args: List[str]) -> Namespace:
