@@ -1,14 +1,15 @@
 import matplotlib.pyplot as plt
 import sys
 from argparse import Namespace
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import nbformat as nbf
 import numpy as np
 import pandas as pd
 import pytest
-from pathlib import Path
 from PIL import Image
-from unittest.mock import MagicMock, patch
 
 from health_ml.utils.reports import reports as report_util
 from health_ml.utils.reports.reports import HTMLReport
@@ -394,7 +395,7 @@ def test_html_report_render(html_report: HTMLReport):
 
 @pytest.fixture
 def nb_report(tmp_path: Path):
-    report_title = "Dummy HTML report"
+    report_title = "Dummy IPython report"
     report_dir = tmp_path / report_title.replace(" ", "_")
     nb_report = report_util.JupyterReport(title=report_title, output_folder=str(report_dir))
 
@@ -423,7 +424,6 @@ def dummy_df():
 
 def test_load_existing_notebook(nb_report: nbf.NotebookNode, tmp_path: Path):
     # First create the notebook path then attempt to read it back
-
     nb_report.render()
 
     read_notebook = report_util.JupyterReport(existing_notebook_path=nb_report.report_path)
@@ -455,6 +455,29 @@ def test_add_image(nb_report: nbf.NotebookNode, dummy_img_filepath: Path):
     assert "Image.open(" in new_cell.source
 
 
+def test_add_plot(nb_report: nbf.NotebookNode, dummy_df: pd.DataFrame):
+    # expect filepath to start with today's date to be created when add_plot is called
+    plot_startswith = str(nb_report.report_folder / f"plot_{datetime.now().strftime('%Y%m%d')}")
+    plots_before = [str(p).startswith(plot_startswith) for p in nb_report.report_folder.iterdir()]
+    num_nb_cells_before = len(nb_report.nb_cells)
+
+    fig, ax = plt.subplots()
+    ax.plot(dummy_df[["A"]], dummy_df[["B"]])
+    ax.set_xlabel("radius")
+    ax.set_ylabel('area')
+    nb_report.add_plot(plt)
+
+    plots = [str(p).startswith(plot_startswith) for p in nb_report.report_folder.iterdir()]
+    assert len(plots) == len(plots_before) + 1
+    assert len(nb_report.nb_cells) == num_nb_cells_before + 1
+
+    # render the resport for visual inspection
+    nb_report.render()
+    new_cell = nb_report.nb.cells[-1]
+    assert f"Image.open(\"{str(nb_report.report_folder)}" in new_cell.get("source")
+    assert nb_report.report_path.exists()
+
+
 def test_render(nb_report: nbf.NotebookNode, dummy_img_filepath: Path, dummy_df: pd.DataFrame):
     # Add a table
     assert not nb_report.report_path.exists()
@@ -481,13 +504,24 @@ def test_export_as_html(nb_report: nbf.NotebookNode, dummy_img_filepath: Path, d
     assert html.count("<body>") == html.count("<body>") == 1
 
 
-def test_remove_input_cells(nb_report: nbf.NotebookNode, dummy_img_filepath: Path):
+def test_export_and_remove_input_cells(nb_report: nbf.NotebookNode, dummy_img_filepath: Path):
     assert not nb_report.report_path.exists()
     df = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
     nb_report.add_table(df)
 
     nb_report.add_image(str(dummy_img_filepath))
 
-    html = nb_report.export_html()
+    html = nb_report.export_and_remove_input_cells()
     assert nb_report.report_path_html.exists()
     assert html.count("<body>") == html.count("<body>") == 1
+
+
+def test_add_himl_code_cell(nb_report: nbf.NotebookNode):
+
+    himl_code = f"""\
+from pathlib import Path
+from health_azure import get_workspace
+get_workspace(workspace_config_path=Path('config.json'))"""
+    nb_report.add_code_cell(himl_code)
+    html = nb_report.export_html()
+    assert nb_report.report_path_html.exists()

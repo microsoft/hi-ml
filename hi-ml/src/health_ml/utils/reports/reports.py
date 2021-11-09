@@ -6,6 +6,7 @@ import shutil
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
+from types import ModuleType
 from typing import List, Optional, Tuple, Union, Dict, Any, Iterable, Type, Callable
 
 import jinja2
@@ -653,7 +654,10 @@ class HTMLReport:
         if fig is not None:
             # save the plot
             plot_title = fig._suptitle.get_text() or fig.texts[0].get_text()
-            title = plot_title.replace(" ", "_") + ".png" if len(plot_title) > 1 else f"plot_{datetime.now()}.png"
+            if len(plot_title) > 1:
+                title = plot_title.replace(" ", "_")+ ".png"
+            else:
+                title = f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
             plot_path = self.report_folder / title
             fig.tight_layout()
             fig.savefig(plot_path, bbox_inches='tight', dpi=150)
@@ -722,10 +726,13 @@ class JupyterReport:
         return notebook
 
     def add_markdown(self, text: str):
-        self.nb_cells.append(nbf.v4.new_markdown_cell(text))
+        new_cell = nbf.v4.new_markdown_cell(text)
+        self.nb_cells.append(new_cell)
 
     def add_code_cell(self, cell_contents: str):
-        self.nb_cells.append(nbf.v4.new_code_cell(cell_contents))
+        new_cell = nbf.v4.new_code_cell(cell_contents)
+        new_cell["metadata"].update({"tags": ["remove_input"]})
+        self.nb_cells.append(new_cell)
 
     def add_table(self, df: pd.DataFrame):
         def _should_import_pandas():
@@ -759,7 +766,8 @@ df"""
         # img_name = os.sep.join(image_path.split("/")[1:])
         img_name = Path(image_path).name
         report_image_path = self.report_folder / img_name
-        shutil.copy(image_path, str(report_image_path))
+        if not report_image_path.exists():
+            shutil.copy(image_path, str(report_image_path))
 
         img_content = f"""\
 Image.open("{report_image_path}")"""
@@ -768,6 +776,13 @@ Image.open("{report_image_path}")"""
             img_content = "from PIL import Image\n" + img_content
 
         self.add_code_cell(img_content)
+
+    def add_plot(self, plot: ModuleType, plot_title=None):
+        title = plot_title or f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        plot_path = (self.report_folder / title).with_suffix(".png")
+        plot.savefig(str(plot_path), bbox_inches='tight', dpi=150)
+
+        self.add_image(str(plot_path))
 
     def render(self):
         self.nb['cells'] = self.nb_cells
@@ -808,18 +823,16 @@ Image.open("{report_image_path}")"""
         with open(self.report_path_html, "w") as f:
             f.write(html_body)
 
-        # save the html body
         return html_body
 
-    def remove_input_cells(self):
+    def export_and_remove_input_cells(self):
         """
         Export the ipynb file to pdf, without input cells.
 
         :return:
         """
-        # first create the ipynb file if necessary
-        if not self.report_path.exists():
-            self.render()
+        # Execute the notebook (this will create an ipynb file in your report folder)
+        self.execute_nb()
 
         c = Config()
         c.TagRemovePreprocessor.remove_input_tags = ('remove_input',)
@@ -835,6 +848,7 @@ Image.open("{report_image_path}")"""
         # Write to output html file
         with open(self.report_path_html, "w") as f:
             f.write(html_body)
+        return html_body
 
 
 def get_data_from_tensorboard_log():
