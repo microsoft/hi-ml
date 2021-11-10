@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 import cv2
 import matplotlib.image as mpimg
@@ -52,13 +52,11 @@ def convert_pillow(im: Image.Image, greyscale: bool, crop: bool) -> Image.Image:
     return im
 
 
-def read_image_matplotlib(input_filename: Path, greyscale: bool, crop: bool) -> torch.Tensor:
+def read_image_matplotlib(input_filename: Path) -> torch.Tensor:
     """
     Read an image file with matplotlib and return a torch.Tensor.
 
     :param input_filename: Source image file path.
-    :param greyscale: Optionally convert to greyscale.
-    :param crop: Optionally crop.
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imread.html
@@ -68,28 +66,17 @@ def read_image_matplotlib(input_filename: Path, greyscale: bool, crop: bool) -> 
     if len(im.shape) == 2:
         # if loaded a greyscale image, then it is of shape (H, W) so add in an extra axis
         im = np.expand_dims(im, 2)
-    if crop:
-        height = im.shape[0]
-        width = im.shape[1]
-        box = crop_size(width, height)
-        im = im[box[1]: box[3], box[0]: box[2], :]
-    if greyscale and im.shape[2] >= 3:
-        im = np.dot(im[..., :3], [0.2989, 0.5870, 0.1140])
-        im = np.float32(im) / 255.0
-        im = np.expand_dims(im, 2)
     # transpose to shape (C, H, W)
     im = np.transpose(im, (2, 0, 1))
     im_tensor = torch.from_numpy(im)
     return im_tensor
 
 
-def read_image_matplotlib2(input_filename: Path, greyscale: bool, crop: bool) -> torch.Tensor:
+def read_image_matplotlib2(input_filename: Path) -> torch.Tensor:
     """
     Read an image file with matplotlib and return a torch.Tensor.
 
     :param input_filename: Source image file path.
-    :param greyscale: Optionally convert to greyscale.
-    :param crop: Optionally crop.
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imread.html
@@ -97,23 +84,14 @@ def read_image_matplotlib2(input_filename: Path, greyscale: bool, crop: bool) ->
     # where H = height, W = width
     im = mpimg.imread(input_filename)
     im_tensor = TF.to_tensor(im)
-    if crop:
-        height = im.shape[1]
-        width = im.shape[2]
-        box = crop_size(width, height)
-        im_tensor = TF.crop(im_tensor, box[1], box[0], box[3] - box[1], box[2] - box[0])
-    if greyscale and im.shape[0] >= 3:
-        im_tensor = TF.rgb_to_grayscale(im_tensor)
     return im_tensor
 
 
-def read_image_opencv(input_filename: Path, greyscale: bool, crop: bool) -> torch.Tensor:
+def read_image_opencv(input_filename: Path) -> torch.Tensor:
     """
     Read an image file with OpenCV and return a torch.Tensor.
 
     :param input_filename: Source image file path.
-    :param greyscale: Optionally convert to greyscale.
-    :param crop: Optionally crop.
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://docs.opencv.org/4.5.3/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
@@ -125,14 +103,6 @@ def read_image_opencv(input_filename: Path, greyscale: bool, crop: bool) -> torc
     if len(im.shape) == 2:
         # if loaded a greyscale image, then it is of shape (H, W) so add in an extra axis
         im = np.expand_dims(im, 2)
-    if crop:
-        height = im.shape[0]
-        width = im.shape[1]
-        box = crop_size(width, height)
-        im = im[box[1]: box[3], box[0]: box[2], :]
-    if greyscale and im.shape[2] >= 3:
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        im = np.expand_dims(im, 2)
     im = np.float32(im) / 255.0
     # transpose to shape (C, H, W)
     im = np.transpose(im, (2, 0, 1))
@@ -140,43 +110,91 @@ def read_image_opencv(input_filename: Path, greyscale: bool, crop: bool) -> torc
     return im_tensor
 
 
-def read_image_pillow(input_filename: Path, greyscale: bool, crop: bool) -> torch.Tensor:
+def read_image_pillow(input_filename: Path) -> torch.Tensor:
     """
     Read an image file with pillow and return a torch.Tensor.
 
     :param input_filename: Source image file path.
-    :param greyscale: Optionally convert to greyscale.
-    :param crop: Optionally crop.
     :return: torch.Tensor of shape (C, H, W).
     """
     im = Image.open(input_filename)
-    if crop:
-        width, height = im.size
-        box = crop_size(width, height)
-        im = im.crop(box)
-    if greyscale:
-        im = im.convert("L")
     im_tensor = TF.to_tensor(im)
     return im_tensor
 
 
-def read_image_torch(input_filename: Path, greyscale: bool, crop: bool) -> Optional[torch.Tensor]:
+def read_image_torch(input_filename: Path) -> torch.Tensor:
     """
     Read an image file with Torch and return a torch.Tensor.
 
     :param input_filename: Source image file path.
-    :param greyscale: Optionally convert to greyscale.
-    :param crop: Optionally crop.
     :return: torch.Tensor of shape (C, H, W).
     """
-    try:
-        im = read_image(str(input_filename))
-    except Exception as e:
-        print(f"Problem loading torchvision.io.image.read_image: {e}")
-        return None
-    if greyscale:
-        im = im.convert("L")
+    im = read_image(str(input_filename))
     return im
+
+
+def read_image_torch2(input_filename: Path) -> torch.Tensor:
+    """
+    Read a Torch file with Torch and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    im = torch.load(input_filename)
+    return im
+
+
+def write_image_torch2(tensor: torch.Tensor, output_filename: Path) -> None:
+    """
+    Save a torch.Tensor as native torch.Tensor.
+
+    :param tensor: Tensor to save.
+    :param output_filename: Target filename.
+    :return: None.
+    """
+    torch.save(tensor, output_filename)
+
+
+def read_image_numpy(input_filename: Path) -> torch.Tensor:
+    """
+    Read an Numpy file with Torch and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    im = np.load(input_filename)
+    im_tensor = torch.from_numpy(im)
+    return im_tensor
+
+
+def write_image_numpy(tensor: torch.Tensor, output_filename: Path) -> None:
+    """
+    Save a torch.Tensor as native Numpy array.
+
+    :param tensor: Tensor to save.
+    :param output_filename: Target filename.
+    :return: None.
+    """
+    npy = tensor.numpy()
+    np.save(output_filename, npy)
+
+
+def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> None:
+    im = Image.open(image_file)
+    source_greyscale = im.mode == 'L'
+    width, height = im.size
+    print(f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
+    assert isinstance(tensor, Tensor)
+    assert tensor.dtype == torch.float32
+    assert len(tensor.shape) == 3
+    assert tensor.shape[2] == width
+    assert tensor.shape[1] == height
+    if source_greyscale:
+        assert tensor.shape[0] == 1
+    else:
+        assert tensor.shape[0] == 3
+    assert torch.max(tensor) <= 1.0
+    assert torch.min(tensor) >= 0.0
 
 
 def mount_and_process_folder() -> None:
@@ -193,16 +211,17 @@ def mount_and_process_folder() -> None:
         ("crop_greyscale", True, True),
     ]
 
-    target_options: List[Tuple[str, bool, bool]] = [
-        ("load", False, False),
-    ]
-
-    libs: List[Tuple[str, Callable[[Path, bool, bool], Optional[Tensor]]]] = [
+    png_libs: List[Tuple[str, Callable[[Path], Tensor]]] = [
         ("matplotlib", read_image_matplotlib),
         ("matplotlib2", read_image_matplotlib2),
         ("opencv", read_image_opencv),
         ("pillow", read_image_pillow),
         # ("torch", read_image_torch),
+    ]
+
+    bin_libs = [
+        ("pt", ".pt", write_image_torch2, read_image_torch2),
+        ("npy", ".npy", write_image_numpy, read_image_numpy),
     ]
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=None)
@@ -218,62 +237,56 @@ def mount_and_process_folder() -> None:
         output_folder.mkdir(exist_ok=True)
 
         for option, greyscale, crop in source_options:
-            output_folder_name = output_folder / option
-            output_folder_name.mkdir(exist_ok=True)
+            output_folder_name = output_folder / "png" / option
+            output_folder_name.mkdir(parents=True, exist_ok=True)
 
             for image_file in input_folder.glob("*.png"):
                 im = Image.open(image_file)
-                print(f"Converting file: {image_file}, format: {im.format}, size: {im.size}, mode: {im.mode}")
-                im = convert_pillow(im, greyscale, crop)
-                print(f"Converted file: {image_file}, format: {im.format}, size: {im.size}, mode: {im.mode}")
-                im.save(output_folder_name / image_file.name)
+                im2 = convert_pillow(im, greyscale, crop)
+                im2.save(output_folder_name / image_file.name)
+                tensor = TF.to_tensor(im2.copy())
+
+                for folder, suffix, write_op, _ in bin_libs:
+                    target_folder = output_folder / folder / option
+                    target_folder.mkdir(parents=True, exist_ok=True)
+                    target_file = target_folder / image_file.with_suffix(suffix).name
+                    write_op(tensor, target_file)
+
+                print(f"Converted file: {image_file}, format: {im.format} -> {im2.format}, "
+                      f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}")
 
     for repeats in range(0, 10):
-        for lib, op in libs:
-            output_folder_lib = output_folder / lib
-            output_folder_lib.mkdir(exist_ok=True)
+        for source_option, _, _ in source_options:
+            print("~~~~~~~~~~~~~")
+            print(f"repeat: {repeats}, source_option: {source_option}")
+            print("~~~~~~~~~~~~~")
+            source_folder = output_folder / "png" / source_option
+            for image_file in source_folder.glob("*.png"):
+                for lib, op in png_libs:
+                    tensor = op(image_file)
+                    check_loaded_image(lib, image_file, tensor)
 
-            for option, greyscale, crop in target_options:
-                output_folder_lib_option = output_folder_lib / option
-                output_folder_lib_option.mkdir(exist_ok=True)
-
-                for source_option, _, _ in source_options:
-                    source_folder = output_folder / source_option
-
-                    for image_file in source_folder.glob("*.png"):
-                        im = Image.open(image_file)
-                        source_greyscale = im.mode == 'L'
-                        width, height = im.size
-                        print(f"Testing file: {image_file}, format: {im.format}, size: {im.size}, mode: {im.mode}")
-                        im = op(image_file, greyscale, crop)
-                        assert isinstance(im, Tensor)
-                        assert im.dtype == torch.float32
-                        assert len(im.shape) == 3
-                        if crop:
-                            box = crop_size(width, height)
-                            assert im.shape[2] == box[2] - box[0]
-                            assert im.shape[1] == box[3] - box[1]
-                        else:
-                            assert im.shape[2] == width
-                            assert im.shape[1] == height
-                        if greyscale or source_greyscale:
-                            assert im.shape[0] == 1
-                        else:
-                            assert im.shape[0] == 3
-                        assert torch.max(im) <= 1.0
-                        assert torch.min(im) >= 0.0
+                for folder, suffix, _, op in bin_libs:
+                    target_folder = output_folder / folder / source_option
+                    native_file = target_folder / image_file.with_suffix(suffix).name
+                    tensor = op(native_file)
+                    check_loaded_image(folder, image_file, tensor)
 
 
 def main() -> None:
     """
     Create a LineProfiler and time calls to convert_image, writing results to a text file.
     """
+    # mount_and_process_folder()
+    # return
     lp = LineProfiler()
     lp.add_function(read_image_matplotlib)
     lp.add_function(read_image_matplotlib2)
     lp.add_function(read_image_opencv)
     lp.add_function(read_image_pillow)
     lp.add_function(read_image_torch)
+    lp.add_function(read_image_torch2)
+    lp.add_function(read_image_numpy)
     lp_wrapper = lp(mount_and_process_folder)
     lp_wrapper()
     with open("outputs/profile.txt", "w", encoding="utf-8") as f:
