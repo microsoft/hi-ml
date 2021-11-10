@@ -83,6 +83,30 @@ def read_image_matplotlib(input_filename: Path, greyscale: bool, crop: bool) -> 
     return im_tensor
 
 
+def read_image_matplotlib2(input_filename: Path, greyscale: bool, crop: bool) -> torch.Tensor:
+    """
+    Read an image file with matplotlib and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :param greyscale: Optionally convert to greyscale.
+    :param crop: Optionally crop.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imread.html
+    # im is a numpy.array of shape: (H, W), (H, W, 3), or (H, W, 4)
+    # where H = height, W = width
+    im = mpimg.imread(input_filename)
+    im_tensor = TF.to_tensor(im)
+    if crop:
+        height = im.shape[1]
+        width = im.shape[2]
+        box = crop_size(width, height)
+        im_tensor = TF.crop(im_tensor, box[1], box[0], box[3] - box[1], box[2] - box[0])
+    if greyscale and im.shape[0] >= 3:
+        im_tensor = TF.rgb_to_grayscale(im_tensor)
+    return im_tensor
+
+
 def read_image_opencv(input_filename: Path, greyscale: bool, crop: bool) -> torch.Tensor:
     """
     Read an image file with OpenCV and return a torch.Tensor.
@@ -162,15 +186,20 @@ def mount_and_process_folder() -> None:
 
     :return: None.
     """
-    options: List[Tuple[str, bool, bool]] = [
+    source_options: List[Tuple[str, bool, bool]] = [
         ("load", False, False),
         ("greyscale", True, False),
         ("crop", False, True),
         ("crop_greyscale", True, True),
     ]
 
+    target_options: List[Tuple[str, bool, bool]] = [
+        ("load", False, False),
+    ]
+
     libs: List[Tuple[str, Callable[[Path, bool, bool], Optional[Tensor]]]] = [
         ("matplotlib", read_image_matplotlib),
+        ("matplotlib2", read_image_matplotlib2),
         ("opencv", read_image_opencv),
         ("pillow", read_image_pillow),
         # ("torch", read_image_torch),
@@ -188,7 +217,7 @@ def mount_and_process_folder() -> None:
         output_folder = Path("outputs")
         output_folder.mkdir(exist_ok=True)
 
-        for option, greyscale, crop in options:
+        for option, greyscale, crop in source_options:
             output_folder_name = output_folder / option
             output_folder_name.mkdir(exist_ok=True)
 
@@ -199,15 +228,16 @@ def mount_and_process_folder() -> None:
                 print(f"Converted file: {image_file}, format: {im.format}, size: {im.size}, mode: {im.mode}")
                 im.save(output_folder_name / image_file.name)
 
+    for repeats in range(0, 10):
         for lib, op in libs:
             output_folder_lib = output_folder / lib
             output_folder_lib.mkdir(exist_ok=True)
 
-            for option, greyscale, crop in options:
+            for option, greyscale, crop in target_options:
                 output_folder_lib_option = output_folder_lib / option
                 output_folder_lib_option.mkdir(exist_ok=True)
 
-                for source_option, _, _ in options:
+                for source_option, _, _ in source_options:
                     source_folder = output_folder / source_option
 
                     for image_file in source_folder.glob("*.png"):
@@ -238,9 +268,9 @@ def main() -> None:
     """
     Create a LineProfiler and time calls to convert_image, writing results to a text file.
     """
-    mount_and_process_folder()
     lp = LineProfiler()
     lp.add_function(read_image_matplotlib)
+    lp.add_function(read_image_matplotlib2)
     lp.add_function(read_image_opencv)
     lp.add_function(read_image_pillow)
     lp.add_function(read_image_torch)
