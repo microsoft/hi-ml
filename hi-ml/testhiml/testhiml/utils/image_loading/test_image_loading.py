@@ -5,14 +5,18 @@
 from pathlib import Path
 from typing import Callable, List, Tuple
 
+from azureml.data.file_dataset import FileDataset
 import cv2
+import imageio
 import matplotlib.image as mpimg
 import numpy as np
+import SimpleITK as sitk
+import torch
+import torchvision.transforms.functional as TF
 from line_profiler import LineProfiler
 from PIL import Image
-import torch
+from skimage import io
 from torch.functional import Tensor
-import torchvision.transforms.functional as TF
 from torchvision.io.image import read_image
 
 from health_azure import get_workspace
@@ -34,22 +38,22 @@ def crop_size(width: int, height: int) -> Tuple[int, int, int, int]:
     return (round(left), top, round(right), bottom)
 
 
-def convert_pillow(im: Image.Image, greyscale: bool, crop: bool) -> Image.Image:
+def convert_pillow(pil_image: Image.Image, greyscale: bool, crop: bool) -> Image.Image:
     """
     Using Pillow optionally crop a vertical section out of an image, then optionally convert it to greyscale.
 
-    :param im: Source image.
+    :param pil_image: Source image.
     :param greyscale: Optionally convert to greyscale.
     :param crop: Optionally crop.
     :return: Optionally cropped, optionally greyscale image.
     """
     if crop:
-        width, height = im.size
+        width, height = pil_image.size
         box = crop_size(width, height)
-        im = im.crop(box)
+        pil_image = pil_image.crop(box)
     if greyscale:
-        im = im.convert("L")
-    return im
+        pil_image = pil_image.convert("L")
+    return pil_image
 
 
 def read_image_matplotlib(input_filename: Path) -> torch.Tensor:
@@ -60,16 +64,16 @@ def read_image_matplotlib(input_filename: Path) -> torch.Tensor:
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imread.html
-    # im is a numpy.array of shape: (H, W), (H, W, 3), or (H, W, 4)
+    # numpy_array is a numpy.array of shape: (H, W), (H, W, 3), or (H, W, 4)
     # where H = height, W = width
-    im = mpimg.imread(input_filename)
-    if len(im.shape) == 2:
+    numpy_array = mpimg.imread(input_filename)
+    if len(numpy_array.shape) == 2:
         # if loaded a greyscale image, then it is of shape (H, W) so add in an extra axis
-        im = np.expand_dims(im, 2)
+        numpy_array = np.expand_dims(numpy_array, 2)
     # transpose to shape (C, H, W)
-    im = np.transpose(im, (2, 0, 1))
-    im_tensor = torch.from_numpy(im)
-    return im_tensor
+    numpy_array = np.transpose(numpy_array, (2, 0, 1))
+    torch_tensor = torch.from_numpy(numpy_array)
+    return torch_tensor
 
 
 def read_image_matplotlib2(input_filename: Path) -> torch.Tensor:
@@ -80,11 +84,11 @@ def read_image_matplotlib2(input_filename: Path) -> torch.Tensor:
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imread.html
-    # im is a numpy.array of shape: (H, W), (H, W, 3), or (H, W, 4)
+    # numpy_array is a numpy.array of shape: (H, W), (H, W, 3), or (H, W, 4)
     # where H = height, W = width
-    im = mpimg.imread(input_filename)
-    im_tensor = TF.to_tensor(im)
-    return im_tensor
+    numpy_array = mpimg.imread(input_filename)
+    torch_tensor = TF.to_tensor(numpy_array)
+    return torch_tensor
 
 
 def read_image_opencv(input_filename: Path) -> torch.Tensor:
@@ -95,19 +99,34 @@ def read_image_opencv(input_filename: Path) -> torch.Tensor:
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://docs.opencv.org/4.5.3/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
-    # im is a numpy.ndarray
-    im = cv2.imread(str(input_filename))
-    is_greyscale = False not in ((im[:, :, 0] == im[:, :, 1]) == (im[:, :, 1] == im[:, :, 2]))
+    # numpy_array is a numpy.ndarray
+    numpy_array = cv2.imread(str(input_filename))
+    is_greyscale = False not in \
+        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
     if is_greyscale:
-        im = im[:, :, 0]
-    if len(im.shape) == 2:
+        numpy_array = numpy_array[:, :, 0]
+    if len(numpy_array.shape) == 2:
         # if loaded a greyscale image, then it is of shape (H, W) so add in an extra axis
-        im = np.expand_dims(im, 2)
-    im = np.float32(im) / 255.0
+        numpy_array = np.expand_dims(numpy_array, 2)
+    numpy_array = np.float32(numpy_array) / 255.0
     # transpose to shape (C, H, W)
-    im = np.transpose(im, (2, 0, 1))
-    im_tensor = torch.from_numpy(im)
-    return im_tensor
+    numpy_array = np.transpose(numpy_array, (2, 0, 1))
+    torch_tensor = torch.from_numpy(numpy_array)
+    return torch_tensor
+
+
+def read_image_opencv2(input_filename: Path) -> torch.Tensor:
+    """
+    Read an image file with OpenCV and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    # https://docs.opencv.org/4.5.3/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
+    # numpy_array is a numpy.ndarray
+    numpy_array = cv2.imread(str(input_filename))
+    torch_tensor = TF.to_tensor(numpy_array)
+    return torch_tensor
 
 
 def read_image_pillow(input_filename: Path) -> torch.Tensor:
@@ -117,9 +136,46 @@ def read_image_pillow(input_filename: Path) -> torch.Tensor:
     :param input_filename: Source image file path.
     :return: torch.Tensor of shape (C, H, W).
     """
-    im = Image.open(input_filename)
-    im_tensor = TF.to_tensor(im)
-    return im_tensor
+    pil_image = Image.open(input_filename)
+    torch_tensor = TF.to_tensor(pil_image)
+    return torch_tensor
+
+
+def read_image_scipy(input_filename: Path) -> torch.Tensor:
+    """
+    Read an image file with scipy and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    numpy_array = imageio.imread(input_filename)
+    torch_tensor = TF.to_tensor(numpy_array)
+    return torch_tensor
+
+
+def read_image_sitk(input_filename: Path) -> torch.Tensor:
+    """
+    Read an image file with SimpleITK and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    itk_image = sitk.ReadImage(str(input_filename))
+    numpy_array = sitk.GetArrayFromImage(itk_image)
+    torch_tensor = TF.to_tensor(numpy_array)
+    return torch_tensor
+
+
+def read_image_skimage(input_filename: Path) -> torch.Tensor:
+    """
+    Read an image file with scikit-image and return a torch.Tensor.
+
+    :param input_filename: Source image file path.
+    :return: torch.Tensor of shape (C, H, W).
+    """
+    numpy_array = io.imread(input_filename)
+    torch_tensor = TF.to_tensor(numpy_array)
+    return torch_tensor
 
 
 def read_image_torch(input_filename: Path) -> torch.Tensor:
@@ -129,8 +185,8 @@ def read_image_torch(input_filename: Path) -> torch.Tensor:
     :param input_filename: Source image file path.
     :return: torch.Tensor of shape (C, H, W).
     """
-    im = read_image(str(input_filename))
-    return im
+    torch_tensor = read_image(str(input_filename))
+    return torch_tensor
 
 
 def read_image_torch2(input_filename: Path) -> torch.Tensor:
@@ -140,8 +196,8 @@ def read_image_torch2(input_filename: Path) -> torch.Tensor:
     :param input_filename: Source image file path.
     :return: torch.Tensor of shape (C, H, W).
     """
-    im = torch.load(input_filename)
-    return im
+    torch_tensor = torch.load(input_filename)
+    return torch_tensor
 
 
 def write_image_torch2(tensor: torch.Tensor, output_filename: Path) -> None:
@@ -162,9 +218,9 @@ def read_image_numpy(input_filename: Path) -> torch.Tensor:
     :param input_filename: Source image file path.
     :return: torch.Tensor of shape (C, H, W).
     """
-    im = np.load(input_filename)
-    im_tensor = torch.from_numpy(im)
-    return im_tensor
+    numpy_array = np.load(input_filename)
+    torch_tensor = torch.from_numpy(numpy_array)
+    return torch_tensor
 
 
 def write_image_numpy(tensor: torch.Tensor, output_filename: Path) -> None:
@@ -175,11 +231,19 @@ def write_image_numpy(tensor: torch.Tensor, output_filename: Path) -> None:
     :param output_filename: Target filename.
     :return: None.
     """
-    npy = tensor.numpy()
-    np.save(output_filename, npy)
+    numpy_array = tensor.numpy()
+    np.save(output_filename, numpy_array)
 
 
 def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> None:
+    """
+    Check that an image loaded as a Tensor has the expected forat, size, and value range.
+
+    :param type: Label for printing progress.
+    :param image_file: Path to reference png.
+    :param tensor: Loaded torch.Tensor.
+    :return: None.
+    """
     im = Image.open(image_file)
     source_greyscale = im.mode == 'L'
     width, height = im.size
@@ -195,6 +259,35 @@ def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> Non
         assert tensor.shape[0] == 3
     assert torch.max(tensor) <= 1.0
     assert torch.min(tensor) >= 0.0
+
+
+def mount_and_convert_source_files(
+        dataset: FileDataset,
+        output_folder: Path,
+        source_options: List[Tuple[str, bool, bool]],
+        bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
+
+    with dataset.mount("/tmp/datasets/panda_tiles") as mount_context:
+        input_folder = Path(mount_context.mount_point)
+
+        for option, greyscale, crop in source_options:
+            output_folder_name = output_folder / "png" / option
+            output_folder_name.mkdir(parents=True, exist_ok=True)
+
+            for image_file in input_folder.glob("*.png"):
+                im = Image.open(image_file)
+                im2 = convert_pillow(im, greyscale, crop)
+                im2.save(output_folder_name / image_file.name)
+                tensor = TF.to_tensor(im2.copy())
+
+                for folder, suffix, write_op, _ in bin_libs:
+                    target_folder = output_folder / folder / option
+                    target_folder.mkdir(parents=True, exist_ok=True)
+                    target_file = target_folder / image_file.with_suffix(suffix).name
+                    write_op(tensor, target_file)
+
+                print(f"Converted file: {image_file}, format: {im.format} -> {im2.format}, "
+                      f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}")
 
 
 def mount_and_process_folder() -> None:
@@ -215,11 +308,15 @@ def mount_and_process_folder() -> None:
         ("matplotlib", read_image_matplotlib),
         ("matplotlib2", read_image_matplotlib2),
         ("opencv", read_image_opencv),
+        ("opencv2", read_image_opencv2),
         ("pillow", read_image_pillow),
+        ("scipy", read_image_scipy),
+        ("sikt", read_image_sitk),
+        ("skimage", read_image_skimage),
         # ("torch", read_image_torch),
     ]
 
-    bin_libs = [
+    bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]] = [
         ("pt", ".pt", write_image_torch2, read_image_torch2),
         ("npy", ".npy", write_image_numpy, read_image_numpy),
     ]
@@ -230,30 +327,10 @@ def mount_and_process_folder() -> None:
                                     datastore_name='himldatasets',
                                     dataset_name='panda_tiles')
 
-    with dataset.mount("/tmp/datasets/panda_tiles") as mount_context:
-        input_folder = Path(mount_context.mount_point)
+    output_folder = Path("outputs")
+    output_folder.mkdir(exist_ok=True)
 
-        output_folder = Path("outputs")
-        output_folder.mkdir(exist_ok=True)
-
-        for option, greyscale, crop in source_options:
-            output_folder_name = output_folder / "png" / option
-            output_folder_name.mkdir(parents=True, exist_ok=True)
-
-            for image_file in input_folder.glob("*.png"):
-                im = Image.open(image_file)
-                im2 = convert_pillow(im, greyscale, crop)
-                im2.save(output_folder_name / image_file.name)
-                tensor = TF.to_tensor(im2.copy())
-
-                for folder, suffix, write_op, _ in bin_libs:
-                    target_folder = output_folder / folder / option
-                    target_folder.mkdir(parents=True, exist_ok=True)
-                    target_file = target_folder / image_file.with_suffix(suffix).name
-                    write_op(tensor, target_file)
-
-                print(f"Converted file: {image_file}, format: {im.format} -> {im2.format}, "
-                      f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}")
+    mount_and_convert_source_files(dataset, output_folder, source_options, bin_libs)
 
     for repeats in range(0, 10):
         for source_option, _, _ in source_options:
@@ -283,7 +360,11 @@ def main() -> None:
     lp.add_function(read_image_matplotlib)
     lp.add_function(read_image_matplotlib2)
     lp.add_function(read_image_opencv)
+    lp.add_function(read_image_opencv2)
     lp.add_function(read_image_pillow)
+    lp.add_function(read_image_scipy)
+    lp.add_function(read_image_sitk)
+    lp.add_function(read_image_skimage)
     lp.add_function(read_image_torch)
     lp.add_function(read_image_torch2)
     lp.add_function(read_image_numpy)
