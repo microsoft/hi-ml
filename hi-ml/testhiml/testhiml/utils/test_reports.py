@@ -13,7 +13,7 @@ from health_ml.utils.reports import HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, 
 
 
 @pytest.fixture
-def html_report(tmp_path: Path):
+def html_report(tmp_path: Path) -> HTMLReport:
     report_title = "Dummy HTML report"
     report_dir = tmp_path / report_title.replace(" ", "_")
     html_report = HTMLReport(title=report_title, output_folder=str(report_dir))
@@ -21,18 +21,18 @@ def html_report(tmp_path: Path):
 
 
 @pytest.fixture
-def dummy_df():
+def dummy_df() -> pd.DataFrame:
     return pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
 
 
-def test_html_report_validate():
+def test_html_report_validate() -> None:
     html_report = HTMLReport()
     with pytest.raises(Exception) as e:
         html_report.validate()
         assert "report_html is missing the tag" in str(e.value)
 
 
-def test_html_report_add_table(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path):
+def test_html_report_add_table(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     table_keys_before = [k for k in render_kwargs_before.keys() if TABLE_KEY_HTML in k]
@@ -48,7 +48,7 @@ def test_html_report_add_table(html_report: HTMLReport, dummy_df: pd.DataFrame, 
     html_report.validate()
 
 
-def test_html_report_add_image(html_report: HTMLReport, dummy_df: pd.DataFrame):
+def test_html_report_add_image(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     image_paths_before = [k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
@@ -70,7 +70,7 @@ def test_html_report_add_image(html_report: HTMLReport, dummy_df: pd.DataFrame):
     html_report.validate()
 
 
-def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame):
+def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     # calling add_plot creates an image file and henceforth treats the plot as an image
@@ -108,7 +108,8 @@ def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame):
     # validate the report to ensure it includes the minimum necessary tags
     html_report.validate()
 
-def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame):
+
+def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     dummy_df.plot(x="A", y="B", kind="scatter")
     dummy_df.plot(x="A", y="B", kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
@@ -142,7 +143,7 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame):
     html_report.validate()
 
 
-def test_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path):
+def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     # write a report config
     table_path = tmp_path / "dummy_table.csv"

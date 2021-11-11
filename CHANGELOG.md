@@ -14,6 +14,8 @@ the section headers (Added/Changed/...) and incrementing the package version.
 
 ### Added
 - ([#149](https://github.com/microsoft/hi-ml/pull/149)) Add a k-fold cross validation wrapper around HyperDrive
+- ([#152](https://github.com/microsoft/hi-ml/pull/152)) Add a custom HTML reporting tool
+
 ### Changed
 
 ### Fixed
