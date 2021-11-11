@@ -5,9 +5,11 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
+import ruamel.yaml
 from pathlib import Path
+from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 
-from health_ml.utils.reports import HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML
+from health_ml.utils.reports import HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, REPORT_CONTENTS_KEY, ReportComponentKey
 
 
 @pytest.fixture
@@ -18,29 +20,42 @@ def html_report(tmp_path: Path):
     return html_report
 
 
-def test_html_report_add_table(html_report: HTMLReport, tmp_path: Path):
+@pytest.fixture
+def dummy_df():
+    return pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+
+
+def test_html_report_validate():
+    html_report = HTMLReport()
+    with pytest.raises(Exception) as e:
+        html_report.validate()
+        assert "report_html is missing the tag" in str(e.value)
+
+
+def test_html_report_add_table(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path):
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     table_keys_before = [k for k in render_kwargs_before.keys() if TABLE_KEY_HTML in k]
     num_tables = len(table_keys_before)
 
-    df = pd.DataFrame({"A": [1.23345, 12.456345, 7.345345345, 7.45234, 6.345234], "B": [2, 5, 6, 7, 8]})
-    html_report.add_table(df)
+    html_report.add_table(dummy_df)
 
     html_template_difference = html_report.template.replace(html_template_before, "")
 
     assert html_template_difference.count("table.to_html") == 1
     assert f"{TABLE_KEY_HTML}_{num_tables}" in html_report.render_kwargs
+    # validate the report to ensure it includes the minimum necessary tags
+    html_report.validate()
 
 
-def test_html_report_add_image(html_report: HTMLReport):
+def test_html_report_add_image(html_report: HTMLReport, dummy_df: pd.DataFrame):
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     image_paths_before = [k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
     num_imgs_before = len(image_paths_before)
 
-    df = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
-    df.plot(x="A", y="B", kind="scatter")
+    dummy_df_cols = list(dummy_df.columns)
+    dummy_df.plot(x=dummy_df_cols[0], y=dummy_df_cols[1], kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
     html_report.add_image(str(fig_path))
@@ -51,18 +66,20 @@ def test_html_report_add_image(html_report: HTMLReport):
     assert html_template_difference.count("<img src=") == 1
     # Expect another keyword argument for imagepaths with num_imgs_before in the key (because starts at 0)
     assert f"{IMAGE_KEY_HTML}_{num_imgs_before}" in html_report.render_kwargs
+    # validate the report to ensure it includes the minimum necessary tags
+    html_report.validate()
 
 
-def test_html_report_add_plot(html_report: HTMLReport):
+def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame):
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     # calling add_plot creates an image file and henceforth treats the plot as an image
     image_paths_before = [k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
     num_imgs_before = len(image_paths_before)
+    dummy_df_cols = list(dummy_df.columns)
 
-    df = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
     fig, ax = plt.subplots(1, 1)
-    ax.plot(df[["A"]], df[["B"]])
+    ax.plot(dummy_df[[dummy_df_cols[0]]], dummy_df[[dummy_df_cols[1]]])
     ax.set_xlabel("Radius")
     ax.set_ylabel("Area")
     fig.suptitle("Area vs radius")
@@ -88,12 +105,12 @@ def test_html_report_add_plot(html_report: HTMLReport):
     # Expect another keyword argument for imagepaths with num_imgs_before in the key (because starts at 0)
     assert f"{IMAGE_KEY_HTML}_{num_imgs_before}" in html_report.render_kwargs
     assert html_report.render_kwargs[f"{IMAGE_KEY_HTML}_{num_imgs_before}"][0] == Path("Area_vs_radius.png")
+    # validate the report to ensure it includes the minimum necessary tags
+    html_report.validate()
 
-
-def test_html_report_render(html_report: HTMLReport):
-    df = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
-    df.plot(x="A", y="B", kind="scatter")
-    df.plot(x="A", y="B", kind="scatter")
+def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame):
+    dummy_df.plot(x="A", y="B", kind="scatter")
+    dummy_df.plot(x="A", y="B", kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
     html_report.add_image(str(fig_path))
@@ -121,3 +138,34 @@ def test_html_report_render(html_report: HTMLReport):
     assert rendered_report.count("<body>") == rendered_report.count("</body>") == 1
     assert rendered_report.count("<html lang") == rendered_report.count("</html>") == 1
     assert html_report.report_path_html.exists()
+    # validate the report to ensure it includes the minimum necessary tags
+    html_report.validate()
+
+
+def test_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path):
+    html_template_before = html_report._remove_html_end(html_report.template)
+    # write a report config
+    table_path = tmp_path / "dummy_table.csv"
+    dummy_df.to_csv(table_path)
+    dummy_df_cols = list(dummy_df.columns)
+
+    plt.plot(dummy_df[[dummy_df_cols[0]]], dummy_df[[dummy_df_cols[1]]])
+
+    report_config = OrderedDict({
+        REPORT_CONTENTS_KEY: OrderedList([
+            (ReportComponentKey.TABLE.value, table_path)
+        ])
+    })
+    report_config_path = tmp_path / "report_config.yml"
+    with open(report_config_path, "w+") as f_path:
+        ruamel.yaml.dump(report_config, f_path)
+
+    report_config = html_report.read_config_yaml(report_config_path)
+    assert list(report_config.keys()) == [REPORT_CONTENTS_KEY]
+    assert len(report_config[REPORT_CONTENTS_KEY]) == 1
+    assert report_config[REPORT_CONTENTS_KEY][0] == (ReportComponentKey.TABLE.value, table_path)
+
+    html_template_difference = html_report.template.replace(html_template_before, "")
+    assert html_template_difference.count("table.to_html") == 1
+    # validate the report to ensure it includes the minimum necessary tags
+    html_report.validate()
