@@ -16,7 +16,6 @@ import torchvision.transforms.functional as TF
 from line_profiler import LineProfiler
 from PIL import Image
 from skimage import io
-from torch.functional import Tensor
 from torchvision.io.image import read_image
 
 from health_azure import get_workspace
@@ -256,7 +255,7 @@ def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> Non
     channels = 1 if source_greyscale else 3
     width, height = im.size
     print(f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
-    assert isinstance(tensor, Tensor)
+    assert isinstance(tensor, torch.Tensor)
     assert tensor.dtype == torch.float32
     assert tensor.shape == (channels, height, width)
     assert torch.max(tensor) <= 1.0
