@@ -358,8 +358,6 @@ def main() -> None:
     """
     Create a LineProfiler and time calls to convert_image, writing results to a text file.
     """
-    # mount_and_process_folder(1)
-    # return
     lp = LineProfiler()
     lp.add_function(read_image_matplotlib)
     lp.add_function(read_image_matplotlib2)
