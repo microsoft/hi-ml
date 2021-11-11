@@ -99,8 +99,9 @@ def read_image_opencv(input_filename: Path) -> torch.Tensor:
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://docs.opencv.org/4.5.3/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
-    # numpy_array is a numpy.ndarray
+    # numpy_array is a numpy.ndarray, in BGR format.
     numpy_array = cv2.imread(str(input_filename))
+    numpy_array = cv2.cvtColor(numpy_array, cv2.COLOR_BGR2RGB)
     is_greyscale = False not in \
         ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
     if is_greyscale:
@@ -123,8 +124,13 @@ def read_image_opencv2(input_filename: Path) -> torch.Tensor:
     :return: torch.Tensor of shape (C, H, W).
     """
     # https://docs.opencv.org/4.5.3/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
-    # numpy_array is a numpy.ndarray
+    # numpy_array is a numpy.ndarray, in BGR format.
     numpy_array = cv2.imread(str(input_filename))
+    numpy_array = cv2.cvtColor(numpy_array, cv2.COLOR_BGR2RGB)
+    is_greyscale = False not in \
+        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
+    if is_greyscale:
+        numpy_array = numpy_array[:, :, 0]
     torch_tensor = TF.to_tensor(numpy_array)
     return torch_tensor
 
@@ -245,20 +251,17 @@ def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> Non
     :return: None.
     """
     im = Image.open(image_file)
+    reference_tensor = TF.to_tensor(im)
     source_greyscale = im.mode == 'L'
+    channels = 1 if source_greyscale else 3
     width, height = im.size
     print(f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
     assert isinstance(tensor, Tensor)
     assert tensor.dtype == torch.float32
-    assert len(tensor.shape) == 3
-    assert tensor.shape[2] == width
-    assert tensor.shape[1] == height
-    if source_greyscale:
-        assert tensor.shape[0] == 1
-    else:
-        assert tensor.shape[0] == 3
+    assert tensor.shape == (channels, height, width)
     assert torch.max(tensor) <= 1.0
     assert torch.min(tensor) >= 0.0
+    assert torch.equal(tensor, reference_tensor)
 
 
 def mount_and_convert_source_files(
@@ -290,11 +293,12 @@ def mount_and_convert_source_files(
                       f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}")
 
 
-def mount_and_process_folder() -> None:
+def mount_and_process_folder(repeats: int = 10) -> None:
     """
     Mount a dataset called 'panda_tiles', assumed to contain image files, with file extension png. Load each png file,
     convert to greyscale, and save to a separate folder.
 
+    :param repeats: How many times to repeat test cycle?
     :return: None.
     """
     source_options: List[Tuple[str, bool, bool]] = [
@@ -332,10 +336,10 @@ def mount_and_process_folder() -> None:
 
     mount_and_convert_source_files(dataset, output_folder, source_options, bin_libs)
 
-    for repeats in range(0, 10):
+    for repeat in range(0, repeats):
         for source_option, _, _ in source_options:
             print("~~~~~~~~~~~~~")
-            print(f"repeat: {repeats}, source_option: {source_option}")
+            print(f"repeat: {repeat}, source_option: {source_option}")
             print("~~~~~~~~~~~~~")
             source_folder = output_folder / "png" / source_option
             for image_file in source_folder.glob("*.png"):
@@ -354,7 +358,7 @@ def main() -> None:
     """
     Create a LineProfiler and time calls to convert_image, writing results to a text file.
     """
-    # mount_and_process_folder()
+    # mount_and_process_folder(1)
     # return
     lp = LineProfiler()
     lp.add_function(read_image_matplotlib)
