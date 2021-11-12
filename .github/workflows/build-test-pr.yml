@@ -25,7 +25,7 @@ env:
 
 jobs:
   flake8:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -40,7 +40,7 @@ jobs:
         run: make flake8
 
   mypy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -55,7 +55,7 @@ jobs:
         run: make mypy
 
   pyright:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -71,7 +71,7 @@ jobs:
           make pyright
 
   pytest_fast:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -104,7 +104,7 @@ jobs:
           make pytest_fast
 
   build-python:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [ pytest_fast ]
     strategy:
       matrix:
@@ -130,7 +130,7 @@ jobs:
           folder: ${{ matrix.folder }}
 
   test-artifact-pkg:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [ build-python ]
     strategy:
       matrix:
@@ -198,7 +198,7 @@ jobs:
           folder: ${{ matrix.folder }}
 
   build-coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [ test-artifact-pkg ]
     steps:
       - uses: actions/checkout@v2
@@ -265,7 +265,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   publish-testpypi-pkg:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [ test-artifact-pkg ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
@@ -305,7 +305,7 @@ jobs:
           echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
   publish-pypi-pkg:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [ test-artifact-pkg ]
     strategy:
       matrix:
@@ -338,7 +338,7 @@ jobs:
           packages_dir: ${{ matrix.folder }}/dist/
 
   test-pypi-pkg:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [ publish-pypi-pkg ]
     strategy:
       matrix:
