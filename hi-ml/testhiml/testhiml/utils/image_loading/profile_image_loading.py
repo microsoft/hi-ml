@@ -307,7 +307,7 @@ def mount_and_process_folder(repeats: int = 10) -> None:
         ("crop_greyscale", True, True),
     ]
 
-    png_libs: List[Tuple[str, Callable[[Path], Tensor]]] = [
+    png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]] = [
         ("matplotlib", read_image_matplotlib),
         ("matplotlib2", read_image_matplotlib2),
         ("opencv", read_image_opencv),
