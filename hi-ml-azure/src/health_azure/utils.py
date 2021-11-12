@@ -1263,6 +1263,25 @@ def torch_barrier() -> None:
         distributed.barrier()
 
 
+def get_tags_from_hyperdrive_run(run: Run, arg_name: str) -> Dict[str, str]:
+    """
+    Given a child Run that was instantiated as part of a HyperDrive run, retrieve the "hyperparameters" tag
+    that AML automatically tags it with, and retrieve a specific tag from within that. The available tags are
+    determined by the hyperparameters you specified to perform sampling on. E.g. if you defined AML's
+    [Grid Sampling](
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#grid-sampling)
+    over the space {"learning_rate": choice[1, 2, 3]}, each of your 3 child runs will be tagged with
+    hyperparameters: {"learning_rate": 0} and so on
+
+
+    :param run: An AML run object, representing the child of a HyperDrive run
+    :param arg_name: The name of the tag that you want to retrieve - representing one of the hyperparameters you
+        specified in sampling.
+    :return: A dictionary representing the name and value of tag tag, if found.
+    """
+    return json.loads(run.tags.get('hyperparameters')).get(arg_name)
+
+
 def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
                                  aml_workspace: Optional[Workspace] = None,
                                  workspace_config_path: Optional[Path] = None) -> pd.DataFrame:
@@ -1311,7 +1330,7 @@ def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
     metrics: DefaultDict = defaultdict()
     for child_run in run.get_children():
         child_run_metrics = child_run.get_metrics()
-        child_run_crossval_split = json.loads(child_run.tags.get('hyperparameters')).get(child_run_arg_name)
+        child_run_crossval_split = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
         for k, v in child_run_metrics.items():
             if k not in metrics:
                 metrics[k] = {}
@@ -1319,3 +1338,40 @@ def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
 
     df = pd.DataFrame.from_dict(metrics, orient="index")
     return df
+
+
+def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, local_download_folder: Path,
+                                            hyperparam_name: str = '') -> Path:
+    """
+    Download a specified file or folder from each of the children of an Azure ML Hyperdrive run. For each child
+    run, create a separate folder within your report folder, based on the value of whatever hyperparameter
+    was being sampled. E.g. if you sampled over batch sizes 10, 50 and 100, you'll see 3 folders in your
+    report folder, named 10, 50 and 100 respectively. If remote_file_path represents a path to a folder, the
+    entire folder and all the files within it will be downloaded
+
+    :param run: An AML Run object whose type equals "hyperdrive"
+    :param remote_file_path: The path to the content in the Datastore associated with your run outputs
+    :param local_download_folder: The local folder to download the files to
+    :param hyperparam_name: The name of one of the hyperparameters that was sampled during the HyperDrive
+        run. This is used to ensure files are downloaded into logically-named folders
+    :return: A path to the downloaded file
+    """
+    if len(hyperparam_name) == 0:
+        raise ValueError("To download results from a HyperDrive run you must provide the hyperparameter name"
+                         "that was sampled over")
+
+    # For each child run we create a directory in the local_download_folder named after value of the
+    # hyperparam sampled for this child.
+    for child_run in run.get_children():
+        child_run_index = get_tags_from_hyperdrive_run(child_run, hyperparam_name)
+        if child_run_index is None:
+            raise ValueError("Child run expected to have the tag {child_run_tag}")
+
+        # The artifact will be downloaded into a child folder within local_download_folder
+        # strip any special characters from the hyperparam index name
+        local_folder_child_run = local_download_folder / re.sub('[^A-Za-z0-9]+', '', str(child_run_index))
+        local_folder_child_run.mkdir(exist_ok=True)
+        download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
+        downloaded_file_path = local_folder_child_run / remote_file_path
+
+    return downloaded_file_path

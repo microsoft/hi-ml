@@ -6,13 +6,17 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, OrderedDict
 
 import jinja2
 import ruamel.yaml
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from health_azure.utils import (download_files_from_run_id, get_aml_run_from_run_id,
+                                download_files_from_hyperdrive_children)
+
+CLOSE_DOC_TAGS = "</p>\n</div>\n</body>\n</html>"
 IMAGE_KEY_HTML = "IMAGEPATHSHTML"
 TABLE_KEY_HTML = "TABLEKEYHTML"
 REPORT_CONTENTS_KEY = "report_contents"
@@ -47,9 +51,10 @@ class HTMLReport:
         )
         self.render_kwargs: Dict[str, Any] = {"title": title}
 
-    def validate(self):
+    def validate(self) -> None:
         """
-        For our definition the rendered HTML must contain exactly one open and closing tags doctype, head and body
+        For our definition, the rendered HTML must contain exactly one open and closing tags doctype, head and body
+        If any of these are missing from the repport_html, we raise a ValueError
 
         :return:
         """
@@ -63,10 +68,16 @@ class HTMLReport:
                 raise ValueError(f"report_html is missing the tag {tag}. This will cause problems with rendering")
 
     @staticmethod
-    def _remove_html_end(report_stream):
-        return report_stream.replace("</p>\n</div>\n</body>\n</html>", "")
+    def _remove_html_end(report_stream: str) -> str:
+        """
+        Before adding additional components to the HTML report, we must remove the closing tags
 
-    def _create_template(self):
+        :param report_stream: A string representing the content of the report thus far
+        :return: A modified string, without closing tags
+        """
+        return report_stream.replace(CLOSE_DOC_TAGS, "")
+
+    def _create_template(self) -> Path:
         template_path = self.report_folder / "template.html"
         template_path.touch(exist_ok=True)
 
@@ -83,17 +94,36 @@ class HTMLReport:
 <h1> {{title}} </h1>
 </div>
 <p>
-</p>
-</div>
-</body>
-</html>"""
+""" + CLOSE_DOC_TAGS
 
         return template_path
 
-    def add_text(self, text: str):
-        self.template += f"<p>{text}</p>"
+    def add_text(self, text: str, tag_class: str = '') -> None:
+        """
+        Add text to the report content, in the form of a new paragraph. This will start on a new line by default.
+        If you wish to provide your own css classes, you can tag this paragraph by providing the class name in the
+        "tag_class" parameter.
 
-    def add_table(self, table: Optional[pd.DataFrame] = None, table_path: Optional[Path] = None):
+        :param text: The text to add to the report
+        :param tag_class: An optional class name to apply styling to the text
+        """
+        self.template = self._remove_html_end(self.template)
+        p_tag_open = f"<p class={tag_class}>" if tag_class is not None else "<p>"
+        self.template += f"""<div class="container" >
+        {p_tag_open}{text}
+        </div>
+        <br>""" + CLOSE_DOC_TAGS
+
+    def add_table(self, table: Optional[pd.DataFrame] = None, table_path: Optional[Path] = None) -> None:
+        """
+        Add a table object to your report. The table can either be passed as a Pandas DataFrame object, or
+        a path to a .csv file contianing your table. If neither of these parameters are provided, an Exception
+        will be raised.
+
+        :param table: An optional Pandas DataFrame to be rendered in the report
+        :param table_path: An optional path to a .csv file containing the table to be rendered on the report
+        :raises ValueError: If neither a table object nor a path to a .csv file are provided
+        """
         if table is None and table_path is None:
             raise ValueError("One of table or table path must be provided")
         if table is None:
@@ -104,19 +134,22 @@ class HTMLReport:
         table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
 
         self.template += """<div class="container" >
-{% for table in """ + table_key + """ %}
-    {{ table.to_html(classes=[ "table"], justify="center") | safe }}
-{% endfor %}
-</div>
-<br>
-</p>
-</div>
-</body>
-</html>"""
+        {% for table in """ + table_key + """ %}
+            {{ table.to_html(classes=[ "table"], justify="center") | safe }}
+        {% endfor %}
+        </div>
+        <br>""" + CLOSE_DOC_TAGS
 
         self.render_kwargs.update({table_key: [table]})
 
-    def add_image(self, image_path: str):
+    def add_image(self, image_path: str) -> None:
+        """
+        Given a path to an image file, embeds the image on the report. If the path is within the report folder, the
+        relative path will be used. This is to ensure that the HTML document is able to locate and embed the image.
+        Otherwise, the image path is not altered.
+
+        :param image_path: The path to the image to be embedded
+        """
         if image_path.startswith(str(self.report_folder)):
             img_path_html = Path(image_path).relative_to(self.report_folder)
         else:
@@ -131,25 +164,29 @@ class HTMLReport:
         image_key_html = image_key_html.split("_")[0] + f"_{num_existing_images}"
 
         self.template += """<div class="container">
-{% for image_path in """ + image_key_html + """ %}
-    <img src={{image_path}} alt={{image_path}}>
-{% endfor %}
-</div>
-<br>
-</p>
-</div>
-</body>
-</html>"""
+        {% for image_path in """ + image_key_html + """ %}
+            <img src={{image_path}} alt={{image_path}}>
+        {% endfor %}
+        </div>
+        <br>""" + CLOSE_DOC_TAGS
 
         # Add these keys and paths to the keyword args for rendering later
-        self.render_kwargs.update({image_key_html: [img_path_html]})
+        self.render_kwargs.update({image_key_html: [str(img_path_html)]})
 
-    def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None):
+    def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None) -> None:
+        """
+        Add a plot to your report. The plot can either be passed as a [matplotlib Figure object](
+        https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.figure.html), or as a path to
+        a saved plot file.
+
+        :param plot_path: Optional path to a saved plot file
+        :param fig: Optional matplotlib Figure object
+        """
         if fig is not None:
             # save the plot
             plot_title = fig._suptitle.get_text() or fig.texts[0].get_text()
             if len(plot_title) > 1:
-                title = plot_title.replace(" ", "_")+ ".png"
+                title = plot_title.replace(" ", "_") + ".png"
             else:
                 title = f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
             plot_path = self.report_folder / title
@@ -158,27 +195,122 @@ class HTMLReport:
 
         self.add_image(str(plot_path))
 
-    def read_config_yaml(self, report_config_path: Path):
+    def read_config_yaml(self, report_config_path: Path) -> OrderedDict:
+        """
+        Load a report description from a yaml file and use it create an HTML report. The yaml file must as a minimum
+        contain the section "report_contents", which takes a list of tuples of component types and their paths.
+        For example, to add an image, the tuple might look like ("image", "path/to/image"). For a table, it might
+        look like ("table", "path/to/csv/file"). The syntax for text is different, as the second component in
+        the tuple is not a path, but the text itself. E.g. ("text", "A section heading"). Provided that one or more
+        of these elements is found, self.template and self.render_kwargs will be updated
+
+        :param report_config_path: The path to the .yml file contianing the report description
+        :raises ValueError: If a tuple in the report_contents section as a first entry other than "image", "table"
+            or "text"
+        :return: An OrderedDict representing the contents of the yaml file
+        """
+        # TODO: add option to overwrite report title with entry here
         assert report_config_path.suffix == ".yml", f"Expected a .yml file but found {report_config_path.suffix}"
         with open(report_config_path, "r") as f_path:
             yaml_contents = ruamel.yaml.load(f_path)
 
-        report_contents = yaml_contents[REPORT_CONTENTS_KEY]
-        for componenet_type, component_val in report_contents:
-            if componenet_type == ReportComponentKey.TABLE.value:
-                self.add_table(table_path=component_val)
-            elif componenet_type == ReportComponentKey.IMAGE.value:
-                self.add_image(component_val)
-            elif componenet_type == ReportComponentKey.TEXT.value:
-                self.add_text(component_val)
-            else:
-                raise ValueError("Key must either equal table or image")
-
         return yaml_contents
 
-    def render(self, save_html=True) -> None:
+    def add_yaml_contents_to_report(self, yaml_contents: OrderedDict) -> None:
         """
-        Render the report
+        Given an OrderdDict of report contents containing the key "report_contents", where the value is
+        a list of lists. Each one has 2 entries: firstly, a "content_type" - e.g. "image", "table" or "text".
+        The second entry is a path to the content, in the case of "image" or "table" types, or a string in
+        the case of text types. In the case of the paths, these can either be paths to a single image/csv file,
+        or to a folder containing multiple images/ csv files. If multiple, they will be embedded successively.
+
+        E.g.
+        {"table_contents" :
+            [
+                ["image": "<path/to/image/file_or_folder>"],
+                ["table", "<path/to/csv_file_or_folder>"],
+                ["text", "A subsection header"]
+            ]
+        }
+
+        The attribtues "template" and "render_kwargs" will be updated, as the respective methods add_image, add_table
+        and add_text are called as necessary.
+
+        :param yaml_contents: An OrderedDict containing at least a "report_contents" section
+        :raises ValueError: If the first entry in a row of report_contents is something other than image, table or text
+        """
+        report_contents = yaml_contents[REPORT_CONTENTS_KEY]
+        for component_type, component_val in report_contents:
+            if component_type == ReportComponentKey.TABLE.value:
+                table_path = Path(component_val)
+                if table_path.is_dir():
+                    for tbl_path in table_path.iterdir():
+                        self.add_table(table_path=tbl_path)
+                else:
+                    self.add_table(table_path=table_path)
+            elif component_type == ReportComponentKey.IMAGE.value:
+                image_path = Path(component_val)
+                if image_path.is_dir():
+                    for img_path in image_path.iterdir():
+                        self.add_image(str(img_path))
+                else:
+                    self.add_image(component_val)
+            elif component_type == ReportComponentKey.TEXT.value:
+                self.add_text(component_val)
+            else:
+                raise ValueError("Key must either equal table, image or text")
+
+    def download_report_contents_from_aml(self, run_id: str, report_contents: List[List[str]],
+                                          hyperdrive_hyperparam_name: str = '') -> List[List[str]]:
+        """
+        Downloads report contents (images, csv files etc, as specified in the ) from Azure ML Runs. If the
+        run_id provided represents an AML HyperDrive run, will attempt to download each of the specified paths
+        in report_contents from each of the child runs. These will be saved into separate folders in the
+        report folder. Note that to retrieve these runs, you must provide a value for `hyperdrive_hyperparam_name`
+        - i.e. the name of a hyperparameter that was sampled over during this run.
+
+        :param run_id: A string representing the run id of the AML run from which to download files
+        :param report_contents: An List of Lists, where the first entry in each is the report content type
+            (image, table, text) and the second is either a path to where the file lives in your DataStore,
+            or else it is a string to be added to the report.
+        :param hyperdrive_hyperparam_name: If the run is a hyperdrive run, specify the name of one of the
+            hyperparameters that was sampled here. This is to ensure files are downloaded into logically-named
+            folders.
+        :return: An updated list of report contents, with paths replaced by the downloaded file paths where
+            applicable
+        """
+        # If this is a hyperdrive run, download files for each of its children
+        run = get_aml_run_from_run_id(run_id)
+
+        # TODO: tuple -> list
+        updated_report_contents = []
+        for artifact_type, artifact_val in report_contents:
+            # If the compoment is text, we don't need to download anything
+            if artifact_type == ReportComponentKey.TEXT.value:
+                updated_report_contents.append([artifact_type, artifact_val])
+            else:
+                if run.type == "hyperdrive":
+                    full_artifact_path = download_files_from_hyperdrive_children(
+                        run,
+                        artifact_val,
+                        self.report_folder,
+                        hyperparam_name=hyperdrive_hyperparam_name,
+                    )
+                else:
+                    full_artifact_path = self.report_folder / artifact_val
+                    download_files_from_run_id(run_id, self.report_folder, prefix=artifact_val)
+
+                updated_report_contents.append([artifact_type, str(full_artifact_path)])
+
+        return updated_report_contents
+
+    def render(self, save_html: bool = True) -> None:
+        """
+        Render the HTML report template with the keyword arguments that have been collected thorughout report
+        generation. Unless save_html is False, creates a file at self.report_path_html and writes the HTML
+        content to it
+
+        :param save_html: Whether to save the HTML to file
         """
         subs: str = self.env.from_string(self.template).render(**self.render_kwargs)
         self.report_html = subs
