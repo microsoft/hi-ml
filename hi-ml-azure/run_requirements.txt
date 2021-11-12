@@ -1,3 +1,4 @@
+azure-core==1.20.0
 azureml-sdk==1.32.0
 azureml-tensorboard==1.32.0
 conda-merge==0.1.5
