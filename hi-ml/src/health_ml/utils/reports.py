@@ -5,12 +5,16 @@
 #  ------------------------------------------------------------------------------------------
 from datetime import datetime
 from enum import Enum
+import itertools
 from pathlib import Path
-from typing import Any, Dict, List, Optional, OrderedDict
+from typing import Any, Dict, List, Optional, OrderedDict, Tuple
+import pickle
 
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import jinja2
 import ruamel.yaml
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from health_azure.utils import (download_files_from_run_id, get_aml_run_from_run_id,
@@ -24,6 +28,7 @@ REPORT_CONTENTS_KEY = "report_contents"
 
 class ReportComponentKey(Enum):
     IMAGE = "image"
+    IMAGE_GALLERY = "image_gallery"
     TABLE = "table"
     TEXT = "text"
 
@@ -173,6 +178,76 @@ class HTMLReport:
         # Add these keys and paths to the keyword args for rendering later
         self.render_kwargs.update({image_key_html: [str(img_path_html)]})
 
+    @classmethod
+    def load_plot_from_pickle(plot_path) -> plt.Axes:
+        with open(plot_path, 'rb') as f_path:
+            ax = pickle.load(f_path)
+        return ax
+
+    @classmethod
+    def load_pickled_plots_onto_subplot(cls, image_folder: Path, num_plot_columns: int = 3):
+        plot_paths = list(image_folder.iterdir())
+
+        num_plots = len(plot_paths)
+        num_plot_rows = int(np.ceil(num_plots / num_plot_columns))
+        fig, axs = plt.subplots(num_plot_rows, num_plot_columns)
+
+        for i in range(num_plot_rows):
+            for j in range(num_plot_columns):
+                plot_index = (i * num_plot_rows) + j
+                plot_path = plot_paths[plot_index]
+                loaded_fig = cls.load_plot_from_pickle(plot_path)
+                lines = loaded_fig.get_lines()
+                for line in lines:
+                    line_data = line.get_data()
+                    axs[i][j].plot(line_data[0], line_data[1])
+        return fig, axs
+
+    @classmethod
+    def load_imgs_onto_subplot(cls, image_folder: Path, num_plot_columns: int = 2, figsize: Tuple[int] = (12, 12)):
+        """
+        Given a path to a folder containing multiple images, loads each of the images in the folder and
+        adds to a single chart.
+
+        :param image_folder: The folder containing the images to be plotted
+        :param num_plot_columns: The number of columns of images to plot, defaults to 2
+        :param figsize: The size of the overall figure , defaults to (12, 12)
+        :return: A matplotlib Figure object
+        """
+        plot_paths = list(image_folder.iterdir())
+
+        num_plots = len(plot_paths)
+        num_plot_rows = int(np.ceil(num_plots / num_plot_columns))
+        fig = plt.figure(figsize=figsize)
+        for i, j in itertools.product(range(num_plot_rows), range(num_plot_columns)):
+            plot_index = (i * num_plot_columns) + j
+            if plot_index >= num_plots:
+                break
+            plot_path = plot_paths[plot_index]
+            with open(plot_path, "rb") as f_path:
+                img_arr = plt.imread(f_path)
+
+                fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
+                plt.imshow(img_arr)
+
+
+        fig.tight_layout()
+        return fig
+
+    def add_image_gallery(self, image_folder: str) -> None:
+        """
+        For each image in a folder, create a "gallery" i.e. a plot containing all of these images,
+        and add it to the report
+
+        :param image_folder: The folder containing all of the images to add to the gallery
+        """
+        # TODO: test on some pickled images
+        fig = self.load_imgs_onto_subplot(Path(image_folder), figsize=(15, 15))
+        img_num = len(list(self.report_folder.glob("gallery_image_*")))
+        gallery_img_path = str(self.report_folder / f"gallery_image_{img_num}.png")
+        fig.savefig(gallery_img_path)
+        self.add_image(gallery_img_path)
+
     def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None) -> None:
         """
         Add a plot to your report. The plot can either be passed as a [matplotlib Figure object](
@@ -255,6 +330,8 @@ class HTMLReport:
                         self.add_image(str(img_path))
                 else:
                     self.add_image(component_val)
+            elif component_type == ReportComponentKey.IMAGE_GALLERY.value:
+                self.add_image_gallery(component_val)
             elif component_type == ReportComponentKey.TEXT.value:
                 self.add_text(component_val)
             else:
