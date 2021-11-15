@@ -45,6 +45,7 @@ The `hi-ml` toolbox provides
    :maxdepth: 1
    :caption: Guidelines
 
+   loading_images.md
    whole_slide_images.md
 
 .. toctree::
