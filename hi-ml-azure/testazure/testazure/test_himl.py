@@ -224,17 +224,12 @@ def test_create_run_configuration(
     assert not run_config.output_data
 
 
+@pytest.mark.fast
 @patch("azureml.core.Workspace")
 @patch("health_azure.himl.create_python_environment")
 def test_create_run_configuration_correct_env(mock_create_environment: MagicMock,
                                               mock_workspace: MagicMock,
                                               tmp_path: Path) -> None:
-    """
-    This will register an environment in your workspace called "dummy_env"
-
-    :param tmp_path: [description]
-    :type tmp_path: [type]
-    """
     mock_workspace.compute_targets = {"dummy_compute_cluster": ""}
 
     # First ensure if environment.get returns None, that register_environment gets called
@@ -282,6 +277,21 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             # check mock_register has still only been called once
             mock_register.assert_called_once()
             assert mock_environment_get.call_count == 2
+
+    # check that when create_run_configuration is called, whatever is returned  from register_environment
+    # is set as the new "environment" attribute of the run config
+    with patch("health_azure.himl.register_environment") as mock_register_environment:
+        for dummy_env in ["abc", 1, Environment("dummy_env")]:
+            mock_register_environment.return_value = dummy_env
+
+            with patch("azureml.core.Environment.get") as mock_environment_get:  # type: ignore
+                mock_environment_get.side_effect = Exception()
+                run_config = himl.create_run_configuration(mock_workspace,
+                                                           "dummy_compute_cluster",
+                                                           conda_environment_file=conda_env_path)
+            assert run_config.environment == dummy_env
+
+    subprocess.run
 
 
 @pytest.mark.fast
