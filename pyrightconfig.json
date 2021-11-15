@@ -4,16 +4,12 @@
     "hi-ml",
     "hi-ml-azure"
   ],
+  "exclude": [
+    "hi-ml/testhiml/testhiml/utils/image_loading",
+    "hi-ml/testhiml/testhiml/utils/slide_image_loading/src",
+  ],
   "useLibraryCodeForTypes": false,
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
   "reportPrivateImportUsage": false,
-  "executionEnvironments": [
-    {
-      "root": "hi-ml/testhiml/testhiml/utils/slide_image_loading/src/Histopathology",
-      "extraPaths": [
-        "hi-ml/testhiml/testhiml/utils/slide_image_loading/src"
-      ]
-    }
-  ]
 }

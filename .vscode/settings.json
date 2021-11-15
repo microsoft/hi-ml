@@ -27,7 +27,7 @@
     "python.linting.mypyArgs": [
         "--config-file=${workspaceFolder}/mypy.ini"
     ],
-    "python.linting.pycodestyleEnabled": true,
+    "python.linting.pycodestyleEnabled": false,
     "python.linting.pycodestyleArgs": [
         "--max-line-length=120",
         "--show-source",

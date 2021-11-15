@@ -28,6 +28,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 - ([#145](https://github.com/microsoft/hi-ml/pull/145)) Add ability to mount datasets when running locally.
 - ([#142](https://github.com/microsoft/hi-ml/pull/142)) Adding AzureML progress bar and diagnostics for batch loading
 - ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
+- ([#132](https://github.com/microsoft/hi-ml/pull/132)) Profile methods for loading png image files.
 
 ### Changed
 - ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace

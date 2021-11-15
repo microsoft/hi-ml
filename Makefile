@@ -31,7 +31,6 @@ pip: pip_build pip_test call_pip_local
 # update current conda environment
 conda_update:
 	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml
-	conda env update -n $(CONDA_DEFAULT_ENV) --file hi-ml/testhiml/testhiml/utils/slide_image_loading/environment.yml
 
 # Set the conda environment for local development work, that contains all packages need for both hi-ml and hi-ml-azure
 # with hi-ml and hi-ml-azure installed in editable mode
