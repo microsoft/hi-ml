@@ -14,6 +14,8 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
+from ruamel import yaml
+from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -29,8 +31,8 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
 from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore)
-from health_azure.utils import (EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON, get_most_recent_run,
-                                get_workspace, is_running_in_azure_ml)
+from health_azure.utils import (ENVIRONMENT_VERSION, EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON,
+                                get_most_recent_run, get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
@@ -220,6 +222,76 @@ def test_create_run_configuration(
     assert run_config.mpi.node_count == 1
     assert not run_config.data
     assert not run_config.output_data
+
+
+@pytest.mark.fast
+@patch("azureml.core.Workspace")
+@patch("health_azure.himl.create_python_environment")
+def test_create_run_configuration_correct_env(mock_create_environment: MagicMock,
+                                              mock_workspace: MagicMock,
+                                              tmp_path: Path) -> None:
+    mock_workspace.compute_targets = {"dummy_compute_cluster": ""}
+
+    # First ensure if environment.get returns None, that register_environment gets called
+    mock_environment = MagicMock()
+    # raise exception to esure that register gets called
+    mock_environment.version = None
+
+    mock_create_environment.return_value = mock_environment
+
+    conda_env_spec = OrderedDict({"name": "dummy_env",
+                                  "channels": OrderedList("default"),
+                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.7.3"])})
+
+    conda_env_path = tmp_path / "dummy_conda_env.yml"
+    with open(conda_env_path, "w+") as f_path:
+        yaml.dump(conda_env_spec, f_path)
+    assert conda_env_path.is_file()
+
+    with patch.object(mock_environment, "register") as mock_register:
+        mock_register.return_value = mock_environment
+
+        with patch("azureml.core.Environment.get") as mock_environment_get:  # type: ignore
+            mock_environment_get.side_effect = Exception()
+            run_config = himl.create_run_configuration(mock_workspace,
+                                                       "dummy_compute_cluster",
+                                                       conda_environment_file=conda_env_path)
+
+            # check that mock_register has been called once with the expected args
+            mock_register.assert_called_once_with(mock_workspace)
+            assert mock_environment_get.call_count == 1
+
+            # check that en environment is returned with the default ENVIRONMENT_VERSION (this overrides AML's
+            # default 'Autosave' environment version)
+            environment: Environment = run_config.environment
+            assert environment.version == ENVIRONMENT_VERSION
+
+            # when calling create_run_configuration again with the same conda environment file, Environment.get
+            # should retrieve the registered version, hence we disable the side effect
+            mock_environment_get.side_effect = None
+
+            _ = himl.create_run_configuration(mock_workspace,
+                                              "dummy_compute_cluster",
+                                              conda_environment_file=conda_env_path)
+
+            # check mock_register has still only been called once
+            mock_register.assert_called_once()
+            assert mock_environment_get.call_count == 2
+
+    # check that when create_run_configuration is called, whatever is returned  from register_environment
+    # is set as the new "environment" attribute of the run config
+    with patch("health_azure.himl.register_environment") as mock_register_environment:
+        for dummy_env in ["abc", 1, Environment("dummy_env")]:
+            mock_register_environment.return_value = dummy_env
+
+            with patch("azureml.core.Environment.get") as mock_environment_get:  # type: ignore
+                mock_environment_get.side_effect = Exception()
+                run_config = himl.create_run_configuration(mock_workspace,
+                                                           "dummy_compute_cluster",
+                                                           conda_environment_file=conda_env_path)
+            assert run_config.environment == dummy_env
+
+    subprocess.run
 
 
 @pytest.mark.fast
