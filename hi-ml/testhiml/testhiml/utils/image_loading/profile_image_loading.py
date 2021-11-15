@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Callable, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 from azureml.data.file_dataset import FileDataset
 import cv2
@@ -268,7 +268,16 @@ def mount_and_convert_source_files(
         output_folder: Path,
         source_options: List[Tuple[str, bool, bool]],
         bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
+    """
+    Mount the dataset, and loop through all the png files creating cropped/greyscale pngs from them.
+    Also create torch.Tensor and numpy array versions.
 
+    :param dataset: File dataset containing pngs to mount.
+    :param output_folder: Root folder to build variants in.
+    :param source_options: List of subfolder names and greyscale/crop options.
+    :param bin_libs: List of subfolder names, file suffix, and write/read functions for tensor/array options.
+    :return: None.
+    """
     with dataset.mount("/tmp/datasets/panda_tiles") as mount_context:
         input_folder = Path(mount_context.mount_point)
 
@@ -292,12 +301,97 @@ def mount_and_convert_source_files(
                       f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}")
 
 
-def mount_and_process_folder(repeats: int = 10) -> None:
+def run_profiling(
+        repeats: int,
+        output_folder: Path,
+        source_options: List[str],
+        png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
+        bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
+    """
+    Loop through multiple repeats of each source type, loading the image file and processing it with each
+    library.
+
+    :param repeats: Number of times to process each source option.
+    :param output_folder: Root folder to build variants in.
+    :param source_options: List of subfolder names and greyscale/crop options.
+    :param png_libs: List of image processing libraries.
+    :param bin_libs: List of subfolder names, file suffix, and write/read functions for tensor/array options.
+    :return: None.
+    """
+    for repeat in range(0, repeats):
+        for source_option in source_options:
+            print("~~~~~~~~~~~~~")
+            print(f"repeat: {repeat}, source_option: {source_option}")
+            print("~~~~~~~~~~~~~")
+            source_folder = output_folder / "png" / source_option
+            for image_file in source_folder.glob("*.png"):
+                for lib, op in png_libs:
+                    tensor = op(image_file)
+                    check_loaded_image(lib, image_file, tensor)
+
+                for folder, suffix, _, op in bin_libs:
+                    target_folder = output_folder / folder / source_option
+                    native_file = target_folder / image_file.with_suffix(suffix).name
+                    tensor = op(native_file)
+                    check_loaded_image(folder, image_file, tensor)
+
+
+def wrap_run_profiling(
+        repeats: int,
+        output_folder: Path,
+        png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
+        bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
+        profile_name: str,
+        profile_source_options: List[str]) -> None:
+    """
+    Setup lineProfiler and call run_profiling.
+
+    :param repeats: Number of times to process each source option.
+    :param output_folder: Root folder to build variants in.
+    :param png_libs: List of image processing libraries.
+    :param bin_libs: List of subfolder names, file suffix, and write/read functions for tensor/array options.
+    :param profile_name: Name to use for saving profile results file.
+    :param profile_source_options: List of source folders to test.
+    :return: None.
+    """
+    def curry_run_profiling() -> None:
+        """
+        Create a new parameterless function by applying all the options, for ease of profiling.
+
+        :return: None.
+        """
+        run_profiling(repeats,
+                      output_folder,
+                      profile_source_options,
+                      png_libs,
+                      bin_libs)
+
+    """
+    Create a LineProfiler and time calls to convert_image, writing results to a text file.
+    """
+    lp = LineProfiler()
+    lp.add_function(read_image_matplotlib)
+    lp.add_function(read_image_matplotlib2)
+    lp.add_function(read_image_opencv)
+    lp.add_function(read_image_opencv2)
+    lp.add_function(read_image_pillow)
+    lp.add_function(read_image_scipy)
+    lp.add_function(read_image_sitk)
+    lp.add_function(read_image_skimage)
+    lp.add_function(read_image_torch)
+    lp.add_function(read_image_torch2)
+    lp.add_function(read_image_numpy)
+    lp_wrapper = lp(curry_run_profiling)
+    lp_wrapper()
+    with open(f"outputs/profile_{profile_name}.txt", "w", encoding="utf-8") as f:
+        lp.print_stats(f)
+
+
+def main() -> None:
     """
     Mount a dataset called 'panda_tiles', assumed to contain image files, with file extension png. Load each png file,
     convert to greyscale, and save to a separate folder.
 
-    :param repeats: How many times to repeat test cycle?
     :return: None.
     """
     source_options: List[Tuple[str, bool, bool]] = [
@@ -335,44 +429,13 @@ def mount_and_process_folder(repeats: int = 10) -> None:
 
     mount_and_convert_source_files(dataset, output_folder, source_options, bin_libs)
 
-    for repeat in range(0, repeats):
-        for source_option, _, _ in source_options:
-            print("~~~~~~~~~~~~~")
-            print(f"repeat: {repeat}, source_option: {source_option}")
-            print("~~~~~~~~~~~~~")
-            source_folder = output_folder / "png" / source_option
-            for image_file in source_folder.glob("*.png"):
-                for lib, op in png_libs:
-                    tensor = op(image_file)
-                    check_loaded_image(lib, image_file, tensor)
+    profile_sets: Dict[str, List[str]] = {
+        "rgb": [source_options[0][0], source_options[2][0]],
+        "grey": [source_options[1][0], source_options[3][0]]
+    }
 
-                for folder, suffix, _, op in bin_libs:
-                    target_folder = output_folder / folder / source_option
-                    native_file = target_folder / image_file.with_suffix(suffix).name
-                    tensor = op(native_file)
-                    check_loaded_image(folder, image_file, tensor)
-
-
-def main() -> None:
-    """
-    Create a LineProfiler and time calls to convert_image, writing results to a text file.
-    """
-    lp = LineProfiler()
-    lp.add_function(read_image_matplotlib)
-    lp.add_function(read_image_matplotlib2)
-    lp.add_function(read_image_opencv)
-    lp.add_function(read_image_opencv2)
-    lp.add_function(read_image_pillow)
-    lp.add_function(read_image_scipy)
-    lp.add_function(read_image_sitk)
-    lp.add_function(read_image_skimage)
-    lp.add_function(read_image_torch)
-    lp.add_function(read_image_torch2)
-    lp.add_function(read_image_numpy)
-    lp_wrapper = lp(mount_and_process_folder)
-    lp_wrapper()
-    with open("outputs/profile.txt", "w", encoding="utf-8") as f:
-        lp.print_stats(f)
+    for profile_name, profile_source_options in profile_sets.items():
+        wrap_run_profiling(10, output_folder, png_libs, bin_libs, profile_name, profile_source_options)
 
 
 if __name__ == '__main__':

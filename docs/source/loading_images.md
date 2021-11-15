@@ -247,21 +247,42 @@ def read_image_torch2(input_filename: Path) -> torch.Tensor:
     return torch_tensor
 ```
 
-## Results
+# Results
 
-All the above methods were ran against 122 RGB images, and 122 greyscale images, repeated 10 times. So in total there were 2440 calls to each of the functions. The total times were:
+All the above methods were ran against 122 small test images, repeated 10 times. So in total there were 1220 calls to each of the functions.
+
+## RGB Images
+
+For 61 RGB images of size 224 x 224 pixels and 61 of size 180 x 224 pixels, repeated 10 times, there are the following timings:
 
 | Function               | Total time (s) |
 |------------------------|----------------|
-| read_image_matplotlib  | 23.296         |
-| read_image_matplotlib2 | **21.8444**    |
-| read_image_opencv      | 28.864         |
-| read_image_opencv2     | 29.2362        |
-| read_image_pillow      | 37.9016        |
-| read_image_scipy       | 42.5742        |
-| read_image_sitk        | 164.683        |
-| read_image_skimage     | 42.7461        |
-| read_image_numpy       | 21.409         |
-| read_image_torch2      | **21.0268**    |
+| read_image_matplotlib  | **9.81336**    |
+| read_image_matplotlib2 | 9.96016        |
+| read_image_opencv      | 12.4301        |
+| read_image_opencv2     | 12.6227        |
+| read_image_pillow      | 16.2288        |
+| read_image_scipy       | 17.9958        |
+| read_image_sitk        | 63.6669        |
+| read_image_skimage     | 18.273         |
+| read_image_numpy       | 7.29741        |
+| read_image_torch2      | **7.07304**    |
+
+## Greyscale Images
+
+Similarly, with greyscale versions of the RGB images:
+
+| Function               | Total time (s) |
+|------------------------|----------------|
+| read_image_matplotlib  | 8.32523        |
+| read_image_matplotlib2 | **8.26399**    |
+| read_image_opencv      | 11.6838        |
+| read_image_opencv2     | 11.7935        |
+| read_image_pillow      | 15.7406        |
+| read_image_scipy       | 17.9061        |
+| read_image_sitk        | 71.8732        |
+| read_image_skimage     | 18.0698        |
+| read_image_numpy       | 7.94197        |
+| read_image_torch2      | **7.73153**    |
 
 The recommendation therefore is to use matplotlib `mpimg.imread` to load the image and `TF.to_tensor` to transform the numpy array to a torch tensor. This is almost as fast as loading the data directly in a native numpy or torch format.
