@@ -10,6 +10,7 @@ import cv2
 import imageio
 import matplotlib.image as mpimg
 import numpy as np
+import PIL.PngImagePlugin
 import SimpleITK as sitk
 import torch
 import torchvision.transforms.functional as TF
@@ -146,6 +147,28 @@ def read_image_pillow(input_filename: Path) -> torch.Tensor:
     return torch_tensor
 
 
+def read_image_pillow2(input_filename: Path) -> np.array:
+    """
+    Read an image file with pillow and return a numpy array.
+
+    :param input_filename: Source image file path.
+    :return: numpy array of shape (H, W), (H, W, 3).
+    """
+    with Image.open(input_filename) as pil_png:
+        return np.asarray(pil_png, np.float)
+
+
+def read_image_pillow3(input_filename: Path) -> np.array:
+    """
+    Read an image file with pillow and return a numpy array.
+
+    :param input_filename: Source image file path.
+    :return: numpy array of shape (H, W), (H, W, 3).
+    """
+    with PIL.PngImagePlugin.PngImageFile(input_filename) as pil_png:
+        return np.asarray(pil_png, np.float)
+
+
 def read_image_scipy(input_filename: Path) -> torch.Tensor:
     """
     Read an image file with scipy and return a torch.Tensor.
@@ -156,6 +179,17 @@ def read_image_scipy(input_filename: Path) -> torch.Tensor:
     numpy_array = imageio.imread(input_filename)
     torch_tensor = TF.to_tensor(numpy_array)
     return torch_tensor
+
+
+def read_image_scipy2(input_filename: Path) -> np.array:
+    """
+    Read an image file with scipy and return a numpy array.
+
+    :param input_filename: Source image file path.
+    :return: numpy array of shape (H, W), (H, W, 3).
+    """
+    numpy_array = imageio.imread(input_filename).astype(np.float)
+    return numpy_array
 
 
 def read_image_sitk(input_filename: Path) -> torch.Tensor:
@@ -263,6 +297,31 @@ def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> Non
     assert torch.equal(tensor, reference_tensor)
 
 
+def check_loaded_image2(type: str, image_file: Path, im2: np.ndarray) -> None:
+    """
+    Check that an image loaded as a numpy array has the expected forat, size, and value range.
+
+    :param type: Label for printing progress.
+    :param image_file: Path to reference png.
+    :param im2: Loaded numpy array.
+    :return: None.
+    """
+    im = Image.open(image_file)
+    source_greyscale = im.mode == 'L'
+    width, height = im.size
+    print(f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
+    assert isinstance(im2, np.ndarray)
+    assert im2.dtype == np.float
+    if source_greyscale:
+        assert im2.shape == (height, width)
+    else:
+        assert im2.shape == (height, width, 3)
+    assert np.max(im2) <= 255.0
+    assert np.min(im2) >= 0.0
+    im_data = np.asarray(im, np.float)
+    assert np.array_equal(im_data, im2)
+
+
 def mount_and_convert_source_files(
         dataset: FileDataset,
         output_folder: Path,
@@ -306,6 +365,7 @@ def run_profiling(
         output_folder: Path,
         source_options: List[str],
         png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
+        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],
         bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
     """
     Loop through multiple repeats of each source type, loading the image file and processing it with each
@@ -329,6 +389,10 @@ def run_profiling(
                     tensor = op(image_file)
                     check_loaded_image(lib, image_file, tensor)
 
+                for lib, op in png2_libs:
+                    nd = op(image_file)
+                    check_loaded_image2(lib, image_file, nd)
+
                 for folder, suffix, _, op in bin_libs:
                     target_folder = output_folder / folder / source_option
                     native_file = target_folder / image_file.with_suffix(suffix).name
@@ -340,6 +404,7 @@ def wrap_run_profiling(
         repeats: int,
         output_folder: Path,
         png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
+        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],
         bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
         profile_name: str,
         profile_source_options: List[str]) -> None:
@@ -364,6 +429,7 @@ def wrap_run_profiling(
                       output_folder,
                       profile_source_options,
                       png_libs,
+                      png2_libs,
                       bin_libs)
 
     """
@@ -375,7 +441,10 @@ def wrap_run_profiling(
     lp.add_function(read_image_opencv)
     lp.add_function(read_image_opencv2)
     lp.add_function(read_image_pillow)
+    lp.add_function(read_image_pillow2)
+    lp.add_function(read_image_pillow3)
     lp.add_function(read_image_scipy)
+    lp.add_function(read_image_scipy2)
     lp.add_function(read_image_sitk)
     lp.add_function(read_image_skimage)
     lp.add_function(read_image_torch)
@@ -413,6 +482,12 @@ def main() -> None:
         # ("torch", read_image_torch),
     ]
 
+    png2_libs: List[Tuple[str, Callable[[Path], np.array]]] = [
+        ("pillow2", read_image_pillow2),
+        ("pillow3", read_image_pillow3),
+        ("scipy2", read_image_scipy2),
+    ]
+
     bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]] = [
         ("pt", ".pt", write_image_torch2, read_image_torch2),
         ("npy", ".npy", write_image_numpy, read_image_numpy),
@@ -435,7 +510,13 @@ def main() -> None:
     }
 
     for profile_name, profile_source_options in profile_sets.items():
-        wrap_run_profiling(10, output_folder, png_libs, bin_libs, profile_name, profile_source_options)
+        wrap_run_profiling(10,
+                           output_folder,
+                           png_libs,
+                           png2_libs,
+                           bin_libs,
+                           profile_name,
+                           profile_source_options)
 
 
 if __name__ == '__main__':
