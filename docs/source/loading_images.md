@@ -1,4 +1,4 @@
-# Loading Images
+# Loading Images as Torch Tensors
 
 There are many libraries available that can load png images. Simple examples were made using most of them and time of execution was compared. The goal was to load a png file, either RGB or greyscale, into a torch.Tensor.
 
@@ -286,3 +286,91 @@ Similarly, with greyscale versions of the RGB images:
 | read_image_torch2      | **7.73153**    |
 
 The recommendation therefore is to use matplotlib `mpimg.imread` to load the image and `TF.to_tensor` to transform the numpy array to a torch tensor. This is almost as fast as loading the data directly in a native numpy or torch format.
+
+# Loading Images as Numpy Arrays
+
+Alternatively, a numpy array may be required with an equivalent form to PIL:
+
+* shape [Height, Width, 3] (for RGB images), in RGB order or [Height, Width] (for greyscale images);
+* dtype float;
+* range between 0.0 and 255.0.
+
+## Pillow
+
+If the image is known to be a png then a shortcut can be taken, which is quicker:
+
+```python
+from pathlib import Path
+
+import numpy as np
+import PIL.PngImagePlugin
+from PIL import Image
+
+
+def read_image_pillow2(input_filename: Path) -> np.array:  # type: ignore
+    """
+    Read an image file with pillow and return a numpy array.
+
+    :param input_filename: Source image file path.
+    :return: numpy array of shape (H, W), (H, W, 3).
+    """
+    with Image.open(input_filename) as pil_png:
+        return np.asarray(pil_png, np.float)
+
+
+def read_image_pillow3(input_filename: Path) -> np.array:  # type: ignore
+    """
+    Read an image file with pillow and return a numpy array.
+
+    :param input_filename: Source image file path.
+    :return: numpy array of shape (H, W), (H, W, 3).
+    """
+    with PIL.PngImagePlugin.PngImageFile(input_filename) as pil_png:
+        return np.asarray(pil_png, np.float)
+```
+
+## SciPy
+
+Similarly, using SciPy:
+
+```python
+from pathlib import Path
+
+import imageio
+import numpy as np
+
+
+def read_image_scipy2(input_filename: Path) -> np.array:  # type: ignore
+    """
+    Read an image file with scipy and return a numpy array.
+
+    :param input_filename: Source image file path.
+    :return: numpy array of shape (H, W), (H, W, 3).
+    """
+    numpy_array = imageio.imread(input_filename).astype(np.float)
+    return numpy_array
+```
+
+# Results
+
+The three above methods were tested against the same images as above.
+
+## RGB Images
+
+For 61 RGB images of size 224 x 224 pixels and 61 of size 180 x 224 pixels, repeated 10 times, there are the following timings:
+
+| Function               | Total time (s) |
+|------------------------|----------------|
+| read_image_pillow2     | 44.8641        |
+| read_image_pillow3     | 18.1665        |
+| read_image_scipy2      | 51.8801        |
+
+## Greyscale Images
+
+Similarly, with greyscale versions of the RGB images:
+
+| Function               | Total time (s) |
+|------------------------|----------------|
+| read_image_pillow2     | 38.3468       |
+| read_image_pillow3     | 14.664        |
+| read_image_scipy2      | 39.6123       |
