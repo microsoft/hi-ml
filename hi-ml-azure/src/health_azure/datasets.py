@@ -109,8 +109,8 @@ class DatasetConfig:
         self.datastore = datastore
         self.version = version
         self.use_mounting = use_mounting
-        self.target_folder = Path(target_folder) if target_folder is not None else None
-        self.local_folder = Path(local_folder) if local_folder is not None else None
+        self.target_folder = target_folder
+        self.local_folder = Path(local_folder) if local_folder else None
 
     def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Optional[Path], Optional[MountContext]]:
         """
@@ -137,8 +137,7 @@ class DatasetConfig:
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
-
-        target_path = self.target_folder or Path(tempfile.mkdtemp())
+        target_path = Path(self.target_folder) if self.target_folder else Path(tempfile.mkdtemp())
         use_mounting = self.use_mounting if self.use_mounting is not None else False
         if use_mounting:
             status += "mounted at "
@@ -170,7 +169,8 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
-        path_on_compute = str(self.target_folder) if self.target_folder is not None else None
+        # Empty strings for target folder should map to None
+        path_on_compute = self.target_folder or None
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
             status += "mounted at "
@@ -202,7 +202,7 @@ class DatasetConfig:
                                           destination=(datastore, self.name + "/"))
         # TODO: Can we get tags into here too?
         dataset = dataset.register_on_complete(name=self.name)
-        if self.target_folder is not None:
+        if self.target_folder:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
         if use_mounting:

@@ -81,6 +81,18 @@ def test_dataset_input() -> None:
     assert aml_dataset.mode == "mount"
 
 
+def test_dataset_input_target_empty() -> None:
+    """
+    Leaving the target folder empty should NOT create a path_on_compute that is "."
+    """
+    workspace = DEFAULT_WORKSPACE.workspace
+    # This dataset must exist in the workspace already, or at least in blob storage.
+    dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder="")
+    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
+    assert isinstance(aml_dataset, DatasetConsumptionConfig)
+    assert aml_dataset.path_on_compute is None
+
+
 def test_dataset_output() -> None:
     """
     Test turning a dataset setup object to an actual AML output dataset.
