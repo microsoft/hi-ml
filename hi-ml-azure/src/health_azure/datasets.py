@@ -95,7 +95,7 @@ class DatasetConfig:
             Defaults: False (downloading) for datasets that are script inputs, True (mounting) for datasets that are
             script outputs.
         :param target_folder: The folder into which the dataset should be downloaded or mounted. If left empty, a
-            random folder on /tmp will be chosen.
+            random folder on /tmp will be chosen. Do NOT use "." as the target_folder.
         :param local_folder: The folder on the local machine at which the dataset is available. This
             is used only for runs outside of AzureML. If this is empty then the target_folder will be used to
             mount or download the dataset.
