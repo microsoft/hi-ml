@@ -10,6 +10,19 @@ For each Pull Request, the affected code parts should be briefly described and a
 release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
 the section headers (Added/Changed/...) and incrementing the package version.
 
+## 0.1.12
+
+### Added
+- ([#159](https://github.com/microsoft/hi-ml/pull/159)) Add profiling for loading png image files as numpy arrays.
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
 ## 0.1.11
 
 ### Added
