@@ -6,14 +6,15 @@
 Test the data input and output functionality
 """
 from unittest import mock
-from azureml.exceptions._azureml_exception import UserErrorException
 
 import pytest
+from azureml._restclient.exceptions import ServiceException
 from azureml.core import Dataset
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml._restclient.exceptions import ServiceException
+from azureml.exceptions._azureml_exception import UserErrorException
+
 from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
 from testazure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
@@ -91,6 +92,12 @@ def test_dataset_input_target_empty() -> None:
     aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None
+
+
+def test_dataset_invalid_target() -> None:
+    with pytest.raises(ValueError) as ex:
+        DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=".")
+    assert "current working directory" in ex
 
 
 def test_dataset_output() -> None:
