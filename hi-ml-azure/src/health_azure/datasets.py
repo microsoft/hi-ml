@@ -80,7 +80,7 @@ class DatasetConfig:
                  datastore: str = "",
                  version: Optional[int] = None,
                  use_mounting: Optional[bool] = None,
-                 target_folder: Optional[PathOrString] = None,
+                 target_folder: str = "",
                  local_folder: Optional[PathOrString] = None):
         """
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
