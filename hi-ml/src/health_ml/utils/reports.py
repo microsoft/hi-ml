@@ -8,9 +8,7 @@ from enum import Enum
 import itertools
 from pathlib import Path
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple
-import pickle
 
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import jinja2
 import ruamel.yaml
 import matplotlib.pyplot as plt
@@ -179,32 +177,8 @@ class HTMLReport:
         self.render_kwargs.update({image_key_html: [str(img_path_html)]})
 
     @classmethod
-    def load_plot_from_pickle(plot_path) -> plt.Axes:
-        with open(plot_path, 'rb') as f_path:
-            ax = pickle.load(f_path)
-        return ax
-
-    @classmethod
-    def load_pickled_plots_onto_subplot(cls, image_folder: Path, num_plot_columns: int = 3):
-        plot_paths = list(image_folder.iterdir())
-
-        num_plots = len(plot_paths)
-        num_plot_rows = int(np.ceil(num_plots / num_plot_columns))
-        fig, axs = plt.subplots(num_plot_rows, num_plot_columns)
-
-        for i in range(num_plot_rows):
-            for j in range(num_plot_columns):
-                plot_index = (i * num_plot_rows) + j
-                plot_path = plot_paths[plot_index]
-                loaded_fig = cls.load_plot_from_pickle(plot_path)
-                lines = loaded_fig.get_lines()
-                for line in lines:
-                    line_data = line.get_data()
-                    axs[i][j].plot(line_data[0], line_data[1])
-        return fig, axs
-
-    @classmethod
-    def load_imgs_onto_subplot(cls, image_folder: Path, num_plot_columns: int = 2, figsize: Tuple[int] = (12, 12)):
+    def load_imgs_onto_subplot(cls, image_folder: Path, num_plot_columns: int = 2,
+                               figsize: Tuple[int, int] = (12, 12)) -> plt.Figure:
         """
         Given a path to a folder containing multiple images, loads each of the images in the folder and
         adds to a single chart.
@@ -214,6 +188,9 @@ class HTMLReport:
         :param figsize: The size of the overall figure , defaults to (12, 12)
         :return: A matplotlib Figure object
         """
+        if num_plot_columns <= 1:
+            raise ValueError("Can't have less than one column in your plot")
+
         plot_paths = list(image_folder.iterdir())
 
         num_plots = len(plot_paths)
@@ -230,7 +207,6 @@ class HTMLReport:
                 fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
                 plt.imshow(img_arr)
 
-
         fig.tight_layout()
         return fig
 
@@ -241,7 +217,6 @@ class HTMLReport:
 
         :param image_folder: The folder containing all of the images to add to the gallery
         """
-        # TODO: test on some pickled images
         fig = self.load_imgs_onto_subplot(Path(image_folder), figsize=(15, 15))
         img_num = len(list(self.report_folder.glob("gallery_image_*")))
         gallery_img_path = str(self.report_folder / f"gallery_image_{img_num}.png")
@@ -259,12 +234,13 @@ class HTMLReport:
         """
         if fig is not None:
             # save the plot
-            plot_title = fig._suptitle.get_text() or fig.texts[0].get_text()
-            if len(plot_title) > 1:
-                title = plot_title.replace(" ", "_") + ".png"
+            if fig._suptitle is not None:
+                plot_title = fig._suptitle.get_text().replace(" ", "_") + ".png"
+            elif len(fig.texts) > 0:
+                plot_title = fig.texts[0].get_text().replace(" ", "_") + ".png"
             else:
-                title = f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-            plot_path = self.report_folder / title
+                plot_title = f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+            plot_path = self.report_folder / plot_title
             fig.tight_layout()
             fig.savefig(plot_path, bbox_inches='tight', dpi=150)
 
