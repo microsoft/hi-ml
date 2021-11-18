@@ -5,16 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This file has sections for all previous releases, and the next one. 
+This file has sections for all previous releases, and the next one.
 For each Pull Request, the affected code parts should be briefly described and added in the section for the upcoming
 release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
 the section headers (Added/Changed/...) and incrementing the package version.
 
-## 0.1.11
+## 0.1.12
 
 ### Added
-- ([#149](https://github.com/microsoft/hi-ml/pull/149)) Add a k-fold cross validation wrapper around HyperDrive
+- ([#159](https://github.com/microsoft/hi-ml/pull/159)) Add profiling for loading png image files as numpy arrays.
 - ([#152](https://github.com/microsoft/hi-ml/pull/152)) Add a custom HTML reporting tool
+
 
 ### Changed
 
@@ -24,16 +25,32 @@ the section headers (Added/Changed/...) and incrementing the package version.
 
 ### Deprecated
 
-## 0.1.10
+## 0.1.11
 
 ### Added
 - ([#145](https://github.com/microsoft/hi-ml/pull/145)) Add ability to mount datasets when running locally.
+- ([#149](https://github.com/microsoft/hi-ml/pull/149)) Add a k-fold cross validation wrapper around HyperDrive
+- ([#132](https://github.com/microsoft/hi-ml/pull/132)) Profile methods for loading png image files.
+
+### Changed
+
+### Fixed
+- ([#156](https://github.com/microsoft/hi-ml/pull/156) AzureML Runs should use registered environment after retrieval)
+
+### Removed
+
+### Deprecated
+
+## 0.1.10
+
+### Added
 - ([#142](https://github.com/microsoft/hi-ml/pull/142)) Adding AzureML progress bar and diagnostics for batch loading
 - ([#138](https://github.com/microsoft/hi-ml/pull/138)) Guidelines and profiling for whole slide images.
 
 ### Changed
 - ([#129])https://github.com/microsoft/hi-ml/pull/129)) Refactor command line tools' arguments. Refactor health_azure.utils' various get_run functions. Replace
 argparsing with parametrized classes.
+
 ### Fixed
 
 ### Removed
@@ -48,7 +65,7 @@ argparsing with parametrized classes.
 - ([#136](https://github.com/microsoft/hi-ml/pull/136)) Documentation for using low priority nodes
 
 ### Changed
-- ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names, 
+- ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names,
 from `health.azure` to `health_azure`.
 - ([#144])(https://github.com/microsoft/hi-ml/pull/141) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
 
