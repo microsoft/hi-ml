@@ -16,6 +16,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 - ([#159](https://github.com/microsoft/hi-ml/pull/159)) Add profiling for loading png image files as numpy arrays.
 
 ### Changed
+- ([164](https://github.com/microsoft/hi-ml/pull/164)) Look in more locations for std out from AzureML run.
 
 ### Fixed
 
