@@ -109,6 +109,8 @@ class DatasetConfig:
         self.datastore = datastore
         self.version = version
         self.use_mounting = use_mounting
+        if target_folder == ".":
+            raise ValueError("Can't mount or download a dataset to the current working directory.")
         self.target_folder = target_folder
         self.local_folder = Path(local_folder) if local_folder else None
 
