@@ -595,8 +595,7 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool = False,
-                               hyperdrive: bool = False) -> str:
+                               suppress_config_creation: bool = False) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -606,7 +605,6 @@ def render_and_run_test_script(path: Path,
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
-    :param hyperdrive: Whether this is a HyperDrive run (in which case the logs will differ)
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     # target hi-ml-azure package version, if specified in an environment variable.
@@ -683,7 +681,6 @@ def render_and_run_test_script(path: Path,
         assert EXPECTED_QUEUED not in captured
         return captured
     else:
-        expected_log_file = "hyperdrive.txt" if hyperdrive else "70_driver_log.txt"
         assert EXPECTED_QUEUED in captured
         with check_config_json(path):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
@@ -695,8 +692,16 @@ def render_and_run_test_script(path: Path,
         assert run.status == "Completed"
         log_root = path / "logs"
         log_root.mkdir(exist_ok=False)
-        run.get_all_logs(destination=log_root)
-        driver_log = log_root / "azureml-logs" / expected_log_file
+        files = run.get_file_names()
+        # Account for old and new job runtime: log files live in different places
+        driver_log_files = ["azureml-logs/70_driver_log.txt", "user_logs/std_log.txt"]
+        driver_log = log_root / "driver_log.txt"
+        for f in driver_log_files:
+            if f in files:
+                run.download_file(f, output_file_path=str(driver_log))
+                break
+        else:
+            raise ValueError("The run does not contain any of the driver log files")
         log_text = driver_log.read_text()
         return log_text
 
