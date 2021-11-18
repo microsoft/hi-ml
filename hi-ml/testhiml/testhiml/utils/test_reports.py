@@ -141,7 +141,7 @@ def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -
 
     # pass a saved image path to add_plot and check the difference in the HTML report
     plot_title = "new_plot.png"
-    new_plot_path = html_report.report_folder / plot_title
+    new_plot_path = str(html_report.report_folder / plot_title)
     fig.savefig(new_plot_path)
     html_report.add_plot(plot_path=new_plot_path)
     # the difference between the templates after calling add_image should be a single HTML <img> tag
@@ -199,7 +199,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
     report_config = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            (ReportComponentKey.TABLE.value, table_path)
+            {"type": ReportComponentKey.TABLE.value, "value": table_path}
         ])
     })
     report_config_path = tmp_path / "report_config.yml"
@@ -209,7 +209,9 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     report_config = html_report.read_config_yaml(report_config_path)
     assert list(report_config.keys()) == [REPORT_CONTENTS_KEY]
     assert len(report_config[REPORT_CONTENTS_KEY]) == 1
-    assert report_config[REPORT_CONTENTS_KEY][0] == (ReportComponentKey.TABLE.value, table_path)
+    report_contents_first_entry = report_config[REPORT_CONTENTS_KEY][0]
+    assert report_contents_first_entry["type"] == ReportComponentKey.TABLE.value
+    assert report_contents_first_entry["value"] == table_path
 
     html_report.add_yaml_contents_to_report(report_config)
     html_template_difference = html_report.template.replace(html_template_before, "")
@@ -257,7 +259,7 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path:
     # get added to the report
     yaml_contents_with_table_dir = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            [ReportComponentKey.TABLE.value, mock_dir]
+            {"type": ReportComponentKey.TABLE.value, "value": mock_dir}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_dir)
@@ -268,7 +270,7 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path:
     # Now add single path
     yaml_contents_with_table_path = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            [ReportComponentKey.TABLE.value, mock_dir[0]]
+            {"type": ReportComponentKey.TABLE.value, "value": mock_dir[0]}
         ])})
 
     mock_path.return_value = mock_dir[0]
@@ -285,7 +287,7 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # Now add image folder - first as a gallery
     yaml_contents_with_img_dir_gallery = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            [ReportComponentKey.IMAGE_GALLERY.value, str(dummy_fig_folder)]
+            {"type": ReportComponentKey.IMAGE_GALLERY.value, "value": str(dummy_fig_folder)}
         ])})
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
@@ -298,7 +300,7 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # add image folder as separate images
     yaml_contents_with_img_dir = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            [ReportComponentKey.IMAGE.value, str(dummy_fig_folder)]
+            {"type": ReportComponentKey.IMAGE.value, "value": str(dummy_fig_folder)}
         ])})
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
@@ -311,7 +313,7 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # Now add single image path
     yaml_contents_with_img_path = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            [ReportComponentKey.IMAGE.value, str(next(dummy_fig_folder.iterdir()))]
+            {"type": ReportComponentKey.IMAGE.value, "value": str(next(dummy_fig_folder.iterdir()))}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_img_path)
@@ -326,7 +328,7 @@ def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
 
     yaml_contents_with_text = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            [ReportComponentKey.TEXT.value, "dummy_text"]
+            {"type": ReportComponentKey.TEXT.value, "value": "dummy_text"}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_text)
@@ -338,17 +340,17 @@ def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
 def test_load_imgs_onto_subplot(dummy_fig_folder: Path) -> None:
     num_imgs = len(list(dummy_fig_folder.glob("*.png")))
     num_plot_cols = 2
-    fig = HTMLReport.load_imgs_onto_subplot(dummy_fig_folder, num_plot_columns=num_plot_cols)
+    fig = HTMLReport.load_imgs_onto_subplot([dummy_fig_folder], num_plot_columns=num_plot_cols)
     # the number of axes on the plot should be the same as num_imgs
     assert len(fig.axes) == num_imgs
 
     # try with a number of columns greater than the number of images
-    fig = HTMLReport.load_imgs_onto_subplot(dummy_fig_folder, num_plot_columns=2 * num_imgs)
+    fig = HTMLReport.load_imgs_onto_subplot([dummy_fig_folder], num_plot_columns=2 * num_imgs)
     assert len(fig.axes) == num_imgs
 
     # expect error if zero cols requested
     with pytest.raises(ValueError) as e:
-        fig = HTMLReport.load_imgs_onto_subplot(dummy_fig_folder, num_plot_columns=0)
+        fig = HTMLReport.load_imgs_onto_subplot([dummy_fig_folder], num_plot_columns=0)
         assert "Can't have less than one column in your plot" in str(e)
 
 
@@ -357,7 +359,7 @@ def test_add_image_gallery(html_report: HTMLReport, dummy_fig_folder: Path) -> N
     assert not expected_fig_path.exists()
     html_template_before = html_report._remove_html_end(html_report.template)
 
-    html_report.add_image_gallery(str(dummy_fig_folder))
+    html_report.add_image_gallery([dummy_fig_folder])
 
     html_difference = html_report.template.replace(html_template_before, "")
     assert html_difference.count("<img src") == 1
@@ -368,14 +370,15 @@ def test_add_image_gallery(html_report: HTMLReport, dummy_fig_folder: Path) -> N
 @patch("azureml.core.Run")
 def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTMLReport, dummy_df: pd.DataFrame,
                                            dummy_fig_folder: Path, tmp_path: Path) -> None:
+    num_children = 3
     table_path = tmp_path / "dummy_table.csv"
     dummy_df.to_csv(table_path)
 
     run_id = "run_id_123"
     report_contents = OrderedList([
-        [ReportComponentKey.IMAGE.value, str(next(dummy_fig_folder.iterdir()))],
-        [ReportComponentKey.IMAGE_GALLERY.value, str(dummy_fig_folder)],
-        [ReportComponentKey.TABLE.value, str(table_path)]
+        {"type": ReportComponentKey.IMAGE.value, "value": str(next(dummy_fig_folder.iterdir()))},
+        {"type": ReportComponentKey.IMAGE_GALLERY.value, "value": str(dummy_fig_folder)},
+        {"type": ReportComponentKey.TABLE.value, "value": str(table_path)}
     ])
     hyperdrive_hyperparam_name = "learning_rate"
     with patch("health_ml.utils.reports.get_aml_run_from_run_id") as mock_get_run:
@@ -384,7 +387,8 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
         mock_get_run.return_value = mock_run
 
         with patch("health_ml.utils.reports.download_files_from_hyperdrive_children") as mock_download:
-            mock_download.return_value = Path(".")
+            # mock the behaviour of downloading a file for each of the child runs
+            mock_download.return_value = ["dummy_path_{i}" for i in range(num_children)]
 
             updated_contents = html_report.download_report_contents_from_aml(run_id, report_contents,
                                                                              hyperdrive_hyperparam_name)
@@ -393,10 +397,11 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
             assert mock_download.call_count == len(report_contents)
 
             assert len(updated_contents) == len(report_contents)
-            initial_contents_first_type = report_contents[0][0]
-            updated_contents_first_type = updated_contents[0][0]
+            initial_contents_first_type = report_contents[0]["type"]
+            updated_contents_first_type = updated_contents[0]["type"]
             assert initial_contents_first_type == updated_contents_first_type
-            initial_contents_first_value = report_contents[0][1]
-            updated_contents_first_value = updated_contents[0][1]
+            initial_contents_first_value = report_contents[0]["value"]
+            updated_contents_first_value = updated_contents[0]["value"]
             assert initial_contents_first_value != updated_contents_first_value
-            assert updated_contents_first_value == str(mock_download.return_value)
+            assert len(updated_contents_first_value.split(",")) == num_children
+            assert updated_contents_first_value.split(",")[0] == str(mock_download.return_value[0])

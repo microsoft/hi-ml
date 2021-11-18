@@ -1263,7 +1263,7 @@ def torch_barrier() -> None:
         distributed.barrier()
 
 
-def get_tags_from_hyperdrive_run(run: Run, arg_name: str) -> Dict[str, str]:
+def get_tags_from_hyperdrive_run(run: Run, arg_name: str) -> str:
     """
     Given a child Run that was instantiated as part of a HyperDrive run, retrieve the "hyperparameters" tag
     that AML automatically tags it with, and retrieve a specific tag from within that. The available tags are
@@ -1277,7 +1277,7 @@ def get_tags_from_hyperdrive_run(run: Run, arg_name: str) -> Dict[str, str]:
     :param run: An AML run object, representing the child of a HyperDrive run
     :param arg_name: The name of the tag that you want to retrieve - representing one of the hyperparameters you
         specified in sampling.
-    :return: A dictionary representing the name and value of tag tag, if found.
+    :return: A string representing the value of the tag, if found.
     """
     return json.loads(run.tags.get('hyperparameters')).get(arg_name)
 
@@ -1341,7 +1341,7 @@ def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
 
 
 def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, local_download_folder: Path,
-                                            hyperparam_name: str = '') -> Path:
+                                            hyperparam_name: str = '') -> List[str]:
     """
     Download a specified file or folder from each of the children of an Azure ML Hyperdrive run. For each child
     run, create a separate folder within your report folder, based on the value of whatever hyperparameter
@@ -1354,7 +1354,7 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
     :param local_download_folder: The local folder to download the files to
     :param hyperparam_name: The name of one of the hyperparameters that was sampled during the HyperDrive
         run. This is used to ensure files are downloaded into logically-named folders
-    :return: A path to the downloaded file
+    :return: A list of paths to the downloaded files
     """
     if len(hyperparam_name) == 0:
         raise ValueError("To download results from a HyperDrive run you must provide the hyperparameter name"
@@ -1362,6 +1362,7 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
 
     # For each child run we create a directory in the local_download_folder named after value of the
     # hyperparam sampled for this child.
+    downloaded_file_paths = []
     for child_run in run.get_children():
         child_run_index = get_tags_from_hyperdrive_run(child_run, hyperparam_name)
         if child_run_index is None:
@@ -1373,5 +1374,10 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
         local_folder_child_run.mkdir(exist_ok=True)
         download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
         downloaded_file_path = local_folder_child_run / remote_file_path
+        if not downloaded_file_path.exists():
+            logging.warning(f"Unable to download the file {remote_file_path} from the datastore associated"
+                            "with this run.")
+        else:
+            downloaded_file_paths.append(str(downloaded_file_path))
 
-    return downloaded_file_path
+    return downloaded_file_paths
