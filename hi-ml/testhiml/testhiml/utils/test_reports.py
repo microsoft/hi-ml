@@ -291,7 +291,7 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # Now add image folder - first as a gallery
     yaml_contents_with_img_dir_gallery = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.VALUE.value: ReportComponentKey.IMAGE_GALLERY.value,
+            {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE_GALLERY.value,
              ReportComponentKey.VALUE.value: str(dummy_fig_folder)}
         ])})
 
