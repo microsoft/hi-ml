@@ -14,7 +14,8 @@ import pytest
 import ruamel.yaml
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 
-from health_ml.utils.reports import HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, REPORT_CONTENTS_KEY, ReportComponentKey
+from health_ml.utils.reports import (HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, REPORT_CONTENTS_KEY,
+                                     ReportComponentKey)
 
 
 @pytest.fixture
@@ -199,7 +200,8 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
     report_config = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.TABLE.value, "value": table_path}
+            {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+             ReportComponentKey.VALUE.value: table_path}
         ])
     })
     report_config_path = tmp_path / "report_config.yml"
@@ -210,8 +212,8 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     assert list(report_config.keys()) == [REPORT_CONTENTS_KEY]
     assert len(report_config[REPORT_CONTENTS_KEY]) == 1
     report_contents_first_entry = report_config[REPORT_CONTENTS_KEY][0]
-    assert report_contents_first_entry["type"] == ReportComponentKey.TABLE.value
-    assert report_contents_first_entry["value"] == table_path
+    assert report_contents_first_entry[ReportComponentKey.TYPE.value] == ReportComponentKey.TABLE.value
+    assert report_contents_first_entry[ReportComponentKey.VALUE.value] == table_path
 
     html_report.add_yaml_contents_to_report(report_config)
     html_template_difference = html_report.template.replace(html_template_before, "")
@@ -259,7 +261,8 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path:
     # get added to the report
     yaml_contents_with_table_dir = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.TABLE.value, "value": mock_dir}
+            {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+             ReportComponentKey.VALUE.value: mock_dir}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_dir)
@@ -270,7 +273,8 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path:
     # Now add single path
     yaml_contents_with_table_path = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.TABLE.value, "value": mock_dir[0]}
+            {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+             ReportComponentKey.VALUE.value: mock_dir[0]}
         ])})
 
     mock_path.return_value = mock_dir[0]
@@ -287,7 +291,8 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # Now add image folder - first as a gallery
     yaml_contents_with_img_dir_gallery = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.IMAGE_GALLERY.value, "value": str(dummy_fig_folder)}
+            {ReportComponentKey.VALUE.value: ReportComponentKey.IMAGE_GALLERY.value,
+             ReportComponentKey.VALUE.value: str(dummy_fig_folder)}
         ])})
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
@@ -300,7 +305,8 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # add image folder as separate images
     yaml_contents_with_img_dir = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.IMAGE.value, "value": str(dummy_fig_folder)}
+            {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
+             ReportComponentKey.VALUE.value: str(dummy_fig_folder)}
         ])})
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
@@ -313,7 +319,8 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     # Now add single image path
     yaml_contents_with_img_path = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.IMAGE.value, "value": str(next(dummy_fig_folder.iterdir()))}
+            {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
+             ReportComponentKey.VALUE.value: str(next(dummy_fig_folder.iterdir()))}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_img_path)
@@ -328,7 +335,8 @@ def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
 
     yaml_contents_with_text = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
-            {"type": ReportComponentKey.TEXT.value, "value": "dummy_text"}
+            {ReportComponentKey.TYPE.value: ReportComponentKey.TEXT.value,
+             ReportComponentKey.VALUE.value: "dummy_text"}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_text)
@@ -376,9 +384,12 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
 
     run_id = "run_id_123"
     report_contents = OrderedList([
-        {"type": ReportComponentKey.IMAGE.value, "value": str(next(dummy_fig_folder.iterdir()))},
-        {"type": ReportComponentKey.IMAGE_GALLERY.value, "value": str(dummy_fig_folder)},
-        {"type": ReportComponentKey.TABLE.value, "value": str(table_path)}
+        {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
+         ReportComponentKey.VALUE.value: str(next(dummy_fig_folder.iterdir()))},
+        {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE_GALLERY.value,
+         ReportComponentKey.VALUE.value: str(dummy_fig_folder)},
+        {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+         ReportComponentKey.VALUE.value: str(table_path)}
     ])
     hyperdrive_hyperparam_name = "learning_rate"
     with patch("health_ml.utils.reports.get_aml_run_from_run_id") as mock_get_run:
@@ -397,11 +408,11 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
             assert mock_download.call_count == len(report_contents)
 
             assert len(updated_contents) == len(report_contents)
-            initial_contents_first_type = report_contents[0]["type"]
-            updated_contents_first_type = updated_contents[0]["type"]
+            initial_contents_first_type = report_contents[0][ReportComponentKey.TYPE.value]
+            updated_contents_first_type = updated_contents[0][ReportComponentKey.TYPE.value]
             assert initial_contents_first_type == updated_contents_first_type
-            initial_contents_first_value = report_contents[0]["value"]
-            updated_contents_first_value = updated_contents[0]["value"]
+            initial_contents_first_value = report_contents[0][ReportComponentKey.VALUE.value]
+            updated_contents_first_value = updated_contents[0][ReportComponentKey.VALUE.value]
             assert initial_contents_first_value != updated_contents_first_value
             assert len(updated_contents_first_value.split(",")) == num_children
             assert updated_contents_first_value.split(",")[0] == str(mock_download.return_value[0])

@@ -33,6 +33,8 @@ class ReportComponentKey(Enum):
     IMAGE_GALLERY = "image_gallery"
     TABLE = "table"
     TEXT = "text"
+    TYPE = "type"
+    VALUE = "value"
 
 
 class HTMLReport:
@@ -345,8 +347,8 @@ class HTMLReport:
         """
         report_contents = yaml_contents[REPORT_CONTENTS_KEY]
         for component in report_contents:
-            component_type = component["type"]
-            component_val = component["value"]
+            component_type = component[ReportComponentKey.TYPE.value]
+            component_val = component[ReportComponentKey.VALUE.value]
             figsize = component["figsize"] if "figsize" in component else DEFAULT_FIGSIZE
             num_cols = component["num_cols"] if "num_cols" in component else DEFAULT_NUM_COLS
             if component_type == ReportComponentKey.TABLE.value:
@@ -400,11 +402,12 @@ class HTMLReport:
 
         updated_report_contents = []
         for component in report_contents:
-            component_type = component["type"]
-            component_val = component["value"]
+            component_type = component[ReportComponentKey.TYPE.value]
+            component_val = component[ReportComponentKey.VALUE.value]
             # If the component is text, we don't need to download anything
             if component_type == ReportComponentKey.TEXT.value:
-                updated_report_contents.append({"type": component_type, "value": component_val})
+                updated_report_contents.append({ReportComponentKey.TYPE.value: component_type,
+                                                ReportComponentKey.VALUE.value: component_val})
             else:
                 if run.type == "hyperdrive":
                     artifact_paths = download_files_from_hyperdrive_children(
@@ -418,7 +421,8 @@ class HTMLReport:
                     full_artifact_path = str(self.report_folder / component_val)
                     download_files_from_run_id(run_id, self.report_folder, prefix=component_val)
 
-                updated_component = {"type": component_type, "value": full_artifact_path}
+                updated_component = {ReportComponentKey.TYPE.value: component_type,
+                                     ReportComponentKey.VALUE.value: full_artifact_path}
 
                 # add back any other entries such as figsize, num_columns etc
                 additional_keys = set(component.keys()).difference(set(updated_component.keys()))

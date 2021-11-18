@@ -1330,11 +1330,11 @@ def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
     metrics: DefaultDict = defaultdict()
     for child_run in run.get_children():
         child_run_metrics = child_run.get_metrics()
-        child_run_crossval_split = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
+        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
         for k, v in child_run_metrics.items():
             if k not in metrics:
                 metrics[k] = {}
-            metrics[k][child_run_crossval_split] = v
+            metrics[k][child_run_tag] = v
 
     df = pd.DataFrame.from_dict(metrics, orient="index")
     return df
