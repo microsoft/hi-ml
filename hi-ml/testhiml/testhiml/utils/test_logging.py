@@ -261,7 +261,7 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert bar.val_batch_idx == 0
     assert bar.test_batch_idx == 0
     assert bar.predict_batch_idx == 0
-    bar.on_train_batch_end(None, None, None, None, None, None)  # type: ignore
+    bar.on_train_batch_end(None, None, None, None, None)  # type: ignore
     assert bar.train_batch_idx == 1
     latest = latest_message()
     assert "Training epoch 12 (step 34)" in latest
