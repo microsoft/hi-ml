@@ -18,6 +18,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 
 
 ### Changed
+- ([164](https://github.com/microsoft/hi-ml/pull/164)) Look in more locations for std out from AzureML run.
 
 ### Fixed
 
