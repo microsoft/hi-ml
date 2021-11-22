@@ -1381,3 +1381,30 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
             downloaded_file_paths.append(str(downloaded_file_path))
 
     return downloaded_file_paths
+
+
+def create_aml_run_object(experiment_name: str,
+                          run_name: Optional[str] = None,
+                          workspace: Optional[Workspace] = None) -> Run:
+    """
+    Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
+    This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
+    AzureML. After finishing all operations, use `run.flush()` to write metrics to the cloud, and `run.complete()` or
+    `run.fail()`.
+
+    Example:
+    >>>run = create_aml_run_object(experiment_name="run_on_my_vm", run_name="try1")
+    >>>run.log("foo", 1.23)
+    >>>run.flush()
+    >>>run.complete()
+
+    :param experiment_name: The AzureML experiment that should hold the run that will be created.
+    :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI)
+    :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
+    specified by the `config.json` file in the folder or its parent folder(s).
+    :return: An AzureML Run object.
+    """
+    actual_workspace = get_workspace(aml_workspace=workspace)
+    exp = Experiment(workspace=actual_workspace, name=experiment_name)
+    run = Run._start_logging(exp, name=run_name)
+    return run

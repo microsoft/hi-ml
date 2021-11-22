@@ -13,7 +13,7 @@ import time
 from enum import Enum
 from pathlib import Path
 from random import randint
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -25,7 +25,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
-from azureml.core import Experiment, ScriptRunConfig, Workspace
+from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -34,9 +34,8 @@ import health_azure.utils as util
 from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import (DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun,
-                            DEFAULT_IGNORE_FOLDERS)
-
+from testazure.util import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
+                            repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -1486,3 +1485,26 @@ def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
         assert isinstance(epochs[0], list)
         test_accuracies = df.loc["test/accuracy"]
         assert isinstance(test_accuracies[0], float)
+
+
+def test_create_run() -> None:
+    """
+    Test if we can create an AML run object here in the test suite, write logs and read them back in.
+    """
+    run_name = "foo"
+    experiment_name = "himl-tests"
+    run: Optional[Run] = None
+    try:
+        run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
+                                         workspace=DEFAULT_WORKSPACE.workspace)
+        assert run.name == run_name
+        assert run.experiment.name == experiment_name
+        metric_name = "mymetric"
+        metric_value = 1.234
+        run.log(metric_name, metric_value)
+        run.flush()
+        metrics = run.get_metrics(name=metric_name)
+        assert metrics[metric_name] == metric_value
+    finally:
+        if run is not None:
+            run.complete()
