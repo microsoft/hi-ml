@@ -1442,6 +1442,36 @@ class MockHyperDriveRun:
         return [MockChildRun(f"run_abc_{i}456", i) for i in range(self.num_children)]
 
 
+def test_download_files_from_hyperdrive_children(tmp_path: Path) -> None:
+    def _mock_get_tags(run: Any, arg_name: Any) -> Dict[str, str]:
+        return run.id
+
+    def _mock_download_file(child_run_id: str, local_folder_child_run: Path, prefix: Optional[str] = None) -> None:
+        prefix = prefix or ""  # for pyright
+        expected_path = local_folder_child_run / prefix
+        expected_path.touch()
+
+    num_child_runs = 2
+    hyperparam_name = "crossval_index"
+    remote_file_path = "dummy_file.csv"
+    local_download_folder = tmp_path / "downloaded_hyperdrive"
+    local_download_folder.mkdir(exist_ok=False)
+    assert len(list(local_download_folder.iterdir())) == 0
+
+    mock_run = MagicMock()
+    mock_run_1, mock_run_2 = MagicMock(id=1), MagicMock(id=2)
+
+    with patch("health_azure.utils.download_files_from_run_id", new=_mock_download_file):
+        with patch("health_azure.utils.get_tags_from_hyperdrive_run", new=_mock_get_tags):
+            mock_run.get_children.return_value = [mock_run_1, mock_run_2]
+            util.download_files_from_hyperdrive_children(mock_run, remote_file_path, local_download_folder,
+                                                         hyperparam_name=hyperparam_name)
+
+    assert len(list(local_download_folder.iterdir())) == num_child_runs
+    assert (local_download_folder / str(mock_run_1.id)).is_dir()
+    assert (local_download_folder / str(mock_run_1.id) / remote_file_path).exists()
+
+
 @patch("health_azure.utils.isinstance", return_value=True)
 def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
     ws = DEFAULT_WORKSPACE.workspace
