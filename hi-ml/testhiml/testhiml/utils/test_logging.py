@@ -13,9 +13,17 @@ import pytest
 import torch
 from _pytest.capture import SysCapture
 from _pytest.logging import LogCaptureFixture
+from azureml.core import Run
 from pytorch_lightning import Trainer
 
+from health_azure import create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
+from testazure.util import DEFAULT_WORKSPACE
+
+
+def create_unittest_run_object() -> Run:
+    return create_aml_run_object(experiment_name="himl-tests",
+                                 workspace=DEFAULT_WORKSPACE.workspace)
 
 
 def test_log_on_epoch() -> None:
@@ -201,6 +209,27 @@ def test_azureml_logger_hyperparams2() -> None:
         assert log_mock.call_count == 1
         expected_dict = {"foo/bar": 1, "foo/baz/level3/a": "17"}
         assert log_mock.call_args[0] == ("hyperparams", expected_dict)
+
+
+def test_azureml_logger_many_hyperparameters() -> None:
+    """
+    Test if large number of hyperparameters are logged correctly. Earlier versions of the code had a bug that only
+    allowed a maximum of 15 hyperparams to be logged.
+    """
+    many_hyperparams = {f"param{i}": i for i in range(0, 100)}
+    try:
+        run = create_unittest_run_object()
+        with mock.patch("health_ml.utils.logging.RUN_CONTEXT", run):
+            logger = AzureMLLogger()
+            logger.is_running_in_azure_ml = True
+            logger.log_hyperparams(many_hyperparams)
+            run.flush()
+            metrics = run.get_metrics(name=AzureMLLogger.HYPERPARAMS_NAME)
+            actual = metrics[AzureMLLogger.HYPERPARAMS_NAME]
+            assert actual["name"] == list(many_hyperparams.keys())
+            assert actual["value"] == list(many_hyperparams.values())
+    finally:
+        run.complete()
 
 
 def test_azureml_logger_step() -> None:

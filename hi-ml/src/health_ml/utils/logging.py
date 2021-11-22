@@ -28,6 +28,8 @@ class AzureMLLogger(LightningLoggerBase):
     inside AzureML, nothing gets logged.
     """
 
+    HYPERPARAMS_NAME = "hyperparams"
+
     def __init__(self) -> None:
         super().__init__()
         self.is_running_in_azure_ml = is_running_in_azure_ml()
@@ -69,7 +71,8 @@ class AzureMLLogger(LightningLoggerBase):
         if not isinstance(params, dict):
             raise ValueError(f"Expected the hyperparameters to be a dictionary, but got {type(params)}")
         if len(params) > 0:
-            RUN_CONTEXT.log_table("hyperparams", params)
+            # Log hyperparameters as a table with 2 columns. Each "step" is one hyperparameter
+            RUN_CONTEXT.log_table(self.HYPERPARAMS_NAME, {"name": list(params.keys()), "value": list(params.values())})
 
     def experiment(self) -> Any:
         return None
