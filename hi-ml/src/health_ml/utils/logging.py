@@ -29,6 +29,9 @@ class AzureMLLogger(LightningLoggerBase):
     """
 
     HYPERPARAMS_NAME = "hyperparams"
+    """
+    The name under which hyperparameters are written to the AzureML run.
+    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -56,7 +59,8 @@ class AzureMLLogger(LightningLoggerBase):
     def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
         """
         Logs the given model hyperparameters to AzureML as a table. Namespaces are converted to dictionaries.
-        Nested dictionaries are flattened out.
+        Nested dictionaries are flattened out. The hyperparameters are then written as a table with two columns
+        "name" and "value".
         """
         if not self.is_running_in_azure_ml:
             return
