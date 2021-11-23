@@ -5,7 +5,9 @@
 """
 Test the data input and output functionality
 """
+from pathlib import Path
 from unittest import mock
+from health_azure.utils import PathOrString
 
 import pytest
 from azureml._restclient.exceptions import ServiceException
@@ -94,9 +96,14 @@ def test_dataset_input_target_empty() -> None:
     assert aml_dataset.path_on_compute is None
 
 
-def test_dataset_invalid_target() -> None:
+@pytest.mark.parametrize("target_folder", [
+    ".",
+    Path(),
+    Path("."),
+])
+def test_dataset_invalid_target(target_folder: PathOrString) -> None:
     with pytest.raises(ValueError) as ex:
-        DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=".")
+        DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
     assert "current working directory" in str(ex)
 
 
