@@ -109,6 +109,7 @@ class DatasetConfig:
         self.datastore = datastore
         self.version = version
         self.use_mounting = use_mounting
+        # If target_folder is "" then convert to None
         self.target_folder = Path(target_folder) if target_folder else None
         if str(self.target_folder) == ".":
             raise ValueError("Can't mount or download a dataset to the current working directory.")
@@ -139,7 +140,7 @@ class DatasetConfig:
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
-        target_path = self.target_folder if self.target_folder is not None else Path(tempfile.mkdtemp())
+        target_path = self.target_folder or Path(tempfile.mkdtemp())
         use_mounting = self.use_mounting if self.use_mounting is not None else False
         if use_mounting:
             status += "mounted at "
@@ -171,7 +172,8 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
-        # Empty strings for target folder should map to None
+        # If running on windows then self.target_folder may be a WindowsPath, make sure it is
+        # in posix format for Azure.
         path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
