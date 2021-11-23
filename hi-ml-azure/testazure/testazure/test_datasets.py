@@ -97,7 +97,7 @@ def test_dataset_input_target_empty() -> None:
 def test_dataset_invalid_target() -> None:
     with pytest.raises(ValueError) as ex:
         DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=".")
-    assert "current working directory" in ex
+    assert "current working directory" in str(ex)
 
 
 def test_dataset_output() -> None:
