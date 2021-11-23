@@ -1385,7 +1385,8 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
 
 def create_aml_run_object(experiment_name: str,
                           run_name: Optional[str] = None,
-                          workspace: Optional[Workspace] = None) -> Run:
+                          workspace: Optional[Workspace] = None,
+                          snapshot_directory: PathOrString = ".") -> Run:
     """
     Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
     This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
@@ -1398,6 +1399,8 @@ def create_aml_run_object(experiment_name: str,
     >>>run.flush()
     >>>run.complete()
 
+    :param snapshot_directory: The folder that should be included as the code snapshot. To skip snapshotting, provide
+    a path to an empty directory.
     :param experiment_name: The AzureML experiment that should hold the run that will be created.
     :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI)
     :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
@@ -1406,5 +1409,5 @@ def create_aml_run_object(experiment_name: str,
     """
     actual_workspace = get_workspace(aml_workspace=workspace)
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
-    run = Run._start_logging(exp, name=run_name)
+    run = Run._start_logging(exp, name=run_name, snapshot_directory=str(snapshot_directory))
     return run

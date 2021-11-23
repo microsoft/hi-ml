@@ -6,7 +6,8 @@ import logging
 import math
 from argparse import Namespace
 from datetime import datetime
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
 from unittest import mock
 
 import pytest
@@ -21,9 +22,10 @@ from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate
 from testazure.util import DEFAULT_WORKSPACE
 
 
-def create_unittest_run_object() -> Run:
+def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
     return create_aml_run_object(experiment_name="himl-tests",
-                                 workspace=DEFAULT_WORKSPACE.workspace)
+                                 workspace=DEFAULT_WORKSPACE.workspace,
+                                 snapshot_directory=snapshot_directory or ".")
 
 
 def test_log_on_epoch() -> None:
@@ -176,7 +178,8 @@ def test_azureml_logger_hyperparams() -> None:
         fake_params = {"foo": 1.0}
         logger.log_hyperparams(fake_params)
         assert log_mock.call_count == 1
-        assert log_mock.call_args[0] == ("hyperparams", fake_params), "Should be called with hyperparams dictionary"
+        # Dictionary should be logged as name/value pairs, one value per row
+        assert log_mock.call_args[0] == ("hyperparams", {'name': ['foo'], 'value': [1.0]})
 
 
 def test_azureml_logger_hyperparams2() -> None:
@@ -198,7 +201,7 @@ def test_azureml_logger_hyperparams2() -> None:
         logger.log_hyperparams(fake_namespace)
         assert log_mock.call_count == 1
         # Complex objects are converted to str
-        expected_dict: Dict[str, Any] = {"foo": "bar", "complex_object": "dummy"}
+        expected_dict: Dict[str, Any] = {'name': ['foo', 'complex_object'], 'value': ['bar', 'dummy']}
         assert log_mock.call_args[0] == ("hyperparams", expected_dict)
 
     # Logging of hyperparameters that are nested dictionaries. They should first be flattened, than each complex
@@ -207,18 +210,19 @@ def test_azureml_logger_hyperparams2() -> None:
         fake_namespace = Namespace(foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
         logger.log_hyperparams(fake_namespace)
         assert log_mock.call_count == 1
-        expected_dict = {"foo/bar": 1, "foo/baz/level3/a": "17"}
+        expected_dict = {"name": ["foo/bar", "foo/baz/level3/a"], "value": [1, "17"]}
         assert log_mock.call_args[0] == ("hyperparams", expected_dict)
 
 
-def test_azureml_logger_many_hyperparameters() -> None:
+def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
     """
     Test if large number of hyperparameters are logged correctly. Earlier versions of the code had a bug that only
     allowed a maximum of 15 hyperparams to be logged.
     """
+    # Change to a newly created random folder to minimize the time taken for snapshot creation
     many_hyperparams = {f"param{i}": i for i in range(0, 100)}
     try:
-        run = create_unittest_run_object()
+        run = create_unittest_run_object(tmpdir)
         with mock.patch("health_ml.utils.logging.RUN_CONTEXT", run):
             logger = AzureMLLogger()
             logger.is_running_in_azure_ml = True
