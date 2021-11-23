@@ -13,6 +13,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 ## 0.1.12
 
 ### Added
+- ([#166](https://github.com/microsoft/hi-ml/pull/166)) Add documentation on multinode training.
 - ([#159](https://github.com/microsoft/hi-ml/pull/159)) Add profiling for loading png image files as numpy arrays.
 - ([#152](https://github.com/microsoft/hi-ml/pull/152)) Add a custom HTML reporting tool
 
