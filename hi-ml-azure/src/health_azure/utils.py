@@ -500,7 +500,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
     Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
     the PYTHONPATH root (defaults to stopping).
 
-    :param file_name: The fine name of the file to find.
+    :param file_name: The file name of the file to find.
     :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
     :return: The path to the file, or None if it cannot be found.
     """
@@ -510,9 +510,10 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             file_name: str,
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
-        for child in start_at.iterdir():
-            if child.is_file() and child.name == file_name:
-                return child
+        logging.debug(f"Searching for file {file_name} in {start_at}")
+        expected = start_at / file_name
+        if expected.is_file() and expected.name == file_name:
+            return expected
         if start_at.parent == start_at or start_at in pythonpaths:
             return None
         return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
