@@ -15,6 +15,7 @@ import pytest
 import torch
 from _pytest.capture import SysCapture
 from _pytest.logging import LogCaptureFixture
+from azureml._restclient.constants import RunStatus
 from azureml.core import Run
 from pytorch_lightning import Trainer
 
@@ -213,7 +214,7 @@ def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
     Test if large number of hyperparameters are logged correctly.
     Earlier versions of the code had a bug that only allowed a maximum of 15 hyperparams to be logged.
     """
-    many_hyperparams = {f"param{i}": i for i in range(0, 100)}
+    many_hyperparams = {f"param{i}": i for i in range(0, 20)}
     logger: Optional[AzureMLLogger] = None
     try:
         logger = AzureMLLogger()
@@ -250,10 +251,11 @@ def test_azureml_logger_init1() -> None:
     Test the logic to choose the run, inside of the constructor of AzureMLLogger.
     """
     # When running in AzureML, the RUN_CONTEXT should be used
-    with mock.patch("health_azure.utils.is_running_in_azure_ml", return_value=True):
-        with mock.patch("health_azure.utils.RUN_CONTEXT", "foo"):
+    with mock.patch("health_ml.utils.logging.is_running_in_azure_ml", return_value=True):
+        with mock.patch("health_ml.utils.logging.RUN_CONTEXT", "foo"):
             logger = AzureMLLogger()
             assert logger.is_running_in_azure_ml
+            assert not logger.has_custom_run
             assert logger.run == "foo"
             # We should be able to call finalize without any effect. When running in AzureML, the logger should not
             # modify the run in any way, and in particular not complete it.
@@ -281,9 +283,16 @@ def test_azureml_logger_init3() -> None:
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT
     assert isinstance(logger.run, Run)
-    assert logger.run.experiment == "azureml_logger"
+    assert logger.run.experiment.name == "azureml_logger"
     assert logger.has_custom_run
+    expected_metrics = {"foo": 1.0, "bar": 2.0}
+    logger.log_metrics(expected_metrics)
+    logger.run.flush()
+    actual_metrics = logger.run.get_metrics()
+    assert actual_metrics == expected_metrics
+    assert logger.run.status != RunStatus.COMPLETED
     logger.finalize("nothing")
+    assert logger.run.status == RunStatus.COMPLETED
 
 
 def test_azureml_logger_init4() -> None:
@@ -291,17 +300,17 @@ def test_azureml_logger_init4() -> None:
     Test the logic to choose the run, inside of the constructor of AzureMLLogger.
     """
     # Check that all arguments are respected
-    with mock.patch("health_azure.utils.create_aml_run_object", return_value="foo") as mock_create:
+    with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value="foo") as mock_create:
         logger = AzureMLLogger(experiment_name="exp",
                                run_name="run",
                                snapshot_directory="snapshot",
                                workspace="workspace")
         assert logger.has_custom_run
         assert logger.run == "foo"
-        assert mock_create.assert_called_once_with(experiment_name="exp",
-                                                   run_name="run",
-                                                   snapshot_directory="snapshot",
-                                                   workspace="workspace")
+        mock_create.assert_called_once_with(experiment_name="exp",
+                                            run_name="run",
+                                            snapshot_directory="snapshot",
+                                            workspace="workspace")
 
 
 def test_progress_bar_enable() -> None:
