@@ -292,7 +292,11 @@ def test_azureml_logger_init3() -> None:
     assert actual_metrics == expected_metrics
     assert logger.run.status != RunStatus.COMPLETED
     logger.finalize("nothing")
-    assert logger.run.status == RunStatus.COMPLETED
+
+    # The AzureML run has been complete now, insert a mock to check if
+    logger.run = MagicMock()
+    logger.finalize("nothing")
+    logger.run.complete.assert_called_once_with()
 
 
 def test_azureml_logger_init4() -> None:
