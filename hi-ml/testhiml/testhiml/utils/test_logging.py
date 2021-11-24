@@ -22,7 +22,7 @@ from pytorch_lightning import Trainer
 
 from health_azure import RUN_CONTEXT, create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
-from testazure.util import DEFAULT_WORKSPACE
+from testhiml.utils.utils import DEFAULT_WORKSPACE
 
 
 def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:

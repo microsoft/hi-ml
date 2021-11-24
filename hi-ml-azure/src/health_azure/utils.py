@@ -9,17 +9,16 @@ import hashlib
 import json
 import logging
 import os
-
-import pandas as pd
-import param
 import re
 from argparse import ArgumentParser, OPTIONAL
 from collections import defaultdict
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple, Type, TypeVar, Union, Set
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import conda_merge
+import pandas as pd
+import param
 import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
@@ -1415,3 +1414,45 @@ def create_aml_run_object(experiment_name: str,
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
     run = Run._start_logging(exp, name=run_name, snapshot_directory=str(snapshot_directory))
     return run
+
+
+def default_aml_workspace() -> Workspace:
+    """
+    Gets the default AzureML workspace that is used for unit testing. It first tries to locate a workspace config.json
+    file in the present folder or its parents, and create a workspace from that if found. If no config.json file
+    is found, the workspace details are read from environment variables. Authentication information is also read
+    from environment variables.
+    """
+    config_json = _find_file(WORKSPACE_CONFIG_JSON)
+    if config_json is not None:
+        return Workspace.from_config(path=str(config_json))
+    else:
+        workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=False)
+        subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=False)
+        resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=False)
+        auth = get_authentication()
+        return Workspace.get(name=workspace_name,
+                             auth=auth,
+                             subscription_id=subscription_id,
+                             resource_group=resource_group)
+
+
+class WorkspaceWrapper:
+    """
+    Wrapper around aml_workspace so that it is lazily loaded only once.
+    """
+
+    def __init__(self) -> None:
+        """
+        Init.
+        """
+        self._workspace: Workspace = None
+
+    @property
+    def workspace(self) -> Workspace:
+        """
+        Lazily load the aml_workspace.
+        """
+        if self._workspace is None:
+            self._workspace = default_aml_workspace()
+        return self._workspace

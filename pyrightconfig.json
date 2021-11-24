@@ -1,12 +1,12 @@
 {
   "include": [
     "docs",
-    "hi-ml/src",
-    "hi-ml-azure/src"
+    "hi-ml",
+    "hi-ml-azure"
   ],
   "exclude": [
     "hi-ml/testhiml/testhiml/utils/image_loading",
-    "hi-ml/testhiml/testhiml/utils/slide_image_loading/src",
+    "hi-ml/testhiml/testhiml/utils/slide_image_loading/src"
   ],
   "useLibraryCodeForTypes": false,
   "reportMissingImports": true,
