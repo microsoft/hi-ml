@@ -84,11 +84,10 @@
             "program": "${workspaceFolder}/docs/source/examples/11/sample.py",
             "cwd": "${workspaceFolder}/docs/source/examples/11/",
             "args": [
-                "--azureml"
+                "--azureml",
+                "--num_nodes=2",
+                "--min_num_gpus=4",
             ],
-            "env": {
-                "test_num_nodes": "2",
-            },
             "console": "integratedTerminal"
         },
         {
@@ -98,10 +97,8 @@
             "program": "${workspaceFolder}/docs/source/examples/11/sample.py",
             "cwd": "${workspaceFolder}/docs/source/examples/11/",
             "args": [
+                "--num_nodes=1",
             ],
-            "env": {
-                "test_num_nodes": "1",
-            },
             "console": "integratedTerminal"
         },
         {

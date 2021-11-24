@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import argparse
 import os
 from dataclasses import dataclass
 from typing import Optional
@@ -79,12 +80,19 @@ class MNISTModel(LightningModule):
 
 
 def main() -> None:
-    num_nodes = int(os.getenv("test_num_nodes", 2))
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--num_nodes', type=int, default=1,
+                        help='Number of nodes to train on')
+    parser.add_argument('--min_num_gpus', type=int, default=0,
+                        help='Minimum number of gpus to use')
+
+    args, unknown = parser.parse_known_args()
 
     submit_to_azure_if_needed(
         compute_cluster_name="testing-nc24x2",
         ignored_folders=["lightning_logs", "logs", "MNIST", "outputs"],
-        num_nodes=num_nodes,
+        num_nodes=args.num_nodes,
         wait_for_completion=True,
         wait_for_completion_show_output=True)
     set_environment_variables_for_multi_node()
@@ -97,14 +105,14 @@ def main() -> None:
 
     mnist_model = MNISTModel()
 
-    num_gpus = torch.cuda.device_count()
-    effective_num_gpus = num_gpus * num_nodes
+    num_gpus = min(args.min_num_gpus, torch.cuda.device_count())
+    effective_num_gpus = num_gpus * args.num_nodes
 
-    print(f"num_nodes: {num_nodes}, num_gpus: {num_gpus}")
+    print(f"num_nodes: {args.num_nodes}, num_gpus: {num_gpus}")
 
     if effective_num_gpus > 1:
         accelerator: Optional[str] = "ddp"
-        plugins = [DDPPlugin(num_nodes=num_nodes,
+        plugins = [DDPPlugin(num_nodes=args.num_nodes,
                              sync_batchnorm=True,
                              find_unused_parameters=False)]
     else:
@@ -115,7 +123,7 @@ def main() -> None:
     trainer = Trainer(
         accelerator=accelerator,
         plugins=plugins,
-        num_nodes=num_nodes,
+        num_nodes=args.num_nodes,
         gpus=num_gpus,
         max_epochs=1,
     )
