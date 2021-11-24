@@ -4,7 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 
 from health_azure.utils import (download_checkpoints_from_run_id, download_files_from_run_id,
-                                download_from_datastore, fetch_run, get_most_recent_run, is_running_in_azure_ml,
+                                download_from_datastore, fetch_run, get_most_recent_run, get_multi_node_data,
+                                is_running_in_azure_ml,
                                 set_environment_variables_for_multi_node, split_recovery_id, torch_barrier,
                                 upload_to_datastore, RUN_CONTEXT, aggregate_hyperdrive_metrics)
 from health_azure.datasets import DatasetConfig
@@ -22,6 +23,7 @@ __all__ = [
     "download_from_datastore",
     "fetch_run",
     "get_most_recent_run",
+    "get_multi_node_data",
     "get_workspace",
     "is_running_in_azure_ml",
     "set_environment_variables_for_multi_node",

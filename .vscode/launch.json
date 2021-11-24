@@ -78,6 +78,33 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Examples DDP Sample AML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/docs/source/examples/11/sample.py",
+            "cwd": "${workspaceFolder}/docs/source/examples/11/",
+            "args": [
+                "--azureml"
+            ],
+            "env": {
+                "test_num_nodes": "2",
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Examples DDP Sample Local",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/docs/source/examples/11/sample.py",
+            "cwd": "${workspaceFolder}/docs/source/examples/11/",
+            "args": [
+            ],
+            "env": {
+                "test_num_nodes": "1",
+            },
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Profile Image Loading",
             "type": "python",
             "request": "launch",
