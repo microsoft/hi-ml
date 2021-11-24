@@ -69,8 +69,8 @@ class AzureMLLogger(LightningLoggerBase):
                                                  workspace=workspace,
                                                  workspace_config_path=workspace_config_path,
                                                  snapshot_directory=snapshot_directory)
-                logging.info(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
-                logging.info(f"To check progress, visit this URL: {self.run.get_portal_url()}")
+                print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
+                print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
                 self.has_custom_run = True
             except Exception:
                 logging.error("Unable to create an AzureML run to store the results.")

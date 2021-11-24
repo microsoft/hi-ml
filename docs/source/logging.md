@@ -1,4 +1,4 @@
-# Logging metrics when training models in AzureML
+# Logging metrics when training models in and outside AzureML
 
 This section describes the basics of logging to AzureML, and how this can be simplified when using PyTorch Lightning.
 It also describes helper functions to make logging more consistent across your code.
@@ -26,6 +26,7 @@ add a Tensorboard logger, and afterwards see all metrics in both your Tensorboar
 This logger can be added to the `Trainer` object as follows:
 ```python
 from health_ml.utils import AzureMLLogger
+from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 tb_logger = TensorBoardLogger("logs/")
 azureml_logger = AzureMLLogger()
@@ -34,6 +35,60 @@ trainer = Trainer(logger=[tb_logger, azureml_logger])
 You do not need to make any changes to your logging code to write to both loggers at the same time. This means
 that, if your code correctly writes to Tensorboard in a local run, you can expect the metrics to come out correctly
 in the AzureML UI as well after adding the `AzureMLLogger`.
+
+## Logging to AzureML when running outside AzureML
+You may still see the need to run some of your training jobs on an individual VM, for example small jobs or for 
+debugging. Keeping track of the results in those runs can be tricky, and comparing or sharing them even more.
+
+All results that you achieve in such runs outside AzureML can be written straight into AzureML using the 
+`AzureMLLogger`. Its behaviour is as follows:
+* When instantiated inside a run in AzureML, it will write metrics straight to the present run.
+* When instantiated outside an AzureML run, it will by default create a new `Run` object, and write all the
+  metrics to that run.
+
+This behaviour is turned on by default. This means that you can use the same snippet of code to use the `AzureMLLogger`
+as described above, for both running inside and outside AzureML:
+
+```python
+from health_ml.utils import AzureMLLogger
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning import Trainer
+tb_logger = TensorBoardLogger("logs/")
+azureml_logger = AzureMLLogger()
+trainer = Trainer(logger=[tb_logger, azureml_logger])
+```
+
+If this is executed on a VM outside an AzureML run, you will see additional information printed to the console like 
+this:
+```text
+Writing metrics to run ed52cfac-1b85-42ea-8ebe-2f90de21be6b in experiment azureml_logger.
+To check progress, visit this URL: https://ml.azure.com/runs/ed52cfac-1b85-42ea-8ebe-2f90de21be...
+```
+Clicking on the URL will take you to the AzureML web page, where you can inspect the metrics that the run has written
+so far.
+
+There are a few points that need to be mentioned here:
+* The run that you are about the create will follow the usual pattern of AzureML runs, and create a full snapshot of
+  all code that was used in the experiment. By default, this will snapshot the current working directory where you 
+  start the run. This could include large files like checkpoints. To avoid that, use the `.amlignore` file
+  (see [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-save-write-experiment-files#storage-limits-of-experiment-snapshots)).
+  Alternatively, provide the `snapshot_directory` argument of the `AzureMLLogger`, and point to an empty folder.
+* Each run in AzureML is associated with an experiment. When executed in an AzureML run, the `AzureMLLogger` will
+  know which experiment to write to. Outside AzureML, on your VM, the logger will default to using an experiment
+  called `azureml-logger`. This means that runs inside and outside AzureML end up in different experiments. You can 
+  customize this like in the following code snippet, so that the submitted runs and the runs outside AzureML end
+  up in the same experiment:
+
+```python
+from health_azure import submit_to_azure_if_needed
+from health_ml.utils import AzureMLLogger
+from pytorch_lightning import Trainer
+experiment_name = "my_new_architecture"
+submit_to_azure_if_needed(compute_cluster_name="nd24",
+                          experiment_name=experiment_name)
+azureml_logger = AzureMLLogger(experiment_name=experiment_name)
+trainer = Trainer(logger=[azureml_logger])
+```
 
 ## Making logging consistent when training with PyTorch Lightning
 
