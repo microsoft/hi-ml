@@ -15,8 +15,8 @@ from typing import Dict, Generator, Optional
 
 from azureml.core import Workspace
 
-from health_azure.utils import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME, get_authentication,
-                                get_secret_from_environment, WORKSPACE_CONFIG_JSON)
+from health_azure.utils import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME, WORKSPACE_CONFIG_JSON,
+                                _find_file, get_authentication, get_secret_from_environment)
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
@@ -54,9 +54,9 @@ def default_aml_workspace() -> Workspace:
     """
     Gets the default AzureML workspace that is used for testing.
     """
-    config_json = repository_root() / WORKSPACE_CONFIG_JSON
-    if config_json.is_file():
-        return Workspace.from_config()
+    config_json = _find_file(WORKSPACE_CONFIG_JSON)
+    if config_json is not None:
+        return Workspace.from_config(path=str(config_json))
     else:
         workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=False)
         subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=False)
