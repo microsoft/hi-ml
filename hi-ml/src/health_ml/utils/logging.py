@@ -10,6 +10,7 @@ import operator
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Union
 
 import torch
@@ -39,6 +40,7 @@ class AzureMLLogger(LightningLoggerBase):
                  experiment_name: str = "azureml_logger",
                  run_name: Optional[str] = None,
                  workspace: Optional[Workspace] = None,
+                 workspace_config_path: Optional[Path] = None,
                  snapshot_directory: PathOrString = "."
                  ) -> None:
         """
@@ -48,8 +50,9 @@ class AzureMLLogger(LightningLoggerBase):
         :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
         :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI). This
         argument only matters when running outside of AzureML.
-        :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
-        specified by the `config.json` file in the current working directory or its parents.
+        :param workspace: If provided, use this workspace to create the run in.
+        :param workspace_config_path: Use this path to read workspace configuration json file. If not provided,
+        use the workspace specified by the `config.json` file in the current working directory or its parents.
         :param snapshot_directory: The folder that should be included as the code snapshot. To skip snapshotting, provide
         a path to an empty directory.
         """
@@ -64,7 +67,10 @@ class AzureMLLogger(LightningLoggerBase):
                 self.run = create_aml_run_object(experiment_name=experiment_name,
                                                  run_name=run_name,
                                                  workspace=workspace,
+                                                 workspace_config_path=workspace_config_path,
                                                  snapshot_directory=snapshot_directory)
+                logging.info(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
+                logging.info(f"To check progress, visit this URL: {self.run.get_portal_url()}")
                 self.has_custom_run = True
             except Exception:
                 logging.error("Unable to create an AzureML run to store the results.")
@@ -103,17 +109,11 @@ class AzureMLLogger(LightningLoggerBase):
             return
         if params is None:
             return
-        # Convert from Namespace to dictionary
-        params = self._convert_params(params)
-        # Convert nested dictionaries to folder-like structure
-        params = self._flatten_dict(params)
-        # Convert anything that is not a primitive type to str
-        params = self._sanitize_params(params)
-        if not isinstance(params, dict):
-            raise ValueError(f"Expected the hyperparameters to be a dictionary, but got {type(params)}")
-        if len(params) > 0:
+        params_final = self._preprocess_hyperparams(params)
+        if len(params_final) > 0:
             # Log hyperparameters as a table with 2 columns. Each "step" is one hyperparameter
-            self.run.log_table(self.HYPERPARAMS_NAME, {"name": list(params.keys()), "value": list(params.values())})
+            self.run.log_table(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
+                                                       "value": list(params_final.values())})
 
     def experiment(self) -> Any:
         return None
@@ -128,6 +128,24 @@ class AzureMLLogger(LightningLoggerBase):
         if self.run is not None and self.has_custom_run:
             # Run.complete should only be called if we created an AzureML run here in the constructor.
             self.run.complete()
+
+    def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
+        """
+        Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
+        Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
+        All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
+        :param params: The parameters to convert
+        :return: A dictionary mapping from string to string.
+        """
+        # Convert from Namespace to dictionary
+        params = self._convert_params(params)
+        # Convert nested dictionaries to folder-like structure
+        params = self._flatten_dict(params)
+        # Convert anything that is not a primitive type to str
+        params_final = self._sanitize_params(params)
+        if not isinstance(params_final, dict):
+            raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
+        return {str(key): str(value) for key, value in params_final.items()}
 
 
 class AzureMLProgressBar(ProgressBarBase):

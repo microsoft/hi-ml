@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import math
+import time
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
@@ -177,7 +178,7 @@ def test_azureml_log_hyperparameters1() -> None:
     fake_params = {"foo": 1.0}
     logger.log_hyperparams(fake_params)
     # Dictionary should be logged as name/value pairs, one value per row
-    logger.run.log_table.assert_called_once_with("hyperparams", {'name': ['foo'], 'value': [1.0]})
+    logger.run.log_table.assert_called_once_with("hyperparams", {'name': ['foo'], 'value': ["1.0"]})
 
 
 def test_azureml_log_hyperparameters2() -> None:
@@ -205,7 +206,7 @@ def test_azureml_log_hyperparameters3() -> None:
     logger = create_mock_logger()
     fake_namespace = Namespace(foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
     logger.log_hyperparams(fake_namespace)
-    expected_dict = {"name": ["foo/bar", "foo/baz/level3/a"], "value": [1, "17"]}
+    expected_dict = {"name": ["foo/bar", "foo/baz/level3/a"], "value": ["1", "17"]}
     logger.run.log_table.assert_called_once_with("hyperparams", expected_dict)
 
 
@@ -215,19 +216,34 @@ def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
     Earlier versions of the code had a bug that only allowed a maximum of 15 hyperparams to be logged.
     """
     many_hyperparams = {f"param{i}": i for i in range(0, 20)}
+    many_hyperparams["A long list"] = ["foo", 1.0, "abc"]
+    expected_metrics = {key: str(value) for key, value in many_hyperparams.items()}
     logger: Optional[AzureMLLogger] = None
     try:
-        logger = AzureMLLogger()
+        logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
         logger.is_running_in_azure_ml = True
         logger.log_hyperparams(many_hyperparams)
         logger.run.flush()
+        time.sleep(1)
         metrics = logger.run.get_metrics(name=AzureMLLogger.HYPERPARAMS_NAME)
+        print(f"metrics = {metrics}")
         actual = metrics[AzureMLLogger.HYPERPARAMS_NAME]
-        assert actual["name"] == list(many_hyperparams.keys())
-        assert actual["value"] == list(many_hyperparams.values())
+        assert actual["name"] == list(expected_metrics.keys())
+        assert actual["value"] == list(expected_metrics.values())
     finally:
         if logger:
             logger.finalize("done")
+
+
+def test_azureml_logger_hyperparams_processing() -> None:
+    """
+    Test flattening of hyperparameters: Lists were not handled correctly in previous versions.
+    """
+    hyperparams = {"A long list": ["foo", 1.0, "abc"],
+                   "foo": 1.0}
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
+    actual = logger._preprocess_hyperparams(hyperparams)
+    assert actual == {"A long list": "['foo', 1.0, 'abc']", "foo": "1.0"}
 
 
 def test_azureml_logger_step() -> None:
@@ -273,11 +289,10 @@ def test_azureml_logger_init2() -> None:
     logger.finalize(status="nothing")
 
 
-def test_azureml_logger_init3() -> None:
+def test_azureml_logger_actual_run() -> None:
     """
-    Test the logic to choose the run, inside of the constructor of AzureMLLogger.
+    When running outside of AzureML, a new run should be created.
     """
-    # When running outside of AzureML, a new run should be created.
     logger = AzureMLLogger()
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
@@ -304,17 +319,20 @@ def test_azureml_logger_init4() -> None:
     Test the logic to choose the run, inside of the constructor of AzureMLLogger.
     """
     # Check that all arguments are respected
-    with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value="foo") as mock_create:
+    run_mock = MagicMock()
+    with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value=run_mock) as mock_create:
         logger = AzureMLLogger(experiment_name="exp",
                                run_name="run",
                                snapshot_directory="snapshot",
-                               workspace="workspace")
+                               workspace="workspace",  # type: ignore
+                               workspace_config_path=Path("config_path"))
         assert logger.has_custom_run
-        assert logger.run == "foo"
+        assert logger.run == run_mock
         mock_create.assert_called_once_with(experiment_name="exp",
                                             run_name="run",
                                             snapshot_directory="snapshot",
-                                            workspace="workspace")
+                                            workspace="workspace",
+                                            workspace_config_path=Path("config_path"))
 
 
 def test_progress_bar_enable() -> None:
