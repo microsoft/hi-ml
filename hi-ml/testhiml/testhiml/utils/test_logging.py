@@ -150,6 +150,7 @@ def test_azureml_logger() -> None:
     assert not logger.is_running_in_azure_ml
     assert logger.has_custom_run
     logger.log_metrics({"foo": 1.0})
+    assert logger.run is not None
     logger.run.log.assert_called_once_with("foo", 1.0, step=None)
 
     # All the following methods of LightningLoggerBase are not implemented
@@ -167,6 +168,7 @@ def test_azureml_log_hyperparameters1() -> None:
     Test logging of hyperparameters
     """
     logger = create_mock_logger()
+    assert logger.run is not None
     # No logging should happen with empty params
     logger.log_hyperparams(None)  # type: ignore
     assert logger.run.log.call_count == 0
@@ -186,6 +188,7 @@ def test_azureml_log_hyperparameters2() -> None:
     Logging of hyperparameters that are Namespace objects from the arg parser
     """
     logger = create_mock_logger()
+    assert logger.run is not None
 
     class Dummy:
         def __str__(self) -> str:
@@ -204,6 +207,7 @@ def test_azureml_log_hyperparameters3() -> None:
     object to str
     """
     logger = create_mock_logger()
+    assert logger.run is not None
     fake_namespace = Namespace(foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
     logger.log_hyperparams(fake_namespace)
     expected_dict = {"name": ["foo/bar", "foo/baz/level3/a"], "value": ["1", "17"]}
@@ -215,13 +219,13 @@ def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
     Test if large number of hyperparameters are logged correctly.
     Earlier versions of the code had a bug that only allowed a maximum of 15 hyperparams to be logged.
     """
-    many_hyperparams = {f"param{i}": i for i in range(0, 20)}
+    many_hyperparams: Dict[str, Any] = {f"param{i}": i for i in range(0, 20)}
     many_hyperparams["A long list"] = ["foo", 1.0, "abc"]
     expected_metrics = {key: str(value) for key, value in many_hyperparams.items()}
     logger: Optional[AzureMLLogger] = None
     try:
         logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
-        logger.is_running_in_azure_ml = True
+        assert logger.run is not None
         logger.log_hyperparams(many_hyperparams)
         logger.run.flush()
         time.sleep(1)
@@ -251,6 +255,7 @@ def test_azureml_logger_step() -> None:
     Test if the AzureML logger correctly handles epoch-level and step metrics
     """
     logger = create_mock_logger()
+    assert logger.run is not None
     logger.log_metrics(metrics={"foo": 1.0, "epoch": 123}, step=78)
     assert logger.run.log.call_count == 2
     assert logger.run.log.call_args_list[0][0] == ("foo", 1.0)

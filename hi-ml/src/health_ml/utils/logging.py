@@ -53,8 +53,8 @@ class AzureMLLogger(LightningLoggerBase):
         :param workspace: If provided, use this workspace to create the run in.
         :param workspace_config_path: Use this path to read workspace configuration json file. If not provided,
         use the workspace specified by the `config.json` file in the current working directory or its parents.
-        :param snapshot_directory: The folder that should be included as the code snapshot. To skip snapshotting, provide
-        a path to an empty directory.
+        :param snapshot_directory: The folder that should be included as the code snapshot. To skip snapshotting,
+        provide a path to an empty directory.
         """
         super().__init__()
         self.is_running_in_azure_ml = is_running_in_azure_ml()

@@ -1,8 +1,8 @@
 {
   "include": [
     "docs",
-    "hi-ml",
-    "hi-ml-azure"
+    "hi-ml/src",
+    "hi-ml-azure/src"
   ],
   "exclude": [
     "hi-ml/testhiml/testhiml/utils/image_loading",
