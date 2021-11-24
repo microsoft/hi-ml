@@ -224,7 +224,7 @@ def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
     expected_metrics = {key: str(value) for key, value in many_hyperparams.items()}
     logger: Optional[AzureMLLogger] = None
     try:
-        logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
+        logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
         assert logger.run is not None
         logger.log_hyperparams(many_hyperparams)
         logger.run.flush()
@@ -298,7 +298,7 @@ def test_azureml_logger_actual_run() -> None:
     """
     When running outside of AzureML, a new run should be created.
     """
-    logger = AzureMLLogger()
+    logger = AzureMLLogger(workspace=DEFAULT_WORKSPACE.workspace)
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT

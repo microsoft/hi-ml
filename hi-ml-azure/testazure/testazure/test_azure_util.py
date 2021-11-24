@@ -1497,6 +1497,7 @@ def test_create_run() -> None:
     try:
         run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
                                          workspace=DEFAULT_WORKSPACE.workspace)
+        assert isinstance(run, Run)
         assert run.name == run_name
         assert run.experiment.name == experiment_name
         metric_name = "mymetric"
