@@ -34,8 +34,8 @@ import health_azure.utils as util
 from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                            repository_root)
+from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
+                                       repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42

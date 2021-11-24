@@ -1416,7 +1416,7 @@ def create_aml_run_object(experiment_name: str,
     return run
 
 
-def default_aml_workspace() -> Workspace:
+def aml_workspace_for_unittests() -> Workspace:
     """
     Gets the default AzureML workspace that is used for unit testing. It first tries to locate a workspace config.json
     file in the present folder or its parents, and create a workspace from that if found. If no config.json file
@@ -1437,9 +1437,9 @@ def default_aml_workspace() -> Workspace:
                              resource_group=resource_group)
 
 
-class WorkspaceWrapper:
+class UnitTestWorkspaceWrapper:
     """
-    Wrapper around aml_workspace so that it is lazily loaded only once.
+    Wrapper around aml_workspace so that it is lazily loaded only once. Used for unit testing only.
     """
 
     def __init__(self) -> None:
@@ -1454,5 +1454,5 @@ class WorkspaceWrapper:
         Lazily load the aml_workspace.
         """
         if self._workspace is None:
-            self._workspace = default_aml_workspace()
+            self._workspace = aml_workspace_for_unittests()
         return self._workspace

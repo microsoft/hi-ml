@@ -12,7 +12,7 @@ from typing import Dict, Optional
 
 from jinja2 import Template
 
-from testazure.util import himl_azure_root, DEFAULT_IGNORE_FOLDERS
+from testazure.utils_testazure import himl_azure_root, DEFAULT_IGNORE_FOLDERS
 
 
 here = Path(__file__).parent.resolve()

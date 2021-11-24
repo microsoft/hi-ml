@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Generator, Optional
 
 from health_azure.utils import (ENV_RESOURCE_GROUP, ENV_SUBSCRIPTION_ID, ENV_WORKSPACE_NAME, WORKSPACE_CONFIG_JSON,
-                                WorkspaceWrapper)
+                                UnitTestWorkspaceWrapper)
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
@@ -48,7 +48,7 @@ def repository_root() -> Path:
     return himl_azure_root().parent
 
 
-DEFAULT_WORKSPACE = WorkspaceWrapper()
+DEFAULT_WORKSPACE = UnitTestWorkspaceWrapper()
 
 
 @contextmanager

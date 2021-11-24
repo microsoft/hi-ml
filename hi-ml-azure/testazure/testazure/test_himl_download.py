@@ -9,7 +9,7 @@ import pytest
 import subprocess
 
 from health_azure import himl_download
-from testazure.util import MockRun
+from testazure.utils_testazure import MockRun
 
 DOWNLOAD_SCRIPT_PATH = himl_download.__file__
 
