@@ -14,8 +14,8 @@ from health_ml.data.histopathology.datasets.tcga_crck_tiles_dataset import TcgaC
 from health_ml.models.histopathology.transforms import EncodeTilesBatchd, LoadTiled, LoadTilesBatchd
 from health_ml.utils.histopathology.bag_utils import BagDataset
 
-from testhiml.utils import assert_dicts_equal
-from testhiml.test_histopathology.paths_for_tests import TEST_OUTPUTS_PATH
+from testhiml.utils.utils_for_tests import assert_dicts_equal
+from testhiml.utils.paths_for_tests import TEST_OUTPUTS_PATH
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),

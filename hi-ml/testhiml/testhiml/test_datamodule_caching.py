@@ -11,9 +11,7 @@ from torch.utils.data import DataLoader
 from health_ml.data.histopathology.datamodules.base_module import CacheMode, TilesDataModule
 from health_ml.data.histopathology.datasets.base_dataset import TilesDataset
 
-import sys
-print(f"\n\nCURRENT path: {sys.path}\n\n")
-from testhiml.test_histopathology.paths_for_tests import TEST_OUTPUTS_PATH
+from testhiml.utils.paths_for_tests import TEST_OUTPUTS_PATH
 
 MOCK_TILES_DATASET_DIR = Path(TEST_OUTPUTS_PATH) / "mock_tiles_dataset"
 

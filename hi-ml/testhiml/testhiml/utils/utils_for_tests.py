@@ -19,4 +19,3 @@ def assert_dicts_equal(d1: Mapping, d2: Mapping, exclude_keys: Collection[Any] =
             assert np.allclose(d1[key], d2[key], rtol=rtol, atol=atol, equal_nan=True), msg
         else:
             assert d1[key] == d2[key], msg
-
