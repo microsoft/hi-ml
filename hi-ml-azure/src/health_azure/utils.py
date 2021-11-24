@@ -1412,8 +1412,7 @@ def create_aml_run_object(experiment_name: str,
     """
     actual_workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
-    run = Run._start_logging(exp, name=run_name, snapshot_directory=str(snapshot_directory))
-    return run
+    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
 def aml_workspace_for_unittests() -> Workspace:
