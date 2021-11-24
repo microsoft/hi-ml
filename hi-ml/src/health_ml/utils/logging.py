@@ -41,10 +41,9 @@ class AzureMLLogger(LightningLoggerBase):
                  run_name: Optional[str] = None,
                  workspace: Optional[Workspace] = None,
                  workspace_config_path: Optional[Path] = None,
-                 snapshot_directory: PathOrString = "."
+                 snapshot_directory: Optional[PathOrString] = None
                  ) -> None:
         """
-
         :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
         executed outside of an AzureML run (for example, when working on a separate virtual machine).
         :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
@@ -53,8 +52,9 @@ class AzureMLLogger(LightningLoggerBase):
         :param workspace: If provided, use this workspace to create the run in.
         :param workspace_config_path: Use this path to read workspace configuration json file. If not provided,
         use the workspace specified by the `config.json` file in the current working directory or its parents.
-        :param snapshot_directory: The folder that should be included as the code snapshot. To skip snapshotting,
-        provide a path to an empty directory.
+        :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
+        is created. Set this to the folder that contains all the code your experiment uses. You can use a file
+        .amlignore to skip specific files or folders, akin to .gitignore..
         """
         super().__init__()
         self.is_running_in_azure_ml = is_running_in_azure_ml()

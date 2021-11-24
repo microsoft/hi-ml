@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 from argparse import ArgumentParser, OPTIONAL
 from collections import defaultdict
 from itertools import islice
@@ -1387,7 +1388,7 @@ def create_aml_run_object(experiment_name: str,
                           run_name: Optional[str] = None,
                           workspace: Optional[Workspace] = None,
                           workspace_config_path: Optional[Path] = None,
-                          snapshot_directory: PathOrString = ".") -> Run:
+                          snapshot_directory: Optional[PathOrString] = None) -> Run:
     """
     Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
     This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
@@ -1400,18 +1401,21 @@ def create_aml_run_object(experiment_name: str,
     >>>run.flush()
     >>>run.complete()
 
-    :param snapshot_directory: The folder that should be included as the code snapshot. To skip snapshotting, provide
-    a path to an empty directory.
     :param experiment_name: The AzureML experiment that should hold the run that will be created.
     :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI)
     :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
         specified by the `config.json` file in the folder or its parent folder(s).
     :param workspace_config_path: If not provided with an AzureML workspace, then load one given the information in this
         config file.
+    :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
+        is created (snapshot_directory=None or snapshot_directory=""). Set this to the folder that contains all the
+        code your experiment uses. You can use a file .amlignore to skip specific files or folders, akin to .gitignore
     :return: An AzureML Run object.
     """
     actual_workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
+    if snapshot_directory is None or snapshot_directory == "":
+        snapshot_directory = tempfile.mkdtemp()
     return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
