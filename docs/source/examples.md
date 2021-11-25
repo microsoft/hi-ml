@@ -377,32 +377,37 @@ this case, the DataFrame will contain a string representing the path to the arti
 
 Calling `submit_to_azure_if_needed` with `num_nodes>1` will prepare the AzureML run_configuration for distributed training jobs using IntelMpi ([https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu)) with `process_count_per_node=1` (the default, for per-node launch) and `node_count=num_nodes`.
 
-After calling `submit_to_azure_if_needed` with `num_nodes>1`, then call: `set_environment_variables_for_multi_node()` to ensure the environment variables for Mpi are set correctly.
-
 The sample [examples/11/sample.py](examples/11/sample.rst) demonstrates running the PyTorch Lightning MNIST sample across 2 nodes and 4 GPUS. 
 
 ### PyTorch Lightning
 
-If training with [PyTorch Lightning](https://www.pytorchlightning.ai/) then the [DDPPlugin](https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.plugins.training_type.DDPPlugin.html) needs to be created with the same number of nodes before passing to the [Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html), for example:
+If training with [PyTorch Lightning](https://www.pytorchlightning.ai/) then:
+
+1. After calling `submit_to_azure_if_needed` with `num_nodes>1`, then call: `set_environment_variables_for_multi_node()` to set the environment variables that PyTorch Lightning expects, based on the environment variables that Azure/Mpi prepares.
+
+1. If using more than one GPU or node, then the [DDPPlugin](https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.plugins.training_type.DDPPlugin.html) needs to be created before passing to the [Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html), for example:
 
 ```python
-    num_gpus = torch.cuda.device_count()
-    effective_num_gpus = num_gpus * num_nodes
+    num_gpus = min(args.min_num_gpus, torch.cuda.device_count()) if torch.cuda.is_available() else 0
+    effective_num_gpus = num_gpus * args.num_nodes
 
-    if effective_num_gpus > 1:
-        accelerator: Optional[str] = "ddp"
-        plugins = [DDPPlugin(num_nodes=num_nodes,
-                             sync_batchnorm=True,
-                             find_unused_parameters=False)]
+    strategy = None
+    if effective_num_gpus == 0:
+        accelerator = "cpu"
+        devices = 1
+        message = "CPU"
     else:
-        accelerator = None
-        plugins = []
+        accelerator = "gpu"
+        devices = num_gpus
+        message = f"{devices} GPU"
+        if effective_num_gpus > 1:
+            strategy = DDPPlugin(find_unused_parameters=False)
+            message += "s per node with DDP"
+    print(f"Using {message}")
 
     trainer = Trainer(accelerator=accelerator,
-                      plugins=plugins,
-                      num_nodes=num_nodes,
-                      gpus=num_gpus,
+                      strategy=strategy,
+                      num_nodes=args.num_nodes,
+                      devices=devices,
                       ...)
 ```
-
-

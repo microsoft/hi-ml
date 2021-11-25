@@ -5,7 +5,6 @@
 import argparse
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 from health_azure import set_environment_variables_for_multi_node, submit_to_azure_if_needed
@@ -99,8 +98,8 @@ def main() -> None:
 
     args, unknown = parser.parse_known_args()
 
-    submit_to_azure_if_needed(
-        compute_cluster_name="testing-nc24x2",
+    run_info = submit_to_azure_if_needed(
+        compute_cluster_name="training-nd24",
         ignored_folders=["lightning_logs", "logs", "MNIST", "outputs"],
         num_nodes=args.num_nodes,
         wait_for_completion=True,
@@ -115,28 +114,32 @@ def main() -> None:
 
     mnist_model = MNISTModel()
 
-    num_gpus = min(args.min_num_gpus, torch.cuda.device_count())
+    num_gpus = min(args.min_num_gpus, torch.cuda.device_count()) if torch.cuda.is_available() else 0
     effective_num_gpus = num_gpus * args.num_nodes
 
     print(f"num_nodes: {args.num_nodes}, num_gpus: {num_gpus}")
 
-    if effective_num_gpus > 1:
-        accelerator: Optional[str] = "ddp"
-        plugins = [DDPPlugin(num_nodes=args.num_nodes,
-                             sync_batchnorm=True,
-                             find_unused_parameters=False)]
+    strategy = None
+    if effective_num_gpus == 0:
+        accelerator = "cpu"
+        devices = 1
+        message = "CPU"
     else:
-        accelerator = None
-        plugins = []
+        accelerator = "gpu"
+        devices = num_gpus
+        message = f"{devices} GPU"
+        if effective_num_gpus > 1:
+            strategy = DDPPlugin(find_unused_parameters=False)
+            message += "s per node with DDP"
+    print(f"Using {message}")
 
     # Initialize a trainer
-    trainer = Trainer(
-        accelerator=accelerator,
-        plugins=plugins,
-        num_nodes=args.num_nodes,
-        gpus=num_gpus,
-        max_epochs=1,
-    )
+    trainer = Trainer(default_root_dir=str(run_info.output_folder),
+                      accelerator=accelerator,
+                      strategy=strategy,
+                      max_epochs=1,
+                      num_nodes=args.num_nodes,
+                      devices=devices)
 
     # Train the model ⚡
     trainer.fit(mnist_model)
