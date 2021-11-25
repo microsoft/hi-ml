@@ -9,7 +9,6 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import dataclass
 
 import pandas as pd
 import param
@@ -52,10 +51,10 @@ ENV_MASTER_ADDR = "MASTER_ADDR"
 ENV_MASTER_IP = "MASTER_IP"
 ENV_MASTER_PORT = "MASTER_PORT"
 ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
+ENV_OMPI_COMM_WORLD_SIZE = "OMPI_COMM_WORLD_SIZE"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
-
 RUN_CONTEXT = Run.get_context()
 WORKSPACE_CONFIG_JSON = "config.json"
 
@@ -855,41 +854,13 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     return int(float(s[:-1]) * multiplier)
 
 
-@dataclass
-class MultiNodeData:
-    """
-    Holds all MPI data for this process.
-    """
-    # the number of processes in this process's MPI_COMM_WORLD
-    world_size: int
-    # the MPI rank of this process in MPI_COMM_WORLD
-    world_rank: int
-    # the relative rank of this process on this node within its job. For example, if four processes in a job share a
-    # node, they will each be given a local rank ranging from 0 to 3.
-    world_local_rank: int
-    # the number of process slots allocated to this job. Note that this may be different than the number of
-    # processes in the job.
-    universe_size: int
-    # the number of ranks from this job that are running on this node.
-    world_local_size: int
-    # the relative rank of this process on this node looking across ALL jobs.
-    world_node_rank: int
-
-
-def get_multi_node_data() -> MultiNodeData:
+def get_multi_node_count() -> int:
     """
     Get MPI data, see https://www.open-mpi.org/faq/?category=running#mpi-environmental-variables.
 
-    :return: A MultiNodeData holding values from the MPI environment variables.
+    :return: Number of nodes if running under OpenMpi, 1 otherwise.
     """
-    return MultiNodeData(
-        world_size=int(os.getenv("OMPI_COMM_WORLD_SIZE", "0")),
-        world_rank=int(os.getenv("OMPI_COMM_WORLD_RANK", "0")),
-        world_local_rank=int(os.getenv("OMPI_COMM_WORLD_LOCAL_RANK", "0")),
-        universe_size=int(os.getenv("OMPI_UNIVERSE_SIZE", "0")),
-        world_local_size=int(os.getenv("OMPI_COMM_WORLD_LOCAL_SIZE", "0")),
-        world_node_rank=int(os.getenv("OMPI_COMM_WORLD_NODE_RANK", "0"))
-    )
+    return int(os.getenv(ENV_OMPI_COMM_WORLD_SIZE, "1"))
 
 
 def set_environment_variables_for_multi_node() -> None:

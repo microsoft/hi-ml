@@ -4,53 +4,17 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import os
-from dataclasses import dataclass
 
 import torch
 from health_azure import set_environment_variables_for_multi_node, submit_to_azure_if_needed
+from health_ml.utils import AzureMLLogger, log_on_epoch
+
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.plugins import DDPPlugin
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import MNIST
-
-
-@dataclass
-class MultiNodeData:
-    """
-    Holds all MPI data for this process.
-    """
-    # the number of processes in this process's MPI_COMM_WORLD
-    world_size: int
-    # the MPI rank of this process in MPI_COMM_WORLD
-    world_rank: int
-    # the relative rank of this process on this node within its job. For example, if four processes in a job share a
-    # node, they will each be given a local rank ranging from 0 to 3.
-    world_local_rank: int
-    # the number of process slots allocated to this job. Note that this may be different than the number of
-    # processes in the job.
-    universe_size: int
-    # the number of ranks from this job that are running on this node.
-    world_local_size: int
-    # the relative rank of this process on this node looking across ALL jobs.
-    world_node_rank: int
-
-
-def get_multi_node_data() -> MultiNodeData:
-    """
-    Get MPI data, see https://www.open-mpi.org/faq/?category=running#mpi-environmental-variables.
-
-    :return: A MultiNodeData holding values from the MPI environment variables.
-    """
-    return MultiNodeData(
-        world_size=int(os.getenv("OMPI_COMM_WORLD_SIZE", "0")),
-        world_rank=int(os.getenv("OMPI_COMM_WORLD_RANK", "0")),
-        world_local_rank=int(os.getenv("OMPI_COMM_WORLD_LOCAL_RANK", "0")),
-        universe_size=int(os.getenv("OMPI_UNIVERSE_SIZE", "0")),
-        world_local_size=int(os.getenv("OMPI_COMM_WORLD_LOCAL_SIZE", "0")),
-        world_node_rank=int(os.getenv("OMPI_COMM_WORLD_NODE_RANK", "0"))
-    )
 
 
 class MNISTModel(LightningModule):
@@ -68,6 +32,7 @@ class MNISTModel(LightningModule):
     def training_step(self, batch, batch_nb):  # type: ignore
         x, y = batch
         loss = F.cross_entropy(self(x), y)
+        log_on_epoch(self, loss)
         return loss
 
     def configure_optimizers(self):  # type: ignore
@@ -99,18 +64,18 @@ def main() -> None:
     args, unknown = parser.parse_known_args()
 
     run_info = submit_to_azure_if_needed(
-        compute_cluster_name="training-nd24",
+        compute_cluster_name="nc24s-dedicated",
         ignored_folders=["lightning_logs", "logs", "MNIST", "outputs"],
         num_nodes=args.num_nodes,
         wait_for_completion=True,
         wait_for_completion_show_output=True)
+
+    print("~~~~~~~~~~ Begin Env Vars ~~~~~~~~~~~")
+    for k, v in sorted(os.environ.items()):
+        print(k + ':', v)
+    print("~~~~~~~~~~ End Env Vars ~~~~~~~~~~~")
+
     set_environment_variables_for_multi_node()
-
-    az_batch_master_node = os.getenv("AZ_BATCH_MASTER_NODE", "?")
-    print(f"az_batch_master_node: {az_batch_master_node}")
-
-    multi_node_data = get_multi_node_data()
-    print(f"multi_node_data: {multi_node_data}")
 
     mnist_model = MNISTModel()
 
@@ -133,8 +98,11 @@ def main() -> None:
             message += "s per node with DDP"
     print(f"Using {message}")
 
+    azureml_logger = AzureMLLogger()
+
     # Initialize a trainer
-    trainer = Trainer(default_root_dir=str(run_info.output_folder),
+    trainer = Trainer(logger=[azureml_logger],
+                      default_root_dir=str(run_info.output_folder),
                       accelerator=accelerator,
                       strategy=strategy,
                       max_epochs=1,
