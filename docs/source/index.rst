@@ -33,7 +33,6 @@ The `hi-ml` toolbox provides
 
    logging.md
    diagnostics.md
-   multi_node.md
 
 .. toctree::
    :maxdepth: 1
