@@ -5,6 +5,7 @@
     "hi-ml-azure"
   ],
   "exclude": [
+    "docs/source/examples/11",
     "hi-ml/testhiml/testhiml/utils/image_loading",
     "hi-ml/testhiml/testhiml/utils/slide_image_loading/src",
   ],

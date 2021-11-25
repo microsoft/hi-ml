@@ -74,9 +74,19 @@ class MNISTModel(LightningModule):
     def configure_optimizers(self):  # type: ignore
         return torch.optim.Adam(self.parameters(), lr=0.02)
 
+    ####################
+    # DATA RELATED HOOKS
+    ####################
+
+    def prepare_data(self):  # type: ignore
+        # download
+        MNIST(".", train=True, download=True)
+
+    def setup(self, stage=None):  # type: ignore
+        self.mnist_train = MNIST(".", train=True, transform=transforms.ToTensor())
+
     def train_dataloader(self):  # type: ignore
-        train_ds = MNIST(".", train=True, download=True, transform=transforms.ToTensor())
-        return DataLoader(train_ds, batch_size=32)
+        return DataLoader(self.mnist_train, batch_size=32)
 
 
 def main() -> None:
