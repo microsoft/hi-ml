@@ -138,7 +138,7 @@ def create_mock_logger() -> AzureMLLogger:
     """
     run_mock = MagicMock()
     with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value=run_mock):
-        return AzureMLLogger()
+        return AzureMLLogger(enable_logging_outside_azure_ml=True)
 
 
 def test_azureml_logger() -> None:
@@ -274,11 +274,12 @@ def test_azureml_logger_init1() -> None:
     # When running in AzureML, the RUN_CONTEXT should be used
     with mock.patch("health_ml.utils.logging.is_running_in_azure_ml", return_value=True):
         with mock.patch("health_ml.utils.logging.RUN_CONTEXT", "foo"):
-            logger = AzureMLLogger()
+            logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
             assert logger.is_running_in_azure_ml
             assert not logger.has_custom_run
             assert logger.run == "foo"
-            # We should be able to call finalize without any effect. When running in AzureML, the logger should not
+            # We should be able to call finalize without any effect (logger.run == "foo", which has no
+            # "Complete" method). When running in AzureML, the logger should not
             # modify the run in any way, and in particular not complete it.
             logger.finalize("nothing")
 
@@ -298,7 +299,7 @@ def test_azureml_logger_actual_run() -> None:
     """
     When running outside of AzureML, a new run should be created.
     """
-    logger = AzureMLLogger(workspace=DEFAULT_WORKSPACE.workspace)
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT
@@ -326,7 +327,8 @@ def test_azureml_logger_init4() -> None:
     # Check that all arguments are respected
     run_mock = MagicMock()
     with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value=run_mock) as mock_create:
-        logger = AzureMLLogger(experiment_name="exp",
+        logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
+                               experiment_name="exp",
                                run_name="run",
                                snapshot_directory="snapshot",
                                workspace="workspace",  # type: ignore

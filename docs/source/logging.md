@@ -36,7 +36,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 
 tb_logger = TensorBoardLogger("logs/")
-azureml_logger = AzureMLLogger()
+azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
 trainer = Trainer(logger=[tb_logger, azureml_logger])
 ```
 
@@ -56,8 +56,8 @@ All results that you achieve in such runs outside AzureML can be written straigh
 * When instantiated outside an AzureML run, it will create a new `Run` object that writes its metrics straight through
   to AzureML, even though the code is not running in AzureML.
 
-This behaviour is turned on by default. This means that you can use the same snippet of code to use the `AzureMLLogger`
-as described above, for both running inside and outside AzureML:
+This behaviour is controlled by the `enable_logging_outside_azure_ml` argument. With the following code snippet, 
+you can to use the `AzureMLLogger` to write metrics to AzureML when the code is inside or outside AzureML:
 
 ```python
 from health_ml.utils import AzureMLLogger
@@ -65,7 +65,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer
 
 tb_logger = TensorBoardLogger("logs/")
-azureml_logger = AzureMLLogger()
+azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
 trainer = Trainer(logger=[tb_logger, azureml_logger])
 ```
 
@@ -80,7 +80,7 @@ To check progress, visit this URL: https://ml.azure.com/runs/ed52cfac-1b85-42ea-
 Clicking on the URL will take you to the AzureML web page, where you can inspect the metrics that the run has written so
 far.
 
-There are a few points that you should note as well:
+There are a few points that you should note:
 
 **Experiments**: Each run in AzureML is associated with an experiment. When executed in an AzureML run,
 the `AzureMLLogger` will know which experiment to write to. Outside AzureML, on your VM, the logger will default to
@@ -96,7 +96,7 @@ from pytorch_lightning import Trainer
 experiment_name = "my_new_architecture"
 submit_to_azure_if_needed(compute_cluster_name="nd24",
                           experiment_name=experiment_name)
-azureml_logger = AzureMLLogger(experiment_name=experiment_name)
+azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=True, experiment_name=experiment_name)
 trainer = Trainer(logger=[azureml_logger])
 ```
 

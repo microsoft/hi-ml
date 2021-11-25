@@ -26,8 +26,9 @@ from health_azure.utils import PathOrString, RUN_CONTEXT, create_aml_run_object
 
 class AzureMLLogger(LightningLoggerBase):
     """
-    A Pytorch Lightning logger that stores metrics in the current AzureML run. If the present run is not
-    inside AzureML, nothing gets logged.
+    A Pytorch Lightning logger that stores metrics in the current AzureML run. This logger will always write metrics
+    to AzureML if the training run is executed in AzureML. It can optionally also write to AzureML if the training
+    run is executed somewhere else, for example on a VM outside of AzureML.
     """
 
     HYPERPARAMS_NAME = "hyperparams"
@@ -36,7 +37,7 @@ class AzureMLLogger(LightningLoggerBase):
     """
 
     def __init__(self,
-                 enable_logging_outside_azure_ml: bool = True,
+                 enable_logging_outside_azure_ml: bool,
                  experiment_name: str = "azureml_logger",
                  run_name: Optional[str] = None,
                  workspace: Optional[Workspace] = None,
@@ -45,7 +46,8 @@ class AzureMLLogger(LightningLoggerBase):
                  ) -> None:
         """
         :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
-        executed outside of an AzureML run (for example, when working on a separate virtual machine).
+        executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
+        the logger will only write metrics to AzureML if the code is actually running inside of AzureML.
         :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
         :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI). This
         argument only matters when running outside of AzureML.
