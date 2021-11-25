@@ -10,27 +10,76 @@ import operator
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Union
 
 import torch
+from azureml.core import Run, Workspace
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ProgressBarBase
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from health_azure import is_running_in_azure_ml
-from health_azure.utils import RUN_CONTEXT
+from health_azure.utils import PathOrString, RUN_CONTEXT, create_aml_run_object
 
 
 class AzureMLLogger(LightningLoggerBase):
     """
-    A Pytorch Lightning logger that stores metrics in the current AzureML run. If the present run is not
-    inside AzureML, nothing gets logged.
+    A Pytorch Lightning logger that stores metrics in the current AzureML run. This logger will always write metrics
+    to AzureML if the training run is executed in AzureML. It can optionally also write to AzureML if the training
+    run is executed somewhere else, for example on a VM outside of AzureML.
     """
 
-    def __init__(self) -> None:
+    HYPERPARAMS_NAME = "hyperparams"
+    """
+    The name under which hyperparameters are written to the AzureML run.
+    """
+
+    def __init__(self,
+                 enable_logging_outside_azure_ml: bool,
+                 experiment_name: str = "azureml_logger",
+                 run_name: Optional[str] = None,
+                 workspace: Optional[Workspace] = None,
+                 workspace_config_path: Optional[Path] = None,
+                 snapshot_directory: Optional[PathOrString] = None
+                 ) -> None:
+        """
+        :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
+        executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
+        the logger will only write metrics to AzureML if the code is actually running inside of AzureML.
+        :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
+        :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI). This
+        argument only matters when running outside of AzureML.
+        :param workspace: If provided, use this workspace to create the run in.
+        :param workspace_config_path: Use this path to read workspace configuration json file. If not provided,
+        use the workspace specified by the `config.json` file in the current working directory or its parents.
+        :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
+        is created. Set this to the folder that contains all the code your experiment uses. You can use a file
+        .amlignore to skip specific files or folders, akin to .gitignore..
+        """
         super().__init__()
         self.is_running_in_azure_ml = is_running_in_azure_ml()
+        self.run: Optional[Run] = None
+        self.has_custom_run = False
+        if self.is_running_in_azure_ml:
+            self.run = RUN_CONTEXT
+        elif enable_logging_outside_azure_ml:
+            try:
+                self.run = create_aml_run_object(experiment_name=experiment_name,
+                                                 run_name=run_name,
+                                                 workspace=workspace,
+                                                 workspace_config_path=workspace_config_path,
+                                                 snapshot_directory=snapshot_directory)
+                print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
+                print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
+                self.has_custom_run = True
+            except Exception:
+                logging.error("Unable to create an AzureML run to store the results.")
+                raise
+        else:
+            print("AzureMLLogger will not write any logs because it is running outside AzureML, and the "
+                  "'enable_logging_outside_azure_ml' flag is set to False")
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
@@ -43,33 +92,30 @@ class AzureMLLogger(LightningLoggerBase):
         :param step: The trainer global step for logging.
         """
         logging.debug(f"AzureMLLogger step={step}: {metrics}")
+        if self.run is None:
+            return
         is_epoch_metric = "epoch" in metrics
-        if self.is_running_in_azure_ml:
-            for key, value in metrics.items():
-                # Log all epoch-level metrics without the step information
-                # All step-level metrics with step
-                RUN_CONTEXT.log(key, value, step=None if is_epoch_metric else step)
+        for key, value in metrics.items():
+            # Log all epoch-level metrics without the step information
+            # All step-level metrics with step
+            self.run.log(key, value, step=None if is_epoch_metric else step)
 
     @rank_zero_only
     def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
         """
         Logs the given model hyperparameters to AzureML as a table. Namespaces are converted to dictionaries.
-        Nested dictionaries are flattened out.
+        Nested dictionaries are flattened out. The hyperparameters are then written as a table with two columns
+        "name" and "value".
         """
-        if not self.is_running_in_azure_ml:
+        if self.run is None:
             return
         if params is None:
             return
-        # Convert from Namespace to dictionary
-        params = self._convert_params(params)
-        # Convert nested dictionaries to folder-like structure
-        params = self._flatten_dict(params)
-        # Convert anything that is not a primitive type to str
-        params = self._sanitize_params(params)
-        if not isinstance(params, dict):
-            raise ValueError(f"Expected the hyperparameters to be a dictionary, but got {type(params)}")
-        if len(params) > 0:
-            RUN_CONTEXT.log_table("hyperparams", params)
+        params_final = self._preprocess_hyperparams(params)
+        if len(params_final) > 0:
+            # Log hyperparameters as a table with 2 columns. Each "step" is one hyperparameter
+            self.run.log_table(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
+                                                       "value": list(params_final.values())})
 
     def experiment(self) -> Any:
         return None
@@ -79,6 +125,29 @@ class AzureMLLogger(LightningLoggerBase):
 
     def version(self) -> int:
         return 0
+
+    def finalize(self, status: str) -> None:
+        if self.run is not None and self.has_custom_run:
+            # Run.complete should only be called if we created an AzureML run here in the constructor.
+            self.run.complete()
+
+    def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
+        """
+        Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
+        Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
+        All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
+        :param params: The parameters to convert
+        :return: A dictionary mapping from string to string.
+        """
+        # Convert from Namespace to dictionary
+        params = self._convert_params(params)
+        # Convert nested dictionaries to folder-like structure
+        params = self._flatten_dict(params)
+        # Convert anything that is not a primitive type to str
+        params_final = self._sanitize_params(params)
+        if not isinstance(params_final, dict):
+            raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
+        return {str(key): str(value) for key, value in params_final.items()}
 
 
 class AzureMLProgressBar(ProgressBarBase):

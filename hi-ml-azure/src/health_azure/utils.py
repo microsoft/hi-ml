@@ -9,17 +9,17 @@ import hashlib
 import json
 import logging
 import os
-
-import pandas as pd
-import param
 import re
+import tempfile
 from argparse import ArgumentParser, OPTIONAL
 from collections import defaultdict
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple, Type, TypeVar, Union, Set
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import conda_merge
+import pandas as pd
+import param
 import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
@@ -500,7 +500,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
     Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
     the PYTHONPATH root (defaults to stopping).
 
-    :param file_name: The fine name of the file to find.
+    :param file_name: The file name of the file to find.
     :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
     :return: The path to the file, or None if it cannot be found.
     """
@@ -510,9 +510,10 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             file_name: str,
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
-        for child in start_at.iterdir():
-            if child.is_file() and child.name == file_name:
-                return child
+        logging.debug(f"Searching for file {file_name} in {start_at}")
+        expected = start_at / file_name
+        if expected.is_file() and expected.name == file_name:
+            return expected
         if start_at.parent == start_at or start_at in pythonpaths:
             return None
         return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
@@ -1381,3 +1382,80 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
             downloaded_file_paths.append(str(downloaded_file_path))
 
     return downloaded_file_paths
+
+
+def create_aml_run_object(experiment_name: str,
+                          run_name: Optional[str] = None,
+                          workspace: Optional[Workspace] = None,
+                          workspace_config_path: Optional[Path] = None,
+                          snapshot_directory: Optional[PathOrString] = None) -> Run:
+    """
+    Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
+    This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
+    AzureML. After finishing all operations, use `run.flush()` to write metrics to the cloud, and `run.complete()` or
+    `run.fail()`.
+
+    Example:
+    >>>run = create_aml_run_object(experiment_name="run_on_my_vm", run_name="try1")
+    >>>run.log("foo", 1.23)
+    >>>run.flush()
+    >>>run.complete()
+
+    :param experiment_name: The AzureML experiment that should hold the run that will be created.
+    :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI)
+    :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
+        specified by the `config.json` file in the folder or its parent folder(s).
+    :param workspace_config_path: If not provided with an AzureML workspace, then load one given the information in this
+        config file.
+    :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
+        is created (snapshot_directory=None or snapshot_directory=""). Set this to the folder that contains all the
+        code your experiment uses. You can use a file .amlignore to skip specific files or folders, akin to .gitignore
+    :return: An AzureML Run object.
+    """
+    actual_workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
+    exp = Experiment(workspace=actual_workspace, name=experiment_name)
+    if snapshot_directory is None or snapshot_directory == "":
+        snapshot_directory = tempfile.mkdtemp()
+    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+
+
+def aml_workspace_for_unittests() -> Workspace:
+    """
+    Gets the default AzureML workspace that is used for unit testing. It first tries to locate a workspace config.json
+    file in the present folder or its parents, and create a workspace from that if found. If no config.json file
+    is found, the workspace details are read from environment variables. Authentication information is also read
+    from environment variables.
+    """
+    config_json = _find_file(WORKSPACE_CONFIG_JSON)
+    if config_json is not None:
+        return Workspace.from_config(path=str(config_json))
+    else:
+        workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=False)
+        subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=False)
+        resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=False)
+        auth = get_authentication()
+        return Workspace.get(name=workspace_name,
+                             auth=auth,
+                             subscription_id=subscription_id,
+                             resource_group=resource_group)
+
+
+class UnitTestWorkspaceWrapper:
+    """
+    Wrapper around aml_workspace so that it is lazily loaded only once. Used for unit testing only.
+    """
+
+    def __init__(self) -> None:
+        """
+        Init.
+        """
+        self._workspace: Workspace = None
+
+    @property
+    def workspace(self) -> Workspace:
+        """
+        Lazily load the aml_workspace.
+        """
+        if self._workspace is None:
+            self._workspace = aml_workspace_for_unittests()
+        return self._workspace

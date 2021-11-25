@@ -19,7 +19,7 @@ from azureml.exceptions._azureml_exception import UserErrorException
 
 from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, get_datastore, get_or_create_dataset)
-from testazure.util import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
+from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
 
 
 def test_datasetconfig_init() -> None:
