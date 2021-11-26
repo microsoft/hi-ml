@@ -49,15 +49,3 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
 
     def __len__(self) -> int:
         return len(self.base_dataset)
-
-
-# class TcgaCrck_TilesDatasetWithReturnIndex(InnerEyeDataClassBaseWithReturnIndex,
-#                                            TcgaCrck_TilesDatasetReturnImageLabel):
-#     """
-#     Any dataset used in SSL needs to inherit from InnerEyeDataClassBaseWithReturnIndex as well as VisionData.
-#     This class is just a shorthand notation for this double inheritance. Please note that this class needs
-#     to override __getitem__(), this is why we need a separate PandaTilesDatasetReturnImageLabel.
-#     """
-#     @property
-#     def num_classes(self) -> int:
-#         return 2

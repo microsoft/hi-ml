@@ -4,7 +4,6 @@ from typing import Any, Callable, Optional, Tuple, Union
 import pandas as pd
 from torchvision.datasets.vision import VisionDataset
 
-# from InnerEye.ML.SSL.datamodules_and_datasets.dataset_cls_utils import InnerEyeDataClassBaseWithReturnIndex
 from health_ml.data.histopathology.datasets.base_dataset import TilesDataset
 from health_ml.models.histopathology.transforms import load_pil_image
 
@@ -63,14 +62,3 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
 
     def __len__(self) -> int:
         return len(self.base_dataset)
-
-
-# class PandaTilesDatasetWithReturnIndex(InnerEyeDataClassBaseWithReturnIndex, PandaTilesDatasetReturnImageLabel):
-#     """
-#     Any dataset used in SSL needs to inherit from InnerEyeDataClassBaseWithReturnIndex as well as VisionData.
-#     This class is just a shorthand notation for this double inheritance. Please note that this class needs
-#     to override __getitem__(), this is why we need a separate PandaTilesDatasetReturnImageLabel.
-#     """
-#     @property
-#     def num_classes(self) -> int:
-#         return 2
