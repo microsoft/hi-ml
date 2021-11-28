@@ -1213,6 +1213,65 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
     return runs
 
 
+class CheckpointDownloader:
+    def __init__(self, run_id: str, checkpoint_filename: str,  azure_config_json_path: Path = None,
+                 aml_workspace: Workspace = None, download_dir: PathOrString = "checkpoints",
+                 remote_checkpoint_folder: PathOrString = "checkpoints") -> None:
+        """
+        Utility class for downloading checkpoint files from an Azure ML run
+
+        :param run_id: Recovery ID of the run from which to load the checkpoint.
+        :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
+        `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
+        :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
+            experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
+            is required.
+        :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
+            azure_config_json_path is provided, this is required.
+        :param download_dir: The local directory in which to save the downloaded checkpoint files.
+        :param remote_checkpoint_folder: The remote folder from which to download the checkpoint file
+        """
+        self.azure_config_json_path = azure_config_json_path
+        self.aml_workspace = aml_workspace
+        self.run_recovery_id = run_id
+        self.checkpoint_filename = checkpoint_filename
+        self.download_dir = Path(download_dir)
+        self.remote_checkpoint_folder = remote_checkpoint_folder
+
+    @property
+    def local_checkpoint_path(self) -> Path:
+        return self.download_dir / self.run_recovery_id.split(":")[1] / self.checkpoint_filename
+
+    @property
+    def remote_checkpoint_path(self) -> Path:
+        return self.remote_checkpoint_folder / self.checkpoint_filename
+
+    def download_checkpoint_if_necessary(self) -> Path:
+        """Downloads the specified checkpoint if it does not already exist.
+
+        :return: The local path to the downloaded checkpoint file.
+        """
+        if is_running_in_azure_ml():
+            workspace = RUN_CONTEXT.experiment.workspace
+        else:
+            workspace = get_workspace(aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
+
+        # self.run = fetch_run(workspace=workspace, run_recovery_id=self.run_recovery_id)
+
+
+        if not self.local_checkpoint_path.exists():
+            local_checkpoint_dir = self.local_checkpoint_path.parent
+            local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+            # _download_file_from_run(run=self.run, filename=str(self.remote_checkpoint_path),
+            #                                    output_file=local_checkpoint_dir, validate_checksum=True)
+
+            download_checkpoints_from_run_id(self.srun_id, self.remote_checkpoint_path, local_checkpoint_dir,
+                                             aml_workspace=workspace)
+            assert self.local_checkpoint_path.exists()
+
+        return self.local_checkpoint_path
+
+
 def download_checkpoints_from_run_id(run_id: str, checkpoint_path_or_folder: str, output_folder: Path,
                                      aml_workspace: Optional[Workspace] = None,
                                      workspace_config_path: Optional[Path] = None) -> None:

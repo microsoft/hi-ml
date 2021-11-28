@@ -33,6 +33,7 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 import health_azure.utils as util
 from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from health_azure.utils import CheckpointDownloader
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.util import (DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun,
                             DEFAULT_IGNORE_FOLDERS)
@@ -963,6 +964,19 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str
                 assert script_config.run == [run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
             else:
                 assert script_config.run == [run_id]
+
+
+def test_checkpoint_download(tmp_path: Path) -> None:
+    # TODO: Create run to recover checkpoint from
+    assert 1 == 0 # Fail so we don't accidentally merge before fixing :)
+    downloader = CheckpointDownloader(
+        aml_workspace=DEFAULT_WORKSPACE.workspace,
+        run_recovery_id="vsalva_ssl_crck:vsalva_ssl_crck_1630691119_af10db8a",
+        checkpoint_filename="best_checkpoint.ckpt",
+        download_dir=tmp_path / "downloads"
+    )
+    checkpoint_path = downloader.download_checkpoint_if_necessary()
+    assert checkpoint_path.is_file()
 
 
 @patch("health_azure.utils.download_files_from_run_id")
