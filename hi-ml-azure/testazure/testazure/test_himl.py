@@ -687,7 +687,7 @@ def render_and_run_test_script(path: Path,
 
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
-        if run.status not in ["Failed", "Completed"]:
+        if run.status not in ["Failed", "Completed", "Cancelled"]:
             run.wait_for_completion()
         assert run.status == "Completed"
         log_root = path / "logs"

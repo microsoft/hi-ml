@@ -777,45 +777,47 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
 
 
 def test_download_run_file_during_run(tmp_path: Path) -> None:
-    # This test will create a Run in your workspace (using only local compute)
+    """
+    Test if we can download files from a run, when executing inside AzureML. This should not require any additional
+    information about the workspace to use, but pick up the current workspace.
+    """
+    # Create a run that contains a simple txt file
+    experiment_name = "himl-tests"
+    run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name)
+    file_contents = "Hello World!"
+    file_name = "hello.txt"
+    full_file_path = tmp_path / file_name
+    full_file_path.write_text(file_contents)
+    run_to_download_from.upload_file(file_name, str(full_file_path))
+    run_to_download_from.complete()
 
-    expected_file_path = tmp_path / "azureml-logs"
-    # Check that at first the path to downloaded logs doesnt exist (will be created by the later test script)
-    assert not expected_file_path.exists()
+    # Now create an AzureML run with a simple script that uses that file. The script will download the file,
+    # where the download is should pick up the workspace from the current AML run.
+    script_body = ""
+    script_body += f"run_id = '{run_to_download_from.id}'\n"
+    script_body += f"    file_name = '{file_name}'\n"
+    script_body += f"    file_contents = '{file_contents}'\n"
+    script_body += """
+    output_path = Path("outputs")
+    output_path.mkdir(exist_ok=True)
 
-    ws = DEFAULT_WORKSPACE.workspace
-
-    # call the script here
+    download_files_from_run_id(run_id, output_path, prefix=file_name)
+    full_file_path = output_path / file_name
+    actual_contents = full_file_path.read_text().strip()
+    print(f"{actual_contents}")
+    assert actual_contents == file_contents
+"""
     extra_options = {
         "imports": """
 import sys
+from pathlib import Path
 from azureml.core import Run
-from health_azure.utils import _download_files_from_run""",
-        "args": """
-    parser.add_argument("--output_path", type=str, required=True)
-        """,
-        "body": """
-    output_path = Path(args.output_path)
-    output_path.mkdir(exist_ok=True)
-
-    run_ctx = Run.get_context()
-    available_files = run_ctx.get_file_names()
-    print(f"available files: {available_files}")
-    first_file_name = available_files[0]
-    output_file_path = output_path / first_file_name
-
-    _download_files_from_run(run_ctx, output_path, prefix=first_file_name)
-
-    print(f"Downloaded file {first_file_name} to location {output_file_path}")
-        """
+from health_azure.utils import download_files_from_run_id""",
+        "body": script_body
     }
-
-    extra_args = ["--output_path", 'outputs']
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-
-    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                   workspace=ws)
-    assert run.status == "Completed"
+    # Run the script locally first, then in the cloud.
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:
