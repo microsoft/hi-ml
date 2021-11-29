@@ -971,7 +971,7 @@ def test_checkpoint_download(tmp_path: Path) -> None:
     assert 1 == 0 # Fail so we don't accidentally merge before fixing :)
     downloader = CheckpointDownloader(
         aml_workspace=DEFAULT_WORKSPACE.workspace,
-        run_recovery_id="vsalva_ssl_crck:vsalva_ssl_crck_1630691119_af10db8a",
+        run_id="vsalva_ssl_crck:vsalva_ssl_crck_1630691119_af10db8a",
         checkpoint_filename="best_checkpoint.ckpt",
         download_dir=tmp_path / "downloads"
     )

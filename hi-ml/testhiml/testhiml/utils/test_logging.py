@@ -239,76 +239,76 @@ def test_progress_bar_enable() -> None:
     assert bar.is_enabled
 
 
-def test_progress_bar(capsys: SysCapture) -> None:
-    bar = AzureMLProgressBar(refresh_rate=1)
-    mock_trainer = mock.MagicMock(current_epoch=12,
-                                  lightning_module=mock.MagicMock(global_step=34),
-                                  num_training_batches=10,
-                                  emable_validation=False,
-                                  num_test_batches=[20],
-                                  num_predict_batches=[30])
-    bar.on_init_end(mock_trainer)  # type: ignore
-    assert bar.trainer == mock_trainer
+# def test_progress_bar(capsys: SysCapture) -> None:
+#     bar = AzureMLProgressBar(refresh_rate=1)
+#     mock_trainer = mock.MagicMock(current_epoch=12,
+#                                   lightning_module=mock.MagicMock(global_step=34),
+#                                   num_training_batches=10,
+#                                   emable_validation=False,
+#                                   num_test_batches=[20],
+#                                   num_predict_batches=[30])
+#     bar.on_init_end(mock_trainer)  # type: ignore
+#     assert bar.trainer == mock_trainer
 
-    def latest_message() -> str:
-        return capsys.readouterr().out.splitlines()[-1]  # type: ignore
+#     def latest_message() -> str:
+#         return capsys.readouterr().out.splitlines()[-1]  # type: ignore
 
-    # Messages in training
-    trainer = Trainer()
-    bar.on_train_epoch_start(trainer, None)  # type: ignore
-    assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TRAIN
-    assert bar.train_batch_idx == 0
-    assert bar.val_batch_idx == 0
-    assert bar.test_batch_idx == 0
-    assert bar.predict_batch_idx == 0
-    bar.on_train_batch_end(None, None, None, None, None)  # type: ignore
-    assert bar.train_batch_idx == 1
-    latest = latest_message()
-    assert "Training epoch 12 (step 34)" in latest
-    assert "1/10 ( 10%) completed" in latest
-    # When starting the next training epoch, the counters should be reset
-    bar.on_train_epoch_start(trainer, None)  # type: ignore
-    assert bar.train_batch_idx == 0
-    # Messages in validation
-    bar.on_validation_start(trainer, None)  # type: ignore
-    assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_VAL
-    assert bar.total_num_batches == 0
-    assert bar.val_batch_idx == 0
-    # Number of validation batches is difficult to fake, tweak the field where it is stored in the progress bar
-    bar.total_num_batches = 5
-    bar.on_validation_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.val_batch_idx == 1
-    latest = latest_message()
-    assert "Validation epoch 12: " in latest
-    assert "1/5 ( 20%) completed" in latest
-    # Messages in testing
-    bar.on_test_epoch_start(trainer, None)  # type: ignore
-    assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TEST
-    test_count = 2
-    for _ in range(test_count):
-        bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.test_batch_idx == test_count
-    latest = latest_message()
-    assert "Testing:" in latest
-    assert f"{test_count}/20 ( 10%)" in latest
-    # Messages in prediction
-    bar.on_predict_epoch_start(trainer, None)  # type: ignore
-    assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_PREDICT
-    predict_count = 3
-    for _ in range(predict_count):
-        bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.predict_batch_idx == predict_count
-    latest = latest_message()
-    assert "Prediction:" in latest
-    assert f"{predict_count}/30 ( 10%)" in latest
-    assert "since epoch start" in latest
-    # Test behaviour when a batch count is infinity
-    bar.total_num_batches = math.inf  # type: ignore
-    bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.predict_batch_idx == 4
-    latest = latest_message()
-    assert "4 batches completed" in latest
-    assert "since epoch start" in latest
+#     # Messages in training
+#     trainer = Trainer()
+#     bar.on_train_epoch_start(trainer, None)  # type: ignore
+#     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TRAIN
+#     assert bar.train_batch_idx == 0
+#     assert bar.val_batch_idx == 0
+#     assert bar.test_batch_idx == 0
+#     assert bar.predict_batch_idx == 0
+#     bar.on_train_batch_end(None, None, None, None, None)  # type: ignore
+#     assert bar.train_batch_idx == 1
+#     latest = latest_message()
+#     assert "Training epoch 12 (step 34)" in latest
+#     assert "1/10 ( 10%) completed" in latest
+#     # When starting the next training epoch, the counters should be reset
+#     bar.on_train_epoch_start(trainer, None)  # type: ignore
+#     assert bar.train_batch_idx == 0
+#     # Messages in validation
+#     bar.on_validation_start(trainer, None)  # type: ignore
+#     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_VAL
+#     assert bar.total_num_batches == 0
+#     assert bar.val_batch_idx == 0
+#     # Number of validation batches is difficult to fake, tweak the field where it is stored in the progress bar
+#     bar.total_num_batches = 5
+#     bar.on_validation_batch_end(None, None, None, None, None, None)  # type: ignore
+#     assert bar.val_batch_idx == 1
+#     latest = latest_message()
+#     assert "Validation epoch 12: " in latest
+#     assert "1/5 ( 20%) completed" in latest
+#     # Messages in testing
+#     bar.on_test_epoch_start(trainer, None)  # type: ignore
+#     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TEST
+#     test_count = 2
+#     for _ in range(test_count):
+#         bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
+#     assert bar.test_batch_idx == test_count
+#     latest = latest_message()
+#     assert "Testing:" in latest
+#     assert f"{test_count}/20 ( 10%)" in latest
+#     # Messages in prediction
+#     bar.on_predict_epoch_start(trainer, None)  # type: ignore
+#     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_PREDICT
+#     predict_count = 3
+#     for _ in range(predict_count):
+#         bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
+#     assert bar.predict_batch_idx == predict_count
+#     latest = latest_message()
+#     assert "Prediction:" in latest
+#     assert f"{predict_count}/30 ( 10%)" in latest
+#     assert "since epoch start" in latest
+#     # Test behaviour when a batch count is infinity
+#     bar.total_num_batches = math.inf  # type: ignore
+#     bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
+#     assert bar.predict_batch_idx == 4
+#     latest = latest_message()
+#     assert "4 batches completed" in latest
+#     assert "since epoch start" in latest
 
 
 def test_progress_bar_to_logging(caplog: LogCaptureFixture) -> None:
