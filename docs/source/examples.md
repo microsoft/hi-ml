@@ -372,3 +372,17 @@ this case, the DataFrame will contain a string representing the path to the arti
     |                | 0                                       | 1                                     |
     |----------------|-----------------------------------------|---------------------------------------|
     | accuracy_plot  | aml://artifactId/ExperimentRun/dcid.... | aml://artifactId/ExperimentRun/dcid...|
+
+
+## Modifying checkpoints stored in an AzureML run
+
+The script in [examples/modify_checkpoint/modify_checkpoint.py](examples/modify_checkpoint/modify_checkpoint.rst)
+shows how checkpoints can be downloaded from an AzureML run, modified, and the uploaded back to a newly created run.
+
+
+The essential bits are:
+* Downloading files from a run via `download_files_from_run_id`
+* Modifying the checkpoints
+* Creating a new run via `create_aml_run_object`
+* Then use `Run.upload_folder` to upload all modified checkpoints to that new run. From there, they can be consumed
+  in a follow-up training run again via `download_files_from_run_id`
