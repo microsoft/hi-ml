@@ -31,7 +31,6 @@ from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
-from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
@@ -783,18 +782,25 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     """
     # Create a run that contains a simple txt file
     experiment_name = "himl-tests"
-    run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name)
+    run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name,
+                                                      workspace=DEFAULT_WORKSPACE.workspace)
     file_contents = "Hello World!"
     file_name = "hello.txt"
     full_file_path = tmp_path / file_name
     full_file_path.write_text(file_contents)
     run_to_download_from.upload_file(file_name, str(full_file_path))
     run_to_download_from.complete()
+    run_id = run_to_download_from.id
+
+    # Test if we can retrieve the run directly from the workspace. This tests for a bug in an earlier version
+    # of the code where run IDs as those created from runs outside AML were not recognized
+    run_2 = util.get_aml_run_from_run_id(run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
+    assert run_2.id == run_id
 
     # Now create an AzureML run with a simple script that uses that file. The script will download the file,
     # where the download is should pick up the workspace from the current AML run.
     script_body = ""
-    script_body += f"run_id = '{run_to_download_from.id}'\n"
+    script_body += f"run_id = '{run_id}'\n"
     script_body += f"    file_name = '{file_name}'\n"
     script_body += f"    file_contents = '{file_contents}'\n"
     script_body += """

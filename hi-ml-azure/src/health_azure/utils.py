@@ -475,24 +475,21 @@ def is_private_field_name(name: str) -> bool:
 
 def determine_run_id_type(run_or_recovery_id: str) -> str:
     """
-    Determine whether a run id is of type "run id" or "run recovery id". This distinction is made
-    by checking for telltale patterns within the string. Run recovery ideas take the form "experiment_name:run_id"
-    whereas run_ids follow the pattern of a mixture of strings and decimals, separated by underscores. If the input
+    Determine whether a run id is of type "run id" or "run recovery id". Run recovery ideas take the form
+    "experiment_name:run_id". If the input
     string takes the format of a run recovery id, only the run id part will be returned. If it is a run id already,
-    it will be returned without transformation. If neither, a ValueError is raised.
+    it will be returned without transformation.
 
     :param run_or_recovery_id: The id to determine as either a run id or a run recovery id
     :return: A string representing the run id
     """
     if run_or_recovery_id is None:
         raise ValueError("Expected run_id or run_recovery_id but got None")
-    elif len(run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)) > 1:
+    parts = run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)
+    if len(parts) > 1:
         # return only the run_id, which comes after the colon
-        return run_or_recovery_id.split(EXPERIMENT_RUN_SEPARATOR)[1]
-    elif re.search(r"\d", run_or_recovery_id) and re.search('_', run_or_recovery_id):
-        return run_or_recovery_id
-    else:
-        raise ValueError("Unknown run type. Expected run_id or run_recovery id")
+        return parts[1]
+    return run_or_recovery_id
 
 
 def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
@@ -565,7 +562,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
 
 def create_run_recovery_id(run: Run) -> str:
     """
-   Creates an recovery id for a run so it's checkpoints could be recovered for training/testing
+   Creates a unique ID for a run, from which the experiment recovery id for a run so it's checkpoints could be recovered for training/testing
 
    :param run: an instantiated run.
    :return: recovery id for a given run in format: [experiment name]:[run id]
