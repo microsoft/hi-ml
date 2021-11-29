@@ -562,7 +562,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
 
 def create_run_recovery_id(run: Run) -> str:
     """
-   Creates a unique ID for a run, from which the experiment recovery id for a run so it's checkpoints could be recovered for training/testing
+    Creates a unique ID for a run, from which the experiment name and the run ID can be re-created
 
    :param run: an instantiated run.
    :return: recovery id for a given run in format: [experiment name]:[run id]

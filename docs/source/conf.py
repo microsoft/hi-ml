@@ -28,7 +28,6 @@ project = 'hi-ml'
 copyright = '2021, InnerEye'
 author = 'InnerEye'
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -42,8 +41,7 @@ extensions = [
     'sphinx_automodapi.automodapi',
     'sphinx_autodoc_typehints',
     'sphinx.ext.viewcode',
-    ]
-
+]
 
 numpydoc_show_class_members = False
 
@@ -59,7 +57,6 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
 
 # -- Options for HTML output -------------------------------------------------
 

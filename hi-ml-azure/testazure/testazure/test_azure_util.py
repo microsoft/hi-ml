@@ -821,8 +821,10 @@ from azureml.core import Run
 from health_azure.utils import download_files_from_run_id""",
         "body": script_body
     }
-    # Run the script locally first, then in the cloud.
+    # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
+    # config.json file, in AzureML runs it should be read off the run context.
     render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    print("Local run finished")
     render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 

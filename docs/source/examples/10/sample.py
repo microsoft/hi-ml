@@ -12,11 +12,10 @@ from pathlib import Path
 import numpy as np
 from azureml.core.run import Run
 
-from health_azure import submit_to_azure_if_needed, create_crossval_hyperdrive_config, get_workspace
+from health_azure import create_crossval_hyperdrive_config, submit_to_azure_if_needed
 
 
 def main() -> None:
-
     num_cross_validation_splits = 2
     metric_name = "val/loss"
     hyperdrive_config = create_crossval_hyperdrive_config(num_cross_validation_splits,
@@ -34,7 +33,7 @@ def main() -> None:
         tags=tags,
         hyperdrive_config=hyperdrive_config,
         submit_to_azureml=True
-        )
+    )
 
     if run_info.run is None:
         raise ValueError("run_info.run is None")
@@ -48,8 +47,7 @@ def main() -> None:
                         help='Penalty parameter of the error term')
     parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
                                                                "run represents in k-fold cross-validation")
-    parser.add_argument("--num_splits", help="The total number of splits being used for k-fold"
-                                                              "cross validation")
+    parser.add_argument("--num_splits", help="The total number of splits being used for k-fol cross validation")
 
     args = parser.parse_args()
     run.log('Kernel type', args.kernel)
