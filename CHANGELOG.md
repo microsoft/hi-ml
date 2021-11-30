@@ -10,6 +10,20 @@ For each Pull Request, the affected code parts should be briefly described and a
 release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
 the section headers (Added/Changed/...) and incrementing the package version.
 
+## 0.1.13
+
+### Added
+
+### Changed
+
+### Fixed
+- ([#169](https://github.com/microsoft/hi-ml/pull/169)) Fix a test that was failing occasionally
+
+### Removed
+
+### Deprecated
+
+
 ## 0.1.12
 
 ### Added

@@ -63,6 +63,13 @@ def change_working_directory(path_or_str: Path) -> Generator:
     os.chdir(old_path)
 
 
+def get_shared_config_json() -> Path:
+    """
+    Gets the path to the config.json file that should exist for running tests locally (outside github build agents).
+    """
+    return repository_root() / "hi-ml-azure" / "testazure" / WORKSPACE_CONFIG_JSON
+
+
 @contextmanager
 def check_config_json(script_folder: Path) -> Generator:
     """
@@ -70,20 +77,27 @@ def check_config_json(script_folder: Path) -> Generator:
     from the repository root folder (this should be the case when executing a test on a dev machine), or create
     it from environment variables (this should trigger in builds on the github agents).
     """
-    shared_config_json = repository_root() / WORKSPACE_CONFIG_JSON
+    shared_config_json = get_shared_config_json()
     target_config_json = script_folder / WORKSPACE_CONFIG_JSON
     if shared_config_json.exists():
         logging.info(f"Copying {WORKSPACE_CONFIG_JSON} from repository root to folder {script_folder}")
         shutil.copy(shared_config_json, target_config_json)
     else:
         logging.info(f"Creating {str(target_config_json)} from environment variables.")
-        with open(str(target_config_json), 'w', encoding="utf-8") as file:
-            config = {
-                "subscription_id": os.getenv(ENV_SUBSCRIPTION_ID, ""),
-                "resource_group": os.getenv(ENV_RESOURCE_GROUP, ""),
-                "workspace_name": os.getenv(ENV_WORKSPACE_NAME, "")
-            }
-            json.dump(config, file)
+        subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
+        resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
+        workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
+        if subscription_id and resource_group and workspace_name:
+            with open(str(target_config_json), 'w', encoding="utf-8") as file:
+                config = {
+                    "subscription_id": os.getenv(ENV_SUBSCRIPTION_ID, ""),
+                    "resource_group": os.getenv(ENV_RESOURCE_GROUP, ""),
+                    "workspace_name": os.getenv(ENV_WORKSPACE_NAME, "")
+                }
+                json.dump(config, file)
+        else:
+            raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
+                             "workspace creation must exist.")
     try:
         yield
     finally:
