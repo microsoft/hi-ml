@@ -396,7 +396,6 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
 ) -> None:
-    just_conda_str_env_name = "HealthML-6555b3cfac0b3ee24349701f07dad394"
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
@@ -421,7 +420,8 @@ dependencies:
     assert "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC" in env.environment_variables
     assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
     assert "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE" in env.environment_variables
-    assert env.name == just_conda_str_env_name
+    # Just check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
+    assert env.name.startswith("HealthML")
 
     pip_extra_index_url = "https://where.great.packages.live/"
     docker_base_image = "viennaglobal.azurecr.io/azureml/azureml_a187a87cc7c31ac4d9f67496bc9c8239"
@@ -430,8 +430,9 @@ dependencies:
         pip_extra_index_url=pip_extra_index_url,
         docker_base_image=docker_base_image,
         environment_variables={"HELLO": "world"})
+    # Environment variables should be added to the default ones
     assert "HELLO" in env.environment_variables
-    assert env.name != just_conda_str_env_name
+    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
     assert env.docker.base_image == docker_base_image
 
     private_pip_wheel_url = "https://some.blob/private/wheel"
@@ -445,13 +446,80 @@ dependencies:
     assert "hi-ml-azure" in envs_pip_packages
     assert private_pip_wheel_url in envs_pip_packages
 
-    private_pip_wheel_path = Path("a_file_that_does_not.exist")
-    with pytest.raises(FileNotFoundError) as e:
-        _ = util.create_python_environment(
+
+def test_create_environment_unique_name(random_folder: Path) -> None:
+    """
+    Test if the name of the conda environment changes with each of the components
+    """
+    conda_str1 = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str1)
+    env1 = util.create_python_environment(conda_environment_file=conda_environment_file)
+
+    # Changing the contents of the conda file should create a new environment names
+    conda_str2 = """name: simple-env
+dependencies:
+  - pip=20.1.1
+"""
+    assert conda_str1 != conda_str2
+    conda_environment_file.write_text(conda_str2)
+    env2 = util.create_python_environment(conda_environment_file=conda_environment_file)
+    assert env1.name != env2.name
+
+    # Using a different PIP index URL can lead to different package resolution, so this should change name too
+    env3 = util.create_python_environment(conda_environment_file=conda_environment_file,
+                                          pip_extra_index_url="foo")
+    assert env3.name != env2.name
+
+    # Environment variables
+    env4 = util.create_python_environment(conda_environment_file=conda_environment_file,
+                                          environment_variables={"foo": "bar"})
+    assert env4.name != env2.name
+
+    # Docker base image
+    env5 = util.create_python_environment(conda_environment_file=conda_environment_file,
+                                          docker_base_image="docker")
+    assert env5.name != env2.name
+
+    # PIP wheel
+    with mock.patch("health_azure.utils.Environment") as mock_environment:
+        mock_environment.add_private_pip_wheel.return_value = "private_pip_wheel_url"
+        env6 = util.create_python_environment(
             conda_environment_file=conda_environment_file,
-            workspace=mock_workspace,
-            private_pip_wheel_path=private_pip_wheel_path)
-    assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
+            workspace=DEFAULT_WORKSPACE.workspace,
+            private_pip_wheel_path=Path(__file__))
+        assert env6.name != env2.name
+
+    all_names = [env1.name, env2.name, env3.name, env4.name, env5.name, env6.name]
+    all_names_set = {*all_names}
+    assert len(all_names) == len(all_names_set), "Environment names are not unique"
+
+
+def test_create_environment_wheel_fails(random_folder: Path) -> None:
+    """
+    Test if all necessary checks are carried out when adding private wheels to an environment.
+    """
+    conda_str = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str)
+    # Wheel file does not exist at all:
+    with pytest.raises(FileNotFoundError) as ex:
+        util.create_python_environment(conda_environment_file=conda_environment_file,
+                                       private_pip_wheel_path=Path("does_not_exist"))
+        assert "Cannot add private wheel" in str(ex)
+    # Wheel exists, but no workspace provided:
+    with pytest.raises(ValueError) as ex:
+        util.create_python_environment(conda_environment_file=conda_environment_file,
+                                       private_pip_wheel_path=Path(__file__))
+        assert "AzureML workspace must be provided" in str(ex)
 
 
 class MockEnvironment:
