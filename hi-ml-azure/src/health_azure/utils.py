@@ -751,16 +751,16 @@ def create_python_environment(conda_environment_file: Path,
                               docker_base_image: str = "",
                               environment_variables: Optional[Dict[str, str]] = None) -> Environment:
     """
-    Creates a description for the Python execution environment in AzureML, based on the Conda environment
-    definition files that are specified in `source_config`. If such environment with this Conda environment already
-    exists, it is retrieved, otherwise created afresh.
+    Creates a description for the Python execution environment in AzureML, based on the arguments.
+    The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
+    Conda file, the docker base image, environment variables and private wheels.
 
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
         the Docker image.
     :param workspace: The AzureML workspace to work in, required if private_pip_wheel_path is supplied.
-    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML environment.
     :param conda_environment_file: The file that contains the Conda environment definition.
     """
     conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
@@ -789,8 +789,18 @@ def create_python_environment(conda_environment_file: Path,
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
-    # hash function gives different results for the same string in different python instances.
-    hash_string = "\n".join([yaml_contents, docker_base_image, str(environment_variables)])
+    hash_string = "\n".join([yaml_contents,
+                             docker_base_image,
+                             # Changing the index URL can lead to differences in package version resolution
+                             pip_extra_index_url,
+                             str(environment_variables),
+                             # Use the path of the private wheel as a proxy. This could lead to problems if
+                             # a new environment uses the same private wheel file name, but the wheel has different
+                             # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
+                             # should not occur there.
+                             str(private_pip_wheel_path)])
+    # Python's hash function gives different results for the same string in different python instances,
+    # hence need to use hashlib
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
     overall_hash = sha1.hexdigest()[:32]
     unique_env_name = f"HealthML-{overall_hash}"
