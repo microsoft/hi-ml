@@ -511,15 +511,15 @@ dependencies:
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str)
     # Wheel file does not exist at all:
-    with pytest.raises(FileNotFoundError) as ex:
+    with pytest.raises(FileNotFoundError) as ex1:
         util.create_python_environment(conda_environment_file=conda_environment_file,
                                        private_pip_wheel_path=Path("does_not_exist"))
-        assert "Cannot add private wheel" in str(ex)
+        assert "Cannot add private wheel" in str(ex1)
     # Wheel exists, but no workspace provided:
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError) as ex2:
         util.create_python_environment(conda_environment_file=conda_environment_file,
                                        private_pip_wheel_path=Path(__file__))
-        assert "AzureML workspace must be provided" in str(ex)
+        assert "AzureML workspace must be provided" in str(ex2)
 
 
 class MockEnvironment:

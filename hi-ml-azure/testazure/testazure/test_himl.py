@@ -796,11 +796,8 @@ def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     extra_args: List[str] = []
     with mock.patch.dict(os.environ, {"HIML_AZURE_WHEEL_FILENAME": 'not_a_known_file.whl'}):
         output = render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
-    error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
-    error_message_end = "not_a_known_file.whl, it is not a file."
-
+    error_message_begin = "FileNotFoundError: Cannot add private wheel"
     assert error_message_begin in output
-    assert error_message_end in output
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
