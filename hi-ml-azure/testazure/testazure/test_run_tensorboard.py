@@ -13,7 +13,7 @@ from health_azure import himl_tensorboard, himl
 from health_azure import utils as azure_util
 from health_azure.himl_tensorboard import WrappedTensorboard
 from testazure.test_himl import render_and_run_test_script, RunTarget
-from testazure.util import DEFAULT_WORKSPACE
+from testazure.utils_testazure import DEFAULT_WORKSPACE
 
 TENSORBOARD_SCRIPT_PATH = himl_tensorboard.__file__
 

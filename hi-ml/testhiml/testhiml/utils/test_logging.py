@@ -4,18 +4,31 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import math
+import time
 from argparse import Namespace
 from datetime import datetime
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 import torch
 from _pytest.capture import SysCapture
 from _pytest.logging import LogCaptureFixture
+from azureml._restclient.constants import RunStatus
+from azureml.core import Run
 from pytorch_lightning import Trainer
 
+from health_azure import RUN_CONTEXT, create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
+from testhiml.utils_testhiml import DEFAULT_WORKSPACE
+
+
+def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
+    return create_aml_run_object(experiment_name="himl-tests",
+                                 workspace=DEFAULT_WORKSPACE.workspace,
+                                 snapshot_directory=snapshot_directory or ".")
 
 
 def test_log_on_epoch() -> None:
@@ -119,109 +132,214 @@ def test_log_learning_rate_multiple() -> None:
                                                               'foo/1/1': lr2[1]}}
 
 
+def create_mock_logger() -> AzureMLLogger:
+    """
+    Create an AzureMLLogger that has a run field set to a MagicMock.
+    """
+    run_mock = MagicMock()
+    with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value=run_mock):
+        return AzureMLLogger(enable_logging_outside_azure_ml=True)
+
+
 def test_azureml_logger() -> None:
     """
     Tests logging to an AzureML run via PytorchLightning
     """
-    logger = AzureMLLogger()
+    logger = create_mock_logger()
     # On all build agents, this should not be detected as an AzureML run.
     assert not logger.is_running_in_azure_ml
-    # No logging should happen when outside AzureML
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
-        logger.log_metrics({"foo": 1.0})
-        assert log_mock.call_count == 0
-    # Pretend to be running in AzureML
-    logger.is_running_in_azure_ml = True
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
-        logger.log_metrics({"foo": 1.0})
-        assert log_mock.call_count == 1
-        assert log_mock.call_args[0] == ("foo", 1.0), "Should be called with the unrolled dictionary of metrics"
+    assert logger.has_custom_run
+    logger.log_metrics({"foo": 1.0})
+    assert logger.run is not None
+    logger.run.log.assert_called_once_with("foo", 1.0, step=None)
+
     # All the following methods of LightningLoggerBase are not implemented
     assert logger.name() == ""
     assert logger.version() == 0
     assert logger.experiment() is None
 
+    # Finalizing should call the "Complete" method of the run
+    logger.finalize(status="foo")
+    logger.run.complete.assert_called_once()
 
-def test_azureml_logger_hyperparams() -> None:
+
+def test_azureml_log_hyperparameters1() -> None:
     """
-    Tests logging of hyperparameters to an AzureML
+    Test logging of hyperparameters
     """
-    logger = AzureMLLogger()
-    # On all build agents, this should not be detected as an AzureML run.
-    assert not logger.is_running_in_azure_ml
-    # No logging should happen when outside AzureML
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log_table") as log_mock:
-        logger.log_hyperparams({"foo": 1.0})
-        assert log_mock.call_count == 0
-    # Pretend to be running in AzureML
-    logger.is_running_in_azure_ml = True
+    logger = create_mock_logger()
+    assert logger.run is not None
     # No logging should happen with empty params
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log_table") as log_mock:
-        logger.log_hyperparams(None)  # type: ignore
-        assert log_mock.call_count == 0
-        logger.log_hyperparams({})
-        assert log_mock.call_count == 0
-        logger.log_hyperparams(Namespace())
-        assert log_mock.call_count == 0
+    logger.log_hyperparams(None)  # type: ignore
+    assert logger.run.log.call_count == 0
+    logger.log_hyperparams({})
+    assert logger.run.log.call_count == 0
+    logger.log_hyperparams(Namespace())
+    assert logger.run.log.call_count == 0
     # Logging of hyperparameters that are plain dictionaries
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log_table") as log_mock:
-        fake_params = {"foo": 1.0}
-        logger.log_hyperparams(fake_params)
-        assert log_mock.call_count == 1
-        assert log_mock.call_args[0] == ("hyperparams", fake_params), "Should be called with hyperparams dictionary"
+    fake_params = {"foo": 1.0}
+    logger.log_hyperparams(fake_params)
+    # Dictionary should be logged as name/value pairs, one value per row
+    logger.run.log_table.assert_called_once_with("hyperparams", {'name': ['foo'], 'value': ["1.0"]})
 
 
-def test_azureml_logger_hyperparams2() -> None:
+def test_azureml_log_hyperparameters2() -> None:
     """
-    Tests logging of complex hyperparameters to AzureML
+    Logging of hyperparameters that are Namespace objects from the arg parser
     """
+    logger = create_mock_logger()
+    assert logger.run is not None
 
     class Dummy:
         def __str__(self) -> str:
             return "dummy"
 
-    logger = AzureMLLogger()
-    # Pretend to be running in AzureML
-    logger.is_running_in_azure_ml = True
+    fake_namespace = Namespace(foo="bar", complex_object=Dummy())
+    logger.log_hyperparams(fake_namespace)
+    # Complex objects are converted to str
+    expected_dict: Dict[str, Any] = {'name': ['foo', 'complex_object'], 'value': ['bar', 'dummy']}
+    logger.run.log_table.assert_called_once_with("hyperparams", expected_dict)
 
-    # Logging of hyperparameters that are Namespace objects from the arg parser
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log_table") as log_mock:
-        fake_namespace = Namespace(foo="bar", complex_object=Dummy())
-        logger.log_hyperparams(fake_namespace)
-        assert log_mock.call_count == 1
-        # Complex objects are converted to str
-        expected_dict: Dict[str, Any] = {"foo": "bar", "complex_object": "dummy"}
-        assert log_mock.call_args[0] == ("hyperparams", expected_dict)
 
-    # Logging of hyperparameters that are nested dictionaries. They should first be flattened, than each complex
-    # object to str
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log_table") as log_mock:
-        fake_namespace = Namespace(foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
-        logger.log_hyperparams(fake_namespace)
-        assert log_mock.call_count == 1
-        expected_dict = {"foo/bar": 1, "foo/baz/level3/a": "17"}
-        assert log_mock.call_args[0] == ("hyperparams", expected_dict)
+def test_azureml_log_hyperparameters3() -> None:
+    """
+    Logging of hyperparameters that are nested dictionaries. They should first be flattened, than each complex
+    object to str
+    """
+    logger = create_mock_logger()
+    assert logger.run is not None
+    fake_namespace = Namespace(foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
+    logger.log_hyperparams(fake_namespace)
+    expected_dict = {"name": ["foo/bar", "foo/baz/level3/a"], "value": ["1", "17"]}
+    logger.run.log_table.assert_called_once_with("hyperparams", expected_dict)
+
+
+def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
+    """
+    Test if large number of hyperparameters are logged correctly.
+    Earlier versions of the code had a bug that only allowed a maximum of 15 hyperparams to be logged.
+    """
+    many_hyperparams: Dict[str, Any] = {f"param{i}": i for i in range(0, 20)}
+    many_hyperparams["A long list"] = ["foo", 1.0, "abc"]
+    expected_metrics = {key: str(value) for key, value in many_hyperparams.items()}
+    logger: Optional[AzureMLLogger] = None
+    try:
+        logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
+        assert logger.run is not None
+        logger.log_hyperparams(many_hyperparams)
+        logger.run.flush()
+        time.sleep(1)
+        metrics = logger.run.get_metrics(name=AzureMLLogger.HYPERPARAMS_NAME)
+        print(f"metrics = {metrics}")
+        actual = metrics[AzureMLLogger.HYPERPARAMS_NAME]
+        assert actual["name"] == list(expected_metrics.keys())
+        assert actual["value"] == list(expected_metrics.values())
+    finally:
+        if logger:
+            logger.finalize("done")
+
+
+def test_azureml_logger_hyperparams_processing() -> None:
+    """
+    Test flattening of hyperparameters: Lists were not handled correctly in previous versions.
+    """
+    hyperparams = {"A long list": ["foo", 1.0, "abc"],
+                   "foo": 1.0}
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
+    actual = logger._preprocess_hyperparams(hyperparams)
+    assert actual == {"A long list": "['foo', 1.0, 'abc']", "foo": "1.0"}
 
 
 def test_azureml_logger_step() -> None:
     """
     Test if the AzureML logger correctly handles epoch-level and step metrics
     """
-    logger = AzureMLLogger()
-    # Pretend to be running in AzureML
-    logger.is_running_in_azure_ml = True
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
-        logger.log_metrics(metrics={"foo": 1.0, "epoch": 123}, step=78)
-        assert log_mock.call_count == 2
-        assert log_mock.call_args_list[0][0] == ("foo", 1.0)
-        assert log_mock.call_args_list[0][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
-        assert log_mock.call_args_list[1][0] == ("epoch", 123)
-        assert log_mock.call_args_list[1][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
-    with mock.patch("health_azure.utils.RUN_CONTEXT.log") as log_mock:
-        logger.log_metrics(metrics={"foo": 1.0}, step=78)
-        assert log_mock.call_count == 1
-        assert log_mock.call_args[0] == ("foo", 1.0), "Should be called with the unrolled dictionary of metrics"
-        assert log_mock.call_args[1] == {"step": 78}, "For step-level metrics, the step argument should be provided"
+    logger = create_mock_logger()
+    assert logger.run is not None
+    logger.log_metrics(metrics={"foo": 1.0, "epoch": 123}, step=78)
+    assert logger.run.log.call_count == 2
+    assert logger.run.log.call_args_list[0][0] == ("foo", 1.0)
+    assert logger.run.log.call_args_list[0][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
+    assert logger.run.log.call_args_list[1][0] == ("epoch", 123)
+    assert logger.run.log.call_args_list[1][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
+    logger.run.reset_mock()  # type: ignore
+    logger.log_metrics(metrics={"foo": 1.0}, step=78)
+    logger.run.log.assert_called_once_with("foo", 1.0, step=78)
+
+
+def test_azureml_logger_init1() -> None:
+    """
+    Test the logic to choose the run, inside of the constructor of AzureMLLogger.
+    """
+    # When running in AzureML, the RUN_CONTEXT should be used
+    with mock.patch("health_ml.utils.logging.is_running_in_azure_ml", return_value=True):
+        with mock.patch("health_ml.utils.logging.RUN_CONTEXT", "foo"):
+            logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
+            assert logger.is_running_in_azure_ml
+            assert not logger.has_custom_run
+            assert logger.run == "foo"
+            # We should be able to call finalize without any effect (logger.run == "foo", which has no
+            # "Complete" method). When running in AzureML, the logger should not
+            # modify the run in any way, and in particular not complete it.
+            logger.finalize("nothing")
+
+
+def test_azureml_logger_init2() -> None:
+    """
+    Test the logic to choose the run, inside of the constructor of AzureMLLogger.
+    """
+    # When disabling offline logging, the logger should be a no-op, and not log anything
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
+    assert logger.run is None
+    logger.log_metrics("foo", 1.0)
+    logger.finalize(status="nothing")
+
+
+def test_azureml_logger_actual_run() -> None:
+    """
+    When running outside of AzureML, a new run should be created.
+    """
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
+    assert not logger.is_running_in_azure_ml
+    assert logger.run is not None
+    assert logger.run != RUN_CONTEXT
+    assert isinstance(logger.run, Run)
+    assert logger.run.experiment.name == "azureml_logger"
+    assert logger.has_custom_run
+    expected_metrics = {"foo": 1.0, "bar": 2.0}
+    logger.log_metrics(expected_metrics)
+    logger.run.flush()
+    actual_metrics = logger.run.get_metrics()
+    assert actual_metrics == expected_metrics
+    assert logger.run.status != RunStatus.COMPLETED
+    logger.finalize("nothing")
+
+    # The AzureML run has been complete now, insert a mock to check if
+    logger.run = MagicMock()
+    logger.finalize("nothing")
+    logger.run.complete.assert_called_once_with()
+
+
+def test_azureml_logger_init4() -> None:
+    """
+    Test the logic to choose the run, inside of the constructor of AzureMLLogger.
+    """
+    # Check that all arguments are respected
+    run_mock = MagicMock()
+    with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value=run_mock) as mock_create:
+        logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
+                               experiment_name="exp",
+                               run_name="run",
+                               snapshot_directory="snapshot",
+                               workspace="workspace",  # type: ignore
+                               workspace_config_path=Path("config_path"))
+        assert logger.has_custom_run
+        assert logger.run == run_mock
+        mock_create.assert_called_once_with(experiment_name="exp",
+                                            run_name="run",
+                                            snapshot_directory="snapshot",
+                                            workspace="workspace",
+                                            workspace_config_path=Path("config_path"))
 
 
 def test_progress_bar_enable() -> None:

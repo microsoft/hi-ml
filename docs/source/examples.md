@@ -373,6 +373,23 @@ this case, the DataFrame will contain a string representing the path to the arti
     |----------------|-----------------------------------------|---------------------------------------|
     | accuracy_plot  | aml://artifactId/ExperimentRun/dcid.... | aml://artifactId/ExperimentRun/dcid...|
 
+
+## Modifying checkpoints stored in an AzureML run
+
+The script in [examples/modify_checkpoint/modify_checkpoint.py](examples/modify_checkpoint/modify_checkpoint.rst)
+shows how checkpoints can be downloaded from an AzureML run, modified, and the uploaded back to a newly created run.
+
+This can be helpful for example if networks architecture changed, but you do not want to re-train the stored models
+with the new code.
+
+The essential bits are:
+* Download files from a run via `download_files_from_run_id`
+* Modify the checkpoints
+* Create a new run via `create_aml_run_object`
+* Then use `Run.upload_folder` to upload all modified checkpoints to that new run. From there, they can be consumed
+  in a follow-up training run again via `download_files_from_run_id`
+
+
 ## Distributed GPU Training
 
 Calling `submit_to_azure_if_needed` with `num_nodes>1` will prepare the AzureML run_configuration for distributed training jobs using IntelMpi ([https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu)) with `process_count_per_node=1` (the default, for per-node launch) and `node_count=num_nodes`.

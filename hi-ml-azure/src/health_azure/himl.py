@@ -129,14 +129,16 @@ def create_run_configuration(workspace: Workspace,
     if aml_environment_name:
         run_config.environment = Environment.get(workspace, aml_environment_name)
     elif conda_environment_file:
-        run_config.environment = create_python_environment(
+        # Create an AzureML environment, then check if it exists already. If it exists, use the registered
+        # environment, otherwise register the new environment.
+        new_environment = create_python_environment(
             conda_environment_file=conda_environment_file,
             pip_extra_index_url=pip_extra_index_url,
             workspace=workspace,
             private_pip_wheel_path=private_pip_wheel_path,
             docker_base_image=docker_base_image,
             environment_variables=environment_variables)
-        registered_env = register_environment(workspace, run_config.environment)
+        registered_env = register_environment(workspace, new_environment)
         run_config.environment = registered_env
     else:
         raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")

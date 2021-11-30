@@ -34,7 +34,7 @@ from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_da
 from health_azure.utils import (ENVIRONMENT_VERSION, EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON,
                                 get_most_recent_run, get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.util import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
+from testazure.utils_testazure import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -607,6 +607,7 @@ def render_and_run_test_script(path: Path,
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
+    path.mkdir(exist_ok=True)
     # target hi-ml-azure package version, if specified in an environment variable.
     version = ""
     run_requirements = False
@@ -687,7 +688,7 @@ def render_and_run_test_script(path: Path,
 
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
                                   workspace=workspace)
-        if run.status not in ["Failed", "Completed"]:
+        if run.status not in ["Failed", "Completed", "Cancelled"]:
             run.wait_for_completion()
         assert run.status == "Completed"
         log_root = path / "logs"
@@ -795,11 +796,8 @@ def test_invoking_hello_world_no_private_pip_fails(tmp_path: Path) -> None:
     extra_args: List[str] = []
     with mock.patch.dict(os.environ, {"HIML_AZURE_WHEEL_FILENAME": 'not_a_known_file.whl'}):
         output = render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, False)
-    error_message_begin = "FileNotFoundError: Cannot add add_private_pip_wheel:"
-    error_message_end = "not_a_known_file.whl, it is not a file."
-
+    error_message_begin = "FileNotFoundError: Cannot add private wheel"
     assert error_message_begin in output
-    assert error_message_end in output
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])

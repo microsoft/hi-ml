@@ -13,7 +13,7 @@ import time
 from enum import Enum
 from pathlib import Path
 from random import randint
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -25,18 +25,16 @@ import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azureml._vendor.azure_storage.blob import Blob
-from azureml.core import Experiment, ScriptRunConfig, Workspace
+from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
-from health_azure import himl
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.util import (DEFAULT_WORKSPACE, change_working_directory, repository_root, MockRun,
-                            DEFAULT_IGNORE_FOLDERS)
-
+from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
+                                       repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -398,7 +396,6 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
 ) -> None:
-    just_conda_str_env_name = "HealthML-6555b3cfac0b3ee24349701f07dad394"
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
@@ -423,7 +420,8 @@ dependencies:
     assert "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC" in env.environment_variables
     assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
     assert "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE" in env.environment_variables
-    assert env.name == just_conda_str_env_name
+    # Just check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
+    assert env.name.startswith("HealthML")
 
     pip_extra_index_url = "https://where.great.packages.live/"
     docker_base_image = "viennaglobal.azurecr.io/azureml/azureml_a187a87cc7c31ac4d9f67496bc9c8239"
@@ -432,8 +430,9 @@ dependencies:
         pip_extra_index_url=pip_extra_index_url,
         docker_base_image=docker_base_image,
         environment_variables={"HELLO": "world"})
+    # Environment variables should be added to the default ones
     assert "HELLO" in env.environment_variables
-    assert env.name != just_conda_str_env_name
+    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
     assert env.docker.base_image == docker_base_image
 
     private_pip_wheel_url = "https://some.blob/private/wheel"
@@ -447,13 +446,80 @@ dependencies:
     assert "hi-ml-azure" in envs_pip_packages
     assert private_pip_wheel_url in envs_pip_packages
 
-    private_pip_wheel_path = Path("a_file_that_does_not.exist")
-    with pytest.raises(FileNotFoundError) as e:
-        _ = util.create_python_environment(
+
+def test_create_environment_unique_name(random_folder: Path) -> None:
+    """
+    Test if the name of the conda environment changes with each of the components
+    """
+    conda_str1 = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str1)
+    env1 = util.create_python_environment(conda_environment_file=conda_environment_file)
+
+    # Changing the contents of the conda file should create a new environment names
+    conda_str2 = """name: simple-env
+dependencies:
+  - pip=20.1.1
+"""
+    assert conda_str1 != conda_str2
+    conda_environment_file.write_text(conda_str2)
+    env2 = util.create_python_environment(conda_environment_file=conda_environment_file)
+    assert env1.name != env2.name
+
+    # Using a different PIP index URL can lead to different package resolution, so this should change name too
+    env3 = util.create_python_environment(conda_environment_file=conda_environment_file,
+                                          pip_extra_index_url="foo")
+    assert env3.name != env2.name
+
+    # Environment variables
+    env4 = util.create_python_environment(conda_environment_file=conda_environment_file,
+                                          environment_variables={"foo": "bar"})
+    assert env4.name != env2.name
+
+    # Docker base image
+    env5 = util.create_python_environment(conda_environment_file=conda_environment_file,
+                                          docker_base_image="docker")
+    assert env5.name != env2.name
+
+    # PIP wheel
+    with mock.patch("health_azure.utils.Environment") as mock_environment:
+        mock_environment.add_private_pip_wheel.return_value = "private_pip_wheel_url"
+        env6 = util.create_python_environment(
             conda_environment_file=conda_environment_file,
-            workspace=mock_workspace,
-            private_pip_wheel_path=private_pip_wheel_path)
-    assert f"Cannot add add_private_pip_wheel: {private_pip_wheel_path}" in str(e.value)
+            workspace=DEFAULT_WORKSPACE.workspace,
+            private_pip_wheel_path=Path(__file__))
+        assert env6.name != env2.name
+
+    all_names = [env1.name, env2.name, env3.name, env4.name, env5.name, env6.name]
+    all_names_set = {*all_names}
+    assert len(all_names) == len(all_names_set), "Environment names are not unique"
+
+
+def test_create_environment_wheel_fails(random_folder: Path) -> None:
+    """
+    Test if all necessary checks are carried out when adding private wheels to an environment.
+    """
+    conda_str = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str)
+    # Wheel file does not exist at all:
+    with pytest.raises(FileNotFoundError) as ex1:
+        util.create_python_environment(conda_environment_file=conda_environment_file,
+                                       private_pip_wheel_path=Path("does_not_exist"))
+        assert "Cannot add private wheel" in str(ex1)
+    # Wheel exists, but no workspace provided:
+    with pytest.raises(ValueError) as ex2:
+        util.create_python_environment(conda_environment_file=conda_environment_file,
+                                       private_pip_wheel_path=Path(__file__))
+        assert "AzureML workspace must be provided" in str(ex2)
 
 
 class MockEnvironment:
@@ -778,45 +844,56 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
 
 
 def test_download_run_file_during_run(tmp_path: Path) -> None:
-    # This test will create a Run in your workspace (using only local compute)
+    """
+    Test if we can download files from a run, when executing inside AzureML. This should not require any additional
+    information about the workspace to use, but pick up the current workspace.
+    """
+    # Create a run that contains a simple txt file
+    experiment_name = "himl-tests"
+    run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name,
+                                                      workspace=DEFAULT_WORKSPACE.workspace)
+    file_contents = "Hello World!"
+    file_name = "hello.txt"
+    full_file_path = tmp_path / file_name
+    full_file_path.write_text(file_contents)
+    run_to_download_from.upload_file(file_name, str(full_file_path))
+    run_to_download_from.complete()
+    run_id = run_to_download_from.id
 
-    expected_file_path = tmp_path / "azureml-logs"
-    # Check that at first the path to downloaded logs doesnt exist (will be created by the later test script)
-    assert not expected_file_path.exists()
+    # Test if we can retrieve the run directly from the workspace. This tests for a bug in an earlier version
+    # of the code where run IDs as those created from runs outside AML were not recognized
+    run_2 = util.get_aml_run_from_run_id(run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
+    assert run_2.id == run_id
 
-    ws = DEFAULT_WORKSPACE.workspace
+    # Now create an AzureML run with a simple script that uses that file. The script will download the file,
+    # where the download is should pick up the workspace from the current AML run.
+    script_body = ""
+    script_body += f"run_id = '{run_id}'\n"
+    script_body += f"    file_name = '{file_name}'\n"
+    script_body += f"    file_contents = '{file_contents}'\n"
+    script_body += """
+    output_path = Path("outputs")
+    output_path.mkdir(exist_ok=True)
 
-    # call the script here
+    download_files_from_run_id(run_id, output_path, prefix=file_name)
+    full_file_path = output_path / file_name
+    actual_contents = full_file_path.read_text().strip()
+    print(f"{actual_contents}")
+    assert actual_contents == file_contents
+"""
     extra_options = {
         "imports": """
 import sys
+from pathlib import Path
 from azureml.core import Run
-from health_azure.utils import _download_files_from_run""",
-        "args": """
-    parser.add_argument("--output_path", type=str, required=True)
-        """,
-        "body": """
-    output_path = Path(args.output_path)
-    output_path.mkdir(exist_ok=True)
-
-    run_ctx = Run.get_context()
-    available_files = run_ctx.get_file_names()
-    print(f"available files: {available_files}")
-    first_file_name = available_files[0]
-    output_file_path = output_path / first_file_name
-
-    _download_files_from_run(run_ctx, output_path, prefix=first_file_name)
-
-    print(f"Downloaded file {first_file_name} to location {output_file_path}")
-        """
+from health_azure.utils import download_files_from_run_id""",
+        "body": script_body
     }
-
-    extra_args = ["--output_path", 'outputs']
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
-
-    run = util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                   workspace=ws)
-    assert run.status == "Completed"
+    # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
+    # config.json file, in AzureML runs it should be read off the run context.
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    print("Local run finished")
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:
@@ -1486,3 +1563,27 @@ def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
         assert isinstance(epochs[0], list)
         test_accuracies = df.loc["test/accuracy"]
         assert isinstance(test_accuracies[0], float)
+
+
+def test_create_run() -> None:
+    """
+    Test if we can create an AML run object here in the test suite, write logs and read them back in.
+    """
+    run_name = "foo"
+    experiment_name = "himl-tests"
+    run: Optional[Run] = None
+    try:
+        run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
+                                         workspace=DEFAULT_WORKSPACE.workspace)
+        assert run is not None
+        assert run.name == run_name
+        assert run.experiment.name == experiment_name
+        metric_name = "mymetric"
+        metric_value = 1.234
+        run.log(metric_name, metric_value)
+        run.flush()
+        metrics = run.get_metrics(name=metric_name)
+        assert metrics[metric_name] == metric_value
+    finally:
+        if run is not None:
+            run.complete()

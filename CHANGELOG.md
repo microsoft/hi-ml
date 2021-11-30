@@ -10,19 +10,38 @@ For each Pull Request, the affected code parts should be briefly described and a
 release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
 the section headers (Added/Changed/...) and incrementing the package version.
 
+## 0.1.13
+
+### Added
+
+### Changed
+
+### Fixed
+- ([#169](https://github.com/microsoft/hi-ml/pull/169)) Fix a test that was failing occasionally
+
+### Removed
+
+### Deprecated
+
+
 ## 0.1.12
 
 ### Added
 - ([#166](https://github.com/microsoft/hi-ml/pull/166)) Add documentation on multinode training.
 - ([#159](https://github.com/microsoft/hi-ml/pull/159)) Add profiling for loading png image files as numpy arrays.
 - ([#152](https://github.com/microsoft/hi-ml/pull/152)) Add a custom HTML reporting tool
+- ([#167](https://github.com/microsoft/hi-ml/pull/167)) Ability to log to an AzureML run when outside of AzureML
 
 
 ### Changed
 - ([164](https://github.com/microsoft/hi-ml/pull/164)) Look in more locations for std out from AzureML run.
+- ([#167](https://github.com/microsoft/hi-ml/pull/167)) The AzureMLLogger has one mandatory argument now, that controls
+  whether it should log to AzureML also when running on a VM.
 
 ### Fixed
 - ([#161](https://github.com/microsoft/hi-ml/pull/161)) Empty string as target folder for a dataset creates an invalid mounting path for the dataset in AzureML (fixes #160)
+- ([#167](https://github.com/microsoft/hi-ml/pull/167)) Fix bugs in logging hyperparameters: logging as name/value
+  table, rather than one column per hyperparameter. Use string logging for all hyperparameters
 
 ### Removed
 
