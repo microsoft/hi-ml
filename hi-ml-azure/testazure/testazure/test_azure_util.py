@@ -1042,6 +1042,19 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str
                 assert script_config.run == [run_id]
 
 
+def test_checkpoint_download(tmp_path: Path) -> None:
+    # TODO: Create a run rather than harcoded run id
+
+    downloader = util.CheckpointDownloader(
+        aml_workspace=DEFAULT_WORKSPACE.workspace,
+        run_id="vsalva_ssl_crck:vsalva_ssl_crck_1630691119_af10db8a",
+        checkpoint_filename="best_checkpoint.ckpt",
+        download_dir=tmp_path / "downloads"
+    )
+    checkpoint_path = downloader.download_checkpoint_if_necessary()
+    assert checkpoint_path.is_file()
+
+
 @patch("health_azure.utils.download_files_from_run_id")
 @patch("health_azure.utils.get_workspace")
 def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files: MagicMock) -> None:
