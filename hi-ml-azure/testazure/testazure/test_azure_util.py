@@ -1042,7 +1042,7 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str
                 assert script_config.run == [run_id]
 
 
-def test_checkpoint_download(tmp_path: Path) -> None:
+def test_checkpoint_downloader(tmp_path: Path) -> None:
     # TODO: Create a run rather than harcoded run id
 
     downloader = util.CheckpointDownloader(

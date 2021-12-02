@@ -1,3 +1,7 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 """ Layers for attention-based multi-instance learning (DeepMIL)
 Created using the original DeepMIL paper and code from Ilse et al., 2018
 https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
@@ -22,10 +26,10 @@ class AttentionLayer(nn.Module):
         self.hidden_dims = hidden_dims                  # D
         self.attention_dims = attention_dims            # K
         self.attention = nn.Sequential(
-                                       nn.Linear(self.input_dims, self.hidden_dims),
-                                       nn.Tanh(),
-                                       nn.Linear(self.hidden_dims, self.attention_dims)
-                                      )
+            nn.Linear(self.input_dims, self.hidden_dims),
+            nn.Tanh(),
+            nn.Linear(self.hidden_dims, self.attention_dims)
+        )
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
         H = features.view(-1, self.input_dims)      # N x L
@@ -51,13 +55,13 @@ class GatedAttentionLayer(nn.Module):
         self.hidden_dims = hidden_dims                  # D
         self.attention_dims = attention_dims            # K
         self.attention_V = nn.Sequential(
-                                         nn.Linear(self.input_dims, self.hidden_dims),
-                                         nn.Tanh()
-                                        )
+            nn.Linear(self.input_dims, self.hidden_dims),
+            nn.Tanh()
+        )
         self.attention_U = nn.Sequential(
-                                         nn.Linear(self.input_dims, self.hidden_dims),
-                                         nn.Sigmoid()
-                                        )
+            nn.Linear(self.input_dims, self.hidden_dims),
+            nn.Sigmoid()
+        )
         self.attention_weights = nn.Linear(self.hidden_dims, self.attention_dims)
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:

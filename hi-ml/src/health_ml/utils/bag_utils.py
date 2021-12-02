@@ -6,11 +6,7 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 from torch.utils.data._utils.collate import default_collate
 from math import ceil
 
-
-def _create_generator() -> torch.Generator:
-    generator = torch.Generator()
-    generator.manual_seed(int(torch.empty((), dtype=torch.int64).random_().item()))
-    return generator
+from health_ml.utils.common_utils import _create_generator
 
 
 class BagSampler(Sampler[List[int]]):
@@ -37,11 +33,12 @@ class BagSampler(Sampler[List[int]]):
         :param shuffle_bags: Whether the bags should be iterated in random order.
         :param shuffle_samples: Whether the instances in each bag should be shuffled.
         :param max_bag_size: Upper bound on number of instances in each loaded bag. If 0 (default),
-        will return all samples in each bag. If > 0 and `shuffle_samples=True`, bags larger than
-        `max_bag_size` will yield random subsets of instances. Note that setting `max_bag_size > 0`
-        with `shuffle_samples=False` will return fixed subsets and may completely exclude some
-        samples from the iteration.
-        :param generator: The PRNG to use for shuffling. By default, creates one with a random seed.
+            will return all samples in each bag. If > 0 and `shuffle_samples=True`, bags larger than
+            `max_bag_size` will yield random subsets of instances. Note that setting `max_bag_size > 0`
+            with `shuffle_samples=False` will return fixed subsets and may completely exclude some
+            samples from the iteration.
+        :param generator: The pseudorandom number generator to use for shuffling. By default, creates one with a random
+            seed.
         """
         self.unique_bag_ids, self.bag_indices = np.unique(bag_ids, return_inverse=True)
         self.shuffle_bags = shuffle_bags
@@ -110,7 +107,7 @@ class BagDataset(Dataset):
         `max_bag_size` will yield random subsets of instances. Note that setting `max_bag_size > 0`
         with `shuffle_samples=False` will return fixed subsets and may completely exclude some
         samples from the iteration.
-        :param generator: The PRNG to use for shuffling. By default, creates one with a random seed.
+        :param generator: The pseudorandom number generator to use for shuffling. By default, creates one with a random seed.
         :param collate_fn: Function to aggregate individual samples into a batch. Uses the PyTorch
         default if unspecified, which stacks tensors along their first dimension.
         More details in https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
@@ -201,7 +198,7 @@ def create_bag_dataloader(base_dataset: Sequence, bag_ids: Sequence,
     :param collate_fn: Function to aggregate individual samples into a bag. Uses the PyTorch
     default if unspecified, which stacks tensors along their first dimension.
     More details in https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
-    :param generator: The PRNG to use for shuffling. By default, creates one with a random seed.
+    :param generator: The pseudorandom number generator to use for shuffling. By default, creates one with a random seed.
     :param dataloader_kwargs: Further keyword arguments to be passed to the `DataLoader`, e.g.
     `num_workers`, `pin_memory`, etc.
     :return: The `DataLoader` configured to iterate one bag at a time.

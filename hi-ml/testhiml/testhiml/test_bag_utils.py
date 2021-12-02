@@ -8,8 +8,7 @@ from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader, Dataset
 
 
-from health_ml.utils.bag_utils import (BagSampler, create_bag_dataloader,
-                                                            multibag_collate)
+from health_ml.utils.bag_utils import (BagSampler, create_bag_dataloader, multibag_collate)
 
 # Run GPU tests only if available
 GPUS = [0, -1] if torch.cuda.is_available() else [0]

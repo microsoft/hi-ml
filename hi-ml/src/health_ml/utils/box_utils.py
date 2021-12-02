@@ -3,6 +3,7 @@ from typing import Optional, Sequence, Tuple
 
 import numpy as np
 
+
 @dataclass(frozen=True)
 class Box:
     """Utility class representing rectangular regions in 2D images.

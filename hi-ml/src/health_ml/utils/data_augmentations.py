@@ -5,30 +5,41 @@ import torch
 
 
 class HEDJitter(object):
-    """Randomly perturbe the HED color space value an RGB image.
-    First, it disentangled the hematoxylin and eosin color channels by color deconvolution method using a fixed matrix.
-    Second, it perturbed the hematoxylin, eosin and DAB stains independently.
-    Third, it transformed the resulting stains into regular RGB color space.
-    Args:
-        theta (float): How much to jitter HED color space,
-         alpha is chosen from a uniform distribution [1-theta, 1+theta]
-         beta is chosen from a uniform distribution [-theta, theta]
-         the jitter formula is **s' = \alpha * s + \beta**
+    """
+    A class to randomly perturb the HEAD color space value of an RGB image
     """
     def __init__(self, theta: float = 0.) -> None:   # HED_light: theta=0.05; HED_strong: theta=0.2
+
         self.theta = theta
 
     @staticmethod
     def adjust_hed(img: torch.Tensor, theta: float) -> torch.Tensor:
-        alpha = np.random.uniform(1-theta, 1+theta, (1, 3))
+        """
+        Randomly perturb the hematoxylin-Eosin-DAB (HED) color space value of an RGB image
+        Steps involved in this process:
+        1. separate the stains (RGB to HED color space conversion)
+        2. perturb the stains independently
+        3. convert the resulting stains back to RGB color space
+
+        :param img: A Torch Tensor representing the image to be transformed
+        :param theta: A float representing how much to jitter HED color space by
+        :return: a Torch Tensor of stains transformed into RGB color space.
+        """
+        # alpha is chosen from a uniform distribution [1 - theta, 1 + theta]
+        alpha = np.random.uniform(1 - theta, 1 + theta, (1, 3))
+        # beta is chosen from a uniform distribution [-theta, theta]
         beta = np.random.uniform(-theta, theta, (1, 3))
 
-        img = img.permute([0, 2, 3, 1]).numpy()  # channel dim must be last for next function
+        # channel dim must be last for next function
+        img = img.permute([0, 2, 3, 1]).numpy()
         s = color.rgb2hed(img)
-        ns = alpha * s + beta  # perturbations in HED color space
+
+        # the jitter formula (perturbations in HED color space) is **s' = \alpha * s + \beta**
+        ns = alpha * s + beta
+
         nimg = color.hed2rgb(ns)
         nimg = np.clip(nimg, 0, 1)
-        nimg = torch.Tensor(nimg).permute(0, 3, 1, 2)  # back to pytorch format
+        nimg = torch.Tensor(nimg).permute(0, 3, 1, 2)
 
         return nimg
 
@@ -37,12 +48,9 @@ class HEDJitter(object):
 
 
 class StainNormalization(object):
-    """Normalize the stain of an image given a reference image. Following
-     Erik Reinhard,Bruce Gooch., “Color Transfer between Images,” IEEE ComputerGraphics and Applications.
-    First, mask all white pixels.
-    Second, convert remaining pixels to lab space and normalize each channel.
-    Third, add mean and std of reference image.
-    Fourth, convert back to rgb and add white pixels back.
+    """
+    A class to normalize the stain of an image given a reference image. Following
+    Erik Reinhard,Bruce Gooch., “Color Transfer between Images,” IEEE ComputerGraphics and Applications.
     """
     def __init__(self) -> None:
         # mean and std per channel of a reference image
@@ -51,7 +59,24 @@ class StainNormalization(object):
 
     @staticmethod
     def stain_normalize(img: torch.Tensor, reference_mean: np.ndarray, reference_std: np.ndarray) -> torch.Tensor:
-        img = img.permute([0, 2, 3, 1]).squeeze().numpy() * 255  # only 3 channels, color channel last, range 0 - 255
+        """
+        Normalize the stain of an image given a reference image
+
+        Steps involved:
+        1. mask all white pixels
+        2. convert remaining pixels to lab space and normalize each channel
+        3. add mean and std of reference image
+        4. convert back to rgb and add white pixels back
+
+        :param img: the image whose stain should be normalised
+        :param reference_mean: the mean of the reference image, for normalisation
+        :param reference_std: the standard deviation of the reference image, for normalisation
+        :return: A Torch tensor representing the image with normalized stain
+        """
+        # only 3 channels, color channel last, range 0 - 255
+        assert img.ndim == 4, "Expected a Tensor with 4 dimensions"
+
+        img = img.permute([0, 2, 3, 1]).squeeze().numpy() * 255
         img = img.astype(np.uint8)  # type: ignore
 
         whitemask = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -61,7 +86,8 @@ class StainNormalization(object):
         imagelab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
         imagelab_masked = np.ma.MaskedArray(imagelab, whitemask)  # type: np.ma.MaskedArray
 
-        epsilon = 1e-11  # Sometimes STD is near 0, add epsilon to avoid div by 0
+        # Sometimes STD is near 0, add epsilon to avoid div by 0
+        epsilon = 1e-11
         imagelab_masked_mean = imagelab_masked.mean(axis=(0, 1))
         imagelab_masked_std = imagelab_masked.std(axis=(0, 1)) + epsilon
 
@@ -70,12 +96,13 @@ class StainNormalization(object):
         imagelab = np.clip(imagelab, 0, 255)
         imagelab = imagelab.astype(np.uint8)
         nimg = cv2.cvtColor(imagelab, cv2.COLOR_LAB2RGB)
-        nimg[whitemask] = img[whitemask]  # add back white pixels
-        nimg = torch.Tensor(nimg).unsqueeze(0).permute(0, 3, 1, 2) / 255.  # back to pytorch format
+
+        # add back white pixels
+        nimg[whitemask] = img[whitemask]
+        # convert back to Tensor
+        nimg = torch.Tensor(nimg).unsqueeze(0).permute(0, 3, 1, 2) / 255.
 
         return nimg
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         return self.stain_normalize(img, self.reference_mean, self.reference_std)
-
-

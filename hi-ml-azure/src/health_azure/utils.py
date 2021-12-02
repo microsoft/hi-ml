@@ -463,8 +463,9 @@ class RunIdOrListParam(CustomTypeParam):
         res = [str(item) for item in x.split(',')]
         return [determine_run_id_type(x) for x in res]
 
+
 class CheckpointDownloader:
-    def __init__(self, run_id: str, checkpoint_filename: str,  azure_config_json_path: Path = None,
+    def __init__(self, run_id: str, checkpoint_filename: str, azure_config_json_path: Path = None,
                  aml_workspace: Workspace = None, download_dir: PathOrString = "checkpoints",
                  remote_checkpoint_folder: PathOrString = "checkpoints") -> None:
         """
@@ -486,11 +487,11 @@ class CheckpointDownloader:
         self.run_id = run_id
         self.checkpoint_filename = checkpoint_filename
         self.download_dir = Path(download_dir)
-        self.remote_checkpoint_folder = remote_checkpoint_folder
+        self.remote_checkpoint_folder = Path(remote_checkpoint_folder)
 
     @property
     def local_checkpoint_path(self) -> Path:
-        return self.download_dir / self.run_recovery_id.split(":")[1] / self.checkpoint_filename
+        return self.download_dir / self.run_id.split(":")[1] / self.checkpoint_filename
 
     @property
     def remote_checkpoint_path(self) -> Path:
@@ -501,16 +502,13 @@ class CheckpointDownloader:
 
         :return: The local path to the downloaded checkpoint file.
         """
-        if is_running_in_azure_ml():
-            workspace = RUN_CONTEXT.experiment.workspace
-        else:
-            workspace = get_workspace(aml_workspace=self.aml_workspace,
-                                      workspace_config_path=self.azure_config_json_path)
+        workspace = get_workspace(aml_workspace=self.aml_workspace,
+                                  workspace_config_path=self.azure_config_json_path)
 
         if not self.local_checkpoint_path.exists():
             local_checkpoint_dir = self.local_checkpoint_path.parent
             local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
-            download_checkpoints_from_run_id(self.run_id, self.remote_checkpoint_path, local_checkpoint_dir,
+            download_checkpoints_from_run_id(self.run_id, str(self.remote_checkpoint_path), local_checkpoint_dir,
                                              aml_workspace=workspace)
             assert self.local_checkpoint_path.exists()
 
