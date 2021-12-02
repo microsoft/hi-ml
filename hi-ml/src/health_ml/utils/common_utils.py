@@ -2,6 +2,7 @@ from typing import Optional
 
 import torch
 
+
 def _create_generator(seed: Optional[int] = None) -> torch.Generator:
     generator = torch.Generator()
     if seed is None:
