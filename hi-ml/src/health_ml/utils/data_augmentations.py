@@ -30,6 +30,7 @@ class HEDJitter(object):
         # beta is chosen from a uniform distribution [-theta, theta]
         beta = np.random.uniform(-theta, theta, (1, 3))
 
+        assert img.ndim == 4, "Expected a Tensor with 4 dimensions"
         # channel dim must be last for next function
         img = img.permute([0, 2, 3, 1]).numpy()
         s = color.rgb2hed(img)
@@ -73,9 +74,8 @@ class StainNormalization(object):
         :param reference_std: the standard deviation of the reference image, for normalisation
         :return: A Torch tensor representing the image with normalized stain
         """
-        # only 3 channels, color channel last, range 0 - 255
         assert img.ndim == 4, "Expected a Tensor with 4 dimensions"
-
+        # only 3 channels, color channel last, range 0 - 255
         img = img.permute([0, 2, 3, 1]).squeeze().numpy() * 255
         img = img.astype(np.uint8)  # type: ignore
 

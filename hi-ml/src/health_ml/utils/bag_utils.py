@@ -107,7 +107,8 @@ class BagDataset(Dataset):
         `max_bag_size` will yield random subsets of instances. Note that setting `max_bag_size > 0`
         with `shuffle_samples=False` will return fixed subsets and may completely exclude some
         samples from the iteration.
-        :param generator: The pseudorandom number generator to use for shuffling. By default, creates one with a random seed.
+        :param generator: The pseudorandom number generator to use for shuffling. By default, creates
+        one with a random seed.
         :param collate_fn: Function to aggregate individual samples into a batch. Uses the PyTorch
         default if unspecified, which stacks tensors along their first dimension.
         More details in https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
@@ -198,7 +199,8 @@ def create_bag_dataloader(base_dataset: Sequence, bag_ids: Sequence,
     :param collate_fn: Function to aggregate individual samples into a bag. Uses the PyTorch
     default if unspecified, which stacks tensors along their first dimension.
     More details in https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
-    :param generator: The pseudorandom number generator to use for shuffling. By default, creates one with a random seed.
+    :param generator: The pseudorandom number generator to use for shuffling. By default,
+    creates one with a random seed.
     :param dataloader_kwargs: Further keyword arguments to be passed to the `DataLoader`, e.g.
     `num_workers`, `pin_memory`, etc.
     :return: The `DataLoader` configured to iterate one bag at a time.
