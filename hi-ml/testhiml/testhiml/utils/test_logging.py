@@ -291,7 +291,7 @@ def test_azureml_logger_init2() -> None:
     # When disabling offline logging, the logger should be a no-op, and not log anything
     logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
     assert logger.run is None
-    logger.log_metrics("foo", 1.0)
+    logger.log_metrics({"foo": 1.0})
     logger.finalize(status="nothing")
 
 

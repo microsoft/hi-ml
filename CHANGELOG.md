@@ -13,6 +13,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 ## 0.1.13
 
 ### Added
+- ([#170](https://github.com/microsoft/hi-ml/pull/170)) Add utils including bag sampling, bounding boxes, HEDJitter, StainNormalisation and add attention layers
 
 ### Changed
 

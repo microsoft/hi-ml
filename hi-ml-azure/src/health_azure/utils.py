@@ -464,6 +464,60 @@ class RunIdOrListParam(CustomTypeParam):
         return [determine_run_id_type(x) for x in res]
 
 
+class CheckpointDownloader:
+    def __init__(self, run_id: str, checkpoint_filename: str, azure_config_json_path: Path = None,
+                 aml_workspace: Workspace = None, download_dir: PathOrString = "checkpoints",
+                 remote_checkpoint_folder: PathOrString = "checkpoints") -> None:
+        """
+        Utility class for downloading checkpoint files from an Azure ML run
+
+       :param run_id: Recovery ID of the run from which to load the checkpoint.
+        :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
+        `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
+        :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
+            experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
+            is required.
+        :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
+            azure_config_json_path is provided, this is required.
+        :param download_dir: The local directory in which to save the downloaded checkpoint files.
+        :param remote_checkpoint_folder: The remote folder from which to download the checkpoint file
+        """
+        self.azure_config_json_path = azure_config_json_path
+        self.aml_workspace = aml_workspace
+        self.run_id = run_id
+        self.checkpoint_filename = checkpoint_filename
+        self.download_dir = Path(download_dir)
+        self.remote_checkpoint_folder = Path(remote_checkpoint_folder)
+
+    @property
+    def local_checkpoint_path(self) -> Path:
+        # in case we run_id is a run recovery id, extract the run id
+        run_id_parts = self.run_id.split(":")
+        run_id = run_id_parts[-1]
+        return self.download_dir / run_id / self.checkpoint_filename
+
+    @property
+    def remote_checkpoint_path(self) -> Path:
+        return self.remote_checkpoint_folder / self.checkpoint_filename
+
+    def download_checkpoint_if_necessary(self) -> Path:
+        """Downloads the specified checkpoint if it does not already exist.
+
+        :return: The local path to the downloaded checkpoint file.
+        """
+        workspace = get_workspace(aml_workspace=self.aml_workspace,
+                                  workspace_config_path=self.azure_config_json_path)
+
+        if not self.local_checkpoint_path.exists():
+            local_checkpoint_dir = self.local_checkpoint_path.parent
+            local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+            download_checkpoints_from_run_id(self.run_id, str(self.remote_checkpoint_path), local_checkpoint_dir,
+                                             aml_workspace=workspace)
+            assert self.local_checkpoint_path.exists()
+
+        return self.local_checkpoint_path
+
+
 def is_private_field_name(name: str) -> bool:
     """
     A private field is any Python class member that starts with an underscore eg: _hello

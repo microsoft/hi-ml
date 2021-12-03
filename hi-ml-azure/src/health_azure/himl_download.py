@@ -34,8 +34,7 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
     :return: List of AML Run objects
     """
     if download_config.run is not None:
-        run_ = download_config.run
-        run_ids = [r for r in run_] if isinstance(run_, list) else [run_]
+        run_ids: List[str] = download_config.run
         runs = [azure_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
         if len(runs) == 0:
             raise ValueError(f"Did not find any runs with the given run id(s): {download_config.run}")

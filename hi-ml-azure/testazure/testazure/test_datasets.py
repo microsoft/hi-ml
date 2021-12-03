@@ -8,6 +8,7 @@ Test the data input and output functionality
 from pathlib import Path
 from unittest import mock
 from health_azure.utils import PathOrString
+from typing import List, Union
 
 import pytest
 from azureml._restclient.exceptions import ServiceException
@@ -147,7 +148,7 @@ def test_datasets_from_string() -> None:
     dataset2 = "bar"
     store = "store"
     default_store = "default"
-    original = [dataset1, DatasetConfig(name=dataset2, datastore=store)]
+    original: List[Union[str, DatasetConfig]] = [dataset1, DatasetConfig(name=dataset2, datastore=store)]
     replaced = _replace_string_datasets(original, default_datastore_name=default_store)
     assert len(replaced) == len(original)
     for d in replaced:

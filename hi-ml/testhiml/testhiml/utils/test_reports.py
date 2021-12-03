@@ -198,7 +198,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
     plt.plot(dummy_df[[dummy_df_cols[0]]], dummy_df[[dummy_df_cols[1]]])
 
-    report_config = OrderedDict({
+    report_config_contents = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
             {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
              ReportComponentKey.VALUE.value: table_path}
@@ -206,7 +206,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     })
     report_config_path = tmp_path / "report_config.yml"
     with open(report_config_path, "w+") as f_path:
-        ruamel.yaml.dump(report_config, f_path)
+        ruamel.yaml.dump(report_config_contents, f_path)
 
     report_config = html_report.read_config_yaml(report_config_path)
     assert list(report_config.keys()) == [REPORT_CONTENTS_KEY]
@@ -249,8 +249,8 @@ class MockTableDir:
 
 @patch("health_ml.utils.reports.Path")
 @patch("pandas.read_csv")
-def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path: MagicMock, html_report: HTMLReport,
-                                            dummy_fig_folder: Path) -> None:
+def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path: MagicMock, html_report: HTMLReport
+                                            ) -> None:
     mock_read_csv.return_value = "dummy_df"
     html_template_before = html_report._remove_html_end(html_report.template)
     mock_dir = MockTableDir()
