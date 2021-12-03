@@ -491,7 +491,10 @@ class CheckpointDownloader:
 
     @property
     def local_checkpoint_path(self) -> Path:
-        return self.download_dir / self.run_id.split(":")[1] / self.checkpoint_filename
+        # in case we run_id is a run recovery id, extract the run id
+        run_id_parts = self.run_id.split(":")
+        run_id = run_id_parts[-1]
+        return self.download_dir / run_id / self.checkpoint_filename
 
     @property
     def remote_checkpoint_path(self) -> Path:

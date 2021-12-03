@@ -9,7 +9,7 @@ from typing import Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from PIL import Image
-from monai.data import Dataset
+from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
 from tqdm import tqdm
 

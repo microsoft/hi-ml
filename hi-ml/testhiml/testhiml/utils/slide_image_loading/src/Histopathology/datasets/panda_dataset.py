@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Any, Dict, Union, Optional
 
 import pandas as pd
-from monai.config import KeysCollection
+from monai.config.type_definitions import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
-from monai.transforms import MapTransform
+from monai.transforms.transform import MapTransform
 from openslide import OpenSlide
 from torch.utils.data import Dataset
 

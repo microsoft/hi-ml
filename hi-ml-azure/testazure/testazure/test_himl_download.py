@@ -45,4 +45,4 @@ def test_retrieve_runs() -> None:
         mock_get_run.return_value = MockRun(dummy_run_id)
         dummy_download_config = himl_download.HimlDownloadConfig(run=dummy_run_id)
         _ = himl_download.retrieve_runs(dummy_download_config)
-        mock_get_run.assert_called_once_with(dummy_run_id)
+        mock_get_run.assert_called_with(dummy_run_id)

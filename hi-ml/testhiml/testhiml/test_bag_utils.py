@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 from health_ml.utils.bag_utils import (BagSampler, create_bag_dataloader, multibag_collate)
 
 # Run GPU tests only if available
-GPUS = [0, -1] if torch.cuda.is_available() else [0]
+GPUS = [0, -1] if torch.cuda.is_available() else [0]  # type: ignore
 
 
 def get_generator(seed: Optional[int]) -> Optional[torch.Generator]:
