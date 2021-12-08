@@ -21,18 +21,18 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
-from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
+from azureml.core.runconfig import DockerConfiguration, PyTorchConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
-from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
-                                is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
-                                run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, setup_local_datasets)
+from health_azure.utils import (DEFAULT_ENVIRONMENT_VARIABLES, PathOrString, RUN_CONTEXT, _find_file,
+                                create_python_environment, create_run_recovery_id, get_workspace,
+                                is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
+                                run_duration_string_to_seconds, to_azure_friendly_string)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -155,14 +155,11 @@ def create_run_configuration(workspace: Workspace,
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
 
-    # Create MPI configuration for distributed jobs (unless num_splits > 1, in which case
-    # an AML HyperdriveConfig is instantiated instead
     if num_nodes > 1:
-        distributed_job_config = MpiConfiguration(node_count=num_nodes)
-        run_config.mpi = distributed_job_config
+        run_config.pytorch = PyTorchConfiguration(node_count=num_nodes)
         run_config.framework = "Python"
         run_config.communicator = "IntelMpi"
-        run_config.node_count = distributed_job_config.node_count
+        run_config.node_count = num_nodes
 
     if input_datasets or output_datasets:
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],

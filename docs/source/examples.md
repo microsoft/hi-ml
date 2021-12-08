@@ -192,7 +192,7 @@ For more details about datasets, see [here](datasets.md)
 
 ### Uploading the input files manually
 An alternative to writing the dataset in AzureML (as suggested above) is to create them on the local machine, and
-upload them manually directly to Azure blob storage.
+upload them from there directly to Azure blob storage.
 
 This is shown in [examples/7/inputs.py](examples/7/inputs.rst): This script prepares the CSV files 
 and uploads them to blob storage, in a folder called `himl_sample7_input`. Run the script:
@@ -212,7 +212,7 @@ parameters are added to `submit_to_azure_if_needed`:
         input_datasets=["himl_sample7_input"],
 ```
 
-## Hyperdrive
+## Hyperparameter tuning via Hyperdrive
 
 The sample [examples/8/sample.py](examples/8/sample.rst) demonstrates adding hyperparameter tuning. This shows the 
 same hyperparameter search as in the 
@@ -392,39 +392,55 @@ The essential bits are:
 
 ## Distributed GPU Training
 
-Calling `submit_to_azure_if_needed` with `num_nodes>1` will prepare the AzureML run_configuration for distributed training jobs using IntelMpi ([https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu)) with `process_count_per_node=1` (the default, for per-node launch) and `node_count=num_nodes`.
+Calling `submit_to_azure_if_needed` with `num_nodes>1` will prepare the AzureML run_configuration for 
+distributed training jobs using IntelMpi ([https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-distributed-gpu))
+with `process_count_per_node=1` (the default, for per-node launch) and `node_count=num_nodes`.
 
-The sample [examples/11/sample.py](examples/11/sample.rst) demonstrates running the PyTorch Lightning MNIST sample across 2 nodes and 4 GPUS. 
+The easiest way to run multi-node training is to use [PyTorch Lightning](https://www.pytorchlightning.ai/).
+The sample [examples/11/sample.py](examples/11/sample.rst) demonstrates running the PyTorch Lightning MNIST sample 
+across 2 nodes and 4 GPUS. 
 
-### PyTorch Lightning
+### Multi-node training with PyTorch Lightning
 
-If training with [PyTorch Lightning](https://www.pytorchlightning.ai/) then:
+You need to modify your single GPU trainig script as follows to enable multi-node training:
+1. Call `submit_to_azure_if_needed` with `num_nodes>1`
+2. Call the hi-ml function `set_environment_variables_for_multi_node()` to set the environment variables that PyTorch
+  Lightning expects, based on the environment variables that Azure/Mpi prepares.
+3. If using more than one GPU or node, then the
+  [DDPPlugin](https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.plugins.training_type.DDPPlugin.html) 
+  needs to be created before passing to the 
+  [Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html)
 
-1. After calling `submit_to_azure_if_needed` with `num_nodes>1`, then call: `set_environment_variables_for_multi_node()` to set the environment variables that PyTorch Lightning expects, based on the environment variables that Azure/Mpi prepares.
-
-1. If using more than one GPU or node, then the [DDPPlugin](https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.plugins.training_type.DDPPlugin.html) needs to be created before passing to the [Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html), for example:
-
+The `Trainer` object can be created as follows:
 ```python
-    num_gpus = min(args.min_num_gpus, torch.cuda.device_count()) if torch.cuda.is_available() else 0
-    effective_num_gpus = num_gpus * args.num_nodes
+import torch
+from health_azure import submit_to_azure_if_needed, get_multi_node_count
+from pytorch_lightning import Trainer
+from pytorch_lightning.plugins import DDPPlugin
 
-    strategy = None
-    if effective_num_gpus == 0:
-        accelerator = "cpu"
-        devices = 1
-        message = "CPU"
-    else:
-        accelerator = "gpu"
-        devices = num_gpus
-        message = f"{devices} GPU"
-        if effective_num_gpus > 1:
-            strategy = DDPPlugin(find_unused_parameters=False)
-            message += "s per node with DDP"
-    print(f"Using {message}")
+submit_to_azure_if_needed(cluster="nd24",
+                          num_nodes=2)
+num_nodes=get_multi_node_count()
+num_gpus = torch.cuda.device_count()
+effective_num_gpus = num_gpus * num_nodes
 
-    trainer = Trainer(accelerator=accelerator,
-                      strategy=strategy,
-                      num_nodes=args.num_nodes,
-                      devices=devices,
-                      ...)
+strategy = None
+if effective_num_gpus == 0:
+    accelerator = "cpu"
+    devices = 1
+    message = "CPU"
+else:
+    accelerator = "gpu"
+    devices = num_gpus
+    message = f"{devices} GPU"
+    if effective_num_gpus > 1:
+        strategy = DDPPlugin(find_unused_parameters=False)
+        message += "s per node with DDP"
+print(f"Using {message}")
+
+trainer = Trainer(accelerator=accelerator,
+                  strategy=strategy,
+                  num_nodes=args.num_nodes,
+                  devices=devices,
+                  ...)
 ```

@@ -6,7 +6,7 @@ import argparse
 import os
 
 import torch
-from health_azure import set_environment_variables_for_multi_node, submit_to_azure_if_needed
+from health_azure import get_multi_node_count, set_environment_variables_for_multi_node, submit_to_azure_if_needed
 from health_ml.utils import AzureMLLogger, log_on_epoch
 
 from pytorch_lightning import LightningModule, Trainer
@@ -32,7 +32,7 @@ class MNISTModel(LightningModule):
     def training_step(self, batch, batch_nb):  # type: ignore
         x, y = batch
         loss = F.cross_entropy(self(x), y)
-        log_on_epoch(self, loss)
+        log_on_epoch(self, "loss", loss)
         return loss
 
     def configure_optimizers(self):  # type: ignore
@@ -58,13 +58,11 @@ def main() -> None:
 
     parser.add_argument('--num_nodes', type=int, default=1,
                         help='Number of nodes to train on')
-    parser.add_argument('--min_num_gpus', type=int, default=0,
-                        help='Minimum number of gpus to use')
 
     args, unknown = parser.parse_known_args()
 
     run_info = submit_to_azure_if_needed(
-        compute_cluster_name="nc24s-dedicated",
+        compute_cluster_name="testing-nc6",
         ignored_folders=["lightning_logs", "logs", "MNIST", "outputs"],
         num_nodes=args.num_nodes,
         wait_for_completion=True,
@@ -77,12 +75,14 @@ def main() -> None:
 
     set_environment_variables_for_multi_node()
 
+    actual_num_nodes = get_multi_node_count()
+
     mnist_model = MNISTModel()
 
-    num_gpus = min(args.min_num_gpus, torch.cuda.device_count()) if torch.cuda.is_available() else 0
-    effective_num_gpus = num_gpus * args.num_nodes
+    num_gpus = torch.cuda.device_count()
+    effective_num_gpus = num_gpus * actual_num_nodes
 
-    print(f"num_nodes: {args.num_nodes}, num_gpus: {num_gpus}")
+    print(f"num_nodes: {actual_num_nodes}, num_gpus: {num_gpus}")
 
     strategy = None
     if effective_num_gpus == 0:
@@ -98,7 +98,7 @@ def main() -> None:
             message += "s per node with DDP"
     print(f"Using {message}")
 
-    azureml_logger = AzureMLLogger()
+    azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
 
     # Initialize a trainer
     trainer = Trainer(logger=[azureml_logger],
@@ -106,7 +106,7 @@ def main() -> None:
                       accelerator=accelerator,
                       strategy=strategy,
                       max_epochs=1,
-                      num_nodes=args.num_nodes,
+                      num_nodes=actual_num_nodes,
                       devices=devices)
 
     # Train the model ⚡
