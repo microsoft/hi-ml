@@ -3,10 +3,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import base64
+import itertools
+import mimetypes
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-import itertools
 from pathlib import Path
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple
 
@@ -196,7 +198,7 @@ class HTMLReport:
 
         self._add_tables_to_report(tables)
 
-    def _add_image_to_report(self, image_path: Path):
+    def _add_image_to_report(self, image_path: Path, base64_encode: bool = False):
         """
         Given a path to an image, add it to the report template and args for rendering
 
@@ -222,9 +224,18 @@ class HTMLReport:
         self.add_to_template(template_addition)
 
         # Add these keys and paths to the keyword args for rendering later
-        self.render_kwargs.update({image_key_html: [str(img_path_html)]})
+        if base64_encode:
+            with open(image_path, "rb") as f_path:
+                img_data = f_path.read()
+                img_data_base64_bytes = base64.b64encode(img_data)
+                img_data_base64_str = img_data_base64_bytes.decode()
 
-    def add_images(self, image_paths_or_dir: List[Path]) -> None:
+            img_path_html = "data:" + mimetypes.guess_type(str(img_path_html))[0] + ";base64," + img_data_base64_str
+        else:
+            img_path_html = str(img_path_html)
+        self.render_kwargs.update({image_key_html: [img_path_html]})
+
+    def add_images(self, image_paths_or_dir: List[Path], base64_encode: bool = False) -> None:
         """
         Given a path to one or more image files, or a directory containing image files,  embeds the image on the
         report. If the path is within the report folder, the relative path will be used.
@@ -232,6 +243,7 @@ class HTMLReport:
         Otherwise, the image path is not altered.
 
         :param image_paths_or_dir: The paths to the image(s), or a directory containing images to be embedded
+        :param base64_encode: If True, encode image data as Base64 before embedding in the report
         """
         if len(image_paths_or_dir) == 0:
             raise ValueError("add_image expects a list of image_paths")
@@ -240,9 +252,9 @@ class HTMLReport:
             image_path_or_dir = Path(image_path_or_dir)
             if image_path_or_dir.is_dir():
                 for image_path in image_path_or_dir.iterdir():
-                    self.add_images([image_path])
+                    self.add_images([image_path], base64_encode=base64_encode)
             else:
-                self._add_image_to_report(image_path_or_dir)
+                self._add_image_to_report(image_path_or_dir, base64_encode=base64_encode)
 
     @classmethod
     def load_imgs_onto_subplot(cls, img_folder_or_paths: List[Path], num_plot_columns: int = 2,

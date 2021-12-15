@@ -99,6 +99,20 @@ def test_html_report_add_images(html_report: HTMLReport, dummy_df: pd.DataFrame)
     html_report.validate()
 
 
+def test_html_report_add_images_encoded(html_report: HTMLReport, dummy_df: pd.DataFrame):
+    html_template_before = html_report._remove_html_end(html_report.template)
+
+    dummy_df_cols = list(dummy_df.columns)
+    dummy_df.plot(x=dummy_df_cols[0], y=dummy_df_cols[1], kind="scatter")
+    fig_path = html_report.report_folder / "fig1.png"
+    plt.savefig(fig_path)
+    html_report.add_images([str(fig_path)], base64_encode=True)
+
+    assert "png;base64" in html_report.render_kwargs["IMAGEPATHSHTML_0"][0]
+
+    html_report.render()
+
+
 def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
