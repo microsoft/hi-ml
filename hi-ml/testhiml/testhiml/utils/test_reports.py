@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Tuple
@@ -55,18 +56,18 @@ def test_html_report_validate() -> None:
         assert "report_html is missing the tag" in str(e.value)
 
 
-def test_html_report_add_table(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path) -> None:
+def test_html_report_add_tables(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path) -> None:
     # assert that ValueError is raised if neither table_path nor table is provided
     with pytest.raises(ValueError) as e:
-        html_report.add_table()
-        assert "One of table or table path must be provided" in str(e)
+        html_report.add_tables()
+        # assert "One of table or table path must be provided" in str(e)
 
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     table_keys_before = [k for k in render_kwargs_before.keys() if TABLE_KEY_HTML in k]
     num_tables = len(table_keys_before)
 
-    html_report.add_table(dummy_df)
+    html_report.add_tables(table=dummy_df)
 
     html_template_difference = html_report.template.replace(html_template_before, "")
 
@@ -76,7 +77,7 @@ def test_html_report_add_table(html_report: HTMLReport, dummy_df: pd.DataFrame, 
     html_report.validate()
 
 
-def test_html_report_add_image(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
+def test_html_report_add_images(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     image_paths_before = [k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
@@ -86,7 +87,7 @@ def test_html_report_add_image(html_report: HTMLReport, dummy_df: pd.DataFrame) 
     dummy_df.plot(x=dummy_df_cols[0], y=dummy_df_cols[1], kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
-    html_report.add_image(str(fig_path))
+    html_report.add_images([str(fig_path)])
 
     html_template_difference = html_report.template.replace(html_template_before, "")
 
@@ -158,12 +159,12 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> 
     dummy_df.plot(x="A", y="B", kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
-    html_report.add_image(str(fig_path))
+    html_report.add_images([str(fig_path)])
 
     df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"],
                         "A very very very very very very very very very very very very very very very long title": [
                             1, 2, 3]})
-    html_report.add_table(df2)
+    html_report.add_tables([df2])
 
     html_report.add_text("Area vs radius chart", tag_class="h3")
 
@@ -224,7 +225,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
 class MockPath:
     def __init__(self) -> None:
-        self.path = Path("gallery_image_{img_num}.png")
+        self.path = Path(f"gallery_image_0.png")
 
     def is_dir(self) -> bool:
         return False
@@ -233,60 +234,55 @@ class MockPath:
         return self.path
 
 
-class MockTableDir:
-    def __init__(self) -> None:
-        self.dummy_paths = (MockPath(), "dummy_path2.csv", "dummy_path3.csv")
+@pytest.fixture()
+def mock_table_dir(tmp_path: Path) -> Path:
+    mock_dir = tmp_path / "tables"
+    mock_dir.mkdir()
+    mock_paths = []
+    for i in range(3):
+        mock_path = mock_dir / f"table{i}.csv"
+        mock_path.touch()
+        mock_paths.append(mock_path)
+    table_paths = mock_paths
+    table_dir = mock_dir
+    return mock_dir
 
-    def __getitem__(self, index: int) -> Any:
-        return self.dummy_paths[index]
 
-    def is_dir(self) -> bool:
-        return True
-
-    def iterdir(self) -> Tuple[Any, Any, Any]:
-        return self.dummy_paths
-
-
-@patch("health_ml.utils.reports.Path")
 @patch("pandas.read_csv")
-def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_path: MagicMock, html_report: HTMLReport
+def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_table_dir: Path, html_report: HTMLReport
                                             ) -> None:
     mock_read_csv.return_value = "dummy_df"
     html_template_before = html_report._remove_html_end(html_report.template)
-    mock_dir = MockTableDir()
-    mock_path.return_value = mock_dir
-    num_existing_tables = 0
 
     # pass in yaml contents with a mock folder path containing 3 csv files and check that 3 table tags
     # get added to the report
     yaml_contents_with_table_dir = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
             {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-             ReportComponentKey.VALUE.value: mock_dir}
+             ReportComponentKey.VALUE.value: mock_table_dir}
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_dir)
     html_template_difference = html_report.template.replace(html_template_before, "")
-    num_existing_tables += len(list(mock_dir.iterdir()))
-    assert html_template_difference.count(r"{% for table in") == num_existing_tables
+    num_new_tables = len(list(mock_table_dir.iterdir()))
+    assert html_template_difference.count(r"{% for table in") == num_new_tables
+    html_template_before = html_report._remove_html_end(html_report.template)
 
     # Now add single path
     yaml_contents_with_table_path = OrderedDict({
         REPORT_CONTENTS_KEY: OrderedList([
             {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-             ReportComponentKey.VALUE.value: mock_dir[0]}
+             ReportComponentKey.VALUE.value: next(mock_table_dir.iterdir())}
         ])})
 
-    mock_path.return_value = mock_dir[0]
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_path)
     html_template_difference = html_report.template.replace(html_template_before, "")
-    num_existing_tables += 1
-    assert html_template_difference.count(r"{% for table in") == num_existing_tables
+    num_new_tables = 1
+    assert html_template_difference.count(r"{% for table in") == num_new_tables
 
 
 def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_folder: Path) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
-    num_existing_imgs = 0
 
     # Now add image folder - first as a gallery
     yaml_contents_with_img_dir_gallery = OrderedDict({
@@ -299,8 +295,9 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
         html_report.add_yaml_contents_to_report(yaml_contents_with_img_dir_gallery)
 
     html_template_difference = html_report.template.replace(html_template_before, "")
-    num_existing_imgs += 1
-    assert html_template_difference.count(r"<img src") == num_existing_imgs
+    num_new_imgs = 1
+    assert html_template_difference.count(r"<img src") == num_new_imgs
+    html_template_before = html_report._remove_html_end(html_report.template)
 
     # add image folder as separate images
     yaml_contents_with_img_dir = OrderedDict({
@@ -313,8 +310,9 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
         html_report.add_yaml_contents_to_report(yaml_contents_with_img_dir)
 
     html_template_difference = html_report.template.replace(html_template_before, "")
-    num_existing_imgs += len(list(dummy_fig_folder.iterdir()))
-    assert html_template_difference.count(r"<img src") == num_existing_imgs
+    num_new_imgs = len(list(dummy_fig_folder.iterdir()))
+    assert html_template_difference.count(r"<img src") == num_new_imgs
+    html_template_before = html_report._remove_html_end(html_report.template)
 
     # Now add single image path
     yaml_contents_with_img_path = OrderedDict({
@@ -325,8 +323,8 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_img_path)
     html_template_difference = html_report.template.replace(html_template_before, "")
-    num_existing_imgs += 1
-    assert html_template_difference.count(r"<img src") == num_existing_imgs
+    num_new_imgs = 1
+    assert html_template_difference.count(r"<img src") == num_new_imgs
 
 
 def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
@@ -416,3 +414,65 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
             assert initial_contents_first_value != updated_contents_first_value
             assert len(updated_contents_first_value.split(",")) == num_children
             assert updated_contents_first_value.split(",")[0] == str(mock_download.return_value[0])
+
+
+def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path):
+    dummy_df.plot(x="A", y="B", kind="scatter")
+    dummy_df.plot(x="A", y="B", kind="scatter")
+    fig_path = html_report.report_folder / "fig1.png"
+    plt.savefig(fig_path)
+    html_report.add_images([str(fig_path)])
+
+    df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"],
+                        "colour": ["Red", "Blue", "Yellow"],
+                        "Number ": [ 1, 2, 3]
+    })
+    html_report.add_tables([df2])
+
+    html_report.add_text("Area vs radius chart", tag_class="h3")
+
+    html_report.render()
+
+    # call zip folder method and check it works
+    expected_zip_folder_path = html_report.zip_report_folder()
+    assert expected_zip_folder_path.exists()
+
+    # unzip folder and check contents
+    extract_path = Path(str(html_report.report_folder) + "_extracted")
+    zipfile.ZipFile(expected_zip_folder_path).extractall(path=extract_path)
+    assert extract_path.is_dir()
+    assert len(list(extract_path.glob("*.csv"))) == 0
+    assert len(list(extract_path.glob("*.png"))) == 1
+    assert len(list(extract_path.glob("*.html"))) == 2
+
+
+def test_zip_nested_folder(dummy_df: pd.DataFrame, html_report: HTMLReport):
+    report_folder = html_report.report_folder
+
+    dummy_df.plot(x="A", y="B", kind="scatter")
+    dummy_df.plot(x="A", y="B", kind="scatter")
+
+    folder_paths = []
+    num_nested_folders = 5
+    for i in range(num_nested_folders):
+        nested_folder = report_folder / str(i)
+        nested_folder.mkdir()
+        nested_fig_path = nested_folder / "fig.png"
+        plt.savefig(nested_fig_path)
+        folder_paths.append(nested_folder)
+
+    html_report.add_images(folder_paths)
+    html_report.render()
+
+    expected_zip_folder_path = html_report.zip_report_folder()
+    assert expected_zip_folder_path.exists()
+
+    # unzip folder and check contents
+    extract_path = Path(str(html_report.report_folder) + "_extracted")
+    zipfile.ZipFile(expected_zip_folder_path).extractall(path=extract_path)
+    assert extract_path.is_dir()
+
+    for i in range(num_nested_folders):
+        folder_path = extract_path / str(i)
+        assert folder_path.is_dir()
+        assert (folder_path / "fig.png").exists()

@@ -94,7 +94,6 @@ class HTMLReport:
         Once we have added components to our template, this method is called, to add back the HTML
         closing tags. validate is called to check the correct number of closing tags exist.
 
-        :param report_stream: A string representing the content of the report thus far
         :return: A modified string, with closing tags
         """
         self.template += f"{CLOSE_DOC_TAGS}"
@@ -149,47 +148,64 @@ class HTMLReport:
         <br>"""
         self.add_to_template(template_addition)
 
-    def add_table(self, table: Optional[pd.DataFrame] = None, table_path: Optional[Path] = None) -> None:
+    def _add_tables_to_report(self, tables: List[pd.DataFrame]):
         """
-        Add a table object to your report. The table can either be passed as a Pandas DataFrame object, or
-        a path to a .csv file contianing your table. If neither of these parameters are provided, an Exception
-        will be raised.
+        Add one or more tables (in the form of Pandas DataFrames) to the report.
+
+        :param tables: A list of one or more Pandas DataFrame to be rendered in the report
+        """
+        for table in tables:
+            num_existing_tables = self.template.count("table.to_html")
+            table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
+
+            template_addition = """<div class="container" >
+            {% for table in """ + table_key + """ %}
+                {{ table.to_html(classes=[ "table"], justify="center") | safe }}
+            {% endfor %}
+            </div>
+            <br>"""
+            self.add_to_template(template_addition)
+
+            self.render_kwargs.update({table_key: table})
+
+    def add_tables(self, table: Optional[pd.DataFrame] = None, table_paths_or_dir: List[Path] = []) -> None:
+        """
+        Add one or more tables to your report. The table can either be passed as a Pandas DataFrame object, or
+        a list of path to one or more .csv files, or a directory of csv files containing your tables.
+        If neither of these parameters are provided, an Exception will be raised.
 
         :param table: An optional Pandas DataFrame to be rendered in the report
-        :param table_path: An optional path to a .csv file containing the table to be rendered on the report
+        :param table_paths_or_dir: An optional path to a .csv file containing the table to be rendered on the report
         :raises ValueError: If neither a table object nor a path to a .csv file are provided
         """
-        if table is None and table_path is None:
+        if table is None and len(table_paths_or_dir) == 0:
             raise ValueError("One of table or table path must be provided")
-        if table is None:
-            table = pd.read_csv(table_path)
 
-        num_existing_tables = self.template.count("table.to_html")
-        table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
+        tables = []
+        if table is not None:
+            tables.append(table)
 
-        template_addition = """<div class="container" >
-        {% for table in """ + table_key + """ %}
-            {{ table.to_html(classes=[ "table"], justify="center") | safe }}
-        {% endfor %}
-        </div>
-        <br>"""
-        self.add_to_template(template_addition)
+        if len(table_paths_or_dir) > 0:
+            for table_path_or_dir in table_paths_or_dir:
+                table_path_or_dir = Path(table_path_or_dir)
+                if table_path_or_dir.is_dir():
+                    for table_path in table_path_or_dir.iterdir():
+                        self.add_tables(table_paths_or_dir=[table_path])
+                else:
+                    tables.append(pd.read_csv(table_path_or_dir))
 
-        self.render_kwargs.update({table_key: [table]})
+        self._add_tables_to_report(tables)
 
-    def add_image(self, image_path: str, figsize: Tuple[int, int] = DEFAULT_FIGSIZE) -> None:
+    def _add_image_to_report(self, image_path: Path):
         """
-        Given a path to an image file, embeds the image on the report. If the path is within the report folder, the
-        relative path will be used. This is to ensure that the HTML document is able to locate and embed the image.
-        Otherwise, the image path is not altered.
+        Given a path to an image, add it to the report template and args for rendering
 
-        :param image_path: The path to the image to be embedded
-        :param figsize: The size of the figure
+        :param image_path: The paths to the image to be added
         """
-        if image_path.startswith(str(self.report_folder)):
-            img_path_html = Path(image_path).relative_to(self.report_folder)
+        if self.report_folder in image_path.parents:
+            img_path_html = image_path.relative_to(self.report_folder)
         else:
-            img_path_html = Path(image_path)
+            img_path_html = image_path
 
         image_key_html = IMAGE_KEY_HTML + "_0"
         # Increment the image name so as not to replace other images
@@ -207,6 +223,26 @@ class HTMLReport:
 
         # Add these keys and paths to the keyword args for rendering later
         self.render_kwargs.update({image_key_html: [str(img_path_html)]})
+
+    def add_images(self, image_paths_or_dir: List[Path]) -> None:
+        """
+        Given a path to one or more image files, or a directory containing image files,  embeds the image on the
+        report. If the path is within the report folder, the relative path will be used.
+        This is to ensure that the HTML document is able to locate and embed the image.
+        Otherwise, the image path is not altered.
+
+        :param image_paths_or_dir: The paths to the image(s), or a directory containing images to be embedded
+        """
+        if len(image_paths_or_dir) == 0:
+            raise ValueError("add_image expects a list of image_paths")
+
+        for image_path_or_dir in image_paths_or_dir:
+            image_path_or_dir = Path(image_path_or_dir)
+            if image_path_or_dir.is_dir():
+                for image_path in image_path_or_dir.iterdir():
+                    self.add_images([image_path])
+            else:
+                self._add_image_to_report(image_path_or_dir)
 
     @classmethod
     def load_imgs_onto_subplot(cls, img_folder_or_paths: List[Path], num_plot_columns: int = 2,
@@ -267,7 +303,7 @@ class HTMLReport:
         img_num = len(list(self.report_folder.glob("gallery_image_*")))
         gallery_img_path = str(self.report_folder / f"gallery_image_{img_num}.png")
         fig.savefig(gallery_img_path)
-        self.add_image(gallery_img_path)
+        self.add_images([gallery_img_path])
 
     def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None,
                  fig_title: Optional[str] = None) -> None:
@@ -278,7 +314,7 @@ class HTMLReport:
 
         :param plot_path: Optional path to a saved plot file
         :param fig: Optional matplotlib Figure object
-        :param plot_title: Optionally provide a title to use as the saved figure filename
+        :param fig_title: Optionally provide a title to use as the saved figure filename
         """
         if fig is not None:
             # save the plot
@@ -294,7 +330,7 @@ class HTMLReport:
             fig.tight_layout()
             fig.savefig(plot_path, bbox_inches='tight', dpi=150)
         assert plot_path is not None  # for pyright
-        self.add_image(plot_path)
+        self.add_images([plot_path])
 
     def read_config_yaml(self, report_config_path: Path) -> OrderedDict:
         """
@@ -351,24 +387,13 @@ class HTMLReport:
             component_val = component[ReportComponentKey.VALUE.value]
             figsize = component["figsize"] if "figsize" in component else DEFAULT_FIGSIZE
             num_cols = component["num_cols"] if "num_cols" in component else DEFAULT_NUM_COLS
+            dir_or_paths = [x for x in str(component_val).split(",")]
             if component_type == ReportComponentKey.TABLE.value:
-                table_path = Path(component_val)
-                if table_path.is_dir():
-                    for tbl_path in table_path.iterdir():
-                        self.add_table(table_path=tbl_path)
-                else:
-                    self.add_table(table_path=table_path)
+                self.add_tables(table_paths_or_dir=dir_or_paths)
             elif component_type == ReportComponentKey.IMAGE.value:
-
-                image_path = Path(component_val)
-                if image_path.is_dir():
-                    for img_path in image_path.iterdir():
-                        self.add_image(str(img_path), figsize=figsize)
-                else:
-                    self.add_image(component_val)
+                self.add_images(dir_or_paths)
             elif component_type == ReportComponentKey.IMAGE_GALLERY.value:
-                image_dir_or_paths = [Path(x) for x in component_val.split(",")]
-                self.add_image_gallery(image_dir_or_paths, figsize=figsize, num_cols=num_cols)
+                self.add_image_gallery(dir_or_paths, figsize=figsize, num_cols=num_cols)
             elif component_type == ReportComponentKey.TEXT.value:
                 self.add_text(component_val)
             else:
@@ -440,9 +465,20 @@ class HTMLReport:
 
         :param save_html: Whether to save the HTML to file
         """
-        subs: str = self.env.from_string(self.template).render(**self.render_kwargs)
+        new_env = self.env.from_string(self.template)
+        subs: str = new_env.render(**self.render_kwargs)
         self.report_html = subs
         # write the substitution to a file
         if save_html:
             with open(self.report_path_html, 'w') as f_path:
                 f_path.write(subs)
+
+    def zip_report_folder(self):
+        import zipfile
+        report_files = self.report_folder.rglob("*.*")
+        zipped_folder_path = self.report_folder.with_suffix(".zip")
+        with zipfile.ZipFile(zipped_folder_path, "w") as zipped_folder:
+            for report_file in report_files:
+                zipped_folder.write(report_file, arcname=report_file.relative_to(self.report_folder))
+        print(f"Zipped folder path: {str(zipped_folder_path)}")
+        return zipped_folder_path
