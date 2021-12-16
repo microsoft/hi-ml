@@ -113,7 +113,7 @@ class HTMLReport:
 <title> {{title}} </title>
 </head>
 <body>
-<div class="container-fluid justify-content-center align-items-center">
+<div class="container-fluid">
 <div class="container">
 <h1> {{title}} </h1>
 </div>
