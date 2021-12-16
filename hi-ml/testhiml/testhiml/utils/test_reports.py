@@ -86,7 +86,7 @@ def test_html_report_add_images(html_report: HTMLReport, dummy_df: pd.DataFrame)
     dummy_df.plot(x=dummy_df_cols[0], y=dummy_df_cols[1], kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
-    html_report.add_images([str(fig_path)])
+    html_report.add_images([fig_path])
 
     html_template_difference = html_report.template.replace(html_template_before, "")
 
@@ -103,7 +103,7 @@ def test_html_report_add_images_encoded(html_report: HTMLReport, dummy_df: pd.Da
     dummy_df.plot(x=dummy_df_cols[0], y=dummy_df_cols[1], kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
-    html_report.add_images([str(fig_path)], base64_encode=True)
+    html_report.add_images([fig_path], base64_encode=True)
 
     assert "png;base64" in html_report.render_kwargs["IMAGEPATHSHTML_0"][0]
 
@@ -168,7 +168,7 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> 
     dummy_df.plot(x="A", y="B", kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
-    html_report.add_images([str(fig_path)])
+    html_report.add_images([fig_path])
 
     df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"],
                         "A very very very very very very very very very very very very very very very long title": [
@@ -426,7 +426,7 @@ def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     dummy_df.plot(x="A", y="B", kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
     plt.savefig(fig_path)
-    html_report.add_images([str(fig_path)])
+    html_report.add_images([fig_path])
 
     df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"],
                         "colour": ["Red", "Blue", "Yellow"],
