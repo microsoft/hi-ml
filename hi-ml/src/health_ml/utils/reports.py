@@ -185,8 +185,8 @@ class HTMLReport:
         if tables is None and table_paths_or_dir is None:
             raise ValueError("One of tables or table_paths_or_dir must be provided")
 
+        tables = tables or []
         if table_paths_or_dir is not None:
-            tables = []
             for table_path_or_dir in table_paths_or_dir:
                 table_path_or_dir = Path(table_path_or_dir)
                 if table_path_or_dir.is_dir():
@@ -195,6 +195,7 @@ class HTMLReport:
                 else:
                     tables.append(pd.read_csv(table_path_or_dir))
 
+        assert len(tables) > 0, "No tables were found"
         self._add_tables_to_report(tables)
 
     def _add_image_to_report(self, image_path: Path, base64_encode: bool = False) -> None:
