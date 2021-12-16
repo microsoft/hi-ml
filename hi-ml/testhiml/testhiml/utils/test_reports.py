@@ -5,7 +5,6 @@
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Tuple
 from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
@@ -60,7 +59,7 @@ def test_html_report_add_tables(html_report: HTMLReport, dummy_df: pd.DataFrame,
     # assert that ValueError is raised if neither table_path nor table is provided
     with pytest.raises(ValueError) as e:
         html_report.add_tables()
-        # assert "One of table or table path must be provided" in str(e)
+        assert "One of table or table path must be provided" in str(e)
 
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
@@ -99,9 +98,7 @@ def test_html_report_add_images(html_report: HTMLReport, dummy_df: pd.DataFrame)
     html_report.validate()
 
 
-def test_html_report_add_images_encoded(html_report: HTMLReport, dummy_df: pd.DataFrame):
-    html_template_before = html_report._remove_html_end(html_report.template)
-
+def test_html_report_add_images_encoded(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     dummy_df_cols = list(dummy_df.columns)
     dummy_df.plot(x=dummy_df_cols[0], y=dummy_df_cols[1], kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
@@ -109,8 +106,6 @@ def test_html_report_add_images_encoded(html_report: HTMLReport, dummy_df: pd.Da
     html_report.add_images([str(fig_path)], base64_encode=True)
 
     assert "png;base64" in html_report.render_kwargs["IMAGEPATHSHTML_0"][0]
-
-    html_report.render()
 
 
 def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
@@ -157,8 +152,8 @@ def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -
 
     # pass a saved image path to add_plot and check the difference in the HTML report
     plot_title = "new_plot.png"
-    new_plot_path = str(html_report.report_folder / plot_title)
-    fig.savefig(new_plot_path)
+    new_plot_path = html_report.report_folder / plot_title
+    fig.savefig(str(new_plot_path))
     html_report.add_plot(plot_path=new_plot_path)
     # the difference between the templates after calling add_image should be a single HTML <img> tag
     assert html_template_difference.count("<img src=") == 1
@@ -239,7 +234,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
 class MockPath:
     def __init__(self) -> None:
-        self.path = Path(f"gallery_image_0.png")
+        self.path = Path("gallery_image_0.png")
 
     def is_dir(self) -> bool:
         return False
@@ -252,13 +247,9 @@ class MockPath:
 def mock_table_dir(tmp_path: Path) -> Path:
     mock_dir = tmp_path / "tables"
     mock_dir.mkdir()
-    mock_paths = []
     for i in range(3):
         mock_path = mock_dir / f"table{i}.csv"
         mock_path.touch()
-        mock_paths.append(mock_path)
-    table_paths = mock_paths
-    table_dir = mock_dir
     return mock_dir
 
 
@@ -430,7 +421,7 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
             assert updated_contents_first_value.split(",")[0] == str(mock_download.return_value[0])
 
 
-def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path):
+def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     dummy_df.plot(x="A", y="B", kind="scatter")
     dummy_df.plot(x="A", y="B", kind="scatter")
     fig_path = html_report.report_folder / "fig1.png"
@@ -439,8 +430,8 @@ def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: P
 
     df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"],
                         "colour": ["Red", "Blue", "Yellow"],
-                        "Number ": [ 1, 2, 3]
-    })
+                        "Number ": [1, 2, 3]
+                        })
     html_report.add_tables([df2])
 
     html_report.add_text("Area vs radius chart", tag_class="h3")
@@ -460,7 +451,7 @@ def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: P
     assert len(list(extract_path.glob("*.html"))) == 2
 
 
-def test_zip_nested_folder(dummy_df: pd.DataFrame, html_report: HTMLReport):
+def test_zip_nested_folder(dummy_df: pd.DataFrame, html_report: HTMLReport) -> None:
     report_folder = html_report.report_folder
 
     dummy_df.plot(x="A", y="B", kind="scatter")

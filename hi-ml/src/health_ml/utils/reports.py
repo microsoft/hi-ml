@@ -150,7 +150,7 @@ class HTMLReport:
         <br>"""
         self.add_to_template(template_addition)
 
-    def _add_tables_to_report(self, tables: List[pd.DataFrame]):
+    def _add_tables_to_report(self, tables: List[pd.DataFrame]) -> None:
         """
         Add one or more tables (in the form of Pandas DataFrames) to the report.
 
@@ -198,11 +198,14 @@ class HTMLReport:
 
         self._add_tables_to_report(tables)
 
-    def _add_image_to_report(self, image_path: Path, base64_encode: bool = False):
+    def _add_image_to_report(self, image_path: Path, base64_encode: bool = False) -> None:
         """
-        Given a path to an image, add it to the report template and args for rendering
+        Given a path to an image, add it to the report template and to the report arguments
+        for rendering later. Optionally encode as base64 - this is useful if a standalone
+        report is required but leads to a much larger report file size, so is False by default
 
         :param image_path: The paths to the image to be added
+        :param base64_encode: If True, encode the image as base64 in the HTML report. Default is False
         """
         if self.report_folder in image_path.parents:
             img_path_html = image_path.relative_to(self.report_folder)
@@ -230,10 +233,11 @@ class HTMLReport:
                 img_data_base64_bytes = base64.b64encode(img_data)
                 img_data_base64_str = img_data_base64_bytes.decode()
 
-            img_path_html = "data:" + mimetypes.guess_type(str(img_path_html))[0] + ";base64," + img_data_base64_str
+            img_type: str = mimetypes.guess_type(str(img_path_html))[0]  # type: ignore
+            img_path_str = "data:" + img_type + ";base64," + img_data_base64_str
         else:
-            img_path_html = str(img_path_html)
-        self.render_kwargs.update({image_key_html: [img_path_html]})
+            img_path_str = str(img_path_html)
+        self.render_kwargs.update({image_key_html: [img_path_str]})
 
     def add_images(self, image_paths_or_dir: List[Path], base64_encode: bool = False) -> None:
         """
@@ -243,7 +247,7 @@ class HTMLReport:
         Otherwise, the image path is not altered.
 
         :param image_paths_or_dir: The paths to the image(s), or a directory containing images to be embedded
-        :param base64_encode: If True, encode image data as Base64 before embedding in the report
+        :param base64_encode: If True, encode image data as base64 in the HTML report. Default is False
         """
         if len(image_paths_or_dir) == 0:
             raise ValueError("add_image expects a list of image_paths")
@@ -293,14 +297,15 @@ class HTMLReport:
             with open(plot_path, "rb") as f_path:
                 img_arr = plt.imread(f_path)
 
-                fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
+                axs: plt.Axes = fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
+                axs.set_axis_off()
                 plt.imshow(img_arr)
 
-        fig.tight_layout()
+        plt.tight_layout()
         return fig
 
     def add_image_gallery(self, image_folder_or_paths: List[Path], figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
-                          num_cols: int = DEFAULT_NUM_COLS) -> None:
+                          num_cols: int = DEFAULT_NUM_COLS, base64_encode: bool = False) -> None:
         """
         Given a list of one or more paths, either to a folder containing multiple images, or multiple image
         paths, loads each of the images adds to a single chart create a "gallery" i.e. a plot containing
@@ -310,14 +315,15 @@ class HTMLReport:
             to add to the gallery, or multiple paths to specific image files
         :param figsize: The size of the overall plot
         :param num_cols: The number of columns in the subplot
+        :param base64_encode: If True, encode image as base64 in the report HTML. Default is False.
         """
         fig = self.load_imgs_onto_subplot(image_folder_or_paths, figsize=figsize, num_plot_columns=num_cols)
         img_num = len(list(self.report_folder.glob("gallery_image_*")))
-        gallery_img_path = str(self.report_folder / f"gallery_image_{img_num}.png")
-        fig.savefig(gallery_img_path)
-        self.add_images([gallery_img_path])
+        gallery_img_path = self.report_folder / f"gallery_image_{img_num}.png"
+        fig.savefig(str(gallery_img_path))
+        self.add_images([gallery_img_path], base64_encode=base64_encode)
 
-    def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None,
+    def add_plot(self, plot_path: Optional[Path] = None, fig: Optional[plt.Figure] = None,
                  fig_title: Optional[str] = None) -> None:
         """
         Add a plot to your report. The plot can either be passed as a [matplotlib Figure object](
@@ -338,9 +344,9 @@ class HTMLReport:
                 plot_title = fig_title.replace(" ", "_")
             else:
                 plot_title = f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            plot_path = str((self.report_folder / plot_title).with_suffix(".png"))
+            plot_path = (self.report_folder / plot_title).with_suffix(".png")
             fig.tight_layout()
-            fig.savefig(plot_path, bbox_inches='tight', dpi=150)
+            fig.savefig(str(plot_path), bbox_inches='tight', dpi=150)
         assert plot_path is not None  # for pyright
         self.add_images([plot_path])
 
@@ -397,15 +403,16 @@ class HTMLReport:
         for component in report_contents:
             component_type = component[ReportComponentKey.TYPE.value]
             component_val = component[ReportComponentKey.VALUE.value]
+            base64_encode = component["base64_encode"] if "base64_encode" in component else False
             figsize = component["figsize"] if "figsize" in component else DEFAULT_FIGSIZE
             num_cols = component["num_cols"] if "num_cols" in component else DEFAULT_NUM_COLS
-            dir_or_paths = [x for x in str(component_val).split(",")]
+            dir_or_paths = [Path(x) for x in str(component_val).split(",")]
             if component_type == ReportComponentKey.TABLE.value:
                 self.add_tables(table_paths_or_dir=dir_or_paths)
             elif component_type == ReportComponentKey.IMAGE.value:
-                self.add_images(dir_or_paths)
+                self.add_images(dir_or_paths, base64_encode=base64_encode)
             elif component_type == ReportComponentKey.IMAGE_GALLERY.value:
-                self.add_image_gallery(dir_or_paths, figsize=figsize, num_cols=num_cols)
+                self.add_image_gallery(dir_or_paths, figsize=figsize, num_cols=num_cols, base64_encode=base64_encode)
             elif component_type == ReportComponentKey.TEXT.value:
                 self.add_text(component_val)
             else:
@@ -485,7 +492,13 @@ class HTMLReport:
             with open(self.report_path_html, 'w') as f_path:
                 f_path.write(subs)
 
-    def zip_report_folder(self):
+    def zip_report_folder(self) -> Path:
+        """
+        Zip the report folder at the location '<report_folder>.zip', preserving the directory structure.
+        Returns the path to the zipped folder
+
+        :return: The path to the zipped folder
+        """
         import zipfile
         report_files = self.report_folder.rglob("*.*")
         zipped_folder_path = self.report_folder.with_suffix(".zip")
