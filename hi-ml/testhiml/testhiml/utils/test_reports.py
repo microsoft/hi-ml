@@ -66,7 +66,7 @@ def test_html_report_add_tables(html_report: HTMLReport, dummy_df: pd.DataFrame,
     table_keys_before = [k for k in render_kwargs_before.keys() if TABLE_KEY_HTML in k]
     num_tables = len(table_keys_before)
 
-    html_report.add_tables(table=dummy_df)
+    html_report.add_tables(tables=[dummy_df])
 
     html_template_difference = html_report.template.replace(html_template_before, "")
 
@@ -173,7 +173,7 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> 
     df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"],
                         "A very very very very very very very very very very very very very very very long title": [
                             1, 2, 3]})
-    html_report.add_tables([df2])
+    html_report.add_tables(tables=[df2])
 
     html_report.add_text("Area vs radius chart", tag_class="h3")
 
@@ -432,7 +432,7 @@ def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
                         "colour": ["Red", "Blue", "Yellow"],
                         "Number ": [1, 2, 3]
                         })
-    html_report.add_tables([df2])
+    html_report.add_tables(tables=[df2])
 
     html_report.add_text("Area vs radius chart", tag_class="h3")
 

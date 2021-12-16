@@ -168,26 +168,25 @@ class HTMLReport:
             <br>"""
             self.add_to_template(template_addition)
 
-            self.render_kwargs.update({table_key: table})
+            self.render_kwargs.update({table_key: [table]})
 
-    def add_tables(self, table: Optional[pd.DataFrame] = None, table_paths_or_dir: List[Path] = []) -> None:
+    def add_tables(self, tables: Optional[List[pd.DataFrame]] = None,
+                   table_paths_or_dir: Optional[List[Path]] = None) -> None:
         """
         Add one or more tables to your report. The table can either be passed as a Pandas DataFrame object, or
         a list of path to one or more .csv files, or a directory of csv files containing your tables.
         If neither of these parameters are provided, an Exception will be raised.
 
-        :param table: An optional Pandas DataFrame to be rendered in the report
-        :param table_paths_or_dir: An optional path to a .csv file containing the table to be rendered on the report
-        :raises ValueError: If neither a table object nor a path to a .csv file are provided
+        :param tables: An optional list of one or more Pandas DataFrames to be rendered in the report
+        :param table_paths_or_dir: An optional list of one or more paths to .csv files containing the tables
+            to be rendered on the report
+        :raises ValueError: If neither a list of tables nor a list of paths is provided
         """
-        if table is None and len(table_paths_or_dir) == 0:
-            raise ValueError("One of table or table path must be provided")
+        if tables is None and table_paths_or_dir is None:
+            raise ValueError("One of tables or table_paths_or_dir must be provided")
 
-        tables = []
-        if table is not None:
-            tables.append(table)
-
-        if len(table_paths_or_dir) > 0:
+        if table_paths_or_dir is not None:
+            tables = []
             for table_path_or_dir in table_paths_or_dir:
                 table_path_or_dir = Path(table_path_or_dir)
                 if table_path_or_dir.is_dir():
@@ -241,7 +240,7 @@ class HTMLReport:
 
     def add_images(self, image_paths_or_dir: List[Path], base64_encode: bool = False) -> None:
         """
-        Given a path to one or more image files, or a directory containing image files,  embeds the image on the
+        Given a path to one or more image files, or a directory containing image files, embeds the image on the
         report. If the path is within the report folder, the relative path will be used.
         This is to ensure that the HTML document is able to locate and embed the image.
         Otherwise, the image path is not altered.
