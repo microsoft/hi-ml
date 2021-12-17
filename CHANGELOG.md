@@ -16,6 +16,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 - ([#170](https://github.com/microsoft/hi-ml/pull/170)) Add utils including bag sampling, bounding boxes, HEDJitter, StainNormalisation and add attention layers
 
 ### Changed
+- ([#173](https://github.com/microsoft/hi-ml/pull/173)) Improve report tool: allow lists of tables, option for zipping report folder, option for base64 encoding images
 
 ### Fixed
 - ([#169](https://github.com/microsoft/hi-ml/pull/169)) Fix a test that was failing occasionally

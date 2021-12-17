@@ -1403,7 +1403,7 @@ def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
     return df
 
 
-def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, local_download_folder: Path,
+def download_files_from_hyperdrive_children(run: Run, remote_file_paths: str, local_download_folder: Path,
                                             hyperparam_name: str = '') -> List[str]:
     """
     Download a specified file or folder from each of the children of an Azure ML Hyperdrive run. For each child
@@ -1413,7 +1413,8 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
     entire folder and all the files within it will be downloaded
 
     :param run: An AML Run object whose type equals "hyperdrive"
-    :param remote_file_path: The path to the content in the Datastore associated with your run outputs
+    :param remote_file_paths: A string of one or more paths to the content in the Datastore associated with your
+        run outputs, separated by commas
     :param local_download_folder: The local folder to download the files to
     :param hyperparam_name: The name of one of the hyperparameters that was sampled during the HyperDrive
         run. This is used to ensure files are downloaded into logically-named folders
@@ -1435,13 +1436,14 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_path: str, loc
         # strip any special characters from the hyperparam index name
         local_folder_child_run = local_download_folder / re.sub('[^A-Za-z0-9]+', '', str(child_run_index))
         local_folder_child_run.mkdir(exist_ok=True)
-        download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
-        downloaded_file_path = local_folder_child_run / remote_file_path
-        if not downloaded_file_path.exists():
-            logging.warning(f"Unable to download the file {remote_file_path} from the datastore associated"
-                            "with this run.")
-        else:
-            downloaded_file_paths.append(str(downloaded_file_path))
+        for remote_file_path in remote_file_paths.split(","):
+            download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
+            downloaded_file_path = local_folder_child_run / remote_file_path
+            if not downloaded_file_path.exists():
+                logging.warning(f"Unable to download the file {remote_file_path} from the datastore associated"
+                                "with this run.")
+            else:
+                downloaded_file_paths.append(str(downloaded_file_path))
 
     return downloaded_file_paths
 
