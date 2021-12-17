@@ -192,6 +192,7 @@ class HTMLReport:
                 if table_path_or_dir.is_dir():
                     for table_path in table_path_or_dir.iterdir():
                         self.add_tables(table_paths_or_dir=[table_path])
+                    return
                 else:
                     tables.append(pd.read_csv(table_path_or_dir))
 
