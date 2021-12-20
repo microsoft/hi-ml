@@ -613,10 +613,11 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
             raise ValueError("No workspace config file given, nor can we find one.")
 
     if workspace_config_path:
-        auth = get_authentication()
-        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
-    else:
-        raise ValueError("Workspace config file does not exist or cannot be read.")
+        try:
+            auth = get_authentication()
+            return Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        except:
+            raise ValueError("Workspace config file does not exist or cannot be read properly.")
 
 
 def create_run_recovery_id(run: Run) -> str:
