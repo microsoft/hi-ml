@@ -499,7 +499,7 @@ class CheckpointDownloader:
     @property
     def remote_checkpoint_path(self) -> Path:
         return self.remote_checkpoint_dir / self.checkpoint_filename
-    
+
     @property
     def local_checkpoint_path(self) -> Path:
         return self.local_checkpoint_dir / self.remote_checkpoint_path
