@@ -494,7 +494,7 @@ class CheckpointDownloader:
         # in case we run_id is a run recovery id, extract the run id
         run_id_parts = self.run_id.split(":")
         run_id = run_id_parts[-1]
-        return self.download_dir / run_id 
+        return self.download_dir / run_id
 
     @property
     def remote_checkpoint_path(self) -> Path:
@@ -514,7 +514,7 @@ class CheckpointDownloader:
 
         if not self.local_checkpoint_path.exists():
             self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
-            download_checkpoints_from_run_id(self.run_id, str(self.remote_checkpoint_path), 
+            download_checkpoints_from_run_id(self.run_id, str(self.remote_checkpoint_path),
                                              self.local_checkpoint_dir,
                                              aml_workspace=workspace)
             assert self.local_checkpoint_path.exists()
@@ -613,11 +613,10 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
             raise ValueError("No workspace config file given, nor can we find one.")
 
     if workspace_config_path:
-        try:
-            auth = get_authentication()
-            return Workspace.from_config(path=str(workspace_config_path), auth=auth)
-        except:
-            raise ValueError("Workspace config file does not exist or cannot be read properly.")
+        auth = get_authentication()
+        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
+    else:
+        raise ValueError("Workspace config file does not exist or cannot be read properly.")
 
 
 def create_run_recovery_id(run: Run) -> str:
