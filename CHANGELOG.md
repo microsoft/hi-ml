@@ -42,6 +42,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 - ([#161](https://github.com/microsoft/hi-ml/pull/161)) Empty string as target folder for a dataset creates an invalid mounting path for the dataset in AzureML (fixes #160)
 - ([#167](https://github.com/microsoft/hi-ml/pull/167)) Fix bugs in logging hyperparameters: logging as name/value
   table, rather than one column per hyperparameter. Use string logging for all hyperparameters
+- ([#174](https://github.com/microsoft/hi-ml/pull/174)) Fix bugs in downloading checkpoint from AML run
 
 ### Removed
 
