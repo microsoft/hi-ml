@@ -612,14 +612,11 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         else:
             raise ValueError("No workspace config file given, nor can we find one.")
 
-    if isinstance(workspace_config_path, Path) and not workspace_config_path.is_file():
-        raise ValueError("Workspace config file does not exist")
-
-    if workspace_config_path:
+    if workspace_config_path.is_file():
         auth = get_authentication()
         return Workspace.from_config(path=str(workspace_config_path), auth=auth)
-    else:
-        raise ValueError("Workspace config file is not valid.")
+
+    raise ValueError("Workspace config file does not exist or cannot be read.")
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -1054,6 +1051,7 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     :return: A list of paths within the Run's container
     """
     all_files = run.get_file_names()
+    print(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
