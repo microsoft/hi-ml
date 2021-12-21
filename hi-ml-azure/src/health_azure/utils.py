@@ -619,7 +619,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         auth = get_authentication()
         return Workspace.from_config(path=str(workspace_config_path), auth=auth)
     else:
-        raise ValueError("Workspace config file does not valid.")
+        raise ValueError("Workspace config file is not valid.")
 
 
 def create_run_recovery_id(run: Run) -> str:
