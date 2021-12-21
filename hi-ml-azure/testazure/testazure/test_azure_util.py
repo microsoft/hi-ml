@@ -116,10 +116,16 @@ def test_get_workspace(
         with pytest.raises(ValueError) as ex:
             util.get_workspace(None, None)
         assert "No workspace config file given" in str(ex)
+
     # Workspace config file is set to a file that does not exist
     with pytest.raises(ValueError) as ex:
         util.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
     assert "Workspace config file does not exist" in str(ex)
+
+    # Workspace config file is set to a wrong type
+    with pytest.raises(ValueError) as ex:
+        util.get_workspace(None, workspace_config_path=1)  # type: ignore
+    assert "Workspace config path is not a path" in str(ex)
 
 
 @patch("health_azure.utils.Run")
