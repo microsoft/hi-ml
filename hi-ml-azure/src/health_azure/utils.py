@@ -612,6 +612,9 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         else:
             raise ValueError("No workspace config file given, nor can we find one.")
 
+    if not isinstance(workspace_config_path, Path):
+        raise ValueError("Workspace config path is not a path, check your input.")
+
     if workspace_config_path.is_file():
         auth = get_authentication()
         return Workspace.from_config(path=str(workspace_config_path), auth=auth)
