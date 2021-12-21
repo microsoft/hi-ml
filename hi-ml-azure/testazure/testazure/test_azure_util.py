@@ -124,7 +124,7 @@ def test_get_workspace(
 
     # Workspace config file is set to a wrong type
     with pytest.raises(ValueError) as ex:
-        util.get_workspace(None, workspace_config_path=1)
+        util.get_workspace(None, workspace_config_path=1)  # type: ignore
     assert "Workspace config path is not a path" in str(ex)
 
 
