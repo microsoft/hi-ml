@@ -9,18 +9,26 @@ import torchvision.transforms.functional as TF
 
 
 class HEDJitter(object):
-    """Randomly perturbe the HED color space value an RGB image.
+    """
+    Randomly perturbe the HED color space value an RGB image.
+
     First, it disentangled the hematoxylin and eosin color channels by color deconvolution method using a fixed matrix,
     taken from Ruifrok and Johnston (2001): "Quantification of histochemical staining by color deconvolution."
     Second, it perturbed the hematoxylin, eosin stains independently.
     Third, it transformed the resulting stains into regular RGB color space.
-    Args:
-        theta (float): How much to jitter HED color space,
-        alpha is chosen from a uniform distribution [1-theta, 1+theta]
-        beta is chosen from a uniform distribution [-theta, theta]
-        the jitter formula is **s' = \alpha * s + \beta**
+
+    Usage example:
+        >>> transform = HEDJitter(0.05)
+        >>> img = transform(img)
     """
-    def __init__(self, theta: float = 0.) -> None:   # HED_light: theta=0.05; HED_strong: theta=0.2
+    def __init__(self, theta: float = 0.) -> None:
+        """
+        :param theta: How much to jitter HED color space.
+            HED_light: theta=0.05; HED_strong: theta=0.2.
+            alpha is chosen from a uniform distribution [1-theta, 1+theta].
+            beta is chosen from a uniform distribution [-theta, theta].
+            the jitter formula is **s' = \alpha * s + \beta**.
+        """
         self.theta = theta
         self.rgb_from_hed = torch.tensor([[0.65, 0.70, 0.29],
                                           [0.07, 0.99, 0.11],
@@ -35,6 +43,14 @@ class HEDJitter(object):
                    stain_from_rgb_mat: torch.Tensor,
                    rgb_from_stain_mat: torch.Tensor
                    ) -> torch.Tensor:
+        """
+        Applies HED jitter to image.
+
+        :param img: Input image.
+        :param theta: Strength of the jitter. HED_light: theta=0.05; HED_strong: theta=0.2.
+        :param stain_from_rgb_mat: Transformation matrix from HED to RGB.
+        :param rgb_from_stain_mat: Transformation matrix from RGB to HED.
+        """
         alpha = torch.FloatTensor(1, 3).uniform_(1 - theta, 1 + theta)
         beta = torch.FloatTensor(1, 3).uniform_(-theta, theta)
 
@@ -61,11 +77,16 @@ class HEDJitter(object):
 
 class StainNormalization(object):
     """Normalize the stain of an image given a reference image.
-    Following Erik Reinhard, Bruce Gooch (2001): “Color Transfer between Images.”
-    First, mask all white pixels.
-    Second, convert remaining pixels to lab space and normalize each channel.
-    Third, add mean and std of reference image.
-    Fourth, convert back to rgb and add white pixels back.
+
+        Following Erik Reinhard, Bruce Gooch (2001): “Color Transfer between Images.”
+        First, mask all white pixels.
+        Second, convert remaining pixels to lab space and normalize each channel.
+        Third, add mean and std of reference image.
+        Fourth, convert back to rgb and add white pixels back.
+
+        Usage example:
+            >>> transform = StainNormalization()
+            >>> img = transform(img)
     """
     def __init__(self) -> None:
         # mean and std per channel of a reference image
@@ -74,6 +95,13 @@ class StainNormalization(object):
 
     @staticmethod
     def stain_normalize(img: torch.Tensor, reference_mean: np.ndarray, reference_std: np.ndarray) -> torch.Tensor:
+        """
+        Applies stain normalization to image.
+
+        :param img: Input image.
+        :param reference_mean: Mean per channel of a reference image.
+        :param reference_std: STD per channel of a reference image.
+        """
         img = img.permute([0, 2, 3, 1]).squeeze().numpy() * 255  # only 3 channels, color channel last, range 0 - 255
         img = img.astype(np.uint8)  # type: ignore
 
@@ -103,16 +131,23 @@ class StainNormalization(object):
 
 
 class GaussianBlur(object):
-    """Implements Gaussian blur as described in the SimCLR paper.
+    """
+    Implements Gaussian blur as described in the SimCLR paper (https://arxiv.org/abs/2002.05709).
+
     Blur image using a Gaussian kernel with randomly sampled STD.
     Slight modification of the code in pl_bolts > simclr > transforms to make it work with our transform pipeline.
-    Args:
-        kernel_size: Size of the Gaussian kernel, should be about 10% of the image size
-        p: Probability of applying blur
-        min: lower bound of the interval from which we sample the STD
-        max: upper bound of the interval from which we sample the STD
+
+    Usage example:
+            >>> transform = GaussianBlur(kernel_size=int(224 * 0.1) + 1)
+            >>> img = transform(img)
     """
     def __init__(self, kernel_size: int, p: float = 0.5, min: float = 0.1, max: float = 2.0) -> None:
+        """
+        :param kernel_size: Size of the Gaussian kernel, e.g., about 10% of the image size.
+        :param p: Probability of applying blur.
+        :param min: lower bound of the interval from which we sample the STD
+        :param max: upper bound of the interval from which we sample the STD
+        """
         self.min = min
         self.max = max
         self.kernel_size = kernel_size
@@ -131,7 +166,12 @@ class GaussianBlur(object):
 
 
 class RandomRotationByMultiplesOf90(object):
-    """Rotation of input image by 0, 90, 180 or 270 degrees.
+    """
+    Rotation of input image by 0, 90, 180 or 270 degrees.
+
+    Usage example:
+            >>> transform = RandomRotationByMultiplesOf90()
+            >>> img = transform(img)
     """
     def __init__(self) -> None:
         super().__init__()
