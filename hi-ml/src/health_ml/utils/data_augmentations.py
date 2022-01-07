@@ -27,7 +27,7 @@ class HEDJitter(object):
             HED_light: theta=0.05; HED_strong: theta=0.2.
             alpha is chosen from a uniform distribution [1-theta, 1+theta].
             beta is chosen from a uniform distribution [-theta, theta].
-            the jitter formula is :math:`s' = \alpha * s + \beta`.
+            The jitter formula is :math:`s' = \alpha * s + \beta`.
         """
         self.theta = theta
         self.rgb_from_hed = torch.tensor([[0.65, 0.70, 0.29],
