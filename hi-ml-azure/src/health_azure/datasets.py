@@ -236,6 +236,66 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
             for d in datasets]
 
 
+def create_dataset_configs(all_azure_dataset_ids: List[str],
+                           all_dataset_mountpoints: List[str],
+                           all_local_datasets: List[Optional[Path]],
+                           datastore: Optional[str] = None,
+                           use_mounting: bool = False) -> List[DatasetConfig]:
+    """
+    Sets up all the dataset consumption objects for the datasets provided. The returned list will have the same length
+    as there are non-empty azure dataset IDs.
+
+    Valid arguments combinations:
+    N azure datasets, 0 or N mount points, 0 or N local datasets
+
+    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
+    :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
+    :param all_local_datasets: The paths for all local versions of the datasets.
+    :param datastore: The name of the AzureML datastore that holds the dataset. This can be empty if the AzureML
+        workspace has only a single datastore, or if the default datastore should be used.
+    :param use_mounting: If True, the dataset will be "mounted", that is, individual files will be read
+        or written on-demand over the network. If False, the dataset will be fully downloaded before the job starts,
+        respectively fully uploaded at job end for output datasets.
+    :return: A list of DatasetConfig objects, in the same order as datasets were provided in all_azure_dataset_ids,
+    omitting datasets with an empty name.
+    """
+    datasets: List[DatasetConfig] = []
+    num_local = len(all_local_datasets)
+    num_azure = len(all_azure_dataset_ids)
+    num_mount = len(all_dataset_mountpoints)
+    if num_azure > 0 and (num_local == 0 or num_local == num_azure) and (num_mount == 0 or num_mount == num_azure):
+        # Test for valid settings: If we have N azure datasets, the local datasets and mount points need to either
+        # have exactly the same length, or 0. In the latter case, empty mount points and no local dataset will be
+        # assumed below.
+        count = num_azure
+    elif num_azure == 0 and num_mount == 0:
+        # No datasets in Azure at all: This is possible for runs that for example download their own data from the web.
+        # There can be any number of local datasets, but we are not checking that. In MLRunner.setup, there is a check
+        # that leaves local datasets intact if there are no Azure datasets.
+        return []
+    else:
+        raise ValueError("Invalid dataset setup. You need to specify N entries in azure_datasets and a matching "
+                         "number of local_datasets and dataset_mountpoints")
+    for i in range(count):
+        azure_dataset = all_azure_dataset_ids[i] if i < num_azure else ""
+        if not azure_dataset:
+            continue
+        mount_point = all_dataset_mountpoints[i] if i < num_mount else ""
+        local_dataset = all_local_datasets[i] if i < num_local else None
+        is_empty_azure_dataset = len(azure_dataset.strip()) == 0
+        config = DatasetConfig(name=azure_dataset,
+                               # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
+                               # setting to None works.
+                               target_folder=mount_point or None,
+                               local_folder=local_dataset,
+                               use_mounting=use_mounting,
+                               datastore=datastore or "")
+        if is_empty_azure_dataset:
+            config.name = ""
+        datasets.append(config)
+    return datasets
+
+
 def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
                                       workspace_config_path: Optional[Path],
                                       dataset_configs: List[DatasetConfig]) -> Optional[Workspace]:
