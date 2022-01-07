@@ -455,4 +455,4 @@ def is_gpu_available() -> bool:
 
     :return: True if a GPU with at least 1 device is available.
     """
-    return torch.cuda.is_available() and torch.cuda.device_count() > 0
+    return torch.cuda.is_available() and torch.cuda.device_count() > 0  # type: ignore

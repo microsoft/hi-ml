@@ -130,7 +130,7 @@ class HelloRegression(LightningModule):
 
     def __init__(self) -> None:
         super().__init__()
-        self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
+        self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)  # type: ignore
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
 
@@ -181,7 +181,7 @@ class HelloRegression(LightningModule):
         input = batch["x"]
         target = batch["y"]
         prediction = self.forward(input)
-        return torch.nn.functional.mse_loss(prediction, target)
+        return torch.nn.functional.mse_loss(prediction, target)  # type: ignore
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         """
@@ -217,7 +217,7 @@ class HelloRegression(LightningModule):
         target = batch["y"]
         prediction = self.forward(input)
         # This illustrates two ways of computing metrics: Using standard torch
-        loss = torch.nn.functional.mse_loss(prediction, target)
+        loss = torch.nn.functional.mse_loss(prediction, target)  # type: ignore
         self.test_mse.append(loss)
         # Metrics computed using PyTorch Lightning objects. Note that these will, by default, attempt
         # to synchronize across GPUs.

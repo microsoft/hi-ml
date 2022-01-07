@@ -2,12 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from enum import Enum, unique
+from __future__ import annotations
+
 import logging
-import param
+from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import param
 from pandas import DataFrame
 from param import Parameterized
 
@@ -54,9 +56,7 @@ class OptimizerType(Enum):
 
 
 class DeepLearningFileSystemConfig(Parameterized):
-    """
-    High level config to abstract the file system related configs for deep learning models
-    """
+    """High level config to abstract the file system related configs for deep learning models"""
     outputs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                                doc="The folder where all training and test outputs should go.")
     logs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
@@ -70,7 +70,7 @@ class DeepLearningFileSystemConfig(Parameterized):
     def create(project_root: Path,
                is_offline_run: bool,
                model_name: str,
-               output_to: Optional[str] = None) -> DeepLearningFileSystemConfig:  # noqa: F821
+               output_to: Optional[str] = None) -> DeepLearningFileSystemConfig:
         """
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp
@@ -114,7 +114,7 @@ class DeepLearningFileSystemConfig(Parameterized):
             run_folder=run_folder
         )
 
-    def add_subfolder(self, subfolder: str) -> DeepLearningFileSystemConfig:  # noqa: F821
+    def add_subfolder(self, subfolder: str) -> DeepLearningFileSystemConfig:
         """
         Creates a new output folder configuration, where both outputs and logs go into the given subfolder inside
         the present outputs folder.

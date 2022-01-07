@@ -11,14 +11,14 @@ from torch.optim.rmsprop import RMSprop
 from health_ml.deep_learning_config import OptimizerParams, OptimizerType
 
 
-def create_optimizer(config: OptimizerParams, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:
+def create_optimizer(config: OptimizerParams, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:  # type: ignore
     # Select optimizer type
     if config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
-        return torch.optim.Adam(parameters, config.l_rate,
+        return torch.optim.Adam(parameters, config.l_rate,  # type: ignore
                                 config.adam_betas, config.opt_eps, config.weight_decay,
                                 amsgrad=config.optimizer_type == OptimizerType.AMSGrad)
     elif config.optimizer_type == OptimizerType.SGD:
-        return torch.optim.SGD(parameters, config.l_rate, config.momentum,
+        return torch.optim.SGD(parameters, config.l_rate, config.momentum,  # type: ignore
                                weight_decay=config.weight_decay)
     elif config.optimizer_type == OptimizerType.RMSprop:
         return RMSprop(parameters, config.l_rate, config.rms_alpha,

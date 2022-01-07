@@ -265,8 +265,8 @@ class MLRunner:
             del os.environ[ENV_OMPI_COMM_WORLD_RANK]
         # From the training setup, torch still thinks that it should run in a distributed manner,
         # and would block on some GPU operations. Hence, clean up distributed training.
-        if torch.distributed.is_initialized():
-            torch.distributed.destroy_process_group()
+        if torch.distributed.is_initialized():  # type: ignore
+            torch.distributed.destroy_process_group()  # type: ignore
         trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
         self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
         # When training models that are not built-in models, we have no guarantee that they write
