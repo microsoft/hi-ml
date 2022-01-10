@@ -106,3 +106,5 @@ class StainNormalization(object):
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         return self.stain_normalize(img, self.reference_mean, self.reference_std)
+
+test
