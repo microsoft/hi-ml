@@ -23,7 +23,6 @@ class HelloDataset(Dataset):
     """
     A simple 1dim regression task, read from a data file stored in the test data folder.
     """
-
     # Creating the data file:
     # import numpy as np
     # import torch
@@ -252,7 +251,7 @@ class HelloContainer(LightningContainer):
 
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
     # train, as a LightningModule
-    def create_model(self) -> LightningModule:
+    def get_model(self) -> LightningModule:
         return HelloRegression()
 
     # This method must be overridden by any subclass of LightningContainer. It returns a data module, which
@@ -267,8 +266,8 @@ class HelloContainer(LightningContainer):
         assert self.local_dataset is not None
         return HelloDataModule(
             root_folder=self.local_dataset,
-            number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-            cross_validation_split_index=self.cross_validation_split_index)  # type: ignore
+            number_of_cross_validation_splits=self.num_crossval_splits,
+            cross_validation_split_index=self.crossval_split_index)  # type: ignore
 
     # This is an optional override: This report creation method can read out any files that were written during
     # training, and cook them into a nice looking report. Here, the report is a simple text file.

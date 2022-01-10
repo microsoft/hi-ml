@@ -14,12 +14,12 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 
 from health_azure import AzureRunInfo
 from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
-                                PARENT_RUN_CONTEXT, is_offline_run_context)
+                                PARENT_RUN_CONTEXT, is_running_in_azure_ml)
 
-from health_ml.deep_learning_config import DeepLearningConfig
+# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_config_base import ModelConfigBase
+# from health_ml.model_config_base import ModelConfigBase
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (
@@ -43,46 +43,25 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     return expected_dir
 
 
-def log_metrics(metrics: Dict[ModelExecutionMode, Any],
-                run_context: Run) -> None:
-    """
-    Log metrics for each split to the provided run, or the current run context if None provided
-    :param metrics: Dictionary of inference results for each split.
-    :param run_context: Run for which to log the metrics to, use the current run context if None provided
-    """
-    for split in metrics.values():
-        split.log_metrics(run_context)
-
-
 class MLRunner:
 
     def __init__(self,
                  experiment_config: ExperimentConfig,
-                 model_config: Optional[DeepLearningConfig] = None,
-                 container: Optional[LightningContainer] = None,
-                 project_root: Optional[Path] = None,
-                 #  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-                 output_subfolder: str = "") -> None:
+                 container: LightningContainer,
+                 project_root: Optional[Path] = None) -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using hi-ml
         as a package!
 
-        :param model_config: If None, run the training as per the `container` argument (bring-your-own-model). If not
-        None, this is the model configuration for a built-in model.
-        :param container: The LightningContainer object to use for training. If None, assume that the training is
-        for a built-in model.
-
+        :param container: The LightningContainer object to use for training.
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using hi-ml as a package or submodule!
-
-        :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
-        when running outside AzureML.
         """
-        self.model_config = model_config
-        if container is None:
-            assert isinstance(model_config, ModelConfigBase), \
-                "When using a built-in model, the configuration should be an instance of ModelConfigBase"
-            container = LightningContainer(model_config)  # type: ignore
+        # self.model_config = model_config
+        # if container is None:
+        #     assert isinstance(model_config, ModelConfigBase), \
+        #         "When using a built-in model, the configuration should be an instance of ModelConfigBase"
+        # container = LightningContainer(model_config)  # type: ignore
         self.container = container
 
         self.experiment_config = experiment_config
@@ -91,7 +70,6 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         # self.post_cross_validation_hook = post_cross_validation_hook
         # self.model_deployment_hook = model_deployment_hook
-        self.output_subfolder = output_subfolder
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
 
@@ -99,6 +77,7 @@ class MLRunner:
         """
         If the present object is using one of the built-in models, create a (fake) container for it
         and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.
+
         :param azure_run_info: When running in AzureML or on a local VM, this contains the paths to the datasets.
         This can be missing when running in unit tests, where the local dataset paths are already populated.
         """
@@ -128,9 +107,10 @@ class MLRunner:
     def is_offline_run(self) -> bool:
         """
         Returns True if the present run is outside of AzureML, and False if it is inside of AzureML.
+
         :return:
         """
-        return is_offline_run_context(RUN_CONTEXT)
+        return not is_running_in_azure_ml(RUN_CONTEXT)
 
     @property
     def config_namespace(self) -> str:
@@ -171,57 +151,17 @@ class MLRunner:
         this function is recursively called for each cross validation split.
         """
         self.setup()
-
         # Get the AzureML context in which the script is running
         if not self.is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
-
-        # Set data loader start method
-        # self.set_multiprocessing_start_method()
-
-        # do training and inference, unless the "only register" switch is set (which requires a run_recovery
-        # to be valid).
-
+        # do training
         with logging_section("Model training"):
             _, storing_logger = model_train(container=self.container,
                                             num_nodes=self.experiment_config.num_nodes)
             self.storing_logger = storing_logger
-        # Since we have trained the model further, let the checkpoint_handler object know so it can handle
-        # checkpoints correctly.
-        # self.checkpoint_handler.additional_training_done()
-        # log the number of epochs used for model training
+
         RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
-
-        # Register the model, and then run inference as required. No models should be registered when running outside
-        # AzureML.
-        # if not self.is_offline_run:
-        #     if self.should_register_model():
-        #         self.register_model(self.checkpoint_handler.get_best_checkpoints(), ModelProcessing.DEFAULT)
-        #
-        # if not self.azure_config.only_register_model:
-
-        # checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
-        #
-        # # Inference for all models that are specified via LightningContainers.
-        # with logging_section("Model inference"):
-        #     self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
-
-        #     # We can't enforce that files are written to the output folder, hence change the working directory
-        #     # manually
-        #     with change_working_directory(self.container.outputs_folder):
-        #         self.container.create_report()
-
-        # if self.container.regression_test_folder:
-        #     # Comparison with stored results for cross-validation runs only operates on child run 0. This run
-        #     # has usually already downloaded the results for the other runs, and uploaded files to the parent
-        #     # run context.
-        #     logging.info("Comparing the current results against stored results")
-        #     if self.is_normal_run_or_crossval_child_0():
-        #         compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
-        #                                         actual=self.container.outputs_folder)
-        #     else:
-        #         logging.info("Skipping because this is not cross-validation child run 0.")
 
     def is_normal_run_or_crossval_child_0(self) -> bool:
         """

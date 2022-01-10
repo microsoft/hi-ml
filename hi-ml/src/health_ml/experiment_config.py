@@ -11,6 +11,3 @@ class ExperimentConfig(GenericConfig):
                                                   "job in AzureML.")
     model: str = param.String(doc="The name of the model to train/test.")
     azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
-
-    def __init__(self, **params: Any) -> None:
-        super().__init__(**params)

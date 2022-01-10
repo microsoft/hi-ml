@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 from azureml.core.run import Run
 
-from health_ml.deep_learning_config import DeepLearningConfig
+# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.runner import Runner
 from health_ml.utils.common_utils import (DATASET_CSV_FILE_NAME, SUBJECT_METRICS_FILE_NAME, RUN_RECOVERY_ID_KEY,
                                           logging_to_file_handler, logging_to_file, disable_logging_to_file)
@@ -23,7 +23,7 @@ from health_ml.utils.output_directories import OutputFolderForTests
 from testhiml.utils_testhiml import create_dataset_df, create_metrics_df, DEFAULT_WORKSPACE
 
 
-def create_mock_run(mock_upload_path: Path, config: DeepLearningConfig) -> Run:
+def create_mock_run(mock_upload_path: Path, config: GenericConfig) -> Run:
     """
     Create a mock AzureML Run object.
 

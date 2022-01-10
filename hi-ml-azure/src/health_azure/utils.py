@@ -1533,13 +1533,3 @@ class UnitTestWorkspaceWrapper:
         if self._workspace is None:
             self._workspace = aml_workspace_for_unittests()
         return self._workspace
-
-
-def is_offline_run_context(run_context: Run) -> bool:
-    """
-    Tells if a run_context is offline by checking if it has an experiment associated with it.
-
-    :param run_context: Context of the run to check
-    :return:
-    """
-    return not hasattr(run_context, 'experiment')

@@ -2,6 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from __future__ import annotations
+
 import importlib
 import inspect
 import logging
@@ -12,7 +14,7 @@ from typing import Any, Dict, List, Optional
 import param
 from importlib._bootstrap import ModuleSpec
 
-from health_ml.deep_learning_config import DeepLearningConfig
+# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.utils.common_utils import path_to_namespace
 from health_ml.utils.generic_parsing import GenericConfig
 
@@ -41,7 +43,7 @@ class ModelConfigLoader(GenericConfig):
         from health_ml import configs  # type: ignore
         return configs.__name__
 
-    def create_model_config_from_name(self, model_name: str) -> DeepLearningConfig:
+    def create_model_config_from_name(self, model_name: str) -> GenericConfig:
         """
         Returns a model configuration for a model of the given name.
         To avoid having to import torch here, there are no references to LightningContainer.
@@ -52,13 +54,14 @@ class ModelConfigLoader(GenericConfig):
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
 
-        configs: Dict[str, DeepLearningConfig] = {}
+        configs: Dict[str, GenericConfig] = {}
 
-        def _get_model_config(module_spec: ModuleSpec) -> Optional[DeepLearningConfig]:
+        def _get_model_config(module_spec: ModuleSpec) -> Optional[GenericConfig]:
             """
             Given a module specification check to see if it has a class property with
             the <model_name> provided, and instantiate that config class with the
             provided <config_overrides>. Otherwise, return None.
+
             :param module_spec:
             :return: Instantiated model config if it was found.
             """
@@ -81,7 +84,7 @@ class ModelConfigLoader(GenericConfig):
                 if exception_text != "":
                     logging.warning(f"(from attempt to import module {module_spec.name}): {exception_text}")
                 return None
-            model_config: DeepLearningConfig = _class()
+            model_config: GenericConfig = _class()
             return model_config
 
         def _search_recursively_and_store(module_search_spec: ModuleSpec) -> None:

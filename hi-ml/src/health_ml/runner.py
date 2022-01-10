@@ -21,7 +21,7 @@ from health_azure.datasets import create_dataset_configs
 from health_azure.utils import (GenericConfig, PathOrString, get_workspace, is_local_rank_zero, merge_conda_files,
                                 set_environment_variables_for_multi_node,)
 
-from health_ml.deep_learning_config import DeepLearningConfig
+# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
@@ -151,7 +151,7 @@ class Runner:
         # self.model_deployment_hook = model_deployment_hook
         # model_config and experiment_config are placeholders for now, and are set properly when command line args are
         # parsed.
-        self.model_config: Optional[DeepLearningConfig] = None
+        self.model_config: Optional[GenericConfig] = None
         self.experiment_config: ExperimentConfig = ExperimentConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
         # This field stores the MLRunner object that has been created in the most recent call to the run() method.
@@ -202,13 +202,12 @@ class Runner:
 
         if isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
-
         else:
             raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
 
         return parser_result
 
-    def run(self) -> Tuple[Optional[DeepLearningConfig], AzureRunInfo]:
+    def run(self) -> Tuple[Optional[GenericConfig], AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
@@ -330,7 +329,7 @@ class Runner:
         Create and return an ML runner using the attributes of this Runner object.
         """
         return MLRunner(
-            model_config=self.model_config,
+            # model_config=self.model_config,
             experiment_config=self.experiment_config,
             container=self.lightning_container,
             project_root=self.project_root)
@@ -340,7 +339,7 @@ def run(project_root: Path,
         yaml_config_file: Path,
         # model_deployment_hook: Optional[ModelDeploymentHookSignature] = None
         ) -> \
-        Tuple[Optional[DeepLearningConfig], Optional[Run]]:
+        Tuple[Optional[GenericConfig], AzureRunInfo]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.

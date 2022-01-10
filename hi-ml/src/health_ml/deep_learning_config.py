@@ -7,18 +7,17 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import param
-from pandas import DataFrame
 from param import Parameterized
 
-from health_azure.utils import RUN_CONTEXT, GenericConfig, PathOrString, is_offline_run_context, T
+from health_azure.utils import RUN_CONTEXT, PathOrString, T, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
-from health_ml.utils.common_utils import (create_unique_timestamp_id, DATASET_CSV_FILE_NAME,
+from health_ml.utils.common_utils import (create_unique_timestamp_id,
                                           DEFAULT_CROSS_VALIDATION_SPLIT_INDEX,
-                                          DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME, is_windows,
+                                          DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME,
                                           ModelExecutionMode, ModelProcessing)
 from health_ml.utils.type_annotations import TupleFloat2
 
@@ -55,8 +54,8 @@ class OptimizerType(Enum):
     RMSprop = "RMSprop"
 
 
-class DeepLearningFileSystemConfig(Parameterized):
-    """High level config to abstract the file system related configs for deep learning models"""
+class ExperimentFolderHandler(Parameterized):
+    """High level config to abstract the file system related settings for experiments"""
     outputs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                                doc="The folder where all training and test outputs should go.")
     logs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
@@ -70,7 +69,7 @@ class DeepLearningFileSystemConfig(Parameterized):
     def create(project_root: Path,
                is_offline_run: bool,
                model_name: str,
-               output_to: Optional[str] = None) -> DeepLearningFileSystemConfig:
+               output_to: Optional[str] = None) -> ExperimentFolderHandler:
         """
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp
@@ -107,33 +106,12 @@ class DeepLearningFileSystemConfig(Parameterized):
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")
-        return DeepLearningFileSystemConfig(
+        return ExperimentFolderHandler(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
             project_root=project_root,
             run_folder=run_folder
         )
-
-    def add_subfolder(self, subfolder: str) -> DeepLearningFileSystemConfig:
-        """
-        Creates a new output folder configuration, where both outputs and logs go into the given subfolder inside
-        the present outputs folder.
-
-        :param subfolder: The subfolder that should be created.
-        :return:
-        """
-        if self.run_folder:
-            outputs_folder = self.run_folder / subfolder
-            logs_folder = self.run_folder / subfolder / DEFAULT_LOGS_DIR_NAME
-            outputs_folder.mkdir(parents=True, exist_ok=True)
-            logs_folder.mkdir(parents=True, exist_ok=True)
-            return DeepLearningFileSystemConfig(
-                outputs_folder=outputs_folder,
-                logs_folder=logs_folder,
-                project_root=self.project_root
-            )
-        raise ValueError("This method should only be called for runs outside AzureML, when the logs folder is "
-                         "inside the outputs folder.")
 
 
 class WorkflowParams(param.Parameterized):
@@ -141,30 +119,12 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
-                                                           doc="Number of cross validation splits for k-fold cross "
-                                                               "validation")
-    cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
-                                                      doc="The index of the cross validation fold this model is "
-                                                          "associated with when performing k-fold cross validation")
-    inference_on_train_set: Optional[bool] = \
-        param.Boolean(None,
-                      doc="If set, enable/disable full image inference on training set after training.")
-    inference_on_val_set: Optional[bool] = \
-        param.Boolean(None,
-                      doc="If set, enable/disable full image inference on validation set after training.")
-    inference_on_test_set: Optional[bool] = \
-        param.Boolean(None,
-                      doc="If set, enable/disable full image inference on test set after training.")
-    ensemble_inference_on_train_set: Optional[bool] = \
-        param.Boolean(None,
-                      doc="If set, enable/disable full image inference on the training set after ensemble training.")
-    ensemble_inference_on_val_set: Optional[bool] = \
-        param.Boolean(None,
-                      doc="If set, enable/disable full image inference on validation set after ensemble training.")
-    ensemble_inference_on_test_set: Optional[bool] = \
-        param.Boolean(None,
-                      doc="If set, enable/disable full image inference on test set after ensemble training.")
+    num_crossval_splits: int = param.Integer(0, bounds=(0, None),
+                                             doc="Number of cross validation splits for k-fold cross "
+                                                 "validation")
+    crossval_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
+                                              doc="The index of the cross validation fold this model is "
+                                                  "associated with when performing k-fold cross validation")
     weights_url: List[str] = param.List(default=[], class_=str,
                                         doc="If provided, a set of urls from which checkpoints will be downloaded"
                                             "and used for inference.")
@@ -174,18 +134,6 @@ class WorkflowParams(param.Parameterized):
     model_id: str = param.String(default="",
                                  doc="A model id string in the form 'model name:version' "
                                      "to use a registered model for inference.")
-    generate_report: bool = param.Boolean(default=True,
-                                          doc="If True (default), write a modelling report in HTML format. If False,"
-                                              "do not write that report.")
-    pretraining_run_recovery_id: str = param.String(default=None,
-                                                    allow_None=True,
-                                                    doc="Extra run recovery id to download checkpoints from,"
-                                                        "for custom modules (e.g. for loading pretrained weights)."
-                                                        "The downloaded RunRecovery object will be available in"
-                                                        "pretraining_run_checkpoints.")
-    monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
-                                                            "statistics. If 0 or less, do not log any resource "
-                                                            "statistics.")
     regression_test_folder: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="A path to a folder that contains a set of files. At the end of training and "
@@ -203,17 +151,17 @@ class WorkflowParams(param.Parameterized):
                 raise ValueError(
                     f"model_id should be in the form 'model_name:version', got {self.model_id}")
 
-        if self.number_of_cross_validation_splits == 1:
+        if self.num_crossval_splits == 1:
             raise ValueError("At least two splits required to perform cross validation, but got "
-                             f"{self.number_of_cross_validation_splits}. To train without cross validation, set "
-                             "number_of_cross_validation_splits=0.")
-        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
-            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
-                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
-        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
+                             f"{self.num_crossval_splits}. To train without cross validation, set "
+                             "num_crossval_splits=0.")
+        if 0 < self.num_crossval_splits <= self.crossval_split_index:
+            raise ValueError(f"Cross validation split index is out of bounds: {self.crossval_split_index}, "
+                             f"which is invalid for CV with {self.num_crossval_splits} splits.")
+        elif self.num_crossval_splits == 0 and self.crossval_split_index != -1:
             raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
-                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
-                             f"and cross_validation_split_index={self.cross_validation_split_index}")
+                             f"found num_crossval_splits = {self.num_crossval_splits} "
+                             f"and crossval_split_index={self.crossval_split_index}")
 
     def is_inference_required(self,
                               model_proc: ModelProcessing,
@@ -267,11 +215,11 @@ class WorkflowParams(param.Parameterized):
             return False
 
     @property
-    def is_offline_run(self) -> bool:
+    def is_running_in_aml(self) -> bool:
         """
-        Returns True if the run is executing outside AzureML, or False if inside AzureML.
+        Returns True if the run is executing inside AzureML, or False if outside AzureML.
         """
-        return is_offline_run_context(RUN_CONTEXT)
+        return is_running_in_azure_ml(RUN_CONTEXT)
 
     @property
     def perform_cross_validation(self) -> bool:
@@ -280,7 +228,7 @@ class WorkflowParams(param.Parameterized):
 
         :return:
         """
-        return self.number_of_cross_validation_splits > 1
+        return self.num_crossval_splits > 1
 
     def get_effective_random_seed(self) -> int:
         """
@@ -294,7 +242,7 @@ class WorkflowParams(param.Parameterized):
         if self.perform_cross_validation:
             # offset the random seed based on the cross validation split index so each
             # fold has a different initial random state.
-            seed += self.cross_validation_split_index
+            seed += self.crossval_split_index
         return seed
 
 
@@ -366,10 +314,10 @@ class OutputParams(param.Parameterized):
     output_to: str = param.String(default="",
                                   doc="If provided, the run outputs will be written to the given folder. If not "
                                       "provided, outputs will go into a subfolder of the project root folder.")
-    file_system_config: DeepLearningFileSystemConfig = param.ClassSelector(default=DeepLearningFileSystemConfig(),
-                                                                           class_=DeepLearningFileSystemConfig,
-                                                                           instantiate=False,
-                                                                           doc="File system related configs")
+    file_system_config: ExperimentFolderHandler = param.ClassSelector(default=ExperimentFolderHandler(),
+                                                                      class_=ExperimentFolderHandler,
+                                                                      instantiate=False,
+                                                                      doc="File system related configs")
     _model_name: str = param.String("", doc="The human readable name of the model (for example, Liver). This is "
                                             "usually set from the class name.")
 
@@ -397,10 +345,10 @@ class OutputParams(param.Parameterized):
         present object. If any of the folders do not yet exist, they are created.
         :param project_root: The root folder for the codebase that triggers the training run.
         """
-        self.file_system_config = DeepLearningFileSystemConfig.create(
+        self.file_system_config = ExperimentFolderHandler.create(
             project_root=project_root,
             model_name=self.model_name,
-            is_offline_run=is_offline_run_context(RUN_CONTEXT),
+            is_offline_run=not is_running_in_azure_ml(RUN_CONTEXT),
             output_to=self.output_to
         )
 
@@ -563,160 +511,3 @@ class TrainerParams(param.Parameterized):
         elif self.max_num_gpus > num_gpus:
             logging.warning(f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus
-
-
-class DeepLearningConfig(WorkflowParams,
-                         DatasetParams,
-                         OutputParams,
-                         OptimizerParams,
-                         TrainerParams,
-                         GenericConfig):
-    """
-    A class that holds all settings that are shared across segmentation models and regression/classification models.
-    """
-    num_dataload_workers: int = param.Integer(2, bounds=(0, None),
-                                              doc="The number of data loading workers (processes). When set to 0,"
-                                                  "data loading is running in the same process (no process startup "
-                                                  "cost, hence good for use in unit testing. However, it "
-                                                  "does not give the same result as running with 1 worker process)")
-    shuffle: bool = param.Boolean(True, doc="If true, the dataset will be shuffled randomly during training.")
-    train_batch_size: int = param.Integer(4, bounds=(0, None),
-                                          doc="The number of crops that make up one minibatch during training.")
-    use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
-                                                        "available GPUs to fit in a large model. It shall not be used "
-                                                        "together with data parallel.")
-    pin_memory: bool = param.Boolean(True, doc="Value of pin_memory argument to DataLoader")
-    restrict_subjects: Optional[str] = \
-        param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
-                         "If None, do not modify the train, val, or test sets. If a string of the form 'i,j,k' where "
-                         "i, j and k are integers, modify just the corresponding sets (i for train, j for val, k for "
-                         "test). If any of i, j or j are missing or are negative, do not modify the corresponding "
-                         "set. Thus a value of 20,,5 means limit training set to 20, keep validation set as is, and "
-                         "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
-                         "to that set.",
-                     allow_None=True)
-    _dataset_data_frame: Optional[DataFrame] = \
-        param.DataFrame(default=None,
-                        doc="The dataframe that contains the dataset for the model. This is usually read from disk "
-                            "from dataset.csv")
-    avoid_process_spawn_in_data_loaders: bool = \
-        param.Boolean(is_windows(), doc="If True, use a data loader logic that avoid spawning new processes at the "
-                                        "start of each epoch. This speeds up training on both Windows and Linux, but"
-                                        "on Linux, inference is currently disabled as the data loaders hang. "
-                                        "If False, use the default data loader logic that starts new processes for "
-                                        "each epoch.")
-    max_batch_grad_cam: int = param.Integer(default=0, doc="Max number of validation batches for which "
-                                                           "to save gradCam images. By default "
-                                                           "visualizations are saved for all images "
-                                                           "in the validation set")
-    label_smoothing_eps: float = param.Number(0.0, bounds=(0.0, 1.0),
-                                              doc="Target smoothing value for label smoothing")
-    log_to_parent_run: bool = param.Boolean(default=False, doc="If true, hyperdrive child runs will log their metrics"
-                                                               "to their parent run.")
-    use_imbalanced_sampler_for_training: bool = param.Boolean(default=False,
-                                                              doc="If True, use an imbalanced sampler during training.")
-    drop_last_batch_in_training: bool = param.Boolean(default=False,
-                                                      doc="If True, drop the last incomplete batch during"
-                                                          "training. If all batches are complete, no batch gets "
-                                                          "dropped. If False, keep all batches.")
-    log_summaries_to_files: bool = param.Boolean(
-        default=True,
-        doc="If True, model summaries are logged to files in logs/model_summaries; "
-            "if False, to stdout or driver log")
-    mean_teacher_alpha: float = param.Number(bounds=(0, 1), allow_None=True, default=None,
-                                             doc="If this value is set, the mean teacher model will be computed. "
-                                                 "Currently only supported for scalar models. In this case, we only "
-                                                 "report metrics and cross-validation results for "
-                                                 "the mean teacher model. Likewise the model used for inference "
-                                                 "is the mean teacher model. The student model is only used for "
-                                                 "training. Alpha is the momentum term for weight updates of the mean "
-                                                 "teacher model. After each training step the mean teacher model "
-                                                 "weights are updated using mean_teacher_"
-                                                 "weight = alpha * (mean_teacher_weight) "
-                                                 " + (1-alpha) * (current_student_weights). ")
-    #: Name of the csv file providing information on the dataset to be used.
-    dataset_csv: str = param.String(
-        DATASET_CSV_FILE_NAME,
-        doc="Name of the CSV file providing information on the dataset to be used. "
-            "For segmentation models, this file must contain at least the fields: `subject`, `channel`, `filePath`.")
-
-    def __init__(self, **params: Any) -> None:
-        self._model_name = type(self).__name__
-        # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
-        self._datasets_for_training: Optional[param.Dict[ModelExecutionMode, Any]] = None
-        self._datasets_for_inference: Optional[Dict[ModelExecutionMode, Any]] = None
-        self.recovery_start_epoch = 0
-        super().__init__(throw_if_unknown_param=True, **params)
-        logging.info("Creating the default output folder structure.")
-        self.create_filesystem(fixed_paths.repository_root_directory())
-        # Disable the PL progress bar because all models have their own console output
-        self.pl_progress_bar_refresh_rate = 0
-        self.pretraining_run_checkpoints: Optional[Any] = None
-
-    def validate(self) -> None:
-        """
-        Validates the parameters stored in the present object.
-        """
-        WorkflowParams.validate(self)
-        OptimizerParams.validate(self)
-        DatasetParams.validate(self)
-
-    @property
-    def compute_grad_cam(self) -> bool:
-        return self.max_batch_grad_cam > 0
-
-    @property
-    def dataset_data_frame(self) -> Optional[DataFrame]:
-        """
-        Gets the pandas data frame that the model uses.
-        :return:
-        """
-        return self._dataset_data_frame
-
-    @dataset_data_frame.setter
-    def dataset_data_frame(self, data_frame: Optional[DataFrame]) -> None:
-        """
-        Sets the pandas data frame that the model uses.
-        :param data_frame: The data frame to set.
-        """
-        self._dataset_data_frame = data_frame
-
-    def get_train_epochs(self) -> List[int]:
-        """
-        Returns the epochs for which training will be performed.
-        :return:
-        """
-        return list(range(self.recovery_start_epoch + 1, self.num_epochs + 1))
-
-    def get_total_number_of_training_epochs(self) -> int:
-        """
-        Returns the number of epochs for which a model will be trained.
-        :return:
-        """
-        return len(self.get_train_epochs())
-
-    def get_total_number_of_validation_epochs(self) -> int:
-        """
-        Returns the number of epochs for which a model will be validated.
-        :return:
-        """
-        return self.get_total_number_of_training_epochs()
-
-    @property
-    def compute_mean_teacher_model(self) -> bool:
-        """
-        Returns True if the mean teacher model should be computed.
-        """
-        return self.mean_teacher_alpha is not None
-
-    def __str__(self) -> str:
-        """Returns a string describing the present object, as a list of key: value strings."""
-        arguments_str = "\nArguments:\n"
-        # Avoid callable params, the bindings that are printed out can be humongous.
-        # Avoid dataframes
-        skip_params = {name for name, value in self.param.params().items()
-                       if isinstance(value, (param.Callable, param.DataFrame))}
-        for key, value in self.param.get_param_values():
-            if key not in skip_params:
-                arguments_str += f"\t{key:40}: {value}\n"
-        return arguments_str

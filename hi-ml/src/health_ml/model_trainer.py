@@ -15,7 +15,7 @@ from pytorch_lightning.plugins import DDPPlugin
 
 
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
-                                is_local_rank_zero, is_offline_run_context)
+                                is_local_rank_zero, is_running_in_azure_ml)
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
@@ -25,18 +25,6 @@ from health_ml.utils.lightning_loggers import StoringLogger
 TEMP_PREFIX = "temp/"
 
 T = TypeVar('T')
-
-
-def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
-    """
-    Uploads a file to the AzureML run. It will get a name that is composed of a "temp/" prefix, plus the path
-    of the file relative to the outputs folder that is used for training.
-
-    :param file_path: The path of the file to upload.
-    :param outputs_folder: The root folder that contains all training outputs.
-    """
-    upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
-    RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
 
 def write_args_file(config: Any, outputs_folder: Path) -> None:
@@ -110,7 +98,7 @@ def create_lightning_trainer(container: LightningContainer,
             callbacks.extend(more_callbacks)  # type: ignore
         else:
             callbacks.append(more_callbacks)  # type: ignore
-    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+    is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if is_azureml_run:
         if progress_bar_refresh_rate is None:
@@ -200,7 +188,7 @@ def model_train(container: LightningContainer,
         trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore
     world_size = getattr(trainer, "world_size", 0)
-    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+    is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1:

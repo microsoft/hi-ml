@@ -56,7 +56,7 @@ class LightningContainer(GenericConfig,
                          OptimizerParams):
     """
     A LightningContainer contains all information to train a user-specified PyTorch Lightning model. The model that
-    should be trained is returned by the `create_model` method. The training data must be returned in the form of
+    should be trained is returned by the `get_model` method. The training data must be returned in the form of
     a LightningDataModule, by the `get_data_module` method.
     """
     def __init__(self, **kwargs: Any) -> None:
@@ -80,7 +80,7 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def create_model(self) -> LightningModule:  # type: ignore
+    def get_model(self) -> LightningModule:  # type: ignore
         """
         This method must create the actual Lightning model that will be trained. It can read out parameters from the
         container and pass them into the model, for example.
@@ -198,7 +198,7 @@ class LightningContainer(GenericConfig,
         Creates the Lightning model by calling `create_lightning_module` and stores it in the `lightning_module`
         property.
         """
-        self._model = self.create_model()
+        self._model = self.get_model()
         if isinstance(self._model, LightningModuleWithOptimizer):
             self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
             self._model._trainer_params = create_from_matching_params(self, TrainerParams)
