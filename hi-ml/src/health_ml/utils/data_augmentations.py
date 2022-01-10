@@ -135,7 +135,7 @@ class GaussianBlur(object):
     Implements Gaussian blur as described in the SimCLR paper (https://arxiv.org/abs/2002.05709).
 
     Blur image using a Gaussian kernel with randomly sampled STD.
-    Slight modification of the code in pl_bolts > simclr > transforms to make it work with our transform pipeline.
+    Slight modification of the code in pl_bolts to make it work with our transform pipeline.
 
     Usage example:
             >>> transform = GaussianBlur(kernel_size=int(224 * 0.1) + 1)
