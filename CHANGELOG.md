@@ -13,13 +13,13 @@ the section headers (Added/Changed/...) and incrementing the package version.
 ## 0.1.14
 
 ### Added
-- ([#179](https://github.com/microsoft/hi-ml/pull/176)) Add GaussianBlur and RotationByMultiplesOf90 augmentations. Added torchvision and opencv to
+- ([#179](https://github.com/microsoft/hi-ml/pull/179)) Add GaussianBlur and RotationByMultiplesOf90 augmentations. Added torchvision and opencv to
 the environment file since it is necessary for the augmentations.
 
 ### Changed
 
 ### Fixed
-- ([#179](https://github.com/microsoft/hi-ml/pull/176)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
+- ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
 
 ### Removed
 
