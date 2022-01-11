@@ -10,6 +10,22 @@ For each Pull Request, the affected code parts should be briefly described and a
 release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
 the section headers (Added/Changed/...) and incrementing the package version.
 
+## 0.1.14
+
+### Added
+- ([#179](https://github.com/microsoft/hi-ml/pull/179)) Add GaussianBlur and RotationByMultiplesOf90 augmentations. Added torchvision and opencv to
+the environment file since it is necessary for the augmentations.
+
+### Changed
+
+### Fixed
+- ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
+
+### Removed
+
+### Deprecated
+
+
 ## 0.1.13
 
 ### Added

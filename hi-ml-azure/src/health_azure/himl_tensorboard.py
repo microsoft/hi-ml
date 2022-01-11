@@ -70,7 +70,7 @@ class WrappedTensorboard(Tensorboard):
             self._run_watchers.append(run_watcher)
 
         for w in self._run_watchers:
-            self._executor.submit(w.refresh_requeue)
+            self._executor.submit(w.refresh_requeue)  # type: ignore
 
         # We use sys.executable here to ensure that we can import modules from the same environment
         # as the current process.
