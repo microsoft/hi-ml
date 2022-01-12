@@ -1,15 +1,12 @@
-import inspect
 import logging
 import os
 import sys
 import time
-import traceback
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum, unique
-from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Generator, Iterable, List, Optional, Union
+from typing import Any, Generator, Iterable, List, Optional, Union
 
 import torch
 
@@ -25,28 +22,14 @@ empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else
 string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
 
 ARGS_TXT = "args.txt"
-BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
-DATASET_CSV_FILE_NAME = "dataset.csv"
-EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
-FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
-METRICS_AGGREGATES_FILE = "metrics_aggregates.csv"
-SUBJECT_METRICS_FILE_NAME = "metrics.csv"
-
-BASELINE_COMPARISONS_FOLDER = "BaselineComparisons"
 BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
-CROSSVAL_RESULTS_FOLDER = "CrossValResults"
-CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY = "cross_validation_split_index"
+CROSSVAL_SPLIT_KEY = "cross_validation_split_index"
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
-
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
-
-SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
-
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
-
 DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_LOGS_DIR_NAME = "logs"
 
@@ -59,61 +42,6 @@ class ModelExecutionMode(Enum):
     TRAIN = "Train"
     TEST = "Test"
     VAL = "Val"
-
-
-STORED_CSV_FILE_NAMES = \
-    {
-        ModelExecutionMode.TRAIN: "train_dataset.csv",
-        ModelExecutionMode.TEST: "test_dataset.csv",
-        ModelExecutionMode.VAL: "val_dataset.csv"
-    }
-
-
-class ModelProcessing(Enum):
-    """
-    Enum used in model training and inference, used to decide where to put files and what logging messages to
-    print. The meanings of the values are:
-      ENSEMBLE_CREATION: we are creating and processing an ensemble model from within the child run with
-        cross-validation index 0 of the HyperDrive run that created this model.
-      DEFAULT: any other situation, *including* where the model is an ensemble model created by an earlier run
-        (so the current run is standalone, not part of a HyperDrive run).
-    There are four scenarios, only one of which uses ModelProcessing.ENSEMBLE_CREATION.
-    (1) Training and inference on a single model in a single (non-HyperDrive) run.
-    (2) Training and inference on a single model that is part of an ensemble, in HyperDrive child run.
-    (3) Inference on an ensemble model taking place in a HyperDrive child run that trained one of the component
-    models of the ensemble and whose cross validation index is 0.
-    (4) Inference on a single or ensemble model created in an another run specified by the value of run_recovery_id.
-    * Scenario (1) happens when we train a model (train=True) with number_of_cross_validation_splits=0. In this
-    case, the value of ModelProcessing passed around is DEFAULT.
-    * Scenario (2) happens when we train a model (train=True) with number_of_cross_validation_splits>0. In this
-    case, the value of ModelProcessing passed around is DEFAULT in each of the child runs while training and running
-    inference on its own single model. However, the child run whose cross validation index is 0 then goes on to
-    carry out Scenario (3), and does more processing with ModelProcessing value ENSEMBLE_CREATION, to create and
-    register the ensemble model, run inference on it, and upload information about the ensemble model to the parent run.
-    * Scenario (4) happens when we do an inference-only run (train=False), and specify an existing model with
-    run_recovery_id (and necessarily number_of_cross_validation_splits=0, even if the recovered run was a HyperDrive
-    one). This model may be either a single one or an ensemble one; in both cases, a ModelProcessing value of DEFAULT is
-    used.
-    """
-    DEFAULT = 'default'
-    ENSEMBLE_CREATION = 'ensemble_creation'
-
-
-def get_best_epoch_results_path(mode: ModelExecutionMode,
-                                model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
-    """
-    For a given model execution mode, creates the relative results path
-    in the form BEST_EPOCH_FOLDER_NAME/(Train, Test or Val)
-
-    :param mode: model execution mode
-    :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
-    to avoid colliding with the results from the single model that may have been created earlier in the same run.
-    """
-    subpath = Path(BEST_EPOCH_FOLDER_NAME) / mode.value
-    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
-        return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
-    else:
-        return subpath
 
 
 def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
@@ -129,16 +57,6 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
 
-def get_items_from_string(string: str, separator: str = ',', remove_blanks: bool = True) -> List[str]:
-    """
-    Returns a list of items, separated by a known symbol, from a given string.
-    """
-    items = [item.strip() if remove_blanks else item for item in string.split(separator)]
-    if remove_blanks:
-        return list(filter(None, items))
-    return items
-
-
 logging_stdout_handler: Optional[logging.StreamHandler] = None
 logging_to_file_handler: Optional[logging.StreamHandler] = None
 
@@ -147,6 +65,7 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     """
     Instructs the Python logging libraries to start writing logs to stdout up to the given logging level.
     Logging will use a timestamp as the prefix, using UTC.
+
     :param log_level: The logging level. All logging message with a level at or above this level will be written to
     stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
     """
@@ -171,6 +90,7 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
 
 def standardize_log_level(log_level: Union[int, str]) -> int:
     """
+
     :param log_level: integer or string (any casing) version of a log level, e.g. 20 or "INFO".
     :return: integer version of the level; throws if the string does not name a level.
     """
@@ -186,6 +106,7 @@ def logging_to_file(file_path: Path) -> None:
     Instructs the Python logging libraries to start writing logs to the given file.
     Logging will use a timestamp as the prefix, using UTC. The logging level will be the same as defined for
     logging to stdout.
+
     :param file_path: The path and name of the file to write to.
     """
     # This function can be called multiple times, and should only add a handler during the first call.
@@ -213,28 +134,6 @@ def disable_logging_to_file() -> None:
         logging_to_file_handler = None
 
 
-@contextmanager
-def logging_only_to_file(file_path: Path, stdout_log_level: Union[int, str] = logging.ERROR) -> Generator:
-    """
-    Redirects logging to the specified file, undoing that on exit. If logging is currently going
-    to stdout, messages at level stdout_log_level or higher (typically ERROR) are also sent to stdout.
-    Usage: with logging_only_to_file(my_log_path): do_stuff()
-    :param file_path: file to log to
-    :param stdout_log_level: mininum level for messages to also go to stdout
-    """
-    stdout_log_level = standardize_log_level(stdout_log_level)
-    logging_to_file(file_path)
-    global logging_stdout_handler
-    if logging_stdout_handler is not None:
-        original_stdout_log_level = logging_stdout_handler.level
-        logging_stdout_handler.level = stdout_log_level  # type: ignore
-        yield
-        logging_stdout_handler.level = original_stdout_log_level
-    else:
-        yield
-    disable_logging_to_file()
-
-
 def _add_formatter(handler: logging.StreamHandler) -> None:
     """
     Adds a logging formatter that includes the timestamp and the logging level.
@@ -253,6 +152,7 @@ def logging_section(gerund: str) -> Generator:
     to help people locate particular sections. Usage:
     with logging_section("doing this and that"):
        do_this_and_that()
+
     :param gerund: string expressing what happens in this section of the log.
     """
     from time import time
@@ -299,84 +199,11 @@ def check_properties_are_not_none(obj: Any, ignore: Optional[List[str]] = None) 
             raise ValueError("Properties had None value: {}".format(none_props))
 
 
-def initialize_instance_variables(func: Callable) -> Callable:
-    """
-    Automatically assigns the input parameters.
-
-    >>> class process:
-    ...     @initialize_instance_variables
-    ...     def __init__(self, cmd, reachable=False, user='root'):
-    ...         pass
-    >>> p = process('halt', True)
-    >>> # noinspection PyUnresolvedReferences
-    >>> p.cmd, p.reachable, p.user
-    ('halt', True, 'root')
-    """
-    names, varargs, keywords, defaults, _, _, _ = inspect.getfullargspec(func)
-
-    @wraps(func)
-    def wrapper(self, *args, **kargs):  # type: ignore
-        # noinspection PyTypeChecker
-        for name, arg in list(zip(names[1:], args)) + list(kargs.items()):
-            setattr(self, name, arg)
-
-        for name, default in zip(reversed(names), reversed(defaults)):  # type: ignore
-            if not hasattr(self, name):
-                setattr(self, name, default)
-
-        func(self, *args, **kargs)
-
-    return wrapper
-
-
-def is_long_path(path: PathOrString) -> bool:
-    """
-    A long path is a path that has more than 260 characters
-    """
-    return len(str(path)) > MAX_PATH_LENGTH
-
-
-def is_private_field_name(name: str) -> bool:
-    """
-    A private field is any Python class member that starts with an underscore eg: _hello
-    """
-    return name.startswith("_")
-
-
-def is_gpu_tensor(data: Any) -> bool:
-    import torch
-    """
-    Helper utility to check if the provided object is a GPU tensor
-    """
-    return data is not None and torch.is_tensor(data) and data.is_cuda
-
-
-def print_exception(ex: Exception, message: str, logger_fn: Callable = logging.error) -> None:
-    """
-    Prints information about an exception, and the full traceback info.
-    :param ex: The exception that was caught.
-    :param message: An additional prefix that is printed before the exception itself.
-    :param logger_fn: The logging function to use for logging this exception
-    """
-    logger_fn(f"{message} Exception: {ex}")
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
-
-
-def namespace_to_path(namespace: str, root: PathOrString = fixed_paths.repository_root_directory()) -> Path:
-    """
-    Given a namespace (in form A.B.C) and an optional root directory R, create a path R/A/B/C
-    :param namespace: Namespace to convert to path
-    :param root: Path to prefix (default is project root)
-    :return:
-    """""
-    return Path(root, *namespace.split("."))
-
-
 def path_to_namespace(path: Path, root: PathOrString = fixed_paths.repository_root_directory()) -> str:
     """
     Given a path (in form R/A/B/C) and an optional root directory R, create a namespace A.B.C.
     If root is provided, then path must be a relative child to it.
+
     :param path: Path to convert to namespace
     :param root: Path prefix to remove from namespace (default is project root)
     :return:
@@ -387,6 +214,8 @@ def path_to_namespace(path: Path, root: PathOrString = fixed_paths.repository_ro
 def remove_file_or_directory(pth: Path) -> None:
     """
     Remove a directory and its contents, or a file.
+
+    :param pth: the Path to the file or directory to be removed
     """
     if pth.is_dir():
         for child in pth.glob('*'):
@@ -434,7 +263,9 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
     :return: A list with 1 entry that is the root level repo's conda environment files.
     """
     project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
-    return [project_yaml]
+    if project_yaml.exists():
+        return [project_yaml]
+    return []
 
 
 def get_all_pip_requirements_files() -> List[Path]:

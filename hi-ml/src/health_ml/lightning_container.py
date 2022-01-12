@@ -14,8 +14,7 @@ from health_ml.deep_learning_config import DatasetParams, OptimizerParams, Outpu
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
 from health_azure.utils import GenericConfig
-from health_ml.utils.common_utils import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from health_ml.utils.metrics_constants import TrackedMetrics
+from health_ml.utils.common_utils import CROSSVAL_SPLIT_KEY
 
 
 class LightningContainer(GenericConfig,
@@ -173,9 +172,9 @@ class LightningContainer(GenericConfig,
             run_config=run_config,
             hyperparameter_sampling=GridParameterSampling(
                 parameter_space={
-                    CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits)))
+                    CROSSVAL_SPLIT_KEY: choice(list(range(self.number_of_cross_validation_splits)))
                 }),
-            primary_metric_name=TrackedMetrics.Val_Loss.value,
+            primary_metric_name= "val/Loss",
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
             max_total_runs=self.number_of_cross_validation_splits
         )

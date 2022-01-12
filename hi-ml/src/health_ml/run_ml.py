@@ -23,7 +23,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (
-    CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, ModelExecutionMode, change_working_directory,
+    CROSSVAL_SPLIT_KEY, ModelExecutionMode, change_working_directory,
     logging_section, RUN_RECOVERY_ID_KEY, EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
@@ -141,7 +141,7 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.container.cross_validation_split_index)
+        new_tags[CROSSVAL_SPLIT_KEY] = str(self.container.cross_validation_split_index)
         new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 

@@ -187,15 +187,7 @@ def model_train(container: LightningContainer,
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore
-    world_size = getattr(trainer, "world_size", 0)
-    is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
-    # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
-    # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
-    if is_azureml_run and world_size > 1:
-        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path,  # type: ignore
-                                   container.outputs_folder)
-        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path,  # type: ignore
-                                   container.outputs_folder)
+
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
     # all necessary properties.

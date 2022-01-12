@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterable, List, Optional
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
-from health_ml.utils.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from health_ml.utils.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
 
@@ -109,55 +108,3 @@ class StoringLogger(LightningLoggerBase):
         :return: A dictionary mapping from epoch number to metric name to metric value.
         """
         return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
-
-    def get_metric(self, is_training: bool, metric_type: str) -> List[float]:
-        """
-        Gets a scalar metric out of either the list of training or the list of validation results. This returns
-        the value that a specific metric attains in all of the epochs.
-
-        :param is_training: If True, read metrics that have a "train/" prefix, otherwise those that have a "val/"
-        prefix.
-        :param metric_type: The metric to extract.
-        :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
-        """
-        full_metric_name = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_type
-        result = []
-        for epoch in self.epochs:
-            value = self.results_per_epoch[epoch][full_metric_name]
-            if not isinstance(value, float):
-                raise ValueError(f"Expected a floating point value for metric {full_metric_name}, but got: "
-                                 f"{value}")
-            result.append(value)
-        return result
-
-    def get_train_metric(self, metric_type: str) -> List[float]:
-        """
-        Gets a scalar metric from the list of training results. This returns
-        the value that a specific metric attains in all of the epochs.
-
-        :param metric_type: The metric to extract.
-        :return: A list of floating point numbers, with one entry per entry in the the training results.
-        """
-        return self.get_metric(is_training=True, metric_type=metric_type)
-
-    def get_val_metric(self, metric_type: str) -> List[float]:
-        """
-        Gets a scalar metric from the list of validation results. This returns
-        the value that a specific metric attains in all of the epochs.
-
-        :param metric_type: The metric to extract.
-        :return: A list of floating point numbers, with one entry per entry in the the validation results.
-        """
-        return self.get_metric(is_training=False, metric_type=metric_type)
-
-    def train_results_per_epoch(self) -> List[DictStrFloat]:
-        """
-        Gets the full set of training metrics that the logger stores, as a list of dictionaries per epoch.
-        """
-        return list(self.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values())
-
-    def val_results_per_epoch(self) -> List[DictStrFloat]:
-        """
-        Gets the full set of validation metrics that the logger stores, as a list of dictionaries per epoch.
-        """
-        return list(self.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values())

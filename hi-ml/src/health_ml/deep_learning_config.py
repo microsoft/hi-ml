@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import param
 from param import Parameterized
@@ -17,8 +17,7 @@ from health_azure.utils import RUN_CONTEXT, PathOrString, T, is_running_in_azure
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (create_unique_timestamp_id,
                                           DEFAULT_CROSS_VALIDATION_SPLIT_INDEX,
-                                          DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME,
-                                          ModelExecutionMode, ModelProcessing)
+                                          DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME)
 from health_ml.utils.type_annotations import TupleFloat2
 
 
@@ -163,61 +162,13 @@ class WorkflowParams(param.Parameterized):
                              f"found num_crossval_splits = {self.num_crossval_splits} "
                              f"and crossval_split_index={self.crossval_split_index}")
 
-    def is_inference_required(self,
-                              model_proc: ModelProcessing,
-                              data_split: ModelExecutionMode) -> bool:
-        """
-        Returns True if inference is required for this model_proc (single or ensemble) and data_split (Train/Val/Test).
-
-        :param model_proc: Whether we are testing an ensemble or single model.
-        :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-        :return: True if inference required.
-        """
-        settings = {
-            ModelProcessing.DEFAULT: {
-                ModelExecutionMode.TRAIN: self.inference_on_train_set,
-                ModelExecutionMode.TEST: self.inference_on_test_set,
-                ModelExecutionMode.VAL: self.inference_on_val_set,
-            },
-            ModelProcessing.ENSEMBLE_CREATION: {
-                ModelExecutionMode.TRAIN: self.ensemble_inference_on_train_set,
-                ModelExecutionMode.TEST: self.ensemble_inference_on_test_set,
-                ModelExecutionMode.VAL: self.ensemble_inference_on_val_set,
-            }
-        }
-        inference_option = settings[model_proc][data_split]
-        if inference_option is not None:
-            return inference_option
-
-        # Defaults for when to run inference in the absence of any command line switches.
-        # This depends on ModelProcessing, perform_cross_validation, and ModelExecutionMode.
-        # If the current combination of these three parameters is not in this data structure,
-        # then default to False.
-        defaults: Dict[ModelProcessing, Dict[bool, Dict[ModelExecutionMode, bool]]] = {
-            ModelProcessing.DEFAULT: {
-                False: {
-                    ModelExecutionMode.TRAIN: False,
-                    ModelExecutionMode.VAL: False,
-                    ModelExecutionMode.TEST: True,
-                }
-            },
-            ModelProcessing.ENSEMBLE_CREATION: {
-                True: {
-                    ModelExecutionMode.TRAIN: False,
-                    ModelExecutionMode.VAL: False,
-                    ModelExecutionMode.TEST: True,
-                }
-            }
-        }
-        try:
-            return defaults[model_proc][self.perform_cross_validation][data_split]
-        except KeyError:
-            return False
 
     @property
     def is_running_in_aml(self) -> bool:
         """
-        Returns True if the run is executing inside AzureML, or False if outside AzureML.
+        Whether the current run is executing inside Azure ML
+
+        :return: True if the run is executing inside Azure ML, or False if outside AzureML.
         """
         return is_running_in_azure_ml(RUN_CONTEXT)
 
@@ -431,7 +382,7 @@ class OptimizerParams(param.Parameterized):
 
 
 class TrainerParams(param.Parameterized):
-    num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
+    max_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
     recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
                                                                "of recovery_checkpoint_save_interval. The intended use "

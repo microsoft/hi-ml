@@ -2,10 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import shutil
 import sys
-import time
 from pathlib import Path
 from typing import List
 from unittest.mock import Mock, patch
@@ -13,12 +11,10 @@ from unittest.mock import Mock, patch
 import pytest
 from azureml.core.run import Run
 
-# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.runner import Runner
-from health_ml.utils.common_utils import (DATASET_CSV_FILE_NAME, SUBJECT_METRICS_FILE_NAME, RUN_RECOVERY_ID_KEY,
-                                          logging_to_file_handler, logging_to_file, disable_logging_to_file)
+from health_ml.utils.common_utils import RUN_RECOVERY_ID_KEY
 from health_ml.utils.fixed_paths import repository_root_directory
-from health_ml.utils.output_directories import OutputFolderForTests
+from health_ml.utils.generic_parsing import GenericConfig
 
 from testhiml.utils_testhiml import create_dataset_df, create_metrics_df, DEFAULT_WORKSPACE
 
@@ -48,12 +44,8 @@ def create_mock_run(mock_upload_path: Path, config: GenericConfig) -> Run:
         """
         if output_file_path is not None:
             src = mock_upload_path / name
-            if src.name == DATASET_CSV_FILE_NAME:
-                dataset_df = create_dataset_df()
-                dataset_df.to_csv(output_file_path)
-            elif src.name == SUBJECT_METRICS_FILE_NAME:
-                metrics_df = create_metrics_df()
-                metrics_df.to_csv(output_file_path)
+            dataset_df = create_dataset_df()
+            dataset_df.to_csv(output_file_path)
 
     child_runs: List[Run] = []
     for i in range(config.number_of_cross_validation_splits):
@@ -79,12 +71,7 @@ def create_mock_run(mock_upload_path: Path, config: GenericConfig) -> Run:
 @pytest.fixture(scope="module")
 def runner() -> Runner:
     project_root = repository_root_directory()
-    yaml_config_file = Path("hi-ml/src/health_ml/configs/hello_container.py")
-    return Runner(project_root=project_root, yaml_config_file=yaml_config_file)
-
-
-def test_parse_and_load_model(runner: Runner) -> None:
-    pass
+    return Runner(project_root=project_root)
 
 
 def test_run(runner: Runner) -> None:
@@ -98,23 +85,3 @@ def test_run(runner: Runner) -> None:
     assert model_config.model_name == model_name
     assert azure_run_info.run is None
     assert len(azure_run_info.input_datasets) == len(azure_run_info.output_datasets) == 0
-
-
-def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
-    # Log file should go to a new, non-existent folder, 2 levels deep
-    file_path = test_output_dirs.root_dir / "subdir1" / "subdir2" / "logfile.txt"
-    assert logging_to_file_handler is None
-    logging_to_file(file_path)
-    assert logging_to_file_handler is not None
-    log_line = "foo bar"
-    logging.getLogger().setLevel(logging.INFO)
-    logging.info(log_line)
-    disable_logging_to_file()
-    should_not_be_present = "This should not be present in logs"
-    logging.info(should_not_be_present)
-    assert logging_to_file_handler is None
-    # Wait for a bit, tests sometimes fail with the file not existing yet
-    time.sleep(2)
-    assert file_path.exists()
-    assert log_line in file_path.read_text()
-    assert should_not_be_present not in file_path.read_text()

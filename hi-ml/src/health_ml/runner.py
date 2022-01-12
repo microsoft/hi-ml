@@ -27,19 +27,18 @@ sys.path.insert(0, str(health_azure_pkg))
 sys.path.insert(0, str(health_ml_pkg))
 print(f"sys path: {sys.path}")
 
-
 from health_ml.utils import fixed_paths
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.datasets import create_dataset_configs
 from health_azure.utils import (GenericConfig, PathOrString, get_workspace, is_local_rank_zero, merge_conda_files,
-                                set_environment_variables_for_multi_node,)
+                                set_environment_variables_for_multi_node, )
 
 # from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 
-from health_ml.utils.common_utils import (CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY,
+from health_ml.utils.common_utils import (CROSSVAL_SPLIT_KEY,
                                           get_all_environment_files, get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader
@@ -51,7 +50,6 @@ from health_ml.utils.generic_parsing import ParserResult, parse_args_and_add_yam
 runner_path = Path(sys.argv[0])
 if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
-
 
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
@@ -99,21 +97,14 @@ def package_setup_and_hacks() -> None:
     matplotlib.use('Agg')
 
 
-def create_runner_parser(model_config_class: Any = None) -> argparse.ArgumentParser:
+def create_runner_parser() -> argparse.ArgumentParser:
     """
-    Creates a commandline parser, that understands all necessary arguments for running a script in Azure,
-    plus all arguments for the given class. The class must be a subclass of GenericConfig.
+    Creates a commandline parser, that understands all necessary arguments for training a model
 
-    :param model_config_class: A class that contains the model-specific parameters.
-    :return: An instance of ArgumentParser.
+    :return: An instance of ArgumentParser with args from ExperimentConfig added
     """
     parser = ExperimentConfig.create_argparser()
     ModelConfigLoader.add_args(parser)
-    if model_config_class is not None:
-        if not issubclass(model_config_class, GenericConfig):
-            raise ValueError(f"The given class must be a subclass of GenericConfig, but got: {model_config_class}")
-        model_config_class.add_args(parser)
-
     return parser
 
 
@@ -125,7 +116,7 @@ def additional_run_tags(commandline_args: str) -> Dict[str, str]:
     """
     return {
         "commandline_args": commandline_args,
-        CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: "-1",
+        CROSSVAL_SPLIT_KEY: "-1",
     }
 
 
@@ -152,7 +143,6 @@ class Runner:
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
-        self.model_config: Optional[GenericConfig] = None
         self.experiment_config: ExperimentConfig = ExperimentConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
         # This field stores the MLRunner object that has been created in the most recent call to the run() method.
@@ -161,60 +151,52 @@ class Runner:
     def parse_and_load_model(self) -> ParserResult:
         """
         Parses the command line arguments, and creates configuration objects for the model itself, and for the
-        Azure-related parameters. Sets self.experiment_config and self.model_config to their proper values. Returns the
+        Azure-related parameters. Sets self.experiment_config to its proper values. Returns the
         parser output from parsing the model commandline arguments.
-        If no "model" argument is provided on the commandline, self.model_config will be set to None, and the return
-        value is None.
 
         :return: ParserResult object containing args, overrides and settings
         """
-        # Create a parser that will understand only the args we need for an AzureConfig
-        parser1 = create_runner_parser()
-        parser_result = parse_args_and_add_yaml_variables(parser1,
-
+        parser = create_runner_parser()
+        parser_result = parse_args_and_add_yaml_variables(parser,
                                                           fail_on_unknown_args=False)
         experiment_config = ExperimentConfig(**parser_result.args)
         self.experiment_config = experiment_config
-        # self.azure_config = azure_config
-        self.model_config = None
         if not experiment_config.model:
             raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
-        # Create the model as per the "model" commandline option. This can return either a built-in config
-        # of type DeepLearningConfig, or a LightningContainer.
-        config_or_container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
+        # Create the model as per the "model" commandline option. This is a LightningContainer.
+        container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
 
         def parse_overrides_and_apply(c: object, previous_parser_result: ParserResult) -> ParserResult:
             assert isinstance(c, GenericConfig)
-            parser = type(c).create_argparser()
+            parser_ = type(c).create_argparser()
             # For each parser, feed in the unknown settings from the previous parser. All commandline args should
             # be consumed by name, hence fail if there is something that is still unknown.
-            parser_result = parse_arguments(parser,
-                                            args=previous_parser_result.unknown,
-                                            fail_on_unknown_args=True)
+            parser_result_ = parse_arguments(parser_,
+                                             args=previous_parser_result.unknown,
+                                             fail_on_unknown_args=True)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            # c.apply_overrides(parser_result.known_settings_from_yaml)
-            c.apply_overrides(parser_result.overrides)
+            c.apply_overrides(parser_result_.overrides)
             c.validate()
-            return parser_result
+            return parser_result_
 
         # Now create a parser that understands overrides at model/container level.
-        parser_result = parse_overrides_and_apply(config_or_container, parser_result)
+        parser_result = parse_overrides_and_apply(container, parser_result)
 
-        if isinstance(config_or_container, LightningContainer):
-            self.lightning_container = config_or_container
+        if isinstance(container, LightningContainer):
+            self.lightning_container = container
         else:
-            raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
+            raise ValueError(f"Don't know how to handle a loaded configuration of type {type(container)}")
 
         return parser_result
 
-    def run(self) -> Tuple[Optional[GenericConfig], AzureRunInfo]:
+    def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
 
-        :return: If submitting to AzureML, returns the model configuration that was used for training,
-        including commandline overrides applied (if any).
+        :return: a tuple of the LightningContainer object and an AzureRunInfo containing all information about
+            the present run (whether running in AzureML or not)
         """
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
@@ -223,14 +205,16 @@ class Runner:
         self.parse_and_load_model()
         azure_run_info = self.submit_to_azureml_if_needed()
         self.run_in_situ(azure_run_info)
-        if self.model_config is None:
-            return self.lightning_container, azure_run_info
-        return self.model_config, azure_run_info
+        return self.lightning_container, azure_run_info
 
     def submit_to_azureml_if_needed(self) -> AzureRunInfo:
         """
         Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for
         completion and the Run did not succeed.
+
+        :return: an AzureRunInfo object containing all of the details of the present run. If AzureML is not
+            specified, the attribute 'run' will None, but the object still contains helpful information
+            about datasets etc
         """
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
@@ -259,8 +243,6 @@ class Runner:
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore)
         try:
-            # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so
-            # we should only attempt them if we intend to elevate this to AzureML
             if self.experiment_config.azureml:
                 if not self.experiment_config.cluster:
                     raise ValueError("self.azure_config.cluster not set, but we need a compute_cluster_name to submit"
@@ -298,6 +280,7 @@ class Runner:
     def run_in_situ(self, azure_run_info: AzureRunInfo) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
+
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
         datasets are mounted.
         """
@@ -324,7 +307,7 @@ class Runner:
             project_root=self.project_root)
 
 
-def run(project_root: Path) ->  Tuple[Optional[GenericConfig], AzureRunInfo]:
+def run(project_root: Path) -> Tuple[Optional[GenericConfig], AzureRunInfo]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
