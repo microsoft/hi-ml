@@ -5,10 +5,9 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import torch.multiprocessing
-from azureml.core import Run
 from pytorch_lightning import seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 
@@ -88,14 +87,10 @@ class MLRunner:
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
             if len(azure_run_info.input_datasets) > 0:
-                first_input_dataset = azure_run_info.input_datasets[0]
-                assert first_input_dataset is not None
-                self.container.local_dataset = check_dataset_folder_exists(first_input_dataset)
-                extra_locals: List[Path] = []
-                for extra_dataset in azure_run_info.input_datasets[1:]:
-                    assert extra_dataset is not None
-                    extra_locals.append(check_dataset_folder_exists(extra_dataset))
-                self.container.extra_local_dataset_paths = extra_locals  # type: ignore
+                input_datasets = azure_run_info.input_datasets
+                assert len(input_datasets) > 0
+                local_datasets = [check_dataset_folder_exists(input_dataset for input_dataset in input_datasets)]
+                self.container.local_datasets = local_datasets
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
 

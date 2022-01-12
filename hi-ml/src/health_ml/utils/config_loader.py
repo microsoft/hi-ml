@@ -14,8 +14,10 @@ from typing import Any, Dict, List, Optional
 import param
 from importlib._bootstrap import ModuleSpec
 
+from health_azure.utils import GenericConfig
+from health_ml.lightning_container import LightningContainer
 from health_ml.utils.common_utils import path_to_namespace
-from health_ml.utils.generic_parsing import GenericConfig
+# from health_ml.utils.generic_parsing import GenericConfig
 
 
 class ModelConfigLoader(GenericConfig):
@@ -55,7 +57,7 @@ class ModelConfigLoader(GenericConfig):
 
         configs: Dict[str, GenericConfig] = {}
 
-        def _get_model_config(module_spec: ModuleSpec) -> Optional[GenericConfig]:
+        def _get_model_config(module_spec: ModuleSpec) -> Optional[LightningContainer]:
             """
             Given a module specification check to see if it has a class property with
             the <model_name> provided, and instantiate that config class with the
@@ -83,7 +85,7 @@ class ModelConfigLoader(GenericConfig):
                 if exception_text != "":
                     logging.warning(f"(from attempt to import module {module_spec.name}): {exception_text}")
                 return None
-            model_config: GenericConfig = _class()
+            model_config = _class()
             return model_config
 
         def _search_recursively_and_store(module_search_spec: ModuleSpec) -> None:

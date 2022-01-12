@@ -1,5 +1,4 @@
 import param
-from typing import Any
 
 from health_azure.utils import GenericConfig
 

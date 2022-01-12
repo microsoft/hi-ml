@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import random
-import sys
 from dataclasses import dataclass
 from itertools import combinations
 from math import ceil
@@ -32,7 +31,11 @@ class DatasetSplits:
         common_utils.check_properties_are_not_none(self)
 
         def pairwise_intersection(*collections: Iterable) -> Set:
-            """Returns any element that appears in more than one collection."""
+            """
+            Returns any element that appears in more than one collection
+
+            :return: a Set of elements that appear in more than one collection
+            """
             intersection = set()
             for col1, col2 in combinations(map(set, collections), 2):
                 intersection |= col1 & col2
@@ -64,15 +67,34 @@ class DatasetSplits:
                f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
 
     def unique_subjects(self) -> Tuple[Any, Any, Any]:
+        """
+        Return a tuple of pandas Series of unique subjects across train, test and validation data splits,
+        based on self.subject_column
+
+        :return: a tuple of pandas Series
+        """
         return (self.train[self.subject_column].unique(),
                 self.test[self.subject_column].unique(),
                 self.val[self.subject_column].unique())
 
     def number_of_subjects(self) -> int:
+        """
+        Returns the sum of unique subjects in the dataset (identified by self.subject_column), summed
+        over train, test and validation data splits
+
+        :return: An integer representing the number of unique subjects
+        """
         unique_train, unique_test, unique_val = self.unique_subjects()
         return len(unique_train) + len(unique_test) + len(unique_val)
 
     def __getitem__(self, mode: ModelExecutionMode) -> pd.DataFrame:
+        """
+        Retrieve either the train, validation or test data in the form of a Pandas dataframe, depending
+        on the current execution mode
+
+        :param mode: The current ModelExecutionMode
+        :return: A dataframe of the relevant data split
+        """
         if mode == ModelExecutionMode.TRAIN:
             return self.train
         elif mode == ModelExecutionMode.TEST:
@@ -81,79 +103,6 @@ class DatasetSplits:
             return self.val
         else:
             raise ValueError(f"Model execution mode not recognized: {mode}")
-
-    def restrict_subjects(self, restriction_pattern: str) -> DatasetSplits:
-        """
-        Creates a new dataset split that has at most the specified numbers of subjects in train, validation and test
-        sets respectively.
-
-        If `group_column` was specified, this operation may violate the grouping constraints and the resulting splits
-        object will have `group_column == None`.
-
-        :param restriction_pattern: a string containing zero or two commas, and otherwise digits or "+". An empty
-            substring will result in no restriction for the corresponding dataset. Thus "20,,3" means "restrict to 20
-            training images and 3 test images, with no restriction on validation". A "+" value means "reassign all
-            images from the set(s) with a numeric count (there must be at least one) to this set". Thus ",0,+" means
-            "leave the training set alone, but move all validation images to the test set", and "0,2,+" means "move
-            all training images and all but 2 validation images to the test set".
-        :return: A new dataset split object with (at most) the numbers of subjects specified by restrict_pattern
-        """
-
-        n_train, n_val, n_test = self.parse_restriction_pattern(restriction_pattern)
-
-        def restrict(df: pd.DataFrame, count: Optional[int]) -> Tuple[pd.DataFrame, pd.DataFrame]:
-            if count is None:  # Not specified: keep everything
-                return df, df[:0]
-            ids = df[self.subject_column].unique()
-            if count >= len(ids):  # "+", or a large number specified
-                return df, df[:0]
-            keep = ids[:count]
-            drop = ids[count:]
-            return df[df[self.subject_column].isin(keep)], df[df[self.subject_column].isin(drop)]
-
-        train, train_drop = restrict(self.train, n_train)
-        test, test_drop = restrict(self.test, n_test)
-        val, val_drop = restrict(self.val, n_val)
-        if n_train == sys.maxsize:
-            train = train.append(val_drop).append(test_drop)
-        elif n_test == sys.maxsize:
-            test = test.append(train_drop).append(val_drop)
-        elif n_val == sys.maxsize:
-            val = val.append(train_drop).append(test_drop)
-
-        return DatasetSplits(train=train, test=test, val=val, subject_column=self.subject_column, allow_empty=True)
-
-    @staticmethod
-    def parse_restriction_pattern(restriction_pattern: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-        fields = restriction_pattern.split(",")
-
-        def int_or_none(value: str) -> Optional[int]:
-            if value == "":
-                return None
-            elif value == "+":
-                return sys.maxsize
-            else:
-                return int(value)
-
-        if len(fields) == 1:
-            # A single non-empty field should convert to an integer and will be applied to all three sets.
-            # If the string is empty, all fields will be None and no restrictions will be applied.
-            n_all = int_or_none(fields[0])
-            result = n_all, n_all, n_all
-        elif len(fields) == 3:
-            # A sequence of three fields (separated by two commas) is applied to train, val and test respectively.
-            result = tuple(int_or_none(field) for field in fields)  # type: ignore
-        else:
-            raise ValueError(f"restrict_pattern should have either zero or two commas: {restriction_pattern}")
-        if len([x for x in result if x == sys.maxsize]) > 1:
-            # It makes no sense to try to move everything to two different sets.
-            raise ValueError("restrict_pattern cannot be just '+' or contain more "
-                             f"than one '+' field: {restriction_pattern}")
-        if sys.maxsize in result and all(x is None or x == sys.maxsize for x in result):
-            # It makes no sense to move images to a set when there is no set to move them from.
-            raise ValueError(
-                f"restrict_pattern cannot contain '+' unless it also contains a number: {restriction_pattern}")
-        return result
 
     @staticmethod
     def get_subject_ranges_for_splits(population: Sequence[str],
@@ -328,6 +277,14 @@ class DatasetSplits:
     @staticmethod
     def get_df_from_ids(df: pd.DataFrame, ids: Sequence[str],
                         subject_column: str = "") -> pd.DataFrame:
+        """
+        Retrieve a subset dataframe where the subject column is restricted to a sequence of provided ids
+
+        :param df: The dataframe to restrict
+        :param ids: The ids to lookup
+        :param subject_column: The column to lookup ids in. Defaults to ""
+        :return: A subset of the dataframe
+        """
         return df[df[subject_column].isin(ids)]
 
     def get_k_fold_cross_validation_splits(self, n_splits: int, random_seed: int = 0) -> List[DatasetSplits]:

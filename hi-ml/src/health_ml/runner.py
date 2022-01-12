@@ -3,21 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
-from datetime import date
-import getpass
 import logging
 import os
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import matplotlib
-from azureml.core import Run
 
 # TODO: function to add submodule to path
-import sys
-
 himl_root = Path(__file__).parent.parent.parent.parent
 print(f"health_ml pkg: {himl_root}")
 health_ml_pkg = himl_root / "hi-ml" / "src"
@@ -30,8 +25,8 @@ print(f"sys path: {sys.path}")
 from health_ml.utils import fixed_paths
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.datasets import create_dataset_configs
-from health_azure.utils import (GenericConfig, PathOrString, get_workspace, is_local_rank_zero, merge_conda_files,
-                                set_environment_variables_for_multi_node, )
+from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,
+                                set_environment_variables_for_multi_node, GenericConfig)
 
 # from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.experiment_config import ExperimentConfig
@@ -42,7 +37,7 @@ from health_ml.utils.common_utils import (CROSSVAL_SPLIT_KEY,
                                           get_all_environment_files, get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader
-from health_ml.utils.generic_parsing import ParserResult, parse_args_and_add_yaml_variables, parse_arguments
+from health_ml.utils.generic_parsing import ParserResult, parse_arguments
 
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
@@ -120,17 +115,17 @@ def additional_run_tags(commandline_args: str) -> Dict[str, str]:
     }
 
 
-def create_experiment_name() -> str:
-    """
-    Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
-
-    :param azure_config: The object containing all Azure-related settings.
-    :return: The name to use for the AzureML experiment.
-    """
-    # branch = get_git_information().branch
-    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
-    # at monthly granularity, so that not too many runs accumulate in that experiment.
-    return getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+# def create_experiment_name() -> str:
+#     """
+#     Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
+#
+#     :param azure_config: The object containing all Azure-related settings.
+#     :return: The name to use for the AzureML experiment.
+#     """
+#     # branch = get_git_information().branch
+#     # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
+#     # at monthly granularity, so that not too many runs accumulate in that experiment.
+#     return getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
 
 
 class Runner:
@@ -157,8 +152,7 @@ class Runner:
         :return: ParserResult object containing args, overrides and settings
         """
         parser = create_runner_parser()
-        parser_result = parse_args_and_add_yaml_variables(parser,
-                                                          fail_on_unknown_args=False)
+        parser_result = parse_arguments(parser, fail_on_unknown_args=False)
         experiment_config = ExperimentConfig(**parser_result.args)
         self.experiment_config = experiment_config
         if not experiment_config.model:
@@ -167,7 +161,7 @@ class Runner:
         # Create the model as per the "model" commandline option. This is a LightningContainer.
         container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
 
-        def parse_overrides_and_apply(c: object, previous_parser_result: ParserResult) -> ParserResult:
+        def parse_overrides_and_apply(c: GenericConfig, previous_parser_result: ParserResult) -> ParserResult:
             assert isinstance(c, GenericConfig)
             parser_ = type(c).create_argparser()
             # For each parser, feed in the unknown settings from the previous parser. All commandline args should
@@ -176,7 +170,7 @@ class Runner:
                                              args=previous_parser_result.unknown,
                                              fail_on_unknown_args=True)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            c.apply_overrides(parser_result_.overrides)
+            c.apply_overrides(parser_result_.overrides)  # type: ignore
             c.validate()
             return parser_result_
 
@@ -236,10 +230,11 @@ class Runner:
         workspace = get_workspace()
         default_datastore = workspace.get_default_datastore().name
 
-        all_local_datasets = self.lightning_container.all_local_dataset_paths()
+        local_datasets = self.lightning_container.local_datasets
+        all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
         input_datasets = \
-            create_dataset_configs(all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
-                                   all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
+            create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
+                                   all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore)
         try:
@@ -256,7 +251,7 @@ class Runner:
                     compute_cluster_name=self.experiment_config.cluster,
                     environment_variables=environment_variables,
                     default_datastore=default_datastore,
-                    experiment_name=create_experiment_name(),
+                    experiment_name=self.lightning_container.name,  # create_experiment_name(),
                     input_datasets=input_datasets,  # type: ignore
                     num_nodes=self.experiment_config.num_nodes,
                     wait_for_completion=False,
@@ -307,7 +302,7 @@ class Runner:
             project_root=self.project_root)
 
 
-def run(project_root: Path) -> Tuple[Optional[GenericConfig], AzureRunInfo]:
+def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.

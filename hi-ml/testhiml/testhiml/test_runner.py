@@ -11,12 +11,12 @@ from unittest.mock import Mock, patch
 import pytest
 from azureml.core.run import Run
 
+from health_azure.utils import GenericConfig
 from health_ml.runner import Runner
 from health_ml.utils.common_utils import RUN_RECOVERY_ID_KEY
 from health_ml.utils.fixed_paths import repository_root_directory
-from health_ml.utils.generic_parsing import GenericConfig
 
-from testhiml.utils_testhiml import create_dataset_df, create_metrics_df, DEFAULT_WORKSPACE
+from testhiml.utils_testhiml import create_dataset_df, DEFAULT_WORKSPACE
 
 
 def create_mock_run(mock_upload_path: Path, config: GenericConfig) -> Run:
@@ -43,7 +43,6 @@ def create_mock_run(mock_upload_path: Path, config: GenericConfig) -> Run:
         download-file-name--output-file-path-none---validate-checksum-false-
         """
         if output_file_path is not None:
-            src = mock_upload_path / name
             dataset_df = create_dataset_df()
             dataset_df.to_csv(output_file_path)
 

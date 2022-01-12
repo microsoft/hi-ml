@@ -2,3 +2,6 @@
 max-line-length = 120
 max-complexity = 25
 ignore = E731
+# ignore errors from importing health_azure and health_ml after appending to path
+per-file-ignores=
+    hi-ml/src/health_ml/runner.py:E402

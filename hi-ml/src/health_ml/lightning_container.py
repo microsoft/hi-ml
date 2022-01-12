@@ -10,10 +10,10 @@ from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pytorch_lightning import LightningDataModule, LightningModule
 
+from health_azure.utils import GenericConfig
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
-from health_azure.utils import GenericConfig
 from health_ml.utils.common_utils import CROSSVAL_SPLIT_KEY
 
 
@@ -41,8 +41,8 @@ class LightningContainer(GenericConfig,
     def setup(self) -> None:
         """
         This method is called as one of the first operations of the training/testing workflow, before any other
-        operations on the present object. At the point when called, the dataset is already available in
-        the location given by self.local_dataset. Use this method to prepare datasets or data loaders, for example.
+        operations on the present object. At the point when called, the datasets are already available in
+        the locations given by self.local_datasets. Use this method to prepare datasets or data loaders, for example.
         """
         pass
 
@@ -56,7 +56,7 @@ class LightningContainer(GenericConfig,
     def get_data_module(self) -> LightningDataModule:
         """
         Gets the data that is used for the training, validation, and test steps.
-        This should read a dataset from the self.local_dataset folder or download from a web location.
+        This should read datasets from the self.local_datasets folder or download from a web location.
         The format of the data is not specified any further.
         The method must take cross validation into account, and ensure that logic to create training and validation
         sets takes cross validation with a given number of splits is correctly taken care of.
@@ -73,7 +73,7 @@ class LightningContainer(GenericConfig,
         Gets the data that is used to evaluate the trained model. By default, this returns the value
         of get_data_module(), but you can override this to get for example full image datasets for
         segmentation models.
-        This should read a dataset from the self.local_dataset folder or download from a web location.
+        This should read datasets from the self.local_datasets folder or download from a web location.
         The format of the data is not specified any further.
         The method must take cross validation into account, and ensure that logic to create training and validation
         sets takes cross validation with a given number of splits is correctly taken care of.
@@ -174,7 +174,7 @@ class LightningContainer(GenericConfig,
                 parameter_space={
                     CROSSVAL_SPLIT_KEY: choice(list(range(self.number_of_cross_validation_splits)))
                 }),
-            primary_metric_name= "val/Loss",
+            primary_metric_name="val/Loss",
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
             max_total_runs=self.number_of_cross_validation_splits
         )

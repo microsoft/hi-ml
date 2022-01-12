@@ -12,7 +12,7 @@ from typing import List, Optional
 import param
 from param import Parameterized
 
-from health_azure.utils import RUN_CONTEXT, PathOrString, T, is_running_in_azure_ml
+from health_azure.utils import RUN_CONTEXT, PathOrString, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (create_unique_timestamp_id,
@@ -162,7 +162,6 @@ class WorkflowParams(param.Parameterized):
                              f"found num_crossval_splits = {self.num_crossval_splits} "
                              f"and crossval_split_index={self.crossval_split_index}")
 
-
     @property
     def is_running_in_aml(self) -> bool:
         """
@@ -198,67 +197,28 @@ class WorkflowParams(param.Parameterized):
 
 
 class DatasetParams(param.Parameterized):
-    azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use when running in AzureML. "
-                                             "This dataset must exist as a folder of the same name in the 'datasets' "
-                                             "container in the datasets storage account. This dataset will be mounted "
-                                             "and made available at the 'local_dataset' path when running in AzureML.")
-    local_dataset: Optional[Path] = \
-        param.ClassSelector(class_=Path, default=None, allow_None=True,
-                            doc="The path of the dataset to use, when training is running outside Azure.")
-    extra_azure_dataset_ids: List[str] = \
-        param.List(default=[], allow_None=False,
-                   doc="This can be used to feed in additional datasets to your custom datamodules. These will be"
-                       "mounted and made available as a list of paths in 'extra_local_datasets' when running in AML.")
-    extra_local_dataset_paths: List[Optional[Path]] = \
-        param.List(class_=Path, default=[], allow_None=False,
-                   doc="This can be used to feed in additional datasets "
-                       "to your custom datamodules when running outside of Azure AML.")
-    dataset_mountpoint: str = param.String(doc="The path at which the AzureML dataset should be made available via "
-                                               "mounting or downloading. This only affects jobs running in AzureML."
-                                               "If empty, use a random mount/download point.")
-    extra_dataset_mountpoints: List[str] = \
-        param.List(default=[], allow_None=False,
-                   doc="The mounting points for the datasets given in extra_azure_dataset_ids, when running in "
-                       "AzureML. Use an empty string for all datasets where a randomly chosen mount/download point "
-                       "should be used.")
+    azure_datasets: List[str] = param.List(default=[], allow_None=False,
+                                           doc="If provided, the ID of one or more datasets to use when running in"
+                                               " AzureML.This dataset must exist as a folder of the same name in the"
+                                               " 'datasets' container in the datasets storage account. This dataset"
+                                               " will be mounted and made available at the 'local_dataset' path"
+                                               " when running in AzureML.")
+    local_datasets: List[str] = param.List(default=[], allow_None=False,
+                                           doc="A list of one or more paths to the dataset to use, when training"
+                                               " outside of Azure ML.")
+    dataset_mountpoints: List[str] = param.List(default=[], allow_None=False,
+                                                doc="The path at which the AzureML dataset should be made available "
+                                                    "via mounting or downloading. This only affects jobs running in "
+                                                    "AzureML. If empty, use a random mount/download point.")
 
     def validate(self) -> None:
-        if not self.azure_dataset_id and self.local_dataset is None:
-            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+        if not self.azure_datasets and self.local_datasets is None:
+            raise ValueError("Either of local_dataset or azure_datasets must be set.")
 
-        if self.all_dataset_mountpoints() and len(self.all_azure_dataset_ids()) != len(self.all_dataset_mountpoints()):
+        if self.dataset_mountpoints and len(self.azure_datasets) != len(self.dataset_mountpoints):
             raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
-                             f"got datasets [{','.join(self.all_azure_dataset_ids())}] "
-                             f"and mountpoints [{','.join(self.all_dataset_mountpoints())}]")
-
-    def all_azure_dataset_ids(self) -> List[str]:
-        """
-        Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
-        self.extra_azure_dataset_ids
-        """
-        return self._concat_paths(self.azure_dataset_id, self.extra_azure_dataset_ids)
-
-    def all_dataset_mountpoints(self) -> List[str]:
-        """
-        Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
-        self.extra_dataset_mountpoints
-        """
-        return self._concat_paths(self.dataset_mountpoint, self.extra_dataset_mountpoints)
-
-    def all_local_dataset_paths(self) -> List[Path]:
-        """
-        Returns a list with all dataset mount points that are specified in self.local_dataset and
-        self.extra_local_dataset_paths
-        """
-        return self._concat_paths(self.local_dataset, self.extra_local_dataset_paths)  # type: ignore
-
-    def _concat_paths(self, item: Optional[T], items: List[T]) -> List[T]:
-        """
-        Creates a list with the item going first (if it does not evaluate to False), then the rest of the items.
-        """
-        if item is None or (isinstance(item, str) and not item.strip()):
-            return items
-        return [item] + items  # type: ignore
+                             f"got datasets [{','.join(self.azure_datasets)}] "
+                             f"and mountpoints [{','.join(self.dataset_mountpoints)}]")
 
 
 class OutputParams(param.Parameterized):
