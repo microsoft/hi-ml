@@ -763,22 +763,27 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def merge_conda_files(files: List[Path], result_file: Path) -> None:
+def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: List[Path] = None) -> None:
     """
-    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
+    Merges the given Conda environment files using the conda_merge package, optionally adds any
+    dependencies from pip requirements files, and writes the merged file to disk.
 
-    :param files: The Conda environment files to read.
+    :param conda_files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
+    :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
     """
-    for file in files:
-        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
-    # it defaults to writing to stdout
-    env_definitions = [conda_merge.read_file(str(f)) for f in files]
+    env_definitions = [conda_merge.read_file(str(f)) for f in conda_files]
     unified_definition = {}
     NAME = "name"
     CHANNELS = "channels"
     DEPENDENCIES = "dependencies"
+
+    extra_pip_deps = []
+    if pip_files is not None:
+        for pip_file in pip_files:
+            with open(pip_file, "r") as f_path:
+                pip_deps = [d for d in f_path.read().split("\n") if d]
+                extra_pip_deps.extend(pip_deps)
 
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
@@ -793,7 +798,10 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         unified_definition[CHANNELS] = channels
 
     try:
-        deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+        deps_to_merge = [env.get(DEPENDENCIES) for env in env_definitions]
+        if len(extra_pip_deps) > 0:
+            deps_to_merge.extend([[{"pip": extra_pip_deps}]])
+        deps = conda_merge.merge_dependencies(deps_to_merge)
     except conda_merge.MergeError:
         logging.error("Failed to merge dependencies.")
         raise

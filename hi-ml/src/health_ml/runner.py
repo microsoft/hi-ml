@@ -15,6 +15,19 @@ from typing import Any, Dict, List, Optional, Tuple
 import matplotlib
 from azureml.core import Run
 
+# TODO: function to add submodule to path
+import sys
+
+himl_root = Path(__file__).parent.parent.parent.parent
+print(f"health_ml pkg: {himl_root}")
+health_ml_pkg = himl_root / "hi-ml" / "src"
+health_azure_pkg = himl_root / "hi-ml-azure" / "src"
+
+sys.path.insert(0, str(health_azure_pkg))
+sys.path.insert(0, str(health_ml_pkg))
+print(f"sys path: {sys.path}")
+
+
 from health_ml.utils import fixed_paths
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.datasets import create_dataset_configs
@@ -27,7 +40,8 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 
 from health_ml.utils.common_utils import (CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY,
-                                          get_all_environment_files, is_linux, logging_to_stdout)
+                                          get_all_environment_files, get_all_pip_requirements_files,
+                                          is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.generic_parsing import ParserResult, parse_args_and_add_yaml_variables, parse_arguments
 
@@ -134,23 +148,10 @@ class Runner:
     submit to AzureML if needed, or otherwise start the actual training and test loop.
 
     :param project_root: The root folder that contains all of the source code that should be executed.
-    :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
-    The function is called with the model configuration and the path to the downloaded and merged metrics files.
-    :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
-    If present, it should take a model config, and an AzureML Model as arguments, and return an optional
-    Path and a further object of any type.
-    :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
 
-    def __init__(self,
-                 project_root: Path,
-                 yaml_config_file: Path):
+    def __init__(self, project_root: Path):
         self.project_root = project_root
-        self.yaml_config_file = yaml_config_file
-        # self.post_cross_validation_hook = post_cross_validation_hook
-        # self.model_deployment_hook = model_deployment_hook
-        # model_config and experiment_config are placeholders for now, and are set properly when command line args are
-        # parsed.
         self.model_config: Optional[GenericConfig] = None
         self.experiment_config: ExperimentConfig = ExperimentConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
@@ -235,18 +236,21 @@ class Runner:
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
         conda_dependencies_files = get_all_environment_files(self.project_root)
+        pip_requirements_files = get_all_pip_requirements_files()
+
+        # Merge the project-specific dependencies with the packages and write unified definition to temp file.
+        # In case of version conflicts, the package version in the outer project is given priority.
+        temp_conda: Optional[Path] = None
+        if len(conda_dependencies_files) > 1 or len(pip_requirements_files) > 0:
+            temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+            merge_conda_files(conda_dependencies_files, temp_conda, pip_files=pip_requirements_files)
 
         # TODO: Update environment variables
         environment_variables: Dict[str, Any] = {}
-        # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
 
         # get default datastore from provided workspace
         workspace = get_workspace()
         default_datastore = workspace.get_default_datastore().name
-
-        # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
-        # when running pytest.
-        ignored_folders: List[PathOrString] = []
 
         all_local_datasets = self.lightning_container.all_local_dataset_paths()
         input_datasets = \
@@ -254,16 +258,7 @@ class Runner:
                                    all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore)
-
-        # Create a temporary file for the merged conda file, that will be removed after submission of the job.
-        temp_conda: Optional[Path] = None
         try:
-            if len(conda_dependencies_files) > 1:
-                temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                # Merge the project-specific dependencies with the packages.
-                # In case of version conflicts, the package version in the outer project is given priority.
-                merge_conda_files(conda_dependencies_files, temp_conda)
-
             # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so
             # we should only attempt them if we intend to elevate this to AzureML
             if self.experiment_config.azureml:
@@ -283,15 +278,12 @@ class Runner:
                     input_datasets=input_datasets,  # type: ignore
                     num_nodes=self.experiment_config.num_nodes,
                     wait_for_completion=False,
-                    ignored_folders=ignored_folders,
+                    ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                     tags=additional_run_tags(
                         commandline_args=" ".join(script_params))
                 )
-                # Set the default display name to what was provided as the "tag"
-                # if self.azure_config.tag:
-                #     azure_run_info.run.display_name = self.azure_config.tag
             else:
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,  # type: ignore
@@ -314,8 +306,6 @@ class Runner:
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         # logging_to_stdout(self.azure_config.log_level if is_local_rank_zero() else "ERROR")
         package_setup_and_hacks()
-        # if is_global_rank_zero():
-        #     self.print_git_tags()
 
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.
@@ -329,32 +319,26 @@ class Runner:
         Create and return an ML runner using the attributes of this Runner object.
         """
         return MLRunner(
-            # model_config=self.model_config,
             experiment_config=self.experiment_config,
             container=self.lightning_container,
             project_root=self.project_root)
 
 
-def run(project_root: Path,
-        yaml_config_file: Path,
-        # model_deployment_hook: Optional[ModelDeploymentHookSignature] = None
-        ) -> \
-        Tuple[Optional[GenericConfig], AzureRunInfo]:
+def run(project_root: Path) ->  Tuple[Optional[GenericConfig], AzureRunInfo]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
 
+    :param project_root: The root folder that contains all of the source code that should be executed.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    runner = Runner(project_root, yaml_config_file)
+    runner = Runner(project_root)
     return runner.run()
 
 
 def main() -> None:
-    run(project_root=fixed_paths.repository_root_directory(),
-        yaml_config_file=fixed_paths.SETTINGS_YAML_FILE,
-        )
+    run(project_root=fixed_paths.repository_root_directory())
 
 
 if __name__ == '__main__':

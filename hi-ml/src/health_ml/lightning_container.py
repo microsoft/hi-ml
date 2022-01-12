@@ -2,50 +2,20 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 from pathlib import Path
 
 import param
-from pytorch_lightning import LightningDataModule, LightningModule
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
+from pytorch_lightning import LightningDataModule, LightningModule
 
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
-from health_azure.utils import GenericConfig, create_from_matching_params
+from health_azure.utils import GenericConfig
 from health_ml.utils.common_utils import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
 from health_ml.utils.metrics_constants import TrackedMetrics
-from health_ml.utils.model_util import create_optimizer
-
-
-class LightningModuleWithOptimizer(LightningModule):
-    """
-    A base class that supplies a method to configure optimizers and LR schedulers. To use this in your model,
-    inherit from this class instead of from LightningModule.
-    If this class is used, all configuration options for the optimizers and LR schedulers will be also available as
-    commandline arguments (for example, you can supply the runner with "--l_rate=1e-2" to change the learning
-    rate.
-    """
-    # These fields will be set by the LightningContainer when the model is created.
-    _optimizer_params = OptimizerParams()
-    _trainer_params = TrainerParams()
-
-    def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
-        """
-        This is the default implementation of the method that provides the optimizer and LR scheduler for
-        PyTorch Lightning. It reads out the optimizer and scheduler settings from the model fields,
-        and creates the two objects.
-        Override this method for full flexibility to define any optimizer and scheduler.
-        :return: A tuple of (optimizer, LR scheduler)
-        """
-        optimizer = create_optimizer(self._optimizer_params, self.parameters())
-        l_rate_scheduler = SchedulerWithWarmUp(self._optimizer_params, optimizer,
-                                               num_epochs=self._trainer_params.num_epochs)
-        return [optimizer], [l_rate_scheduler]
 
 
 class LightningContainer(GenericConfig,
@@ -63,8 +33,6 @@ class LightningContainer(GenericConfig,
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
-        # This should be typed RunRecovery, but causes circular imports
-        self.pretraining_run_checkpoints: Optional[Any] = None
         self.num_nodes = 1
 
     def validate(self) -> None:
@@ -75,7 +43,6 @@ class LightningContainer(GenericConfig,
         """
         This method is called as one of the first operations of the training/testing workflow, before any other
         operations on the present object. At the point when called, the dataset is already available in
-        the location given by self.local_dataset. Use this method to prepare datasets or data loaders, for example.
         the location given by self.local_dataset. Use this method to prepare datasets or data loaders, for example.
         """
         pass
@@ -145,14 +112,6 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def create_report(self) -> None:
-        """
-        This method is called after training and testing has been completed. It can aggregate all files that were
-        written during training and testing, and compile them into some helpful overarching output.
-        The report should be written to self.
-        """
-        pass
-
     def before_training_on_global_rank_zero(self) -> None:
         """
         A hook that will be called before starting model training, before creating the Lightning Trainer object.
@@ -187,6 +146,7 @@ class LightningContainer(GenericConfig,
     def model(self) -> LightningModule:
         """
         Returns the PyTorch Lightning module that the present container object manages.
+
         :return: A PyTorch Lightning module
         """
         if self._model is None:
@@ -195,20 +155,17 @@ class LightningContainer(GenericConfig,
 
     def create_lightning_module_and_store(self) -> None:
         """
-        Creates the Lightning model by calling `create_lightning_module` and stores it in the `lightning_module`
-        property.
+        Creates the Lightning model
         """
         self._model = self.get_model()
-        if isinstance(self._model, LightningModuleWithOptimizer):
-            self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
-            self._model._trainer_params = create_from_matching_params(self, TrainerParams)
 
     def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
         Because this adds a val/Loss metric it is important that when subclassing LightningContainer
-        your implementeation of LightningModule logs val/Loss. There is an example of this in
+        your implementation of LightningModule logs val/Loss. There is an example of this in
         HelloRegression's validation_step method.
+
         :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.
         """

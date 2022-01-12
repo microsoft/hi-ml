@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional
 import param
 from importlib._bootstrap import ModuleSpec
 
-# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.utils.common_utils import path_to_namespace
 from health_ml.utils.generic_parsing import GenericConfig
 

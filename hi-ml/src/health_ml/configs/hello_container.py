@@ -8,15 +8,13 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-from pytorch_lightning.metrics import MeanAbsoluteError
+from torchmetrics import MeanAbsoluteError
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 from sklearn.model_selection import KFold
 
 from health_ml.lightning_container import LightningContainer
-
-from health_ml.utils import fixed_paths
 
 
 class HelloDataset(Dataset):
@@ -246,7 +244,7 @@ class HelloContainer(LightningContainer):
 
     def __init__(self) -> None:
         super().__init__()
-        self.local_dataset = fixed_paths.repository_root_directory() / "hi-ml" / "src" / "health_ml" / "configs"
+        self.local_dataset_dir = Path(__file__).parent
         self.num_epochs = 20
 
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
@@ -263,18 +261,8 @@ class HelloContainer(LightningContainer):
     # in your subclass nothing will fail, but each child run will be identical since they will each be given the full
     # dataset.
     def get_data_module(self) -> LightningDataModule:
-        assert self.local_dataset is not None
+        assert self.local_dataset_dir is not None
         return HelloDataModule(
-            root_folder=self.local_dataset,
+            root_folder=self.local_dataset_dir,
             number_of_cross_validation_splits=self.num_crossval_splits,
             cross_validation_split_index=self.crossval_split_index)  # type: ignore
-
-    # This is an optional override: This report creation method can read out any files that were written during
-    # training, and cook them into a nice looking report. Here, the report is a simple text file.
-    def create_report(self) -> None:
-        # This just prints out the test MSE, but you could also generate a Jupyter notebook here, for example.
-        test_mse = Path("test_mse.txt").read_text().strip()
-        test_mae = Path("test_mae.txt").read_text().strip()
-        report = f"Performance on test set: MSE = {test_mse}, MAE = {test_mae}"
-        print(report)
-        Path("report.txt").write_text(report)
