@@ -17,7 +17,7 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.utils.common_utils import CROSSVAL_SPLIT_KEY
 
 
-class LightningContainer(GenericConfig,
+class LightningContainer(
                          WorkflowParams,
                          DatasetParams,
                          OutputParams,

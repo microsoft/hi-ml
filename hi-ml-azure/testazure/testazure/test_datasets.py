@@ -19,7 +19,8 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions._azureml_exception import UserErrorException
 
 from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
-                                   _replace_string_datasets, get_datastore, get_or_create_dataset)
+                                   _replace_string_datasets, get_datastore, get_or_create_dataset,
+                                   create_dataset_configs)
 from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
 
 
@@ -205,3 +206,58 @@ def test_dataset_keys() -> None:
     assert in1
     assert out1
     assert in1 != out1
+
+
+def test_create_dataset_configs() -> None:
+    azure_datasets = []
+    dataset_mountpoints = []
+    local_datasets = []
+    datastore = None
+    use_mounting = False
+    datasets = create_dataset_configs(azure_datasets,
+                                      dataset_mountpoints,
+                                      local_datasets,
+                                      datastore,
+                                      use_mounting)
+    assert datasets == []
+
+    # if local_datasets is not empty but azure_datasets still is, expect an empty list
+    local_datasets = [Path("dummy")]
+    datasets = create_dataset_configs(azure_datasets,
+                                      dataset_mountpoints,
+                                      local_datasets,
+                                      datastore,
+                                      use_mounting)
+    assert datasets == []
+
+    with pytest.raises(Exception) as e:
+        azure_datasets = ["dummy"]
+        local_datasets = ["another_dummy", "another_extra_dummy"]
+        create_dataset_configs(azure_datasets,
+                               dataset_mountpoints,
+                               local_datasets,
+                               datastore,
+                               use_mounting)
+        assert "Invalid dataset setup" in str(e)
+
+    az_dataset_name = "dummy"
+    azure_datasets = [az_dataset_name]
+    local_datasets = [Path("another_dummy")]
+    datasets = create_dataset_configs(azure_datasets,
+                                      dataset_mountpoints,
+                                      local_datasets,
+                                      datastore,
+                                      use_mounting)
+    assert len(datasets) == 1
+    assert isinstance(datasets[0], DatasetConfig)
+    assert datasets[0].name == az_dataset_name
+
+    # If azure dataset name is empty, should still create
+    azure_datasets = [" "]
+    with pytest.raises(Exception) as e:
+        create_dataset_configs(azure_datasets,
+                               dataset_mountpoints,
+                               local_datasets,
+                               datastore,
+                               use_mounting)
+        assert "Invalid dataset setup" in str(e)

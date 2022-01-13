@@ -20,7 +20,7 @@ from health_ml.utils.common_utils import path_to_namespace
 # from health_ml.utils.generic_parsing import GenericConfig
 
 
-class ModelConfigLoader(GenericConfig):
+class ModelConfigLoader(param.Parameterized):
     """
     Helper class to manage model config loading
     """

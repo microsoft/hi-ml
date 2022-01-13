@@ -282,7 +282,6 @@ def create_dataset_configs(all_azure_dataset_ids: List[str],
             continue
         mount_point = all_dataset_mountpoints[i] if i < num_mount else ""
         local_dataset = all_local_datasets[i] if i < num_local else None
-        is_empty_azure_dataset = len(azure_dataset.strip()) == 0
         config = DatasetConfig(name=azure_dataset,
                                # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
                                # setting to None works.
@@ -290,8 +289,6 @@ def create_dataset_configs(all_azure_dataset_ids: List[str],
                                local_folder=local_dataset,
                                use_mounting=use_mounting,
                                datastore=datastore or "")
-        if is_empty_azure_dataset:
-            config.name = ""
         datasets.append(config)
     return datasets
 

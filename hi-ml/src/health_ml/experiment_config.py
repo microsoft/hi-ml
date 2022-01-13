@@ -1,9 +1,7 @@
 import param
 
-from health_azure.utils import GenericConfig
 
-
-class ExperimentConfig(GenericConfig):
+class ExperimentConfig(param.Parameterized):
     cluster: str = param.String(doc="The name of the GPU or CPU cluster inside the AzureML workspace, that should "
                                     "execute the job.")
     num_nodes: int = param.Integer(default=1, doc="The number of virtual machines that will be allocated for this"

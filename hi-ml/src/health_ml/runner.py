@@ -5,6 +5,7 @@
 import argparse
 import logging
 import os
+import param
 import sys
 import uuid
 from pathlib import Path
@@ -12,7 +13,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import matplotlib
 
-# TODO: function to add submodule to path
+# Add hi-ml packages to sys.path so that AML can find them
 himl_root = Path(__file__).parent.parent.parent.parent
 print(f"health_ml pkg: {himl_root}")
 health_ml_pkg = himl_root / "hi-ml" / "src"
@@ -26,18 +27,17 @@ from health_ml.utils import fixed_paths
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.datasets import create_dataset_configs
 from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,
-                                set_environment_variables_for_multi_node, GenericConfig)
+                                set_environment_variables_for_multi_node, create_argparser, parse_arguments,
+                                ParserResult, apply_overrides)
 
-# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
-
 from health_ml.utils.common_utils import (CROSSVAL_SPLIT_KEY,
                                           get_all_environment_files, get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader
-from health_ml.utils.generic_parsing import ParserResult, parse_arguments
+
 
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
@@ -98,8 +98,9 @@ def create_runner_parser() -> argparse.ArgumentParser:
 
     :return: An instance of ArgumentParser with args from ExperimentConfig added
     """
-    parser = ExperimentConfig.create_argparser()
-    ModelConfigLoader.add_args(parser)
+    config = ExperimentConfig()
+    parser = create_argparser(config)
+    # ModelConfigLoader.add_args(parser)
     return parser
 
 
@@ -113,19 +114,6 @@ def additional_run_tags(commandline_args: str) -> Dict[str, str]:
         "commandline_args": commandline_args,
         CROSSVAL_SPLIT_KEY: "-1",
     }
-
-
-# def create_experiment_name() -> str:
-#     """
-#     Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
-#
-#     :param azure_config: The object containing all Azure-related settings.
-#     :return: The name to use for the AzureML experiment.
-#     """
-#     # branch = get_git_information().branch
-#     # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
-#     # at monthly granularity, so that not too many runs accumulate in that experiment.
-#     return getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
 
 
 class Runner:
@@ -152,8 +140,9 @@ class Runner:
         :return: ParserResult object containing args, overrides and settings
         """
         parser = create_runner_parser()
-        parser_result = parse_arguments(parser, fail_on_unknown_args=False)
+        parser_result = parse_arguments(parser, args=sys.argv[1:])
         experiment_config = ExperimentConfig(**parser_result.args)
+
         self.experiment_config = experiment_config
         if not experiment_config.model:
             raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
@@ -161,16 +150,14 @@ class Runner:
         # Create the model as per the "model" commandline option. This is a LightningContainer.
         container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
 
-        def parse_overrides_and_apply(c: GenericConfig, previous_parser_result: ParserResult) -> ParserResult:
-            assert isinstance(c, GenericConfig)
-            parser_ = type(c).create_argparser()
+        def parse_overrides_and_apply(c: Any, previous_parser_result: ParserResult) -> ParserResult:
+            assert isinstance(c, param.Parameterized)
+            parser_ = create_argparser(c)
             # For each parser, feed in the unknown settings from the previous parser. All commandline args should
             # be consumed by name, hence fail if there is something that is still unknown.
-            parser_result_ = parse_arguments(parser_,
-                                             args=previous_parser_result.unknown,
-                                             fail_on_unknown_args=True)
+            parser_result_ = parse_arguments(parser_, args=previous_parser_result.unknown)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            c.apply_overrides(parser_result_.overrides)  # type: ignore
+            _ = apply_overrides(c, parser_result_.overrides)  # type: ignore
             c.validate()
             return parser_result_
 
