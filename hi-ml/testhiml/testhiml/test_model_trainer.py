@@ -46,19 +46,20 @@ def test_model_train() -> None:
     container = HelloContainer()
     container.create_lightning_module_and_store()
 
-    with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
-        mock_trainer = MagicMock()
-        mock_storing_logger = MagicMock()
-        mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+    with patch.object(container, "get_data_module"):
+        with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
+            mock_trainer = MagicMock()
+            mock_storing_logger = MagicMock()
+            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
-        mock_trainer.fit = Mock()
-        mock_close_logger = Mock()
-        mock_trainer.logger = MagicMock(close=mock_close_logger)
+            mock_trainer.fit = Mock()
+            mock_close_logger = Mock()
+            mock_trainer.logger = MagicMock(close=mock_close_logger)
 
-        trainer, storing_logger = model_train(container)
+            trainer, storing_logger = model_train(container)
 
-        mock_trainer.fit.assert_called_once()
-        mock_trainer.logger.close.assert_called_once()
+            mock_trainer.fit.assert_called_once()
+            mock_trainer.logger.close.assert_called_once()
 
-        assert trainer == mock_trainer
-        assert storing_logger == mock_storing_logger
+            assert trainer == mock_trainer
+            assert storing_logger == mock_storing_logger

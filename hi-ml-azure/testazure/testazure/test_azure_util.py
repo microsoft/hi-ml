@@ -1562,8 +1562,9 @@ def test_cant_parse_param_type() -> None:
     Assert that a TypeError is raised when trying to add a custom type with no from_string method as an argument
     """
     config = IllegalParamClassNoString()
+
     with pytest.raises(TypeError) as e:
-        util.parse_args(config, [])
+        util.create_argparser(config)
         assert "is not supported" in str(e.value)
 
 

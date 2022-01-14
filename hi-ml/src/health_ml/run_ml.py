@@ -56,19 +56,10 @@ class MLRunner:
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using hi-ml as a package or submodule!
         """
-        # self.model_config = model_config
-        # if container is None:
-        #     assert isinstance(model_config, ModelConfigBase), \
-        #         "When using a built-in model, the configuration should be an instance of ModelConfigBase"
-        # container = LightningContainer(model_config)  # type: ignore
         self.container = container
-
         self.experiment_config = experiment_config
-        # self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.container.num_nodes = self.experiment_config.num_nodes
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
-        # self.post_cross_validation_hook = post_cross_validation_hook
-        # self.model_deployment_hook = model_deployment_hook
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
 
@@ -89,8 +80,10 @@ class MLRunner:
             if len(azure_run_info.input_datasets) > 0:
                 input_datasets = azure_run_info.input_datasets
                 assert len(input_datasets) > 0
-                local_datasets = [check_dataset_folder_exists(input_dataset for input_dataset in input_datasets)]
-                self.container.local_datasets = local_datasets
+                local_datasets = [
+                    check_dataset_folder_exists(input_dataset for input_dataset in input_datasets)  # type: ignore
+                ]
+                self.container.local_datasets = local_datasets  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
 

@@ -15,7 +15,7 @@ from health_ml.runner import Runner
 from health_ml.utils.common_utils import RUN_RECOVERY_ID_KEY
 from health_ml.utils.fixed_paths import repository_root_directory
 
-from testhiml.utils_testhiml import create_dataset_df, DEFAULT_WORKSPACE
+from testhiml.utils_testhiml import create_dataset_df
 
 
 def create_mock_run(mock_upload_path: Path, config: Any) -> Run:
@@ -75,10 +75,12 @@ def runner() -> Runner:
 def test_run(runner: Runner) -> None:
     model_name = "HelloContainer"
     arguments = ["", f"--model={model_name}"]
-    with patch("health_ml.runner.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        with patch.object(sys, "argv", arguments):
-            model_config, azure_run_info = runner.run()
+    with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
+        with patch("health_ml.runner.get_workspace"):
+            with patch.object(sys, "argv", arguments):
+                model_config, azure_run_info = runner.run()
+        mock_run_in_situ.assert_called_once()
+
     assert model_config is not None  # for pyright
     assert model_config.model_name == model_name
     assert azure_run_info.run is None
