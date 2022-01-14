@@ -5,13 +5,12 @@
 import shutil
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Any
 from unittest.mock import Mock, patch
 
 import pytest
 from azureml.core.run import Run
 
-from health_azure.utils import GenericConfig
 from health_ml.runner import Runner
 from health_ml.utils.common_utils import RUN_RECOVERY_ID_KEY
 from health_ml.utils.fixed_paths import repository_root_directory
@@ -19,7 +18,7 @@ from health_ml.utils.fixed_paths import repository_root_directory
 from testhiml.utils_testhiml import create_dataset_df, DEFAULT_WORKSPACE
 
 
-def create_mock_run(mock_upload_path: Path, config: GenericConfig) -> Run:
+def create_mock_run(mock_upload_path: Path, config: Any) -> Run:
     """
     Create a mock AzureML Run object.
 

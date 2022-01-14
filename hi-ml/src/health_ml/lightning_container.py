@@ -10,15 +10,13 @@ from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pytorch_lightning import LightningDataModule, LightningModule
 
-from health_azure.utils import GenericConfig
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.utils.common_utils import CROSSVAL_SPLIT_KEY
 
 
-class LightningContainer(
-                         WorkflowParams,
+class LightningContainer(WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          TrainerParams,

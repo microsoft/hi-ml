@@ -23,20 +23,20 @@ sys.path.insert(0, str(health_azure_pkg))
 sys.path.insert(0, str(health_ml_pkg))
 print(f"sys path: {sys.path}")
 
-from health_ml.utils import fixed_paths
-from health_azure import AzureRunInfo, submit_to_azure_if_needed
-from health_azure.datasets import create_dataset_configs
-from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,
+from health_ml.utils import fixed_paths  # noqa: E402
+from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
+from health_azure.datasets import create_dataset_configs  # noqa: E402
+from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,  # noqa: E402
                                 set_environment_variables_for_multi_node, create_argparser, parse_arguments,
                                 ParserResult, apply_overrides)
 
-from health_ml.experiment_config import ExperimentConfig
-from health_ml.lightning_container import LightningContainer
-from health_ml.run_ml import MLRunner
-from health_ml.utils.common_utils import (CROSSVAL_SPLIT_KEY,
+from health_ml.experiment_config import ExperimentConfig  # noqa: E402
+from health_ml.lightning_container import LightningContainer  # noqa: E402
+from health_ml.run_ml import MLRunner  # noqa: E402
+from health_ml.utils.common_utils import (CROSSVAL_SPLIT_KEY,  # noqa: E402
                                           get_all_environment_files, get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
-from health_ml.utils.config_loader import ModelConfigLoader
+from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
 
 # We change the current working directory before starting the actual training. However, this throws off starting

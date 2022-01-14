@@ -14,10 +14,8 @@ from typing import Any, Dict, List, Optional
 import param
 from importlib._bootstrap import ModuleSpec
 
-from health_azure.utils import GenericConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.common_utils import path_to_namespace
-# from health_ml.utils.generic_parsing import GenericConfig
 
 
 class ModelConfigLoader(param.Parameterized):
@@ -44,7 +42,7 @@ class ModelConfigLoader(param.Parameterized):
         from health_ml import configs  # type: ignore
         return configs.__name__
 
-    def create_model_config_from_name(self, model_name: str) -> GenericConfig:
+    def create_model_config_from_name(self, model_name: str) -> LightningContainer:
         """
         Returns a model configuration for a model of the given name.
         To avoid having to import torch here, there are no references to LightningContainer.
@@ -55,7 +53,7 @@ class ModelConfigLoader(param.Parameterized):
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
 
-        configs: Dict[str, GenericConfig] = {}
+        configs: Dict[str, LightningContainer] = {}
 
         def _get_model_config(module_spec: ModuleSpec) -> Optional[LightningContainer]:
             """

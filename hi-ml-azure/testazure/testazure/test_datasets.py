@@ -8,7 +8,7 @@ Test the data input and output functionality
 from pathlib import Path
 from unittest import mock
 from health_azure.utils import PathOrString
-from typing import List, Union
+from typing import List, Union, Optional
 
 import pytest
 from azureml._restclient.exceptions import ServiceException
@@ -209,9 +209,9 @@ def test_dataset_keys() -> None:
 
 
 def test_create_dataset_configs() -> None:
-    azure_datasets = []
-    dataset_mountpoints = []
-    local_datasets = []
+    azure_datasets: List[str] = []
+    dataset_mountpoints: List[str] = []
+    local_datasets: List[Optional[Path]] = []
     datastore = None
     use_mounting = False
     datasets = create_dataset_configs(azure_datasets,
@@ -232,7 +232,7 @@ def test_create_dataset_configs() -> None:
 
     with pytest.raises(Exception) as e:
         azure_datasets = ["dummy"]
-        local_datasets = ["another_dummy", "another_extra_dummy"]
+        local_datasets = [Path("another_dummy"), Path("another_extra_dummy")]
         create_dataset_configs(azure_datasets,
                                dataset_mountpoints,
                                local_datasets,
