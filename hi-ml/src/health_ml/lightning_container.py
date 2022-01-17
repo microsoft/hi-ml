@@ -66,22 +66,6 @@ class LightningContainer(WorkflowParams,
         """
         return None  # type: ignore
 
-    def get_inference_data_module(self) -> LightningDataModule:
-        """
-        Gets the data that is used to evaluate the trained model. By default, this returns the value
-        of get_data_module(), but you can override this to get for example full image datasets for
-        segmentation models.
-        This should read datasets from the self.local_datasets folder or download from a web location.
-        The format of the data is not specified any further.
-        The method must take cross validation into account, and ensure that logic to create training and validation
-        sets takes cross validation with a given number of splits is correctly taken care of.
-
-        :return: A LightningDataModule
-        """
-        # You can override this if inference uses different data, for example segmentation models use
-        # full images rather than equal sized crops.
-        return self.get_data_module()
-
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
         Gets additional parameters that will be passed on to the PyTorch Lightning trainer.

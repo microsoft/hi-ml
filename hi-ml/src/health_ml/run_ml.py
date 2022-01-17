@@ -15,10 +15,8 @@ from health_azure import AzureRunInfo
 from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
                                 PARENT_RUN_CONTEXT, is_running_in_azure_ml)
 
-# from health_ml.deep_learning_config import DeepLearningConfig
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-# from health_ml.model_config_base import ModelConfigBase
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (
@@ -32,6 +30,7 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     """
     Checks if a folder with a local dataset exists. If it does exist, return the argument converted to a Path instance.
     If it does not exist, raise a FileNotFoundError.
+
     :param local_dataset: The dataset folder to check.
     :return: The local_dataset argument, converted to a Path.
     """
@@ -129,7 +128,7 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[CROSSVAL_SPLIT_KEY] = str(self.container.cross_validation_split_index)
+        new_tags[CROSSVAL_SPLIT_KEY] = str(self.container.crossval_split_index)
         new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
@@ -156,7 +155,7 @@ class MLRunner:
         Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
         """
         if self.container.perform_cross_validation:
-            return self.container.cross_validation_split_index == 0
+            return self.container.crossval_split_index == 0
         return True
 
     @staticmethod
@@ -165,7 +164,7 @@ class MLRunner:
         Given a lightning data module, return a dictionary of dataloader for each model execution mode.
 
         :param data: Lightning data module.
-        :return: Data loader for each model execution mode.
+        :return: Dictionary of model execution mode to its respective Data loader
         """
         return {
             ModelExecutionMode.TEST: data.test_dataloader,
@@ -176,6 +175,7 @@ class MLRunner:
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
+
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
         if len(checkpoint_paths) != 1:

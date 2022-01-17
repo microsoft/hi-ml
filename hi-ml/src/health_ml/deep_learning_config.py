@@ -16,7 +16,7 @@ from health_azure.utils import RUN_CONTEXT, PathOrString, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (create_unique_timestamp_id,
-                                          DEFAULT_CROSS_VALIDATION_SPLIT_INDEX,
+                                          DEFAULT_CROSSVAL_SPLIT_INDEX,
                                           DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME)
 from health_ml.utils.type_annotations import TupleFloat2
 
@@ -121,7 +121,7 @@ class WorkflowParams(param.Parameterized):
     num_crossval_splits: int = param.Integer(0, bounds=(0, None),
                                              doc="Number of cross validation splits for k-fold cross "
                                                  "validation")
-    crossval_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
+    crossval_split_index: int = param.Integer(DEFAULT_CROSSVAL_SPLIT_INDEX, bounds=(-1, None),
                                               doc="The index of the cross validation fold this model is "
                                                   "associated with when performing k-fold cross validation")
     weights_url: List[str] = param.List(default=[], class_=str,

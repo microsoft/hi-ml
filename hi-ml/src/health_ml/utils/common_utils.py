@@ -24,7 +24,7 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 ARGS_TXT = "args.txt"
 BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
 CROSSVAL_SPLIT_KEY = "cross_validation_split_index"
-DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
+DEFAULT_CROSSVAL_SPLIT_INDEX = -1
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
@@ -231,7 +231,12 @@ def remove_file_or_directory(pth: Path) -> None:
 @contextmanager
 def change_working_directory(path_or_str: PathOrString) -> Generator:
     """
-    Context manager for changing the current working directory
+    Context manager for changing the current working directory to the value provided. Outside of the context
+    manager, the original working directory will be restored.
+
+    :param path_or_str: The new directory to change to
+    :yield: a _GeneratorContextManager object (this object itself is of no use, rather we are interested in
+        the side effect of the working directory temporarily changing
     """
     new_path = Path(path_or_str).expanduser()
     old_path = Path.cwd()

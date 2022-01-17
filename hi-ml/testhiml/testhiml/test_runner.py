@@ -2,86 +2,113 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import shutil
 import sys
 from pathlib import Path
-from typing import List, Any
-from unittest.mock import Mock, patch
+from typing import List, Optional
+from unittest.mock import patch, MagicMock
 
 import pytest
-from azureml.core.run import Run
 
+from health_azure import AzureRunInfo
+from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
-from health_ml.utils.common_utils import RUN_RECOVERY_ID_KEY
-from health_ml.utils.fixed_paths import repository_root_directory
-
-from testhiml.utils_testhiml import create_dataset_df
 
 
-def create_mock_run(mock_upload_path: Path, config: Any) -> Run:
+@pytest.fixture
+def mock_runner(tmp_path: Path) -> Runner:
+
+    return Runner(project_root=tmp_path)
+
+
+@pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
+    ("HelloContainer", "dummyCluster", 1, False),
+    ("", "", None, True),
+    ("HelloContainer", "", None, False),
+    ("a", None, 0, True),
+    (None, "b", 10, True),
+    ("HelloContainer", "b", 10, False)
+])
+def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cluster: Optional[str],
+                              num_nodes: Optional[int], should_raise_value_error: bool) -> None:
     """
-    Create a mock AzureML Run object.
-
-    :param mock_upload_path: Path to folder to store uploaded folders.
-    :param config: Deep learning config.
-    :return: Mock Run.
+    Test that command line args are parsed, a LightningContainer is instantiated with the expected attributes
+    and a ParserResult object is returned, with the expected attributes. If model_name cannot be found in the
+    namespace (i.e. the config does not exist) a ValueError should be raised
     """
+    dummy_args = [""]
+    if model_name is not None:
+        dummy_args.append(f"--model={model_name}")
+    if cluster is not None:
+        dummy_args.append(f"--cluster={cluster}")
+    if num_nodes is not None:
+        dummy_args.append(f"--num_nodes={num_nodes}")
 
-    def mock_upload_folder(name: str, path: str, datastore_name: str = None) -> None:
-        """
-        Mock AzureML function Run.upload_folder.
-        https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#
-        upload-folder-name--path--datastore-name-none-
-        """
-        shutil.copytree(src=str(path), dst=str(mock_upload_path / name))
+    with patch.object(sys, "argv", new=dummy_args):
+        if should_raise_value_error:
+            with pytest.raises(ValueError) as ve:
+                mock_runner.parse_and_load_model()
+                assert "Parameter 'model' needs to be set" in str(ve)
+        else:
+            parser_result = mock_runner.parse_and_load_model()
+            # if model, cluster or num_nodes are provdided in command line args, the corresponding attributes of
+            # the LightningContainer will be set accordingly and they will be dropped from ParserResult during
+            # parse_overrides_and_apply
+            assert parser_result.args.get("model") is None
+            assert parser_result.args.get("cluster") is None
+            assert parser_result.args.get("num_nodes") is None
 
-    def mock_download_file(name: str, output_file_path: str = None, _validate_checksum: bool = False) -> None:
-        """
-        Mock AzureML function Run.download_file.
-        https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#
-        download-file-name--output-file-path-none---validate-checksum-false-
-        """
-        if output_file_path is not None:
-            dataset_df = create_dataset_df()
-            dataset_df.to_csv(output_file_path)
-
-    child_runs: List[Run] = []
-    for i in range(config.number_of_cross_validation_splits):
-        child_run = Mock(name=f'mock_child_run{i}')
-        child_run.__class__ = Run
-        child_run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
-        child_run.id = f'child_id:{i}'
-        child_run.get_tags = lambda: {"cross_validation_split_index": i, RUN_RECOVERY_ID_KEY: 'rec_id'}
-        child_runs.append(child_run)
-
-    run = Mock(name='mock_run')
-    run.__class__ = Run
-    run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
-    run.get_children.return_value = child_runs
-    run.get_tags = lambda: {RUN_RECOVERY_ID_KEY: 'rec_id'}
-    run.id = 'run_id:1'
-    run.tags = {"run_recovery_id": 'id'}
-    run.upload_folder = Mock(name='mock_upload_folder', side_effect=mock_upload_folder)
-
-    return run
+            assert isinstance(mock_runner.lightning_container, LightningContainer)
+            assert mock_runner.lightning_container.initialized
+            assert mock_runner.lightning_container.model_name == model_name
 
 
-@pytest.fixture(scope="module")
-def runner() -> Runner:
-    project_root = repository_root_directory()
-    return Runner(project_root=project_root)
-
-
-def test_run(runner: Runner) -> None:
+def test_run(mock_runner: Runner) -> None:
     model_name = "HelloContainer"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
         with patch("health_ml.runner.get_workspace"):
             with patch.object(sys, "argv", arguments):
-                model_config, azure_run_info = runner.run()
+                model_config, azure_run_info = mock_runner.run()
         mock_run_in_situ.assert_called_once()
 
     assert model_config is not None  # for pyright
     assert model_config.model_name == model_name
     assert azure_run_info.run is None
     assert len(azure_run_info.input_datasets) == len(azure_run_info.output_datasets) == 0
+
+
+@patch("health_ml.runner.get_all_environment_files")
+@patch("health_ml.runner.get_all_pip_requirements_files")
+@patch("health_ml.runner.get_workspace")
+def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
+                                     mock_get_pip_req_files: MagicMock,
+                                     mock_get_env_files: MagicMock,
+                                     mock_runner: Runner
+                                     ) -> None:
+    def _mock_dont_submit_to_aml(input_datasets: List[Path], submit_to_azureml: bool  # type: ignore
+                                 ) -> AzureRunInfo:
+        return AzureRunInfo(input_datasets=input_datasets,
+                            output_datasets=[],
+                            mount_contexts=[],
+                            run=None,
+                            is_running_in_azure_ml=False,
+                            output_folder=None,  # type: ignore
+                            logs_folder=None)  # type: ignore
+
+    mock_get_env_files.return_value = []
+    mock_get_pip_req_files.return_value = []
+
+    mock_default_datastore = MagicMock()
+    mock_default_datastore.name.return_value = "dummy_datastore"
+    mock_get_workspace.get_default_datastore.return_value = mock_default_datastore
+
+    with patch("health_ml.runner.create_dataset_configs") as mock_create_datasets:
+        mock_create_datasets.return_value = []
+        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+            mock_submit_to_aml.side_effect = _mock_dont_submit_to_aml
+            mock_runner.lightning_container = LightningContainer()
+            run_info = mock_runner.submit_to_azureml_if_needed()
+            assert isinstance(run_info, AzureRunInfo)
+            assert run_info.input_datasets == []
+            assert run_info.is_running_in_azure_ml is False
+            assert run_info.output_folder is None
