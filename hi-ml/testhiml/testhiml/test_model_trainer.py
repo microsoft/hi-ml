@@ -1,10 +1,15 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch, Mock
 
+from pytorch_lightning import Callback
+from pytorch_lightning.callbacks import ModelCheckpoint, ProgressBar
+
 from health_ml.configs.hello_container import HelloContainer
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import (create_lightning_trainer, write_args_file, model_train)
+from health_ml.utils import BatchTimeCallback
 from health_ml.utils.common_utils import ARGS_TXT
+from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
 
 
@@ -34,12 +39,51 @@ def test_create_lightning_trainer() -> None:
     assert trainer.limit_train_batches == 1.0
     assert trainer.terminate_on_nan == container.detect_anomaly
 
+    assert "on_test_epoch_end" in trainer.callbacks
+    assert isinstance(trainer.callbacks[0], BatchTimeCallback)
+    assert isinstance(trainer.callbacks[1], ProgressBar)
+    assert isinstance(trainer.callbacks[2], ModelCheckpoint)
+
     assert isinstance(storing_logger, StoringLogger)
     assert storing_logger.hyperparams is None
     assert len(storing_logger.results_per_epoch) == 0
     assert len(storing_logger.train_diagnostics) == 0
     assert len(storing_logger.val_diagnostics) == 0
     assert len(storing_logger.results_without_epoch) == 0
+
+
+class MyCallback(Callback):
+    def on_init_start(self, trainer):
+        print("Starting to init trainer")
+
+
+def test_create_lightning_trainer_with_callbacks(tmp_path: Path):
+    """
+    Test that create_lightning_trainer picks up on additional Container callbacks
+    """
+    def _get_trainer_arguments():
+        callbacks = [MyCallback()]
+        return {"callbacks": callbacks}
+
+    model_config_loader = ModelConfigLoader()
+    container = model_config_loader.create_model_config_from_name("HelloContainer")
+    # mock get_trainer_arguments method, since default HelloContainer class doesn't specify any additional callbacks
+    container.get_trainer_arguments = _get_trainer_arguments
+
+    kwargs = container.get_trainer_arguments()
+    assert "callbacks" in kwargs
+    # create_lightning_trainer(container, )
+    trainer, storing_logger = create_lightning_trainer(container, **kwargs)
+    # expect trainer to have 3 default callbacks: BatchTimeCallback, ProgressBar and ModelCheckpoint, plus
+    # any additional callbacks specified in get_trainer_arguments method
+    assert len(trainer.callbacks) == len(kwargs.get("callbacks")) + 3
+    assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
+
+
+def test_create_lightning_trainer_additional_callbacks() -> None:
+    container = LightningContainer()
+    kwargs = container.get_trainer_arguments()
+    trainer, storing_logger = create_lightning_trainer(container, **kwargs)
 
 
 def test_model_train() -> None:

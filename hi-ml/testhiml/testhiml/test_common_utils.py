@@ -30,7 +30,7 @@ def test_is_linux(os_name: str, expected_val: bool) -> None:
         assert common_utils.is_linux() == expected_val
 
 
-def test_change_working_directory(tmp_path: Path):
+def test_change_working_directory(tmp_path: Path) -> None:
     """
     Test that change_working_directory temporarily changes the current working directory, but that the context manager
     works to restore the original working directory

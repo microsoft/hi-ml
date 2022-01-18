@@ -1,12 +1,18 @@
-import pytest
-from unittest.mock import patch
+from pathlib import Path
 
+import pytest
+from typing import Tuple
+from unittest.mock import patch, MagicMock, Mock
+
+from pytorch_lightning import Callback
 from pytorch_lightning.core.datamodule import LightningDataModule
 
+from health_ml.configs.hello_container import HelloDataModule
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import ModelExecutionMode
+from health_ml.utils.lightning_loggers import StoringLogger
 
 
 @pytest.fixture
@@ -65,7 +71,7 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
 
 def test_run(ml_runner: MLRunner) -> None:
 
-    def _mock_model_train(container, num_nodes):
+    def _mock_model_train(container, num_nodes) -> Tuple[str, StoringLogger]:
         return "trainer", dummy_storing_logger
 
     dummy_storing_logger = "storing_logger"
@@ -100,7 +106,7 @@ def test_is_normal_run_or_crossval_child_0(ml_runner: MLRunner, perform_cross_va
             assert not is_run_0
 
 
-def test_lightning_data_module_dataloaders(ml_runner: MLRunner):
+def test_lightning_data_module_dataloaders(ml_runner: MLRunner) -> None:
     data = LightningDataModule()
 
     dataloaders = ml_runner.lightning_data_module_dataloaders(data)
@@ -109,3 +115,36 @@ def test_lightning_data_module_dataloaders(ml_runner: MLRunner):
     assert dataloaders[ModelExecutionMode.TRAIN] == data.train_dataloader
     assert dataloaders[ModelExecutionMode.VAL] == data.val_dataloader
     assert dataloaders[ModelExecutionMode.TEST] == data.test_dataloader
+
+
+@patch("health_ml.run_ml.create_lightning_trainer")
+def test_run_inference_for_lightning_models(mock_create_trainer: MagicMock, ml_runner: MLRunner,
+                                            tmp_path: Path) -> None:
+    """
+    Check that all expected methods are called during inference3
+    """
+    mock_trainer = MagicMock()
+    mock_test_result = [{"result": 1.0}]
+    mock_trainer.test.return_value = mock_test_result
+    mock_create_trainer.return_value = mock_trainer, ""
+
+    with patch.object(ml_runner, "container") as mock_container:
+        mock_container.num_gpus_per_node.return_value = 0
+        mock_container.get_trainer_arguments.return_value = {"callbacks": Callback()}
+        mock_container.load_model_checkpoint.return_value = Mock()
+        mock_container.get_data_module.return_value = Mock()
+        mock_container.pl_progress_bar_refresh_rate = None
+        mock_container.detect_anomaly = False
+        mock_container.pl_limit_train_batches = 1.0
+        mock_container.pl_limit_val_batches = 1.0
+        mock_container.outputs_folder = tmp_path
+
+        checkpoint_paths = [Path("dummy")]
+        result = ml_runner.run_inference_for_lightning_models(checkpoint_paths)
+        assert result == mock_test_result
+
+        mock_container.get_trainer_arguments.assert_called_once()
+        mock_create_trainer.assert_called_once()
+        mock_container.load_model_checkpoint.assert_called_once()
+        mock_container.get_data_module.assert_called_once()
+        mock_trainer.test.assert_called_once()
