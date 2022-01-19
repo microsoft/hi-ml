@@ -270,7 +270,7 @@ def _create_default_namespace(parser: ArgumentParser) -> Namespace:
     Creates an argparse Namespace with all parser-specific default values set.
 
     :param parser: The parser to work with.
-    :return:
+    :return: the Namespace object
     """
     # This is copy/pasted from parser.parse_known_args
     namespace = Namespace()
@@ -330,10 +330,26 @@ def parse_arguments(parser: ArgumentParser,
     )
 
 
+def parse_args_and_update_config(config: Any, args: List[str]) -> Any:
+    """
+    Given a model config and a list of command line arguments, creates an argparser, adds arguments from the config
+    parses the list of provided args and updates the config accordingly. Returns the updated config
+
+    :param config: The model configuration
+    :param args: A list of command line args to parse
+    :return: The config, updated with the values of the provided args
+    """
+    parser = create_argparser(config)
+    parser_results = parse_arguments(parser, args=args)
+    _ = apply_overrides(config, parser_results.args)
+    return config
+
+
 def get_overridable_parameters(config: Any) -> Dict[str, param.Parameter]:
     """
     Get properties that are not constant, readonly or private (eg: prefixed with an underscore).
 
+    :param config: The model configuration
     :return: A dictionary of parameter names and their definitions.
     """
     assert isinstance(config, param.Parameterized)
@@ -361,12 +377,13 @@ def reason_not_overridable(value: param.Parameter) -> Optional[str]:
     return None
 
 
-def apply_overrides(config: Any, values: Optional[Dict[str, Any]], should_validate: bool = True,
+def apply_overrides(config: Any, values: Optional[Dict[str, Any]], should_validate: bool = False,
                     keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
     """
     Applies the provided `values` overrides to the config.
     Only properties that are marked as overridable are actually overwritten.
 
+    :param config: The model configuration
     :param values: A dictionary mapping from field name to value.
     :param should_validate: If true, run the .validate() method after applying overrides.
     :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
@@ -397,6 +414,7 @@ def report_on_overrides(config: Any, values: Dict[str, Any], keys_to_ignore: Opt
     Logs a warning for every parameter whose value is not as given in "values", other than those
     in keys_to_ignore.
 
+    :param config: The model configuration
     :param values: override dictionary, parameter names to values
     :param keys_to_ignore: set of dictionary keys not to report on
     :return: None
@@ -642,6 +660,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             file_name: str,
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
+
         logging.debug(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
         if expected.is_file() and expected.name == file_name:
@@ -857,8 +876,8 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
     if pip_files is not None:
         for pip_file in pip_files:
             with open(pip_file, "r") as f_path:
-                pip_deps = [d for d in f_path.read().split("\n") if d]
-                extra_pip_deps.extend(pip_deps)
+                additional_pip_deps = [d for d in f_path.read().split("\n") if d]
+                extra_pip_deps.extend(additional_pip_deps)
 
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
@@ -877,6 +896,26 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
         if len(extra_pip_deps) > 0:
             deps_to_merge.extend([[{"pip": extra_pip_deps}]])
         deps = conda_merge.merge_dependencies(deps_to_merge)
+
+        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
+        # duplicated, the first value encountered will be retained.
+        pip_deps_entry = [d for d in deps if isinstance(d, dict) and "pip" in d][0]
+        # temporarily remove pip dependencies from deps to be added back after deduplicaton
+        deps.remove(pip_deps_entry)
+
+        unique_pip_deps: List[str] = []
+        unique_pip_deps_set: Set[str] = set()
+        pip_deps: List[str] = pip_deps_entry["pip"]
+
+        for pip_dep in pip_deps:
+            pip_dep_name: str = re.split("<|=|>", pip_dep)[0]
+            if pip_dep_name not in unique_pip_deps_set:
+                unique_pip_deps.append(pip_dep)
+                unique_pip_deps_set.update(set([pip_dep_name]))
+
+        # finally add back the deduplicated list of dependencies
+        deps.append({"pip": unique_pip_deps})
+
     except conda_merge.MergeError:
         logging.error("Failed to merge dependencies.")
         raise
@@ -1315,7 +1354,7 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     logging.info(f"Uploaded data to {str(remote_path)}")
 
 
-class AmlRunScriptConfig(GenericConfig):
+class AmlRunScriptConfig(param.Parameterized):
     """
     Base config for a script that handles Azure ML Runs, which can be retrieved with either a run id, latest_run_file,
     or by giving the experiment name (optionally alongside tags and number of runs to retrieve). A config file path can

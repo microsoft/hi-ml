@@ -7,7 +7,6 @@ from unittest.mock import patch, MagicMock, Mock
 from pytorch_lightning import Callback
 from pytorch_lightning.core.datamodule import LightningDataModule
 
-from health_ml.configs.hello_container import HelloDataModule
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner

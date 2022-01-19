@@ -15,6 +15,7 @@ import matplotlib
 
 # Add hi-ml packages to sys.path so that AML can find them
 himl_root = Path(__file__).parent.parent.parent.parent
+print(f"Starting the himl runner at {himl_root}")
 print(f"health_ml pkg: {himl_root}")
 health_ml_pkg = himl_root / "hi-ml" / "src"
 health_azure_pkg = himl_root / "hi-ml-azure" / "src"
@@ -146,6 +147,7 @@ class Runner:
         self.experiment_config = experiment_config
         if not experiment_config.model:
             raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
+        print(f"Creating model loader with the following args: {parser_result.args}")
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
         # Create the model as per the "model" commandline option. This is a LightningContainer.
         container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
@@ -200,11 +202,17 @@ class Runner:
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
-        conda_dependencies_files = get_all_environment_files(self.project_root)
+
+        additional_conda_env_files = self.lightning_container.additional_env_files
+        if additional_conda_env_files is not None:
+            additional_env_files = [Path(f) for f in additional_conda_env_files]
+
+        conda_dependencies_files = get_all_environment_files(self.project_root,
+                                                             additional_files=additional_env_files)
         pip_requirements_files = get_all_pip_requirements_files()
 
-        # Merge the project-specific dependencies with the packages and write unified definition to temp file.
-        # In case of version conflicts, the package version in the outer project is given priority.
+        # Merge the project-specific depclass Experendencies with the packages and write unified definition
+        # to temp file. In case of version conflicts, the package version in the outer project is given priority.
         temp_conda: Optional[Path] = None
         if len(conda_dependencies_files) > 1 or len(pip_requirements_files) > 0:
             temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"

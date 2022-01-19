@@ -15,9 +15,11 @@ from param import Parameterized
 from health_azure.utils import RUN_CONTEXT, PathOrString, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
-from health_ml.utils.common_utils import (create_unique_timestamp_id,
+from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
+                                          create_unique_timestamp_id,
                                           DEFAULT_CROSSVAL_SPLIT_INDEX,
-                                          DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME)
+                                          DEFAULT_AML_UPLOAD_DIR,
+                                          DEFAULT_LOGS_DIR_NAME)
 from health_ml.utils.type_annotations import TupleFloat2
 
 
@@ -197,16 +199,16 @@ class WorkflowParams(param.Parameterized):
 
 
 class DatasetParams(param.Parameterized):
-    azure_datasets: List[str] = param.List(default=[], allow_None=False,
+    azure_datasets: List[str] = param.List(default=[], class_=str,
                                            doc="If provided, the ID of one or more datasets to use when running in"
                                                " AzureML.This dataset must exist as a folder of the same name in the"
                                                " 'datasets' container in the datasets storage account. This dataset"
                                                " will be mounted and made available at the 'local_dataset' path"
                                                " when running in AzureML.")
-    local_datasets: List[str] = param.List(default=[], allow_None=False,
+    local_datasets: List[str] = param.List(default=[], class_=Path,
                                            doc="A list of one or more paths to the dataset to use, when training"
                                                " outside of Azure ML.")
-    dataset_mountpoints: List[str] = param.List(default=[], allow_None=False,
+    dataset_mountpoints: List[str] = param.List(default=[], class_=Path,
                                                 doc="The path at which the AzureML dataset should be made available "
                                                     "via mounting or downloading. This only affects jobs running in "
                                                     "AzureML. If empty, use a random mount/download point.")
@@ -272,6 +274,11 @@ class OutputParams(param.Parameterized):
     def logs_folder(self) -> Path:
         """Gets the full path in which the model logs should be stored."""
         return self.file_system_config.logs_folder
+
+    @property
+    def checkpoint_folder(self) -> Path:
+        """Gets the full path in which the model checkpoints should be stored during training."""
+        return self.outputs_folder / CHECKPOINT_FOLDER
 
 
 class OptimizerParams(param.Parameterized):
@@ -394,6 +401,9 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=True,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
+    additional_env_files: List[str] = param.List(class_=Path, default=[],
+                                                 doc="Additional conda environment (.yml) files to merge into the"
+                                                     " overall environment definition")
 
     @property
     def use_gpu(self) -> bool:

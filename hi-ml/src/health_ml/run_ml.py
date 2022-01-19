@@ -21,7 +21,7 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (
     CROSSVAL_SPLIT_KEY, ModelExecutionMode, change_working_directory,
-    logging_section, RUN_RECOVERY_ID_KEY, EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME)
+    logging_section, RUN_RECOVERY_ID_KEY, EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME, is_windows)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
 
@@ -80,11 +80,15 @@ class MLRunner:
                 input_datasets = azure_run_info.input_datasets
                 assert len(input_datasets) > 0
                 local_datasets = [
-                    check_dataset_folder_exists(input_dataset for input_dataset in input_datasets)  # type: ignore
+                    check_dataset_folder_exists(input_dataset) for input_dataset in input_datasets  # type: ignore
                 ]
                 self.container.local_datasets = local_datasets  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
+
+        # Creating the folder structure must happen before the LightningModule is created, because the output
+        # parameters of the container will be copied into the module.
+        self.container.create_filesystem(self.project_root)
 
         self.container.setup()
         self.container.create_lightning_module_and_store()
@@ -132,6 +136,19 @@ class MLRunner:
         new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
+    def set_multiprocessing_start_method(self) -> None:
+        """
+        Set the (PyTorch) multiprocessing start method.
+        """
+        method = self.container.multiprocessing_start_method or "spawn"
+        if is_windows():
+            if method != "spawn":
+                logging.warning(f"Cannot set multiprocessing start method to '{method.name}' "
+                                "because only 'spawn' is available in Windows")
+        else:
+            logging.info(f"Setting multiprocessing start method to '{method.name}'")
+            torch.multiprocessing.set_start_method(method.name, force=True)
+
     def run(self) -> None:
         """
         Driver function to run a ML experiment. If an offline cross validation run is requested, then
@@ -142,13 +159,17 @@ class MLRunner:
         if not self.is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
+
+        # Set data loader start method
+        self.set_multiprocessing_start_method()
+
         # do training
         with logging_section("Model training"):
             _, storing_logger = model_train(container=self.container,
                                             num_nodes=self.experiment_config.num_nodes)
             self.storing_logger = storing_logger
 
-        RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
+        RUN_CONTEXT.log(name="Train epochs", value=self.container.max_epochs)
 
     def is_normal_run_or_crossval_child_0(self) -> bool:
         """
@@ -172,7 +193,7 @@ class MLRunner:
             ModelExecutionMode.TRAIN: data.train_dataloader
         }
 
-    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
+    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> List[Dict[str, float]]:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
 
@@ -195,10 +216,15 @@ class MLRunner:
         # and would block on some GPU operations. Hence, clean up distributed training.
         if torch.distributed.is_initialized():  # type: ignore
             torch.distributed.destroy_process_group()  # type: ignore
-        trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+
+        container_kwargs = self.container.get_trainer_arguments()
+        trainer, _ = create_lightning_trainer(self.container, num_nodes=1, **container_kwargs)
+
         self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
         # When training models that are not built-in models, we have no guarantee that they write
         # files to the right folder. Best guess is to change the current working directory to where files should go.
+        data_module = self.container.get_data_module()
         with change_working_directory(self.container.outputs_folder):
-            trainer.test(self.container.model,
-                         datamodule=self.container.get_data_module())
+            results = trainer.test(self.container.model,
+                                   datamodule=data_module)
+        return results

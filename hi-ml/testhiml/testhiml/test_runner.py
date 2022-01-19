@@ -108,7 +108,7 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
         with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
             mock_submit_to_aml.side_effect = _mock_dont_submit_to_aml
             mock_runner.lightning_container = LightningContainer()
-            run_info = mock_runner.sutbmit_to_azureml_if_needed()
+            run_info = mock_runner.submit_to_azureml_if_needed()
             assert isinstance(run_info, AzureRunInfo)
             assert run_info.input_datasets == []
             assert run_info.is_running_in_azure_ml is False

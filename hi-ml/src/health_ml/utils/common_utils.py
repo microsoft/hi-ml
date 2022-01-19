@@ -24,6 +24,7 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 ARGS_TXT = "args.txt"
 BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
 CROSSVAL_SPLIT_KEY = "cross_validation_split_index"
+CHECKPOINT_FOLDER = "checkpoints"
 DEFAULT_CROSSVAL_SPLIT_INDEX = -1
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
@@ -259,18 +260,24 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
     return generator
 
 
-def get_all_environment_files(project_root: Path) -> List[Path]:
+def get_all_environment_files(project_root: Path, additional_files: Optional[List[Path]] = None) -> List[Path]:
     """
-    Returns a list of all Conda environment files that should be used. For now this is just an
-    environment.yml file that lives at the project root folder.
+    Returns a list of all Conda environment files that should be used. This is just an
+    environment.yml file that lives at the project root folder, plus any additional files provided.
 
     :param project_root: The root folder of the code that starts the present training run.
+    :param additional_files: Optional list of additional environment files to merge
     :return: A list with 1 entry that is the root level repo's conda environment files.
     """
+    env_files = []
     project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
     if project_yaml.exists():
-        return [project_yaml]
-    return []
+        env_files.append(project_yaml)
+    if additional_files:
+        for additional_file in additional_files:
+            if additional_file.exists():
+                env_files.append(additional_file)
+    return env_files
 
 
 def get_all_pip_requirements_files() -> List[Path]:

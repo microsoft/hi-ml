@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import logging
+import sys
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -32,10 +33,23 @@ class ModelConfigLoader(param.Parameterized):
         if self.model_configs_namespace and self.model_configs_namespace != default_module:
             # The later member of this list will take priority if a model name occurs in both, because
             # dict.update is used to combine the dictionaries of models.
-            custom_spec = importlib.util.find_spec(self.model_configs_namespace)  # type: ignore
-            if custom_spec is None:
-                raise ValueError(f"Search namespace {self.model_configs_namespace} was not found.")
-            self.module_search_specs.append(custom_spec)
+            # custom_spec = importlib.util.find_spec(self.model_configs_namespace)  # type: ignore
+            root_namespace_path = Path(self.model_configs_namespace.replace(".", "/"))
+            root_namespace = str(Path(root_namespace_path.parts[0]).absolute())
+            if root_namespace not in sys.path:
+                print(f"Adding {str(root_namespace)} to path")
+                sys.path.insert(0, str(root_namespace))
+
+            root_namespace = ".".join([str(p) for p in root_namespace_path.parts[1:]])  # type: ignore
+            print(f"Now looking for namespace: {root_namespace} ")
+            try:
+                custom_spec = importlib.util.find_spec(root_namespace)
+                if custom_spec is None:
+                    raise ValueError(f"Search namespace {root_namespace} was not found.")
+
+                self.module_search_specs.append(custom_spec)
+            except:  # noqa: E722
+                print(f"Error finding spec. Dir contents: {list(Path.cwd().iterdir())}")
 
     @staticmethod
     def get_default_search_module() -> str:

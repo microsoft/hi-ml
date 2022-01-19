@@ -254,7 +254,7 @@ class HelloContainer(LightningContainer):
 
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
     # train, as a LightningModule
-    def get_model(self) -> LightningModule:
+    def create_model(self) -> LightningModule:
         return HelloRegression()
 
     # This method must be overridden by any subclass of LightningContainer. It returns a data module, which

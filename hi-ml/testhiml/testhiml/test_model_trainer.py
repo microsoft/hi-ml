@@ -39,7 +39,6 @@ def test_create_lightning_trainer() -> None:
     assert trainer.limit_train_batches == 1.0
     assert trainer.terminate_on_nan == container.detect_anomaly
 
-    assert "on_test_epoch_end" in trainer.callbacks
     assert isinstance(trainer.callbacks[0], BatchTimeCallback)
     assert isinstance(trainer.callbacks[1], ProgressBar)
     assert isinstance(trainer.callbacks[2], ModelCheckpoint)
@@ -76,7 +75,7 @@ def test_create_lightning_trainer_with_callbacks(tmp_path: Path):
     trainer, storing_logger = create_lightning_trainer(container, **kwargs)
     # expect trainer to have 3 default callbacks: BatchTimeCallback, ProgressBar and ModelCheckpoint, plus
     # any additional callbacks specified in get_trainer_arguments method
-    assert len(trainer.callbacks) == len(kwargs.get("callbacks")) + 3
+    assert len(trainer.callbacks) == len(kwargs.get("callbacks")) + 3, print(f"Found callbacks: {trainer.callbacks}")
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
 

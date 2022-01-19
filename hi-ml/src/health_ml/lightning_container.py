@@ -44,7 +44,7 @@ class LightningContainer(WorkflowParams,
         """
         pass
 
-    def get_model(self) -> LightningModule:  # type: ignore
+    def create_model(self) -> LightningModule:  # type: ignore
         """
         This method must create the actual Lightning model that will be trained. It can read out parameters from the
         container and pass them into the model, for example.
@@ -138,7 +138,7 @@ class LightningContainer(WorkflowParams,
         """
         Creates the Lightning model
         """
-        self._model = self.get_model()
+        self._model = self.create_model()
 
     def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
