@@ -14,6 +14,7 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from health_azure import AzureRunInfo
 from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
                                 PARENT_RUN_CONTEXT, is_running_in_azure_ml)
+from health_ml.deep_learning_config import MultiprocessingStartMethod
 
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -140,9 +141,12 @@ class MLRunner:
         """
         Set the (PyTorch) multiprocessing start method.
         """
-        method = self.container.multiprocessing_start_method or "spawn"
+        if hasattr(self.container, "multiprocessing_start_method"):
+            method = self.container.multiprocessing_start_method
+        else:
+            method = MultiprocessingStartMethod.spawn
         if is_windows():
-            if method != "spawn":
+            if method != MultiprocessingStartMethod.spawn:
                 logging.warning(f"Cannot set multiprocessing start method to '{method.name}' "
                                 "because only 'spawn' is available in Windows")
         else:
@@ -225,6 +229,5 @@ class MLRunner:
         # files to the right folder. Best guess is to change the current working directory to where files should go.
         data_module = self.container.get_data_module()
         with change_working_directory(self.container.outputs_folder):
-            results = trainer.test(self.container.model,
-                                   datamodule=data_module)
+            results = trainer.test(self.container.model, datamodule=data_module)
         return results

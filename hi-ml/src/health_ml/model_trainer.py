@@ -152,27 +152,21 @@ def model_train(container: LightningContainer,
     # resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_global_rank_zero():
-        # logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
+        logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
         write_args_file(container,
                         outputs_folder=container.outputs_folder)
-        # if container.monitoring_interval_seconds > 0:
-        #     resource_monitor = start_resource_monitor(container)
 
-    # Run all of the container-related operations consistently with changed outputs folder, even ones that
-    # should not rely on the current working directory, like get_data_module.
-    with change_working_directory(container.outputs_folder):
-        data_module = container.get_data_module()
-        if is_global_rank_zero():
-            container.before_training_on_global_rank_zero()
-        if is_local_rank_zero():
-            container.before_training_on_local_rank_zero()
-        container.before_training_on_all_ranks()
+    data_module = container.get_data_module()
+    if is_global_rank_zero():
+        container.before_training_on_global_rank_zero()
+    if is_local_rank_zero():
+        container.before_training_on_local_rank_zero()
+    container.before_training_on_all_ranks()
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
-    # training in the unit tests.d
+    # training in the unit tests.
     old_environ = dict(os.environ)
-    # Set random seeds just before training. For segmentation models, we have
-    # something that changes the random seed in the before_training_on_rank_zero hook.
+    # Set random seeds just before training
     seed_everything(container.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(container,
                                                        num_nodes=num_nodes,
@@ -182,14 +176,11 @@ def model_train(container: LightningContainer,
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
 
     logging.info("Starting training")
-    # When training models that are not built-in models, we have no guarantee that they write
-    # files to the right folder. Best guess is to change the current working directory to where files should go.
-    with change_working_directory(container.outputs_folder):
-        trainer.fit(lightning_model, datamodule=data_module)
-        trainer.logger.close()  # type: ignore
+    trainer.fit(lightning_model, datamodule=data_module)
+    trainer.logger.close()  # type: ignore
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
-    # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
+    # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
     # all necessary properties.
     if lightning_model.global_rank != 0:
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")

@@ -19,7 +19,7 @@ from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_CROSSVAL_SPLIT_INDEX,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME)
+                                          DEFAULT_LOGS_DIR_NAME, is_windows)
 from health_ml.utils.type_annotations import TupleFloat2
 
 
@@ -42,6 +42,16 @@ class LRSchedulerType(Enum):
     Polynomial = "Polynomial"
     Cosine = "Cosine"
     MultiStep = "MultiStep"
+
+
+@unique
+class MultiprocessingStartMethod(Enum):
+    """
+    Different methods for starting data loader processes.
+    """
+    fork = "fork"
+    forkserver = "forkserver"
+    spawn = "spawn"
 
 
 @unique
@@ -135,6 +145,13 @@ class WorkflowParams(param.Parameterized):
     model_id: str = param.String(default="",
                                  doc="A model id string in the form 'model name:version' "
                                      "to use a registered model for inference.")
+    multiprocessing_start_method: MultiprocessingStartMethod = \
+        param.ClassSelector(class_=MultiprocessingStartMethod,
+                            default=(MultiprocessingStartMethod.spawn if is_windows()
+                                     else MultiprocessingStartMethod.fork),
+                            doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
+                                "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
+                                "Set to forkserver as a possible remedy for stuck jobs.")
     regression_test_folder: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="A path to a folder that contains a set of files. At the end of training and "
