@@ -7,9 +7,10 @@ class ExperimentConfig(param.Parameterized):
                                     "execute the job.")
     num_nodes: int = param.Integer(default=1, doc="The number of virtual machines that will be allocated for this"
                                                   "job in AzureML.")
-    model: str = param.String(doc="The name of the model to train/test.")
+    model: str = param.String(doc="The fully qualified name of the model to train/test -e.g."
+                                  "mymodule.configs.MyConfig.")
     azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     model_configs_namespace: Optional[str] = param.String(default=None, allow_None=True,
                                                           doc="Optional string representing the  path to an"
                                                               " alternative directory containing the config for"
-                                                              " the model specified")
+                                                              " the model specified.")

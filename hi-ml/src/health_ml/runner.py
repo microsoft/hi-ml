@@ -206,6 +206,8 @@ class Runner:
         additional_conda_env_files = self.lightning_container.additional_env_files
         if additional_conda_env_files is not None:
             additional_env_files = [Path(f) for f in additional_conda_env_files]
+        else:
+            additional_env_files = None
 
         conda_dependencies_files = get_all_environment_files(self.project_root,
                                                              additional_files=additional_env_files)

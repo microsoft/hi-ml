@@ -70,7 +70,7 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
 
 def test_run(ml_runner: MLRunner) -> None:
 
-    def _mock_model_train(container, num_nodes) -> Tuple[str, StoringLogger]:
+    def _mock_model_train(container: LightningContainer, num_nodes: int) -> Tuple[str, str]:
         return "trainer", dummy_storing_logger
 
     dummy_storing_logger = "storing_logger"

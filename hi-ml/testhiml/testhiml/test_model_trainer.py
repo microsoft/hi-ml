@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch, Mock
 
-from pytorch_lightning import Callback
+from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, ProgressBar
 
 from health_ml.configs.hello_container import HelloContainer
@@ -52,22 +53,22 @@ def test_create_lightning_trainer() -> None:
 
 
 class MyCallback(Callback):
-    def on_init_start(self, trainer):
+    def on_init_start(self, trainer: Trainer) -> None:
         print("Starting to init trainer")
 
 
-def test_create_lightning_trainer_with_callbacks(tmp_path: Path):
+def test_create_lightning_trainer_with_callbacks(tmp_path: Path) -> None:
     """
     Test that create_lightning_trainer picks up on additional Container callbacks
     """
-    def _get_trainer_arguments():
+    def _get_trainer_arguments() -> Dict[str, Any]:
         callbacks = [MyCallback()]
         return {"callbacks": callbacks}
 
     model_config_loader = ModelConfigLoader()
     container = model_config_loader.create_model_config_from_name("HelloContainer")
     # mock get_trainer_arguments method, since default HelloContainer class doesn't specify any additional callbacks
-    container.get_trainer_arguments = _get_trainer_arguments
+    container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
 
     kwargs = container.get_trainer_arguments()
     assert "callbacks" in kwargs
@@ -75,8 +76,12 @@ def test_create_lightning_trainer_with_callbacks(tmp_path: Path):
     trainer, storing_logger = create_lightning_trainer(container, **kwargs)
     # expect trainer to have 3 default callbacks: BatchTimeCallback, ProgressBar and ModelCheckpoint, plus
     # any additional callbacks specified in get_trainer_arguments method
-    assert len(trainer.callbacks) == len(kwargs.get("callbacks")) + 3, print(f"Found callbacks: {trainer.callbacks}")
+    kwarg_callbacks = kwargs.get("callbacks") or []
+    expected_num_callbacks = len(kwarg_callbacks) + 3
+    assert len(trainer.callbacks) == expected_num_callbacks, f"Found callbacks: {trainer.callbacks}"
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
+
+    assert isinstance(StoringLogger, StoringLogger)
 
 
 def test_create_lightning_trainer_additional_callbacks() -> None:

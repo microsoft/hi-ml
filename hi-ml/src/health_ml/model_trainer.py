@@ -19,7 +19,7 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
-from health_ml.utils.common_utils import ARGS_TXT, change_working_directory
+from health_ml.utils.common_utils import ARGS_TXT
 from health_ml.utils.lightning_loggers import StoringLogger
 
 TEMP_PREFIX = "temp/"

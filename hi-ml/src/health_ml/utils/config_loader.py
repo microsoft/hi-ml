@@ -23,33 +23,34 @@ class ModelConfigLoader(param.Parameterized):
     """
     Helper class to manage model config loading
     """
-    model_configs_namespace: Optional[str] = param.String(default=None,
-                                                          doc="Non-default namespace to search for model configs")
+    # model_configs_namespace: Optional[str] = param.String(default=None,
+    #                                                       doc="Non-default namespace to search for model configs")
 
     def __init__(self, **params: Any):
         super().__init__(**params)
         default_module = self.get_default_search_module()
         self.module_search_specs: List[ModuleSpec] = [importlib.util.find_spec(default_module)]  # type: ignore
-        if self.model_configs_namespace and self.model_configs_namespace != default_module:
-            # The later member of this list will take priority if a model name occurs in both, because
-            # dict.update is used to combine the dictionaries of models.
-            # custom_spec = importlib.util.find_spec(self.model_configs_namespace)  # type: ignore
-            root_namespace_path = Path(self.model_configs_namespace.replace(".", "/"))
-            root_namespace = str(Path(root_namespace_path.parts[0]).absolute())
-            if root_namespace not in sys.path:
-                print(f"Adding {str(root_namespace)} to path")
-                sys.path.insert(0, str(root_namespace))
 
-            root_namespace = ".".join([str(p) for p in root_namespace_path.parts[1:]])  # type: ignore
-            print(f"Now looking for namespace: {root_namespace} ")
-            try:
-                custom_spec = importlib.util.find_spec(root_namespace)
-                if custom_spec is None:
-                    raise ValueError(f"Search namespace {root_namespace} was not found.")
+        # if self.model_configs_namespace and self.model_configs_namespace != default_module:
 
-                self.module_search_specs.append(custom_spec)
-            except:  # noqa: E722
-                print(f"Error finding spec. Dir contents: {list(Path.cwd().iterdir())}")
+        # The later member of this list will take priority if a model name occurs in both, because
+        # dict.update is used to combine the dictionaries of models.
+        # custom_spec = importlib.util.find_spec(self.model_configs_namespace)  # type: ignore
+        model_namespace_path = Path(self.model.replace(".", "/"))
+        root_namespace = str(Path(model_namespace_path.parts[0]).absolute())
+        if root_namespace not in sys.path:
+            print(f"Adding {str(root_namespace)} to path")
+            sys.path.insert(0, str(root_namespace))
+
+        model_namespace = ".".join([str(p) for p in model_namespace_path.parts[1:-1]])  # type: ignore
+        try:
+            custom_spec = importlib.util.find_spec(model_namespace)  # type: ignore
+            if custom_spec is None:
+                raise ValueError(f"Search namespace {model_namespace} was not found.")
+
+            self.module_search_specs.append(custom_spec)
+        except:  # noqa: E722
+            print(f"Error finding spec. Dir contents: {list(Path.cwd().iterdir())}")
 
     @staticmethod
     def get_default_search_module() -> str:
@@ -62,10 +63,14 @@ class ModelConfigLoader(param.Parameterized):
         To avoid having to import torch here, there are no references to LightningContainer.
         Searching for a class member called <model_name> in the search modules provided recursively.
 
-        :param model_name: Name of the model for which to get the configs for.
+        :param model_name: Fully qualified name of the model for which to get the configs for - i.e.
+            mymodule.configs.MyConfig
         """
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
+
+        # get the class name from the fully qualified name
+        model_name = model_name.split(".")[-1]
 
         configs: Dict[str, LightningContainer] = {}
 

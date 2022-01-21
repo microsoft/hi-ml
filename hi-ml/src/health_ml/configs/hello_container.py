@@ -37,7 +37,7 @@ class HelloDataset(Dataset):
         must be numeric data which can be converted into a tensor. See the static method
         from_path_and_indexes for an example call.
         """
-        super().__init__()
+        super().__init__()  # type: ignore
         self.data = torch.tensor(raw_data, dtype=torch.float)
 
     def __len__(self) -> int:
