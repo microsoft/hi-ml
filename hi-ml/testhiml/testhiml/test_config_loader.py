@@ -1,6 +1,8 @@
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -10,7 +12,7 @@ from health_ml.utils.config_loader import ModelConfigLoader
 
 @pytest.fixture(scope="module")
 def config_loader() -> ModelConfigLoader:
-    return ModelConfigLoader()
+    return ModelConfigLoader(**{"model": "HelloContainer"})
 
 
 @pytest.fixture(scope="module")
@@ -18,6 +20,43 @@ def hello_config() -> Any:
     from health_ml.configs import hello_container
     assert Path(hello_container.__file__).exists(), "Can't find hello_container config"
     return hello_container
+
+
+def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
+    # By default, property module_search_specs includes the default config path - health_ml.configs
+    len_search_specs_before = len(config_loader.module_search_specs)
+    assert any([m.name == "health_ml.configs" for m in config_loader.module_search_specs])
+    config_loader._find_module_search_specs()
+    # nothing should have been added to module_search_specs
+    assert len(config_loader.module_search_specs) == len_search_specs_before
+
+    # create a model config with a different model
+    dummy_config_path = Path("outputs") / "new_config.py"
+    dummy_config_path.touch()
+    dummy_config = """class NewConfig:
+def __init__(self):
+    pass
+"""
+    with open(dummy_config_path, "w") as f_path:
+        f_path.write(dummy_config)
+    config_loader2 = ModelConfigLoader(**{"model": "testhiml.outputs.NewConfig"})
+    # The root "testhiml" should now be in the system path and the module "outputs" should be in module_search_specs
+    # this wont be in the previous results, since the default path was used. The default search_spec (health_ml.configs)
+    # should also be in the results for hte new
+    assert any([m.name == "outputs" for m in config_loader2.module_search_specs])
+    assert any([m.name == "health_ml.configs" for m in config_loader2.module_search_specs])
+    assert not any([m.name == "outputs" for m in config_loader.module_search_specs])
+    dummy_config_path.unlink()
+
+    # If the file doesnt exist but the parent module does, the module will still be appended to module_search_specs
+    # at this stage
+    config_loader3 = ModelConfigLoader(**{"model": "testhiml.outputs.idontexist"})
+    assert any([m.name == "outputs" for m in config_loader2.module_search_specs])
+
+    # If the parent module doesn't exist, an Exception should be raised
+    with pytest.raises(Exception) as e:
+        ModelConfigLoader(**{"model": "testhiml.idontexist.idontexist"})
+    assert "was not found" in str(e)
 
 
 def test_get_default_search_module(config_loader: ModelConfigLoader) -> None:
@@ -52,6 +91,15 @@ def test_create_model_config_from_name(config_loader: ModelConfigLoader, hello_c
     container = config_loader.create_model_config_from_name(config_name)
     assert isinstance(container, LightningContainer)
     assert container.model_name == config_name
+
+    # now create a model config outside of the default namespace (health_ml.configs) and check that the
+    # necessary steps are performed to locate this config
+    test_folder = Path.cwd() / "outputs"
+    test_folder.mkdir(exist_ok=True)
+
+    print(f"test folder: {test_folder}")
+
+    test_folder.unlink()
 
 
 def test_config_in_dif_location(tmp_path: Path, hello_config: Any) -> None:

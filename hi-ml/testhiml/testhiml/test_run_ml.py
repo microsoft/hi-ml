@@ -11,7 +11,6 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import ModelExecutionMode
-from health_ml.utils.lightning_loggers import StoringLogger
 
 
 @pytest.fixture

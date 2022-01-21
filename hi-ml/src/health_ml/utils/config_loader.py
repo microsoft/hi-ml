@@ -21,36 +21,42 @@ from health_ml.utils.common_utils import path_to_namespace
 
 class ModelConfigLoader(param.Parameterized):
     """
-    Helper class to manage model config loading
+    Helper class to manage model config loading.
     """
-    # model_configs_namespace: Optional[str] = param.String(default=None,
-    #                                                       doc="Non-default namespace to search for model configs")
 
     def __init__(self, **params: Any):
         super().__init__(**params)
         default_module = self.get_default_search_module()
         self.module_search_specs: List[ModuleSpec] = [importlib.util.find_spec(default_module)]  # type: ignore
+        self._find_module_search_specs()
 
-        # if self.model_configs_namespace and self.model_configs_namespace != default_module:
+    def _find_module_search_specs(self) -> None:
+        """
+        Given the fully qualified model name, append the root folder to the system path (so that the config
+        file can be discovered) and try to find a spec for the specifed module. If found, appends the spec
+        to self.module_search_specs
+        """
+        model_namespace_parts = self.model.split(".")
+        if len(model_namespace_parts) == 1:
+            # config must be in the default path. This is already in module_search_specs so we dont need to do anything
+            return
+        else:
+            # Get the root folder of the fully qualified model name and ensure it is in the path to enable
+            # discovery of the config file
+            model_namespace_path = Path(self.model.replace(".", "/"))
+            root_namespace = str(Path(model_namespace_path.parts[0]).absolute())
+            if root_namespace not in sys.path:
+                print(f"Adding {str(root_namespace)} to path")
+                sys.path.insert(0, str(root_namespace))
 
-        # The later member of this list will take priority if a model name occurs in both, because
-        # dict.update is used to combine the dictionaries of models.
-        # custom_spec = importlib.util.find_spec(self.model_configs_namespace)  # type: ignore
-        model_namespace_path = Path(self.model.replace(".", "/"))
-        root_namespace = str(Path(model_namespace_path.parts[0]).absolute())
-        if root_namespace not in sys.path:
-            print(f"Adding {str(root_namespace)} to path")
-            sys.path.insert(0, str(root_namespace))
+            # Strip the root folder (now in the path) and the class name from the model namespace, leaving the
+            # module name - e.g. "mymodule.configs"
+            model_namespace = ".".join([str(p) for p in model_namespace_path.parts[1:-1]])  # type: ignore
 
-        model_namespace = ".".join([str(p) for p in model_namespace_path.parts[1:-1]])  # type: ignore
-        try:
-            custom_spec = importlib.util.find_spec(model_namespace)  # type: ignore
-            if custom_spec is None:
-                raise ValueError(f"Search namespace {model_namespace} was not found.")
-
-            self.module_search_specs.append(custom_spec)
-        except:  # noqa: E722
-            print(f"Error finding spec. Dir contents: {list(Path.cwd().iterdir())}")
+        custom_spec = importlib.util.find_spec(model_namespace)  # type: ignore
+        if custom_spec is None:
+            raise ValueError(f"Search namespace {model_namespace} was not found.")
+        self.module_search_specs.append(custom_spec)
 
     @staticmethod
     def get_default_search_module() -> str:
