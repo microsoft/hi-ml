@@ -1,8 +1,6 @@
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -51,7 +49,7 @@ def __init__(self):
     # If the file doesnt exist but the parent module does, the module will still be appended to module_search_specs
     # at this stage
     config_loader3 = ModelConfigLoader(**{"model": "testhiml.outputs.idontexist"})
-    assert any([m.name == "outputs" for m in config_loader2.module_search_specs])
+    assert any([m.name == "outputs" for m in config_loader3.module_search_specs])
 
     # If the parent module doesn't exist, an Exception should be raised
     with pytest.raises(Exception) as e:
@@ -104,17 +102,17 @@ def test_create_model_config_from_name(config_loader: ModelConfigLoader, hello_c
 
 def test_config_in_dif_location(tmp_path: Path, hello_config: Any) -> None:
     himl_root = Path(hello_config.__file__).parent.parent
+    model_name = "HelloContainer"
     new_config_path = himl_root / "hello_container_to_delete.py"
     new_config_path.touch()
     hello_config_path = Path(hello_config.__file__)
     shutil.copyfile(str(hello_config_path), str(new_config_path))
-    config_loader = ModelConfigLoader(model_configs_namespace="health_ml")
+    config_loader = ModelConfigLoader(model=model_name)
 
-    config_name = "HelloContainer"
     # Trying to find this config should now cause an exception as it should find it in both "health_ml" and
     # in "health_ml.configs"
     with pytest.raises(Exception) as e:
-        config_loader.create_model_config_from_name(config_name)
+        config_loader.create_model_config_from_name(model_name)
         assert "Multiple instances of model name HelloContainer were found in namespaces: " \
                "dict_keys(['health_ml.configs.hello_container', 'health_ml.hello_container_to_delete']) " in str(e)
     new_config_path.unlink()

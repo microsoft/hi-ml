@@ -58,6 +58,7 @@ ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
 
 RUN_CONTEXT = Run.get_context()
+PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 WORKSPACE_CONFIG_JSON = "config.json"
 
 # By default, define several environment variables that work around known issues in the software stack
@@ -71,8 +72,6 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
     "DATASET_MOUNT_CACHE_SIZE": "1",
 }
-
-PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 
 PathOrString = Union[Path, str]
 
@@ -131,17 +130,18 @@ class GenericConfig(param.Parameterized):
         pass
 
 
-def add_and_validate(config: Any, kwargs: Dict[str, Any], validate: bool = True) -> None:
+def set_fields_and_validate(config: param.Parameterized, fields_to_set: Dict[str, Any], validate: bool = True) -> None:
     """
     Add further parameters and, if validate is True, validate. We first try set_param, but that
     fails when the parameter has a setter.
 
-    :param kwargs: A dictionary of key, value pairs where each key represents a parameter to be added
+    :param config: The model configuration
+    :param fields_to_set: A dictionary of key, value pairs where each key represents a parameter to be added
         and val represents its value
     :param validate: Whether to validate the value of the parameter after adding.
     """
     assert isinstance(config, param.Parameterized)
-    for key, value in kwargs.items():
+    for key, value in fields_to_set.items():
         try:
             config.set_param(key, value)
         except ValueError:
@@ -150,19 +150,20 @@ def add_and_validate(config: Any, kwargs: Dict[str, Any], validate: bool = True)
         config.validate()
 
 
-def create_argparser(config: Any) -> ArgumentParser:
+def create_argparser(config: param.Parameterized) -> ArgumentParser:
     """
     Creates an ArgumentParser with all fields of the given config that are overridable.
 
+    :param config: The config whose parameters should be used to populate the argument parser
     :return: ArgumentParser
     """
     assert isinstance(config, param.Parameterized)
     parser = ArgumentParser()
-    add_args(config, parser)
+    _add_overrideable_config_args_to_parser(config, parser)
     return parser
 
 
-def add_args(config: Any, parser: ArgumentParser) -> ArgumentParser:
+def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser: ArgumentParser) -> ArgumentParser:
     """
     Adds all overridable fields of the config class to the given argparser.
     Fields that are marked as readonly, constant or private are ignored.
@@ -857,7 +858,54 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: List[Path] = None) -> None:
+def _retrieve_unique_pip_deps(dependencies: List[Union[str, Dict[str, Any]]], keep_method: str = "first") -> List[str]:
+    """
+    Given a list of conda dependencies, including pip requirements which may possibly contain duplicate versions
+     of the same package name with the same or different versions, extracts the pip dependencies and returns a
+    list of them where each package name occurs only once. If a
+    package name appears more than once, only the first value will be retained.
+
+    :param dependencies: The original list of package names to deduplicate
+    :param keep_method: The strategy for choosing which package version to keep
+    :return: a list in which each package name occurs only once
+    """
+    # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
+    # duplicated, the first value encountered will be retained.
+    pip_deps_entries = [d for d in dependencies if isinstance(d, dict) and "pip" in d]  # type: ignore
+    if len(pip_deps_entries) == 0:
+        raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
+    pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
+    pip_deps = pip_deps_entry["pip"]
+    # temporarily remove pip dependencies from deps to be added back after deduplicaton
+    dependencies.remove(pip_deps_entry)
+
+    unique_pip_deps: Dict[str, Tuple[str, str]] = {}
+
+    for pip_dep in pip_deps:
+        pip_dep_parts: List[str] = re.split("(=<|==|>=|<|>)", pip_dep)
+        pip_dep_name = pip_dep_parts[0]
+        pip_dep_join = ''.join(pip_dep_parts[1:-1])
+        pip_dep_version = pip_dep_parts[-1]
+        if pip_dep_name in unique_pip_deps:
+            if keep_method == "first":
+                keep_version, _ = unique_pip_deps[pip_dep_name]
+                logging.warning(f"Found duplicate pip requirements: {pip_dep}. Keeping the {keep_method} "
+                                f"version: {keep_version}")
+            else:
+                raise ValueError(f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
+                                 f" include: ['first']")
+            # unique_pip_deps.append(pip_dep)
+            # unique_pip_deps_set.update({pip_dep_name})
+
+        else:
+            unique_pip_deps[pip_dep_name] = (pip_dep_version, pip_dep_join)
+
+    unique_pip_deps_list = [f"{pkg}{joiner}{vrsn}" for pkg, (vrsn, joiner) in unique_pip_deps.items()]
+    return unique_pip_deps_list
+
+
+def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: List[Path] = None,
+                      pip_clash_keep_method: str = "first") -> None:
     """
     Merges the given Conda environment files using the conda_merge package, optionally adds any
     dependencies from pip requirements files, and writes the merged file to disk.
@@ -865,6 +913,8 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
     :param conda_files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
+    :param pip_clash_keep_method: If two or more pip packages are specified with the same name, this determines
+        which one should be kept. Current options: ['first']
     """
     env_definitions = [conda_merge.read_file(str(f)) for f in conda_files]
     unified_definition = {}
@@ -873,11 +923,10 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
     DEPENDENCIES = "dependencies"
 
     extra_pip_deps = []
-    if pip_files is not None:
-        for pip_file in pip_files:
-            with open(pip_file, "r") as f_path:
-                additional_pip_deps = [d for d in f_path.read().split("\n") if d]
-                extra_pip_deps.extend(additional_pip_deps)
+    for pip_file in pip_files or []:
+        with open(pip_file, "r") as f_path:
+            additional_pip_deps = [d for d in f_path.read().split("\n") if d]
+            extra_pip_deps.extend(additional_pip_deps)
 
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
@@ -897,21 +946,7 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
             deps_to_merge.extend([[{"pip": extra_pip_deps}]])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
-        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
-        # duplicated, the first value encountered will be retained.
-        pip_deps_entry = [d for d in deps if isinstance(d, dict) and "pip" in d][0]
-        # temporarily remove pip dependencies from deps to be added back after deduplicaton
-        deps.remove(pip_deps_entry)
-
-        unique_pip_deps: List[str] = []
-        unique_pip_deps_set: Set[str] = set()
-        pip_deps: List[str] = pip_deps_entry["pip"]
-
-        for pip_dep in pip_deps:
-            pip_dep_name: str = re.split("<|=|>", pip_dep)[0]
-            if pip_dep_name not in unique_pip_deps_set:
-                unique_pip_deps.append(pip_dep)
-                unique_pip_deps_set.update(set([pip_dep_name]))
+        unique_pip_deps = _retrieve_unique_pip_deps(deps, keep_method=pip_clash_keep_method)
 
         # finally add back the deduplicated list of dependencies
         deps.append({"pip": unique_pip_deps})

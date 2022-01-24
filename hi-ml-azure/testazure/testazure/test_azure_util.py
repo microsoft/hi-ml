@@ -253,6 +253,20 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
+def test_retrieve_unique_pip_deps() -> None:
+    pip_deps_with_duplicates = ["conda=1.0", {"pip": ["package==1.0", "package==1.1"]}]
+
+    expected_pip_deps = ["package==1.0"]
+
+    dedup_deps = util._retrieve_unique_pip_deps(pip_deps_with_duplicates) # type: ignore
+    assert dedup_deps == expected_pip_deps
+
+    # If no dictionary with key 'pip' is present, expect a ValueError
+    with pytest.raises(ValueError) as e:
+        util._retrieve_unique_pip_deps(["conda=1.0"])
+        assert "Didn't find a dictionary with the key 'pip'" in str(e)
+
+
 def test_merge_conda(
         random_folder: Path,
         caplog: CaptureFixture,
@@ -304,7 +318,6 @@ dependencies:
 - conda_both=3.0
 - pip:
   - azureml-sdk==1.6.0
-  - azureml-sdk==1.7.0
   - bar==2.0
   - foo==1.0
 """.splitlines()
@@ -315,7 +328,7 @@ dependencies:
 
     # Package version conflicts are not resolved, both versions are retained.
     assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda1=1.1", "conda2=2.0", "conda_both=3.0"]
-    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
+    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "bar==2.0", "foo==1.0"]
 
     # Assert that extra pip requirements are added correctly
     pip_contents = """package1==0.0.1
@@ -335,7 +348,6 @@ dependencies:
 - conda_both=3.0
 - pip:
   - azureml-sdk==1.6.0
-  - azureml-sdk==1.7.0
   - bar==2.0
   - foo==1.0
   - package1==0.0.1
@@ -374,9 +386,8 @@ dependencies:
     # If there are no dependencies then something is wrong with the conda files or our parsing of them
     with mock.patch("health_azure.utils.conda_merge.merge_dependencies") as mock_merge_dependencies:
         mock_merge_dependencies.return_value = []
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(ValueError):
             util.merge_conda_files(files, merged_file)
-        assert "No dependencies found in any of the conda files" in str(e.value)
 
 
 @pytest.mark.parametrize(["s", "expected"],
@@ -1219,14 +1230,14 @@ def test_add_and_validate(dummy_model_config: DummyConfig) -> None:
     new_string_param = "new_dummy"
     new_int_param = 2
     new_args = {"string_param": new_string_param, "int_param": new_int_param}
-    util.add_and_validate(dummy_model_config, new_args)
+    util.set_fields_and_validate(dummy_model_config, new_args)
 
     assert dummy_model_config.string_param == new_string_param
     assert dummy_model_config.int_param == new_int_param
 
 
 def test_create_argparse(dummy_model_config: DummyConfig) -> None:
-    with patch("health_azure.utils.add_args") as mock_add_args:
+    with patch("health_azure.utils._add_overrideable_config_args_to_parser") as mock_add_args:
         parser = util.create_argparser(dummy_model_config)
         mock_add_args.assert_called_once()
         assert isinstance(parser, ArgumentParser)
@@ -1237,10 +1248,11 @@ def test_add_args(dummy_model_config: DummyConfig) -> None:
     # assert that calling parse_args on a default ArgumentParser returns an empty Namespace
     args = parser.parse_args([])
     assert args == Namespace()
-    # now call add_args and assert that calling parse_args on the result of that is a non-empty Namepsace
+    # now call _add_overrideable_config_args_to_parser and assert that calling parse_args on the result
+    # of that is a non-empty Namepsace
     with patch("health_azure.utils.get_overridable_parameters") as mock_get_overridable_parameters:
         mock_get_overridable_parameters.return_value = {"string_param": param.String(default="Hello")}
-        parser = util.add_args(dummy_model_config, parser)
+        parser = util._add_overrideable_config_args_to_parser(dummy_model_config, parser)
         assert isinstance(parser, ArgumentParser)
         args = parser.parse_args([])
         assert args != Namespace()
@@ -1475,23 +1487,17 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
         assert mock_report_on_overrides.call_count == 1
 
 
-@pytest.mark.skip(reason="logging isnt called on azure devops machine?")
-@patch("health_azure.utils.logging")
-def test_report_on_overrides(mock_logging: MagicMock,
-                             parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser]
-                             ) -> None:
-
-    def _mock_logging_warning(warning_msg: str) -> None:
-        LOGS.append(warning_msg)
+def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                             caplog: LogCaptureFixture) -> None:
 
     parameterized_config = parameterized_config_and_parser[0]
-    LOGS: List[str] = []
-    assert len(LOGS) == 0
-    mock_logging.warning.side_effect = _mock_logging_warning
+    old_logs = caplog.messages
+    assert len(old_logs) == 0
     overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
     util.report_on_overrides(parameterized_config, overrides)
     # Expect one warning message per failed override
-    assert len(LOGS) == len(overrides.keys())
+    new_logs = caplog.messages
+    assert len(new_logs) == len(overrides.keys())
 
 
 @pytest.mark.fast
@@ -1544,11 +1550,11 @@ def test_parse_illegal_params() -> None:
 def test_config_add_and_validate() -> None:
     config = ParamClass()
     assert config.name.startswith("ParamClass")
-    util.add_and_validate(config, {"name": "foo"})
+    util.set_fields_and_validate(config, {"name": "foo"})
     assert config.name == "foo"
 
     assert hasattr(config, "new_property") is False
-    util.add_and_validate(config, {"new_property": "bar"})
+    util.set_fields_and_validate(config, {"new_property": "bar"})
     assert hasattr(config, "new_property") is True
     assert config.new_property == "bar"
 

@@ -101,7 +101,6 @@ def create_runner_parser() -> argparse.ArgumentParser:
     """
     config = ExperimentConfig()
     parser = create_argparser(config)
-    # ModelConfigLoader.add_args(parser)
     return parser
 
 

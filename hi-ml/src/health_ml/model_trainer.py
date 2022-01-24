@@ -27,7 +27,7 @@ TEMP_PREFIX = "temp/"
 T = TypeVar('T')
 
 
-def write_args_file(config: Any, outputs_folder: Path) -> None:
+def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
     """
     Writes the given config to disk in plain text in the default output folder.
     """
@@ -85,6 +85,7 @@ def create_lightning_trainer(container: LightningContainer,
         deterministic = False
         benchmark = True
 
+    # Get more callbacks
     callbacks = []
     if container.monitor_loading:
         callbacks.append(BatchTimeCallback())
@@ -98,6 +99,7 @@ def create_lightning_trainer(container: LightningContainer,
             callbacks.extend(more_callbacks)  # type: ignore
         else:
             callbacks.append(more_callbacks)  # type: ignore
+
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if is_azureml_run:
@@ -133,14 +135,12 @@ def create_lightning_trainer(container: LightningContainer,
     return trainer, storing_logger
 
 
-def model_train(container: LightningContainer,
-                num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
+def model_train(container: LightningContainer) -> Tuple[Trainer, StoringLogger]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
 
-    :param num_nodes: The number of nodes to use in distributed training.
     :param container: A container object that holds the training data in PyTorch Lightning format
     and the model to train.
     :return: A tuple of [Trainer, StoringLogger]. Trainer is the Lightning Trainer object that was used for fitting
@@ -153,8 +153,8 @@ def model_train(container: LightningContainer,
     # Execute some bookkeeping tasks only once if running distributed:
     if is_global_rank_zero():
         logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
-        write_args_file(container,
-                        outputs_folder=container.outputs_folder)
+        write_experiment_summary_file(container,
+                                      outputs_folder=container.outputs_folder)
 
     data_module = container.get_data_module()
     if is_global_rank_zero():
@@ -169,11 +169,13 @@ def model_train(container: LightningContainer,
     # Set random seeds just before training
     seed_everything(container.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(container,
-                                                       num_nodes=num_nodes,
+                                                       num_nodes=container.num_nodes,
                                                        **container.get_trainer_arguments())
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
+
+    # get recovery checkpoint if it exists
 
     logging.info("Starting training")
     trainer.fit(lightning_model, datamodule=data_module)

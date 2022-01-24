@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 from unittest.mock import MagicMock, patch, Mock
 
 from pytorch_lightning import Callback, Trainer
@@ -7,14 +7,14 @@ from pytorch_lightning.callbacks import ModelCheckpoint, ProgressBar
 
 from health_ml.configs.hello_container import HelloContainer
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_trainer import (create_lightning_trainer, write_args_file, model_train)
+from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
 from health_ml.utils import BatchTimeCallback
 from health_ml.utils.common_utils import ARGS_TXT
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
 
 
-def test_write_args_file(tmp_path: Path) -> None:
+def test_write_experiment_summary_file(tmp_path: Path) -> None:
     config = {
         "Container": {
             "_min_l_rate": 0.0,
@@ -23,7 +23,7 @@ def test_write_args_file(tmp_path: Path) -> None:
             "azure_datasets": "[]"}
     }
     expected_args_path = tmp_path / ARGS_TXT
-    write_args_file(config, tmp_path)
+    write_experiment_summary_file(config, tmp_path)
 
     actual_args = expected_args_path.read_text()
     assert actual_args == str(config)

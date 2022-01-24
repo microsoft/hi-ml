@@ -318,3 +318,14 @@ def is_gpu_available() -> bool:
     :return: True if a GPU with at least 1 device is available.
     """
     return torch.cuda.is_available() and torch.cuda.device_count() > 0  # type: ignore
+
+
+def parse_model_id_and_version(model_id_and_version: str) -> None:
+    """
+    When using registered models, the model id must have both the id and version present, in the format
+    model_name:version. This function checks the input model id and raises a ValueError if it is not of the
+    expected format
+    """
+    if len(model_id_and_version.split(":")) != 2:
+        raise ValueError(
+            f"model id should be in the form 'model_name:version', got {model_id_and_version}")

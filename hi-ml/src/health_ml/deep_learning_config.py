@@ -19,7 +19,7 @@ from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_CROSSVAL_SPLIT_INDEX,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME, is_windows)
+                                          DEFAULT_LOGS_DIR_NAME, is_windows, parse_model_id_and_version)
 from health_ml.utils.type_annotations import TupleFloat2
 
 
@@ -165,9 +165,7 @@ class WorkflowParams(param.Parameterized):
             raise ValueError("Cannot specify more than one of local_weights_path, weights_url or model_id.")
 
         if self.model_id:
-            if len(self.model_id.split(":")) != 2:
-                raise ValueError(
-                    f"model_id should be in the form 'model_name:version', got {self.model_id}")
+            parse_model_id_and_version(self.model_id)
 
         if self.num_crossval_splits == 1:
             raise ValueError("At least two splits required to perform cross validation, but got "
@@ -222,28 +220,29 @@ class DatasetParams(param.Parameterized):
                                                " 'datasets' container in the datasets storage account. This dataset"
                                                " will be mounted and made available at the 'local_dataset' path"
                                                " when running in AzureML.")
-    local_datasets: List[str] = param.List(default=[], class_=Path,
-                                           doc="A list of one or more paths to the dataset to use, when training"
-                                               " outside of Azure ML.")
-    dataset_mountpoints: List[str] = param.List(default=[], class_=Path,
-                                                doc="The path at which the AzureML dataset should be made available "
-                                                    "via mounting or downloading. This only affects jobs running in "
-                                                    "AzureML. If empty, use a random mount/download point.")
+    local_datasets: List[Path] = param.List(default=[], class_=Path,
+                                            doc="A list of one or more paths to the dataset to use, when training"
+                                                " outside of Azure ML.")
+    dataset_mountpoints: List[Path] = param.List(default=[], class_=Path,
+                                                 doc="The path at which the AzureML dataset should be made available "
+                                                     "via mounting or downloading. This only affects jobs running in "
+                                                     "AzureML. If empty, use a random mount/download point.")
 
     def validate(self) -> None:
-        if not self.azure_datasets and self.local_datasets is None:
-            raise ValueError("Either of local_dataset or azure_datasets must be set.")
+        if (not self.azure_datasets) and (not self.local_datasets):
+            raise ValueError("Either local_datasets or azure_datasets must be set.")
 
         if self.dataset_mountpoints and len(self.azure_datasets) != len(self.dataset_mountpoints):
             raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
                              f"got datasets [{','.join(self.azure_datasets)}] "
-                             f"and mountpoints [{','.join(self.dataset_mountpoints)}]")
+                             f"and mountpoints [{','.join([str(m) for m in self.dataset_mountpoints])}]")
 
 
 class OutputParams(param.Parameterized):
-    output_to: str = param.String(default="",
-                                  doc="If provided, the run outputs will be written to the given folder. If not "
-                                      "provided, outputs will go into a subfolder of the project root folder.")
+    output_to: Path = param.ClassSelector(class_=Path, default=Path(),
+                                          doc="If provided, the run outputs will be written to the given folder. If "
+                                              "not provided, outputs will go into a subfolder of the project root "
+                                              "folder.")
     file_system_config: ExperimentFolderHandler = param.ClassSelector(default=ExperimentFolderHandler(),
                                                                       class_=ExperimentFolderHandler,
                                                                       instantiate=False,
@@ -255,6 +254,7 @@ class OutputParams(param.Parameterized):
     def model_name(self) -> str:
         """
         Gets the human readable name of the model (e.g., Liver). This is usually set from the class name.
+
         :return: A model name as a string.
         """
         return self._model_name
@@ -262,10 +262,9 @@ class OutputParams(param.Parameterized):
     def set_output_to(self, output_to: PathOrString) -> None:
         """
         Adjusts the file system settings in the present object such that all outputs are written to the given folder.
+
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
-        if isinstance(output_to, Path):
-            output_to = str(output_to)
         self.output_to = output_to
         self.create_filesystem()
 
@@ -273,13 +272,14 @@ class OutputParams(param.Parameterized):
         """
         Creates new file system settings (outputs folder, logs folder) based on the information stored in the
         present object. If any of the folders do not yet exist, they are created.
+
         :param project_root: The root folder for the codebase that triggers the training run.
         """
         self.file_system_config = ExperimentFolderHandler.create(
             project_root=project_root,
             model_name=self.model_name,
             is_offline_run=not is_running_in_azure_ml(RUN_CONTEXT),
-            output_to=self.output_to
+            output_to=str(self.output_to)
         )
 
     @property
@@ -367,15 +367,11 @@ class OptimizerParams(param.Parameterized):
 
 class TrainerParams(param.Parameterized):
     max_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
-    recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
-                                                           doc="Save epoch checkpoints when epoch number is a multiple "
-                                                               "of recovery_checkpoint_save_interval. The intended use "
-                                                               "is to allow restore training from failed runs.")
-    recovery_checkpoints_save_last_k: int = param.Integer(default=1, bounds=(-1, None),
-                                                          doc="Number of recovery checkpoints to keep. Recovery "
-                                                              "checkpoints will be stored as recovery_epoch:{"
-                                                              "epoch}.ckpt. If set to -1 keep all recovery "
-                                                              "checkpoints.")
+    autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
+                                                     doc="Save epoch checkpoints every N validation epochs. "
+                                                         "If pl_check_val_every_n_epoch > 1, this means that "
+                                                         "checkpoints are saved every N * pl_check_val_every_n_epoch "
+                                                         "training epochs.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
                                                     "training.")
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
