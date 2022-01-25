@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from io import StringIO
 from typing import Any, Dict, Union
 from ruamel import yaml
 
@@ -32,3 +33,8 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
 
 def object_to_yaml(o: Any) -> str:
     return yaml.safe_dump(object_to_dict(o), default_flow_style=False)
+
+
+def yaml_to_dict(s: str) -> Dict[str, Any]:
+    stream = StringIO(s)
+    return yaml.safe_load(stream=stream)

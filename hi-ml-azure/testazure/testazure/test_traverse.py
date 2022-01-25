@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from dataclasses import dataclass
 
-from health_azure.traverse import object_to_dict, object_to_yaml
+from health_azure.traverse import object_to_dict, object_to_yaml, yaml_to_dict
 
 
 @dataclass
@@ -41,7 +41,10 @@ def test_traverse2() -> None:
     }
 
 
-def test_to_yaml() -> None:
+def test_to_yaml_rountrip() -> None:
     config = FullConfig()
     yaml = object_to_yaml(config)
     print(yaml)
+
+    dict = yaml_to_dict(yaml)
+    assert dict == object_to_dict(config)
