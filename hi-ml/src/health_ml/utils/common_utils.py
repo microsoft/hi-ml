@@ -23,9 +23,7 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 
 ARGS_TXT = "args.txt"
 BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
-CROSSVAL_SPLIT_KEY = "cross_validation_split_index"
 CHECKPOINT_FOLDER = "checkpoints"
-DEFAULT_CROSSVAL_SPLIT_INDEX = -1
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
@@ -100,39 +98,6 @@ def standardize_log_level(log_level: Union[int, str]) -> int:
         check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
         return logging._nameToLevel[log_level]
     return log_level
-
-
-def logging_to_file(file_path: Path) -> None:
-    """
-    Instructs the Python logging libraries to start writing logs to the given file.
-    Logging will use a timestamp as the prefix, using UTC. The logging level will be the same as defined for
-    logging to stdout.
-
-    :param file_path: The path and name of the file to write to.
-    """
-    # This function can be called multiple times, and should only add a handler during the first call.
-    global logging_to_file_handler
-    if not logging_to_file_handler:
-        global logging_stdout_handler
-        log_level = logging_stdout_handler.level if logging_stdout_handler else logging.INFO
-        print(f"Setting up logging with level {log_level} to file {file_path}")
-        file_path.parent.mkdir(exist_ok=True, parents=True)
-        handler = logging.FileHandler(filename=str(file_path))
-        _add_formatter(handler)
-        handler.setLevel(log_level)
-        logging.getLogger().addHandler(handler)
-        logging_to_file_handler = handler
-
-
-def disable_logging_to_file() -> None:
-    """
-    If logging to a file has been enabled previously via logging_to_file, this call will remove that logging handler.
-    """
-    global logging_to_file_handler
-    if logging_to_file_handler:
-        logging_to_file_handler.close()
-        logging.getLogger().removeHandler(logging_to_file_handler)
-        logging_to_file_handler = None
 
 
 def _add_formatter(handler: logging.StreamHandler) -> None:
@@ -212,27 +177,10 @@ def path_to_namespace(path: Path, root: PathOrString = fixed_paths.repository_ro
     return ".".join([Path(x).stem for x in path.relative_to(root).parts])
 
 
-def remove_file_or_directory(pth: Path) -> None:
-    """
-    Remove a directory and its contents, or a file.
-
-    :param pth: the Path to the file or directory to be removed
-    """
-    if pth.is_dir():
-        for child in pth.glob('*'):
-            if child.is_file():
-                child.unlink()
-            else:
-                remove_file_or_directory(child)
-        pth.rmdir()
-    elif pth.exists():
-        pth.unlink()
-
-
 @contextmanager
 def change_working_directory(path_or_str: PathOrString) -> Generator:
     """
-    Context manager for changing the current working directory to the value provided. Outside of the context
+    Context manager for changing the current working directory to the value provided. Outside the context
     manager, the original working directory will be restored.
 
     :param path_or_str: The new directory to change to

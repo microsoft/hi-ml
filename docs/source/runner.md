@@ -12,10 +12,10 @@ This can be used by
 - Defining a special container class, that encapsulates the PyTorch Lighting model to train, and the data that should
 be used for training and testing.
 - Adding essential trainer parameters like number of epochs to that container.
-- Invoking the hi-ml runner and providing the name of the container class, like this: 
+- Invoking the hi-ml runner and providing the name of the container class, like this:
 `python health_ml/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
 
-There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/other/HelloContainer.py), that 
+There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/other/HelloContainer.py), that
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `python health_ml/runner.py --model=HelloContainer`.
 
@@ -24,7 +24,7 @@ from the command line by `python health_ml/runner.py --model=HelloContainer`.
 In order to use these capabilities, you need to implement a class deriving from
  `health_ml.lightning_container.LightningContainer`. This class encapsulates everything that is needed for training
  with PyTorch Lightning:
- 
+
  For example:
  ```python
 class MyContainer(LightningContainer):
@@ -55,11 +55,11 @@ class MyLightningModel(LightningModule):
     def configure_optimizers(self):
         ...
     def test_step(self, *args, **kwargs):
-        ... 
+        ...
 ```
 The `get_data_module` method of the container needs to return a DataModule (inheriting from a [PyTorch Lightning DataModule](
-https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html)) which contains all of the logic for 
-downloading, preparing and splitting your dataset, as well as methods for wrapping the train, val and test datasets 
+https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html)) which contains all of the logic for
+downloading, preparing and splitting your dataset, as well as methods for wrapping the train, val and test datasets
 respectively with [DataLoaders](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader). E.g:
 
 
@@ -117,7 +117,7 @@ class MyDataModule(LightningDataModule):
         # The data should be read off self.root_path
         test_dataset = ...
         return DataLoader(test_dataset, batch_size=5, num_workers=5)
-        
+
 class MyContainer(LightningContainer):
     def __init__(self):
         super().__init__()
@@ -141,8 +141,8 @@ model configuration classes reside in folder `My/Own/configs` from the repositor
 ### Outputting files during training
 
 The Lightning model returned by `get_model` needs to write its output files to the current working directory.
-When running outside of AzureML, the current working directory will be changed to a 
-newly created output folder, with a name that contains the time stamp and and the model name.
+When running inside of AzureML, the output folders will be directly under the project root. If not running inside
+AzureML, a folder with a timestamp will be created for all outputs and logs.
 
 When running in AzureML, the folder structure will be set up such that all files written
 to the current working directory are later uploaded to Azure blob storage at the end of the AzureML job. The files

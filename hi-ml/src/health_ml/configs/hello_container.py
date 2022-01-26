@@ -12,7 +12,6 @@ from torchmetrics import MeanAbsoluteError
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
-from sklearn.model_selection import KFold
 
 from health_ml.lightning_container import LightningContainer
 
@@ -33,9 +32,9 @@ class HelloDataset(Dataset):
     def __init__(self, raw_data: List[List[float]]) -> None:
         """
         Creates the 1-dim regression dataset.
-        :param raw_data: The raw data, e.g. from a cross validation split or loaded from file. This
-        must be numeric data which can be converted into a tensor. See the static method
-        from_path_and_indexes for an example call.
+
+        :param raw_data: The raw data. This must be numeric data which can be converted into a tensor.
+            See the static method  from_path_and_indexes for an example call.
         """
         super().__init__()  # type: ignore
         self.data = torch.tensor(raw_data, dtype=torch.float)
@@ -66,43 +65,14 @@ class HelloDataset(Dataset):
 class HelloDataModule(LightningDataModule):
     """
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
-    If not using cross validation a basic 50% / 20% / 30% split between train, validation, and test data
-    is made on the whole dataset.
-    For cross validation (if required) we use k-fold cross-validation. The test set remains unchanged
-    while the training and validation data cycle through the k-folds of the remaining data.
     """
     def __init__(
             self,
-            root_folder: Path,
-            number_of_cross_validation_splits: int = 0,
-            cross_validation_split_index: int = 0) -> None:
+            root_folder: Path) -> None:
         super().__init__()
-        if number_of_cross_validation_splits <= 1:
-            # For 0 or 1 splits just use the default values on the whole data-set.
-            self.train = HelloDataset.from_path_and_indexes(root_folder, start_index=0, end_index=50)
-            self.val = HelloDataset.from_path_and_indexes(root_folder, start_index=50, end_index=70)
-            self.test = HelloDataset.from_path_and_indexes(root_folder, start_index=70, end_index=100)
-        else:
-            # Raise exceptions for unreasonable values
-            if cross_validation_split_index >= number_of_cross_validation_splits:
-                raise IndexError(f"The cross_validation_split_index ({cross_validation_split_index}) is too large "
-                                 "given the number_of_cross_validation_splits ("
-                                 f"{number_of_cross_validation_splits})" "requested")
-            raw_data = np.loadtxt(str(root_folder / "hellocontainer.csv"), delimiter=",")
-            np.random.seed(42)
-            np.random.shuffle(raw_data)
-            if number_of_cross_validation_splits >= len(raw_data):
-                raise ValueError(f"Asked for {number_of_cross_validation_splits} cross validation splits from a "
-                                 f"dataset of length {len(raw_data)}")
-            # Hold out the last 30% as test data
-            self.test = HelloDataset(raw_data[70:100])
-            # Create k-folds from the remaining 70% of the data-set. Use one for the validation
-            # data and the rest for the training data
-            raw_data_remaining = raw_data[0:70]
-            k_fold = KFold(n_splits=number_of_cross_validation_splits)
-            train_indexes, val_indexes = list(k_fold.split(raw_data_remaining))[cross_validation_split_index]
-            self.train = HelloDataset(raw_data_remaining[train_indexes])
-            self.val = HelloDataset(raw_data_remaining[val_indexes])
+        self.train = HelloDataset.from_path_and_indexes(root_folder, start_index=0, end_index=50)
+        self.val = HelloDataset.from_path_and_indexes(root_folder, start_index=50, end_index=70)
+        self.test = HelloDataset.from_path_and_indexes(root_folder, start_index=70, end_index=100)
 
     def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -259,15 +229,7 @@ class HelloContainer(LightningContainer):
 
     # This method must be overridden by any subclass of LightningContainer. It returns a data module, which
     # in turn contains 3 data loaders for training, validation, and test set.
-    #
-    # If the container is used for cross validation then this method must handle the cross validation splits.
-    # Because this deals with data loaders, not loaded data, we cannot check automatically that cross validation is
-    # handled correctly within the LightningContainer base class, i.e. if you forget to do the cross validation split
-    # in your subclass nothing will fail, but each child run will be identical since they will each be given the full
-    # dataset.
     def get_data_module(self) -> LightningDataModule:
         assert self.local_dataset_dir is not None
         return HelloDataModule(
-            root_folder=self.local_dataset_dir,
-            number_of_cross_validation_splits=self.num_crossval_splits,
-            cross_validation_split_index=self.crossval_split_index)  # type: ignore
+            root_folder=self.local_dataset_dir)  # type: ignore

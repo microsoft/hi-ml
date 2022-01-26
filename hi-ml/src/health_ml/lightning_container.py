@@ -7,13 +7,12 @@ from pathlib import Path
 
 import param
 from azureml.core import ScriptRunConfig
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
+from azureml.train.hyperdrive import HyperDriveConfig
 from pytorch_lightning import LightningDataModule, LightningModule
 
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
-from health_ml.utils.common_utils import CROSSVAL_SPLIT_KEY
 
 
 class LightningContainer(WorkflowParams,
@@ -56,11 +55,6 @@ class LightningContainer(WorkflowParams,
         Gets the data that is used for the training, validation, and test steps.
         This should read datasets from the self.local_datasets folder or download from a web location.
         The format of the data is not specified any further.
-        The method must take cross validation into account, and ensure that logic to create training and validation
-        sets takes cross validation with a given number of splits is correctly taken care of.
-        Because the method deals with data loaders, not loaded data, we cannot check automatically that cross validation
-        is handled correctly within the base class, i.e. if the cross validation split is not handled in the method then
-        nothing will fail, but each child run will be identical since they will each be given the full dataset.
 
         :return: A LightningDataModule
         """
@@ -140,39 +134,14 @@ class LightningContainer(WorkflowParams,
         """
         self._model = self.create_model()
 
-    def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
-        """
-        Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
-        Because this adds a val/Loss metric it is important that when subclassing LightningContainer
-        your implementation of LightningModule logs val/Loss. There is an example of this in
-        HelloRegression's validation_step method.
-
-        :param run_config: The AzureML run configuration object that training for an individual model.
-        :return: A hyperdrive configuration object.
-        """
-        return HyperDriveConfig(
-            run_config=run_config,
-            hyperparameter_sampling=GridParameterSampling(
-                parameter_space={
-                    CROSSVAL_SPLIT_KEY: choice(list(range(self.number_of_cross_validation_splits)))
-                }),
-            primary_metric_name="val/Loss",
-            primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=self.number_of_cross_validation_splits
-        )
-
     def get_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
-        Returns the HyperDrive config for either parameter search or cross validation
-        (if number_of_cross_validation_splits > 1).
+        Returns the HyperDrive config for either parameter search
 
         :param run_config: AzureML estimator
         :return: HyperDriveConfigs
         """
-        if self.perform_cross_validation:
-            return self.get_cross_validation_hyperdrive_config(run_config)
-        else:
-            return self.get_parameter_search_hyperdrive_config(run_config)
+        return self.get_parameter_search_hyperdrive_config(run_config)
 
     def load_model_checkpoint(self, checkpoint_path: Path) -> None:
         """

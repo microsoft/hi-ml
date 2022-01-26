@@ -858,10 +858,10 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def _retrieve_unique_pip_deps(dependencies: List[Union[str, Dict[str, Any]]], keep_method: str = "first") -> List[str]:
+def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -> List[str]:
     """
-    Given a list of conda dependencies, including pip requirements which may possibly contain duplicate versions
-     of the same package name with the same or different versions, extracts the pip dependencies and returns a
+    Given a list of conda dependencies, i which may contain duplicate versions
+    of the same package name with the same or different versions returns a
     list of them where each package name occurs only once. If a
     package name appears more than once, only the first value will be retained.
 
@@ -869,39 +869,35 @@ def _retrieve_unique_pip_deps(dependencies: List[Union[str, Dict[str, Any]]], ke
     :param keep_method: The strategy for choosing which package version to keep
     :return: a list in which each package name occurs only once
     """
-    # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
-    # duplicated, the first value encountered will be retained.
-    pip_deps_entries = [d for d in dependencies if isinstance(d, dict) and "pip" in d]  # type: ignore
-    if len(pip_deps_entries) == 0:
-        raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
-    pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
-    pip_deps = pip_deps_entry["pip"]
-    # temporarily remove pip dependencies from deps to be added back after deduplicaton
-    dependencies.remove(pip_deps_entry)
+    unique_deps: Dict[str, Tuple[str, str]] = {}
+    for dep in dependencies:
+        dep_parts: List[str] = re.split("(=<|==|=|>=|<|>)", dep)
+        len_parts = len(dep_parts)
+        dep_name = dep_parts[0]
+        if len_parts > 1:
+            dep_join = ''.join(dep_parts[1:-1])
+            dep_version = dep_parts[-1]
+        else:
+            dep_join = ''
+            dep_version = ''
 
-    unique_pip_deps: Dict[str, Tuple[str, str]] = {}
-
-    for pip_dep in pip_deps:
-        pip_dep_parts: List[str] = re.split("(=<|==|>=|<|>)", pip_dep)
-        pip_dep_name = pip_dep_parts[0]
-        pip_dep_join = ''.join(pip_dep_parts[1:-1])
-        pip_dep_version = pip_dep_parts[-1]
-        if pip_dep_name in unique_pip_deps:
+        if dep_name in unique_deps:
             if keep_method == "first":
-                keep_version, _ = unique_pip_deps[pip_dep_name]
-                logging.warning(f"Found duplicate pip requirements: {pip_dep}. Keeping the {keep_method} "
-                                f"version: {keep_version}")
+                keep_version, _ = unique_deps[dep_name]
+            elif keep_method == "last":
+                keep_version = dep_version
+                unique_deps[dep_name] = (keep_version, dep_join)
             else:
                 raise ValueError(f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
                                  f" include: ['first']")
-            # unique_pip_deps.append(pip_dep)
-            # unique_pip_deps_set.update({pip_dep_name})
+            logging.warning(f"Found duplicate requirements: {dep}. Keeping the {keep_method} "
+                            f"version: {keep_version}")
 
         else:
-            unique_pip_deps[pip_dep_name] = (pip_dep_version, pip_dep_join)
+            unique_deps[dep_name] = (dep_version, dep_join)
 
-    unique_pip_deps_list = [f"{pkg}{joiner}{vrsn}" for pkg, (vrsn, joiner) in unique_pip_deps.items()]
-    return unique_pip_deps_list
+    unique_deps_list = [f"{pkg}{joiner}{vrsn}" for pkg, (vrsn, joiner) in unique_deps.items()]
+    return unique_deps_list
 
 
 def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: List[Path] = None,
@@ -946,16 +942,29 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
             deps_to_merge.extend([[{"pip": extra_pip_deps}]])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
-        unique_pip_deps = _retrieve_unique_pip_deps(deps, keep_method=pip_clash_keep_method)
+        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
+        # duplicated, the first value encountered will be retained.
+        pip_deps_entries = [d for d in deps if isinstance(d, dict) and "pip" in d]  # type: ignore
+        if len(pip_deps_entries) == 0:
+            raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
+        pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
+        pip_deps = pip_deps_entry["pip"]
+        # temporarily remove pip dependencies from deps to be added back after deduplicaton
+        deps.remove(pip_deps_entry)
+
+        # remove all non-pip duplicates from the list of dependencies
+        unique_deps = _retrieve_unique_deps(deps, keep_method=pip_clash_keep_method)
+
+        unique_pip_deps = _retrieve_unique_deps(pip_deps, keep_method=pip_clash_keep_method)
 
         # finally add back the deduplicated list of dependencies
-        deps.append({"pip": unique_pip_deps})
+        unique_deps.append({"pip": unique_pip_deps})
 
     except conda_merge.MergeError:
         logging.error("Failed to merge dependencies.")
         raise
-    if deps:
-        unified_definition[DEPENDENCIES] = deps
+    if unique_deps:
+        unified_definition[DEPENDENCIES] = unique_deps
     else:
         raise ValueError("No dependencies found in any of the conda files.")
 

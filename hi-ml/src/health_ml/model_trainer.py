@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, TypeVar
+from typing import Any, Tuple, TypeVar
 
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor
@@ -39,35 +39,36 @@ def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
 
 
 def create_lightning_trainer(container: LightningContainer,
-                             resume_from_checkpoint: Optional[Path] = None,
-                             num_nodes: int = 1,
-                             **kwargs: Dict[str, Any]) -> \
-        Tuple[Trainer, StoringLogger]:
+                             num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
     return value.
 
     :param container: The container with model and data.
-    :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
-    logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
-    # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
-    if effective_num_gpus > 1:
-        accelerator: Optional[str] = "ddp"
-        # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin prints out
-        # lengthy warnings about the performance impact of find_unused_parameters.
-        plugins = [DDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
-                             find_unused_parameters=container.pl_find_unused_parameters)]
+    strategy = None
+    if effective_num_gpus == 0:
+        accelerator = "cpu"
+        devices = 1
+        message = "CPU"
     else:
-        accelerator = None
-        plugins = []
-    logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
+        accelerator = "gpu"
+        devices = num_gpus
+        message = f"{devices} GPU"
+        if effective_num_gpus > 1:
+            # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of
+            # GPU memory).
+            # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
+            # prints out lengthy warnings about the performance impact of find_unused_parameters.
+            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            message += "s per node with DDP"
+    logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger(False)]
     storing_logger = StoringLogger()
@@ -76,8 +77,7 @@ def create_lightning_trainer(container: LightningContainer,
     precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
     # https://pytorch.org/docs/stable/notes/randomness.html
-    # For the classification models, we observed only a small performance deterioration (increase in 10sec on total
-    # training time of 22min) when switching to deterministic.
+    # Note that switching to deterministic models can have large performance downside.
     if container.pl_deterministic:
         deterministic = True
         benchmark = False
@@ -91,30 +91,35 @@ def create_lightning_trainer(container: LightningContainer,
         callbacks.append(BatchTimeCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
-        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))  # type: ignore
+        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
-    if "callbacks" in kwargs:
-        more_callbacks = kwargs.pop("callbacks")
+    additional_args = container.get_trainer_arguments()
+    # Callbacks can be specified via the "callbacks" argument (the legacy behaviour) or the new get_callbacks method
+    if "callbacks" in additional_args:
+        more_callbacks = additional_args.pop("callbacks")
         if isinstance(more_callbacks, list):
             callbacks.extend(more_callbacks)  # type: ignore
         else:
             callbacks.append(more_callbacks)  # type: ignore
+    # callbacks.extend(container.get_callbacks())
 
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
+    if progress_bar_refresh_rate is None:
+        progress_bar_refresh_rate = 50
+        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     if is_azureml_run:
-        if progress_bar_refresh_rate is None:
-            progress_bar_refresh_rate = 50
-            logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                         f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
-        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,  # type: ignore
+        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
+    # Read out additional model-specific args here.
+    # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
-                      plugins=plugins,
+                      strategy=strategy,
                       max_epochs=container.max_epochs,
                       # Both these arguments can be integers or floats. If integers, it is the number of batches.
                       # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
@@ -123,19 +128,18 @@ def create_lightning_trainer(container: LightningContainer,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
-                      progress_bar_refresh_rate=progress_bar_refresh_rate,
                       num_nodes=num_nodes,
-                      gpus=num_gpus,
+                      devices=devices,
                       precision=precision,
                       sync_batchnorm=True,
-                      terminate_on_nan=container.detect_anomaly,
+                      detect_anomaly=container.detect_anomaly,
                       profiler=container.pl_profiler,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      **kwargs)
+                      **additional_args)
     return trainer, storing_logger
 
 
-def model_train(container: LightningContainer) -> Tuple[Trainer, StoringLogger]:
+def model_train(container: LightningContainer
+                ) -> Tuple[Trainer, StoringLogger]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
@@ -169,8 +173,7 @@ def model_train(container: LightningContainer) -> Tuple[Trainer, StoringLogger]:
     # Set random seeds just before training
     seed_everything(container.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(container,
-                                                       num_nodes=container.num_nodes,
-                                                       **container.get_trainer_arguments())
+                                                       num_nodes=container.num_nodes)
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
@@ -188,7 +191,7 @@ def model_train(container: LightningContainer) -> Tuple[Trainer, StoringLogger]:
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
-    logging.info("Choosing the best checkpoint and removing redundant files.")
+    logging.info("Removing redundant checkpoint files.")
     # get_best_checkpoint_path(container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.

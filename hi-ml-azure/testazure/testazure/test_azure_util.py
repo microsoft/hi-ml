@@ -253,18 +253,14 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
-def test_retrieve_unique_pip_deps() -> None:
-    pip_deps_with_duplicates = ["conda=1.0", {"pip": ["package==1.0", "package==1.1"]}]
+def test_retrieve_unique_deps() -> None:
+    deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
 
-    expected_pip_deps = ["package==1.0"]
+    dedup_deps = util._retrieve_unique_deps(deps_with_duplicates)  # type: ignore
+    assert dedup_deps == ["package==1.0", "git+https:www.github.com/something.git"]
 
-    dedup_deps = util._retrieve_unique_pip_deps(pip_deps_with_duplicates) # type: ignore
-    assert dedup_deps == expected_pip_deps
-
-    # If no dictionary with key 'pip' is present, expect a ValueError
-    with pytest.raises(ValueError) as e:
-        util._retrieve_unique_pip_deps(["conda=1.0"])
-        assert "Didn't find a dictionary with the key 'pip'" in str(e)
+    dedup_deps_keep_last = util._retrieve_unique_deps(deps_with_duplicates, keep_method="last")
+    assert dedup_deps_keep_last == ["package==1.1", "git+https:www.github.com/something.git"]
 
 
 def test_merge_conda(

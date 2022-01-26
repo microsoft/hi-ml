@@ -57,7 +57,7 @@ class MyCallback(Callback):
         print("Starting to init trainer")
 
 
-def test_create_lightning_trainer_with_callbacks(tmp_path: Path) -> None:
+def test_create_lightning_trainer_with_callbacks() -> None:
     """
     Test that create_lightning_trainer picks up on additional Container callbacks
     """

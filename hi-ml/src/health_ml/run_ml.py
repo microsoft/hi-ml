@@ -5,11 +5,10 @@
 import logging
 import os
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import torch.multiprocessing
 from pytorch_lightning import seed_everything
-from pytorch_lightning.core.datamodule import LightningDataModule
 
 from health_azure import AzureRunInfo
 from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
@@ -21,16 +20,16 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (
-    CROSSVAL_SPLIT_KEY, ModelExecutionMode, change_working_directory,
-    logging_section, RUN_RECOVERY_ID_KEY, EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME, is_windows)
+    change_working_directory, logging_section, RUN_RECOVERY_ID_KEY,
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME, is_windows)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
 
 
 def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     """
-    Checks if a folder with a local dataset exists. If it does exist, return the argument converted to a Path instance.
-    If it does not exist, raise a FileNotFoundError.
+    Checks if a folder with a local dataset exists. If it does exist, return the argument converted
+    to a Path instance. If it does not exist, raise a FileNotFoundError.
 
     :param local_dataset: The dataset folder to check.
     :return: The local_dataset argument, converted to a Path.
@@ -65,8 +64,8 @@ class MLRunner:
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
-        If the present object is using one of the built-in models, create a (fake) container for it
-        and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.
+        Sets the random seeds, calls the setup method on the LightningContainer and then creates the actual
+        Lightning modules.
 
         :param azure_run_info: When running in AzureML or on a local VM, this contains the paths to the datasets.
         This can be missing when running in unit tests, where the local dataset paths are already populated.
@@ -95,26 +94,6 @@ class MLRunner:
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
 
-    @property
-    def is_offline_run(self) -> bool:
-        """
-        Returns True if the present run is outside of AzureML, and False if it is inside of AzureML.
-
-        :return:
-        """
-        return not is_running_in_azure_ml(RUN_CONTEXT)
-
-    @property
-    def config_namespace(self) -> str:
-        """
-        Returns the namespace of the model configuration object, i.e. return the name of the module in which the
-        model configuration object or the lightning container object is defined.
-        For models defined as lightning containers, this is the namespace of the container class defining the model.
-
-        :return: the namespace of the model configuraton object
-        """
-        return self.container.__class__.__module__
-
     def set_run_tags_from_parent(self) -> None:
         """
         Set metadata for the run
@@ -133,7 +112,6 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[CROSSVAL_SPLIT_KEY] = str(self.container.crossval_split_index)
         new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
@@ -155,47 +133,22 @@ class MLRunner:
 
     def run(self) -> None:
         """
-        Driver function to run a ML experiment. If an offline cross validation run is requested, then
-        this function is recursively called for each cross validation split.
+        Driver function to run a ML experiment
         """
         self.setup()
+        is_offline_run = not is_running_in_azure_ml(RUN_CONTEXT)
         # Get the AzureML context in which the script is running
-        if not self.is_offline_run and PARENT_RUN_CONTEXT is not None:
+        if not is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
 
         # Set data loader start method
-        self.set_multiprocessing_start_method()
+        # self.set_multiprocessing_start_method()
 
         # do training
         with logging_section("Model training"):
-            _, storing_logger = model_train(container=self.container,
-                                            num_nodes=self.experiment_config.num_nodes)
+            _, storing_logger = model_train(container=self.container)
             self.storing_logger = storing_logger
-
-        RUN_CONTEXT.log(name="Train epochs", value=self.container.max_epochs)
-
-    def is_normal_run_or_crossval_child_0(self) -> bool:
-        """
-        Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
-        """
-        if self.container.perform_cross_validation:
-            return self.container.crossval_split_index == 0
-        return True
-
-    @staticmethod
-    def lightning_data_module_dataloaders(data: LightningDataModule) -> Dict[ModelExecutionMode, Callable]:
-        """
-        Given a lightning data module, return a dictionary of dataloader for each model execution mode.
-
-        :param data: Lightning data module.
-        :return: Dictionary of model execution mode to its respective Data loader
-        """
-        return {
-            ModelExecutionMode.TEST: data.test_dataloader,
-            ModelExecutionMode.VAL: data.val_dataloader,
-            ModelExecutionMode.TRAIN: data.train_dataloader
-        }
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> List[Dict[str, float]]:
         """
@@ -221,8 +174,7 @@ class MLRunner:
         if torch.distributed.is_initialized():  # type: ignore
             torch.distributed.destroy_process_group()  # type: ignore
 
-        container_kwargs = self.container.get_trainer_arguments()
-        trainer, _ = create_lightning_trainer(self.container, num_nodes=1, **container_kwargs)
+        trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
         self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
         # When training models that are not built-in models, we have no guarantee that they write

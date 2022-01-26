@@ -34,8 +34,8 @@ from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_f
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
-from health_ml.utils.common_utils import (CROSSVAL_SPLIT_KEY,  # noqa: E402
-                                          get_all_environment_files, get_all_pip_requirements_files,
+from health_ml.utils.common_utils import (get_all_environment_files,  # noqa: E402
+                                          get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
@@ -43,9 +43,9 @@ from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
 # path.
-runner_path = Path(sys.argv[0])
-if not runner_path.is_absolute():
-    sys.argv[0] = str(runner_path.absolute())
+# runner_path = Path(sys.argv[0])
+# if not runner_path.is_absolute():
+#     sys.argv[0] = str(runner_path.absolute())
 
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
@@ -112,7 +112,6 @@ def additional_run_tags(commandline_args: str) -> Dict[str, str]:
     """
     return {
         "commandline_args": commandline_args,
-        CROSSVAL_SPLIT_KEY: "-1",
     }
 
 
@@ -151,26 +150,19 @@ class Runner:
         # Create the model as per the "model" commandline option. This is a LightningContainer.
         container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
 
-        def parse_overrides_and_apply(c: Any, previous_parser_result: ParserResult) -> ParserResult:
-            assert isinstance(c, param.Parameterized)
-            parser_ = create_argparser(c)
-            # For each parser, feed in the unknown settings from the previous parser. All commandline args should
-            # be consumed by name, hence fail if there is something that is still unknown.
-            parser_result_ = parse_arguments(parser_, args=previous_parser_result.unknown)
-            # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            _ = apply_overrides(c, parser_result_.overrides)  # type: ignore
-            c.validate()
-            return parser_result_
+        # parse overrides and apply
+        assert isinstance(container, param.Parameterized)
+        parser_ = create_argparser(container)
+        # For each parser, feed in the unknown settings from the previous parser. All commandline args should
+        # be consumed by name, hence fail if there is something that is still unknown.
+        parser_result_ = parse_arguments(parser_, args=parser_result.unknown)
+        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+        _ = apply_overrides(container, parser_result_.overrides)  # type: ignore
+        container.validate()
 
-        # Now create a parser that understands overrides at model/container level.
-        parser_result = parse_overrides_and_apply(container, parser_result)
+        self.lightning_container = container
 
-        if isinstance(container, LightningContainer):
-            self.lightning_container = container
-        else:
-            raise ValueError(f"Don't know how to handle a loaded configuration of type {type(container)}")
-
-        return parser_result
+        return parser_result_
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
@@ -278,7 +270,7 @@ class Runner:
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
-        # logging_to_stdout(self.azure_config.log_level if is_local_rank_zero() else "ERROR")
+        logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         package_setup_and_hacks()
 
         # Set environment variables for multi-node training if needed. This function will terminate early

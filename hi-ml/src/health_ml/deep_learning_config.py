@@ -17,7 +17,6 @@ from health_azure.utils import RUN_CONTEXT, PathOrString, is_running_in_azure_ml
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
-                                          DEFAULT_CROSSVAL_SPLIT_INDEX,
                                           DEFAULT_AML_UPLOAD_DIR,
                                           DEFAULT_LOGS_DIR_NAME, is_windows, parse_model_id_and_version)
 from health_ml.utils.type_annotations import TupleFloat2
@@ -130,12 +129,6 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    num_crossval_splits: int = param.Integer(0, bounds=(0, None),
-                                             doc="Number of cross validation splits for k-fold cross "
-                                                 "validation")
-    crossval_split_index: int = param.Integer(DEFAULT_CROSSVAL_SPLIT_INDEX, bounds=(-1, None),
-                                              doc="The index of the cross validation fold this model is "
-                                                  "associated with when performing k-fold cross validation")
     weights_url: List[str] = param.List(default=[], class_=str,
                                         doc="If provided, a set of urls from which checkpoints will be downloaded"
                                             "and used for inference.")
@@ -167,18 +160,6 @@ class WorkflowParams(param.Parameterized):
         if self.model_id:
             parse_model_id_and_version(self.model_id)
 
-        if self.num_crossval_splits == 1:
-            raise ValueError("At least two splits required to perform cross validation, but got "
-                             f"{self.num_crossval_splits}. To train without cross validation, set "
-                             "num_crossval_splits=0.")
-        if 0 < self.num_crossval_splits <= self.crossval_split_index:
-            raise ValueError(f"Cross validation split index is out of bounds: {self.crossval_split_index}, "
-                             f"which is invalid for CV with {self.num_crossval_splits} splits.")
-        elif self.num_crossval_splits == 0 and self.crossval_split_index != -1:
-            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
-                             f"found num_crossval_splits = {self.num_crossval_splits} "
-                             f"and crossval_split_index={self.crossval_split_index}")
-
     @property
     def is_running_in_aml(self) -> bool:
         """
@@ -188,28 +169,13 @@ class WorkflowParams(param.Parameterized):
         """
         return is_running_in_azure_ml(RUN_CONTEXT)
 
-    @property
-    def perform_cross_validation(self) -> bool:
-        """
-        True if cross validation will be be performed as part of the training procedure.
-
-        :return:
-        """
-        return self.num_crossval_splits > 1
-
     def get_effective_random_seed(self) -> int:
         """
-        Returns the random seed set as part of this configuration. If the configuration corresponds
-        to a cross validation split, then the cross validation fold index will be added to the
-        set random seed in order to return the effective random seed.
+        Returns the random seed set as part of this configuration.
 
         :return:
         """
         seed = self.random_seed
-        if self.perform_cross_validation:
-            # offset the random seed based on the cross validation split index so each
-            # fold has a different initial random state.
-            seed += self.crossval_split_index
         return seed
 
 
