@@ -48,7 +48,7 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
 
 def test_run(ml_runner: MLRunner) -> None:
 
-    def _mock_model_train(container: LightningContainer, num_nodes: int) -> Tuple[str, str]:
+    def _mock_model_train(container: LightningContainer) -> Tuple[str, str]:
         return "trainer", dummy_storing_logger
 
     dummy_storing_logger = "storing_logger"
@@ -88,7 +88,6 @@ def test_run_inference_for_lightning_models(mock_create_trainer: MagicMock, ml_r
         result = ml_runner.run_inference_for_lightning_models(checkpoint_paths)
         assert result == mock_test_result
 
-        mock_container.get_trainer_arguments.assert_called_once()
         mock_create_trainer.assert_called_once()
         mock_container.load_model_checkpoint.assert_called_once()
         mock_container.get_data_module.assert_called_once()

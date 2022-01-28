@@ -75,14 +75,14 @@ def test_validate_dataset_params() -> None:
         DatasetParams(local_datasets=[], azure_datasets=None).validate()
     assert "must be a list" in str(e)
 
-    # local datasets and dataset_mount_points must be Paths
+    # local datasets and dataset_mountpoints must be Paths
     with pytest.raises(Exception) as e:
         DatasetParams(local_datasets=["foo"])
-    assert f"is not an instance of {type(Path())}" in str(e)
+    assert "is not an instance of" in str(e)
 
     with pytest.raises(Exception) as e:
-        DatasetParams(dataset_mount_points=["foo"])
-    assert f"is not an instance of {type(Path())}" in str(e)
+        DatasetParams(dataset_mountpoints=["foo"])
+    assert "is not an instance of" in str(e)
 
     # The following should be okay
     DatasetParams(local_datasets=[Path("foo")]).validate()

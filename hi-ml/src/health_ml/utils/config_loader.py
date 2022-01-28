@@ -127,9 +127,11 @@ class ModelConfigLoader(param.Parameterized):
                               f"match namespace {module_search_spec.name}: "
                               f"{module_search_spec.submodule_search_locations}")
                 for root in module_search_spec.submodule_search_locations:
-                    for n in Path(root).rglob("*"):
-                        if n.is_file() and "__pycache__" not in str(n):
-                            sub_namespace = path_to_namespace(n, root=root)
+                    # List all python files in all the dirs under root, except for private dirs (prefixed with .)
+                    all_py_files = [x for x in Path(root).rglob("*.py") if ".." not in str(x)]
+                    for f in all_py_files:
+                        if f.is_file() and "__pycache__" not in str(f) and f.name != "setup.py":
+                            sub_namespace = path_to_namespace(f, root=root)
                             namespaces_to_search.append(root_namespace + "." + sub_namespace)
             elif module_search_spec.origin:
                 # The module search spec already points to a python file: Search only that.

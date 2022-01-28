@@ -3,12 +3,11 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, patch, Mock
 
 from pytorch_lightning import Callback, Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, ProgressBar
+from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
 
-from health_ml.configs.hello_container import HelloContainer
+from health_ml.configs.hello_container import HelloContainer  # type: ignore
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
-from health_ml.utils import BatchTimeCallback
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
@@ -33,16 +32,17 @@ def test_create_lightning_trainer() -> None:
     container = LightningContainer()
     trainer, storing_logger = create_lightning_trainer(container)
 
-    assert trainer.gpus == container.num_gpus_per_node()
+    assert trainer.num_gpus == container.num_gpus_per_node()
     # by default, trainer's num_nodes is 1
     assert trainer.num_nodes == 1
     assert trainer.default_root_dir == str(container.outputs_folder)
     assert trainer.limit_train_batches == 1.0
-    assert trainer.terminate_on_nan == container.detect_anomaly
+    assert trainer._detect_anomaly == container.detect_anomaly
 
-    assert isinstance(trainer.callbacks[0], BatchTimeCallback)
-    assert isinstance(trainer.callbacks[1], ProgressBar)
-    assert isinstance(trainer.callbacks[2], ModelCheckpoint)
+    assert isinstance(trainer.callbacks[0], TQDMProgressBar)
+    assert isinstance(trainer.callbacks[1], ModelSummary)
+    assert isinstance(trainer.callbacks[2], GradientAccumulationScheduler)
+    assert isinstance(trainer.callbacks[3], ModelCheckpoint)
 
     assert isinstance(storing_logger, StoringLogger)
     assert storing_logger.hyperparams is None
@@ -65,29 +65,26 @@ def test_create_lightning_trainer_with_callbacks() -> None:
         callbacks = [MyCallback()]
         return {"callbacks": callbacks}
 
-    model_config_loader = ModelConfigLoader()
-    container = model_config_loader.create_model_config_from_name("HelloContainer")
+    model_name = "HelloContainer"
+    model_config_loader = ModelConfigLoader(model=model_name)
+    container = model_config_loader.create_model_config_from_name(model_name)
+    container.monitor_gpu = False
+    container.monitor_loading = False
     # mock get_trainer_arguments method, since default HelloContainer class doesn't specify any additional callbacks
     container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
 
     kwargs = container.get_trainer_arguments()
     assert "callbacks" in kwargs
     # create_lightning_trainer(container, )
-    trainer, storing_logger = create_lightning_trainer(container, **kwargs)
-    # expect trainer to have 3 default callbacks: BatchTimeCallback, ProgressBar and ModelCheckpoint, plus
-    # any additional callbacks specified in get_trainer_arguments method
+    trainer, storing_logger = create_lightning_trainer(container)
+    # expect trainer to have 3 default callbacks: TQProgressBar, ModelSummary, GradintAccumlationScheduler
+    # and ModelCheckpoint, plus any additional callbacks specified in get_trainer_arguments method
     kwarg_callbacks = kwargs.get("callbacks") or []
-    expected_num_callbacks = len(kwarg_callbacks) + 3
+    expected_num_callbacks = len(kwarg_callbacks) + 4
     assert len(trainer.callbacks) == expected_num_callbacks, f"Found callbacks: {trainer.callbacks}"
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
-    assert isinstance(StoringLogger, StoringLogger)
-
-
-def test_create_lightning_trainer_additional_callbacks() -> None:
-    container = LightningContainer()
-    kwargs = container.get_trainer_arguments()
-    trainer, storing_logger = create_lightning_trainer(container, **kwargs)
+    assert isinstance(storing_logger, StoringLogger)
 
 
 def test_model_train() -> None:

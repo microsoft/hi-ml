@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Tuple, TypeVar
 
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import GPUStatsMonitor
+from pytorch_lightning.callbacks import GPUStatsMonitor, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -18,7 +18,7 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
                                 is_local_rank_zero, is_running_in_azure_ml)
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.lightning_loggers import StoringLogger
 
@@ -88,7 +88,9 @@ def create_lightning_trainer(container: LightningContainer,
     # Get more callbacks
     callbacks = []
     if container.monitor_loading:
-        callbacks.append(BatchTimeCallback())
+        # TODO antonsc: Remove after fixing the callback.
+        raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
+        # callbacks.append(BatchTimeCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))  # type: ignore
@@ -101,7 +103,6 @@ def create_lightning_trainer(container: LightningContainer,
             callbacks.extend(more_callbacks)  # type: ignore
         else:
             callbacks.append(more_callbacks)  # type: ignore
-    # callbacks.extend(container.get_callbacks())
 
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
@@ -110,9 +111,11 @@ def create_lightning_trainer(container: LightningContainer,
         logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
                      f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     if is_azureml_run:
-        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,  # type: ignore
+        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
+    else:
+        callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),

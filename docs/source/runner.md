@@ -13,11 +13,11 @@ This can be used by
 be used for training and testing.
 - Adding essential trainer parameters like number of epochs to that container.
 - Invoking the hi-ml runner and providing the name of the container class, like this:
-`python health_ml/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
+`himl-runner --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
 
 There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/other/HelloContainer.py), that
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
-from the command line by `python health_ml/runner.py --model=HelloContainer`.
+from the command line by `himl-runner --model=HelloContainer`.
 
 ## Setup - creating your model config file
 
@@ -132,10 +132,7 @@ class MyContainer(LightningContainer):
         return MyDataModule(root_path=self.local_dataset)
 ```
 
-Your classes needs to be defined in a Python file in the `health_ml/configs` folder, otherwise it won't be picked up
-correctly. If you'd like to have your model defined in a different folder, please specify the Python namespace via
-the `--model_configs_namespace` argument. For example, use `--model_configs_namespace=My.Own.configs` if your
-model configuration classes reside in folder `My/Own/configs` from the repository root.
+By default, config files will be looked for in the folder "health_ml.configs". To specify config files that live elsewhere, use a fully qualified name for the parameter `--model` - e.g. "MyModule.Configs.my_config.py"
 
 
 ### Outputting files during training

@@ -16,7 +16,7 @@ def config_loader() -> ModelConfigLoader:
 
 @pytest.fixture(scope="module")
 def hello_config() -> Any:
-    from health_ml.configs import hello_container
+    from health_ml.configs import hello_container  # type: ignore
     assert Path(hello_container.__file__).exists(), "Can't find hello_container config"
     return hello_container
 
@@ -30,7 +30,9 @@ def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
     assert len(config_loader.module_search_specs) == len_search_specs_before
 
     # create a model config with a different model
-    dummy_config_path = Path("outputs") / "new_config.py"
+    dummy_config_dir = Path("outputs")
+    dummy_config_dir.mkdir(exist_ok=True)
+    dummy_config_path = dummy_config_dir / "new_config.py"
     dummy_config_path.touch()
     dummy_config = """class NewConfig:
 def __init__(self):
@@ -45,7 +47,7 @@ def __init__(self):
     assert any([m.name == "outputs" for m in config_loader2.module_search_specs])
     assert any([m.name == "health_ml.configs" for m in config_loader2.module_search_specs])
     assert not any([m.name == "outputs" for m in config_loader.module_search_specs])
-    dummy_config_path.unlink()
+    shutil.rmtree(dummy_config_dir)
 
     # If the file doesnt exist but the parent module does, the module will still be appended to module_search_specs
     # at this stage
@@ -90,15 +92,6 @@ def test_create_model_config_from_name(config_loader: ModelConfigLoader, hello_c
     container = config_loader.create_model_config_from_name(config_name)
     assert isinstance(container, LightningContainer)
     assert container.model_name == config_name
-
-    # now create a model config outside of the default namespace (health_ml.configs) and check that the
-    # necessary steps are performed to locate this config
-    test_folder = Path.cwd() / "outputs"
-    test_folder.mkdir(exist_ok=True)
-
-    print(f"test folder: {test_folder}")
-
-    test_folder.unlink()
 
 
 def test_config_in_dif_location(tmp_path: Path, hello_config: Any) -> None:

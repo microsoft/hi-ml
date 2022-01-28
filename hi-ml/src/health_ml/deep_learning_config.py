@@ -231,7 +231,7 @@ class OutputParams(param.Parameterized):
 
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
-        self.output_to = output_to
+        self.output_to = Path(output_to)
         self.create_filesystem()
 
     def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
@@ -377,7 +377,7 @@ class TrainerParams(param.Parameterized):
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")
-    monitor_loading: bool = param.Boolean(default=True,
+    monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
     additional_env_files: List[str] = param.List(class_=Path, default=[],

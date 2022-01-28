@@ -17,13 +17,13 @@ def tests_root_directory(path: Optional[PathOrString] = None) -> Path:
 
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    root = Path(os.path.realpath(__file__)).parent.parent.parent / "Tests"
+    root = Path(os.path.realpath(__file__)).parent.parent.parent
     return root / path if path else root
 
 
 def full_ml_test_data_path(path: str = "") -> Path:
     """
-    Takes a relative path inside of the Tests/ML/test_data folder, and returns its
+    Takes a relative path inside of the testhiml/ML/test_data folder, and returns its
     full absolute path.
 
     :param path: A path relative to the ML/tests/test_data
