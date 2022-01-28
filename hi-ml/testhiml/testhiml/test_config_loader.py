@@ -38,9 +38,10 @@ def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
 def __init__(self):
     pass
 """
+    dummy_config_namespace = "testhiml.outputs"
     with open(dummy_config_path, "w") as f_path:
         f_path.write(dummy_config)
-    config_loader2 = ModelConfigLoader(**{"model": "testhiml.outputs.NewConfig"})
+    config_loader2 = ModelConfigLoader(**{"model": f"{dummy_config_namespace}.NewConfig"})
     # The root "testhiml" should now be in the system path and the module "outputs" should be in module_search_specs
     # this wont be in the previous results, since the default path was used. The default search_spec (health_ml.configs)
     # should also be in the results for hte new
@@ -51,7 +52,7 @@ def __init__(self):
 
     # If the file doesnt exist but the parent module does, the module will still be appended to module_search_specs
     # at this stage
-    config_loader3 = ModelConfigLoader(**{"model": "testhiml.outputs.idontexist"})
+    config_loader3 = ModelConfigLoader(**{"model": f"{dummy_config_namespace}.idontexist"})
     assert any([m.name == "outputs" for m in config_loader3.module_search_specs])
 
     # If the parent module doesn't exist, an Exception should be raised
