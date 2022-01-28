@@ -958,7 +958,7 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
         unique_pip_deps = _retrieve_unique_deps(pip_deps, keep_method=pip_clash_keep_method)
 
         # finally add back the deduplicated list of dependencies
-        unique_deps.append({"pip": unique_pip_deps})
+        unique_deps.append({"pip": unique_pip_deps})  # type: ignore
 
     except conda_merge.MergeError:
         logging.error("Failed to merge dependencies.")

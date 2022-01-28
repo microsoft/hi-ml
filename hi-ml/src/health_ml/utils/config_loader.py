@@ -15,8 +15,9 @@ from typing import Any, Dict, List, Optional
 import param
 from importlib._bootstrap import ModuleSpec
 
+from health_azure.utils import PathOrString
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.common_utils import path_to_namespace
+from health_ml.utils import fixed_paths
 
 
 class ModelConfigLoader(param.Parameterized):
@@ -161,3 +162,15 @@ class ModelConfigLoader(param.Parameterized):
                 f"Multiple instances of model name {model_name} were found in namespaces: {configs.keys()}.")
         else:
             return list(configs.values())[0]
+
+
+def path_to_namespace(path: Path, root: PathOrString = fixed_paths.repository_root_directory()) -> str:
+    """
+    Given a path (in form R/A/B/C) and an optional root directory R, create a namespace A.B.C.
+    If root is provided, then path must be a relative child to it.
+
+    :param path: Path to convert to namespace
+    :param root: Path prefix to remove from namespace (default is project root)
+    :return:
+    """
+    return ".".join([Path(x).stem for x in path.relative_to(root).parts])

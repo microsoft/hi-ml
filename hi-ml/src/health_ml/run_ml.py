@@ -13,7 +13,6 @@ from pytorch_lightning import seed_everything
 from health_azure import AzureRunInfo
 from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
                                 PARENT_RUN_CONTEXT, is_running_in_azure_ml)
-from health_ml.deep_learning_config import MultiprocessingStartMethod
 
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -21,7 +20,7 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (
     change_working_directory, logging_section, RUN_RECOVERY_ID_KEY,
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME, is_windows)
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
 
@@ -115,22 +114,6 @@ class MLRunner:
         new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
-    def set_multiprocessing_start_method(self) -> None:
-        """
-        Set the (PyTorch) multiprocessing start method.
-        """
-        if hasattr(self.container, "multiprocessing_start_method"):
-            method = self.container.multiprocessing_start_method
-        else:
-            method = MultiprocessingStartMethod.spawn
-        if is_windows():
-            if method != MultiprocessingStartMethod.spawn:
-                logging.warning(f"Cannot set multiprocessing start method to '{method.name}' "
-                                "because only 'spawn' is available in Windows")
-        else:
-            logging.info(f"Setting multiprocessing start method to '{method.name}'")
-            torch.multiprocessing.set_start_method(method.name, force=True)
-
     def run(self) -> None:
         """
         Driver function to run a ML experiment
@@ -141,9 +124,6 @@ class MLRunner:
         if not is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
-
-        # Set data loader start method
-        # self.set_multiprocessing_start_method()
 
         # do training
         with logging_section("Model training"):

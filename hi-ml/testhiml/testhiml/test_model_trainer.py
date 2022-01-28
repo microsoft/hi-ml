@@ -9,7 +9,7 @@ from health_ml.configs.hello_container import HelloContainer
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
 from health_ml.utils import BatchTimeCallback
-from health_ml.utils.common_utils import ARGS_TXT
+from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
 
@@ -22,7 +22,7 @@ def test_write_experiment_summary_file(tmp_path: Path) -> None:
             "adam_betas": "(0.9, 0.999)",
             "azure_datasets": "[]"}
     }
-    expected_args_path = tmp_path / ARGS_TXT
+    expected_args_path = tmp_path / EXPERIMENT_SUMMARY_FILE
     write_experiment_summary_file(config, tmp_path)
 
     actual_args = expected_args_path.read_text()

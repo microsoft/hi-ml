@@ -21,12 +21,9 @@ MAX_PATH_LENGTH = 260
 empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
 string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
 
-ARGS_TXT = "args.txt"
-BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
+EXPERIMENT_SUMMARY_FILE = "experiment_summary.txt"
 CHECKPOINT_FOLDER = "checkpoints"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
-OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
-ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 DEFAULT_AML_UPLOAD_DIR = "outputs"
@@ -163,18 +160,6 @@ def check_properties_are_not_none(obj: Any, ignore: Optional[List[str]] = None) 
         none_props = [k for k, v in vars(obj).items() if v is None and k not in ignore]
         if len(none_props) > 0:
             raise ValueError("Properties had None value: {}".format(none_props))
-
-
-def path_to_namespace(path: Path, root: PathOrString = fixed_paths.repository_root_directory()) -> str:
-    """
-    Given a path (in form R/A/B/C) and an optional root directory R, create a namespace A.B.C.
-    If root is provided, then path must be a relative child to it.
-
-    :param path: Path to convert to namespace
-    :param root: Path prefix to remove from namespace (default is project root)
-    :return:
-    """
-    return ".".join([Path(x).stem for x in path.relative_to(root).parts])
 
 
 @contextmanager

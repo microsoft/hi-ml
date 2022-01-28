@@ -5,7 +5,8 @@ from typing import Any
 import pytest
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.config_loader import ModelConfigLoader
+from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
+from testhiml.utils.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
 
 @pytest.fixture(scope="module")
@@ -116,3 +117,23 @@ def test_config_in_dif_location(tmp_path: Path, hello_config: Any) -> None:
         assert "Multiple instances of model name HelloContainer were found in namespaces: " \
                "dict_keys(['health_ml.configs.hello_container', 'health_ml.hello_container_to_delete']) " in str(e)
     new_config_path.unlink()
+
+
+@pytest.mark.parametrize("is_external", [True, False])
+def test_path_to_namespace(is_external: bool) -> None:
+    """
+    A test to check conversion between namespace to path for InnerEye and external namespaces
+    """
+    tests_root_dir = tests_root_directory()
+    if is_external:
+        folder_name = "logs"
+        full_folder = tests_root_dir / folder_name
+        assert path_to_namespace(
+            path=full_folder,
+            root=tests_root_dir
+        ) == folder_name
+    else:
+        assert path_to_namespace(
+            path=full_ml_test_data_path(),
+            root=tests_root_dir
+        ) == "ML.test_data"

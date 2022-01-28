@@ -9,7 +9,7 @@ import param
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
 
@@ -39,13 +39,6 @@ from health_ml.utils.common_utils import (get_all_environment_files,  # noqa: E4
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
-
-# We change the current working directory before starting the actual training. However, this throws off starting
-# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
-# path.
-# runner_path = Path(sys.argv[0])
-# if not runner_path.is_absolute():
-#     sys.argv[0] = str(runner_path.absolute())
 
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
@@ -195,6 +188,7 @@ class Runner:
         script_params = sys.argv[1:]
 
         additional_conda_env_files = self.lightning_container.additional_env_files
+        additional_env_files: Optional[List[Path]]
         if additional_conda_env_files is not None:
             additional_env_files = [Path(f) for f in additional_conda_env_files]
         else:
@@ -276,18 +270,12 @@ class Runner:
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.
         set_environment_variables_for_multi_node()
-        self.ml_runner = self.create_ml_runner()
-        self.ml_runner.setup(azure_run_info)
-        self.ml_runner.run()
-
-    def create_ml_runner(self) -> MLRunner:
-        """
-        Create and return an ML runner using the attributes of this Runner object.
-        """
-        return MLRunner(
+        self.ml_runner = MLRunner(
             experiment_config=self.experiment_config,
             container=self.lightning_container,
             project_root=self.project_root)
+        self.ml_runner.setup(azure_run_info)
+        self.ml_runner.run()
 
 
 def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:

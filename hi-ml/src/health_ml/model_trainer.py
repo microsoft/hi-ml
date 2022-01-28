@@ -19,7 +19,7 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
-from health_ml.utils.common_utils import ARGS_TXT
+from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.lightning_loggers import StoringLogger
 
 TEMP_PREFIX = "temp/"
@@ -33,7 +33,7 @@ def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
     """
     output = str(config)
     outputs_folder.mkdir(exist_ok=True, parents=True)
-    dst = outputs_folder / ARGS_TXT
+    dst = outputs_folder / EXPERIMENT_SUMMARY_FILE
     dst.write_text(output)
     logging.info(output)
 
@@ -91,7 +91,7 @@ def create_lightning_trainer(container: LightningContainer,
         callbacks.append(BatchTimeCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
-        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
+        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))  # type: ignore
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
     additional_args = container.get_trainer_arguments()
     # Callbacks can be specified via the "callbacks" argument (the legacy behaviour) or the new get_callbacks method
@@ -110,7 +110,7 @@ def create_lightning_trainer(container: LightningContainer,
         logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
                      f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     if is_azureml_run:
-        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
+        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,  # type: ignore
                                             write_to_logging_info=True,
                                             print_timestamp=False))
     # Read out additional model-specific args here.

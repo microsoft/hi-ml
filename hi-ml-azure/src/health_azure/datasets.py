@@ -5,7 +5,7 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 from azureml.core import Dataset, Datastore, Workspace
 from azureml.data import FileDataset, OutputFileDatasetConfig
@@ -237,7 +237,7 @@ def _replace_string_datasets(datasets: List[StrOrDatasetConfig],
 
 
 def create_dataset_configs(all_azure_dataset_ids: List[str],
-                           all_dataset_mountpoints: List[str],
+                           all_dataset_mountpoints: Sequence[PathOrString],
                            all_local_datasets: List[Optional[Path]],
                            datastore: Optional[str] = None,
                            use_mounting: bool = False) -> List[DatasetConfig]:
