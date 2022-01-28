@@ -6,6 +6,7 @@ import pytest
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
+from health_ml.utils.fixed_paths import himl_root_dir
 from testhiml.utils.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
 
@@ -30,17 +31,22 @@ def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
     assert len(config_loader.module_search_specs) == len_search_specs_before
 
     # create a model config with a different model
-    dummy_config_dir = Path("outputs")
-    dummy_config_dir.mkdir(exist_ok=True)
+    hi_ml_root_dir = himl_root_dir()
+    dummy_config_dir = hi_ml_root_dir / "outputs"
+    dummy_config_dir.mkdir()
     dummy_config_path = dummy_config_dir / "new_config.py"
-    dummy_config_path.touch()
     dummy_config = """class NewConfig:
 def __init__(self):
     pass
 """
-    dummy_config_namespace = "testhiml.outputs"
-    with open(dummy_config_path, "w") as f_path:
-        f_path.write(dummy_config)
+    dummy_config_path.touch()
+    dummy_config_path.write_text(dummy_config)
+
+    import os
+    print(f"Cwd: {Path.cwd()}")
+    print(f"Dir contents: {os.listdir('./')}")
+
+    dummy_config_namespace = "health_ml.outputs"
     config_loader2 = ModelConfigLoader(**{"model": f"{dummy_config_namespace}.NewConfig"})
     # The root "testhiml" should now be in the system path and the module "outputs" should be in module_search_specs
     # this wont be in the previous results, since the default path was used. The default search_spec (health_ml.configs)
