@@ -6,7 +6,6 @@ import pytest
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
-from health_ml.utils.fixed_paths import himl_root_dir
 from testhiml.utils.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
 
