@@ -31,7 +31,8 @@ def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
     assert len(config_loader.module_search_specs) == len_search_specs_before
 
     # create a model config with a different model
-    hi_ml_root_dir = himl_root_dir()
+    hi_ml_root_dir = Path(__file__).parent.parent.parent
+    print(f"root dir {hi_ml_root_dir}")
     dummy_config_dir = hi_ml_root_dir / "outputs"
     dummy_config_dir.mkdir()
     dummy_config_path = dummy_config_dir / "new_config.py"
