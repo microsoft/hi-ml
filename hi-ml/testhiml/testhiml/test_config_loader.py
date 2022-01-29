@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from health_azure.utils import is_running_on_azure_agent
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
 from testhiml.utils.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
@@ -29,42 +30,41 @@ def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
     # nothing should have been added to module_search_specs
     assert len(config_loader.module_search_specs) == len_search_specs_before
 
-    # create a model config with a different model
-    hi_ml_root_dir = Path(__file__).parent.parent.parent
-    print(f"root dir {hi_ml_root_dir}")
-    dummy_config_dir = hi_ml_root_dir / "outputs"
+
+def test_find_module_search_specs_outside_default_dir() -> None:
+    if is_running_on_azure_agent():
+        return
+    model_name = "NewConfig"
+
+    dummy_config_dir = Path.cwd() / "test_configs"
     dummy_config_dir.mkdir()
     dummy_config_path = dummy_config_dir / "new_config.py"
-    dummy_config = """class NewConfig:
-def __init__(self):
-    pass
+    dummy_config = f"""class {model_name}:
+    def __init__(self):
+        pass
 """
     dummy_config_path.touch()
     dummy_config_path.write_text(dummy_config)
 
-    import os
-    print(f"Cwd: {Path.cwd()}")
-    print(f"Dir contents: {os.listdir('./')}")
-
-    dummy_config_namespace = "health_ml.outputs"
-    config_loader2 = ModelConfigLoader(**{"model": f"{dummy_config_namespace}.NewConfig"})
+    dummy_config_namespace = f"test_configs.new_config.{model_name}"
+    config_loader2 = ModelConfigLoader(**{"model": f"{dummy_config_namespace}"})
     # The root "testhiml" should now be in the system path and the module "outputs" should be in module_search_specs
     # this wont be in the previous results, since the default path was used. The default search_spec (health_ml.configs)
     # should also be in the results for hte new
-    assert any([m.name == "outputs" for m in config_loader2.module_search_specs])
+    assert any([m.name == "new_config" for m in config_loader2.module_search_specs])
     assert any([m.name == "health_ml.configs" for m in config_loader2.module_search_specs])
-    assert not any([m.name == "outputs" for m in config_loader.module_search_specs])
-    shutil.rmtree(dummy_config_dir)
 
     # If the file doesnt exist but the parent module does, the module will still be appended to module_search_specs
     # at this stage
-    config_loader3 = ModelConfigLoader(**{"model": f"{dummy_config_namespace}.idontexist"})
-    assert any([m.name == "outputs" for m in config_loader3.module_search_specs])
+    config_loader3 = ModelConfigLoader(**{"model": "test_configs.new_config.idontexist"})
+    assert any([m.name == "new_config" for m in config_loader3.module_search_specs])
 
     # If the parent module doesn't exist, an Exception should be raised
     with pytest.raises(Exception) as e:
         ModelConfigLoader(**{"model": "testhiml.idontexist.idontexist"})
     assert "was not found" in str(e)
+
+    shutil.rmtree(dummy_config_dir)
 
 
 def test_get_default_search_module(config_loader: ModelConfigLoader) -> None:

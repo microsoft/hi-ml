@@ -44,15 +44,14 @@ class ModelConfigLoader(param.Parameterized):
         else:
             # Get the root folder of the fully qualified model name and ensure it is in the path to enable
             # discovery of the config file
-            model_namespace_path = Path(self.model.replace(".", "/"))
-            root_namespace = str(Path(model_namespace_path.parts[0]).absolute())
+            root_namespace = str(Path(model_namespace_parts[0]).absolute())
             if root_namespace not in sys.path:
                 print(f"Adding {str(root_namespace)} to path")
                 sys.path.insert(0, str(root_namespace))
 
             # Strip the root folder (now in the path) and the class name from the model namespace, leaving the
             # module name - e.g. "mymodule.configs"
-            model_namespace = ".".join([str(p) for p in model_namespace_path.parts[1:-1]])  # type: ignore
+            model_namespace = ".".join([str(p) for p in model_namespace_parts[1:-1]])  # type: ignore
 
         custom_spec = importlib.util.find_spec(model_namespace)  # type: ignore
         if custom_spec is None:

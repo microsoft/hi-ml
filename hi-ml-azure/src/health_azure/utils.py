@@ -1487,6 +1487,16 @@ def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
     return hasattr(aml_run, 'experiment')
 
 
+def is_running_on_azure_agent() -> bool:
+    """
+    Determine whether the current code is running on an Azure agent by examing the environment variable
+    for AGENT_OS, that all Azure hosted agents define.
+
+    :return: True if the code appears to be running on an Azure build agent, and False otherwise.
+    """
+    return bool(os.environ.get("AGENT_OS", None))
+
+
 def torch_barrier() -> None:
     """
     This is a barrier to use in distributed jobs. Use it to make all processes that participate in a distributed
