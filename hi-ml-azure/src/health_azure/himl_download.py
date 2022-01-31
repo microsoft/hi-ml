@@ -4,13 +4,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import param
-import sys
 from pathlib import Path
 from typing import List
 
 from azureml.core import Run
 
 import health_azure.utils as azure_util
+from health_azure.himl import RUN_RECOVERY_FILE
 
 
 class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
@@ -47,7 +47,8 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
         if len(runs) == 0:
             raise ValueError(f"Did not find any runs under the given experiment name: {download_config.experiment}")
     else:
-        run_or_recovery_id = azure_util.get_most_recent_run_id(download_config.latest_run_file)
+        most_recent_run_path = download_config.latest_run_file or Path(RUN_RECOVERY_FILE)
+        run_or_recovery_id = azure_util.get_most_recent_run_id(most_recent_run_path)
         runs = [azure_util.get_aml_run_from_run_id(run_or_recovery_id,
                                                    workspace_config_path=download_config.config_file)]
         if len(runs) == 0:
@@ -57,9 +58,8 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
 
 
 def main() -> None:  # pragma: no cover
-    download_config = HimlDownloadConfig()
-    download_config = azure_util.parse_args_and_update_config(download_config, sys.argv[1:])
 
+    download_config = HimlDownloadConfig()
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 

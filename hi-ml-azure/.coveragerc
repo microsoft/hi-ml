@@ -1,3 +1,7 @@
 [report]
-include =
-    *.py
+    include =
+        src/health_azure/**
+    omit =
+        **\pytest
+        **\site-packages
+        **\__init__.py

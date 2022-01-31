@@ -1,3 +1,7 @@
 [report]
-include =
-    *.py
+    include =
+        src/health_ml/**
+    omit =
+        **\pytest
+        **\site-packages
+        **\__init__.py
