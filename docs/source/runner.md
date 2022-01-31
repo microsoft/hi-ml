@@ -1,18 +1,14 @@
 # Running ML experiments with hi-ml
 
 The hi-ml toolbox is capable of training any PyTorch Lighting (PL) model inside of AzureML, making
-use of the features:
-- Working with different model in the same codebase, and selecting one by name
+use of these features:
+- Training on a local GPU machine or inside of AzureML without code changes
+- Working with different models in the same codebase, and selecting one by name
 - Distributed training in AzureML
 - Logging via AzureML's native capabilities
-- Training on a local GPU machine or inside of AzureML without code changes
-- Supply commandline overrides for model configuration elements, to quickly queue many jobs
 
-This can be used by
-- Defining a special container class, that encapsulates the PyTorch Lighting model to train, and the data that should
-be used for training and testing.
-- Adding essential trainer parameters like number of epochs to that container.
-- Invoking the hi-ml runner and providing the name of the container class, like this:
+
+This can be used by invoking the hi-ml runner and providing the name of the container class, like this:
 `himl-runner --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
 
 There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/other/HelloContainer.py), that

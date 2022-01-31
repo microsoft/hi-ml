@@ -1461,7 +1461,7 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
         change_seed = {"seed": 123}
         old_constant = parameterized_config.constant
         extra_overrides = {**change_seed, "constant": "Nothing"}  # type: ignore
-        changes2 = util.apply_overrides(parameterized_config, values=extra_overrides)  # type: ignore
+        changes2 = util.apply_overrides(parameterized_config, overrides_to_apply=extra_overrides)  # type: ignore
         assert changes2 == change_seed
         assert parameterized_config.seed == 123
         assert parameterized_config.constant == old_constant
@@ -1469,14 +1469,18 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
         # Check the call count of mock_validate and check it doesn't increase if should_validate is set to False
         # and that setting this flag doesn't affect on the outputs
         # mock_validate_call_count = mock_validate.call_count
-        actual_overrides = util.apply_overrides(parameterized_config, values=overrides, should_validate=False)
+        actual_overrides = util.apply_overrides(parameterized_config,
+                                                overrides_to_apply=overrides,
+                                                should_validate=False)
         assert actual_overrides == overrides
         # assert mock_validate.call_count == mock_validate_call_count
 
         # Check that report_on_overrides has not yet been called, but is called if keys_to_ignore is not None
         # and that setting this flag doesn't affect on the outputs
         assert mock_report_on_overrides.call_count == 0
-        actual_overrides = util.apply_overrides(parameterized_config, values=overrides, keys_to_ignore={"name"})
+        actual_overrides = util.apply_overrides(parameterized_config,
+                                                overrides_to_apply=overrides,
+                                                keys_to_ignore={"name"})
         assert actual_overrides == overrides
         assert mock_report_on_overrides.call_count == 1
 
@@ -1485,14 +1489,18 @@ def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, 
                              caplog: LogCaptureFixture) -> None:
     if util.is_running_on_azure_agent():
         return
+    caplog.set_level(logging.WARNING)
     parameterized_config = parameterized_config_and_parser[0]
     old_logs = caplog.messages
     assert len(old_logs) == 0
-    overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
+    # the following overrides are expected to cause logged warnings because
+    # a) unknown reason ('name' exists as a param of config but value doesn't match)
+    # b) parameter is undefined ('idontexist' is not the name of a param of config)
+    overrides = {"name": "newName", "idontexist": (0, 1, 2)}
     util.report_on_overrides(parameterized_config, overrides)
     # Expect one warning message per failed override
     new_logs = caplog.messages
-    assert len(new_logs) == len(overrides.keys())
+    assert len(new_logs) == len(overrides.keys()), f"Expected 2 warnings but found: {caplog.records}"
 
 
 @pytest.mark.fast

@@ -378,14 +378,14 @@ def reason_not_overridable(value: param.Parameter) -> Optional[str]:
     return None
 
 
-def apply_overrides(config: Any, values: Optional[Dict[str, Any]], should_validate: bool = False,
+def apply_overrides(config: Any, overrides_to_apply: Optional[Dict[str, Any]], should_validate: bool = False,
                     keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
     """
     Applies the provided `values` overrides to the config.
     Only properties that are marked as overridable are actually overwritten.
 
     :param config: The model configuration
-    :param values: A dictionary mapping from field name to value.
+    :param overrides_to_apply: A dictionary mapping from field name to value.
     :param should_validate: If true, run the .validate() method after applying overrides.
     :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
     :return: A dictionary with all the fields that were modified.
@@ -402,27 +402,27 @@ def apply_overrides(config: Any, values: Optional[Dict[str, Any]], should_valida
 
         return applied
 
-    actual_overrides = _apply(values)
+    actual_overrides = _apply(overrides_to_apply)
     if keys_to_ignore is not None:
-        report_on_overrides(config, values, keys_to_ignore)  # type: ignore
+        report_on_overrides(config, overrides_to_apply, keys_to_ignore)  # type: ignore
     if should_validate:
         config.validate()
     return actual_overrides
 
 
-def report_on_overrides(config: Any, values: Dict[str, Any], keys_to_ignore: Optional[Set[str]] = None) -> None:
+def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any],
+                        keys_to_ignore: Optional[Set[str]] = None) -> None:
     """
-    Logs a warning for every parameter whose value is not as given in "values", other than those
+    Logs a warning for every parameter whose value is not as given in "overrides_to_apply", other than those
     in keys_to_ignore.
 
     :param config: The model configuration
-    :param values: override dictionary, parameter names to values
+    :param overrides_to_apply: override dictionary, parameter names to values
     :param keys_to_ignore: set of dictionary keys not to report on
     :return: None
     """
     assert isinstance(config, param.Parameterized)
-    for key, desired in values.items():
-        # If this isn't an AzureConfig instance, we don't want to warn on keys intended for it.
+    for key, desired in overrides_to_apply.items():
         if keys_to_ignore and (key in keys_to_ignore):
             continue
         actual = getattr(config, key, None)

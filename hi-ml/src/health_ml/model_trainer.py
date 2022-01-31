@@ -185,7 +185,7 @@ def model_train(container: LightningContainer
 
     logging.info("Starting training")
     trainer.fit(lightning_model, datamodule=data_module)
-    trainer.logger.close()  # type: ignore
+    trainer.logger.finalize('success')
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
