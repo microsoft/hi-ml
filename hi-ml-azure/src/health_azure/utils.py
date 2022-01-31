@@ -410,8 +410,7 @@ def apply_overrides(config: Any, overrides_to_apply: Optional[Dict[str, Any]], s
     return actual_overrides
 
 
-def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any],
-                        keys_to_ignore: Optional[Set[str]] = None) -> None:
+def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any], keys_to_ignore: Set[str]) -> None:
     """
     Logs a warning for every parameter whose value is not as given in "overrides_to_apply", other than those
     in keys_to_ignore.
@@ -419,11 +418,10 @@ def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any],
     :param config: The model configuration
     :param overrides_to_apply: override dictionary, parameter names to values
     :param keys_to_ignore: set of dictionary keys not to report on
-    :return: None
     """
     assert isinstance(config, param.Parameterized)
     for key, desired in overrides_to_apply.items():
-        if keys_to_ignore and (key in keys_to_ignore):
+        if key in keys_to_ignore:
             continue
         actual = getattr(config, key, None)
         if actual == desired:

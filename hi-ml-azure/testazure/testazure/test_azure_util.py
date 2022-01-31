@@ -1487,20 +1487,21 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
 
 def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
                              caplog: LogCaptureFixture) -> None:
-    if util.is_running_on_azure_agent():
-        return
     caplog.set_level(logging.WARNING)
     parameterized_config = parameterized_config_and_parser[0]
     old_logs = caplog.messages
     assert len(old_logs) == 0
     # the following overrides are expected to cause logged warnings because
-    # a) unknown reason ('name' exists as a param of config but value doesn't match)
-    # b) parameter is undefined ('idontexist' is not the name of a param of config)
-    overrides = {"name": "newName", "idontexist": (0, 1, 2)}
-    util.report_on_overrides(parameterized_config, overrides)
+    # a) parameter 'constant' is constant
+    # b) parameter 'readonly' is readonly
+    # b) parameter 'idontexist' is undefined (not the name of a parameter of ParamClass)
+    overrides = {"constant": "dif_value", "readonly": "new_value", "idontexist": (0, 1, 2)}
+    keys_to_ignore = {}
+    util.report_on_overrides(parameterized_config, overrides, keys_to_ignore)
     # Expect one warning message per failed override
     new_logs = caplog.messages
-    assert len(new_logs) == len(overrides.keys()), f"Expected 2 warnings but found: {caplog.records}"
+    expected_warnings = len(overrides.keys())
+    assert len(new_logs) == expected_warnings , f"Expected {expected_warnings} warnings but found: {caplog.records}"
 
 
 @pytest.mark.fast
