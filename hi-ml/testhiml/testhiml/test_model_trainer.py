@@ -104,7 +104,7 @@ def test_model_train() -> None:
             trainer, storing_logger = model_train(container)
 
             mock_trainer.fit.assert_called_once()
-            mock_trainer.logger.close.assert_called_once()
+            mock_trainer.logger.finalize.assert_called_once()
 
             assert trainer == mock_trainer
             assert storing_logger == mock_storing_logger

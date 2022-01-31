@@ -9,11 +9,19 @@ use of these features:
 
 
 This can be used by invoking the hi-ml runner and providing the name of the container class, like this:
-`himl-runner --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
+`himl-runner --model=MyContainer`.
 
-There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/other/HelloContainer.py), that
+There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/hello_container.py), that
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `himl-runner --model=HelloContainer`.
+
+# Running ML experiments in Azure ML 
+
+To train in AzureML, add a `--azureml` flag. Use the flag `--cluster` to specify the name of the cluster
+in your Workspace that you want to submit the job to. So the whole command would look like:
+`himl-runner --model=HelloContainer --cluster=my_cluster_name --azureml`. You can also specify `--num_nodes` if
+you wish to distribute the model training.
+
 
 ## Setup - creating your model config file
 
@@ -26,9 +34,9 @@ In order to use these capabilities, you need to implement a class deriving from
 class MyContainer(LightningContainer):
     def __init__(self):
         super().__init__()
-        self.azure_dataset_id = "folder_name_in_azure_blob_storage"
-        self.local_dataset = "/some/local/path"
-        self.num_epochs = 42
+        self.azure_datasets = ["folder_name_in_azure_blob_storage"]
+        self.local_datasets = [Path("/some/local/path")]
+        self.max_epochs = 42
 
     def get_model(self) -> LightningModule:
         return MyLightningModel()
@@ -117,9 +125,9 @@ class MyDataModule(LightningDataModule):
 class MyContainer(LightningContainer):
     def __init__(self):
         super().__init__()
-        self.azure_dataset_id = "folder_name_in_azure_blob_storage"
-        self.local_dataset = "/some/local/path"
-        self.num_epochs = 42
+        self.azure_datasets = ["folder_name_in_azure_blob_storage"]
+        self.local_datasets = [Path("/some/local/path")]
+        self.max_epochs = 42
 
     def get_model(self) -> LightningModule:
         return MyLightningModel()
@@ -128,7 +136,8 @@ class MyContainer(LightningContainer):
         return MyDataModule(root_path=self.local_dataset)
 ```
 
-By default, config files will be looked for in the folder "health_ml.configs". To specify config files that live elsewhere, use a fully qualified name for the parameter `--model` - e.g. "MyModule.Configs.my_config.py"
+By default, config files will be looked for in the folder "health_ml.configs". To specify config files 
+that live elsewhere, use a fully qualified name for the parameter `--model` - e.g. "MyModule.Configs.my_config.py"
 
 
 ### Outputting files during training
@@ -163,6 +172,7 @@ class MyContainer(LightningContainer):
         return MyDataModule(root_path=self.local_dataset)
 ```
 ### Optimizer and LR scheduler arguments
-To the optimizer and LR scheduler: the Lightning model returned by `get_model` should define its own `configure_optimizers` method, with the same
-signature as `LightningModule.configure_optimizers`, and returns a tuple containing the Optimizer and LRScheduler objects
+To the optimizer and LR scheduler: the Lightning model returned by `get_model` should define its own
+`configure_optimizers` method, with the same signature as `LightningModule.configure_optimizers`, 
+and returns a tuple containing the Optimizer and LRScheduler objects
 
