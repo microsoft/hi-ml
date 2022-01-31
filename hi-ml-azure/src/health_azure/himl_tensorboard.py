@@ -108,8 +108,9 @@ class WrappedTensorboard(Tensorboard):
 
 
 def main() -> None:  # pragma: no cover
+    tb_config = HimlTensorboardConfig()
+    tb_config = azure_util.parse_args_and_update_config(tb_config, sys.argv[1:])
 
-    tb_config = HimlTensorboardConfig.parse_args()
     config_path = tb_config.config_file
 
     if not config_path:

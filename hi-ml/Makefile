@@ -83,7 +83,7 @@ pytest_fast: pip_test call_pytest_fast
 # run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
 call_pytest_and_coverage:
 	pytest --cov=health_ml --cov-branch --cov-report=html --cov-report=term-missing --cov-report=xml testhiml
-	pycobertura show --format text --output coverage.txt coverage.xml
+	pycobertura show --format text --output coverage.txt coverage.xml --include *.py
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage

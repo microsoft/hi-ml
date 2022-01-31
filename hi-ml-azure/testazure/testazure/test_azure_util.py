@@ -13,7 +13,7 @@ import time
 from argparse import ArgumentParser, Namespace, ArgumentError
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -1496,12 +1496,12 @@ def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, 
     # b) parameter 'readonly' is readonly
     # b) parameter 'idontexist' is undefined (not the name of a parameter of ParamClass)
     overrides = {"constant": "dif_value", "readonly": "new_value", "idontexist": (0, 1, 2)}
-    keys_to_ignore = {}
+    keys_to_ignore: Set = set()
     util.report_on_overrides(parameterized_config, overrides, keys_to_ignore)
     # Expect one warning message per failed override
     new_logs = caplog.messages
     expected_warnings = len(overrides.keys())
-    assert len(new_logs) == expected_warnings , f"Expected {expected_warnings} warnings but found: {caplog.records}"
+    assert len(new_logs) == expected_warnings, f"Expected {expected_warnings} warnings but found: {caplog.records}"
 
 
 @pytest.mark.fast
