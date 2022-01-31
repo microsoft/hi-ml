@@ -2,6 +2,6 @@
     include =
         src/health_ml/**
     omit =
-        **\pytest
-        **\site-packages
-        **\__init__.py
+        **/pytest
+        **/__init__.py
+        **/hello_container_2.py  # test file that pytest cov shouldn't pick up on

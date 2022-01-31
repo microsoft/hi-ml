@@ -2,6 +2,5 @@
     include =
         src/health_azure/**
     omit =
-        **\pytest
-        **\site-packages
-        **\__init__.py
+        **/pytest
+        **/__init__.py
