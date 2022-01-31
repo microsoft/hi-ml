@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Tuple, TypeVar
+from typing import Any, List, Tuple, TypeVar
 
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, TQDMProgressBar
@@ -86,7 +86,7 @@ def create_lightning_trainer(container: LightningContainer,
         benchmark = True
 
     # Get more callbacks
-    callbacks = []
+    callbacks: List[Any] = []
     if container.monitor_loading:
         # TODO antonsc: Remove after fixing the callback.
         raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
