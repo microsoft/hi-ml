@@ -1,4 +1,0 @@
-[report]
-    omit =
-        **/pytest
-        **/__init__.py
