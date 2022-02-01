@@ -1,6 +1,4 @@
 [report]
-    include =
-        src/health_azure/**
     omit =
         **/pytest
         **/__init__.py

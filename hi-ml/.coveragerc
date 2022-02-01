@@ -1,6 +1,4 @@
 [report]
-    include =
-        src/health_ml/**
     omit =
         **/pytest
         **/__init__.py
