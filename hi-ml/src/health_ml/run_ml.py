@@ -157,8 +157,7 @@ class MLRunner:
         trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
         self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
-        # When training models that are not built-in models, we have no guarantee that they write
-        # files to the right folder. Best guess is to change the current working directory to where files should go.
+        # Change the current working directory to ensure that test files go to thr right folder
         data_module = self.container.get_data_module()
         with change_working_directory(self.container.outputs_folder):
             results = trainer.test(self.container.model, datamodule=data_module)

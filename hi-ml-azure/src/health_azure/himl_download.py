@@ -4,6 +4,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import param
+import sys
 from pathlib import Path
 from typing import List
 
@@ -60,6 +61,8 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
 def main() -> None:  # pragma: no cover
 
     download_config = HimlDownloadConfig()
+    download_config = azure_util.parse_args_and_update_config(download_config, sys.argv[1:])
+
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 

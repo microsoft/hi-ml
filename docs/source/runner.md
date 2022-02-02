@@ -38,13 +38,13 @@ class MyContainer(LightningContainer):
         self.local_datasets = [Path("/some/local/path")]
         self.max_epochs = 42
 
-    def get_model(self) -> LightningModule:
+    def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
         return MyDataModule(root_path=self.local_dataset)
 ```
-The `get_model` method needs to return a subclass of PyTorch Lightning's [LightningModule](
+The `create_model` method needs to return a subclass of PyTorch Lightning's [LightningModule](
  https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html?highlight=lightningmodule
 ), that has
 all the usual PyTorch Lightning methods required for training, like the `training_step` and `forward` methods. E.g:
@@ -129,7 +129,7 @@ class MyContainer(LightningContainer):
         self.local_datasets = [Path("/some/local/path")]
         self.max_epochs = 42
 
-    def get_model(self) -> LightningModule:
+    def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
@@ -142,7 +142,7 @@ that live elsewhere, use a fully qualified name for the parameter `--model` - e.
 
 ### Outputting files during training
 
-The Lightning model returned by `get_model` needs to write its output files to the current working directory.
+The Lightning model returned by `create_model` needs to write its output files to the current working directory.
 When running inside of AzureML, the output folders will be directly under the project root. If not running inside
 AzureML, a folder with a timestamp will be created for all outputs and logs.
 
@@ -165,14 +165,14 @@ class MyContainer(LightningContainer):
         super().__init__()
         self.max_epochs = 42
 
-    def get_model(self) -> LightningModule:
+    def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
         return MyDataModule(root_path=self.local_dataset)
 ```
 ### Optimizer and LR scheduler arguments
-To the optimizer and LR scheduler: the Lightning model returned by `get_model` should define its own
+To the optimizer and LR scheduler: the Lightning model returned by `create_model` should define its own
 `configure_optimizers` method, with the same signature as `LightningModule.configure_optimizers`, 
 and returns a tuple containing the Optimizer and LRScheduler objects
 

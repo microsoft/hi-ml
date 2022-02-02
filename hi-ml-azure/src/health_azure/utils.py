@@ -858,8 +858,8 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
 
 def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -> List[str]:
     """
-    Given a list of conda dependencies, i which may contain duplicate versions
-    of the same package name with the same or different versions returns a
+    Given a list of conda dependencies, which may contain duplicate versions
+    of the same package name with the same or different versions, returns a
     list of them where each package name occurs only once. If a
     package name appears more than once, only the first value will be retained.
 
@@ -887,7 +887,7 @@ def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -
                 unique_deps[dep_name] = (keep_version, dep_join)
             else:
                 raise ValueError(f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
-                                 f" include: ['first']")
+                                 f" include: ['first', 'last']")
             logging.warning(f"Found duplicate requirements: {dep}. Keeping the {keep_method} "
                             f"version: {keep_version}")
 
@@ -908,7 +908,7 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Lis
     :param result_file: The location where the merge results should be written.
     :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
     :param pip_clash_keep_method: If two or more pip packages are specified with the same name, this determines
-        which one should be kept. Current options: ['first']
+        which one should be kept. Current options: ['first', 'last']
     """
     env_definitions = [conda_merge.read_file(str(f)) for f in conda_files]
     unified_definition = {}

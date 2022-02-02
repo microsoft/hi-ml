@@ -283,9 +283,7 @@ def create_dataset_configs(all_azure_dataset_ids: List[str],
         mount_point = all_dataset_mountpoints[i] if i < num_mount else ""
         local_dataset = all_local_datasets[i] if i < num_local else None
         config = DatasetConfig(name=azure_dataset,
-                               # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
-                               # setting to None works.
-                               target_folder=mount_point or None,
+                               target_folder=mount_point,
                                local_folder=local_dataset,
                                use_mounting=use_mounting,
                                datastore=datastore or "")

@@ -198,7 +198,7 @@ class Runner:
                                                              additional_files=additional_env_files)
         pip_requirements_files = get_all_pip_requirements_files()
 
-        # Merge the project-specific depclass Experendencies with the packages and write unified definition
+        # Merge the project-specific dependencies with the packages and write unified definition
         # to temp file. In case of version conflicts, the package version in the outer project is given priority.
         temp_conda: Optional[Path] = None
         if len(conda_dependencies_files) > 1 or len(pip_requirements_files) > 0:
@@ -222,7 +222,7 @@ class Runner:
         try:
             if self.experiment_config.azureml:
                 if not self.experiment_config.cluster:
-                    raise ValueError("self.azure_config.cluster not set, but we need a compute_cluster_name to submit"
+                    raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit"
                                      "the script to run in AzureML")
                 azure_run_info = submit_to_azure_if_needed(
                     entry_script=entry_script,
