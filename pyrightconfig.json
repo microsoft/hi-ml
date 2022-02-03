@@ -12,4 +12,18 @@
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
   "reportPrivateImportUsage": false,
+  "executionEnvironments": [
+    {
+      "root": "hi-ml/src"
+    },
+    {
+      "root": "hi-ml/testhiml"
+    },
+    {
+      "root": "hi-ml-azure/src"
+    },
+    {
+      "root": "hi-ml-azure/testazure"
+    }
+  ]
 }
