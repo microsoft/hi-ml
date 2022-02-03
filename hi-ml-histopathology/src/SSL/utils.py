@@ -9,9 +9,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
+from pytorch_lightning import LightningModule
 from yacs.config import CfgNode
-
-from health_ml.lightning_container import LightningModuleWithOptimizer
 
 from SSL import ssl_augmentation_config
 
@@ -64,7 +63,7 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
 def create_ssl_image_classifier(num_classes: int,
                                 freeze_encoder: bool,
                                 pl_checkpoint_path: str,
-                                class_weights: Optional[torch.Tensor] = None) -> LightningModuleWithOptimizer:
+                                class_weights: Optional[torch.Tensor] = None) -> LightningModule:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """

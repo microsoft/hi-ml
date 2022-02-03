@@ -12,7 +12,7 @@ from torchvision.models import resnet18
 
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
 
-from histopathology.configs.histo_configs.classification.DeepSMILECrck import DeepSMILECrck
+from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from histopathology.models.deepmil import DeepMILModule
