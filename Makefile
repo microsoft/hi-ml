@@ -111,6 +111,7 @@ combine: pip_test
 	mkdir -p coverage
 	cp hi-ml/.coverage coverage/hi-ml-coverage
 	cp hi-ml-azure/.coverage coverage/hi-ml-azure-coverage
+	cp .coveragerc coverage/
 	cd coverage && \
 		coverage combine hi-ml-coverage hi-ml-azure-coverage && \
 		coverage html && \
