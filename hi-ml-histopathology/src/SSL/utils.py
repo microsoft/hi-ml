@@ -69,7 +69,7 @@ def create_ssl_image_classifier(num_classes: int,
     """
 
     # Use local imports to avoid circular imports
-    from SSL.lightning_modules.byol.byol_module import BYOLInnerEye
+    from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
     from SSL.lightning_modules.simclr_module import SimCLRHIML
     from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 
@@ -81,7 +81,7 @@ def create_ssl_image_classifier(num_classes: int,
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
-        byol_module = BYOLInnerEye.load_from_checkpoint(pl_checkpoint_path)
+        byol_module = BootstrapYourOwnLatent.load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
         simclr_module = SimCLRHIML.load_from_checkpoint(pl_checkpoint_path)
@@ -100,10 +100,7 @@ def create_ssl_image_classifier(num_classes: int,
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
     """
     This class is a helper class for SSL model loading from checkpoints with strict=True.
-    We cannot simply load the class directly via  do BYOLInnerEye().load_from_checkpoint("ckpt") with strict loading
-    because the checkpoint will contain the weights of the linear evaluator, but this one is defined outside of the
-    BYOLInnerEye class (as it is defined as a callback), hence we can only load the checkpoint if we manually re-add
-    the linear evaluator prior to loading.
+    We cannot simply load the class directly via  do BootstrapYourOwnLatent().load_from_checkpoint("ckpt") with strict loading because the checkpoint will contain the weights of the linear evaluator, but this one is defined outside of the BootstrapYourOwnLatent class (as it is defined as a callback), hence we can only load the checkpoint if we manually re-add the linear evaluator prior to loading.
 
     :param ssl_class:   SSL object either BYOL or SimCLR.
     :param num_classes: Number of target classes for the linear head.

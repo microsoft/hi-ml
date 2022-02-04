@@ -24,7 +24,7 @@ SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
 
 
-class BYOLInnerEye(pl.LightningModule):
+class BootstrapYourOwnLatent(pl.LightningModule):
     """
     Implementation of `Bootstrap Your Own Latent (BYOL) <https://arxiv.org/pdf/2006.07733.pdf>`
     """

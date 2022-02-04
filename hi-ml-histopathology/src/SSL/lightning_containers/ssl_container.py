@@ -21,7 +21,7 @@ from SSL.datamodules_and_datasets.transforms_utils import CIFARLinearHeadTransfo
     CIFARTrainTransform, \
     get_ssl_transforms_from_config
 from SSL.encoders import get_encoder_output_dim
-from SSL.lightning_modules.byol.byol_module import BYOLInnerEye
+from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
 from SSL.lightning_modules.simclr_module import SimCLRHIML
 from SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorHIML
 from SSL.utils import SSLDataModuleType, SSLTrainingType, load_yaml_augmentation_config
@@ -158,7 +158,7 @@ class SSLContainer(LightningContainer):
                                                     learning_rate=self.l_rate,
                                                     max_epochs=self.num_epochs)
         elif self.ssl_training_type == SSLTrainingType.BYOL:
-            model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
+            model = BootstrapYourOwnLatent(encoder_name=self.ssl_encoder.value,
                                  num_samples=self.data_module.num_samples,
                                  batch_size=self.data_module.batch_size,
                                  learning_rate=self.l_rate,

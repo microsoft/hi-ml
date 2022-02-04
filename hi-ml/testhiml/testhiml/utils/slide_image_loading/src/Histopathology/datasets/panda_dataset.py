@@ -8,7 +8,7 @@ from monai.transforms.transform import MapTransform
 from openslide import OpenSlide
 from torch.utils.data import Dataset
 
-from Histopathology.utils import box_utils
+from health_ml.utils import box_utils
 
 
 class PandaDataset(Dataset):

@@ -46,18 +46,16 @@ class DeepSMILEPanda(BaseMIL):
             encoding_chunk_size=60,
 
             # declared in DatasetParams:
-            local_dataset=Path("/tmp/datasets/PANDA_tiles"),
-            azure_dataset_id="PANDA_tiles",
-            extra_azure_dataset_ids=["PANDA"],
-            extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
+            local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
+            azure_datasets=["PANDA_tiles", "PANDA"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=200,
+            max_epochs=200,
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
-            number_of_cross_validation_splits=5,
-            cross_validation_split_index=0,
+            # number_of_cross_validation_splits=5,
+            # cross_validation_split_index=0,
 
             # declared in OptimizerParams:
             l_rate=5e-4,
@@ -93,8 +91,8 @@ class DeepSMILEPanda(BaseMIL):
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_binary
             self.downloader = CheckpointDownloader(
                 aml_workspace=get_workspace(),
-                run_id=innereye_ssl_checkpoint_binary,  # innereye_ssl_checkpoint
-                checkpoint_filename="best_checkpoint.ckpt",  # "last.ckpt",
+                run_id=innereye_ssl_checkpoint_binary,
+                checkpoint_filename="best_checkpoint.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
@@ -120,8 +118,8 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-            cross_validation_split_index=self.cross_validation_split_index,
+            # number_of_cross_validation_splits=self.number_of_cross_validation_splits,
+            # cross_validation_split_index=self.cross_validation_split_index,
         )
 
     def create_model(self) -> DeepMILModule:

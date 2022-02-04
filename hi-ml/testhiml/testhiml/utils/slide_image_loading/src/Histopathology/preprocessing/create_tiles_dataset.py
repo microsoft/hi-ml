@@ -13,9 +13,8 @@ from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
 from tqdm import tqdm
 
-from Histopathology.preprocessing import tiling
-from Histopathology.datasets.panda_dataset import PandaDataset, LoadPandaROId
-
+from histopathology.datasets.panda_dataset import LoadPandaROId
+from histopathology.preprocessing import tiling
 
 CSV_COLUMNS = ['slide_id', 'tile_id', 'image', 'mask', 'tile_x', 'tile_y', 'occupancy',
                'data_provider', 'slide_isup_grade', 'slide_gleason_score']

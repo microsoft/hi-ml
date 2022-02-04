@@ -3,22 +3,28 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 from pathlib import Path
 import pandas as pd
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Tuple, List
 import torch
+import matplotlib.pyplot as plt
+import more_itertools as mi
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
-from torchmetrics import AUROC, F1, Accuracy, Precision, Recall
+from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
-from health_ml.utils import fixed_paths
+from health_ml.utils import fixed_paths, log_on_epoch
 
-from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.metrics_utils import select_k_tiles, plot_slide_noxy, plot_scores_hist
-from histopathology.utils.naming import ResultsKey
+from histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
+                                                            plot_scores_hist, plot_heatmap_overlay,
+                                                            plot_slide, plot_normalized_confusion_matrix)
+from histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
+from histopathology.utils.viz_utils import load_image_dict
 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -46,10 +52,13 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
-                 ) -> None:
+                 slide_dataset: SlidesDataset = None,
+                 tile_size: int = 224,
+                 level: int = 1,
+                 class_names: Optional[List[str]] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
-        :param n_classes: Number of output classes for MIL prediction.
+        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
         you should use `IdentityEncoder`.
         :param pooling_layer: Type of pooling to use in multi-instance aggregation. Should be a
@@ -60,7 +69,11 @@ class DeepMILModule(LightningModule):
         :param l_rate: Optimiser learning rate.
         :param weight_decay: Weight decay parameter for L2 regularisation.
         :param adam_betas: Beta parameters for Adam optimiser.
-        :param verbose: if True statements about memory usage are output at each step
+        :param verbose: if True statements about memory usage are output at each step.
+        :param slide_dataset: Slide dataset object, if available.
+        :param tile_size: The size of each tile (default=224).
+        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
+        :param class_names: The names of the classes if available (default=None).
         """
         super().__init__()
 
@@ -74,12 +87,30 @@ class DeepMILModule(LightningModule):
         self.encoder = encoder
         self.num_encoding = self.encoder.num_encoding
 
+        if class_names is not None:
+            self.class_names = class_names
+        else:
+            if self.n_classes > 1:
+                self.class_names = [str(i) for i in range(self.n_classes)]
+            else:
+                self.class_names = ['0', '1']
+        if self.n_classes > 1 and len(self.class_names) != self.n_classes:
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes ({self.n_classes})")
+        if self.n_classes == 1 and len(self.class_names) != 2:
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes ({self.n_classes+1})")
+
         # Optimiser hyperparameters
         self.l_rate = l_rate
         self.weight_decay = weight_decay
         self.adam_betas = adam_betas
 
+        # Slide specific attributes
+        self.slide_dataset = slide_dataset
+        self.tile_size = tile_size
+        self.level = level
+
         self.save_hyperparameters()
+
         self.verbose = verbose
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
@@ -105,7 +136,11 @@ class DeepMILModule(LightningModule):
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
-            return nn.CrossEntropyLoss(weight=self.class_weights)
+            if self.class_weights is None:
+                return nn.CrossEntropyLoss()
+            else:
+                class_weights = self.class_weights.float()
+                return nn.CrossEntropyLoss(weight=class_weights)
         else:
             pos_weight = None
             if self.class_weights is not None:
@@ -126,15 +161,17 @@ class DeepMILModule(LightningModule):
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
-            return nn.ModuleDict({'accuracy': Accuracy(num_classes=self.n_classes, average='micro'),
-                                  'macro_accuracy': Accuracy(num_classes=self.n_classes, average='macro'),
-                                  'weighted_accuracy': Accuracy(num_classes=self.n_classes, average='weighted')})
+            return nn.ModuleDict({MetricsKey.ACC: Accuracy(num_classes=self.n_classes, average='micro'),
+                                  MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
+                                  MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted'),
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes)})
         else:
-            return nn.ModuleDict({'accuracy': Accuracy(),
-                                   'auroc': AUROC(num_classes=self.n_classes),
-                                   'precision': Precision(),
-                                   'recall': Recall(),
-                                   'f1score': F1()})
+            return nn.ModuleDict({MetricsKey.ACC: Accuracy(),
+                                  MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
+                                  MetricsKey.PRECISION: Precision(),
+                                  MetricsKey.RECALL: Recall(),
+                                  MetricsKey.F1: F1(),
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes+1)})
 
     def log_metrics(self,
                     stage: str) -> None:
@@ -142,7 +179,13 @@ class DeepMILModule(LightningModule):
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
-            self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
+            if metric_name == MetricsKey.CONF_MATRIX:
+                metric_value = metric_object.compute()
+                metric_value_n = metric_value/metric_value.sum(axis=1, keepdims=True)
+                for i in range(metric_value_n.shape[0]):
+                    log_on_epoch(self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
+            else:
+                log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():
@@ -167,7 +210,7 @@ class DeepMILModule(LightningModule):
         bag_labels_list = []
         bag_logits_list = []
         bag_attn_list = []
-        for bag_idx in range(len(batch[TilesDataset.LABEL_COLUMN])):
+        for bag_idx in range(len(batch[self.label_column])):
             images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
             labels = batch[self.label_column][bag_idx]
             bag_labels_list.append(self.get_bag_label(labels))
@@ -178,7 +221,7 @@ class DeepMILModule(LightningModule):
         bag_labels = torch.stack(bag_labels_list).view(-1)
 
         if self.n_classes > 1:
-            loss = self.loss_fn(bag_logits, bag_labels)
+            loss = self.loss_fn(bag_logits, bag_labels.long())
         else:
             loss = self.loss_fn(bag_logits.squeeze(1), bag_labels.float())
 
@@ -202,6 +245,14 @@ class DeepMILModule(LightningModule):
                         ResultsKey.PROB: probs, ResultsKey.PRED_LABEL: preds,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
+
+        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
+                           )
+        else:
+            logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
+
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -255,9 +306,11 @@ class DeepMILModule(LightningModule):
             list_slide_dicts.append(slide_dict)
             list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
 
-        print(f"Metrics results will be output to {fixed_paths.repository_root_directory()}/outputs")
-        csv_filename = fixed_paths.repository_root_directory() / Path('outputs/test_output.csv')
-        encoded_features_filename = fixed_paths.repository_root_directory() / Path('outputs/test_encoded_features.pickle')
+        outputs_path = fixed_paths.repository_parent_directory() / 'outputs'
+        print(f"Metrics results will be output to {outputs_path}")
+        outputs_fig_path = outputs_path / 'fig'
+        csv_filename = outputs_path / 'test_output.csv'
+        encoded_features_filename = outputs_path / 'test_encoded_features.pickle'
 
         # Collect the list of dictionaries in a list of pandas dataframe and save
         df_list = []
@@ -274,30 +327,55 @@ class DeepMILModule(LightningModule):
         print("Selecting tiles ...")
         fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
         fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highes_pred', 'highest_att'))
+        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
         tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
         report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
 
         for key in report_cases.keys():
-            print(f"Plotting {key} ...")
-            output_path = Path(fixed_paths.repository_root_directory(), f'outputs/fig/{key}/')
-            Path(output_path).mkdir(parents=True, exist_ok=True)
+            print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
+            key_folder_path = outputs_fig_path / f'{key}'
+            Path(key_folder_path).mkdir(parents=True, exist_ok=True)
             nslides = len(report_cases[key][0])
             for i in range(nslides):
                 slide, score, paths, top_attn = report_cases[key][0][i]
-                fig = plot_slide_noxy(slide, score, paths, top_attn, key + '_top', ncols=4)
-                figpath = Path(output_path, f'{slide}_top.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                fig = plot_attention_tiles(slide, score, paths, top_attn, key + '_top', ncols=4)
+                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_top.png'))
 
                 slide, score, paths, bottom_attn = report_cases[key][1][i]
-                fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
-                figpath = Path(output_path, f'{slide}_bottom.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                fig = plot_attention_tiles(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
+                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
+
+                if self.slide_dataset is not None:
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                           # type: ignore
+                    slide_image = slide_dict[SlideKey.IMAGE]
+                    location_bbox = slide_dict[SlideKey.LOCATION]
+
+                    fig = plot_slide(slide_image=slide_image, scale=1.0)
+                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_thumbnail.png'))
+                    fig = plot_heatmap_overlay(slide=slide, slide_image=slide_image, results=results,
+                                            location_bbox=location_bbox, tile_size=self.tile_size, level=self.level)
+                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_heatmap.png'))
 
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
-        output_path = Path(fixed_paths.repository_root_directory(), 'outputs/fig/hist_scores.png')
-        fig.savefig(output_path, bbox_inches='tight')
+        self.save_figure(fig=fig, figpath=outputs_fig_path / 'hist_scores.png')
+
+        print("Computing and saving confusion matrix...")
+        metrics_dict = self.get_metrics_dict('test')
+        cf_matrix = metrics_dict[MetricsKey.CONF_MATRIX].compute()
+        cf_matrix = np.array(cf_matrix.cpu())
+        #  We can't log tensors in the normal way - just print it to console
+        print('test/confusion matrix:')
+        print(cf_matrix)
+        #  Save the normalized confusion matrix as a figure in outputs
+        cf_matrix_n = cf_matrix/cf_matrix.sum(axis=1, keepdims=True)
+        fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=self.class_names)
+        self.save_figure(fig=fig, figpath=outputs_fig_path / 'normalized_confusion_matrix.png')
+
+    @staticmethod
+    def save_figure(fig: plt.figure, figpath: Path) -> None:
+        fig.savefig(figpath, bbox_inches='tight')
 
     @staticmethod
     def normalize_dict_for_df(dict_old: Dict[str, Any], use_gpu: bool) -> Dict:

@@ -31,33 +31,40 @@ class PandaTilesDataset(TilesDataset):
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
     N_CLASSES = 6
 
-    _RELATIVE_ROOT_FOLDER = "PANDA_tiles_20210926-135446/panda_tiles_level1_224"
+    _RELATIVE_ROOT_FOLDER = Path("PANDA_tiles_20210926-135446/panda_tiles_level1_224")
 
     def __init__(self,
-                 root: Union[str, Path],
+                 root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None) -> None:
+                 dataset_df: Optional[pd.DataFrame] = None,
+                 occupancy_threshold: Optional[float] = None) -> None:
         super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
                          dataset_csv=dataset_csv,
                          dataset_df=dataset_df,
                          train=None)
-
+        if occupancy_threshold is not None:
+            dataset_df_filtered = self.dataset_df.loc[self.dataset_df['occupancy'] > occupancy_threshold]  # type: ignore
+            self.dataset_df = dataset_df_filtered
 
 class PandaTilesDatasetReturnImageLabel(VisionDataset):
     """
     Any dataset used in SSL needs to return a tuple where the first element is the image and the second is a
     class label.
     """
+    occupancy_threshold = 0
+
     def __init__(self,
-                 root: Union[str, Path],
+                 root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  transform: Optional[Callable] = None,
                  **kwargs: Any) -> None:
         super().__init__(root=root, transform=transform)
+
         self.base_dataset = PandaTilesDataset(root=root,
                                               dataset_csv=dataset_csv,
-                                              dataset_df=dataset_df)
+                                              dataset_df=dataset_df,
+                                              occupancy_threshold=self.occupancy_threshold)
 
     def __getitem__(self, index: int) -> Tuple:  # type: ignore
         sample = self.base_dataset[index]
@@ -65,7 +72,9 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
         image = load_pil_image(sample[self.base_dataset.IMAGE_COLUMN])
         if self.transform:
             image = self.transform(image)
-        return image, 1
+        # get binary label
+        label = 0 if sample[self.base_dataset.LABEL_COLUMN] == 0 else 1
+        return image, label
 
     def __len__(self) -> int:
         return len(self.base_dataset)

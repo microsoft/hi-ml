@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Tuple
+from typing import Any, Tuple
 
 from health_ml.utils.split_dataset import DatasetSplits
 
@@ -16,6 +16,8 @@ class PandaTilesDataModule(TilesDataModule):
     Method get_splits() returns the train, val, test splits from the PANDA dataset
     """
 
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
     def get_splits(self) -> Tuple[PandaTilesDataset, PandaTilesDataset, PandaTilesDataset]:
         dataset = PandaTilesDataset(self.root_path)
         splits = DatasetSplits.from_proportions(dataset.dataset_df.reset_index(),
