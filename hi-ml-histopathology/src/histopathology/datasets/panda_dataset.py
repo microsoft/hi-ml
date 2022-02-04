@@ -10,12 +10,8 @@ import pandas as pd
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
 from monai.transforms import MapTransform
-from openslide import OpenSlide
-from torch.utils.data import Dataset
 
 from health_ml.utils import box_utils
-
-from histopathology.datasets.base_dataset import SlidesDataset
 
 from histopathology.datasets.base_dataset import SlidesDataset
 

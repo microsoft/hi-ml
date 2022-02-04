@@ -19,7 +19,8 @@ from monai.transforms import Compose
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
-from health_azure import CheckpointDownloader, get_workspace
+from health_azure import get_workspace
+from health_azure.utils import CheckpointDownloader
 
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from health_ml.utils import fixed_paths

@@ -18,8 +18,8 @@ from histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles,
     plot_heatmap_overlay, plot_normalized_confusion_matrix
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
-from health_ml.utils.fixed_paths_for_tests import full_ml_test_data_path
-from health_ml.utils.output_directories import OutputFolderForTests
+
+from .utils_testhisto import assert_binary_files_match, OutputFolderForTests, full_ml_test_data_path
 
 from InnerEye.ML.plotting import resize_and_save
 from InnerEye.ML.utils.ml_util import set_random_seed
