@@ -110,12 +110,11 @@ class DeepSMILECrck(BaseMIL):
             ]
         )
         return TcgaCrckTilesDataModule(
-            root_path=self.local_dataset,
+            root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             transform=transform,
             cache_mode=self.cache_mode,
-            save_precache=self.save_precache,
             cache_dir=self.cache_dir,
             # number_of_cross_validation_splits=self.number_of_cross_validation_splits,
             # cross_validation_split_index=self.cross_validation_split_index,
