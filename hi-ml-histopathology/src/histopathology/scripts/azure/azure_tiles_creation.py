@@ -25,7 +25,8 @@ from health_azure.himl import submit_to_azure_if_needed, DatasetConfig  # noqa
 from histopathology.preprocessing.create_tiles_dataset import main  # noqa
 
 # Pre-built environment file that contains all the requirements (RadiomicsNN + histo)
-# Assuming ENV_NAME is a complete environment, `conda env export -n ENV_NAME -f ENV_NAME.yml` will create the desired file
+# Assuming ENV_NAME is a complete environment, `conda env export -n ENV_NAME -f ENV_NAME.yml` will create the
+# desired file
 
 # TODO: remove hardcoded datastores
 ENVIRONMENT_FILE = radiomics_root.joinpath(Path("/envs/innereyeprivatetiles.yml"))
@@ -35,8 +36,14 @@ folder_name = DATASET_NAME + '_' + timestr
 
 if __name__ == '__main__':
     print(f"Running {str(current_file)}")
-    input_dataset = DatasetConfig(name="PANDA", datastore="innereyedatasets", local_folder=Path("/tmp/datasets/PANDA"), use_mounting=True)
-    output_dataset = DatasetConfig(name=DATASET_NAME, datastore="innereyedatasets", local_folder=Path("/datadrive/"), use_mounting=True)
+    input_dataset = DatasetConfig(name="PANDA",
+                                  datastore="innereyedatasets",
+                                  local_folder=Path("/tmp/datasets/PANDA"),
+                                  use_mounting=True)
+    output_dataset = DatasetConfig(name=DATASET_NAME,
+                                   datastore="innereyedatasets",
+                                   local_folder=Path("/datadrive/"),
+                                   use_mounting=True)
     run_info = submit_to_azure_if_needed(entry_script=current_file,
                                          snapshot_root_directory=radiomics_root,
                                          workspace_config_file=Path("config.json"),

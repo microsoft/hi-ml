@@ -17,7 +17,7 @@ from histopathology.datasets.base_dataset import SlidesDataset
 
 try:
     from cucim import CuImage
-except:
+except:  # noqa: E722
     logging.warning("cucim library not available, code may fail.")
 
 
@@ -116,8 +116,8 @@ class LoadPandaROId(MapTransform):
         scale = mask_obj.resolutions['level_downsamples'][self.level]
         scaled_bbox = level0_bbox / scale
         get_data_kwargs = dict(location=(level0_bbox.x, level0_bbox.y),
-                                size=(scaled_bbox.w, scaled_bbox.h),
-                                level=self.level)
+                               size=(scaled_bbox.w, scaled_bbox.h),
+                               level=self.level)
         mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
         data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
         data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore

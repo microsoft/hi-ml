@@ -96,7 +96,7 @@ class BootstrapYourOwnLatent(pl.LightningModule):
             z_img1 = self.target_network.forward_until_predictor(img_1)
             z_img2 = self.target_network.forward_until_predictor(img_2)
         loss = 0.5 * (self.cosine_loss(h_img1, z_img2.detach())
-                      + self.cosine_loss(h_img2, z_img1.detach()))
+                      + self.cosine_loss(h_img2, z_img1.detach()))  # noqa: W503
 
         return loss
 

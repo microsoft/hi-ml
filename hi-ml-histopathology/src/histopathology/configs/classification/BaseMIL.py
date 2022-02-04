@@ -21,8 +21,8 @@ from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
-                                                        ImageNetEncoder, ImageNetSimCLREncoder,
-                                                        SSLEncoder, TileEncoder)
+                                            ImageNetEncoder, ImageNetSimCLREncoder,
+                                            SSLEncoder, TileEncoder)
 
 
 class BaseMIL(LightningContainer):
@@ -50,7 +50,7 @@ class BaseMIL(LightningContainer):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
-                                                     "enconding_chunk_size tiles per chunk")
+                                             "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property

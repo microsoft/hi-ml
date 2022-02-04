@@ -21,8 +21,8 @@ from health_ml.utils import fixed_paths, log_on_epoch
 from histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
 from histopathology.models.encoders import TileEncoder
 from histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
-                                                            plot_scores_hist, plot_heatmap_overlay,
-                                                            plot_slide, plot_normalized_confusion_matrix)
+                                                plot_scores_hist, plot_heatmap_overlay,
+                                                plot_slide, plot_normalized_confusion_matrix)
 from histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
 from histopathology.utils.viz_utils import load_image_dict
 
@@ -58,7 +58,8 @@ class DeepMILModule(LightningModule):
                  class_names: Optional[List[str]] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
-        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
+        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes
+        should be set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
         you should use `IdentityEncoder`.
         :param pooling_layer: Type of pooling to use in multi-instance aggregation. Should be a
@@ -95,9 +96,11 @@ class DeepMILModule(LightningModule):
             else:
                 self.class_names = ['0', '1']
         if self.n_classes > 1 and len(self.class_names) != self.n_classes:
-            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes ({self.n_classes})")
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number"
+                             f"of classes ({self.n_classes})")
         if self.n_classes == 1 and len(self.class_names) != 2:
-            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes ({self.n_classes+1})")
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number"
+                             f"of classes ({self.n_classes+1})")
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -127,7 +130,7 @@ class DeepMILModule(LightningModule):
         pooling_layer = self.pooling_layer(self.num_encoding,
                                            self.pool_hidden_dim,
                                            self.pool_out_dim)
-        num_features = self.num_encoding*self.pool_out_dim
+        num_features = self.num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
     def get_classifier(self) -> Callable:
@@ -144,7 +147,7 @@ class DeepMILModule(LightningModule):
         else:
             pos_weight = None
             if self.class_weights is not None:
-                pos_weight = Tensor([self.class_weights[1]/(self.class_weights[0]+1e-5)])
+                pos_weight = Tensor([self.class_weights[1] / (self.class_weights[0] + 1e-5)])
             return nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     def get_activation(self) -> Callable:
@@ -171,7 +174,7 @@ class DeepMILModule(LightningModule):
                                   MetricsKey.PRECISION: Precision(),
                                   MetricsKey.RECALL: Recall(),
                                   MetricsKey.F1: F1(),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes+1)})
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes + 1)})
 
     def log_metrics(self,
                     stage: str) -> None:
@@ -181,7 +184,7 @@ class DeepMILModule(LightningModule):
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
             if metric_name == MetricsKey.CONF_MATRIX:
                 metric_value = metric_object.compute()
-                metric_value_n = metric_value/metric_value.sum(axis=1, keepdims=True)
+                metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
                     log_on_epoch(self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
@@ -325,10 +328,14 @@ class DeepMILModule(LightningModule):
         torch.save(features_list, encoded_features_filename)
 
         print("Selecting tiles ...")
-        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
-        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
+        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                      select=('lowest_pred', 'highest_att'))
+        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                         select=('lowest_pred', 'lowest_att'))
+        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                      select=('highest_pred', 'highest_att'))
+        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                         select=('highest_pred', 'lowest_att'))
         report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
 
         for key in report_cases.keys():
@@ -346,8 +353,11 @@ class DeepMILModule(LightningModule):
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
 
                 if self.slide_dataset is not None:
-                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
-                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                           # type: ignore
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:
+                        entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                    _ = load_image_dict(slide_dict,
+                                        level=self.level,
+                                        margin=0)  # type: ignore
                     slide_image = slide_dict[SlideKey.IMAGE]
                     location_bbox = slide_dict[SlideKey.LOCATION]
 
@@ -369,7 +379,7 @@ class DeepMILModule(LightningModule):
         print('test/confusion matrix:')
         print(cf_matrix)
         #  Save the normalized confusion matrix as a figure in outputs
-        cf_matrix_n = cf_matrix/cf_matrix.sum(axis=1, keepdims=True)
+        cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
         fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=self.class_names)
         self.save_figure(fig=fig, figpath=outputs_fig_path / 'normalized_confusion_matrix.png')
 

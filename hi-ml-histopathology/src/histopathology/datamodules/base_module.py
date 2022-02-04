@@ -59,11 +59,12 @@ class TilesDataModule(LightningDataModule):
           - `NONE` (default): standard MONAI dataset is used, no caching is performed.
         :param precache_location: Whether to pre-cache the entire transformed dataset upfront and save
         it to disk. This is done once in `prepare_data()` only on the local rank-0 process, so
-        multiple processes can afterwards access the same cache without contention in DDP settings. This parameter also allow to
-        choose if the cache will be re-loaded into CPU or GPU memory:
+        multiple processes can afterwards access the same cache without contention in DDP settings.
+        This parameter also allows us to choose if the cache will be re-loaded into CPU or GPU memory:
           - `NONE (default)`: no pre-cache is performed;
           - `CPU`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded into CPU;
-          - `SAME`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded on the same device it was saved from;
+          - `SAME`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded on the same
+          device it was saved from;
         If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
         :param number_of_cross_validation_splits: Number of folds to perform.

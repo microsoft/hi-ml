@@ -78,7 +78,7 @@ def plot_box_whisker(data_list: List[Any], column_names: List[str], show_outlier
     plt.figure()
     _, ax = plt.subplots()
     ax.boxplot(data_list, showfliers=show_outliers)
-    positions = range(1, len(column_names)+1)
+    positions = range(1, len(column_names) + 1)
     means = []
     for i in range(len(data_list)):
         means.append(np.mean(data_list[i]))

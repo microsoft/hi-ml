@@ -1,4 +1,4 @@
-#TODO: remove innereye references
+# TODO: remove innereye references
 innereye_ssl_checkpoint = "hsharma_panda_explore:hsharma_panda_explore_1638437076_357167ae"
 innereye_ssl_checkpoint_binary = "hsharma_panda_tiles_ssl:hsharma_panda_tiles_ssl_1639766433_161e03b9"
 innereye_ssl_checkpoint_crck_4ws = "ModifyOldSSLCheckpoint:a9259fdb-3964-4c5b-8962-4660e0b79d44"

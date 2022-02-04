@@ -186,7 +186,7 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
                                occupancy_threshold)
 
             tile_locations = (sample[SlideKey.SCALE] * rel_tile_locations
-                              + sample[SlideKey.ORIGIN]).astype(int)
+                              + sample[SlideKey.ORIGIN]).astype(int)  # noqa: W503
 
             n_tiles = image_tiles.shape[0]
 

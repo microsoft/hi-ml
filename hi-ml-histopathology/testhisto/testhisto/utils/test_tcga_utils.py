@@ -25,4 +25,3 @@ def test_extract_fields() -> None:
     }
     extracted_fields = extract_fields(pd.Series(fields))
     assert fields == extracted_fields
-

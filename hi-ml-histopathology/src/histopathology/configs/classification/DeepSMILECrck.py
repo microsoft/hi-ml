@@ -131,8 +131,8 @@ class DeepSMILECrck(BaseMIL):
         # absolute path is required for registering the model.
         return (
             fixed_paths.repository_root_directory()
-            / self.checkpoint_folder_path
-            / self.best_checkpoint_filename_with_suffix
+            / self.checkpoint_folder_path  # noqa: W503
+            / self.best_checkpoint_filename_with_suffix  # noqa: W503
         )
 
 

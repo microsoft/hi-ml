@@ -48,7 +48,7 @@ def plot_panda_data_sample(panda_dir: str, nsamples: int, ncols: int, level: int
     panda_dataset = Dataset(PandaDataset(root=panda_dir))[:nsamples]  # type: ignore
     loader = DataLoader(panda_dataset, batch_size=1)
 
-    nrows = math.ceil(nsamples/ncols)
+    nrows = math.ceil(nsamples / ncols)
     fig, axes = plt.subplots(ncols=ncols, nrows=nrows, figsize=(9, 9))
 
     for dict_images, ax in zip(loader, axes.flat):

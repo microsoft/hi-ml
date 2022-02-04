@@ -12,7 +12,11 @@ from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomAffin
 from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
-from SSL.datamodules_and_datasets.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
+from SSL.datamodules_and_datasets.image_transforms import (
+    AddGaussianNoise,
+    ElasticTransform,
+    ExpandChannels,
+    RandomGamma)
 
 ImageData = Union[PIL.Image.Image, torch.Tensor]
 
@@ -96,7 +100,8 @@ def create_transforms_from_config(config: CfgNode,
     :param config: config yaml file fixing strength and type of augmentation to apply
     :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
     disable augmentations i.e. only resize and center crop the image.
-    :param expand_channels: if True the expand channel transformation will be added to the transformation passed through the config. This is needed for single channel images as CXR.
+    :param expand_channels: if True the expand channel transformation will be added to the transformation
+    passed through the config. This is needed for single channel images as CXR.
     """
     transforms: List[Any] = []
     if expand_channels:

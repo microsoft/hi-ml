@@ -225,5 +225,6 @@ def test_class_weights_multiclass() -> None:
     loss_unweighted = criterion_unweighted(logits, bag_label)
     # The weighted and unweighted loss functions give the same loss values for batch_size = 1.
     # https://stackoverflow.com/questions/67639540/pytorch-cross-entropy-loss-weights-not-working
-    # TODO: the test should reflect actual weighted loss operation for the class weights after batch_size > 1 is implemented.
+    # TODO: the test should reflect actual weighted loss operation for the class weights after
+    # batch_size > 1 is implemented.
     assert allclose(loss_weighted, loss_unweighted)

@@ -14,6 +14,7 @@ from torch.utils.data import Dataset
 
 from histopathology.utils.naming import SlideKey
 
+
 class TilesDataset(Dataset):
     """Base class for datasets of WSI tiles, iterating dictionaries of image paths and metadata.
 

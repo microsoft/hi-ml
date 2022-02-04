@@ -92,6 +92,7 @@ def mock_data_dir(tmp_path: Path) -> Path:
         df.to_csv(csv_path, index=False)
     return csv_dir
 
+
 def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
                     cache_dir_provided: bool, data_dir: Path) -> TilesDataModule:
     if (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE) \
@@ -99,7 +100,8 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
             or (precache_location is not CacheLocation.NONE and not cache_dir_provided):
         pytest.skip("Unsupported combination of caching arguments")
 
-    cache_dir = data_dir / f"datamodule_cache_{cache_mode.value}_{precache_location.value}" if cache_dir_provided else None
+    cache_dir = data_dir / f"datamodule_cache_{cache_mode.value}_{precache_location.value}" if \
+        cache_dir_provided else None
 
     if cache_dir is not None and cache_dir.exists():
         shutil.rmtree(cache_dir)

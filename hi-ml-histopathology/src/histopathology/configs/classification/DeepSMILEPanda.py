@@ -36,7 +36,6 @@ from histopathology.models.transforms import (
 )
 
 
-
 class DeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -159,8 +158,8 @@ class DeepSMILEPanda(BaseMIL):
             return absolute_checkpoint_path
 
         absolute_checkpoint_path_parent = Path(fixed_paths.repository_parent_directory(),
-                                    self.checkpoint_folder_path,
-                                    self.best_checkpoint_filename_with_suffix)
+                                               self.checkpoint_folder_path,
+                                               self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
@@ -169,6 +168,7 @@ class DeepSMILEPanda(BaseMIL):
             return checkpoint_path
 
         raise ValueError("Path to best checkpoint not found")
+
 
 class PandaImageNetMIL(DeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:

@@ -43,8 +43,11 @@ class PandaTilesDataset(TilesDataset):
                          dataset_df=dataset_df,
                          train=None)
         if occupancy_threshold is not None:
-            dataset_df_filtered = self.dataset_df.loc[self.dataset_df['occupancy'] > occupancy_threshold]  # type: ignore
+            dataset_df_filtered = self.dataset_df.loc[
+                self.dataset_df['occupancy'] > occupancy_threshold
+            ]  # type: ignore
             self.dataset_df = dataset_df_filtered
+
 
 class PandaTilesDatasetReturnImageLabel(VisionDataset):
     """

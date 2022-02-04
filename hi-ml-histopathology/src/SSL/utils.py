@@ -100,7 +100,10 @@ def create_ssl_image_classifier(num_classes: int,
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
     """
     This class is a helper class for SSL model loading from checkpoints with strict=True.
-    We cannot simply load the class directly via  do BootstrapYourOwnLatent().load_from_checkpoint("ckpt") with strict loading because the checkpoint will contain the weights of the linear evaluator, but this one is defined outside of the BootstrapYourOwnLatent class (as it is defined as a callback), hence we can only load the checkpoint if we manually re-add the linear evaluator prior to loading.
+    We cannot simply load the class directly via  do BootstrapYourOwnLatent().load_from_checkpoint("ckpt") with
+    strict loading because the checkpoint will contain the weights of the linear evaluator, but this one is
+    defined outside of the BootstrapYourOwnLatent class (as it is defined as a callback), hence we can only
+    load the checkpoint if we manually re-add the linear evaluator prior to loading.
 
     :param ssl_class:   SSL object either BYOL or SimCLR.
     :param num_classes: Number of target classes for the linear head.

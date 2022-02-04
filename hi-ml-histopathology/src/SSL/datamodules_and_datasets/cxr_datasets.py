@@ -210,6 +210,9 @@ class CovidDataset(CXRDatasetWithReturnIndex):
         shuffled_subject_ids = np.random.RandomState(seed).permutation(np.unique(self.subject_ids))
         n_val = int(len(shuffled_subject_ids) * val_split)
         val_subjects, train_subjects = shuffled_subject_ids[:n_val], shuffled_subject_ids[n_val:]
-        train_ids, val_ids = np.where(np.isin(self.subject_ids, train_subjects))[0], \
-                             np.where(np.isin(self.subject_ids, val_subjects))[0]
+        train_ids, val_ids = np.where(
+            np.isin(self.subject_ids, train_subjects)
+        )[0], np.where(
+            np.isin(self.subject_ids, val_subjects)
+        )[0]
         return Subset(self, train_ids), Subset(self, val_ids)

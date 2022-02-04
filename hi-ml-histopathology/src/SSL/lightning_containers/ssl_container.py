@@ -115,11 +115,12 @@ class SSLContainer(LightningContainer):
                 and len(self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
             self.extra_local_dataset_paths = [self.local_dataset]
         self.datamodule_args = {SSLDataModuleType.LINEAR_HEAD:
-                                    DataModuleArgs(augmentation_params=self.classifier_augmentation_params,
-                                                   dataset_name=self.linear_head_dataset_name.value,
-                                                   dataset_path=self.extra_local_dataset_paths[0] if len(
-                                                       self.extra_local_dataset_paths) > 0 else None,
-                                                   batch_size=self.linear_head_batch_size)}
+                                DataModuleArgs(augmentation_params=self.classifier_augmentation_params,
+                                               dataset_name=self.linear_head_dataset_name.value,
+                                               dataset_path=self.extra_local_dataset_paths[0] if len(
+                                                   self.extra_local_dataset_paths
+                                                ) > 0 else None, batch_size=self.linear_head_batch_size)
+                                }
         if self.ssl_training_dataset_name is not None:
             self.datamodule_args.update(
                 {SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_params=self.ssl_augmentation_params,
@@ -150,21 +151,21 @@ class SSLContainer(LightningContainer):
         use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
         if self.ssl_training_type == SSLTrainingType.SimCLR:
             model: LightningModule = SimCLRHIML(encoder_name=self.ssl_encoder.value,
-                                                    dataset_name=self.ssl_training_dataset_name.value,
-                                                    use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
-                                                    gpus=self.total_num_gpus,
-                                                    num_samples=self.data_module.num_samples,
-                                                    batch_size=self.data_module.batch_size,
-                                                    learning_rate=self.l_rate,
-                                                    max_epochs=self.num_epochs)
+                                                dataset_name=self.ssl_training_dataset_name.value,
+                                                use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
+                                                gpus=self.total_num_gpus,
+                                                num_samples=self.data_module.num_samples,
+                                                batch_size=self.data_module.batch_size,
+                                                learning_rate=self.l_rate,
+                                                max_epochs=self.num_epochs)
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BootstrapYourOwnLatent(encoder_name=self.ssl_encoder.value,
-                                 num_samples=self.data_module.num_samples,
-                                 batch_size=self.data_module.batch_size,
-                                 learning_rate=self.l_rate,
-                                 use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
-                                 warmup_epochs=10,
-                                 max_epochs=self.num_epochs)
+                                           num_samples=self.data_module.num_samples,
+                                           batch_size=self.data_module.batch_size,
+                                           learning_rate=self.l_rate,
+                                           use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
+                                           warmup_epochs=10,
+                                           max_epochs=self.num_epochs)
         else:
             raise ValueError(
                 f"Unknown value for ssl_training_type, should be {SSLTrainingType.SimCLR.value} or "
@@ -209,15 +210,15 @@ class SSLContainer(LightningContainer):
         logging.info(f"Batch size per GPU: {datamodule_args.batch_size}")
         logging.info(f"Effective batch size on {batch_multiplier} GPUs: {effective_batch_size}")
         dm = VisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
-                                      return_index=not is_ssl_encoder_module,  # index is only needed for linear head
-                                      train_transforms=train_transforms,
-                                      val_split=0.1,
-                                      val_transforms=val_transforms,
-                                      data_dir=str(datamodule_args.dataset_path),
-                                      batch_size=datamodule_args.batch_size,
-                                      num_workers=self.num_workers,
-                                      seed=self.random_seed,
-                                      drop_last=self.drop_last)
+                              return_index=not is_ssl_encoder_module,  # index is only needed for linear head
+                              train_transforms=train_transforms,
+                              val_split=0.1,
+                              val_transforms=val_transforms,
+                              data_dir=str(datamodule_args.dataset_path),
+                              batch_size=datamodule_args.batch_size,
+                              num_workers=self.num_workers,
+                              seed=self.random_seed,
+                              drop_last=self.drop_last)
         dm.prepare_data()
         dm.setup()
         return dm
@@ -269,10 +270,10 @@ class SSLContainer(LightningContainer):
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         self.online_eval = SSLOnlineEvaluatorHIML(class_weights=self.data_module.class_weights,  # type: ignore
-                                                      z_dim=self.encoder_output_dim,
-                                                      num_classes=self.data_module.num_classes,  # type: ignore
-                                                      dataset=self.linear_head_dataset_name.value,  # type: ignore
-                                                      drop_p=0.2,
-                                                      learning_rate=self.learning_rate_linear_head_during_ssl_training)
+                                                  z_dim=self.encoder_output_dim,
+                                                  num_classes=self.data_module.num_classes,  # type: ignore
+                                                  dataset=self.linear_head_dataset_name.value,  # type: ignore
+                                                  drop_p=0.2,
+                                                  learning_rate=self.learning_rate_linear_head_during_ssl_training)
         trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
         return trainer_kwargs

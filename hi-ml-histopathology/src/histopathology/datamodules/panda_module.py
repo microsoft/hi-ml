@@ -18,6 +18,7 @@ class PandaTilesDataModule(TilesDataModule):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+
     def get_splits(self) -> Tuple[PandaTilesDataset, PandaTilesDataset, PandaTilesDataset]:
         dataset = PandaTilesDataset(self.root_path)
         splits = DatasetSplits.from_proportions(dataset.dataset_df.reset_index(),

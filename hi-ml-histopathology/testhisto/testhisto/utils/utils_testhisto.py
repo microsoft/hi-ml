@@ -5,12 +5,9 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from PIL import Image
-
-from health_azure.utils import PathOrString
 
 
 @dataclass(frozen=True)
@@ -76,5 +73,5 @@ def full_ml_test_data_path(suffix: str = "") -> Path:
     :return: The full absolute path of the directory
     """
     root = Path(os.path.realpath(__file__)).parent.parent.parent
-    test_data_dir = root  / "test_data"
+    test_data_dir = root / "test_data"
     return test_data_dir / suffix
