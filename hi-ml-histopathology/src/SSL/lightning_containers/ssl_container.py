@@ -118,9 +118,8 @@ class SSLContainer(LightningContainer):
                                 DataModuleArgs(augmentation_params=self.classifier_augmentation_params,
                                                dataset_name=self.linear_head_dataset_name.value,
                                                dataset_path=self.extra_local_dataset_paths[0] if len(
-                                                   self.extra_local_dataset_paths
-                                                ) > 0 else None, batch_size=self.linear_head_batch_size)
-                                }
+                                                   self.extra_local_dataset_paths) > 0 else None,
+                                               batch_size=self.linear_head_batch_size)}
         if self.ssl_training_dataset_name is not None:
             self.datamodule_args.update(
                 {SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_params=self.ssl_augmentation_params,

@@ -34,6 +34,7 @@ from histopathology.models.transforms import (
     EncodeTilesBatchd,
     LoadTilesBatchd,
 )
+from histopathology.utils.checkpoint_utils import get_best_checkpoint_path
 
 
 class DeepSMILEPanda(BaseMIL):

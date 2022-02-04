@@ -354,7 +354,7 @@ class DeepMILModule(LightningModule):
 
                 if self.slide_dataset is not None:
                     slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:
-                        entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                                               entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
                     _ = load_image_dict(slide_dict,
                                         level=self.level,
                                         margin=0)  # type: ignore
@@ -364,7 +364,7 @@ class DeepMILModule(LightningModule):
                     fig = plot_slide(slide_image=slide_image, scale=1.0)
                     self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_thumbnail.png'))
                     fig = plot_heatmap_overlay(slide=slide, slide_image=slide_image, results=results,
-                                            location_bbox=location_bbox, tile_size=self.tile_size, level=self.level)
+                                               location_bbox=location_bbox, tile_size=self.tile_size, level=self.level)
                     self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_heatmap.png'))
 
         print("Plotting histogram ...")
