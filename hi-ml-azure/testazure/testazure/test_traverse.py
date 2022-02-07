@@ -2,12 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from dataclasses import dataclass
 
 import param
+import pytest
+from _pytest.logging import LogCaptureFixture
 
-from health_azure.traverse import object_to_dict, object_to_yaml, yaml_to_dict, write_dict_to_object, \
-    write_yaml_to_object
+from health_azure.traverse import (object_to_dict, object_to_yaml, yaml_to_dict, write_dict_to_object,
+                                   write_yaml_to_object, _write_dict_to_object)
 
 
 @dataclass
@@ -158,3 +161,61 @@ def test_object_to_yaml_floats() -> None:
     assert yaml == """blur_p: 1.0
 blur_sigma: 0.1
 """
+
+
+def test_write_dict_errors1(caplog: LogCaptureFixture) -> None:
+    """
+    Check type mismatches between object and YAML contents
+    :return:
+    """
+    # First test the private writer method
+    config = TransformConfig()
+    dict = {"blur_p": 1, "blur_sigma": 0.1}
+    errors = _write_dict_to_object(config, dict)
+    assert len(errors) == 1
+    assert "Attribute blur_p" in errors[0]
+    assert "Skipped" in errors[0]
+    assert "Current value has type float" in errors[0]
+    assert "trying to write int" in errors[0]
+
+    # The same error message should be raised when calling the full method, with either strict or non-strict
+    config = TransformConfig()
+    with caplog.at_level(level=logging.WARNING):
+        with pytest.raises(ValueError) as ex:
+            write_dict_to_object(config, dict, strict=True)
+    assert "Found 1 problems" in str(ex)
+    assert errors[0] in caplog.text
+
+    config = TransformConfig()
+    with caplog.at_level(level=logging.WARNING):
+        write_dict_to_object(config, dict, strict=False)
+    assert errors[0] in caplog.text
+
+
+def test_write_dict_errors2(caplog: LogCaptureFixture) -> None:
+    """
+    Check type mismatches between object and YAML contents, and that field names are correctly handled
+    :return:
+    """
+    caplog.set_level(logging.WARNING)
+    config = FullConfig()
+    dict = object_to_dict(config)
+    dict["transforms"]["blur_p"] = "foo"
+    dict["optimizer"]["learning_rate"] = "bar"
+    write_dict_to_object(config, dict, strict=False)
+    assert "Found 2 problems" in caplog.text
+    assert "Attribute transforms.blur_p" in caplog.text
+    assert "Attribute optimizer.learning_rate" in caplog.text
+
+
+def test_write_dict_errors3() -> None:
+    """
+    Check handling of cases where the object has more fields than present in the dictionary
+    :return:
+    """
+    config = TransformConfig()
+    dict = {"blur_p": 1.0}
+    issues = _write_dict_to_object(config, dict)
+    assert len(issues) == 1
+    assert "Present in the object, but missing in the dictionary" in issues[0]
+    assert "Attribute blur_sigma" in issues[0]

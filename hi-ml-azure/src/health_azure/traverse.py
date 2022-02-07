@@ -95,15 +95,12 @@ def yaml_to_dict(s: str) -> Dict[str, Any]:
 
 
 def _write_dict_to_object(o: Any, d: Dict[str, Any],
-                          strict: bool = False,
                           traversed_fields: Optional[List] = None) -> List[str]:
     """
     Writes a dictionary of values into an object, assuming that the attributes of the object and the dictionary keys
     are in sync. For example, to write a dictionary {"foo": 1, "bar": "baz"} to an object, the object needs to have
     attributes "foo" and "bar".
 
-    :param strict: If True, any mismatch of field names will raise a ValueError. If False, only a warning will be
-    printed.
     :param o: The object to write to.
     :param d: A dictionary mapping from attribute names to values or dictionaries recursively.
     :return: A list of error messages collected.
@@ -127,7 +124,10 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                                        f"write {t_value_to_write.__name__}")
                 setattr(o, name, value_to_write)
             elif not is_basic_field(value) and isinstance(value_to_write, Dict):
-                new_issues = _write_dict_to_object(getattr(o, name), value_to_write, traversed_fields=traversed)
+                # For anything that is not a basic datatype, we expect that we get a dictionary of fields
+                # recursively.
+                new_issues = _write_dict_to_object(getattr(o, name), value_to_write,
+                                                   traversed_fields=traversed + [name])
                 issues.extend(new_issues)
             else:
                 report_issue(name, f"Skipped. Current value has type {t_value.__name__}, but trying to "
@@ -150,13 +150,17 @@ def write_dict_to_object(o: Any, d: Dict[str, Any],
     :param o: The object to write to.
     :param d: A dictionary mapping from attribute names to values or dictionaries recursively.
     """
-    issues = _write_dict_to_object(o, d, strict=strict)
-    message = f"Unable to complete writing to the object: Found {len(issues)} problems:"
-    full_message = "\n".join([message] + issues)
+    issues = _write_dict_to_object(o, d)
+    if len(issues) == 0:
+        return
+    message = f"Unable to complete writing to the object: Found {len(issues)} problems. Please inspect console log " \
+              "for details"
+    for issue in issues:
+        logging.warning(issue)
     if strict:
-        raise ValueError(full_message)
+        raise ValueError(message)
     else:
-        logging.warning(full_message)
+        logging.warning(message)
 
 
 def write_yaml_to_object(o: Any, yaml_string: str) -> None:
