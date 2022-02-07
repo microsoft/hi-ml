@@ -106,6 +106,19 @@ def test_traverse_enum() -> None:
     assert d == "foo"
 
 
+def test_traverse_none() -> None:
+    """
+    Attributes that are None should be preserved as such in YAML.
+    """
+    config = OptimizerConfig()
+    config.optimizer = None
+    assert _object_to_dict(None) is None
+    assert _object_to_dict(config) == {"learning_rate": 1e-3, "optimizer": None}
+    assert object_to_yaml(config) == """learning_rate: 1e-3
+optimizer: null
+"""
+
+
 def test_to_yaml_rountrip() -> None:
     config = FullConfig()
     yaml = object_to_yaml(config)
@@ -293,3 +306,20 @@ def test_write_enums_errors() -> None:
     # This should work fine
     issues = _write_dict_to_object(config, {"f1": MyEnum.bar.name})
     assert len(issues) == 0
+
+
+def test_write_null() -> None:
+    """
+    Round-trip test for writing fields that are None.
+    """
+    config = OptimizerConfig()
+    config.optimizer = None
+    dict = object_to_dict(config)
+    yaml = object_to_yaml(config)
+    config.optimizer = "foo"
+    issues = _write_dict_to_object(config, dict)
+    assert len(issues) == 0
+    assert config.optimizer is None
+    config.optimizer = "foo"
+    write_yaml_to_object(config, yaml)
+    assert config.optimizer is None

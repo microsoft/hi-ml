@@ -62,7 +62,7 @@ def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
         raise ValueError("This function cannot be used on objects that do not support the 'vars' operation")
 
 
-def _object_to_dict(o: Any) -> Union[str, Dict[str, Any]]:
+def _object_to_dict(o: Any) -> Union[Optional[str], Dict[str, Any]]:
     """
     Converts an object to a dictionary mapping from attribute name to value. That value can be a dictionary recursively,
     if the attribute is not a simple datatype.
@@ -75,6 +75,8 @@ def _object_to_dict(o: Any) -> Union[str, Dict[str, Any]]:
         return o
     if isinstance(o, enum.Enum):
         return o.name
+    if o is None:
+        return o
     try:
         fields = get_all_writable_attributes(o)
         return {field: _object_to_dict(value) for field, value in fields.items()}
@@ -146,6 +148,12 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
         full_field_name = ".".join(traversed + [name])
         issues.append(f"Attribute {full_field_name}: {message}")
 
+    def try_set_field(name, value_to_write) -> None:
+        try:
+            setattr(o, name, value_to_write)
+        except Exception as ex:
+            report_issue(name, f"Unable to set value {value_to_write}: {ex}")
+
     existing_attrs = get_all_writable_attributes(o)
     for name, value in existing_attrs.items():
         if name in d:
@@ -156,7 +164,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                 if t_value != t_value_to_write:
                     report_issue(name, f"Skipped. Current value has type {t_value.__name__}, but trying to "
                                        f"write {t_value_to_write.__name__}")
-                setattr(o, name, value_to_write)
+                try_set_field(name, value)
             elif isinstance(value, enum.Enum):
                 if isinstance(value_to_write, str):
                     try:
@@ -164,11 +172,13 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                     except:
                         report_issue(name, f"Skipped. Enum type {t_value.__name__} has no case {value_to_write}")
                     else:
-                        setattr(o, name, enum_case)
+                        try_set_field(name, enum_case)
                 else:
                     report_issue(name, "Skipped. This is an Enum field. Can only write string values to that field "
                                        f"(case name), but got value of type {t_value_to_write.__name__}")
-
+            elif value is None or value_to_write is None:
+                # We can't do much type checking if we get Nones. This is a potential source of errors.
+                try_set_field(name, value_to_write)
             elif not is_basic_field(value) and isinstance(value_to_write, Dict):
                 # For anything that is not a basic datatype, we expect that we get a dictionary of fields
                 # recursively.
@@ -209,6 +219,16 @@ def write_dict_to_object(o: Any, d: Dict[str, Any],
         logging.warning(message)
 
 
-def write_yaml_to_object(o: Any, yaml_string: str) -> None:
+def write_yaml_to_object(o: Any, yaml_string: str,
+                         strict: bool = False) -> None:
+    """
+    Writes a serialized object in YAML format back into an object, assuming that the attributes of the object and
+    the YAML field names are in sync.
+
+    :param strict: If True, any mismatch of field names will raise a ValueError. If False, only a warning will be
+    printed. Note that the object may have been modified even if an error is raised.
+    :param o: The object to write to.
+    :param yaml_string: A YAML formatted string with attribute names and values.
+    """
     d = yaml_to_dict(yaml_string)
-    write_dict_to_object(o, d)
+    write_dict_to_object(o, d, strict=strict)
