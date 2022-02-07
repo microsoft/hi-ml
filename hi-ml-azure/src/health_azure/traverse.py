@@ -68,7 +68,10 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
     if is_basic_field(o):
         raise ValueError("This function cannot be used on objects that are basic datatypes.")
     fields = get_all_writable_attributes(o)
-    return {field: _object_to_dict(value) for field, value in fields.items()}
+    result = {}
+    for field, value in fields.items():
+        logging.debug(f"object_to_dict: Processing {field}")
+        result[field] = _object_to_dict(value)
 
 
 def object_to_yaml(o: Any) -> str:
