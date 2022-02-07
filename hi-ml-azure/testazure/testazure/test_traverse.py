@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import enum
 import logging
 from dataclasses import dataclass
 
@@ -9,7 +10,9 @@ import param
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from health_azure.traverse import (object_to_dict, object_to_yaml, yaml_to_dict, write_dict_to_object,
+from health_azure.traverse import (_object_to_dict, get_all_writable_attributes, object_to_dict, object_to_yaml,
+                                   yaml_to_dict,
+                                   write_dict_to_object,
                                    write_yaml_to_object, _write_dict_to_object)
 
 
@@ -44,6 +47,23 @@ class ParamsConfig(param.Parameterized):
     p3: float = param.Number(default=2.0)
 
 
+class ParamsConfigWithReadonly(param.Parameterized):
+    p1: int = param.Integer(default=1, readonly=True)
+    p2: str = param.String(default="foo", constant=True)
+    p3: float = param.Number(default=2.0)
+    _p4: float = param.Number(default=4.0)
+
+
+class MyEnum(enum.Enum):
+    foo = "foo_value"
+    bar = "bar_value"
+
+
+@dataclass
+class ConfigWithEnum:
+    f1: MyEnum
+
+
 def test_traverse1() -> None:
     config = TransformConfig()
     d = object_to_dict(config)
@@ -63,6 +83,27 @@ def test_traverse_params() -> None:
     config = ParamsConfig()
     d = object_to_dict(config)
     assert d == {"p1": 1, "p2": "foo", "p3": 2.0}
+
+
+def test_traverse_params_readonly() -> None:
+    """
+    Private, constant and readonly fields of a Params object should be skipped.
+    """
+    config = ParamsConfigWithReadonly()
+    d = get_all_writable_attributes(config)
+    assert d == {"p3": 2.0}
+
+
+def test_traverse_enum() -> None:
+    """
+    Enum objects have not non-private fields, and should return an empty value dictionary.
+    """
+    config = MyEnum.foo
+    d = get_all_writable_attributes(config)
+    assert len(d) == 0
+    # Enum objects should be printed out by their case name
+    d = _object_to_dict(config)
+    assert d == "foo"
 
 
 def test_to_yaml_rountrip() -> None:
@@ -219,3 +260,36 @@ def test_write_dict_errors3() -> None:
     assert len(issues) == 1
     assert "Present in the object, but missing in the dictionary" in issues[0]
     assert "Attribute blur_sigma" in issues[0]
+
+
+def test_write_enums() -> None:
+    """
+    Test handling of fields that are enum types
+    """
+    config = ConfigWithEnum(f1=MyEnum.bar)
+    d = object_to_dict(config)
+    assert d == {"f1": "bar"}
+    # Now change F1 to be another enum value, write back the previous dictionary, and check if F1 is back at the
+    # original value
+    config.f1 = MyEnum.foo
+    write_dict_to_object(config, d)
+    assert config.f1 == MyEnum.bar
+
+
+def test_write_enums_errors() -> None:
+    """
+    Error handling for enum fields
+    """
+    config = ConfigWithEnum(f1=MyEnum.bar)
+    # Trying to write a floating point number, but we expect a string case name
+    issues = _write_dict_to_object(config, {"f1": 1.0})
+    assert len(issues) == 1
+    assert "Enum field" in issues[0]
+    assert "got value of type float" in issues[0]
+    # Referencing an enum case that does not exist
+    issues = _write_dict_to_object(config, {"f1": "no_such_case"})
+    assert len(issues) == 1
+    assert "Enum type MyEnum has no case no_such_case" in issues[0]
+    # This should work fine
+    issues = _write_dict_to_object(config, {"f1": MyEnum.bar.name})
+    assert len(issues) == 0

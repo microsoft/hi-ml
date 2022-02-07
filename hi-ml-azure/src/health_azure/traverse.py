@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import enum
 import logging
 from io import StringIO
 from typing import Any, Dict, Union, List, Optional
@@ -17,6 +18,16 @@ def is_basic_field(o: Any) -> bool:
     return isinstance(o, (str, int, float))
 
 
+def is_enum(o: Any) -> bool:
+    """
+    Returns True if the given object is a subclass of enum.Enum.
+
+    :param o: The object to inspect.
+    :return: True if the object is an enum, False otherwise.
+    """
+    return isinstance(o, enum.Enum)
+
+
 def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
     """
     Returns all writable attributes of an object, by resorting to the "vars" method. For object that derive
@@ -25,14 +36,28 @@ def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
     :param o: The object to inspect.
     :return: A dictionary mapping from attribute name to its value.
     """
+    def _is_private(s: str) -> bool:
+        return s.startswith("_")
+
+    result = {}
     if isinstance(o, param.Parameterized):
-        result = {}
         for param_name, p in o.params().items():
-            if not p.constant and not p.readonly:
+            if _is_private(param_name):
+                logging.debug(f"get_all_writable_attributes: Skipping private field {param_name}")
+            elif p.constant:
+                logging.debug(f"get_all_writable_attributes: Skipping constant field {param_name}")
+            elif p.readonly:
+                logging.debug(f"get_all_writable_attributes: Skipping readonly field {param_name}")
+            else:
                 result[param_name] = getattr(o, param_name)
         return result
     try:
-        return vars(o)
+        for name, value in vars(o).items():
+            if _is_private(name):
+                logging.debug(f"get_all_writable_attributes: Skipping private field {name}")
+            else:
+                result[name] = value
+        return result
     except TypeError:
         raise ValueError("This function cannot be used on objects that do not support the 'vars' operation")
 
@@ -48,6 +73,8 @@ def _object_to_dict(o: Any) -> Union[str, Dict[str, Any]]:
     """
     if is_basic_field(o):
         return o
+    if isinstance(o, enum.Enum):
+        return o.name
     try:
         fields = get_all_writable_attributes(o)
         return {field: _object_to_dict(value) for field, value in fields.items()}
@@ -72,6 +99,7 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
     for field, value in fields.items():
         logging.debug(f"object_to_dict: Processing {field}")
         result[field] = _object_to_dict(value)
+    return result
 
 
 def object_to_yaml(o: Any) -> str:
@@ -126,6 +154,18 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                     report_issue(name, f"Skipped. Current value has type {t_value.__name__}, but trying to "
                                        f"write {t_value_to_write.__name__}")
                 setattr(o, name, value_to_write)
+            elif isinstance(value, enum.Enum):
+                if isinstance(value_to_write, str):
+                    try:
+                        enum_case = getattr(t_value, value_to_write)
+                    except:
+                        report_issue(name, f"Skipped. Enum type {t_value.__name__} has no case {value_to_write}")
+                    else:
+                        setattr(o, name, enum_case)
+                else:
+                    report_issue(name, "Skipped. This is an Enum field. Can only write string values to that field "
+                                       f"(case name), but got value of type {t_value_to_write.__name__}")
+
             elif not is_basic_field(value) and isinstance(value_to_write, Dict):
                 # For anything that is not a basic datatype, we expect that we get a dictionary of fields
                 # recursively.
