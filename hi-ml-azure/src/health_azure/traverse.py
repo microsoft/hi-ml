@@ -86,11 +86,14 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
     """
     Converts an object to a dictionary mapping from attribute name to value. That value can be a dictionary recursively,
     if the attribute is not a simple datatype.
-    This function only works on objects that are not basic datatype (i.e., classes)
+    This function only works on objects that are not basic datatype (i.e., classes). Private fields (name starting with
+    underscores), or ones that appear to be constant or readonly are omitted. For attributes that are Enums, the
+    case name is returned as a string.
+
     :param o: The object to inspect.
     :return: Returns the argument if the object is a basic datatype, otherwise a dictionary mapping from attribute
     name to value.
-    :raises ValueError: If the argument is a b
+    :raises ValueError: If the argument is a basic datatype (int, str, float)
     """
     if is_basic_field(o):
         raise ValueError("This function cannot be used on objects that are basic datatypes.")
