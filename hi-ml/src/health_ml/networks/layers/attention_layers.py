@@ -8,7 +8,19 @@ https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
 """
 from typing import Tuple
 from torch import nn, Tensor, transpose, mm
+import torch
 import torch.nn.functional as F
+
+
+class MeanPoolingLayer(nn.Module):
+    """Mean pooling returns uniform weights and the average feature vector over the first axis"""
+
+    def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
+        num_instances = features.shape[0]
+        A = torch.full((1, num_instances), 1. / num_instances)
+        M = features.mean(dim=0)
+        M = M.view(1, -1)
+        return (A, M)
 
 
 class AttentionLayer(nn.Module):
