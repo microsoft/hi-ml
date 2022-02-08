@@ -7,7 +7,7 @@ import pytest
 from health_azure.utils import is_running_on_azure_agent
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
-from testhiml.utils.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path, tests_root_directory
 
 
 @pytest.fixture(scope="module")
@@ -134,6 +134,6 @@ def test_path_to_namespace(is_external: bool) -> None:
         ) == folder_name
     else:
         assert path_to_namespace(
-            path=full_ml_test_data_path(),
+            path=full_test_data_path(),
             root=tests_root_dir
-        ) == "ML.test_data"
+        ) == "test_data"
