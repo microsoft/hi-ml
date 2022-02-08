@@ -2,13 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List, Optional
+from typing import Any, Optional
 from pytorch_lightning import LightningModule
 
 import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
-from torchmetrics import Metric
-from torch.nn import functional as F
+from torch.nn import ModuleList, functional as F
 
 from health_ml.utils import log_on_epoch
 
@@ -38,18 +37,12 @@ class SSLClassifier(LightningModule):
                                             n_classes=num_classes,
                                             p=0.20)
         if self.num_classes == 2:
-            self.train_metrics: List[Metric] = \
-                [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
-            self.val_metrics: List[Metric] = \
-                [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
+            self.train_metrics = ModuleList([AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
+            self.val_metrics = ModuleList([AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
         else:
             # Note that for multi-class, Accuracy05 is the standard multi-class accuracy.
-            self.train_metrics = [Accuracy05()]
-            self.val_metrics = [Accuracy05()]
-
-    def on_train_start(self) -> None:
-        for metric in [*self.train_metrics, *self.val_metrics]:
-            metric.to(device=self.device)  # type: ignore
+            self.train_metrics = ModuleList([Accuracy05()])
+            self.val_metrics = ModuleList([Accuracy05()])
 
     def train(self, mode: bool = True) -> Any:
         self.classifier_head.train(mode)

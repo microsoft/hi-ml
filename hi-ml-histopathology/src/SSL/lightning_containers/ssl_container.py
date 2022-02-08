@@ -16,7 +16,7 @@ from health_ml.lightning_container import LightningContainer
 
 from SSL.datamodules_and_datasets.cifar_datasets import HIMLCIFAR10, HIMLCIFAR100
 from SSL.datamodules_and_datasets.cxr_datasets import CheXpert, CovidDataset, NIHCXR, RSNAKaggleCXR
-from SSL.datamodules_and_datasets.datamodules import CombinedDataModule, VisionDataModule
+from SSL.datamodules_and_datasets.datamodules import CombinedDataModule, HIMLVisionDataModule
 from SSL.datamodules_and_datasets.transforms_utils import CIFARLinearHeadTransform, \
     CIFARTrainTransform, \
     get_ssl_transforms_from_config
@@ -51,7 +51,7 @@ class SSLDatasetName(Enum):
     Covid = "CovidDataset"
 
 
-DataModuleTypes = Union[VisionDataModule, CombinedDataModule]
+DataModuleTypes = Union[HIMLVisionDataModule, CombinedDataModule]
 
 
 class SSLContainer(LightningContainer):
@@ -100,37 +100,56 @@ class SSLContainer(LightningContainer):
     drop_last = param.Boolean(default=True, doc="If True drops the last incomplete batch")
 
     def setup(self) -> None:
-        from SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
         if self.is_debug_model:
             self.pl_limit_train_batches = 1
             self.pl_limit_val_batches = 1
         self.pl_find_unused_parameters = True
         self.total_num_gpus = self.num_gpus_per_node() * self.num_nodes
         self._load_config()
-        # If you're using the same data for training and linear head, allow the user to specify the dataset only
-        # once. Or if you are doing just finetuning of linear head, the user should be able to specify dataset via
-        # azure_dataset_id/local_dataset instead of extra_dataset fields (as in this case we only use one dataset).
-        if ((self.linear_head_dataset_name == self.ssl_training_dataset_name) or isinstance(self,
-                                                                                            SSLClassifierContainer)) \
-                and len(self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
-            self.extra_local_dataset_paths = [self.local_dataset]
+        # TODO: below is messy. Add specific command line args for training dataset and linear head dataset?
+
+        if len(self.local_datasets) == 0:
+            linear_head_dataset_path = None
+        # If using the same data for training and linear head, or is just finetuning the linear head, local_datasets
+        # may contain only one dataset entry
+        elif (
+            (self.linear_head_dataset_name == self.ssl_training_dataset_name) or  # noqa: W504
+            (self.ssl_training_dataset_name is None and self.linear_head_dataset_name is not None)
+        ) and len(self.local_datasets) == 1:
+            # self.extra_local_dataset_paths = [self.local_dataset]
+            linear_head_dataset_path = self.local_datasets[0]
+
+        # If using different data for training and linear head, the user must specify 2 datasets (the first is the
+        # training dataset and the second is the linear head dataset)
+        elif (self.linear_head_dataset_name != self.ssl_training_dataset_name) and len(self.local_datasets) == 2:
+            linear_head_dataset_path = self.local_datasets[1]
+        else:
+            raise TypeError(f"If linear_head_dataset_name ({self.linear_head_dataset_name}) does not equal"
+                            f"ssl_training_dataset_name ({self.ssl_training_dataset_name}), then local_datasets"
+                            f"must be a list of two entries: the first representing the training dataset and "
+                            f"the second representing the linear head dataset. Instead found: {self.local_datasets}")
+
         self.datamodule_args = {SSLDataModuleType.LINEAR_HEAD:
                                 DataModuleArgs(augmentation_params=self.classifier_augmentation_params,
                                                dataset_name=self.linear_head_dataset_name.value,
-                                               dataset_path=self.extra_local_dataset_paths[0] if len(
-                                                   self.extra_local_dataset_paths) > 0 else None,
+                                               dataset_path=linear_head_dataset_path,
                                                batch_size=self.linear_head_batch_size)}
         if self.ssl_training_dataset_name is not None:
+            # The first entry in local_datasets should be the training dataset path
+            if len(self.local_datasets) > 0:
+                training_dataset_path = self.local_datasets[0]
+            else:
+                training_dataset_path = None
             self.datamodule_args.update(
                 {SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_params=self.ssl_augmentation_params,
                                                            dataset_name=self.ssl_training_dataset_name.value,
-                                                           dataset_path=self.local_dataset,
+                                                           dataset_path=training_dataset_path,
                                                            batch_size=self.ssl_training_batch_size)})
         self.data_module: DataModuleTypes = self.get_data_module()
         self.inference_on_val_set = False
         self.inference_on_test_set = False
-        if self.perform_cross_validation:
-            raise NotImplementedError("Cross-validation logic is not implemented for this module.")
+        # if self.perform_cross_validation:
+        #     raise NotImplementedError("Cross-validation logic is not implemented for this module.")
 
     def _load_config(self) -> None:
         # For Chest-XRay you need to specify the parameters of the augmentations via a config file.
@@ -164,7 +183,7 @@ class SSLContainer(LightningContainer):
                                            learning_rate=self.l_rate,
                                            use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                            warmup_epochs=10,
-                                           max_epochs=self.num_epochs)
+                                           max_epochs=self.max_epochs)
         else:
             raise ValueError(
                 f"Unknown value for ssl_training_type, should be {SSLTrainingType.SimCLR.value} or "
@@ -188,7 +207,7 @@ class SSLContainer(LightningContainer):
         return CombinedDataModule(encoder_data_module, linear_data_module,
                                   self.use_balanced_binary_loss_for_linear_head)
 
-    def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> VisionDataModule:
+    def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> HIMLVisionDataModule:
         """
         Returns torch lightning data module for encoder or linear head
 
@@ -208,16 +227,16 @@ class SSLContainer(LightningContainer):
         effective_batch_size = datamodule_args.batch_size * batch_multiplier
         logging.info(f"Batch size per GPU: {datamodule_args.batch_size}")
         logging.info(f"Effective batch size on {batch_multiplier} GPUs: {effective_batch_size}")
-        dm = VisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
-                              return_index=not is_ssl_encoder_module,  # index is only needed for linear head
-                              train_transforms=train_transforms,
-                              val_split=0.1,
-                              val_transforms=val_transforms,
-                              data_dir=str(datamodule_args.dataset_path),
-                              batch_size=datamodule_args.batch_size,
-                              num_workers=self.num_workers,
-                              seed=self.random_seed,
-                              drop_last=self.drop_last)
+        dm = HIMLVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
+                                  return_index=not is_ssl_encoder_module,  # index is only needed for linear head
+                                  train_transforms=train_transforms,
+                                  val_split=0.1,
+                                  val_transforms=val_transforms,
+                                  data_dir=str(datamodule_args.dataset_path),
+                                  batch_size=datamodule_args.batch_size,
+                                  num_workers=self.num_workers,
+                                  seed=self.random_seed,
+                                  drop_last=self.drop_last)
         dm.prepare_data()
         dm.setup()
         return dm

@@ -196,6 +196,7 @@ def model_train(container: LightningContainer
 
     logging.info("Removing redundant checkpoint files.")
     # get_best_checkpoint_path(container.checkpoint_folder)
+
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.

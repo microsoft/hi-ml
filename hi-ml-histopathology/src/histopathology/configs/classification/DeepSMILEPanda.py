@@ -15,6 +15,7 @@ from health_azure.utils import get_workspace, is_running_in_azure_ml
 
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from health_ml.utils import fixed_paths
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
 from histopathology.datamodules.panda_module import PandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
@@ -34,7 +35,6 @@ from histopathology.models.transforms import (
     EncodeTilesBatchd,
     LoadTilesBatchd,
 )
-from histopathology.utils.checkpoint_utils import get_best_checkpoint_path
 
 
 class DeepSMILEPanda(BaseMIL):

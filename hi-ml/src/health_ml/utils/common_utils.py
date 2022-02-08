@@ -262,3 +262,17 @@ def parse_model_id_and_version(model_id_and_version: str) -> None:
     if len(model_id_and_version.split(":")) != 2:
         raise ValueError(
             f"model id should be in the form 'model_name:version', got {model_id_and_version}")
+
+
+@contextmanager
+def set_model_to_eval_mode(model: torch.nn.Module) -> Generator:
+    """
+    Puts the given torch model into eval mode. At the end of the context, resets the state of the training flag to
+    what is was before the call.
+
+    :param model: The model to modify.
+    """
+    old_mode = model.training
+    model.eval()
+    yield
+    model.train(old_mode)

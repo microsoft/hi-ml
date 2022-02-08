@@ -2,15 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 from pathlib import Path
 from typing import Any, Dict
 
 import param
 
-from health_ml.lightning_container import LightningModuleWithOptimizer
+from health_ml.lightning_container import LightningModule
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
-from SSL.datamodules_and_datasets.datamodules import VisionDataModule
+from SSL.datamodules_and_datasets.datamodules import HIMLVisionDataModule
 from SSL.lightning_containers.ssl_container import DataModuleTypes, SSLContainer
 from SSL.utils import create_ssl_image_classifier
 
@@ -30,21 +30,15 @@ class SSLClassifierContainer(SSLContainer):
     freeze_encoder = param.Boolean(default=True, doc="Whether to freeze the pretrained encoder or not.")
     local_ssl_weights_path = param.ClassSelector(class_=Path, default=None, doc="Local path to SSL weights")
 
-    def create_model(self) -> LightningModuleWithOptimizer:
+    def create_model(self) -> LightningModule:
         """
         This method must create the actual Lightning model that will be trained.
         """
         if self.local_ssl_weights_path is None:
-            assert self.extra_downloaded_run_id is not None
-            try:
-                path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()
-            except FileNotFoundError:
-                logging.info("Best checkpoint not found - using last recovery checkpoint instead")
-                path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()
-            path_to_checkpoint = path_to_checkpoint[0]  # type: ignore
+            path_to_checkpoint = get_best_checkpoint_path(self.checkpoint_folder)
         else:
             path_to_checkpoint = self.local_ssl_weights_path
-        assert isinstance(self.data_module, VisionDataModule)
+        assert isinstance(self.data_module, HIMLVisionDataModule)
         model = create_ssl_image_classifier(num_classes=self.data_module.dataset_train.dataset.num_classes,
                                             pl_checkpoint_path=str(path_to_checkpoint),
                                             freeze_encoder=self.freeze_encoder,

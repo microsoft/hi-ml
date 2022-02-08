@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Dataset
 from SSL.utils import SSLDataModuleType
 
 
-class VisionDataModule(VisionDataModule):
+class HIMLVisionDataModule(VisionDataModule):
 
     def __init__(self,
                  dataset_cls: type,

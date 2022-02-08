@@ -2,6 +2,7 @@
 define call_packages
 	cd hi-ml-azure && $(MAKE) $(1)
 	cd hi-ml && $(MAKE) $(1)
+	cd hi-ml-histopathology && $(MAKE) $(1)
 endef
 
 ## Package management
@@ -111,9 +112,10 @@ combine: pip_test
 	mkdir -p coverage
 	cp hi-ml/.coverage coverage/hi-ml-coverage
 	cp hi-ml-azure/.coverage coverage/hi-ml-azure-coverage
+	cp hi-ml-histopathology/.coverage coverage/hi-ml-histopathology-coverage
 	cp .coveragerc coverage/
 	cd coverage && \
-		coverage combine hi-ml-coverage hi-ml-azure-coverage && \
+		coverage combine hi-ml-coverage hi-ml-azure-coverage coverage/hi-ml-histopathology-coverage &&  \
 		coverage html && \
 		coverage xml && \
 		pycobertura show --format text --output coverage.txt coverage.xml
