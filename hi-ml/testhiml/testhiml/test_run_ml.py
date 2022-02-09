@@ -55,6 +55,7 @@ def test_run(ml_runner: MLRunner) -> None:
 
     with patch.object(ml_runner, "setup") as mock_setup:
         with patch("health_ml.run_ml.model_train", new=_mock_model_train):
+            ml_runner.setup()
             ml_runner.run()
             mock_setup.assert_called_once()
             # expect _mock_model_train to be called and the result of ml_runner.storing_logger

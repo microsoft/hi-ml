@@ -12,13 +12,17 @@ from typing import Generator
 
 import pytest
 
-from health_ml.utils.fixed_paths import OutputFolderForTests
 from .testhisto.utils.utils_testhisto import tests_root_directory
-
 tests_root = tests_root_directory()
 sys.path.insert(0, str(tests_root))
 RELATIVE_TEST_OUTPUTS_PATH = "test_outputs"
 TEST_OUTPUTS_PATH = tests_root / RELATIVE_TEST_OUTPUTS_PATH
+
+# temporary workaround until these hi-ml package release
+himl_root = tests_root.parent.parent
+himl_package_root = himl_root / "hi-ml" / "src"
+sys.path.insert(0, str(himl_package_root))
+from health_ml.utils.fixed_paths import OutputFolderForTests  # type: ignore
 
 
 def remove_and_create_folder(folder: Path) -> None:

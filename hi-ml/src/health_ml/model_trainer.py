@@ -13,7 +13,6 @@ from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMPr
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
-from SSL.datamodules_and_datasets.datamodules import CombinedDataModule
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
                                 is_local_rank_zero, is_running_in_azure_ml)
 
@@ -210,12 +209,6 @@ def model_train(checkpoint_path: Optional[Path],
     # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
     # because training data that uses a CombinedLoader is not split correctly in DDP
     multiple_trainloader_mode = "max_size_cycle"
-    if isinstance(data_module, CombinedDataModule):
-        data_module.prepare_data()
-        train_loader_cycle_mode = data_module.train_loader_cycle_mode  # type: ignore
-        assert train_loader_cycle_mode is not None
-        "This field should be computed during prepare_data"
-        multiple_trainloader_mode = train_loader_cycle_mode
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.

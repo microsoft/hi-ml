@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Generator, Iterable, List, Optional, Union
 
 import torch
+from torch.nn import Module
 
 from health_azure.utils import PathOrString
 
@@ -269,7 +270,7 @@ def parse_model_id_and_version(model_id_and_version: str) -> None:
 
 
 @contextmanager
-def set_model_to_eval_mode(model: torch.nn.Module) -> Generator:
+def set_model_to_eval_mode(model: Module) -> Generator:
     """
     Puts the given torch model into eval mode. At the end of the context, resets the state of the training flag to
     what is was before the call.
