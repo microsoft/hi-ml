@@ -22,6 +22,8 @@ TEST_OUTPUTS_PATH = tests_root / RELATIVE_TEST_OUTPUTS_PATH
 himl_root = tests_root.parent.parent
 himl_package_root = himl_root / "hi-ml" / "src"
 sys.path.insert(0, str(himl_package_root))
+himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
+sys.path.insert(0, str(himl_azure_package_root))
 from health_ml.utils.fixed_paths import OutputFolderForTests  # type: ignore
 
 

@@ -10,7 +10,6 @@ from math import ceil
 import numpy as np
 import matplotlib.patches as patches
 import matplotlib.collections as collection
-import seaborn as sns
 
 from histopathology.models.transforms import load_pil_image
 from histopathology.utils.naming import ResultsKey
@@ -173,6 +172,8 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> 
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.
     """
+    import seaborn as sns
+
     fig, ax = plt.subplots()
     ax = sns.heatmap(cm, annot=True, cmap='Blues', fmt=".2%")
     ax.set_xlabel('Predicted')
