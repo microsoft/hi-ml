@@ -353,8 +353,8 @@ class DeepMILModule(LightningModule):
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
 
                 if self.slide_dataset is not None:
-                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:
-                                               entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:  # type: ignore
+                                               entry[SlideKey.SLIDE_ID] == slide)
                     _ = load_image_dict(slide_dict,
                                         level=self.level,
                                         margin=0)  # type: ignore

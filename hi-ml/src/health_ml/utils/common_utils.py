@@ -23,6 +23,10 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 
 EXPERIMENT_SUMMARY_FILE = "experiment_summary.txt"
 CHECKPOINT_FOLDER = "checkpoints"
+CHECKPOINT_SUFFIX = ".ckpt"
+AUTOSAVE_CHECKPOINT_FILE_NAME = "autosave"
+AUTOSAVE_CHECKPOINT_CANDIDATES = [AUTOSAVE_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX,
+                                  AUTOSAVE_CHECKPOINT_FILE_NAME + "-v1" + CHECKPOINT_SUFFIX]
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"

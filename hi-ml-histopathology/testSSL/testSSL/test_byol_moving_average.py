@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader
 from SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
 from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from test_ssl_containers import create_cxr_test_dataset
+
+from testSSL.utils import TEST_OUTPUTS_PATH
 
 
 def test_update_tau() -> None:
@@ -24,8 +25,7 @@ def test_update_tau() -> None:
             return (torch.rand([3, 224, 224], dtype=torch.float32),
                     torch.rand([3, 224, 224], dtype=torch.float32)
                     ), randint(0, 1)
-
-    path_to_cxr_test_dataset = create_cxr_test_dataset()
+    path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
     dataset_dir = str(path_to_cxr_test_dataset)
     dummy_rsna_train_dataloader: DataLoader = torch.utils.data.DataLoader(
         DummyRSNADataset(root=dataset_dir, return_index=False, train=True),
@@ -33,20 +33,22 @@ def test_update_tau() -> None:
         num_workers=0,
         drop_last=True)
 
-    byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=0.99)
+    initial_tau = 0.99
+    byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=initial_tau)
     trainer = Trainer(max_epochs=5)
     trainer.train_dataloader = dummy_rsna_train_dataloader
-    n_steps_per_epoch = len(trainer.train_dataloader)
-    total_steps = n_steps_per_epoch * trainer.max_epochs  # type: ignore
+    total_steps = len(trainer.train_dataloader) * trainer.max_epochs  # type: ignore
+    global_step = 15
     byol_module = BootstrapYourOwnLatent(num_samples=16,
                                          learning_rate=1e-3,
                                          batch_size=4,
                                          encoder_name="resnet50",
                                          warmup_epochs=10,
                                          max_epochs=100)
-    with mock.patch("InnerEye.ML.SSL.lightning_modules.byol.byol_module.BYOLInnerEye.global_step", 15):
+    with mock.patch("InnerEye.ML.SSL.lightning_modules.byol.byol_module.BYOLInnerEye.global_step", global_step):
         new_tau = byol_weight_update.update_tau(pl_module=byol_module, trainer=trainer)
-    assert new_tau == 1 - 0.01 * (math.cos(math.pi * 15 / total_steps) + 1) / 2
+    expected_tau = 1 - (1 - initial_tau) * (math.cos(math.pi * global_step / total_steps) + 1) / 2
+    assert new_tau == round(expected_tau, 2)
 
 
 def test_update_weights() -> None:

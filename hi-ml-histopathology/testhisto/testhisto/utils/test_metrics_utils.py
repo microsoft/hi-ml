@@ -98,7 +98,7 @@ def test_plot_scores_hist(test_output_dirs: OutputFolderForTests) -> None:
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / "score_hist.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
@@ -113,7 +113,7 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
@@ -137,7 +137,7 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / "heatmap_overlay.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
@@ -161,7 +161,7 @@ def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_{n_classes}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 

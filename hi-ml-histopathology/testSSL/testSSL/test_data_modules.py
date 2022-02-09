@@ -15,10 +15,10 @@ from SSL.datamodules_and_datasets.transforms_utils import CIFARLinearHeadTransfo
 from SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
 from SSL.configs.CXR_SSL_configs import path_encoder_augmentation_cxr
-from test_ssl_containers import create_cxr_test_dataset
+from testSSL.utils import TEST_OUTPUTS_PATH
 
 
-path_to_test_dataset = create_cxr_test_dataset()
+path_to_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
 cxr_augmentation_config = load_yaml_augmentation_config(path_encoder_augmentation_cxr)
 
 
@@ -53,7 +53,6 @@ def test_vision_module() -> None:
     """
     Test properties of loaded CIFAR datasets via VisionDataModule.
     Tests as well that the transforms return data in the expected type and shape.
-    :return:
     """
     data_module = HIMLVisionDataModule(dataset_cls=HIMLCIFAR10,
                                        val_split=0.1,

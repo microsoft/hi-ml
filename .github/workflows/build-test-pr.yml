@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure ]
+        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -108,7 +108,7 @@ jobs:
     needs: [ pytest_fast ]
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure ]
+        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -134,7 +134,7 @@ jobs:
     needs: [ build-python ]
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure ]
+        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
         packageName: [ '*.whl', '*.tar.gz' ]
     steps:
       - uses: actions/checkout@v2
@@ -249,6 +249,11 @@ jobs:
         uses: ./.github/actions/download_coverage_artifacts
         with:
           folder: hi-ml-azure
+
+      - name: Download coverage artifacts
+        uses: ./.github/actions/download_coverage_artifacts
+        with:
+          folder: hi-ml-histopathology
 
       - name: Combine coverage artifacts
         run: make combine

@@ -17,6 +17,15 @@ pip_build:
 pip_test:
 	$(call call_parent,pip_test)
 
+# pip install local package in editable mode for development and testing
+call_pip_local:
+	ls
+
+# pip upgrade and install local package in editable mode
+pip_local: pip_upgrade call_pip_local
+
+# pip install everything for local development and testing
+pip: pip_build pip_test call_pip_local
 
 ## Actions
 
@@ -29,7 +38,6 @@ flake8: pip_test call_flake8
 
 # run mypy, assuming test requirements already installed
 call_mypy:
-	mypy --config=../mypy.ini --install-types --non-interactive setup.py
 	mypy --config=../mypy.ini --install-types --non-interactive -p src
 	mypy --config=../mypy.ini --install-types --non-interactive -p testhisto
 	mypy --config=../mypy.ini --install-types --non-interactive -p testSSL

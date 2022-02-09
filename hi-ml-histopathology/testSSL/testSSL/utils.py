@@ -13,6 +13,9 @@ from SSL.datamodules_and_datasets.io_util import PhotometricInterpretation
 from health_azure.utils import PathOrString
 
 
+TEST_OUTPUTS_PATH = Path(__file__).parent.parent / "test_outputs"
+
+
 def tests_root_directory(path: Optional[PathOrString] = None) -> Path:
     """
     Gets the full path to the root directory that holds the tests.

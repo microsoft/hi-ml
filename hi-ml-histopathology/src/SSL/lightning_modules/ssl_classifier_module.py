@@ -3,20 +3,19 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from typing import Any, Optional
-from pytorch_lightning import LightningModule
 
 import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import ModuleList, functional as F
 
+from health_ml.lightning_container import LightningModuleWithOptimizer
 from health_ml.utils import log_on_epoch
-
 
 from SSL.encoders import get_encoder_output_dim
 from SSL.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 
-class SSLClassifier(LightningModule):
+class SSLClassifier(LightningModuleWithOptimizer):
     """
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
     """

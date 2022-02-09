@@ -19,7 +19,7 @@ from torchvision.datasets.vision import VisionDataset
 from torchvision.transforms import Lambda
 
 from health_ml.utils.common_utils import ModelExecutionMode
-from health_ml.lightning_container import LightningContainer
+from health_ml.lightning_container import LightningContainer, LightningModuleWithOptimizer
 
 from SSL.datamodules_and_datasets.dataset_cls_utils import DataClassBaseWithReturnIndex
 from SSL.datamodules_and_datasets.transforms_utils import DualViewTransformWrapper
@@ -35,7 +35,7 @@ class DummyContainerWithDatasets(LightningContainer):
         self.azure_dataset_id = "azure_dataset" if has_azure_dataset else ""
 
     def create_model(self) -> LightningModule:
-        return LightningModule()
+        return LightningModuleWithOptimizer()
 
 
 class DummyContainerWithAzureDataset(DummyContainerWithDatasets):
@@ -74,7 +74,7 @@ class DummyContainerWithParameters(LightningContainer):
         return InferenceWithParameters(self.container_param)
 
 
-class DummyRegressionPlainLightning(LightningModule):
+class DummyRegressionPlainLightning(LightningModuleWithOptimizer):
     """
     A class that only implements plain Lightning training and test. Ideally, we want to support importing any plain
     Lightning module without further methods added. This class here inherits LightningWithInference, but does not

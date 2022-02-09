@@ -100,8 +100,8 @@ def test_model_train() -> None:
             mock_trainer.fit = Mock()
             mock_close_logger = Mock()
             mock_trainer.logger = MagicMock(close=mock_close_logger)
-
-            trainer, storing_logger = model_train(container)
+            checkpoint_path = None
+            trainer, storing_logger = model_train(checkpoint_path, container)
 
             mock_trainer.fit.assert_called_once()
             mock_trainer.logger.finalize.assert_called_once()

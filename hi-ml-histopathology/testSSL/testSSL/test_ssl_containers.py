@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import math
+import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from unittest import mock
@@ -11,6 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from health_ml.utils.common_utils import is_gpu_available
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
 from pytorch_lightning import Trainer, seed_everything
@@ -37,38 +39,8 @@ from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFF
 from health_ml.utils.fixed_paths import repository_root_directory, OutputFolderForTests
 from health_ml.utils.lightning_loggers import StoringLogger
 
-from configs_for_tests import DummyContainerWithModel, DummySimCLR
-from testSSL.utils import write_test_dicom
-
-
-def create_cxr_test_dataset(num_encoder_images: int = 200,
-                            num_labelled_images: int = 300) -> Path:
-    """
-    Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
-    of NIHCXR and RSNAKaggleCXR
-
-    :param num_encoder_images: The number of unlabelled images that the dataset should contain (for encoder training)
-    :param num_labelled_images: The number of labelled images that the dataset should contain (for the linear head).
-    """
-    path_to_test_dataset = Path(__file__).parent.parent / "test_data" / "cxr_test_dataset"
-    if path_to_test_dataset.is_dir():
-        return path_to_test_dataset
-    path_to_test_dataset.mkdir(exist_ok=True, parents=True)
-    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", num_encoder_images)})
-    df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
-    df = pd.DataFrame({"subject": np.repeat("1", num_labelled_images),
-                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=num_labelled_images)})
-    df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
-    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
-    return path_to_test_dataset
-
-
-def default_runner() -> Runner:
-    """
-    Create a Runner object with the default settings, pointing to the repository root and
-    default settings files.
-    """
-    return Runner(project_root=repository_root_directory())
+from testSSL.configs_for_tests import DummyContainerWithModel, DummySimCLR
+from testSSL.utils import TEST_OUTPUTS_PATH, write_test_dicom
 
 
 common_test_args = ["",
@@ -79,6 +51,38 @@ common_test_args = ["",
                     "--num_workers=0",
                     "--pl_deterministic"
                     ""]
+no_gpu = not is_gpu_available()
+
+
+def create_cxr_test_dataset(path_to_test_dataset: Path,
+                            num_encoder_images: int = 200,
+                            num_labelled_images: int = 300) -> None:
+    """
+    Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
+    of NIHCXR and RSNAKaggleCXR
+
+    :param path_to_test_dataset: folder to which we want to save the mock data.
+    :param num_encoder_images: The number of unlabelled images that the dataset should contain (for encoder training)
+    :param num_labelled_images: The number of labelled images that the dataset should contain (for the linear head).
+    """
+    if path_to_test_dataset.is_dir():
+        return
+
+    path_to_test_dataset.mkdir(exist_ok=True, parents=True)
+    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", num_encoder_images)})
+    df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
+    df = pd.DataFrame({"subject": np.repeat("1", num_labelled_images),
+                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=num_labelled_images)})
+    df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
+    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
+
+
+def default_runner() -> Runner:
+    """
+    Create a Runner object with the default settings, pointing to the repository root and
+    default settings files.
+    """
+    return Runner(project_root=repository_root_directory())
 
 
 def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-5) -> None:
@@ -158,11 +162,14 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     args = common_test_args + [f"--model={model_namespace_cifar}",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = default_runner().run()
-    assert loaded_config is not None
-    assert isinstance(loaded_config.model, SSLClassifier)
-    assert loaded_config.model.class_weights is None
-    assert loaded_config.model.num_classes == 10
+        loaded_config2, actual_run = default_runner().run()
+    assert loaded_config2 is not None
+    assert isinstance(loaded_config2.model, SSLClassifier)
+    assert loaded_config2.model.class_weights is None
+    assert loaded_config2.model.num_classes == 10
+
+    shutil.rmtree(loaded_config.outputs_folder)
+    shutil.rmtree(loaded_config2.outputs_folder)
 
 
 def test_load_ssl_container_cifar10_cifar100_resnet_byol() -> None:
@@ -187,7 +194,7 @@ def test_ssl_container_rsna() -> None:
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
-    path_to_cxr_test_dataset = create_cxr_test_dataset()
+    path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
     # Test training of SSL model
     model_namespace_byol = "hi-ml-histopathology.SSL.configs.NIH_RSNA_BYOL"
     args = common_test_args + [f"--model={model_namespace_byol}",
@@ -244,12 +251,17 @@ def test_ssl_container_rsna() -> None:
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert loaded_config is not None
-    assert isinstance(loaded_config, CXRImageClassifier)
-    assert loaded_config.model.freeze_encoder
-    assert torch.isclose(loaded_config.model.class_weights, torch.tensor([0.21, 0.79]), atol=1e-6).all()  # type: ignore
-    assert loaded_config.model.num_classes == 2
+        loaded_config2, actual_run = runner.run()
+    assert loaded_config2 is not None
+    assert isinstance(loaded_config2, CXRImageClassifier)
+    assert loaded_config2.model.freeze_encoder
+    assert torch.isclose(loaded_config2.model.class_weights,
+                         torch.tensor([0.21, 0.79]),
+                         atol=1e-6).all()  # type: ignore
+    assert loaded_config2.model.num_classes == 2
+
+    shutil.rmtree(loaded_config.outputs_folder)
+    shutil.rmtree(loaded_config2.outputs_folder)
 
 
 def test_simclr_lr_scheduler() -> None:
@@ -294,7 +306,7 @@ def test_simclr_lr_scheduler() -> None:
         assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
 
 
-@pytest.mark.gpu
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """ This test checks if a SSLContainer correctly resumes training.
     First we run SSL using a Trainer for 20 epochs.
@@ -433,7 +445,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     assert SSLOnlineEvaluatorHIML.EVALUATOR_STATE_NAME in callback_state
 
 
-@pytest.mark.gpu
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 def test_online_evaluator_not_distributed() -> None:
     """
     Check if the online evaluator uses the DDP flag correctly when running not distributed
@@ -531,7 +543,7 @@ def test_simclr_num_gpus() -> None:
     warmup_epochs = 10
     with mock.patch("torch.cuda.device_count", return_value=device_count):
         with mock.patch("health_ml.deep_learning_config.TrainerParams.use_gpu", return_value=True):
-            with mock.patch("health_ml.SSL.lightning_containers.ssl_container.get_encoder_output_dim",
+            with mock.patch("SSL.lightning_containers.ssl_container.get_encoder_output_dim",
                             return_value=1):
                 container = CIFAR10SimCLR()
                 container.max_epochs = num_epochs
@@ -624,10 +636,10 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
     container = NIH_RSNA_SimCLR()
     dataset_folder = test_output_dirs.root_dir / "dataset"
     encoder_batch_size = 1
-    create_cxr_test_dataset(num_encoder_images=num_encoder_images,
+    create_cxr_test_dataset(dataset_folder,
+                            num_encoder_images=num_encoder_images,
                             num_labelled_images=num_labelled_images)
-    container.local_dataset = dataset_folder
-    container.extra_local_dataset_paths = [dataset_folder]
+    container.local_datasets = [dataset_folder, dataset_folder]
     container.ssl_encoder = EncoderName.resnet18
     container.ssl_training_batch_size = encoder_batch_size
     container.linear_head_batch_size = linear_head_batch_size
@@ -647,6 +659,8 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
         val_loaders = container.get_data_module().val_dataloader()
         assert isinstance(val_loaders, CombinedLoader)
         assert len(val_loaders) == expected_num_val_iters
+
+    shutil.rmtree(test_output_dirs.root_dir)
 
 
 def test_simclr_dataloader_type() -> None:

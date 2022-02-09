@@ -12,7 +12,7 @@ from SSL.utils import SSLTrainingType
 RSNA_AZURE_DATASET_ID = "rsna_pneumonia_detection_kaggle_dataset"
 NIH_AZURE_DATASET_ID = "nih-training-set"
 
-configs_path = Path(sys.modules["SSL.configs"].__path__._path[0])
+configs_path = Path(sys.modules["SSL.configs"].__path__._path[0])  # type: ignore
 path_encoder_augmentation_cxr = configs_path / "cxr_ssl_encoder_augmentations.yaml"
 path_linear_head_augmentation_cxr = configs_path / "cxr_linear_head_augmentations.yaml"
 

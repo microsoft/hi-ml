@@ -22,7 +22,7 @@ from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatase
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTiled, LoadTilesBatchd
 
-from Tests.ML.util import assert_dicts_equal
+from utils.utils_testhisto import assert_dicts_equal
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
