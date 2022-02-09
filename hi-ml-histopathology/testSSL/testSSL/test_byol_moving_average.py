@@ -45,10 +45,10 @@ def test_update_tau() -> None:
                                          encoder_name="resnet50",
                                          warmup_epochs=10,
                                          max_epochs=100)
-    with mock.patch("InnerEye.ML.SSL.lightning_modules.byol.byol_module.BYOLInnerEye.global_step", global_step):
+    with mock.patch("SSL.lightning_modules.byol.byol_module.BootstrapYourOwnLatent.global_step", global_step):
         new_tau = byol_weight_update.update_tau(pl_module=byol_module, trainer=trainer)
     expected_tau = 1 - (1 - initial_tau) * (math.cos(math.pi * global_step / total_steps) + 1) / 2
-    assert new_tau == round(expected_tau, 2)
+    assert new_tau == expected_tau
 
 
 def test_update_weights() -> None:

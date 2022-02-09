@@ -3,17 +3,20 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 from pathlib import Path
 
 import math
+import random
 import numpy as np
-from typing import List
+from typing import List, Optional
 
 import matplotlib
+import torch
 from torch.functional import Tensor
 import pytest
 
-from health_ml.utils.common_utils import is_windows
+from health_ml.utils.common_utils import is_windows, is_gpu_available
 from health_ml.utils.fixed_paths import OutputFolderForTests
 
 from histopathology.utils.metrics_utils import select_k_tiles
@@ -21,6 +24,24 @@ from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
 
 from .utils_testhisto import assert_binary_files_match, full_ml_test_data_path
+
+
+def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:
+    """
+    Set the seed for the random number generators of python, numpy, torch.random, and torch.cuda for all gpus.
+    :param random_seed: random seed value to set.
+    :param caller_name: name of the caller for logging purposes.
+    """
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    if is_gpu_available():
+        # noinspection PyUnresolvedReferences
+        torch.cuda.manual_seed_all(random_seed)  # type: ignore
+    prefix = ""
+    if caller_name is not None:
+        prefix = caller_name + ": "
+    logging.debug(f"{prefix}Random seed set to: {random_seed}")
 
 
 def assert_equal_lists(pred: List, expected: List) -> None:

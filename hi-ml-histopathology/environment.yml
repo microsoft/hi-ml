@@ -15,6 +15,7 @@ dependencies:
       - conda-merge==0.1.5
       - cryptography==3.3.2
       - docker==4.3.1
+      - gitpython==3.1.7
       - gputil==1.4.0
       - hi-ml>=0.1.12
       - joblib==0.16.0
