@@ -70,7 +70,7 @@ class WrappedTensorboard(Tensorboard):
             self._run_watchers.append(run_watcher)
 
         for w in self._run_watchers:
-            self._executor.submit(w.refresh_requeue)
+            self._executor.submit(w.refresh_requeue)  # type: ignore
 
         # We use sys.executable here to ensure that we can import modules from the same environment
         # as the current process.
@@ -108,8 +108,9 @@ class WrappedTensorboard(Tensorboard):
 
 
 def main() -> None:  # pragma: no cover
+    tb_config = HimlTensorboardConfig()
+    tb_config = azure_util.parse_args_and_update_config(tb_config, sys.argv[1:])
 
-    tb_config = HimlTensorboardConfig.parse_args()
     config_path = tb_config.config_file
 
     if not config_path:

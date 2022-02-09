@@ -3,5 +3,5 @@
 .. automodapi:: health_azure
    :no-inheritance-diagram:
 
-.. automodapi:: health_ml.utils
+.. automodapi:: health_ml
    :no-inheritance-diagram:

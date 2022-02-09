@@ -33,6 +33,7 @@ The `hi-ml` toolbox provides
 
    logging.md
    diagnostics.md
+   runner.md
 
 .. toctree::
    :maxdepth: 1

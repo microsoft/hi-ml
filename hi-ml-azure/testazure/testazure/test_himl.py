@@ -278,6 +278,28 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             mock_register.assert_called_once()
             assert mock_environment_get.call_count == 2
 
+    # Assert that a Conda env spec with no python version raises an exception
+    conda_env_spec = OrderedDict({"name": "dummy_env",
+                                  "channels": OrderedList("default"),
+                                  "dependencies": OrderedList(["- pip=20.1.1"])})
+
+    conda_env_path = tmp_path / "dummy_conda_env_no_python.yml"
+    with open(conda_env_path, "w+") as f_path:
+        yaml.dump(conda_env_spec, f_path)
+    assert conda_env_path.is_file()
+
+    with patch.object(mock_environment, "register") as mock_register:
+        mock_register.return_value = mock_environment
+
+        with patch("azureml.core.Environment.get") as mock_environment_get:  # type: ignore
+            mock_environment_get.side_effect = Exception()
+
+            with pytest.raises(Exception) as e:
+                himl.create_run_configuration(mock_workspace,
+                                              "dummy_compute_cluster",
+                                              conda_environment_file=conda_env_path)
+                assert "you must specify the python version" in str(e)
+
     # check that when create_run_configuration is called, whatever is returned  from register_environment
     # is set as the new "environment" attribute of the run config
     with patch("health_azure.himl.register_environment") as mock_register_environment:

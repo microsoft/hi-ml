@@ -10,12 +10,30 @@ For each Pull Request, the affected code parts should be briefly described and a
 release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
 the section headers (Added/Changed/...) and incrementing the package version.
 
+## 0.1.14
+
+### Added
+- ([#179](https://github.com/microsoft/hi-ml/pull/179)) Add GaussianBlur and RotationByMultiplesOf90 augmentations. Added torchvision and opencv to
+the environment file since it is necessary for the augmentations.
+- ([#178](https://github.com/microsoft/hi-ml/pull/178)) Add runner script for running ML experiments
+
+### Changed
+
+### Fixed
+- ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
+
+### Removed
+
+### Deprecated
+
+
 ## 0.1.13
 
 ### Added
 - ([#170](https://github.com/microsoft/hi-ml/pull/170)) Add utils including bag sampling, bounding boxes, HEDJitter, StainNormalisation and add attention layers
 
 ### Changed
+- ([#173](https://github.com/microsoft/hi-ml/pull/173)) Improve report tool: allow lists of tables, option for zipping report folder, option for base64 encoding images
 
 ### Fixed
 - ([#169](https://github.com/microsoft/hi-ml/pull/169)) Fix a test that was failing occasionally
@@ -42,6 +60,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 - ([#161](https://github.com/microsoft/hi-ml/pull/161)) Empty string as target folder for a dataset creates an invalid mounting path for the dataset in AzureML (fixes #160)
 - ([#167](https://github.com/microsoft/hi-ml/pull/167)) Fix bugs in logging hyperparameters: logging as name/value
   table, rather than one column per hyperparameter. Use string logging for all hyperparameters
+- ([#174](https://github.com/microsoft/hi-ml/pull/174)) Fix bugs in returned local_checkpoint_path when downloading checkpoints from AML run
 
 ### Removed
 

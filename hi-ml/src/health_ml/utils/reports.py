@@ -3,10 +3,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import base64
+import itertools
+import mimetypes
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-import itertools
 from pathlib import Path
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple
 
@@ -94,7 +96,6 @@ class HTMLReport:
         Once we have added components to our template, this method is called, to add back the HTML
         closing tags. validate is called to check the correct number of closing tags exist.
 
-        :param report_stream: A string representing the content of the report thus far
         :return: A modified string, with closing tags
         """
         self.template += f"{CLOSE_DOC_TAGS}"
@@ -112,7 +113,7 @@ class HTMLReport:
 <title> {{title}} </title>
 </head>
 <body>
-<div class="container-fluid justify-content-center align-items-center">
+<div class="container-fluid">
 <div class="container">
 <h1> {{title}} </h1>
 </div>
@@ -149,47 +150,68 @@ class HTMLReport:
         <br>"""
         self.add_to_template(template_addition)
 
-    def add_table(self, table: Optional[pd.DataFrame] = None, table_path: Optional[Path] = None) -> None:
+    def _add_tables_to_report(self, tables: List[pd.DataFrame]) -> None:
         """
-        Add a table object to your report. The table can either be passed as a Pandas DataFrame object, or
-        a path to a .csv file contianing your table. If neither of these parameters are provided, an Exception
-        will be raised.
+        Add one or more tables (in the form of Pandas DataFrames) to the report.
 
-        :param table: An optional Pandas DataFrame to be rendered in the report
-        :param table_path: An optional path to a .csv file containing the table to be rendered on the report
-        :raises ValueError: If neither a table object nor a path to a .csv file are provided
+        :param tables: A list of one or more Pandas DataFrame to be rendered in the report
         """
-        if table is None and table_path is None:
-            raise ValueError("One of table or table path must be provided")
-        if table is None:
-            table = pd.read_csv(table_path)
+        for table in tables:
+            num_existing_tables = self.template.count("table.to_html")
+            table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
 
-        num_existing_tables = self.template.count("table.to_html")
-        table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
+            template_addition = """<div class="container" >
+            {% for table in """ + table_key + """ %}
+                {{ table.to_html(classes=[ "table"], justify="center") | safe }}
+            {% endfor %}
+            </div>
+            <br>"""
+            self.add_to_template(template_addition)
 
-        template_addition = """<div class="container" >
-        {% for table in """ + table_key + """ %}
-            {{ table.to_html(classes=[ "table"], justify="center") | safe }}
-        {% endfor %}
-        </div>
-        <br>"""
-        self.add_to_template(template_addition)
+            self.render_kwargs.update({table_key: [table]})
 
-        self.render_kwargs.update({table_key: [table]})
-
-    def add_image(self, image_path: str, figsize: Tuple[int, int] = DEFAULT_FIGSIZE) -> None:
+    def add_tables(self, tables: Optional[List[pd.DataFrame]] = None,
+                   table_paths_or_dir: Optional[List[Path]] = None) -> None:
         """
-        Given a path to an image file, embeds the image on the report. If the path is within the report folder, the
-        relative path will be used. This is to ensure that the HTML document is able to locate and embed the image.
-        Otherwise, the image path is not altered.
+        Add one or more tables to your report. The table can either be passed as a Pandas DataFrame object, or
+        a list of path to one or more .csv files, or a directory of csv files containing your tables.
+        If neither of these parameters are provided, an Exception will be raised.
 
-        :param image_path: The path to the image to be embedded
-        :param figsize: The size of the figure
+        :param tables: An optional list of one or more Pandas DataFrames to be rendered in the report
+        :param table_paths_or_dir: An optional list of one or more paths to .csv files containing the tables
+            to be rendered on the report
+        :raises ValueError: If neither a list of tables nor a list of paths is provided
         """
-        if image_path.startswith(str(self.report_folder)):
-            img_path_html = Path(image_path).relative_to(self.report_folder)
+        if tables is None and table_paths_or_dir is None:
+            raise ValueError("One of tables or table_paths_or_dir must be provided")
+
+        tables = tables or []
+        if table_paths_or_dir is not None:
+            for table_path_or_dir in table_paths_or_dir:
+                table_path_or_dir = Path(table_path_or_dir)
+                if table_path_or_dir.is_dir():
+                    for table_path in table_path_or_dir.iterdir():
+                        self.add_tables(table_paths_or_dir=[table_path])
+                    return
+                else:
+                    tables.append(pd.read_csv(table_path_or_dir))
+
+        assert len(tables) > 0, "No tables were found"
+        self._add_tables_to_report(tables)
+
+    def _add_image_to_report(self, image_path: Path, base64_encode: bool = False) -> None:
+        """
+        Given a path to an image, add it to the report template and to the report arguments
+        for rendering later. Optionally encode as base64 - this is useful if a standalone
+        report is required but leads to a much larger report file size, so is False by default
+
+        :param image_path: The paths to the image to be added
+        :param base64_encode: If True, encode the image as base64 in the HTML report. Default is False
+        """
+        if self.report_folder in image_path.parents:
+            img_path_html = image_path.relative_to(self.report_folder)
         else:
-            img_path_html = Path(image_path)
+            img_path_html = image_path
 
         image_key_html = IMAGE_KEY_HTML + "_0"
         # Increment the image name so as not to replace other images
@@ -206,7 +228,38 @@ class HTMLReport:
         self.add_to_template(template_addition)
 
         # Add these keys and paths to the keyword args for rendering later
-        self.render_kwargs.update({image_key_html: [str(img_path_html)]})
+        if base64_encode:
+            with open(image_path, "rb") as f_path:
+                img_data = f_path.read()
+                img_data_base64_bytes = base64.b64encode(img_data)
+                img_data_base64_str = img_data_base64_bytes.decode()
+
+            img_type: str = mimetypes.guess_type(str(img_path_html))[0]  # type: ignore
+            img_path_str = "data:" + img_type + ";base64," + img_data_base64_str
+        else:
+            img_path_str = str(img_path_html)
+        self.render_kwargs.update({image_key_html: [img_path_str]})
+
+    def add_images(self, image_paths_or_dir: List[Path], base64_encode: bool = False) -> None:
+        """
+        Given a path to one or more image files, or a directory containing image files, embeds the image on the
+        report. If the path is within the report folder, the relative path will be used.
+        This is to ensure that the HTML document is able to locate and embed the image.
+        Otherwise, the image path is not altered.
+
+        :param image_paths_or_dir: The paths to the image(s), or a directory containing images to be embedded
+        :param base64_encode: If True, encode image data as base64 in the HTML report. Default is False
+        """
+        if len(image_paths_or_dir) == 0:
+            raise ValueError("add_image expects a list of image_paths")
+
+        for image_path_or_dir in image_paths_or_dir:
+            image_path_or_dir = Path(image_path_or_dir)
+            if image_path_or_dir.is_dir():
+                for image_path in image_path_or_dir.iterdir():
+                    self.add_images([image_path], base64_encode=base64_encode)
+            else:
+                self._add_image_to_report(image_path_or_dir, base64_encode=base64_encode)
 
     @classmethod
     def load_imgs_onto_subplot(cls, img_folder_or_paths: List[Path], num_plot_columns: int = 2,
@@ -245,14 +298,15 @@ class HTMLReport:
             with open(plot_path, "rb") as f_path:
                 img_arr = plt.imread(f_path)
 
-                fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
+                axs: plt.Axes = fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
+                axs.set_axis_off()
                 plt.imshow(img_arr)
 
-        fig.tight_layout()
+        plt.tight_layout()
         return fig
 
     def add_image_gallery(self, image_folder_or_paths: List[Path], figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
-                          num_cols: int = DEFAULT_NUM_COLS) -> None:
+                          num_cols: int = DEFAULT_NUM_COLS, base64_encode: bool = False) -> None:
         """
         Given a list of one or more paths, either to a folder containing multiple images, or multiple image
         paths, loads each of the images adds to a single chart create a "gallery" i.e. a plot containing
@@ -262,14 +316,15 @@ class HTMLReport:
             to add to the gallery, or multiple paths to specific image files
         :param figsize: The size of the overall plot
         :param num_cols: The number of columns in the subplot
+        :param base64_encode: If True, encode image as base64 in the report HTML. Default is False.
         """
         fig = self.load_imgs_onto_subplot(image_folder_or_paths, figsize=figsize, num_plot_columns=num_cols)
         img_num = len(list(self.report_folder.glob("gallery_image_*")))
-        gallery_img_path = str(self.report_folder / f"gallery_image_{img_num}.png")
-        fig.savefig(gallery_img_path)
-        self.add_image(gallery_img_path)
+        gallery_img_path = self.report_folder / f"gallery_image_{img_num}.png"
+        fig.savefig(str(gallery_img_path))
+        self.add_images([gallery_img_path], base64_encode=base64_encode)
 
-    def add_plot(self, plot_path: Optional[str] = None, fig: Optional[plt.Figure] = None,
+    def add_plot(self, plot_path: Optional[Path] = None, fig: Optional[plt.Figure] = None,
                  fig_title: Optional[str] = None) -> None:
         """
         Add a plot to your report. The plot can either be passed as a [matplotlib Figure object](
@@ -278,7 +333,7 @@ class HTMLReport:
 
         :param plot_path: Optional path to a saved plot file
         :param fig: Optional matplotlib Figure object
-        :param plot_title: Optionally provide a title to use as the saved figure filename
+        :param fig_title: Optionally provide a title to use as the saved figure filename
         """
         if fig is not None:
             # save the plot
@@ -290,11 +345,11 @@ class HTMLReport:
                 plot_title = fig_title.replace(" ", "_")
             else:
                 plot_title = f"plot_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            plot_path = str((self.report_folder / plot_title).with_suffix(".png"))
+            plot_path = (self.report_folder / plot_title).with_suffix(".png")
             fig.tight_layout()
-            fig.savefig(plot_path, bbox_inches='tight', dpi=150)
+            fig.savefig(str(plot_path), bbox_inches='tight', dpi=150)
         assert plot_path is not None  # for pyright
-        self.add_image(plot_path)
+        self.add_images([plot_path])
 
     def read_config_yaml(self, report_config_path: Path) -> OrderedDict:
         """
@@ -349,26 +404,16 @@ class HTMLReport:
         for component in report_contents:
             component_type = component[ReportComponentKey.TYPE.value]
             component_val = component[ReportComponentKey.VALUE.value]
+            base64_encode = component["base64_encode"] if "base64_encode" in component else False
             figsize = component["figsize"] if "figsize" in component else DEFAULT_FIGSIZE
             num_cols = component["num_cols"] if "num_cols" in component else DEFAULT_NUM_COLS
+            dir_or_paths = [Path(x) for x in str(component_val).split(",")]
             if component_type == ReportComponentKey.TABLE.value:
-                table_path = Path(component_val)
-                if table_path.is_dir():
-                    for tbl_path in table_path.iterdir():
-                        self.add_table(table_path=tbl_path)
-                else:
-                    self.add_table(table_path=table_path)
+                self.add_tables(table_paths_or_dir=dir_or_paths)
             elif component_type == ReportComponentKey.IMAGE.value:
-
-                image_path = Path(component_val)
-                if image_path.is_dir():
-                    for img_path in image_path.iterdir():
-                        self.add_image(str(img_path), figsize=figsize)
-                else:
-                    self.add_image(component_val)
+                self.add_images(dir_or_paths, base64_encode=base64_encode)
             elif component_type == ReportComponentKey.IMAGE_GALLERY.value:
-                image_dir_or_paths = [Path(x) for x in component_val.split(",")]
-                self.add_image_gallery(image_dir_or_paths, figsize=figsize, num_cols=num_cols)
+                self.add_image_gallery(dir_or_paths, figsize=figsize, num_cols=num_cols, base64_encode=base64_encode)
             elif component_type == ReportComponentKey.TEXT.value:
                 self.add_text(component_val)
             else:
@@ -440,9 +485,26 @@ class HTMLReport:
 
         :param save_html: Whether to save the HTML to file
         """
-        subs: str = self.env.from_string(self.template).render(**self.render_kwargs)
+        new_env = self.env.from_string(self.template)
+        subs: str = new_env.render(**self.render_kwargs)
         self.report_html = subs
         # write the substitution to a file
         if save_html:
             with open(self.report_path_html, 'w') as f_path:
                 f_path.write(subs)
+
+    def zip_report_folder(self) -> Path:
+        """
+        Zip the report folder at the location '<report_folder>.zip', preserving the directory structure.
+        Returns the path to the zipped folder
+
+        :return: The path to the zipped folder
+        """
+        import zipfile
+        report_files = self.report_folder.rglob("*.*")
+        zipped_folder_path = self.report_folder.with_suffix(".zip")
+        with zipfile.ZipFile(zipped_folder_path, "w") as zipped_folder:
+            for report_file in report_files:
+                zipped_folder.write(report_file, arcname=report_file.relative_to(self.report_folder))
+        print(f"Zipped folder path: {str(zipped_folder_path)}")
+        return zipped_folder_path

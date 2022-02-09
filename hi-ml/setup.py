@@ -86,6 +86,7 @@ setup(
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
+            'himl-runner = health_ml.runner:main'
         ]
     }
 )

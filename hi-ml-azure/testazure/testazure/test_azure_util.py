@@ -10,10 +10,10 @@ import logging
 import os
 import sys
 import time
+from argparse import ArgumentParser, Namespace, ArgumentError
 from enum import Enum
 from pathlib import Path
-from random import randint
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -35,6 +35,7 @@ from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        repository_root)
+
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -116,10 +117,16 @@ def test_get_workspace(
         with pytest.raises(ValueError) as ex:
             util.get_workspace(None, None)
         assert "No workspace config file given" in str(ex)
+
     # Workspace config file is set to a file that does not exist
     with pytest.raises(ValueError) as ex:
         util.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
     assert "Workspace config file does not exist" in str(ex)
+
+    # Workspace config file is set to a wrong type
+    with pytest.raises(ValueError) as ex:
+        util.get_workspace(None, workspace_config_path=1)  # type: ignore
+    assert "Workspace config path is not a path" in str(ex)
 
 
 @patch("health_azure.utils.Run")
@@ -246,6 +253,16 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
+def test_retrieve_unique_deps() -> None:
+    deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
+
+    dedup_deps = util._retrieve_unique_deps(deps_with_duplicates)  # type: ignore
+    assert dedup_deps == ["package==1.0", "git+https:www.github.com/something.git"]
+
+    dedup_deps_keep_last = util._retrieve_unique_deps(deps_with_duplicates, keep_method="last")
+    assert dedup_deps_keep_last == ["package==1.1", "git+https:www.github.com/something.git"]
+
+
 def test_merge_conda(
         random_folder: Path,
         caplog: CaptureFixture,
@@ -292,12 +309,10 @@ dependencies:
 - pytorch
 dependencies:
 - conda1=1.0
-- conda1=1.1
 - conda2=2.0
 - conda_both=3.0
 - pip:
   - azureml-sdk==1.6.0
-  - azureml-sdk==1.7.0
   - bar==2.0
   - foo==1.0
 """.splitlines()
@@ -307,8 +322,30 @@ dependencies:
     assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
 
     # Package version conflicts are not resolved, both versions are retained.
-    assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda1=1.1", "conda2=2.0", "conda_both=3.0"]
-    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
+    assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda2=2.0", "conda_both=3.0"]
+    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "bar==2.0", "foo==1.0"]
+
+    # Assert that extra pip requirements are added correctly
+    pip_contents = """package1==0.0.1
+package2==0.0.1
+"""
+    pip_file = random_folder / "req.txt"
+    pip_file.write_text(pip_contents)
+    util.merge_conda_files(files, merged_file, pip_files=[pip_file])
+    merged_file_text = merged_file.read_text()
+    assert merged_file_text.splitlines() == """channels:
+- defaults
+- pytorch
+dependencies:
+- conda1=1.0
+- conda2=2.0
+- conda_both=3.0
+- pip:
+  - azureml-sdk==1.6.0
+  - bar==2.0
+  - foo==1.0
+  - package1==0.0.1
+  - package2==0.0.1""".splitlines()
 
     # Are names merged correctly?
     assert "name:" not in merged_file_text
@@ -343,9 +380,8 @@ dependencies:
     # If there are no dependencies then something is wrong with the conda files or our parsing of them
     with mock.patch("health_azure.utils.conda_merge.merge_dependencies") as mock_merge_dependencies:
         mock_merge_dependencies.return_value = []
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(ValueError):
             util.merge_conda_files(files, merged_file)
-        assert "No dependencies found in any of the conda files" in str(e.value)
 
 
 @pytest.mark.parametrize(["s", "expected"],
@@ -927,12 +963,13 @@ def test_get_run_source(dummy_recovery_id: str,
     arguments = ["", "--run", dummy_recovery_id]
     with patch.object(sys, "argv", arguments):
 
-        run_source = util.AmlRunScriptConfig.parse_args()
+        script_config = util.AmlRunScriptConfig()
+        script_config = util.parse_args_and_update_config(script_config, arguments)
 
-        if isinstance(run_source.run, List):
-            assert isinstance(run_source.run[0], str)
+        if isinstance(script_config.run, List):
+            assert isinstance(script_config.run[0], str)
         else:
-            assert isinstance(run_source.run, str)
+            assert isinstance(script_config.run, str)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1030,7 +1067,8 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool, show_progress: boo
 ])
 def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
     with patch.object(sys, "argv", arguments):
-        script_config = util.AmlRunScriptConfig.parse_args()
+        script_config = util.AmlRunScriptConfig()
+        script_config = util.parse_args_and_update_config(script_config, arguments)
 
         if isinstance(run_id, list):
             for script_config_run, expected_run_id in zip(script_config.run, run_id):
@@ -1166,7 +1204,65 @@ class IllegalCustomTypeNoValidate(util.CustomTypeParam):
         return x
 
 
-class ParamClass(util.GenericConfig):
+class DummyConfig(param.Parameterized):
+    string_param = param.String()
+    int_param = param.Integer()
+
+    def validate(self) -> None:
+        assert isinstance(self.string_param, str)
+        assert isinstance(self.int_param, int)
+
+
+@pytest.fixture(scope="module")
+def dummy_model_config() -> DummyConfig:
+    string_param = "dummy"
+    int_param = 1
+    return DummyConfig(param1=string_param, param2=int_param)
+
+
+def test_add_and_validate(dummy_model_config: DummyConfig) -> None:
+    new_string_param = "new_dummy"
+    new_int_param = 2
+    new_args = {"string_param": new_string_param, "int_param": new_int_param}
+    util.set_fields_and_validate(dummy_model_config, new_args)
+
+    assert dummy_model_config.string_param == new_string_param
+    assert dummy_model_config.int_param == new_int_param
+
+
+def test_create_argparse(dummy_model_config: DummyConfig) -> None:
+    with patch("health_azure.utils._add_overrideable_config_args_to_parser") as mock_add_args:
+        parser = util.create_argparser(dummy_model_config)
+        mock_add_args.assert_called_once()
+        assert isinstance(parser, ArgumentParser)
+
+
+def test_add_args(dummy_model_config: DummyConfig) -> None:
+    parser = ArgumentParser()
+    # assert that calling parse_args on a default ArgumentParser returns an empty Namespace
+    args = parser.parse_args([])
+    assert args == Namespace()
+    # now call _add_overrideable_config_args_to_parser and assert that calling parse_args on the result
+    # of that is a non-empty Namepsace
+    with patch("health_azure.utils.get_overridable_parameters") as mock_get_overridable_parameters:
+        mock_get_overridable_parameters.return_value = {"string_param": param.String(default="Hello")}
+        parser = util._add_overrideable_config_args_to_parser(dummy_model_config, parser)
+        assert isinstance(parser, ArgumentParser)
+        args = parser.parse_args([])
+        assert args != Namespace()
+        assert args.string_param == "Hello"
+
+
+def test_parse_args(dummy_model_config: DummyConfig) -> None:
+    new_string_arg = "dummy_string"
+    new_args = ["--string_param", new_string_arg]
+    parser = ArgumentParser()
+    parser.add_argument("--string_param", type=str, default=None)
+    parser_result = util.parse_arguments(parser, args=new_args)
+    assert parser_result.args.get("string_param") == new_string_arg
+
+
+class ParamClass(param.Parameterized):
     name: str = param.String(None, doc="Name")
     seed: int = param.Integer(42, doc="Seed")
     flag: bool = param.Boolean(False, doc="Flag")
@@ -1183,6 +1279,9 @@ class ParamClass(util.GenericConfig):
     _non_override: str = param.String("Nope")
     constant: str = param.String("Nope", constant=True)
     other_args = util.ListOrDictParam(None, doc="List or dictionary of other args")
+
+    def validate(self) -> None:
+        pass
 
 
 class ClassFrom(param.Parameterized):
@@ -1204,12 +1303,20 @@ class NotParameterized:
     foo = 1
 
 
+@pytest.fixture(scope="module")
+def parameterized_config_and_parser() -> Tuple[ParamClass, ArgumentParser]:
+    parameterized_config = ParamClass()
+    parser = util.create_argparser(parameterized_config)
+    return parameterized_config, parser
+
+
 @pytest.mark.fast
-def test_overridable_parameter() -> None:
+def test_get_overridable_parameter(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser]) -> None:
     """
     Test to check overridable parameters are correctly identified.
     """
-    param_dict = ParamClass.get_overridable_parameters()
+    parameterized_config = parameterized_config_and_parser[0]
+    param_dict = util.get_overridable_parameters(parameterized_config)
     assert "name" in param_dict
     assert "flag" in param_dict
     assert "not_flag" in param_dict
@@ -1229,12 +1336,13 @@ def test_overridable_parameter() -> None:
 
 
 @pytest.mark.fast
-def test_parser_defaults() -> None:
+def test_parser_defaults(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser]) -> None:
     """
     Check that default values are created as expected, and that the non-overridable parameters
     are omitted.
     """
-    defaults = vars(ParamClass.create_argparser().parse_args([]))
+    parameterized_config = parameterized_config_and_parser[0]
+    defaults = vars(util.create_argparser(parameterized_config).parse_args([]))
     assert defaults["seed"] == 42
     assert defaults["tuple1"] == (1, 2.3)
     assert defaults["int_tuple"] == (1, 1, 1)
@@ -1248,17 +1356,20 @@ def test_parser_defaults() -> None:
     # upon errors.
 
 
-def check_parsing_succeeds(arg: List[str], expected_key: str, expected_value: Any) -> None:
-    parsed = ParamClass.parse_args(arg)
-    assert getattr(parsed, expected_key) == expected_value
+def check_parsing_succeeds(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                           arg: List[str],
+                           expected_key: str,
+                           expected_value: Any) -> None:
+    parameterized_config, parser = parameterized_config_and_parser
+    parser_result = util.parse_arguments(parser, args=arg)
+    assert parser_result.args.get(expected_key) == expected_value
 
 
-def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expected_value: Optional[Any] = None
-                        ) -> None:
-    with pytest.raises(SystemExit) as e:
-        ParamClass.parse_args(arg)
-    assert e.type == SystemExit
-    assert e.value.code == 2
+def check_parsing_fails(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                        arg: List[str]) -> None:
+    parameterized_config, parser = parameterized_config_and_parser
+    with pytest.raises(Exception):
+        util.parse_arguments(parser, args=arg, fail_on_unknown_args=True)
 
 
 @pytest.mark.fast
@@ -1290,14 +1401,18 @@ def check_parsing_fails(arg: List[str], expected_key: Optional[str] = None, expe
     (["--other_args={'learning':3"], None, None, False),
     (["--other_args=['foo','bar'"], None, None, False)
 ])
-def test_create_parser(args: List[str], expected_key: str, expected_value: Any, expected_pass: bool) -> None:
+def test_create_parser(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                       args: List[str],
+                       expected_key: str,
+                       expected_value: Any,
+                       expected_pass: bool) -> None:
     """
     Check that parse_args works as expected, with both non default and default values.
     """
     if expected_pass:
-        check_parsing_succeeds(args, expected_key, expected_value)
+        check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
     else:
-        check_parsing_fails(args)
+        check_parsing_fails(parameterized_config_and_parser, args)
 
 
 @pytest.mark.fast
@@ -1305,73 +1420,106 @@ def test_create_parser(args: List[str], expected_key: str, expected_value: Any, 
     ('on', True), ('t', True), ('true', True), ('y', True), ('yes', True), ('1', True),
     ('off', False), ('f', False), ('false', False), ('n', False), ('no', False), ('0', False)
 ])
-def test_parsing_bools(flag: str, expected_value: bool) -> None:
+def test_parsing_bools(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                       flag: str,
+                       expected_value: bool) -> None:
     """
     Check all the ways of passing in True and False, with and without the first letter capitialized
     """
-    check_parsing_succeeds([f"--flag={flag}"], "flag", expected_value)
-    check_parsing_succeeds([f"--flag={flag.capitalize()}"], "flag", expected_value)
-    check_parsing_succeeds([f"--not_flag={flag}"], "not_flag", expected_value)
-    check_parsing_succeeds([f"--not_flag={flag.capitalize()}"], "not_flag", expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser,
+                           [f"--flag={flag}"],
+                           "flag",
+                           expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser,
+                           [f"--flag={flag.capitalize()}"],
+                           "flag",
+                           expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser,
+                           [f"--not_flag={flag}"],
+                           "not_flag",
+                           expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser,
+                           [f"--not_flag={flag.capitalize()}"],
+                           "not_flag",
+                           expected_value)
 
 
 @pytest.mark.fast
-@patch("health_azure.utils.GenericConfig.report_on_overrides")
-@patch("health_azure.utils.GenericConfig.validate")
-def test_apply_overrides(mock_validate: MagicMock, mock_report_on_overrides: MagicMock) -> None:
+def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser]) -> None:
     """
-    Test that overrides are applied correctly, ond only to overridable parameters,
+    Test that overrides are applied correctly, ond only to overridable parameters
     """
-    m = ParamClass()
-    overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
-    actual_overrides = m.apply_overrides(overrides)
-    assert actual_overrides == overrides
-    assert all([x == i and isinstance(x, int) for i, x in enumerate(m.int_tuple)])
-    assert m.name == "newName"
-    # Attempt to change seed and constant, but the latter should be ignored.
-    change_seed = {"seed": 123}
-    old_constant = m.constant
-    changes2 = m.apply_overrides({**change_seed, "constant": "Nothing"})  # type: ignore
-    assert changes2 == change_seed
-    assert m.seed == 123
-    assert m.constant == old_constant
+    parameterized_config = parameterized_config_and_parser[0]
+    with patch("health_azure.utils.report_on_overrides") as mock_report_on_overrides:
+        overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
+        actual_overrides = util.apply_overrides(parameterized_config, overrides)
+        assert actual_overrides == overrides
+        assert all([x == i and isinstance(x, int) for i, x in enumerate(parameterized_config.int_tuple)])
+        assert parameterized_config.name == "newName"
 
-    # Check the call count of mock_validate and check it doesn't increase if should_validate is set to False
-    # and that setting this flag doesn't affect on the outputs
-    mock_validate_call_count = mock_validate.call_count
-    actual_overrides = m.apply_overrides(values=overrides, should_validate=False)
-    assert actual_overrides == overrides
-    assert mock_validate.call_count == mock_validate_call_count
+        # Attempt to change seed and constant, but the latter should be ignored.
+        change_seed = {"seed": 123}
+        old_constant = parameterized_config.constant
+        extra_overrides = {**change_seed, "constant": "Nothing"}  # type: ignore
+        changes2 = util.apply_overrides(parameterized_config, overrides_to_apply=extra_overrides)  # type: ignore
+        assert changes2 == change_seed
+        assert parameterized_config.seed == 123
+        assert parameterized_config.constant == old_constant
 
-    # Check that report_on_overrides has not yet been called, but is called if keys_to_ignore is not None
-    # and that setting this flag doesn't affect on the outputs
-    assert mock_report_on_overrides.call_count == 0
-    actual_overrides = m.apply_overrides(values=overrides, keys_to_ignore={"name"})
-    assert actual_overrides == overrides
-    assert mock_report_on_overrides.call_count == 1
+        # Check the call count of mock_validate and check it doesn't increase if should_validate is set to False
+        # and that setting this flag doesn't affect on the outputs
+        # mock_validate_call_count = mock_validate.call_count
+        actual_overrides = util.apply_overrides(parameterized_config,
+                                                overrides_to_apply=overrides,
+                                                should_validate=False)
+        assert actual_overrides == overrides
+        # assert mock_validate.call_count == mock_validate_call_count
+
+        # Check that report_on_overrides has not yet been called, but is called if keys_to_ignore is not None
+        # and that setting this flag doesn't affect on the outputs
+        assert mock_report_on_overrides.call_count == 0
+        actual_overrides = util.apply_overrides(parameterized_config,
+                                                overrides_to_apply=overrides,
+                                                keys_to_ignore={"name"})
+        assert actual_overrides == overrides
+        assert mock_report_on_overrides.call_count == 1
 
 
-def test_report_on_overrides() -> None:
-    m = ParamClass()
-    overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
-    m.report_on_overrides(overrides)
+def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                             caplog: LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
+    parameterized_config = parameterized_config_and_parser[0]
+    old_logs = caplog.messages
+    assert len(old_logs) == 0
+    # the following overrides are expected to cause logged warnings because
+    # a) parameter 'constant' is constant
+    # b) parameter 'readonly' is readonly
+    # b) parameter 'idontexist' is undefined (not the name of a parameter of ParamClass)
+    overrides = {"constant": "dif_value", "readonly": "new_value", "idontexist": (0, 1, 2)}
+    keys_to_ignore: Set = set()
+    util.report_on_overrides(parameterized_config, overrides, keys_to_ignore)
+    # Expect one warning message per failed override
+    new_logs = caplog.messages
+    expected_warnings = len(overrides.keys())
+    assert len(new_logs) == expected_warnings, f"Expected {expected_warnings} warnings but found: {caplog.records}"
 
 
 @pytest.mark.fast
 @pytest.mark.parametrize("value_idx_0", [1.0, 1])
 @pytest.mark.parametrize("value_idx_1", [2.0, 2])
 @pytest.mark.parametrize("value_idx_2", [3.0, 3])
-def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: Any) -> None:
+def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: Any,
+                              parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser]) -> None:
     """
     Test integer tuple parameter is validated correctly.
     """
-    m = ParamClass()
+    parameterized_config = parameterized_config_and_parser[0]
     val = (value_idx_0, value_idx_1, value_idx_2)
     if not all([isinstance(x, int) for x in val]):
         with pytest.raises(ValueError):
-            m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
+            parameterized_config.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
     else:
-        m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
+        parameterized_config.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
 
 
 @pytest.mark.fast
@@ -1398,42 +1546,24 @@ def test_create_from_matching_params() -> None:
 
 
 def test_parse_illegal_params() -> None:
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(TypeError) as e:
         ParamClass(readonly="abc")
-        assert "cannot be overridden" in str(e.value)
-
-
-def test_parse_throw_if_unknown() -> None:
-    with pytest.raises(ValueError) as e:
-        ParamClass(throw_if_unknown_param=True, idontexist="hello")
-        assert "parameters do not exist" in str(e.value)
-
-
-@patch("health_azure.utils.GenericConfig.validate")
-def test_config_validate(mock_validate: MagicMock) -> None:
-    _ = ParamClass(should_validate=False)
-    assert mock_validate.call_count == 0
-
-    _ = ParamClass(should_validate=True)
-    assert mock_validate.call_count == 1
-
-    _ = ParamClass()
-    assert mock_validate.call_count == 2
+    assert "cannot be modified" in str(e.value)
 
 
 def test_config_add_and_validate() -> None:
-    config = ParamClass.parse_args([])
-    assert config.name == "ParamClass"
-    config.add_and_validate({"name": "foo"})
+    config = ParamClass()
+    assert config.name.startswith("ParamClass")
+    util.set_fields_and_validate(config, {"name": "foo"})
     assert config.name == "foo"
 
     assert hasattr(config, "new_property") is False
-    config.add_and_validate({"new_property": "bar"})
+    util.set_fields_and_validate(config, {"new_property": "bar"})
     assert hasattr(config, "new_property") is True
     assert config.new_property == "bar"
 
 
-class IllegalParamClassNoString(util.GenericConfig):
+class IllegalParamClassNoString(param.Parameterized):
     custom_type_no_from_string = IllegalCustomTypeNoFromString(
         None, doc="This should fail since from_string method is missing"
     )
@@ -1443,8 +1573,10 @@ def test_cant_parse_param_type() -> None:
     """
     Assert that a TypeError is raised when trying to add a custom type with no from_string method as an argument
     """
+    config = IllegalParamClassNoString()
+
     with pytest.raises(TypeError) as e:
-        IllegalParamClassNoString.parse_args([])
+        util.create_argparser(config)
         assert "is not supported" in str(e.value)
 
 
@@ -1463,33 +1595,39 @@ class EvenNumberParam(util.CustomTypeParam):
         return int(x)
 
 
-class MyScriptConfig(util.AmlRunScriptConfig):
+class MyScriptConfig(param.Parameterized):
     simple_string: str = param.String(default="")
     even_number: int = EvenNumberParam(2, doc="your choice of even number", allow_None=False)
 
 
-def test_my_script_config() -> None:
-    even_number = randint(0, 100) * 2
-    odd_number = even_number + 1
-    none_number = "None"
+def test_parse_args_and_apply_overrides() -> None:
+    config = MyScriptConfig()
+    assert config.even_number == 2
+    assert config.simple_string == ""
 
-    config = MyScriptConfig.parse_args(["--even_number", f"{even_number}"])
-    assert config.even_number == even_number
+    new_even_number = config.even_number * 2
+    new_string = config.simple_string + "something_new"
+    config_w_results = util.parse_args_and_update_config(config, ["--even_number", str(new_even_number),
+                                                                  "--simple_string", new_string])
+    assert config_w_results.even_number == new_even_number
+    assert config_w_results.simple_string == new_string
 
+    # parsing args with unaccepted values should cause an exception to be raised
+    odd_number = new_even_number + 1
     with pytest.raises(ValueError) as e:
-        MyScriptConfig.parse_args(["--even_number", f"{odd_number}"])
+        util.parse_args_and_update_config(config, args=["--even_number", f"{odd_number}"])
         assert "not an even number" in str(e.value)
 
-    # If parser can't parse type, will raise a SystemExit
-    with pytest.raises(SystemExit):
-        MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
+    none_number = "None"
+    with pytest.raises(ArgumentError):
+        util.parse_args_and_update_config(config, args=["--even_number", f"{none_number}"])
 
     # Mock from_string to check test _validate
-    mock_from_string_none = lambda a, b: None
+    mock_from_string_none = lambda a, b: None  # type: ignore
     with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
         # Check that _validate fails with None value
         with pytest.raises(ValueError) as e:
-            MyScriptConfig.parse_args(["--even_number", f"{none_number}"])
+            util.parse_args_and_update_config(config, ["--even_number", f"{none_number}"])
             assert "must not be None" in str(e.value)
 
 

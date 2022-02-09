@@ -1,0 +1,8 @@
+[report]
+    omit =
+        **/pytest
+        **/__init__.py
+        */hello_container_2.py
+
+[html]
+skip_empty = true
