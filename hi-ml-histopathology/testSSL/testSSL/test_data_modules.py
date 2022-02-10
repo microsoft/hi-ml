@@ -8,10 +8,10 @@ import numpy as np
 import torch
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
-from SSL.datamodules_and_datasets.cifar_datasets import HIMLCIFAR10
-from SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
-from SSL.datamodules_and_datasets.datamodules import CombinedDataModule, HIMLVisionDataModule
-from SSL.datamodules_and_datasets.transforms_utils import CIFARLinearHeadTransform, \
+from SSL.data.cifar_datasets import HimlCifar10
+from SSL.data.cxr_datasets import RSNAKaggleCXR
+from SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
+from SSL.data.transforms_utils import CIFARLinearHeadTransform, \
     CIFARTrainTransform, get_ssl_transforms_from_config
 from SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
@@ -29,7 +29,7 @@ def test_weights_module() -> None:
     """
     transforms = get_ssl_transforms_from_config(cxr_augmentation_config,
                                                 return_two_views_per_sample=True)
-    data_module = HIMLVisionDataModule(dataset_cls=RSNAKaggleCXR,
+    data_module = HimlVisionDataModule(dataset_cls=RSNAKaggleCXR,
                                        return_index=False,
                                        train_transforms=transforms[0],
                                        val_transforms=transforms[1],
@@ -55,7 +55,7 @@ def test_vision_module() -> None:
     Test properties of loaded CIFAR datasets via VisionDataModule.
     Tests as well that the transforms return data in the expected type and shape.
     """
-    data_module = HIMLVisionDataModule(dataset_cls=HIMLCIFAR10,
+    data_module = HimlVisionDataModule(dataset_cls=HimlCifar10,
                                        val_split=0.1,
                                        return_index=False,
                                        train_transforms=CIFARTrainTransform(32),
@@ -90,7 +90,7 @@ def test_vision_datamodule_with_return_index() -> None:
     Tests that the return index flag, modifies __getitem__ as expected i.e.
     returns the index on top of the transformed image and label.
     """
-    data_module = HIMLVisionDataModule(dataset_cls=HIMLCIFAR10,
+    data_module = HimlVisionDataModule(dataset_cls=HimlCifar10,
                                        return_index=True,
                                        train_transforms=CIFARLinearHeadTransform(32),
                                        val_transforms=None,
@@ -173,7 +173,7 @@ def test_combined_data_module() -> None:
                                                       return_two_views_per_sample=False)
 
     # Datamodule expected to have 12 training batches - 3 val
-    long_data_module = HIMLVisionDataModule(dataset_cls=RSNAKaggleCXR,
+    long_data_module = HimlVisionDataModule(dataset_cls=RSNAKaggleCXR,
                                             val_split=0.2,
                                             return_index=True,
                                             train_transforms=None,
@@ -185,7 +185,7 @@ def test_combined_data_module() -> None:
                                             num_workers=0)
     long_data_module.setup()
     # Datamodule expected to have 4 training batches - 1 val
-    short_data_module = HIMLVisionDataModule(dataset_cls=RSNAKaggleCXR,
+    short_data_module = HimlVisionDataModule(dataset_cls=RSNAKaggleCXR,
                                              val_split=0.2,
                                              return_index=True,
                                              train_transforms=None,

@@ -21,11 +21,11 @@ from torchvision.transforms import Lambda
 from health_ml.utils.common_utils import ModelExecutionMode
 from health_ml.lightning_container import LightningContainer, LightningModuleWithOptimizer
 
-from SSL.datamodules_and_datasets.dataset_cls_utils import DataClassBaseWithReturnIndex
-from SSL.datamodules_and_datasets.transforms_utils import DualViewTransformWrapper
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from SSL.data.transforms_utils import DualViewTransformWrapper
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
-from SSL.datamodules_and_datasets.transform_pipeline import ImageTransformationPipeline
+from SSL.data.transform_pipeline import ImageTransformationPipeline
 
 
 class DummyContainerWithDatasets(LightningContainer):

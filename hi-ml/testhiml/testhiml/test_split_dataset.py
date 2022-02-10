@@ -81,7 +81,7 @@ def test_grouped_splits(group_column: str) -> None:
 
 def _get_test_df() -> Tuple[DataFrame, List[str], List[str], List[str]]:
     test_data = {
-        CSV_SUBJECT_HEADER: list(range(0, 100)),
+        CSV_SUBJECT_HEADER: list(map(str, range(0, 100))),
         CSV_INSTITUTION_HEADER: ([0] * 10) + ([1] * 90),
         CSV_GROUP_HEADER: [i // 5 for i in range(0, 100)],
         "other": list(range(0, 100))

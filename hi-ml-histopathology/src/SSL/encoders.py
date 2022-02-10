@@ -77,13 +77,13 @@ def get_encoder_output_dim(
     # Create a dummy input image
     if dm is not None:
         from SSL.lightning_modules.ssl_online_evaluator import (
-            SSLOnlineEvaluatorHIML,
+            SslOnlineEvaluatorHiml,
         )
         loaders = dm.train_dataloader()
         loader = loaders[SSLDataModuleType.LINEAR_HEAD] if isinstance(loaders, dict) else loaders  # type: ignore
         iterator = iter(loader)
         batch = next(iterator)
-        x, _ = SSLOnlineEvaluatorHIML.to_device(batch, device)
+        x, _ = SslOnlineEvaluatorHiml.to_device(batch, device)
     else:
         x = torch.rand((1, 3, 256, 256)).to(device)
 

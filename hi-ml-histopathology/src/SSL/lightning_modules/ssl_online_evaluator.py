@@ -24,7 +24,7 @@ from SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
 
 
-class SSLOnlineEvaluatorHIML(SSLOnlineEvaluator):
+class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
     OPTIMIZER_STATE_NAME = "evaluator_optimizer"
     EVALUATOR_STATE_NAME = "evaluator_weights"
 

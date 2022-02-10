@@ -14,16 +14,16 @@ from yacs.config import CfgNode
 
 from health_ml.lightning_container import LightningContainer
 
-from SSL.datamodules_and_datasets.cifar_datasets import HIMLCIFAR10, HIMLCIFAR100
-from SSL.datamodules_and_datasets.cxr_datasets import CheXpert, CovidDataset, NIHCXR, RSNAKaggleCXR
-from SSL.datamodules_and_datasets.datamodules import CombinedDataModule, HIMLVisionDataModule
-from SSL.datamodules_and_datasets.transforms_utils import CIFARLinearHeadTransform, \
+from SSL.data.cifar_datasets import HimlCifar10, HimlCifar100
+from SSL.data.cxr_datasets import CheXpert, CovidDataset, NIHCXR, RSNAKaggleCXR
+from SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
+from SSL.data.transforms_utils import CIFARLinearHeadTransform, \
     CIFARTrainTransform, \
     get_ssl_transforms_from_config
 from SSL.encoders import get_encoder_output_dim
 from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-from SSL.lightning_modules.simclr_module import SimCLRHIML
-from SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorHIML
+from SSL.lightning_modules.simclr_module import SimClrHiml
+from SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
 from SSL.utils import SSLDataModuleType, SSLTrainingType, load_yaml_augmentation_config
 
 
@@ -51,7 +51,7 @@ class SSLDatasetName(Enum):
     Covid = "CovidDataset"
 
 
-DataModuleTypes = Union[HIMLVisionDataModule, CombinedDataModule]
+DataModuleTypes = Union[HimlVisionDataModule, CombinedDataModule]
 
 
 class SSLContainer(LightningContainer):
@@ -64,8 +64,8 @@ class SSLContainer(LightningContainer):
     Note that this container is also used as the base class for SSLImageClassifier (finetuning container) as they share
     setup and datamodule methods.
     """
-    _SSLDataClassMappings = {SSLDatasetName.CIFAR10.value: HIMLCIFAR10,
-                             SSLDatasetName.CIFAR100.value: HIMLCIFAR100,
+    _SSLDataClassMappings = {SSLDatasetName.CIFAR10.value: HimlCifar10,
+                             SSLDatasetName.CIFAR100.value: HimlCifar100,
                              SSLDatasetName.RSNAKaggleCXR.value: RSNAKaggleCXR,
                              SSLDatasetName.NIHCXR.value: NIHCXR,
                              SSLDatasetName.CheXpert.value: CheXpert,
@@ -168,7 +168,7 @@ class SSLContainer(LightningContainer):
         # of a 7x7 conv layer.
         use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
         if self.ssl_training_type == SSLTrainingType.SimCLR:
-            model: LightningModule = SimCLRHIML(encoder_name=self.ssl_encoder.value,
+            model: LightningModule = SimClrHiml(encoder_name=self.ssl_encoder.value,
                                                 dataset_name=self.ssl_training_dataset_name.value,
                                                 use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                                 num_samples=self.data_module.num_train_samples,
@@ -208,7 +208,7 @@ class SSLContainer(LightningContainer):
         return CombinedDataModule(encoder_data_module, linear_data_module,
                                   self.use_balanced_binary_loss_for_linear_head)
 
-    def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> HIMLVisionDataModule:
+    def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> HimlVisionDataModule:
         """
         Returns torch lightning data module for encoder or linear head
 
@@ -228,7 +228,7 @@ class SSLContainer(LightningContainer):
         effective_batch_size = datamodule_args.batch_size * batch_multiplier
         logging.info(f"Batch size per GPU: {datamodule_args.batch_size}")
         logging.info(f"Effective batch size on {batch_multiplier} GPUs: {effective_batch_size}")
-        dm = HIMLVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
+        dm = HimlVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
                                   return_index=not is_ssl_encoder_module,  # index is only needed for linear head
                                   train_transforms=train_transforms,
                                   val_split=0.1,
@@ -288,7 +288,7 @@ class SSLContainer(LightningContainer):
         return train_transforms, val_transforms
 
     def get_callbacks(self) -> List[Callback]:
-        self.online_eval = SSLOnlineEvaluatorHIML(class_weights=self.data_module.class_weights,  # type: ignore
+        self.online_eval = SslOnlineEvaluatorHiml(class_weights=self.data_module.class_weights,  # type: ignore
                                                   z_dim=self.encoder_output_dim,
                                                   num_classes=self.data_module.num_classes,  # type: ignore
                                                   dataset=self.linear_head_dataset_name.value,  # type: ignore

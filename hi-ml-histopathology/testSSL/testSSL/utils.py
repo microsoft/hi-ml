@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 import pydicom
 import SimpleITK as sitk
-from SSL.datamodules_and_datasets.io_util import PhotometricInterpretation
+from SSL.data.io_util import PhotometricInterpretation
 from health_azure.utils import PathOrString
 
 

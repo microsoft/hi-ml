@@ -5,10 +5,10 @@
 
 from torchvision.datasets import CIFAR10, CIFAR100
 
-from SSL.datamodules_and_datasets.dataset_cls_utils import DataClassBaseWithReturnIndex
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
 
 
-class HIMLCIFAR10(DataClassBaseWithReturnIndex, CIFAR10):
+class HimlCifar10(DataClassBaseWithReturnIndex, CIFAR10):
     """
     Wrapper class around torchvision CIFAR10 class to optionally return the
     index on top of the image and the label in __getitem__ as well as defining num_classes property.
@@ -19,7 +19,7 @@ class HIMLCIFAR10(DataClassBaseWithReturnIndex, CIFAR10):
         return 10
 
 
-class HIMLCIFAR100(DataClassBaseWithReturnIndex, CIFAR100):
+class HimlCifar100(DataClassBaseWithReturnIndex, CIFAR100):
     """
     Wrapper class around torchvision CIFAR100 class class to optionally return the
     index on top of the image and the label in __getitem__ as well as defining num_classes property.

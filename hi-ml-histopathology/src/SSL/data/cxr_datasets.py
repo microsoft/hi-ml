@@ -12,14 +12,14 @@ from PIL import Image
 from torch.utils.data import Subset
 from torchvision.datasets import VisionDataset
 
-from SSL.datamodules_and_datasets.io_util import is_dicom_file_path, load_dicom_image
+from SSL.data.io_util import is_dicom_file_path, load_dicom_image
 from health_azure.utils import PathOrString
 
-from SSL.datamodules_and_datasets.dataset_cls_utils import DataClassBaseWithReturnIndex, \
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex, \
     OptionalIndexInputAndLabel
 
 
-class CXRDatasetBase(VisionDataset):
+class CxrDatasetBase(VisionDataset):
     """
     Base class for a dataset with X-ray images and image-level target labels.
     Implements reading of dicom files as well as png.
@@ -79,7 +79,7 @@ class CXRDatasetBase(VisionDataset):
         return len(self.indices)
 
 
-class CXRDatasetWithReturnIndex(DataClassBaseWithReturnIndex, CXRDatasetBase):
+class CxrDatasetWithReturnIndex(DataClassBaseWithReturnIndex, CxrDatasetBase):
     """
     Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance.
@@ -87,7 +87,7 @@ class CXRDatasetWithReturnIndex(DataClassBaseWithReturnIndex, CXRDatasetBase):
     pass
 
 
-class RSNAKaggleCXR(CXRDatasetWithReturnIndex):
+class RSNAKaggleCXR(CxrDatasetWithReturnIndex):
     """
     Dataset class to load the RSNA Chest-Xray training dataset.
     For more details instructions about how to download the dataset and the expected data folder structure, please
@@ -113,7 +113,7 @@ class RSNAKaggleCXR(CXRDatasetWithReturnIndex):
         return 2
 
 
-class NIHCXR(CXRDatasetWithReturnIndex):
+class NIHCXR(CxrDatasetWithReturnIndex):
     """
     Dataset class to load the NIHCXR Chest-Xray dataset.
     For more details instructions about how to download the dataset and the expected data folder structure, please
@@ -145,7 +145,7 @@ class NIHCXR(CXRDatasetWithReturnIndex):
         self.filenames = [self.root / f"{subject_id}" for subject_id in self.subject_ids]
 
 
-class CheXpert(CXRDatasetWithReturnIndex):
+class CheXpert(CxrDatasetWithReturnIndex):
     """
     Dataset class to load the CheXpert dataset.
 
@@ -179,7 +179,7 @@ class CheXpert(CXRDatasetWithReturnIndex):
         self.filenames = [self.root / p for p in self.dataset_dataframe.Path.values]
 
 
-class CovidDataset(CXRDatasetWithReturnIndex):
+class CovidDataset(CxrDatasetWithReturnIndex):
     """
     Dataset class to load CovidDataset dataset as datamodule for monitoring SSL training quality directly on
     CovidDataset data.

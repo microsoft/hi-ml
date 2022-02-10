@@ -70,7 +70,7 @@ def create_ssl_image_classifier(num_classes: int,
 
     # Use local imports to avoid circular imports
     from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-    from SSL.lightning_modules.simclr_module import SimCLRHIML
+    from SSL.lightning_modules.simclr_module import SimClrHiml
     from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 
     logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
@@ -84,7 +84,7 @@ def create_ssl_image_classifier(num_classes: int,
         byol_module = BootstrapYourOwnLatent.load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
-        simclr_module = SimCLRHIML.load_from_checkpoint(pl_checkpoint_path)
+        simclr_module = SimClrHiml.load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")

@@ -1,4 +1,4 @@
-name: HIMLHisto
+name: HimlHisto
 channels:
   - defaults
   - pytorch

@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Dataset
 from SSL.utils import SSLDataModuleType
 
 
-class HIMLVisionDataModule(VisionDataModule):
+class HimlVisionDataModule(VisionDataModule):
 
     def __init__(self,
                  dataset_cls: type,
@@ -100,8 +100,8 @@ class HIMLVisionDataModule(VisionDataModule):
 class CombinedDataModule(LightningDataModule):
 
     def __init__(self,
-                 encoder_module: HIMLVisionDataModule,
-                 linear_head_module: HIMLVisionDataModule,
+                 encoder_module: HimlVisionDataModule,
+                 linear_head_module: HimlVisionDataModule,
                  use_balanced_loss_linear_head: bool,
                  *args: Any,
                  **kwargs: Any) -> None:

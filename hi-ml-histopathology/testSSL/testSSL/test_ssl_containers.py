@@ -25,10 +25,10 @@ from health_ml.utils.common_utils import is_gpu_available
 
 from SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-from SSL.lightning_modules.simclr_module import SimCLRHIML
+from SSL.lightning_modules.simclr_module import SimClrHiml
 from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorHIML
-from SSL.datamodules_and_datasets.datamodules import CombinedDataModule
+from SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
+from SSL.data.datamodules import CombinedDataModule
 from SSL.utils import SSLDataModuleType, SSLTrainingType
 
 from SSL.configs.CIFAR_SSL_configs import CIFAR10SimCLR
@@ -122,7 +122,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert loaded_config is not None
-    assert isinstance(loaded_config.model, SimCLRHIML)
+    assert isinstance(loaded_config.model, SimClrHiml)
     assert loaded_config.encoder_output_dim == 2048
     assert loaded_config.l_rate == 1e-4
     assert loaded_config.max_epochs == 1
@@ -152,11 +152,11 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
     assert "callbacks" in checkpoint
-    callback_name = SSLOnlineEvaluatorHIML.__name__
+    callback_name = SslOnlineEvaluatorHiml.__name__
     assert callback_name in checkpoint["callbacks"]
     callback_state = checkpoint["callbacks"][callback_name]
-    assert SSLOnlineEvaluatorHIML.OPTIMIZER_STATE_NAME in callback_state
-    assert SSLOnlineEvaluatorHIML.EVALUATOR_STATE_NAME in callback_state
+    assert SslOnlineEvaluatorHiml.OPTIMIZER_STATE_NAME in callback_state
+    assert SslOnlineEvaluatorHiml.EVALUATOR_STATE_NAME in callback_state
 
     # Now run the actual SSL classifier off the stored checkpoint
     model_namespace_cifar = "hi-ml-histopathology.SSL.configs.SSLClassifierCIFAR"
@@ -274,7 +274,7 @@ def test_simclr_lr_scheduler() -> None:
     gpus = 1
     max_epochs = 10
     warmup_epochs = 2
-    model = SimCLRHIML(encoder_name="resnet18",
+    model = SimClrHiml(encoder_name="resnet18",
                        dataset_name="CIFAR10",
                        gpus=gpus,
                        num_samples=num_train_samples,
@@ -393,7 +393,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
                                   every_n_val_epochs=1,
                                   save_last=True)
     # Create a first callback, that will be used in training.
-    callback1 = SSLOnlineEvaluatorHIML(class_weights=None,
+    callback1 = SslOnlineEvaluatorHiml(class_weights=None,
                                        z_dim=1,
                                        num_classes=2,
                                        dataset="foo",
@@ -402,10 +402,10 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     # To simplify the test setup, do not run any actual training (this would require complicated dataset with a
     # combined loader)
     with mock.patch(
-            "SSL.lightning_modules.ssl_online_evaluator.SSLOnlineEvaluatorHIML.on_train_batch_end",
+            "SSL.lightning_modules.ssl_online_evaluator.SslOnlineEvaluatorHiml.on_train_batch_end",
             return_value=None) as mock_train:
         with mock.patch(
-                "SSL.lightning_modules.ssl_online_evaluator.SSLOnlineEvaluatorHIML"
+                "SSL.lightning_modules.ssl_online_evaluator.SslOnlineEvaluatorHiml"
                 ".on_validation_batch_end",
                 return_value=None):
             trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
@@ -419,7 +419,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
             # and should have different parameters initially. After checkpoint recovery, it should have exactly the
             # same parameters as the first callback.
             parameters1 = list(callback1.evaluator.parameters())
-            callback2 = SSLOnlineEvaluatorHIML(class_weights=None,
+            callback2 = SslOnlineEvaluatorHiml(class_weights=None,
                                                z_dim=1,
                                                num_classes=2,
                                                dataset="foo",
@@ -439,11 +439,11 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     # It's somewhat obsolete, but we can now check that the checkpoint file really contained the optimizer and weights
     checkpoint = torch.load(last_checkpoint)
     assert "callbacks" in checkpoint
-    callback_name = SSLOnlineEvaluatorHIML.__name__
+    callback_name = SslOnlineEvaluatorHiml.__name__
     assert callback_name in checkpoint["callbacks"]
     callback_state = checkpoint["callbacks"][callback_name]
-    assert SSLOnlineEvaluatorHIML.OPTIMIZER_STATE_NAME in callback_state
-    assert SSLOnlineEvaluatorHIML.EVALUATOR_STATE_NAME in callback_state
+    assert SslOnlineEvaluatorHiml.OPTIMIZER_STATE_NAME in callback_state
+    assert SslOnlineEvaluatorHiml.EVALUATOR_STATE_NAME in callback_state
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
@@ -452,7 +452,7 @@ def test_online_evaluator_not_distributed() -> None:
     Check if the online evaluator uses the DDP flag correctly when running not distributed
     """
     with mock.patch("SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel") as mock_ddp:
-        callback = SSLOnlineEvaluatorHIML(class_weights=None,
+        callback = SslOnlineEvaluatorHiml(class_weights=None,
                                           z_dim=1,
                                           num_classes=2,
                                           dataset="foo",
@@ -487,7 +487,7 @@ def test_online_evaluator_distributed() -> None:
                     return_value=mock_sync_result) as mock_sync:
         with mock.patch("SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
                         return_value=mock_ddp_result) as mock_ddp:
-            callback = SSLOnlineEvaluatorHIML(class_weights=None,
+            callback = SslOnlineEvaluatorHiml(class_weights=None,
                                               z_dim=1,
                                               num_classes=2,
                                               dataset="foo",

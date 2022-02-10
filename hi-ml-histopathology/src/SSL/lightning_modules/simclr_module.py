@@ -37,7 +37,7 @@ class _Projection(nn.Module):
         return F.normalize(x, dim=1)
 
 
-class SimCLRHIML(SimCLR):
+class SimClrHiml(SimCLR):
     def __init__(self, encoder_name: str, dataset_name: str, use_7x7_first_conv_in_resnet: bool = True,
                  **kwargs: Any) -> None:
         """

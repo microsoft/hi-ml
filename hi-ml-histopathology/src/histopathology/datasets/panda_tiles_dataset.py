@@ -12,7 +12,7 @@ from torchvision.datasets.vision import VisionDataset
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.transforms import load_pil_image
 
-from SSL.datamodules_and_datasets.dataset_cls_utils import DataClassBaseWithReturnIndex
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
 
 
 class PandaTilesDataset(TilesDataset):

@@ -11,7 +11,7 @@ from pytorch_lightning import Callback
 from health_ml.lightning_container import LightningModuleWithOptimizer
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
-from SSL.datamodules_and_datasets.datamodules import HIMLVisionDataModule
+from SSL.data.datamodules import HimlVisionDataModule
 from SSL.lightning_containers.ssl_container import DataModuleTypes, SSLContainer
 from SSL.utils import create_ssl_image_classifier
 
@@ -40,7 +40,7 @@ class SSLClassifierContainer(SSLContainer):
         else:
             path_to_checkpoint = self.local_ssl_weights_path
         data_module: DataModuleTypes = self.data_module
-        assert isinstance(data_module, HIMLVisionDataModule)
+        assert isinstance(data_module, HimlVisionDataModule)
         model = create_ssl_image_classifier(num_classes=data_module.dataset_train.dataset.num_classes,
                                             pl_checkpoint_path=str(path_to_checkpoint),
                                             freeze_encoder=self.freeze_encoder,

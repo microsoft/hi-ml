@@ -88,13 +88,13 @@ class DeepSMILECrck(BaseMIL):
         if self.encoder_type == SSLEncoder.__name__:
             from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint_crck_4ws
             self.downloader = CheckpointDownloader(
-                azure_config_json_path=get_workspace(),
+                aml_workspace=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
                 checkpoint_filename="best_checkpoint.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_parent_directory())
+            os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
 
         self.encoder = self.get_encoder()
