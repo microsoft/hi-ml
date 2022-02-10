@@ -10,6 +10,7 @@ from histopathology.preprocessing.tiling import assemble_tiles_2d, get_1d_paddin
     pad_for_tiling_2d, tile_array_2d
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("length,tile_size",
                          [(8, 4), (9, 4), (8, 3), (4, 4), (3, 4)])
 def test_1d_padding(length: int, tile_size: int) -> None:
@@ -27,6 +28,7 @@ def test_1d_padding(length: int, tile_size: int) -> None:
     assert n_tiles == expected_n_tiles
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("width,height", [(8, 6)])
 @pytest.mark.parametrize("tile_size", [3, 4, 5])
 @pytest.mark.parametrize("channels_first", [True, False])
@@ -63,6 +65,7 @@ def _get_2d_meshgrid(width: int, height: int, channels_first: bool = True) -> np
     return array
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("width,height", [(8, 6)])
 @pytest.mark.parametrize("tile_size", [3, 4, 5])
 @pytest.mark.parametrize("channels_first", [True, False])
@@ -100,6 +103,7 @@ def test_tile_array_2d_both(width: int, height: int, tile_size: int, channels_fi
         assert tuple(coords[idx]) == (expected_x, expected_y)
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("width,height", [(8, 6)])
 @pytest.mark.parametrize("tile_size", [3, 4, 5])
 @pytest.mark.parametrize("channels_first", [True, False])

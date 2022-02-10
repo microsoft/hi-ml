@@ -25,6 +25,7 @@ def get_histo_ssl_encoder() -> TileEncoder:
     return HistoSSLEncoder(tile_size=224)
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("create_encoder_fn", [get_supervised_imagenet_encoder,
                                                get_simclr_imagenet_encoder,
                                                get_histo_ssl_encoder])

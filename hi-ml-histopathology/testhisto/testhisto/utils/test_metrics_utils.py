@@ -82,6 +82,7 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
              }
 
 
+@pytest.mark.fast
 def test_select_k_tiles() -> None:
     top_tn = select_k_tiles(test_dict, n_slides=1, label=0, n_tiles=2, select=('lowest_pred', 'highest_att'))
     assert_equal_lists(top_tn, [(1, 0.5, [3, 4], [Tensor([0.2]), Tensor([0.15])])])
@@ -106,6 +107,7 @@ def test_select_k_tiles() -> None:
                                    (2, 0.7, [1, 4], [Tensor([0.10]), Tensor([0.13])])])
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize("level", [0, 1, 2])
 def test_location_selected_tiles(level: int) -> None:
     set_random_seed(0)

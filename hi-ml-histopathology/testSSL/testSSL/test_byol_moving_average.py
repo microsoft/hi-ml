@@ -19,6 +19,7 @@ from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeig
 from testSSL.utils import TEST_OUTPUTS_PATH
 
 
+@pytest.mark.fast
 def test_update_tau() -> None:
     class DummyRSNADataset(RSNAKaggleCXR):
         def __getitem__(self, item: Any) -> Any:
@@ -51,6 +52,7 @@ def test_update_tau() -> None:
     assert new_tau == expected_tau
 
 
+@pytest.mark.fast
 def test_update_weights() -> None:
     online_network = torch.nn.Linear(in_features=3, out_features=1, bias=False)
     target_network = torch.nn.Linear(in_features=3, out_features=1, bias=False)

@@ -8,6 +8,7 @@ import pandas as pd
 from histopathology.utils.tcga_utils import extract_fields
 
 
+@pytest.mark.fast
 def test_extract_fields() -> None:
     slide_id = "TCGA-XX-0123"
     tile_id = "ABCDEFGHIJKL"

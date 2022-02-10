@@ -9,7 +9,7 @@ import torch
 from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
 
 
-# Test cosine loss
+@pytest.mark.fast
 def test_cosine_loss() -> None:
     loss_fn = BootstrapYourOwnLatent.cosine_loss
 
@@ -25,8 +25,9 @@ def test_cosine_loss() -> None:
     assert torch.isclose(loss, torch.tensor(0.0))
 
 
-# Test if initial set of parameters are equal between student and teacher.
+@pytest.mark.fast
 def test_module_param_eq() -> None:
+    """Test if initial set of parameters are equal between student and teacher."""
     byol = BootstrapYourOwnLatent(num_samples=16,
                                   learning_rate=1e-3,
                                   batch_size=4,
@@ -39,9 +40,10 @@ def test_module_param_eq() -> None:
         assert torch.all(torch.eq(par1, par2))
 
 
-# Test initialisation with different encoder types.
+@pytest.mark.fast
 @pytest.mark.parametrize("encoder_name", ["resnet18", "resnet50", "resnet101", "densenet121"])
 def test_encoder_init(encoder_name: str) -> None:
+    """Test initialisation with different encoder types."""
     BootstrapYourOwnLatent(num_samples=16,
                            learning_rate=1e-3,
                            batch_size=4,
@@ -50,8 +52,9 @@ def test_encoder_init(encoder_name: str) -> None:
                            max_epochs=100)
 
 
-# Test shared step - loss should be bounded between some value and cannot be outside that value.
+@pytest.mark.fast
 def test_shared_forward_step() -> None:
+    """Test shared step - loss should be bounded between some value and cannot be outside that value."""
     byol = BootstrapYourOwnLatent(num_samples=16,
                                   learning_rate=1e-3,
                                   batch_size=4,
@@ -67,8 +70,9 @@ def test_shared_forward_step() -> None:
     assert torch.ge(loss, -1.0)
 
 
-# Check if output pooling works
+@pytest.mark.fast
 def test_output_spatial_pooling() -> None:
+    """Check if output pooling works"""
     byol = BootstrapYourOwnLatent(
         num_samples=16,
         learning_rate=1e-3,

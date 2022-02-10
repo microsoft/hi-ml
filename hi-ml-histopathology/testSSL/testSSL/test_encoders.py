@@ -23,6 +23,7 @@ def test_get_encoder_dim_within_encoder_class() -> None:
     assert densenet121.get_output_feature_dim() == 1024
 
 
+@pytest.mark.fast
 def test_use7x7conv_flag_in_encoder() -> None:
     """
     Tests the use_7x7_first_conv_in_resnet flag effect on encoder definition
