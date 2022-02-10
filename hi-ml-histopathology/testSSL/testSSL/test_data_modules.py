@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import PIL
+import pytest
 import numpy as np
 import torch
 from pytorch_lightning.trainer.supporters import CombinedLoader

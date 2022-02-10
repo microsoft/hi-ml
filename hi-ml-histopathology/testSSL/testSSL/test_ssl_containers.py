@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from health_ml.utils.common_utils import is_gpu_available
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
 from pytorch_lightning import Trainer, seed_everything
@@ -21,6 +20,8 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
 from PIL import Image
+
+from health_ml.utils.common_utils import is_gpu_available
 
 from SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent

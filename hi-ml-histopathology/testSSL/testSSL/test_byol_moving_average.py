@@ -8,6 +8,7 @@ from typing import Any
 from unittest import mock
 
 import numpy as np
+import pytest
 import torch
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader

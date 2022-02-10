@@ -4,26 +4,20 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from pathlib import Path
-
 import math
 import random
-import numpy as np
 from typing import List, Optional
 
-import matplotlib
+import numpy as np
+import pytest
 import torch
 from torch.functional import Tensor
-import pytest
 
-from health_ml.utils.common_utils import is_windows, is_gpu_available
-from health_ml.utils.fixed_paths import OutputFolderForTests
+from health_ml.utils.common_utils import is_gpu_available
 
 from histopathology.utils.metrics_utils import select_k_tiles
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
-
-from .utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
 
 def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:

@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import pandas as pd
+import pytest
 
 from histopathology.utils.tcga_utils import extract_fields
 
