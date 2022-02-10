@@ -31,7 +31,7 @@ dependencies:
       - numba==0.51.2
       - numpy==1.19.1
       - opencv-python-headless==4.5.1.48
-      - pandas==1.1.0
+      - pandas==1.3.4
       - param==1.9.3
       - pillow==8.3.2
       - psutil==5.7.2
