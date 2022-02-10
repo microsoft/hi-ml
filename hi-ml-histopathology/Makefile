@@ -24,10 +24,26 @@ call_pip_local:
 # pip upgrade and install local package in editable mode
 pip_local: pip_upgrade call_pip_local
 
+
 # pip install everything for local development and testing
 pip: pip_build pip_test call_pip_local
 
 ## Actions
+# clean build artifacts
+clean:
+	rm -vrf `find . -type d -name __pycache__`
+	rm -vrf `find . -type d -name logs`
+	rm -vrf `find . -type d -name outputs`
+	rm -vrf ./.mypy_cache ./.pytest_cache
+	rm -vrf ./testhisto/testhisto/test_outputs ./testhistotestSSL/test_ouputs
+	rm -vf ./coverage ./coverage.txt ./coverage.xml
+
+# build package, assuming build requirements already installed
+call_build:
+	ls
+
+# pip install build requirements and build package
+build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
 call_flake8:
