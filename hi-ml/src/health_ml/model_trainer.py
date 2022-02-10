@@ -27,17 +27,6 @@ TEMP_PREFIX = "temp/"
 T = TypeVar('T')
 
 
-def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
-    """
-    Uploads a file to the AzureML run. It will get a name that is composed of a "temp/" prefix, plus the path
-    of the file relative to the outputs folder that is used for training.
-    :param file_path: The path of the file to upload.
-    :param outputs_folder: The root folder that contains all training outputs.
-    """
-    upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
-    RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
-
-
 def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
     """
     Writes the given config to disk in plain text in the default output folder.
@@ -231,11 +220,6 @@ def model_train(checkpoint_path: Optional[Path],
 
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
-    if is_azureml_run and world_size > 1:
-        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path,  # type: ignore
-                                   container.outputs_folder)
-        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path,  # type: ignore
-                                   container.outputs_folder)
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
