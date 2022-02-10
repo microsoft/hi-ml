@@ -61,6 +61,7 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
+        self.checkpoint_handler = None
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """

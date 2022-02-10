@@ -48,19 +48,17 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
 
 def test_run(ml_runner: MLRunner) -> None:
 
-    def _mock_model_train(container: LightningContainer) -> Tuple[str, str]:
+    def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
         return "trainer", dummy_storing_logger
 
     dummy_storing_logger = "storing_logger"
 
-    with patch.object(ml_runner, "setup") as mock_setup:
-        with patch("health_ml.run_ml.model_train", new=_mock_model_train):
-            ml_runner.setup()
-            ml_runner.run()
-            mock_setup.assert_called_once()
-            # expect _mock_model_train to be called and the result of ml_runner.storing_logger
-            # updated accordingly
-            assert ml_runner.storing_logger == dummy_storing_logger
+    with patch("health_ml.run_ml.model_train", new=_mock_model_train):
+        ml_runner.run()
+        assert ml_runner._has_setup_run
+        # expect _mock_model_train to be called and the result of ml_runner.storing_logger
+        # updated accordingly
+        assert ml_runner.storing_logger == dummy_storing_logger
 
 
 @patch("health_ml.run_ml.create_lightning_trainer")

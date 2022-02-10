@@ -243,20 +243,23 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
     return file_with_highest_epoch
 
 
-def cleanup_checkpoints(path: Path) -> None:
+def cleanup_checkpoints(ckpt_folder: Path) -> None:
     """
     Remove autosave checkpoints from the given checkpoint folder, and check if a "last.ckpt" checkpoint is present.
-    :param path: The folder that contains all checkpoint files.
+    :param ckpt_folder: The folder that contains all checkpoint files.
     """
-    logging.info(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
-    last_ckpt = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    all_files = f"Existing files: {' '.join(p.name for p in path.glob('*'))}"
+    files_in_checkpoint_folder = [p.name for p in ckpt_folder.glob('*')]
+    if len(files_in_checkpoint_folder) == 0:
+        return
+    logging.info(f"Files in checkpoint folder: {' '.join(files_in_checkpoint_folder)}")
+    last_ckpt = ckpt_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    all_files = f"Existing files: {' '.join(p.name for p in ckpt_folder.glob('*'))}"
     if not last_ckpt.is_file():
         raise FileNotFoundError(f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} not found. {all_files}")
     # Training is finished now. To save storage, remove the autosave checkpoint which is now obsolete.
     # Lightning does not overwrite checkpoints in-place. Rather, it writes "autosave.ckpt",
     # then "autosave-1.ckpt" and deletes "autosave.ckpt", then "autosave.ckpt" and deletes "autosave-v1.ckpt"
     for candidate in AUTOSAVE_CHECKPOINT_CANDIDATES:
-        autosave = path / candidate
+        autosave = ckpt_folder / candidate
         if autosave.is_file():
             autosave.unlink()
