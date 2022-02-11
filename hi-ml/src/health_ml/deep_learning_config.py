@@ -79,7 +79,7 @@ class ExperimentFolderHandler(Parameterized):
     def create(project_root: Path,
                is_offline_run: bool,
                model_name: str,
-               output_to: Optional[Path] = None) -> ExperimentFolderHandler:
+               output_to: Path = Path()) -> ExperimentFolderHandler:
         """
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp

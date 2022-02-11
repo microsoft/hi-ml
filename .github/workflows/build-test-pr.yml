@@ -166,6 +166,7 @@ jobs:
 
       - name: Download package artifacts
         id: download
+        if: ${{ matrix.folder != 'hi-ml-histopathology' }}
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
