@@ -40,8 +40,8 @@ from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFF
 from health_ml.utils.fixed_paths import repository_root_directory, OutputFolderForTests
 from health_ml.utils.lightning_loggers import StoringLogger
 
-from testSSL.testSSL.configs_for_tests import DummyContainerWithModel, DummySimCLR
-from testSSL.testSSL.utils import TEST_OUTPUTS_PATH, write_test_dicom
+from testSSL.configs_for_tests import DummyContainerWithModel, DummySimCLR
+from testSSL.utils import TEST_OUTPUTS_PATH, write_test_dicom
 
 
 common_test_args = ["",

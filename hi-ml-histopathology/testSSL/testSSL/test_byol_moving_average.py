@@ -17,7 +17,7 @@ from SSL.data.cxr_datasets import RSNAKaggleCXR
 from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
 from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 
-from testSSL.testSSL.utils import TEST_OUTPUTS_PATH
+from testSSL.utils import TEST_OUTPUTS_PATH
 
 
 @pytest.mark.fast

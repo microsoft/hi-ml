@@ -13,15 +13,15 @@ from typing import Generator
 
 import pytest
 
-from testhisto.testhisto.utils.utils_testhisto import tests_root_directory
-tests_root = tests_root_directory()
-logging.info(f"Appending {tests_root} to path")
-sys.path.insert(0, str(tests_root))
-RELATIVE_TEST_OUTPUTS_PATH = "test_outputs"
-TEST_OUTPUTS_PATH = tests_root / RELATIVE_TEST_OUTPUTS_PATH
+# temporary workaround until these hi-ml package release
+testhisto_root_dir = Path(__file__).parent
+print(f"Adding {testhisto_root_dir} to sys path")
+sys.path.insert(0, str(testhisto_root_dir))
+
+TEST_OUTPUTS_PATH = testhisto_root_dir / "test_outputs"
 
 # temporary workaround until these hi-ml package release
-himl_root = tests_root.parent.parent
+himl_root = testhisto_root_dir.parent.parent
 himl_package_root = himl_root / "hi-ml" / "src"
 logging.info(f"Adding {str(himl_package_root)} to path")
 sys.path.insert(0, str(himl_package_root))

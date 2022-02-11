@@ -15,7 +15,7 @@ from SSL.data.transforms_utils import CIFARLinearHeadTransform, \
 from SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
 from SSL.configs.CXR_SSL_configs import path_encoder_augmentation_cxr
-from testSSL.testSSL.utils import TEST_OUTPUTS_PATH
+from testSSL.utils import TEST_OUTPUTS_PATH
 
 
 path_to_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
