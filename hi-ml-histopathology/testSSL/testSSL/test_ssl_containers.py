@@ -5,7 +5,7 @@
 import math
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Callable, Dict, List, Tuple, Optional
 from unittest import mock
 
 import numpy as np
@@ -41,7 +41,7 @@ from health_ml.utils.fixed_paths import repository_root_directory, OutputFolderF
 from health_ml.utils.lightning_loggers import StoringLogger
 
 from testSSL.configs_for_tests import DummyContainerWithModel, DummySimCLR
-from testSSL.utils import TEST_OUTPUTS_PATH, write_test_dicom
+from testSSL.utils import check_config_json, TEST_OUTPUTS_PATH, write_test_dicom
 
 
 common_test_args = ["",
@@ -119,8 +119,9 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     model_namespace_simclr = "hi-ml-histopathology.SSL.configs.CIFAR10SimCLR"
     args = common_test_args + [f"--model={model_namespace_simclr}"]
     runner = default_runner()
-    with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
+    with check_config_json():
+        with mock.patch("sys.argv", args):
+            loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, SimClrHiml)
     assert loaded_config.encoder_output_dim == 2048
@@ -202,8 +203,9 @@ def test_ssl_container_rsna() -> None:
                                f"--local_datasets={str(path_to_cxr_test_dataset)},{str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--ssl_encoder={EncoderName.densenet121.value}"]
-    with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
+    with check_config_json():
+        with mock.patch("sys.argv", args):
+            loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, BootstrapYourOwnLatent)
     assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggleCXR.value
