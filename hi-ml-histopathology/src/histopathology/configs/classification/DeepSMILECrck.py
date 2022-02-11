@@ -48,10 +48,8 @@ class DeepSMILECrck(BaseMIL):
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
-
             # declared in TrainerParams:
             max_epochs=16,
-
             # declared in WorkflowParams:
             # number_of_cross_validation_splits=5,
             # cross_validation_split_index=0,

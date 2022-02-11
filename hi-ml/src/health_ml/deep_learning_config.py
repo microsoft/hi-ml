@@ -79,7 +79,7 @@ class ExperimentFolderHandler(Parameterized):
     def create(project_root: Path,
                is_offline_run: bool,
                model_name: str,
-               output_to: Optional[str] = None) -> ExperimentFolderHandler:
+               output_to: Optional[Path] = None) -> ExperimentFolderHandler:
         """
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp
@@ -96,8 +96,8 @@ class ExperimentFolderHandler(Parameterized):
         """
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
-
-        if is_offline_run or output_to:
+        # output_to by default will be Path() which is not None, but Path().stem is None
+        if is_offline_run or output_to.stem:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
                 root = Path(output_to).absolute()
@@ -245,7 +245,7 @@ class OutputParams(param.Parameterized):
             project_root=project_root,
             model_name=self.model_name,
             is_offline_run=not is_running_in_azure_ml(RUN_CONTEXT),
-            output_to=str(self.output_to)
+            output_to=self.output_to
         )
 
     @property

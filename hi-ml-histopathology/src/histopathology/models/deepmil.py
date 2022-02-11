@@ -16,6 +16,7 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
+from health_azure.utils import is_global_rank_zero
 from health_ml.utils import fixed_paths, log_on_epoch
 
 from histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
@@ -254,7 +255,8 @@ class DeepMILModule(LightningModule):
                            ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
                            )
         else:
-            logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
+            if is_global_rank_zero():
+                logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
 
         return results
 
