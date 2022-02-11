@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from testhisto.utils.utils_testhisto import tests_root_directory
+from testhisto.testhisto.utils.utils_testhisto import tests_root_directory
 tests_root = tests_root_directory()
 logging.info(f"Appending {tests_root} to path")
 sys.path.insert(0, str(tests_root))
@@ -28,7 +28,7 @@ sys.path.insert(0, str(himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
 logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
-from health_ml.utils.fixed_paths import OutputFolderForTests  # type: ignore
+from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 
 
 def remove_and_create_folder(folder: Path) -> None:

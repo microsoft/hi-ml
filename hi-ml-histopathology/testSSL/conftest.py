@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from testSSL.utils import tests_root_directory
+from testSSL.testSSL.utils import tests_root_directory
 tests_root = tests_root_directory()
 # temporary workaround until these hi-ml package release
 himl_root = tests_root.parent.parent
@@ -23,9 +23,8 @@ sys.path.insert(0, str(himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
 logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
-from health_ml.utils.fixed_paths import OutputFolderForTests
-from testSSL.utils import tests_root_directory
-from testSSL.test_ssl_containers import create_cxr_test_dataset
+from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
+from testSSL.testSSL.test_ssl_containers import create_cxr_test_dataset  # noqa: E402
 
 RELATIVE_TEST_OUTPUTS_PATH = "test_outputs"
 TEST_OUTPUTS_PATH = tests_root_directory() / RELATIVE_TEST_OUTPUTS_PATH

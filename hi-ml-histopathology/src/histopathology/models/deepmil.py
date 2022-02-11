@@ -256,7 +256,8 @@ class DeepMILModule(LightningModule):
                            )
         else:
             if is_global_rank_zero():
-                logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
+                logging.warning("Coordinates not found in batch. If this is not expected check your"
+                                "input tiles dataset.")
 
         return results
 

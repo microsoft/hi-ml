@@ -2,17 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import math
 from enum import Enum, unique
-from typing import Any, Iterator, List, Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torchmetrics as metrics
 from torchmetrics.functional import accuracy, auc, auroc, precision_recall_curve, roc
 from torchmetrics import Metric
-from torch.nn import ModuleList
 
 
 AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
