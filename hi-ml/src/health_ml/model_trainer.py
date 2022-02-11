@@ -218,9 +218,6 @@ def model_train(checkpoint_path: Optional[Path],
     trainer.fit(lightning_model, datamodule=data_module)
     trainer.logger.finalize('success')
 
-    world_size = getattr(trainer, "world_size", 0)
-    is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
-
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
     # all necessary properties.
