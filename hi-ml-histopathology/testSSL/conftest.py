@@ -13,8 +13,7 @@ from typing import Generator
 
 import pytest
 
-
-from .testSSL.utils import tests_root_directory
+from testSSL.utils import tests_root_directory
 tests_root = tests_root_directory()
 # temporary workaround until these hi-ml package release
 himl_root = tests_root.parent.parent

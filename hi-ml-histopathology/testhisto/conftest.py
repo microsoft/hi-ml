@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from .testhisto.utils.utils_testhisto import tests_root_directory
+from testhisto.utils.utils_testhisto import tests_root_directory
 tests_root = tests_root_directory()
 logging.info(f"Appending {tests_root} to path")
 sys.path.insert(0, str(tests_root))
