@@ -148,7 +148,7 @@ jobs:
 
       - name: Download dependent package artifacts
         id: download_dep
-        if: ${{ matrix.folder == 'hi-ml' }}
+        if: ${{ matrix.folder == 'hi-ml' || matrix.folder == 'hi-ml-histopathology'  }}
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: hi-ml-azure
