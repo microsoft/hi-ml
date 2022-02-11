@@ -155,7 +155,7 @@ jobs:
           package_type: ${{ matrix.packageName }}
 
       - name: Install dependencies
-        if: ${{ matrix.folder == 'hi-ml' }}
+        if: ${{ matrix.folder == 'hi-ml' || matrix.folder == 'hi-ml-histopathology' }}
         run: |
           cd hi-ml-azure
 
