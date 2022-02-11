@@ -28,8 +28,7 @@ sys.path.insert(0, str(himl_azure_package_root))
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testSSL.test_ssl_containers import create_cxr_test_dataset  # noqa: E402
 
-RELATIVE_TEST_OUTPUTS_PATH = "test_outputs"
-TEST_OUTPUTS_PATH = tests_root_directory() / RELATIVE_TEST_OUTPUTS_PATH
+TEST_OUTPUTS_PATH = testSSL_root_dir / "test_outputs"
 
 
 def remove_and_create_folder(folder: Path) -> None:
