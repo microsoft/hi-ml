@@ -4,6 +4,7 @@ Global PyTest configuration -- used to define global fixtures for the entire tes
 DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing-a-fixture-across-tests-in-a-module
 -or-class-session)
 """
+import logging
 import shutil
 import sys
 import uuid
@@ -14,6 +15,7 @@ import pytest
 
 from .testhisto.utils.utils_testhisto import tests_root_directory
 tests_root = tests_root_directory()
+logging.info(f"Appending {tests_root} to path")
 sys.path.insert(0, str(tests_root))
 RELATIVE_TEST_OUTPUTS_PATH = "test_outputs"
 TEST_OUTPUTS_PATH = tests_root / RELATIVE_TEST_OUTPUTS_PATH
@@ -21,8 +23,10 @@ TEST_OUTPUTS_PATH = tests_root / RELATIVE_TEST_OUTPUTS_PATH
 # temporary workaround until these hi-ml package release
 himl_root = tests_root.parent.parent
 himl_package_root = himl_root / "hi-ml" / "src"
+logging.info(f"Adding {str(himl_package_root)} to path")
 sys.path.insert(0, str(himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
+logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
 from health_ml.utils.fixed_paths import OutputFolderForTests  # type: ignore
 
