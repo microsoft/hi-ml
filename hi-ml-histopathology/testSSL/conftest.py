@@ -4,13 +4,18 @@ Global PyTest configuration -- used to define global fixtures for the entire tes
 DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing-a-fixture-across-tests-in-a-module
 -or-class-session)
 """
+import logging
 import shutil
+import sys
 import uuid
 from pathlib import Path
 from typing import Generator
 
 import pytest
 
+
+from .testSSL.utils import tests_root_directory
+tests_root = tests_root_directory()
 # temporary workaround until these hi-ml package release
 himl_root = tests_root.parent.parent
 himl_package_root = himl_root / "hi-ml" / "src"
