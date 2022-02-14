@@ -68,14 +68,18 @@ def get_shared_config_json() -> Path:
 
 
 @contextmanager
-def check_config_json() -> Generator:
+def check_config_json(script_folder: Path) -> Generator:
     """
     Create a workspace config.json file in the folder where we expect the test scripts. This is either copied
     from the repository root folder (this should be the case when executing a test on a dev machine), or create
     it from environment variables (this should trigger in builds on the github agents).
     """
-    target_config_json =  get_shared_config_json()
-    if not target_config_json.exists():
+    shared_config_json = get_shared_config_json()
+    target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+    if shared_config_json.exists():
+        logging.info(f"Copying {WORKSPACE_CONFIG_JSON} from repository root to folder {script_folder}")
+        shutil.copy(shared_config_json, target_config_json)
+    else:
         logging.info(f"Creating {str(target_config_json)} from environment variables.")
         subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
         resource_group = os.getenv(ENV_RESOURCE_GROUP, "")

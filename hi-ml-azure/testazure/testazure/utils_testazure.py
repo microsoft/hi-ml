@@ -76,6 +76,8 @@ def check_config_json(script_folder: Path) -> Generator:
     Create a workspace config.json file in the folder where we expect the test scripts. This is either copied
     from the repository root folder (this should be the case when executing a test on a dev machine), or create
     it from environment variables (this should trigger in builds on the github agents).
+
+    :param script_folder: This is the folder in which the config.json file should be created
     """
     shared_config_json = get_shared_config_json()
     target_config_json = script_folder / WORKSPACE_CONFIG_JSON

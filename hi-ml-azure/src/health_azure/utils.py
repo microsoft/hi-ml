@@ -660,7 +660,7 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
 
-        logging.debug(f"Searching for file {file_name} in {start_at}")
+        logging.info(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
         if expected.is_file() and expected.name == file_name:
             return expected
