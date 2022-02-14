@@ -115,7 +115,7 @@ combine: pip_test
 	cp hi-ml-histopathology/.coverage coverage/hi-ml-histopathology-coverage
 	cp .coveragerc coverage/
 	cd coverage && \
-		coverage combine hi-ml-coverage hi-ml-azure-coverage coverage/hi-ml-histopathology-coverage &&  \
+		coverage combine hi-ml-coverage hi-ml-azure-coverage hi-ml-histopathology-coverage &&  \
 		coverage html && \
 		coverage xml && \
 		pycobertura show --format text --output coverage.txt coverage.xml
