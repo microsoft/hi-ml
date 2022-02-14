@@ -163,8 +163,9 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     model_namespace_cifar = "hi-ml-histopathology.SSL.configs.SSLClassifierCIFAR"
     args = common_test_args + [f"--model={model_namespace_cifar}",
                                f"--local_ssl_weights_path={checkpoint_path}"]
-    with mock.patch("sys.argv", args):
-        loaded_config2, actual_run = default_runner().run()
+    with check_config_json(Path.cwd()):
+        with mock.patch("sys.argv", args):
+            loaded_config2, actual_run = default_runner().run()
     assert loaded_config2 is not None
     assert isinstance(loaded_config2.model, SSLClassifier)
     assert loaded_config2.model.class_weights is None
@@ -253,8 +254,9 @@ def test_ssl_container_rsna() -> None:
                                f"--local_datasets={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
-    with mock.patch("sys.argv", args):
-        loaded_config2, actual_run = runner.run()
+    with check_config_json(Path.cwd()):
+        with mock.patch("sys.argv", args):
+            loaded_config2, actual_run = runner.run()
     assert loaded_config2 is not None
     assert isinstance(loaded_config2, CXRImageClassifier)
     assert loaded_config2.model.freeze_encoder
