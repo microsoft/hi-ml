@@ -99,4 +99,3 @@ def check_config_json(script_folder: Path) -> Generator:
         yield
     finally:
         target_config_json.unlink()
-
