@@ -148,14 +148,14 @@ jobs:
 
       - name: Download dependent package artifacts
         id: download_dep
-        if: ${{ matrix.folder == 'hi-ml' || matrix.folder == 'hi-ml-histopathology'  }}
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: hi-ml-azure
           package_type: ${{ matrix.packageName }}
 
       - name: Install dependencies
-        if: ${{ matrix.folder == 'hi-ml' || matrix.folder == 'hi-ml-histopathology' }}
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
         run: |
           cd hi-ml-azure
 
@@ -182,7 +182,7 @@ jobs:
             pip install ${{ steps.download.outputs.package_filename }}
           fi
 
-          if [ ${{ matrix.packageName }} = '*.whl' || ${{ matrix.folder == 'hi-ml-histopathology' }} ]; then
+          if [ ${{ matrix.packageName }} == '*.whl' ]; then
             # Set env vars so wheel is sent to azureml as a private package
             echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
 
@@ -195,7 +195,7 @@ jobs:
 
       - name: Upload coverage artifacts
         uses: ./.github/actions/upload_coverage_artifacts
-        if: ${{ matrix.packageName == '*.whl' || matrix.folder == 'hi-ml-histopathology' }}
+        if: ${{ matrix.packageName == '*.whl' }}
         with:
           folder: ${{ matrix.folder }}
 
