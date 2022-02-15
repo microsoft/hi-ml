@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Generator, Iterable, List, Optional, Union
 
 import torch
+from torch.nn import Module
 
 from health_azure.utils import PathOrString
 
@@ -23,6 +24,10 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 
 EXPERIMENT_SUMMARY_FILE = "experiment_summary.txt"
 CHECKPOINT_FOLDER = "checkpoints"
+CHECKPOINT_SUFFIX = ".ckpt"
+AUTOSAVE_CHECKPOINT_FILE_NAME = "autosave"
+AUTOSAVE_CHECKPOINT_CANDIDATES = [AUTOSAVE_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX,
+                                  AUTOSAVE_CHECKPOINT_FILE_NAME + "-v1" + CHECKPOINT_SUFFIX]
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
@@ -262,3 +267,17 @@ def parse_model_id_and_version(model_id_and_version: str) -> None:
     if len(model_id_and_version.split(":")) != 2:
         raise ValueError(
             f"model id should be in the form 'model_name:version', got {model_id_and_version}")
+
+
+@contextmanager
+def set_model_to_eval_mode(model: Module) -> Generator:
+    """
+    Puts the given torch model into eval mode. At the end of the context, resets the state of the training flag to
+    what is was before the call.
+
+    :param model: The model to modify.
+    """
+    old_mode = model.training
+    model.eval()
+    yield
+    model.train(old_mode)

@@ -124,6 +124,9 @@ def get_bounding_box(mask: np.ndarray) -> Box:
     :param mask: A 2D array with 0 (or `False`) as background and >0 (or `True`) as foreground.
     :return: The smallest box covering all non-zero elements of `mask`.
     """
+    if mask.ndim != 2:
+        raise TypeError(f"Expected a 2D array but got {mask.ndim} dimensions")
+
     xs = np.sum(mask, 1).nonzero()[0]
     ys = np.sum(mask, 0).nonzero()[0]
     x_min, x_max = xs.min(), xs.max()

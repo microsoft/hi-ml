@@ -18,6 +18,7 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
+from health_ml.utils.checkpoint_utils import CheckpointHandler
 from health_ml.utils.common_utils import (
     change_working_directory, logging_section, RUN_RECOVERY_ID_KEY,
     EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME)
@@ -89,6 +90,12 @@ class MLRunner:
         # parameters of the container will be copied into the module.
         self.container.create_filesystem(self.project_root)
 
+        # configure recovery container if provided
+        self.checkpoint_handler = CheckpointHandler(container=self.container,
+                                                    project_root=self.project_root,
+                                                    run_context=RUN_CONTEXT)
+        self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
+
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
@@ -127,7 +134,12 @@ class MLRunner:
 
         # do training
         with logging_section("Model training"):
-            _, storing_logger = model_train(container=self.container)
+            if self.checkpoint_handler is not None:
+                checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+            else:
+                checkpoint_path = None
+            _, storing_logger = model_train(checkpoint_path,
+                                            container=self.container)
             self.storing_logger = storing_logger
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> List[Dict[str, float]]:

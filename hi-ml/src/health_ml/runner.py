@@ -14,12 +14,16 @@ from typing import Any, Dict, List, Optional, Tuple
 import matplotlib
 
 # Add hi-ml packages to sys.path so that AML can find them
-himl_root = Path(__file__).parent.parent.parent.parent
+# Optionally add the histopathology module, if this exists
+himl_root = Path(__file__).absolute().parent.parent.parent.parent
 print(f"Starting the himl runner at {himl_root}")
-print(f"health_ml pkg: {himl_root}")
+print(f"health_ml pkg root: {himl_root}")
 health_ml_pkg = himl_root / "hi-ml" / "src"
 health_azure_pkg = himl_root / "hi-ml-azure" / "src"
+health_histopathology_dir = himl_root / "hi-ml-histopathology" / "src"
 
+if health_histopathology_dir.exists():
+    sys.path.insert(0, str(health_histopathology_dir))
 sys.path.insert(0, str(health_azure_pkg))
 sys.path.insert(0, str(health_ml_pkg))
 print(f"sys path: {sys.path}")
