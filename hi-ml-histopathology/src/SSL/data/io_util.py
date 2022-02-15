@@ -67,4 +67,4 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         else:
             raise ValueError("Unknown value for DICOM tag 0028,0103 PixelRepresentation")
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
-    return pixels.astype(np.float)
+    return pixels.astype(np.float)  # type: ignore
