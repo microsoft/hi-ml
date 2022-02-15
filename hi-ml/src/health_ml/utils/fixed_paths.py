@@ -52,10 +52,12 @@ def himl_root_dir() -> Optional[Path]:
     return: Path to the himl root dir if it exists, else None
     """
     health_ml_root = Path(__file__).parent.parent
+    print(f"health ml root: {health_ml_root}")
     if health_ml_root.parent.stem == "site-packages":
         return None
     himl_root = health_ml_root.parent.parent.parent
-    assert (himl_root / "hi-ml").is_dir() and (himl_root / "hi-ml-azure").is_dir()
+    assert (himl_root / "hi-ml").is_dir() , f"no such dir {himl_root / 'hi-ml'}"
+    assert (himl_root / "hi-ml-azure").is_dir(), f"no such dir {himl_root / 'hi-ml-azure'}"
     return himl_root
 
 
