@@ -150,7 +150,7 @@ def plot_heatmap_overlay(slide: str,
                                    results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
         coords.append(tile_coords)
 
-    coords = np.array(coords)
+    coords = np.array(coords)  # type: ignore
     attentions = np.array(attentions.cpu()).reshape(-1)
 
     sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)

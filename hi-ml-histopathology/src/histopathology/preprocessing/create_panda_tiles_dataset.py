@@ -67,7 +67,7 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
 
     selected: np.ndarray
     occupancies: np.ndarray
-    selected, occupancies = select_tile(mask_tiles, occupancy_threshold)
+    selected, occupancies = select_tile(mask_tiles, occupancy_threshold)  # type: ignore
     n_discarded = (~selected).sum()
     logging.info(f"Percentage tiles discarded: {round(selected.sum() / n_discarded * 100, 2)}")
 
