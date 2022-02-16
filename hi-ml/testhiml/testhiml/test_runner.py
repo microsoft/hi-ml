@@ -140,7 +140,7 @@ def test_crossval_config() -> None:
     """
     mock_tuning_config = "foo"
     container = HelloContainer()
-    with patch("health_ml.ml.configs.hello_container.HelloContainer.get_parameter_tuning_config",
+    with patch("health_ml.configs.hello_container.HelloContainer.get_parameter_tuning_config",
                return_value=mock_tuning_config):
         # Without any flags set, no Hyperdrive config should be returned
         assert container.get_hyperdrive_config() is None

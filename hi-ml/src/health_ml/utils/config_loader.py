@@ -75,6 +75,8 @@ class ModelConfigLoader:
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
 
+        logging.info(f"Trying to locate model {model_name}")
+
         # get the class name from the fully qualified name
         model_name = model_name.split(".")[-1]
 
