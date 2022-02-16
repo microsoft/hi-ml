@@ -197,66 +197,66 @@ class WorkflowParams(param.Parameterized):
                                                  metric_name="val/loss"
                                                  )
 
-    class DatasetParams(param.Parameterized):
-        azure_datasets: List[str] = param.List(default=[], class_=str,
-                                               doc="If provided, the ID of one or more datasets to use when running in"
-                                                   " AzureML. This dataset must exist as a folder of the same name "
-                                                   "in the 'datasets' container in the datasets storage account. This "
-                                                   "dataset will be mounted and made available at the 'local_dataset' "
-                                                   "path when running in AzureML.")
-        local_datasets: List[Path] = param.List(default=[], class_=Path,
-                                                doc="A list of one or more paths to the dataset to use, when training"
-                                                    " outside of Azure ML.")
-        dataset_mountpoints: List[Path] = param.List(default=[], class_=Path,
-                                                     doc="The path at which the AzureML dataset should be made "
-                                                         "available via mounting or downloading. This only affects "
-                                                         "jobs running in AzureML. If empty, use a random "
-                                                         "mount/download point.")
+class DatasetParams(param.Parameterized):
+    azure_datasets: List[str] = param.List(default=[], class_=str,
+                                           doc="If provided, the ID of one or more datasets to use when running in"
+                                               " AzureML. This dataset must exist as a folder of the same name "
+                                               "in the 'datasets' container in the datasets storage account. This "
+                                               "dataset will be mounted and made available at the 'local_dataset' "
+                                               "path when running in AzureML.")
+    local_datasets: List[Path] = param.List(default=[], class_=Path,
+                                            doc="A list of one or more paths to the dataset to use, when training"
+                                                " outside of Azure ML.")
+    dataset_mountpoints: List[Path] = param.List(default=[], class_=Path,
+                                                 doc="The path at which the AzureML dataset should be made "
+                                                     "available via mounting or downloading. This only affects "
+                                                     "jobs running in AzureML. If empty, use a random "
+                                                     "mount/download point.")
 
-        def validate(self) -> None:
-            if (not self.azure_datasets) and (not self.local_datasets):
-                raise ValueError("Either local_datasets or azure_datasets must be set.")
+    def validate(self) -> None:
+        if (not self.azure_datasets) and (not self.local_datasets):
+            raise ValueError("Either local_datasets or azure_datasets must be set.")
 
-            if self.dataset_mountpoints and len(self.azure_datasets) != len(self.dataset_mountpoints):
-                raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
-                                 f"got datasets [{','.join(self.azure_datasets)}] "
-                                 f"and mountpoints [{','.join([str(m) for m in self.dataset_mountpoints])}]")
+        if self.dataset_mountpoints and len(self.azure_datasets) != len(self.dataset_mountpoints):
+            raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
+                             f"got datasets [{','.join(self.azure_datasets)}] "
+                             f"and mountpoints [{','.join([str(m) for m in self.dataset_mountpoints])}]")
 
-    class OutputParams(param.Parameterized):
-        output_to: Path = param.ClassSelector(class_=Path, default=Path(),
-                                              doc="If provided, the run outputs will be written to the given folder. "
-                                                  "If not provided, outputs will go into a subfolder of the project "
-                                                  "root folder.")
-        file_system_config: ExperimentFolderHandler = param.ClassSelector(default=ExperimentFolderHandler(),
-                                                                          class_=ExperimentFolderHandler,
-                                                                          instantiate=False,
-                                                                          doc="File system related configs")
-        _model_name: str = param.String("", doc="The human readable name of the model (for example, Liver). This is "
-                                                "usually set from the class name.")
+class OutputParams(param.Parameterized):
+    output_to: Path = param.ClassSelector(class_=Path, default=Path(),
+                                          doc="If provided, the run outputs will be written to the given folder. "
+                                              "If not provided, outputs will go into a subfolder of the project "
+                                              "root folder.")
+    file_system_config: ExperimentFolderHandler = param.ClassSelector(default=ExperimentFolderHandler(),
+                                                                      class_=ExperimentFolderHandler,
+                                                                      instantiate=False,
+                                                                      doc="File system related configs")
+    _model_name: str = param.String("", doc="The human readable name of the model (for example, Liver). This is "
+                                            "usually set from the class name.")
 
-        @property
-        def model_name(self) -> str:
-            """
-            Gets the human readable name of the model (e.g., Liver). This is usually set from the class name.
+    @property
+    def model_name(self) -> str:
+        """
+        Gets the human readable name of the model (e.g., Liver). This is usually set from the class name.
 
-            :return: A model name as a string.
-            """
-            return self._model_name
+        :return: A model name as a string.
+        """
+        return self._model_name
 
-        def set_output_to(self, output_to: PathOrString) -> None:
-            """
-            Adjusts the file system settings in the present object such that all outputs are written to the given
-            folder.
+    def set_output_to(self, output_to: PathOrString) -> None:
+        """
+        Adjusts the file system settings in the present object such that all outputs are written to the given
+        folder.
 
-            :param output_to: The absolute path to a folder that should contain the outputs.
-            """
-            self.output_to = Path(output_to)
-            self.create_filesystem()
+        :param output_to: The absolute path to a folder that should contain the outputs.
+        """
+        self.output_to = Path(output_to)
+        self.create_filesystem()
 
-        def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
-            """
-            Creates new file system settings (outputs folder, logs folder) based on the information stored in the
-            present object. If any of the folders do not yet exist, they are created.
+    def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
+        """
+        Creates new file system settings (outputs folder, logs folder) based on the information stored in the
+        present object. If any of the folders do not yet exist, they are created.
 
         :param project_root: The root folder for the codebase that triggers the training run.
         """
@@ -267,167 +267,167 @@ class WorkflowParams(param.Parameterized):
             output_to=self.output_to
         )
 
-        @property
-        def outputs_folder(self) -> Path:
-            """Gets the full path in which the model outputs should be stored."""
-            return self.file_system_config.outputs_folder
+    @property
+    def outputs_folder(self) -> Path:
+        """Gets the full path in which the model outputs should be stored."""
+        return self.file_system_config.outputs_folder
 
-        @property
-        def logs_folder(self) -> Path:
-            """Gets the full path in which the model logs should be stored."""
-            return self.file_system_config.logs_folder
+    @property
+    def logs_folder(self) -> Path:
+        """Gets the full path in which the model logs should be stored."""
+        return self.file_system_config.logs_folder
 
-        @property
-        def checkpoint_folder(self) -> Path:
-            """Gets the full path in which the model checkpoints should be stored during training."""
-            return self.outputs_folder / CHECKPOINT_FOLDER
+    @property
+    def checkpoint_folder(self) -> Path:
+        """Gets the full path in which the model checkpoints should be stored during training."""
+        return self.outputs_folder / CHECKPOINT_FOLDER
 
-    class OptimizerParams(param.Parameterized):
-        l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
-        _min_l_rate: float = param.Number(0.0,
-                                          doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
-                                          bounds=(0.0, None))
-        l_rate_scheduler: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
-                                                                class_=LRSchedulerType,
-                                                                instantiate=False,
-                                                                doc="Learning rate decay method (Cosine, Polynomial, "
-                                                                    "Step, MultiStep or Exponential)")
-        l_rate_exponential_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
-                                                                "LR scheduler.")
-        l_rate_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
-                                                         "Step LR scheduler.")
-        l_rate_step_step_size: int = param.Integer(50, bounds=(0, None),
-                                                   doc="The step size for Step LR scheduler")
-        l_rate_multi_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
-                                                               "MultiStep LR scheduler.")
-        l_rate_multi_step_milestones: Optional[List[int]] = param.List(None, bounds=(1, None),
-                                                                       allow_None=True, class_=int,
-                                                                       doc="The milestones for MultiStep decay.")
-        l_rate_polynomial_gamma: float = param.Number(1e-4, doc="Controls the rate of decay for the "
-                                                                "Polynomial LR scheduler.")
-        l_rate_warmup: LRWarmUpType = param.ClassSelector(default=LRWarmUpType.NoWarmUp, class_=LRWarmUpType,
-                                                          instantiate=False,
-                                                          doc="The type of learning rate warm up to use. "
-                                                              "Can be NoWarmUp (default) or Linear.")
-        l_rate_warmup_epochs: int = param.Integer(0, bounds=(0, None),
-                                                  doc="Number of warmup epochs (linear warmup) before the "
-                                                      "scheduler starts decaying the learning rate. "
-                                                      "For example, if you are using MultiStepLR with "
-                                                      "milestones [50, 100, 200] and warmup epochs = 100, warmup "
-                                                      "will last for 100 epochs and the first decay of LR "
-                                                      "will happen on epoch 150")
-        optimizer_type: OptimizerType = param.ClassSelector(default=OptimizerType.Adam, class_=OptimizerType,
-                                                            instantiate=False, doc="The optimizer_type to use")
-        opt_eps: float = param.Number(1e-4, doc="The epsilon parameter of RMSprop or Adam")
-        rms_alpha: float = param.Number(0.9, doc="The alpha parameter of RMSprop")
-        adam_betas: TupleFloat2 = param.NumericTuple((0.9, 0.999), length=2,
-                                                     doc="The betas parameter of Adam, default is (0.9, 0.999)")
-        momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
-        weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
+class OptimizerParams(param.Parameterized):
+    l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
+    _min_l_rate: float = param.Number(0.0,
+                                      doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
+                                      bounds=(0.0, None))
+    l_rate_scheduler: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
+                                                            class_=LRSchedulerType,
+                                                            instantiate=False,
+                                                            doc="Learning rate decay method (Cosine, Polynomial, "
+                                                                "Step, MultiStep or Exponential)")
+    l_rate_exponential_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
+                                                            "LR scheduler.")
+    l_rate_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
+                                                     "Step LR scheduler.")
+    l_rate_step_step_size: int = param.Integer(50, bounds=(0, None),
+                                               doc="The step size for Step LR scheduler")
+    l_rate_multi_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
+                                                           "MultiStep LR scheduler.")
+    l_rate_multi_step_milestones: Optional[List[int]] = param.List(None, bounds=(1, None),
+                                                                   allow_None=True, class_=int,
+                                                                   doc="The milestones for MultiStep decay.")
+    l_rate_polynomial_gamma: float = param.Number(1e-4, doc="Controls the rate of decay for the "
+                                                            "Polynomial LR scheduler.")
+    l_rate_warmup: LRWarmUpType = param.ClassSelector(default=LRWarmUpType.NoWarmUp, class_=LRWarmUpType,
+                                                      instantiate=False,
+                                                      doc="The type of learning rate warm up to use. "
+                                                          "Can be NoWarmUp (default) or Linear.")
+    l_rate_warmup_epochs: int = param.Integer(0, bounds=(0, None),
+                                              doc="Number of warmup epochs (linear warmup) before the "
+                                                  "scheduler starts decaying the learning rate. "
+                                                  "For example, if you are using MultiStepLR with "
+                                                  "milestones [50, 100, 200] and warmup epochs = 100, warmup "
+                                                  "will last for 100 epochs and the first decay of LR "
+                                                  "will happen on epoch 150")
+    optimizer_type: OptimizerType = param.ClassSelector(default=OptimizerType.Adam, class_=OptimizerType,
+                                                        instantiate=False, doc="The optimizer_type to use")
+    opt_eps: float = param.Number(1e-4, doc="The epsilon parameter of RMSprop or Adam")
+    rms_alpha: float = param.Number(0.9, doc="The alpha parameter of RMSprop")
+    adam_betas: TupleFloat2 = param.NumericTuple((0.9, 0.999), length=2,
+                                                 doc="The betas parameter of Adam, default is (0.9, 0.999)")
+    momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
+    weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
 
-        def validate(self) -> None:
-            if len(self.adam_betas) < 2:
-                raise ValueError(
-                    "The adam_betas parameter should be the coefficients used for computing running averages of "
-                    "gradient and its square")
+    def validate(self) -> None:
+        if len(self.adam_betas) < 2:
+            raise ValueError(
+                "The adam_betas parameter should be the coefficients used for computing running averages of "
+                "gradient and its square")
 
-            if self.l_rate_scheduler == LRSchedulerType.MultiStep:
-                if not self.l_rate_multi_step_milestones:
-                    raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
-                if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
-                    raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
-                if self.l_rate_multi_step_milestones[0] <= 0:
-                    raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
+        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
+            if not self.l_rate_multi_step_milestones:
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
+            if self.l_rate_multi_step_milestones[0] <= 0:
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
 
-        @property
-        def min_l_rate(self) -> float:
-            return self._min_l_rate
+    @property
+    def min_l_rate(self) -> float:
+        return self._min_l_rate
 
-        @min_l_rate.setter
-        def min_l_rate(self, value: float) -> None:
-            if value > self.l_rate:
-                raise ValueError("l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
-            self._min_l_rate = value
+    @min_l_rate.setter
+    def min_l_rate(self, value: float) -> None:
+        if value > self.l_rate:
+            raise ValueError("l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
+        self._min_l_rate = value
 
-    class TrainerParams(param.Parameterized):
-        max_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
-        autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
-                                                         doc="Save epoch checkpoints every N validation epochs. "
-                                                             "If pl_check_val_every_n_epoch > 1, this means that "
-                                                             "checkpoints are saved every "
-                                                             "N * pl_check_val_every_n_epoch training epochs.")
-        detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
-                                                        "training.")
-        use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
-                                                             "training.")
-        max_num_gpus: int = param.Integer(default=-1,
-                                          doc="The maximum number of GPUS to use. If set to a value < 0, use"
-                                              "all available GPUs. In distributed training, this is the "
-                                              "maximum number of GPUs per node.")
-        pl_progress_bar_refresh_rate: Optional[int] = \
-            param.Integer(default=None,
-                          doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh "
-                              "progress bar (in steps). Value 0 disables progress bar. If None choose, automatically.")
-        pl_num_sanity_val_steps: int = \
-            param.Integer(default=0,
-                          doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
-                              "steps to run before training, to identify possible problems")
-        pl_deterministic: bool = \
-            param.Boolean(default=False,
-                          doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
-                              "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, "
-                              "but you may see training speed increases.")
-        pl_find_unused_parameters: bool = \
-            param.Boolean(default=False,
-                          doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
-                              "Setting it to True comes with a performance hit.")
-        pl_limit_train_batches: Optional[int] = \
-            param.Integer(default=None,
-                          doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
-                              "given number of batches.")
-        pl_limit_val_batches: Optional[int] = \
-            param.Integer(default=None,
-                          doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
-                              "given number of batches.")
-        pl_profiler: Optional[str] = \
-            param.String(default=None,
-                         doc="The value to use for the 'profiler' argument for the Lightning trainer. "
-                             "Set to either 'simple', 'advanced', or 'pytorch'")
-        monitor_gpu: bool = param.Boolean(default=False,
-                                          doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
-                                              "This will write GPU utilization metrics every 50 batches by default.")
-        monitor_loading: bool = param.Boolean(default=False,
-                                              doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
-                                                  "object. This will monitor how long individual batches take to load.")
-        additional_env_files: List[str] = param.List(class_=Path, default=[],
-                                                     doc="Additional conda environment (.yml) files to merge into the"
-                                                         " overall environment definition")
+class TrainerParams(param.Parameterized):
+    max_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
+    autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
+                                                     doc="Save epoch checkpoints every N validation epochs. "
+                                                         "If pl_check_val_every_n_epoch > 1, this means that "
+                                                         "checkpoints are saved every "
+                                                         "N * pl_check_val_every_n_epoch training epochs.")
+    detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
+                                                    "training.")
+    use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
+                                                         "training.")
+    max_num_gpus: int = param.Integer(default=-1,
+                                      doc="The maximum number of GPUS to use. If set to a value < 0, use"
+                                          "all available GPUs. In distributed training, this is the "
+                                          "maximum number of GPUs per node.")
+    pl_progress_bar_refresh_rate: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh "
+                          "progress bar (in steps). Value 0 disables progress bar. If None choose, automatically.")
+    pl_num_sanity_val_steps: int = \
+        param.Integer(default=0,
+                      doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
+                          "steps to run before training, to identify possible problems")
+    pl_deterministic: bool = \
+        param.Boolean(default=False,
+                      doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
+                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, "
+                          "but you may see training speed increases.")
+    pl_find_unused_parameters: bool = \
+        param.Boolean(default=False,
+                      doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
+                          "Setting it to True comes with a performance hit.")
+    pl_limit_train_batches: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
+                          "given number of batches.")
+    pl_limit_val_batches: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
+                          "given number of batches.")
+    pl_profiler: Optional[str] = \
+        param.String(default=None,
+                     doc="The value to use for the 'profiler' argument for the Lightning trainer. "
+                         "Set to either 'simple', 'advanced', or 'pytorch'")
+    monitor_gpu: bool = param.Boolean(default=False,
+                                      doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
+                                          "This will write GPU utilization metrics every 50 batches by default.")
+    monitor_loading: bool = param.Boolean(default=False,
+                                          doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
+                                              "object. This will monitor how long individual batches take to load.")
+    additional_env_files: List[str] = param.List(class_=Path, default=[],
+                                                 doc="Additional conda environment (.yml) files to merge into the"
+                                                     " overall environment definition")
 
-        @property
-        def use_gpu(self) -> bool:
-            """
-            Returns True if a GPU is available, and the self.max_num_gpus flag allows it to be used. Returns False
-            otherwise (i.e., if there is no GPU available, or self.max_num_gpus==0)
-            """
-            if self.max_num_gpus == 0:
-                return False
-            from health_ml.utils.common_utils import is_gpu_available
-            return is_gpu_available()
+    @property
+    def use_gpu(self) -> bool:
+        """
+        Returns True if a GPU is available, and the self.max_num_gpus flag allows it to be used. Returns False
+        otherwise (i.e., if there is no GPU available, or self.max_num_gpus==0)
+        """
+        if self.max_num_gpus == 0:
+            return False
+        from health_ml.utils.common_utils import is_gpu_available
+        return is_gpu_available()
 
-        def num_gpus_per_node(self) -> int:
-            """
-            Computes the number of gpus to use for each node: either the number of gpus available on the device
-            or restrict it to max_num_gpu, whichever is smaller. Returns 0 if running on a CPU device.
-            """
-            import torch
-            available_gpus = torch.cuda.device_count()  # type: ignore
-            num_gpus = available_gpus if self.use_gpu else 0
-            message_suffix = "" if self.use_gpu else ", but not using them because use_gpu == False"
-            logging.info(f"Number of available GPUs: {available_gpus}{message_suffix}")
-            if 0 <= self.max_num_gpus < num_gpus:
-                num_gpus = self.max_num_gpus
-                logging.info(f"Restricting the number of GPUs to {num_gpus}")
-            elif self.max_num_gpus > num_gpus:
-                logging.warning(
-                    f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
-            return num_gpus
+    def num_gpus_per_node(self) -> int:
+        """
+        Computes the number of gpus to use for each node: either the number of gpus available on the device
+        or restrict it to max_num_gpu, whichever is smaller. Returns 0 if running on a CPU device.
+        """
+        import torch
+        available_gpus = torch.cuda.device_count()  # type: ignore
+        num_gpus = available_gpus if self.use_gpu else 0
+        message_suffix = "" if self.use_gpu else ", but not using them because use_gpu == False"
+        logging.info(f"Number of available GPUs: {available_gpus}{message_suffix}")
+        if 0 <= self.max_num_gpus < num_gpus:
+            num_gpus = self.max_num_gpus
+            logging.info(f"Restricting the number of GPUs to {num_gpus}")
+        elif self.max_num_gpus > num_gpus:
+            logging.warning(
+                f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
+        return num_gpus

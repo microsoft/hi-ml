@@ -196,8 +196,9 @@ def create_crossval_hyperdrive_config(num_splits: int,
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(f"Creating a HyperDriveConfig. Please be aware that this expects to find the metric {metric_name}"
-                 f" logged to the Run during your training script.")
+    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
+                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
+                 f"AzureMLLogger with Pytorch Lightning)")
     parameter_dict = {
         cross_val_index_arg_name: choice(list(range(num_splits))),
     }

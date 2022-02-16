@@ -108,14 +108,15 @@ class GenericConfig(param.Parameterized):
         """
         # check if illegal arguments are passed in
         legal_params = self.get_overridable_parameters()
-        illegal = [k for k, v in params.items() if (k in self.params().keys()) and (k not in legal_params)]
+        current_param_names = self.param.values().keys()
+        illegal = [k for k, v in params.items() if (k in current_param_names) and (k not in legal_params)]
 
         if illegal:
             raise ValueError(f"The following parameters cannot be overridden as they are either "
                              f"readonly, constant, or private members : {illegal}")
         if throw_if_unknown_param:
             # check if parameters not defined by the config class are passed in
-            unknown = [k for k, v in params.items() if (k not in self.params().keys())]
+            unknown = [k for k, v in params.items() if (k not in current_param_names)]
             if unknown:
                 raise ValueError(f"The following parameters do not exist: {unknown}")
         # set known arguments
@@ -354,7 +355,7 @@ def get_overridable_parameters(config: Any) -> Dict[str, param.Parameter]:
     :return: A dictionary of parameter names and their definitions.
     """
     assert isinstance(config, param.Parameterized)
-    return dict((k, v) for k, v in config.params().items()
+    return dict((k, v) for k, v in config.param.params().items()
                 if reason_not_overridable(v) is None)
 
 
@@ -420,16 +421,17 @@ def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any], keys_to
     :param keys_to_ignore: set of dictionary keys not to report on
     """
     assert isinstance(config, param.Parameterized)
+    current_params = config.param.params()
     for key, desired in overrides_to_apply.items():
         if key in keys_to_ignore:
             continue
         actual = getattr(config, key, None)
         if actual == desired:
             continue
-        if key not in config.params():
+        if key not in current_params:
             reason = "parameter is undefined"
         else:
-            val = config.params()[key]
+            val = current_params[key]
             reason = reason_not_overridable(val)  # type: ignore
             if reason is None:
                 reason = "for UNKNOWN REASONS"
@@ -452,7 +454,7 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     c = cls_()
     if not isinstance(c, param.Parameterized):
         raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
-    for param_name, p in c.params().items():
+    for param_name, p in c.param.values().items():
         if not p.constant and not p.readonly:
             setattr(c, param_name, getattr(from_object, param_name))
     return c

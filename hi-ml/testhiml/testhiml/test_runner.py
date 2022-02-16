@@ -12,6 +12,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
 from health_ml.configs.hello_container import HelloContainer
+from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 
@@ -165,3 +166,29 @@ def test_crossval_argument_names() -> None:
     container.crossval_index = crossval_index
     assert getattr(container, container.CROSSVAL_COUNT_ARG_NAME) == crossval_count
     assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+
+
+def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
+    """
+    Test if the hyperdrive configurations are passed to the submission function.
+    """
+    model_name = "HelloContainer"
+    crossval_count = 2
+    arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
+    with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
+        with patch("health_ml.runner.get_workspace"):
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
+        mock_run_in_situ.assert_called_once()
+        mock_submit_to_aml.assert_called_once()
+        # call_args is a tuple of (args, kwargs)
+        call_kwargs = mock_submit_to_aml.call_args[1]
+        # Submission to AzureML should have been turned on because a cluster name was supplied
+        assert mock_runner.experiment_config.azureml
+        assert call_kwargs["submit_to_azureml"]
+        # Check details of the Hyperdrive config
+        hyperdrive_config = call_kwargs["hyperdrive_config"]
+        parameter_space = hyperdrive_config._generator_config["parameter_space"]
+        assert parameter_space[WorkflowParams.CROSSVAL_COUNT_ARG_NAME] == str(crossval_count)
+        assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]

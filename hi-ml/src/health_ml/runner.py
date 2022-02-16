@@ -139,8 +139,7 @@ class Runner:
         self.experiment_config = experiment_config
         if not experiment_config.model:
             raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
-        print(f"Creating model loader with the following args: {parser_result.args}")
-        model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
+        model_config_loader: ModelConfigLoader = ModelConfigLoader(model_name=experiment_config.model)
         # Create the model as per the "model" commandline option. This is a LightningContainer.
         container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
 
@@ -158,6 +157,23 @@ class Runner:
 
         return parser_result_
 
+    def validate(self) -> None:
+        """
+        Runs sanity checks on the whole experiment.
+        """
+        if not self.experiment_config.azureml:
+            if self.lightning_container.hyperdrive:
+                logging.info("You have turned on HyperDrive for parameter tuning. This can "
+                             "only be run in AzureML. We switched on submitting to AzureML.")
+                self.experiment_config.azureml = True
+            if self.lightning_container.is_crossvalidation_enabled:
+                logging.info("You have turned on cross-validation. This can "
+                             "only be run in AzureML. We switched on submitting to AzureML.")
+                self.experiment_config.azureml = True
+            if self.experiment_config.cluster:
+                logging.info("You have provided a compute cluster name, hence we switched on submitting to AzureML.")
+                self.experiment_config.azureml = True
+
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -171,6 +187,7 @@ class Runner:
         logging_to_stdout(logging.INFO if is_local_rank_zero() else "ERROR")
         initialize_rpdb()
         self.parse_and_load_model()
+        self.validate()
         azure_run_info = self.submit_to_azureml_if_needed()
         self.run_in_situ(azure_run_info)
         return self.lightning_container, azure_run_info
@@ -224,7 +241,7 @@ class Runner:
         try:
             if self.experiment_config.azureml:
                 if not self.experiment_config.cluster:
-                    raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit"
+                    raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
                                      "the script to run in AzureML")
                 azure_run_info = submit_to_azure_if_needed(
                     entry_script=entry_script,

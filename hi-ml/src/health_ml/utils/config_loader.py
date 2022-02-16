@@ -20,13 +20,13 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.utils import fixed_paths
 
 
-class ModelConfigLoader(param.Parameterized):
+class ModelConfigLoader:
     """
     Helper class to manage model config loading.
     """
 
-    def __init__(self, **params: Any):
-        super().__init__(**params)
+    def __init__(self, model_name: str):
+        self.model_name = model_name
         default_module = self.get_default_search_module()
         self.module_search_specs: List[ModuleSpec] = [importlib.util.find_spec(default_module)]  # type: ignore
         self._find_module_search_specs()
@@ -37,7 +37,7 @@ class ModelConfigLoader(param.Parameterized):
         file can be discovered) and try to find a spec for the specifed module. If found, appends the spec
         to self.module_search_specs
         """
-        model_namespace_parts = self.model.split(".")
+        model_namespace_parts = self.model_name.split(".")
         if len(model_namespace_parts) == 1:
             # config must be in the default path. This is already in module_search_specs so we dont need to do anything
             return
