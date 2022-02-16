@@ -11,8 +11,8 @@ import torch.multiprocessing
 from pytorch_lightning import seed_everything
 
 from health_azure import AzureRunInfo
-from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
-                                PARENT_RUN_CONTEXT, is_running_in_azure_ml)
+from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
+                                is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT)
 
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -20,8 +20,8 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_utils import CheckpointHandler
 from health_ml.utils.common_utils import (
-    change_working_directory, logging_section, RUN_RECOVERY_ID_KEY,
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME)
+    change_working_directory, EFFECTIVE_RANDOM_SEED_KEY_NAME, logging_section,
+    RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
 
@@ -142,6 +142,15 @@ class MLRunner:
                                             container=self.container)
             self.storing_logger = storing_logger
 
+        # Since we have trained the model, let the checkpoint_handler object know so it can handle
+        # checkpoints correctly.
+        self.checkpoint_handler.additional_training_done()
+
+        # Inference for all models that are specified via LightningContainers.
+        checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
+        with logging_section("Model inference"):
+            self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
+
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> List[Dict[str, float]]:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
@@ -174,3 +183,4 @@ class MLRunner:
         with change_working_directory(self.container.outputs_folder):
             results = trainer.test(self.container.model, datamodule=data_module)
         return results
+

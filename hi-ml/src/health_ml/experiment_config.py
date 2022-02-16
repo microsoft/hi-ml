@@ -11,3 +11,4 @@ class ExperimentConfig(param.Parameterized):
     model: str = param.String(doc="The fully qualified name of the model to train/test -e.g."
                                   "mymodule.configs.MyConfig.")
     azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
+    register_model: bool = param.Boolean(False, doc="If True, registers the model in your AzureML Workspace")

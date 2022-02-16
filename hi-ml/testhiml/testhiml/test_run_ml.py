@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock, Mock
 
 from pytorch_lightning import Callback
 
+import health_ml
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
@@ -46,19 +47,23 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
             mock_run_context.set_tags.assert_called()
 
 
+def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
+        return "trainer", "storing_logger"
+
+
 def test_run(ml_runner: MLRunner) -> None:
-
-    def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
-        return "trainer", dummy_storing_logger
-
-    dummy_storing_logger = "storing_logger"
-
-    with patch("health_ml.run_ml.model_train", new=_mock_model_train):
-        ml_runner.run()
-        assert ml_runner._has_setup_run
-        # expect _mock_model_train to be called and the result of ml_runner.storing_logger
-        # updated accordingly
-        assert ml_runner.storing_logger == dummy_storing_logger
+    """Test that model runner gets called """
+    ml_runner.setup()
+    assert not ml_runner.has_continued_training
+    with patch.object(ml_runner, "run_inference_for_lightning_models"):
+        with patch.object(ml_runner, "checkpoint_handler"):
+            with patch("health_ml.run_ml.model_train", new=_mock_model_train):
+                ml_runner.run()
+                assert ml_runner._has_setup_run
+                # expect _mock_model_train to be called and the result of ml_runner.storing_logger
+                # updated accordingly
+                assert ml_runner.storing_logger == "storing_logger"
+                assert ml_runner.has_continued_training
 
 
 @patch("health_ml.run_ml.create_lightning_trainer")
@@ -91,3 +96,20 @@ def test_run_inference_for_lightning_models(mock_create_trainer: MagicMock, ml_r
         mock_container.load_model_checkpoint.assert_called_once()
         mock_container.get_data_module.assert_called_once()
         mock_trainer.test.assert_called_once()
+
+
+def test_on_test_epoch_end(ml_runner: MLRunner):
+    ml_runner.setup()
+    with patch.object(ml_runner, "checkpoint_handler") as mock_checkpoint_handler:
+        with patch("health_ml.run_ml.model_train", new=_mock_model_train):
+            with pytest.raises(ValueError) as e:
+                ml_runner.run()
+                assert "expects exactly 1 checkpoint for inference, but got 0" in str(e)
+
+        with patch.object(ml_runner.container, "load_model_checkpoint"):
+            with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
+                mock_trainer = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, ""
+                mock_checkpoint_handler.get_checkpoints_to_test.return_value = ['dummypath']
+                ml_runner.run()
+                mock_trainer.test.assert_called_once()
