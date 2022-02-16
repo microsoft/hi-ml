@@ -193,9 +193,9 @@ class WorkflowParams(param.Parameterized):
         # is specified.
         return create_crossval_hyperdrive_config(num_splits=self.crossval_count,
                                                  cross_val_index_arg_name=self.CROSSVAL_INDEX_ARG_NAME,
-                                                 cross_val_count_arg_name=self.CROSSVAL_COUNT_ARG_NAME,
                                                  metric_name="val/loss"
                                                  )
+
 
 class DatasetParams(param.Parameterized):
     azure_datasets: List[str] = param.List(default=[], class_=str,
@@ -221,6 +221,7 @@ class DatasetParams(param.Parameterized):
             raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
                              f"got datasets [{','.join(self.azure_datasets)}] "
                              f"and mountpoints [{','.join([str(m) for m in self.dataset_mountpoints])}]")
+
 
 class OutputParams(param.Parameterized):
     output_to: Path = param.ClassSelector(class_=Path, default=Path(),
@@ -281,6 +282,7 @@ class OutputParams(param.Parameterized):
     def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
         return self.outputs_folder / CHECKPOINT_FOLDER
+
 
 class OptimizerParams(param.Parameterized):
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
@@ -348,6 +350,7 @@ class OptimizerParams(param.Parameterized):
         if value > self.l_rate:
             raise ValueError("l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
         self._min_l_rate = value
+
 
 class TrainerParams(param.Parameterized):
     max_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")

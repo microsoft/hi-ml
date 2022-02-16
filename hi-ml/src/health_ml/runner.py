@@ -16,7 +16,7 @@ import matplotlib
 # Add hi-ml packages to sys.path so that AML can find them
 # Optionally add the histopathology module, if this exists
 
-himl_root = Path(__file__).parent.parent.parent.parent
+himl_root = Path(__file__).absolute().parent.parent.parent.parent
 print(f"Starting the himl runner at {himl_root}")
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",

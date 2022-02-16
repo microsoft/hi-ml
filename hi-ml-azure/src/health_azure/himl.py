@@ -179,7 +179,6 @@ def create_run_configuration(workspace: Workspace,
 
 def create_crossval_hyperdrive_config(num_splits: int,
                                       cross_val_index_arg_name: str = "crossval_index",
-                                      cross_val_count_arg_name: str = "",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
     """
     Creates an Azure ML HyperDriveConfig object for running cross validation. Note: this config expects a metric
@@ -189,9 +188,6 @@ def create_crossval_hyperdrive_config(num_splits: int,
     :param num_splits: The number of splits for k-fold cross validation
     :param cross_val_index_arg_name: The name of the commandline argument that each of the child runs gets, to
         indicate which split they should work on.
-    :param cross_val_count_arg_name: The name of the commandline argument that each of the child runs gets, to
-        specify the total number of crossvalidation splits. If this is omitted, only the crossvalidation index is
-        passed to the child runs, hence the code needs to have a hardcoded number of splits.
     :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
@@ -202,8 +198,6 @@ def create_crossval_hyperdrive_config(num_splits: int,
     parameter_dict = {
         cross_val_index_arg_name: choice(list(range(num_splits))),
     }
-    if cross_val_count_arg_name:
-        parameter_dict[cross_val_count_arg_name] = str(num_splits)
     return HyperDriveConfig(
         run_config=ScriptRunConfig(""),
         hyperparameter_sampling=GridParameterSampling(parameter_dict),

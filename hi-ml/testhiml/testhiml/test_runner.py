@@ -164,7 +164,6 @@ def test_crossval_argument_names() -> None:
     crossval_index = 5
     container.crossval_count = crossval_count
     container.crossval_index = crossval_index
-    assert getattr(container, container.CROSSVAL_COUNT_ARG_NAME) == crossval_count
     assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
 
 
@@ -190,5 +189,4 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
         # Check details of the Hyperdrive config
         hyperdrive_config = call_kwargs["hyperdrive_config"]
         parameter_space = hyperdrive_config._generator_config["parameter_space"]
-        assert parameter_space[WorkflowParams.CROSSVAL_COUNT_ARG_NAME] == str(crossval_count)
         assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
