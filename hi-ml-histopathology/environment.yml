@@ -33,7 +33,7 @@ dependencies:
       - opencv-python-headless==4.5.1.48
       - pandas==1.3.4
       - param==1.9.3
-      - pillow==8.3.2
+      - pillow==9.0.0
       - psutil==5.7.2
       - pydicom==2.0.0
       - pyflakes==2.2.0
