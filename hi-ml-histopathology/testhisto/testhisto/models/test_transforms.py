@@ -36,12 +36,15 @@ def test_load_tile() -> None:
     # Test that the transform affects only the image entry in the sample
     input_sample = tiles_dataset[index]
     loaded_sample = load_transform(input_sample)
-    testhisto.utils.utils_testhisto.assert_dicts_equal(loaded_sample, input_sample, exclude_keys=[image_key])
+    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
+        loaded_sample,
+        input_sample,
+        exclude_keys=[image_key])
 
     # Test that the MONAI Dataset applies the same transform
     loaded_dataset = Dataset(tiles_dataset, transform=load_transform)  # type:ignore
     same_dataset_sample = loaded_dataset[index]
-    testhisto.utils.utils_testhisto.assert_dicts_equal(same_dataset_sample, loaded_sample)
+    testhisto.utils.utils_testhisto.assert_dicts_equal(same_dataset_sample, loaded_sample)  # type: ignore
 
     # Test that loading another sample gives different results
     different_sample = loaded_dataset[index + 1]
@@ -65,13 +68,17 @@ def test_load_tiles_batch() -> None:
     # and that the loaded images have the expected shape
     bagged_batch = bagged_dataset[index]
     manually_loaded_batch = load_batch_transform(bagged_batch)
-    testhisto.utils.utils_testhisto.assert_dicts_equal(manually_loaded_batch, bagged_batch, exclude_keys=[image_key])
+    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
+        manually_loaded_batch,
+        bagged_batch,
+        exclude_keys=[image_key])
     assert manually_loaded_batch[image_key].shape == (max_bag_size, *image_shape)
 
     # Test that the MONAI Dataset applies the same transform
     loaded_bagged_dataset = Dataset(bagged_dataset, transform=load_batch_transform)  # type:ignore
     loaded_bagged_batch = loaded_bagged_dataset[index]
-    testhisto.utils.utils_testhisto.assert_dicts_equal(loaded_bagged_batch, manually_loaded_batch)
+    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
+        loaded_bagged_batch, manually_loaded_batch)
 
     # Test that loading another batch gives different results
     different_batch = loaded_bagged_dataset[index + 1]
@@ -82,7 +89,8 @@ def test_load_tiles_batch() -> None:
                                        bag_ids=tiles_dataset.slide_ids,
                                        max_bag_size=max_bag_size)
     bagged_loaded_batch = bagged_loaded_dataset[index]
-    testhisto.utils.utils_testhisto.assert_dicts_equal(bagged_loaded_batch, loaded_bagged_batch)
+    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
+        bagged_loaded_batch, loaded_bagged_batch)
 
 
 def _test_cache_and_persistent_datasets(tmp_path: Path,
@@ -98,8 +106,8 @@ def _test_cache_and_persistent_datasets(tmp_path: Path,
 
     for default_sample, cached_sample, persistent_sample \
             in zip(default_dataset, cached_dataset, persistent_dataset):  # type: ignore
-        testhisto.utils.utils_testhisto.assert_dicts_equal(cached_sample, default_sample)
-        testhisto.utils.utils_testhisto.assert_dicts_equal(persistent_sample, default_sample)
+        testhisto.utils.utils_testhisto.assert_dicts_equal(cached_sample, default_sample)  # type: ignore
+        testhisto.utils.utils_testhisto.assert_dicts_equal(persistent_sample, default_sample)  # type: ignore
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),

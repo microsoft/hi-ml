@@ -258,14 +258,14 @@ class WorkflowParams(param.Parameterized):
             Creates new file system settings (outputs folder, logs folder) based on the information stored in the
             present object. If any of the folders do not yet exist, they are created.
 
-            :param project_root: The root folder for the codebase that triggers the training run.
-            """
-            self.file_system_config = ExperimentFolderHandler.create(
-                project_root=project_root,
-                model_name=self.model_name,
-                is_offline_run=not is_running_in_azure_ml(RUN_CONTEXT),
-                output_to=self.output_to
-            )
+        :param project_root: The root folder for the codebase that triggers the training run.
+        """
+        self.file_system_config = ExperimentFolderHandler.create(
+            project_root=project_root,
+            model_name=self.model_name,
+            is_offline_run=not is_running_in_azure_ml(RUN_CONTEXT),
+            output_to=self.output_to
+        )
 
         @property
         def outputs_folder(self) -> Path:

@@ -118,7 +118,7 @@ def test_location_selected_tiles(level: int) -> None:
                       test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))  # type: ignore
         coords.append(tile_coords)
 
-    coords = np.array(coords)
+    coords = np.array(coords)  # type: ignore
     tile_coords_transformed = location_selected_tiles(tile_coords=coords,
                                                       location_bbox=location_bbox,
                                                       level=level)
