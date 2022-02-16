@@ -1,7 +1,7 @@
-azureml-sdk==1.32.0
-azureml-tensorboard==1.32.0
-conda-merge==0.1.5
-pandas==1.3.4
-param==1.9.3
-ruamel.yaml==0.16.12
-tensorboard==2.6.0
+azureml-sdk>=1.36.0
+azureml-tensorboard>=1.36.0
+conda-merge>=0.1.5
+pandas>=1.3.4
+param>=1.9.3
+ruamel.yaml>=0.16.12
+tensorboard>=2.6.0
