@@ -15,18 +15,16 @@ import matplotlib
 
 # Add hi-ml packages to sys.path so that AML can find them
 # Optionally add the histopathology module, if this exists
+
 himl_root = Path(__file__).parent.parent.parent.parent
 print(f"Starting the himl runner at {himl_root}")
-print(f"health_ml pkg: {himl_root}")
-health_ml_pkg = himl_root / "hi-ml" / "src"
-health_azure_pkg = himl_root / "hi-ml-azure" / "src"
-health_histopathology_dir = himl_root / "hi-ml-histopathology" / "src"
-
-if health_histopathology_dir.exists():
-    sys.path.insert(0, str(health_histopathology_dir))
-sys.path.insert(0, str(health_azure_pkg))
-sys.path.insert(0, str(health_ml_pkg))
-print(f"sys path: {sys.path}")
+folders_to_add = [himl_root / "hi-ml" / "src",
+                  himl_root / "hi-ml-azure" / "src",
+                  himl_root / "hi-ml-histopathology" / "src"]
+for folder in folders_to_add:
+    if folder.is_dir():
+        sys.path.insert(0, str(folder))
+print(f"sys.path: {sys.path}")
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
@@ -42,7 +40,6 @@ from health_ml.utils.common_utils import (get_all_environment_files,  # noqa: E4
                                           get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
-
 
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
@@ -223,6 +220,7 @@ class Runner:
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore)
+        hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         try:
             if self.experiment_config.azureml:
                 if not self.experiment_config.cluster:
@@ -244,6 +242,7 @@ class Runner:
                     ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                    hyperdrive_config=hyperdrive_config,
                     tags=additional_run_tags(
                         commandline_args=" ".join(script_params))
                 )

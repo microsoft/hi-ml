@@ -8,8 +8,10 @@ from typing import List, Optional
 from unittest.mock import patch, MagicMock
 
 import pytest
+from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
+from health_ml.configs.hello_container import HelloContainer
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 
@@ -113,3 +115,53 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
             assert run_info.input_datasets == []
             assert run_info.is_running_in_azure_ml is False
             assert run_info.output_folder is None
+
+
+def test_crossvalidation_flag() -> None:
+    """
+    Checks the basic use of the flags that trigger cross validation
+    :return:
+    """
+    container = HelloContainer()
+    assert not container.is_crossvalidation_enabled
+    container.crossval_count = 2
+    assert container.is_crossvalidation_enabled
+    container.validate()
+    # Validation should fail if the cross validation index is out of bounds
+    with pytest.raises(ValueError) as ex:
+        container.crossval_index = container.crossval_count
+        container.validate()
+
+
+def test_crossval_config() -> None:
+    """
+    Check if the flags to trigger Hyperdrive runs work as expected.
+    """
+    mock_tuning_config = "foo"
+    container = HelloContainer()
+    with patch("health_ml.ml.configs.hello_container.HelloContainer.get_parameter_tuning_config",
+               return_value=mock_tuning_config):
+        # Without any flags set, no Hyperdrive config should be returned
+        assert container.get_hyperdrive_config() is None
+        # To trigger a hyperparameter search, the commandline flag for hyperdrive must be present
+        container.hyperdrive = True
+        assert container.get_hyperdrive_config() == mock_tuning_config
+        # Triggering cross validation works by just setting crossval_count
+        container.hyperdrive = False
+        container.crossval_count = 2
+        assert container.is_crossvalidation_enabled
+        crossval_config = container.get_hyperdrive_config()
+        assert isinstance(crossval_config, HyperDriveConfig)
+
+
+def test_crossval_argument_names() -> None:
+    """
+    Cross validation uses hardcoded argument names, check if they match the field names
+    """
+    container = HelloContainer()
+    crossval_count = 8
+    crossval_index = 5
+    container.crossval_count = crossval_count
+    container.crossval_index = crossval_index
+    assert getattr(container, container.CROSSVAL_COUNT_ARG_NAME) == crossval_count
+    assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
