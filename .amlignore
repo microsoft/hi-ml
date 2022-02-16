@@ -1,0 +1,10 @@
+/.git
+/.github
+/azure-pipelines
+/docs
+.pytest_cache
+.mypy_cache
+logs
+outputs
+config.json
+*.egg-info
