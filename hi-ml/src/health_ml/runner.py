@@ -214,6 +214,8 @@ class Runner:
 
         conda_dependencies_files = get_all_environment_files(self.project_root,
                                                              additional_files=additional_env_files)
+        # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from source
+        # (submodule) rather than installed as a package.
         pip_requirements_files = get_all_pip_requirements_files()
 
         # Merge the project-specific dependencies with the packages and write unified definition

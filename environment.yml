@@ -1,3 +1,5 @@
+# This environment definition contains all packages to run hi-ml and hi-ml-azure development work, building and
+# testing
 name: himl
 channels:
   - defaults

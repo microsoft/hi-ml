@@ -47,7 +47,7 @@ def himl_root_dir() -> Optional[Path]:
     """
     Attempts to return the path to the top-level hi-ml repo that contains the hi-ml and hi-ml-azure packages.
     This top level repo will only be present if hi-ml has been installed as a git submodule, or the repo has
-    been directly downlaoded. Otherwise (e.g.if hi-ml has been installed as a pip package) returns None
+    been directly downloaded. Otherwise (e.g.if hi-ml has been installed as a pip package) returns None
 
     return: Path to the himl root dir if it exists, else None
     """
