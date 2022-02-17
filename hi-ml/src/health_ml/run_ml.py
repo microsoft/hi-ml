@@ -20,7 +20,7 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_utils import CheckpointHandler
 from health_ml.utils.common_utils import (
-    change_working_directory, EFFECTIVE_RANDOM_SEED_KEY_NAME, logging_section,
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, logging_section,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
@@ -180,7 +180,6 @@ class MLRunner:
         self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
         # Change the current working directory to ensure that test files go to thr right folder
         data_module = self.container.get_data_module()
-        with change_working_directory(self.container.outputs_folder):
-            results = trainer.test(self.container.model, datamodule=data_module)
-        return results
 
+        results = trainer.test(self.container.model, datamodule=data_module)
+        return results

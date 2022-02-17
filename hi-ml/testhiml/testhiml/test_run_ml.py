@@ -4,34 +4,62 @@ import pytest
 from typing import Tuple
 from unittest.mock import patch, MagicMock, Mock
 
+from health_ml.configs.hello_container import HelloContainer
 from pytorch_lightning import Callback
 
-import health_ml
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 
 
 @pytest.fixture
-def ml_runner() -> MLRunner:
-    experiment_config = ExperimentConfig()
+def ml_runner_no_setup() -> MLRunner:
+    experiment_config = ExperimentConfig(model="HelloContainer")
     container = LightningContainer(num_epochs=1)
-    return MLRunner(experiment_config=experiment_config, container=container)
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    return runner
 
 
-def test_ml_runner_setup(ml_runner: MLRunner) -> None:
+@pytest.fixture
+def ml_runner() -> MLRunner:
+    experiment_config = ExperimentConfig(model="HelloContainer")
+    container = LightningContainer(num_epochs=1)
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner.setup()
+    return runner
+
+
+@pytest.fixture
+def ml_runner_with_container() -> MLRunner:
+    experiment_config = ExperimentConfig(model="HelloContainer")
+    container = HelloContainer()
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner.setup()
+    return runner
+
+
+# @pytest.fixture
+# def ml_runner() -> MLRunner:
+#     experiment_config = ExperimentConfig(model="HelloContainer")
+#     container = LightningContainer(num_epochs=1)
+#     runner = MLRunner(experiment_config=experiment_config, container=container)
+#     runner.setup()
+#     return runner
+
+
+def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
     """
     Check that all the necessary methods get called during setup
     """
-    assert not ml_runner._has_setup_run
-    with patch.object(ml_runner, "container", spec=LightningContainer) as mock_container:
+    assert not ml_runner_no_setup._has_setup_run
+    with patch.object(ml_runner_no_setup, "container", spec=LightningContainer) as mock_container:
         with patch("health_ml.run_ml.seed_everything") as mock_seed:
             # mock_container.get_effectie_random_seed = Mock()
-            ml_runner.setup()
+            ml_runner_no_setup.setup()
             mock_container.get_effective_random_seed.assert_called_once()
             mock_container.setup.assert_called_once()
             mock_container.create_lightning_module_and_store.assert_called_once()
-            assert ml_runner._has_setup_run
+            assert ml_runner_no_setup._has_setup_run
             mock_seed.assert_called_once()
 
 
@@ -48,7 +76,7 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
 
 
 def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
-        return "trainer", "storing_logger"
+    return "trainer", "storing_logger"
 
 
 def test_run(ml_runner: MLRunner) -> None:
@@ -98,18 +126,24 @@ def test_run_inference_for_lightning_models(mock_create_trainer: MagicMock, ml_r
         mock_trainer.test.assert_called_once()
 
 
-def test_on_test_epoch_end(ml_runner: MLRunner):
-    ml_runner.setup()
-    with patch.object(ml_runner, "checkpoint_handler") as mock_checkpoint_handler:
+def test_on_test_epoch_end(ml_runner_with_container: MLRunner):
+    # def _mock_load_model_checkpoint(checkpoint_path):
+    #     ml_runner._model = ml_runner.model
+
+    with patch.object(ml_runner_with_container, "checkpoint_handler") as mock_checkpoint_handler:
         with patch("health_ml.run_ml.model_train", new=_mock_model_train):
             with pytest.raises(ValueError) as e:
-                ml_runner.run()
+                ml_runner_with_container.run()
                 assert "expects exactly 1 checkpoint for inference, but got 0" in str(e)
 
-        with patch.object(ml_runner.container, "load_model_checkpoint"):
-            with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
-                mock_trainer = MagicMock()
-                mock_create_trainer.return_value = mock_trainer, ""
-                mock_checkpoint_handler.get_checkpoints_to_test.return_value = ['dummypath']
-                ml_runner.run()
-                mock_trainer.test.assert_called_once()
+        with patch.object(ml_runner_with_container.container, "load_model_checkpoint"):
+            with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_train_trainer:
+                with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_inference_trainer:
+                    # set the model which currently is None
+                    # ml_runner.container._model = HelloRegression()
+                    mock_trainer = MagicMock()
+                    mock_create_train_trainer.return_value = mock_trainer, ""
+                    mock_create_inference_trainer.return_value = mock_trainer, ""
+                    mock_checkpoint_handler.get_checkpoints_to_test.return_value = ['dummypath']
+                    ml_runner_with_container.run()
+                    mock_trainer.test.assert_called_once()
