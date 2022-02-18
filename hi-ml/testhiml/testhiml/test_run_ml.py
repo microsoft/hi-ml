@@ -88,11 +88,25 @@ def test_run(ml_runner: MLRunner) -> None:
                 assert ml_runner.checkpoint_handler.has_continued_training
 
 
-def test_run_inference_for_lightning_models(ml_runner_with_container: MLRunner) -> None:
+def test_run_inference_for_lightning_models(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
     """
     Test that run_inference_for_lightning_models gets called as expected. If no checkpoint paths are
     provided, should raise an error. Otherwise, expect the trainer object's test method to be called
     """
+    # create the test data
+    import numpy as np
+    import torch
+
+    N = 100
+    x = torch.rand((N, 1)) * 10
+    y = 0.2 * x + 0.1 * torch.randn(x.size())
+    xy = torch.cat((x, y), dim=1)
+    data_path = tmp_path / "hellocontainer.csv"
+    np.savetxt(data_path, xy.numpy(), delimiter=",")
+
+    # update the container to look for test data at this location
+    ml_runner_with_container.container.local_dataset_dir = tmp_path
+
     with patch.object(ml_runner_with_container, "checkpoint_handler") as mock_checkpoint_handler:
         with patch("health_ml.run_ml.model_train", new=_mock_model_train):
             with pytest.raises(ValueError) as e:
