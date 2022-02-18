@@ -211,7 +211,7 @@ class BatchTimeCallback(Callback):
         self.write_and_log_epoch_time(is_training=True)
         self.write_and_log_epoch_time(is_training=False)
 
-    def on_train_batch_start(self,
+    def on_train_batch_start(self,  # type: ignore
                              trainer: Trainer,
                              pl_module: LightningModule,
                              batch: Any,
@@ -229,7 +229,7 @@ class BatchTimeCallback(Callback):
                                   ) -> None:
         self.batch_start(batch_idx=batch_idx, is_training=False)
 
-    def on_train_batch_end(self,
+    def on_train_batch_end(self,  # type: ignore
                            trainer: Trainer,
                            pl_module: LightningModule,
                            outputs: Any,

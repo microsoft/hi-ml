@@ -21,6 +21,7 @@ import sys
 # Make the source code for both packages available here
 sys.path.insert(0, os.path.abspath('../../hi-ml/src'))
 sys.path.insert(0, os.path.abspath('../../hi-ml-azure/src'))
+sys.path.insert(0, os.path.abspath('../../hi-ml-histopathology/src'))
 
 # -- Project information -----------------------------------------------------
 
@@ -70,7 +71,7 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = []  # type: ignore
 
-modindex_common_prefix = ["health_azure.", "health_ml."]
+modindex_common_prefix = ["health_azure.", "health_ml.", "histopathology."]
 
 source_suffix = {
     '.rst': 'restructuredtext',

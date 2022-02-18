@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure ]
+        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -108,7 +108,7 @@ jobs:
     needs: [ pytest_fast ]
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure ]
+        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -134,7 +134,7 @@ jobs:
     needs: [ build-python ]
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure ]
+        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
         packageName: [ '*.whl', '*.tar.gz' ]
     steps:
       - uses: actions/checkout@v2
@@ -166,6 +166,7 @@ jobs:
 
       - name: Download package artifacts
         id: download
+        if: ${{ matrix.folder != 'hi-ml-histopathology' }}
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
@@ -175,12 +176,13 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          make pip_upgrade
+          if [ ${{ matrix.folder }} != 'hi-ml-histopathology' ]; then
+            make pip_upgrade
+            # Install package
+            pip install ${{ steps.download.outputs.package_filename }}
+          fi
 
-          # Install package
-          pip install ${{ steps.download.outputs.package_filename }}
-
-          if [ ${{ matrix.packageName }} = '*.whl' ]; then
+          if [ ${{ matrix.packageName }} == '*.whl' ]; then
             # Set env vars so wheel is sent to azureml as a private package
             echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
 
@@ -196,6 +198,7 @@ jobs:
         if: ${{ matrix.packageName == '*.whl' }}
         with:
           folder: ${{ matrix.folder }}
+
 
   build-coverage:
     runs-on: ubuntu-18.04
@@ -249,6 +252,11 @@ jobs:
         uses: ./.github/actions/download_coverage_artifacts
         with:
           folder: hi-ml-azure
+
+      - name: Download coverage artifacts
+        uses: ./.github/actions/download_coverage_artifacts
+        with:
+          folder: hi-ml-histopathology
 
       - name: Combine coverage artifacts
         run: make combine

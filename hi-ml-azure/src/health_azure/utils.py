@@ -10,9 +10,11 @@ import json
 import logging
 import os
 import re
+import sys
 import tempfile
-from argparse import ArgumentParser, OPTIONAL
+from argparse import ArgumentParser, OPTIONAL, ArgumentError, _UNRECOGNIZED_ARGS_ATTR, Namespace, SUPPRESS
 from collections import defaultdict
+from dataclasses import dataclass
 from itertools import islice
 from pathlib import Path
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
@@ -56,6 +58,7 @@ ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
 
 RUN_CONTEXT = Run.get_context()
+PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 WORKSPACE_CONFIG_JSON = "config.json"
 
 # By default, define several environment variables that work around known issues in the software stack
@@ -126,223 +129,314 @@ class GenericConfig(param.Parameterized):
         """
         pass
 
-    def add_and_validate(self, kwargs: Dict[str, Any], validate: bool = True) -> None:
+
+def set_fields_and_validate(config: param.Parameterized, fields_to_set: Dict[str, Any], validate: bool = True) -> None:
+    """
+    Add further parameters and, if validate is True, validate. We first try set_param, but that
+    fails when the parameter has a setter.
+
+    :param config: The model configuration
+    :param fields_to_set: A dictionary of key, value pairs where each key represents a parameter to be added
+        and val represents its value
+    :param validate: Whether to validate the value of the parameter after adding.
+    """
+    assert isinstance(config, param.Parameterized)
+    for key, value in fields_to_set.items():
+        try:
+            config.set_param(key, value)
+        except ValueError:
+            setattr(config, key, value)
+    if validate:
+        config.validate()
+
+
+def create_argparser(config: param.Parameterized) -> ArgumentParser:
+    """
+    Creates an ArgumentParser with all fields of the given config that are overridable.
+
+    :param config: The config whose parameters should be used to populate the argument parser
+    :return: ArgumentParser
+    """
+    assert isinstance(config, param.Parameterized)
+    parser = ArgumentParser()
+    _add_overrideable_config_args_to_parser(config, parser)
+    return parser
+
+
+def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser: ArgumentParser) -> ArgumentParser:
+    """
+    Adds all overridable fields of the config class to the given argparser.
+    Fields that are marked as readonly, constant or private are ignored.
+
+    :param parser: Parser to add properties to.
+    """
+
+    def parse_bool(x: str) -> bool:
         """
-        Add further parameters and, if validate is True, validate. We first try set_param, but that
-        fails when the parameter has a setter.
+        Parse a string as a bool. Supported values are case insensitive and one of:
+        'on', 't', 'true', 'y', 'yes', '1' for True
+        'off', 'f', 'false', 'n', 'no', '0' for False.
 
-        :param kwargs: A dictionary of key, value pairs where each key represents a parameter to be added
-            and val represents its value
-        :param validate: Whether to validate the value of the parameter after adding.
+        :param x: string to test.
+        :return: Bool value if string valid, otherwise a ValueError is raised.
         """
-        for key, value in kwargs.items():
-            try:
-                self.set_param(key, value)
-            except ValueError:
-                setattr(self, key, value)
-        if validate:
-            self.validate()
+        sx = str(x).lower()
+        if sx in ('on', 't', 'true', 'y', 'yes', '1'):
+            return True
+        if sx in ('off', 'f', 'false', 'n', 'no', '0'):
+            return False
+        raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
 
-    @classmethod
-    def create_argparser(cls) -> ArgumentParser:
+    def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
         """
-        Creates an ArgumentParser with all fields of the given argparser that are overridable.
+        Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
+        Throw exception if it is not supported.
 
-        :return: ArgumentParser
+        :param _p: parameter to get type and nargs for.
+        :return: Type
         """
-        parser = ArgumentParser()
-        cls.add_args(parser)
+        if isinstance(_p, param.Boolean):
+            p_type: Callable = parse_bool
+        elif isinstance(_p, param.Integer):
+            p_type = lambda x: _p.default if x == "" else int(x)
+        elif isinstance(_p, param.Number):
+            p_type = lambda x: _p.default if x == "" else float(x)
+        elif isinstance(_p, param.String):
+            p_type = str
+        elif isinstance(_p, param.List):
+            p_type = lambda x: [_p.class_(item) for item in x.split(',')]
+        elif isinstance(_p, param.NumericTuple):
+            float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
+            p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
+        elif isinstance(_p, param.ClassSelector):
+            p_type = _p.class_
+        elif isinstance(_p, CustomTypeParam):
+            p_type = _p.from_string
 
-        return parser
+        else:
+            raise TypeError("Parameter of type: {} is not supported".format(_p))
 
-    @classmethod
-    def add_args(cls, parser: ArgumentParser) -> ArgumentParser:
+        return p_type
+
+    def add_boolean_argument(parser: ArgumentParser, k: str, p: param.Parameter) -> None:
         """
-        Adds all overridable fields of the current class to the given argparser.
-        Fields that are marked as readonly, constant or private are ignored.
+        Add a boolean argument.
+        If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
+        If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
 
-        :param parser: Parser to add properties to.
+        :param parser: parser to add a boolean argument to.
+        :param k: argument name.
+        :param p: boolean parameter.
         """
+        if not p.default:
+            # If the parameter default is False then use nargs="?" (OPTIONAL).
+            # This means that the argument is optional.
+            # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
+            # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
+            parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False,
+                                nargs=OPTIONAL, const=True)
+        else:
+            # If the parameter default is True then create an exclusive group of arguments.
+            # Either --flag=value as usual
+            # Or --no-flag to store False in the parameter k.
+            group = parser.add_mutually_exclusive_group(required=False)
+            group.add_argument("--" + k, help=p.doc, type=parse_bool)
+            group.add_argument('--no-' + k, dest=k, action='store_false')
+            parser.set_defaults(**{k: p.default})
 
-        def parse_bool(x: str) -> bool:
-            """
-            Parse a string as a bool. Supported values are case insensitive and one of:
-            'on', 't', 'true', 'y', 'yes', '1' for True
-            'off', 'f', 'false', 'n', 'no', '0' for False.
+    for k, p in get_overridable_parameters(config).items():
+        # param.Booleans need to be handled separately, they are more complicated because they have
+        # an optional argument.
+        if isinstance(p, param.Boolean):
+            add_boolean_argument(parser, k, p)
+        else:
+            parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 
-            :param x: string to test.
-            :return: Bool value if string valid, otherwise a ValueError is raised.
-            """
-            sx = str(x).lower()
-            if sx in ('on', 't', 'true', 'y', 'yes', '1'):
-                return True
-            if sx in ('off', 'f', 'false', 'n', 'no', '0'):
-                return False
-            raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
+    return parser
 
-        def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
-            """
-            Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
-            Throw exception if it is not supported.
 
-            :param _p: parameter to get type and nargs for.
-            :return: Type
-            """
-            if isinstance(_p, param.Boolean):
-                p_type: Callable = parse_bool
-            elif isinstance(_p, param.Integer):
-                p_type = lambda x: _p.default if x == "" else int(x)
-            elif isinstance(_p, param.Number):
-                p_type = lambda x: _p.default if x == "" else float(x)
-            elif isinstance(_p, param.String):
-                p_type = str
-            elif isinstance(_p, param.List):
-                p_type = lambda x: [_p.class_(item) for item in x.split(',')]
-            elif isinstance(_p, param.NumericTuple):
-                float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
-                p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
-            elif isinstance(_p, param.ClassSelector):
-                p_type = _p.class_
-            elif isinstance(_p, CustomTypeParam):
-                p_type = _p.from_string
+@dataclass
+class ParserResult:
+    """
+    Stores the results of running an argument parser, broken down into a argument-to-value dictionary,
+    arguments that the parser does not recognize.
+    """
+    args: Dict[str, Any]
+    unknown: List[str]
+    overrides: Dict[str, Any]
 
+
+def _create_default_namespace(parser: ArgumentParser) -> Namespace:
+    """
+    Creates an argparse Namespace with all parser-specific default values set.
+
+    :param parser: The parser to work with.
+    :return: the Namespace object
+    """
+    # This is copy/pasted from parser.parse_known_args
+    namespace = Namespace()
+    for action in parser._actions:
+        if action.dest is not SUPPRESS:
+            if not hasattr(namespace, action.dest):
+                if action.default is not SUPPRESS:
+                    setattr(namespace, action.dest, action.default)
+    for dest in parser._defaults:
+        if not hasattr(namespace, dest):
+            setattr(namespace, dest, parser._defaults[dest])
+    return namespace
+
+
+def parse_arguments(parser: ArgumentParser,
+                    fail_on_unknown_args: bool = False,
+                    args: List[str] = None) -> ParserResult:
+    """
+    Parses a list of commandline arguments with a given parser. Returns results broken down into a full
+    arguments dictionary, a dictionary of arguments that were set to non-default values, and unknown
+    arguments.
+
+    :param parser: The parser to use
+    :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does
+        not recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of
+        the parser result.
+    :param args: Arguments to parse. If not given, use those in sys.argv
+    :return: The parsed arguments, and overrides
+    """
+    if args is None:
+        args = sys.argv[1:]
+    # The following code is a slightly modified version of what happens in parser.parse_known_args. This had to be
+    # copied here because otherwise we would not be able to achieve the priority order that we desire.
+    namespace = _create_default_namespace(parser)
+
+    try:
+        namespace, unknown = parser._parse_known_args(args, namespace)
+        if hasattr(namespace, _UNRECOGNIZED_ARGS_ATTR):
+            unknown.extend(getattr(namespace, _UNRECOGNIZED_ARGS_ATTR))
+            delattr(namespace, _UNRECOGNIZED_ARGS_ATTR)
+    except ArgumentError:
+        parser.print_usage(sys.stderr)
+        err = sys.exc_info()[1]
+        parser._print_message(str(err), sys.stderr)
+        raise
+    # Parse the arguments a second time, without supplying defaults, to see which arguments actually differ
+    # from defaults.
+    namespace_without_defaults, _ = parser._parse_known_args(args, Namespace())
+    parsed_args = vars(namespace).copy()
+    overrides = vars(namespace_without_defaults).copy()
+    if len(unknown) > 0 and fail_on_unknown_args:
+        raise ValueError(f'Unknown arguments: {unknown}')
+    return ParserResult(
+        args=parsed_args,
+        unknown=unknown,
+        overrides=overrides,
+    )
+
+
+def parse_args_and_update_config(config: Any, args: List[str]) -> Any:
+    """
+    Given a model config and a list of command line arguments, creates an argparser, adds arguments from the config
+    parses the list of provided args and updates the config accordingly. Returns the updated config
+
+    :param config: The model configuration
+    :param args: A list of command line args to parse
+    :return: The config, updated with the values of the provided args
+    """
+    parser = create_argparser(config)
+    parser_results = parse_arguments(parser, args=args)
+    _ = apply_overrides(config, parser_results.args)
+    return config
+
+
+def get_overridable_parameters(config: Any) -> Dict[str, param.Parameter]:
+    """
+    Get properties that are not constant, readonly or private (eg: prefixed with an underscore).
+
+    :param config: The model configuration
+    :return: A dictionary of parameter names and their definitions.
+    """
+    assert isinstance(config, param.Parameterized)
+    return dict((k, v) for k, v in config.params().items()
+                if reason_not_overridable(v) is None)
+
+
+def reason_not_overridable(value: param.Parameter) -> Optional[str]:
+    """
+    Given a parameter, check for attributes that denote it is not overrideable (e.g. readonly, constant,
+    private etc). If such an attribute exists, return a string containing a single-word description of the
+    reason. Otherwise returns None.
+
+    :param value: a parameter value
+    :return: None if the parameter is overridable; otherwise a one-word string explaining why not.
+    """
+    if value.readonly:
+        return "readonly"
+    elif value.constant:
+        return "constant"
+    elif is_private_field_name(value.name):
+        return "private"
+    elif isinstance(value, param.Callable):
+        return "callable"
+    return None
+
+
+def apply_overrides(config: Any, overrides_to_apply: Optional[Dict[str, Any]], should_validate: bool = False,
+                    keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
+    """
+    Applies the provided `values` overrides to the config.
+    Only properties that are marked as overridable are actually overwritten.
+
+    :param config: The model configuration
+    :param overrides_to_apply: A dictionary mapping from field name to value.
+    :param should_validate: If true, run the .validate() method after applying overrides.
+    :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
+    :return: A dictionary with all the fields that were modified.
+    """
+
+    def _apply(_overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        applied: Dict[str, Any] = {}
+        if _overrides is not None:
+            overridable_parameters = get_overridable_parameters(config).keys()
+            for k, v in _overrides.items():
+                if k in overridable_parameters:
+                    applied[k] = v
+                    setattr(config, k, v)
+
+        return applied
+
+    actual_overrides = _apply(overrides_to_apply)
+    if keys_to_ignore is not None:
+        report_on_overrides(config, overrides_to_apply, keys_to_ignore)  # type: ignore
+    if should_validate:
+        config.validate()
+    return actual_overrides
+
+
+def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any], keys_to_ignore: Set[str]) -> None:
+    """
+    Logs a warning for every parameter whose value is not as given in "overrides_to_apply", other than those
+    in keys_to_ignore.
+
+    :param config: The model configuration
+    :param overrides_to_apply: override dictionary, parameter names to values
+    :param keys_to_ignore: set of dictionary keys not to report on
+    """
+    assert isinstance(config, param.Parameterized)
+    for key, desired in overrides_to_apply.items():
+        if key in keys_to_ignore:
+            continue
+        actual = getattr(config, key, None)
+        if actual == desired:
+            continue
+        if key not in config.params():
+            reason = "parameter is undefined"
+        else:
+            val = config.params()[key]
+            reason = reason_not_overridable(val)  # type: ignore
+            if reason is None:
+                reason = "for UNKNOWN REASONS"
             else:
-                raise TypeError("Parameter of type: {} is not supported".format(_p))
-
-            return p_type
-
-        def add_boolean_argument(parser: ArgumentParser, k: str, p: param.Parameter) -> None:
-            """
-            Add a boolean argument.
-            If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
-            If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
-
-            :param parser: parser to add a boolean argument to.
-            :param k: argument name.
-            :param p: boolean parameter.
-            """
-            if not p.default:
-                # If the parameter default is False then use nargs="?" (OPTIONAL).
-                # This means that the argument is optional.
-                # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
-                # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
-                parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False,
-                                    nargs=OPTIONAL, const=True)
-            else:
-                # If the parameter default is True then create an exclusive group of arguments.
-                # Either --flag=value as usual
-                # Or --no-flag to store False in the parameter k.
-                group = parser.add_mutually_exclusive_group(required=False)
-                group.add_argument("--" + k, help=p.doc, type=parse_bool)
-                group.add_argument('--no-' + k, dest=k, action='store_false')
-                parser.set_defaults(**{k: p.default})
-
-        for k, p in cls.get_overridable_parameters().items():
-            # param.Booleans need to be handled separately, they are more complicated because they have
-            # an optional argument.
-            if isinstance(p, param.Boolean):
-                add_boolean_argument(parser, k, p)
-            else:
-                parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
-
-        return parser
-
-    @classmethod
-    def parse_args(cls: Type[T], args: Optional[List[str]] = None) -> T:
-        """
-        Creates an argparser based on the params class and parses stdin args (or the args provided)
-
-        :param args: The arguments to be parsed
-        """
-        return cls(**vars(cls.create_argparser().parse_args(args)))  # type: ignore
-
-    @classmethod
-    def get_overridable_parameters(cls) -> Dict[str, param.Parameter]:
-        """
-        Get properties that are not constant, readonly or private (eg: prefixed with an underscore).
-
-        :return: A dictionary of parameter names and their definitions.
-        """
-        return dict((k, v) for k, v in cls.params().items()
-                    if cls.reason_not_overridable(v) is None)
-
-    @staticmethod
-    def reason_not_overridable(value: param.Parameter) -> Optional[str]:
-        """
-        Given a parameter, check for attributes that denote it is not overrideable (e.g. readonly, constant,
-        private etc). If such an attribute exists, return a string containing a single-word description of the
-        reason. Otherwise returns None.
-
-        :param value: a parameter value
-        :return: None if the parameter is overridable; otherwise a one-word string explaining why not.
-        """
-        if value.readonly:
-            return "readonly"
-        elif value.constant:
-            return "constant"
-        elif is_private_field_name(value.name):
-            return "private"
-        elif isinstance(value, param.Callable):
-            return "callable"
-        return None
-
-    def apply_overrides(self, values: Optional[Dict[str, Any]], should_validate: bool = True,
-                        keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
-        """
-        Applies the provided `values` overrides to the config.
-        Only properties that are marked as overridable are actually overwritten.
-
-        :param values: A dictionary mapping from field name to value.
-        :param should_validate: If true, run the .validate() method after applying overrides.
-        :param keys_to_ignore: keys to ignore in reporting failed overrides. If None, do not report.
-        :return: A dictionary with all the fields that were modified.
-        """
-
-        def _apply(_overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-            applied: Dict[str, Any] = {}
-            if _overrides is not None:
-                overridable_parameters = self.get_overridable_parameters().keys()
-                for k, v in _overrides.items():
-                    if k in overridable_parameters:
-                        applied[k] = v
-                        setattr(self, k, v)
-
-            return applied
-
-        actual_overrides = _apply(values)
-        if keys_to_ignore is not None:
-            self.report_on_overrides(values, keys_to_ignore)  # type: ignore
-        if should_validate:
-            self.validate()
-        return actual_overrides
-
-    def report_on_overrides(self, values: Dict[str, Any], keys_to_ignore: Optional[Set[str]] = None) -> None:
-        """
-        Logs a warning for every parameter whose value is not as given in "values", other than those
-        in keys_to_ignore.
-
-        :param values: override dictionary, parameter names to values
-        :param keys_to_ignore: set of dictionary keys not to report on
-        :return: None
-        """
-        for key, desired in values.items():
-            # If this isn't an AzureConfig instance, we don't want to warn on keys intended for it.
-            if keys_to_ignore and (key in keys_to_ignore):
-                continue
-            actual = getattr(self, key, None)
-            if actual == desired:
-                continue
-            if key not in self.params():
-                reason = "parameter is undefined"
-            else:
-                val = self.params()[key]
-                reason = self.reason_not_overridable(val)  # type: ignore
-                if reason is None:
-                    reason = "for UNKNOWN REASONS"
-                else:
-                    reason = f"parameter is {reason}"
-            # We could raise an error here instead - to be discussed.
-            logging.warning(f"Override {key}={desired} failed: {reason} in class {self.__class__.name}")
+                reason = f"parameter is {reason}"
+        # We could raise an error here instead - to be discussed.
+        logging.warning(f"Override {key}={desired} failed: {reason} in class {config.__class__.name}")
 
 
 def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T]) -> T:
@@ -565,7 +659,8 @@ def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path
             file_name: str,
             stop_at_pythonpath: bool,
             pythonpaths: List[Path]) -> Optional[Path]:
-        logging.debug(f"Searching for file {file_name} in {start_at}")
+
+        logging.info(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
         if expected.is_file() and expected.name == file_name:
             return expected
@@ -761,22 +856,71 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def merge_conda_files(files: List[Path], result_file: Path) -> None:
+def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -> List[str]:
     """
-    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
+    Given a list of conda dependencies, which may contain duplicate versions
+    of the same package name with the same or different versions, returns a
+    list of them where each package name occurs only once. If a
+    package name appears more than once, only the first value will be retained.
 
-    :param files: The Conda environment files to read.
-    :param result_file: The location where the merge results should be written.
+    :param dependencies: The original list of package names to deduplicate
+    :param keep_method: The strategy for choosing which package version to keep
+    :return: a list in which each package name occurs only once
     """
-    for file in files:
-        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
-    # it defaults to writing to stdout
-    env_definitions = [conda_merge.read_file(str(f)) for f in files]
+    unique_deps: Dict[str, Tuple[str, str]] = {}
+    for dep in dependencies:
+        dep_parts: List[str] = re.split("(=<|==|=|>=|<|>)", dep)
+        len_parts = len(dep_parts)
+        dep_name = dep_parts[0]
+        if len_parts > 1:
+            dep_join = ''.join(dep_parts[1:-1])
+            dep_version = dep_parts[-1]
+        else:
+            dep_join = ''
+            dep_version = ''
+
+        if dep_name in unique_deps:
+            if keep_method == "first":
+                keep_version, _ = unique_deps[dep_name]
+            elif keep_method == "last":
+                keep_version = dep_version
+                unique_deps[dep_name] = (keep_version, dep_join)
+            else:
+                raise ValueError(f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
+                                 f" include: ['first', 'last']")
+            logging.warning(f"Found duplicate requirements: {dep}. Keeping the {keep_method} "
+                            f"version: {keep_version}")
+
+        else:
+            unique_deps[dep_name] = (dep_version, dep_join)
+
+    unique_deps_list = [f"{pkg}{joiner}{vrsn}" for pkg, (vrsn, joiner) in unique_deps.items()]
+    return unique_deps_list
+
+
+def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: List[Path] = None,
+                      pip_clash_keep_method: str = "first") -> None:
+    """
+    Merges the given Conda environment files using the conda_merge package, optionally adds any
+    dependencies from pip requirements files, and writes the merged file to disk.
+
+    :param conda_files: The Conda environment files to read.
+    :param result_file: The location where the merge results should be written.
+    :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
+    :param pip_clash_keep_method: If two or more pip packages are specified with the same name, this determines
+        which one should be kept. Current options: ['first', 'last']
+    """
+    env_definitions = [conda_merge.read_file(str(f)) for f in conda_files]
     unified_definition = {}
     NAME = "name"
     CHANNELS = "channels"
     DEPENDENCIES = "dependencies"
+
+    extra_pip_deps = []
+    for pip_file in pip_files or []:
+        with open(pip_file, "r") as f_path:
+            additional_pip_deps = [d for d in f_path.read().split("\n") if d]
+            extra_pip_deps.extend(additional_pip_deps)
 
     name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
@@ -791,12 +935,34 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         unified_definition[CHANNELS] = channels
 
     try:
-        deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
+        deps_to_merge = [env.get(DEPENDENCIES) for env in env_definitions]
+        if len(extra_pip_deps) > 0:
+            deps_to_merge.extend([[{"pip": extra_pip_deps}]])
+        deps = conda_merge.merge_dependencies(deps_to_merge)
+
+        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
+        # duplicated, the first value encountered will be retained.
+        pip_deps_entries = [d for d in deps if isinstance(d, dict) and "pip" in d]  # type: ignore
+        if len(pip_deps_entries) == 0:
+            raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
+        pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
+        pip_deps = pip_deps_entry["pip"]
+        # temporarily remove pip dependencies from deps to be added back after deduplicaton
+        deps.remove(pip_deps_entry)
+
+        # remove all non-pip duplicates from the list of dependencies
+        unique_deps = _retrieve_unique_deps(deps, keep_method=pip_clash_keep_method)
+
+        unique_pip_deps = _retrieve_unique_deps(pip_deps, keep_method=pip_clash_keep_method)
+
+        # finally add back the deduplicated list of dependencies
+        unique_deps.append({"pip": unique_pip_deps})  # type: ignore
+
     except conda_merge.MergeError:
         logging.error("Failed to merge dependencies.")
         raise
-    if deps:
-        unified_definition[DEPENDENCIES] = deps
+    if unique_deps:
+        unified_definition[DEPENDENCIES] = unique_deps
     else:
         raise ValueError("No dependencies found in any of the conda files.")
 
@@ -1230,7 +1396,7 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
     logging.info(f"Uploaded data to {str(remote_path)}")
 
 
-class AmlRunScriptConfig(GenericConfig):
+class AmlRunScriptConfig(param.Parameterized):
     """
     Base config for a script that handles Azure ML Runs, which can be retrieved with either a run id, latest_run_file,
     or by giving the experiment name (optionally alongside tags and number of runs to retrieve). A config file path can
@@ -1317,6 +1483,16 @@ def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     """
     return hasattr(aml_run, 'experiment')
+
+
+def is_running_on_azure_agent() -> bool:
+    """
+    Determine whether the current code is running on an Azure agent by examing the environment variable
+    for AGENT_OS, that all Azure hosted agents define.
+
+    :return: True if the code appears to be running on an Azure build agent, and False otherwise.
+    """
+    return bool(os.environ.get("AGENT_OS", None))
 
 
 def torch_barrier() -> None:

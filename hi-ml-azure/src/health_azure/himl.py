@@ -138,6 +138,9 @@ def create_run_configuration(workspace: Workspace,
             private_pip_wheel_path=private_pip_wheel_path,
             docker_base_image=docker_base_image,
             environment_variables=environment_variables)
+        conda_deps = new_environment.python.conda_dependencies
+        if conda_deps.get_python_version() is None:
+            raise ValueError("If specifying a conda environment file, you must specify the python version within it")
         registered_env = register_environment(workspace, new_environment)
         run_config.environment = registered_env
     else:

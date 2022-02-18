@@ -33,11 +33,18 @@ The `hi-ml` toolbox provides
 
    logging.md
    diagnostics.md
+   runner.md
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Histopathology
+
+   histopathology.md
 
 .. toctree::
    :maxdepth: 1
    :caption: Developers
-   
+
    developers.md
    contributing.md
 
@@ -60,7 +67,8 @@ The `hi-ml` toolbox provides
 
    api/api.rst
 
-   
+
+
 Indices and tables
 ==================
 
