@@ -2,18 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-#  ------------------------------------------------------------------------------------------
-#  Copyright (c) Microsoft Corporation. All rights reserved.
-#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
-#  ------------------------------------------------------------------------------------------
 
 from dataclasses import dataclass
 from typing import List
 from pathlib import Path
 
 from dataclasses_json import dataclass_json
-
-from InnerEye.Common.common_util import MAX_PATH_LENGTH, check_properties_are_not_none, is_long_path
+from health_ml.utils.common_utils import MAX_PATH_LENGTH, check_properties_are_not_none, is_long_path
 
 
 @dataclass_json

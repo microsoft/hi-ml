@@ -41,7 +41,6 @@ class RunRecovery:
     checkpoints_roots: List[Path]
 
     def get_recovery_checkpoint_paths(self) -> List[Path]:
-        from InnerEye.ML.utils.checkpoint_handling import get_recovery_checkpoint_path
         return [get_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
 
     def get_best_checkpoint_paths(self) -> List[Path]:

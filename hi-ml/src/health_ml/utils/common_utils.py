@@ -286,3 +286,13 @@ def set_model_to_eval_mode(model: Module) -> Generator:
     model.eval()
     yield
     model.train(old_mode)
+
+
+def is_long_path(path: PathOrString) -> bool:
+    """
+    A long path is a path that has more than MAX_PATH_LENGTH characters
+
+    :param path: The path to check the length of
+    :return: True if the length of the path is greater than MAX_PATH_LENGTH, else False
+    """
+    return len(str(path)) > MAX_PATH_LENGTH

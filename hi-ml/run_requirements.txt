@@ -1,3 +1,4 @@
+dataclasses-json==0.5.2
 hi-ml-azure>=0.1.8
 jinja2==3.0.2
 matplotlib==3.4.3
