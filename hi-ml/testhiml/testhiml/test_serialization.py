@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import BytesIO
+from typing import Any
 
 import torch
 
@@ -14,7 +15,20 @@ class MyTestModule(torch.nn.Module):
         return torch.max(input)
 
 
+def torch_save_and_load(o: Any) -> Any:
+    """
+    Writes the given object via torch.save, and then loads it back in.
+    """
+    stream = BytesIO()
+    torch.save(o, stream)
+    stream.seek(0)
+    return torch.load(stream)
+
+
 def test_serialization_roundtrip() -> None:
+    """
+    Test that the core Torch model can be serialized and deserialized via torch.save/load.
+    """
     model = MyTestModule()
     example_inputs = torch.randn((2, 3))
     model_output = model.forward(example_inputs)
@@ -22,10 +36,7 @@ def test_serialization_roundtrip() -> None:
                            model_example_input=example_inputs,
                            )
 
-    stream = BytesIO()
-    torch.save(model_info.state_dict(), stream)
-    stream.seek(0)
-    state_dict = torch.load(stream)
+    state_dict = torch_save_and_load(model.state_dict())
     model_info2 = ModelInfo()
     model_info2.load_state_dict(state_dict)
     assert isinstance(model_info2.model, torch.jit.ScriptModule)
