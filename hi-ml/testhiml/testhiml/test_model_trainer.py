@@ -77,10 +77,10 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert "callbacks" in kwargs
     # create_lightning_trainer(container, )
     trainer, storing_logger = create_lightning_trainer(container)
-    # expect trainer to have 3 default callbacks: TQProgressBar, ModelSummary, GradintAccumlationScheduler
-    # and ModelCheckpoint, plus any additional callbacks specified in get_trainer_arguments method
+    # expect trainer to have 5 default callbacks: TQProgressBar, ModelSummary, GradintAccumlationScheduler
+    # and 2 ModelCheckpoints, plus any additional callbacks specified in get_trainer_arguments method
     kwarg_callbacks = kwargs.get("callbacks") or []
-    expected_num_callbacks = len(kwarg_callbacks) + 4
+    expected_num_callbacks = len(kwarg_callbacks) + 5
     assert len(trainer.callbacks) == expected_num_callbacks, f"Found callbacks: {trainer.callbacks}"
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
@@ -100,8 +100,8 @@ def test_model_train() -> None:
             mock_trainer.fit = Mock()
             mock_close_logger = Mock()
             mock_trainer.logger = MagicMock(close=mock_close_logger)
-
-            trainer, storing_logger = model_train(container)
+            checkpoint_path = None
+            trainer, storing_logger = model_train(checkpoint_path, container)
 
             mock_trainer.fit.assert_called_once()
             mock_trainer.logger.finalize.assert_called_once()

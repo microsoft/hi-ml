@@ -2,17 +2,22 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
 import param
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import Callback, LightningDataModule, LightningModule
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 
+from health_azure.utils import create_from_matching_params
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
+from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
+from health_ml.utils.model_util import create_optimizer
 
 
 class LightningContainer(WorkflowParams,
@@ -65,6 +70,12 @@ class LightningContainer(WorkflowParams,
         Gets additional parameters that will be passed on to the PyTorch Lightning trainer.
         """
         return dict()
+
+    def get_callbacks(self) -> List[Callback]:
+        """
+        Gets additional callbacks that the trainer should use when training this model.
+        """
+        return []
 
     def get_parameter_search_hyperdrive_config(self, _: ScriptRunConfig) -> HyperDriveConfig:  # type: ignore
         """
@@ -133,6 +144,9 @@ class LightningContainer(WorkflowParams,
         Creates the Lightning model
         """
         self._model = self.create_model()
+        if isinstance(self._model, LightningModuleWithOptimizer):
+            self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
+            self._model._trainer_params = create_from_matching_params(self, TrainerParams)
 
     def get_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
@@ -169,3 +183,29 @@ class LightningContainer(WorkflowParams,
             if key not in skip_vars and key[0] != "_":
                 arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
+
+
+class LightningModuleWithOptimizer(LightningModule):
+    """
+    A base class that supplies a method to configure optimizers and LR schedulers. To use this in your model,
+    inherit from this class instead of from LightningModule.
+    If this class is used, all configuration options for the optimizers and LR schedulers will be also available as
+    commandline arguments (for example, you can supply the InnerEye runner with "--l_rate=1e-2" to change the learning
+    rate.
+    """
+    # These fields will be set by the LightningContainer when the model is created.
+    _optimizer_params = OptimizerParams()
+    _trainer_params = TrainerParams()
+
+    def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
+        """
+        This is the default implementation of the method that provides the optimizer and LR scheduler for
+        PyTorch Lightning. It reads out the optimizer and scheduler settings from the model fields,
+        and creates the two objects.
+        Override this method for full flexibility to define any optimizer and scheduler.
+        :return: A tuple of (optimizer, LR scheduler)
+        """
+        optimizer = create_optimizer(self._optimizer_params, self.parameters())
+        l_rate_scheduler = SchedulerWithWarmUp(self._optimizer_params, optimizer,
+                                               num_epochs=self._trainer_params.max_epochs)
+        return [optimizer], [l_rate_scheduler]

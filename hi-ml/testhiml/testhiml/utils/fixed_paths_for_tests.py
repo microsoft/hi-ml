@@ -21,17 +21,20 @@ def tests_root_directory(path: Optional[PathOrString] = None) -> Path:
     return root / path if path else root
 
 
-def full_ml_test_data_path(path: str = "") -> Path:
+def full_test_data_path(prefix: str = "", suffix: str = "") -> Path:
     """
-    Takes a relative path inside of the testhiml/ML/test_data folder, and returns its
-    full absolute path.
+    Takes a relative path inside the testhiml/test_data folder, and returns its absolute path.
 
-    :param path: A path relative to the ML/tests/test_data
-    :return: The full absolute path of the argument.
+    :param prefix: An optional prefix to the path "test_data" that comes after the root directory
+    :param suffix: An optional suffix to the path "test_data"
+    :return: The absolute path
     """
-    return _full_test_data_path("ML", path)
+    data_path = tests_root_directory()
+    if prefix:
+        data_path = data_path / prefix
 
+    data_path = data_path / "test_data"
+    if suffix:
+        data_path = data_path / suffix
 
-def _full_test_data_path(prefix: str, suffix: str) -> Path:
-    root = tests_root_directory()
-    return root / prefix / "test_data" / suffix
+    return data_path
