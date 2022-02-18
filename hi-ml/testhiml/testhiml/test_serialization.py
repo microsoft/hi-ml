@@ -28,7 +28,7 @@ def test_serialization_roundtrip() -> None:
     state_dict = torch.load(stream)
     model_info2 = ModelInfo()
     model_info2.load_state_dict(state_dict)
-    assert isinstance(model_info.model, torch.jit.ScriptModule)
-    assert model_info.model_example_input == model_info2.model_example_input
+    assert isinstance(model_info2.model, torch.jit.ScriptModule)
+    assert torch.allclose(model_info2.model_example_input, model_info.model_example_input, atol=0, rtol=0)
     serialized_output = model_info2.model.forward(model_info2.model_example_input)
     assert torch.allclose(serialized_output, model_output)
