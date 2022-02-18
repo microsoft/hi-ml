@@ -7,6 +7,7 @@ from io import BytesIO
 from typing import Any
 
 import torch
+from torchvision.transforms import Compose, Resize, CenterCrop
 
 from health_azure import object_to_yaml
 from health_ml.utils.serialization import ModelInfo
@@ -21,6 +22,14 @@ class MyTestModule(torch.nn.Module):
 class MyModelConfig:
     foo: str
     bar: float
+
+
+class MyTokenizer:
+    def __init__(self):
+        self.token = torch.tensor([3.14])
+
+    def tokenize(self, input: Any) -> torch.Tensor:
+        return self.token
 
 
 def torch_save_and_load(o: Any) -> Any:
@@ -41,24 +50,34 @@ def test_serialization_roundtrip() -> None:
     example_inputs = torch.randn((2, 3))
     model_output = model.forward(example_inputs)
     model_config = MyModelConfig(foo="foo", bar=3.14)
+    tokenizer = MyTokenizer()
+    image_preprocessing = Compose([Resize(size=20), CenterCrop(size=10)])
+    example_image = torch.randn((3, 30, 30))
+    image_output = image_preprocessing(example_image)
     info1 = ModelInfo(model=model,
                       model_example_input=example_inputs,
                       model_config=model_config,
+                      text_tokenizer=tokenizer,
                       git_repository="repo",
                       git_commit_hash="hash",
                       dataset_name="dataset",
                       azure_ml_workspace="workspace",
                       azure_ml_run_id="run_id",
-                      image_dimensions="dimensions"
+                      image_dimensions="dimensions",
+                      image_pre_processing=image_preprocessing,
                       )
 
-    state_dict = torch_save_and_load(model.state_dict())
+    state_dict = torch_save_and_load(info1.state_dict())
     info2 = ModelInfo()
     info2.load_state_dict(state_dict)
+    # Test if the deserialized model gives the same output as the original model
     assert isinstance(info2.model, torch.jit.ScriptModule)
     assert torch.allclose(info2.model_example_input, info1.model_example_input, atol=0, rtol=0)
     serialized_output = info2.model.forward(info2.model_example_input)
-    assert torch.allclose(serialized_output, model_output)
+    assert torch.allclose(serialized_output, model_output, atol=0, rtol=0)
+    # Tokenizer should be written as a byte stream
+    assert isinstance(state_dict[ModelInfo.TEXT_TOKENIZER], bytes)
+    assert isinstance(state_dict[ModelInfo.IMAGE_PRE_PROCESSING], bytes)
     assert info2.model_config == object_to_yaml(model_config)
     assert info2.git_repository == "repo"
     assert info2.git_commit_hash == "hash"
@@ -66,3 +85,6 @@ def test_serialization_roundtrip() -> None:
     assert info2.azure_ml_workspace == "workspace"
     assert info2.azure_ml_run_id == "run_id"
     assert info2.image_dimensions == "dimensions"
+    # Test if the deserialized preprocessing gives the same as the original object
+    image_output2 = info2.image_pre_processing(example_image)
+    assert torch.allclose(image_output, image_output2, atol=0, rtol=0)
