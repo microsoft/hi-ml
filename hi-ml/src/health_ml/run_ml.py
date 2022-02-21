@@ -186,4 +186,4 @@ class MLRunner:
             return results
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
-        return
+        return None
