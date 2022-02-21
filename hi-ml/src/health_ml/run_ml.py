@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import torch.multiprocessing
-from pytorch_lightning import seed_everything
+from pytorch_lightning import LightningModule, seed_everything
 
 from health_azure import AzureRunInfo
 from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
@@ -151,7 +151,7 @@ class MLRunner:
         with logging_section("Model inference"):
             self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
 
-    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> List[Dict[str, float]]:
+    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> Optional[List[Dict[str, float]]]:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
 
@@ -159,27 +159,31 @@ class MLRunner:
         """
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-        # lightning_model = self.container.model
 
-        # Run Lightning's built-in test procedure if the `test_step` method has been overridden
-        logging.info("Running inference via the LightningModule.test_step method")
-        # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
-        # now, restrict number of GPUs to 1, meaning that it will not start DDP.
-        self.container.max_num_gpus = 1
-        # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
-        # searching for Horovod
-        if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-            del os.environ[ENV_OMPI_COMM_WORLD_RANK]
-        # From the training setup, torch still thinks that it should run in a distributed manner,
-        # and would block on some GPU operations. Hence, clean up distributed training.
-        if torch.distributed.is_initialized():  # type: ignore
-            torch.distributed.destroy_process_group()  # type: ignore
+        lightning_model = self.container.model
+        if type(lightning_model).test_step != LightningModule.test_step:
+            # Run Lightning's built-in test procedure if the `test_step` method has been overridden
+            logging.info("Running inference via the LightningModule.test_step method")
+            # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
+            # now, restrict number of GPUs to 1, meaning that it will not start DDP.
+            self.container.max_num_gpus = 1
+            # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
+            # searching for Horovod
+            if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+                del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+            # From the training setup, torch still thinks that it should run in a distributed manner,
+            # and would block on some GPU operations. Hence, clean up distributed training.
+            if torch.distributed.is_initialized():  # type: ignore
+                torch.distributed.destroy_process_group()  # type: ignore
 
-        trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
-        self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
-        # Change the current working directory to ensure that test files go to thr right folder
-        data_module = self.container.get_data_module()
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
+            # Change the current working directory to ensure that test files go to thr right folder
+            data_module = self.container.get_data_module()
 
-        results = trainer.test(self.container.model, datamodule=data_module)
-        return results
+            results = trainer.test(self.container.model, datamodule=data_module)
+            return results
+        else:
+            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
+        return
