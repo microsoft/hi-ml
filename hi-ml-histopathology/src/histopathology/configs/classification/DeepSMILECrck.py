@@ -44,7 +44,7 @@ from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatase
 
 class DeepSMILECrck(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
-        # Define dictionary with default params that can be overriden from subclasses or CLI
+        # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=AttentionLayer.__name__,
@@ -164,7 +164,7 @@ class TcgaCrckImageNetSimCLRMIL(DeepSMILECrck):
         super().__init__(encoder_type=ImageNetSimCLREncoder.__name__, **kwargs)
 
 
-class TcgaCrckInnerEyeSSLMIL(DeepSMILECrck):
+class TcgaCrckSSLMIL(DeepSMILECrck):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 

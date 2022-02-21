@@ -228,11 +228,11 @@ def test_split_recovery_id_fails() -> None:
     with pytest.raises(ValueError) as e:
         id = util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
         util.split_recovery_id(id)
-    assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
+        assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
     with pytest.raises(ValueError) as e:
         id = "foo_bar"
         util.split_recovery_id(id)
-    assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
+        assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
 
 
 @pytest.mark.parametrize(["id", "expected1", "expected2"],
