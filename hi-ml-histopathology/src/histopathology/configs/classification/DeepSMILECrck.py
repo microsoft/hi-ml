@@ -52,14 +52,14 @@ class DeepSMILECrck(BaseMIL):
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             # declared in DatasetParams:
-            local_dataset=Path("/tmp/datasets/TCGA-CRCk"),
-            azure_dataset_id="TCGA-CRCk",
+            local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
+            azure_dataseazure_datasets=["TCGA-CRCk"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=50,
+            max_epochs=50,
             # declared in WorkflowParams:
-            number_of_cross_validation_splits=5,
-            cross_validation_split_index=0,
+            # number_of_cross_validation_splits=5,
+            # cross_validation_split_index=0,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -93,13 +93,13 @@ class DeepSMILECrck(BaseMIL):
         if self.encoder_type == SSLEncoder.__name__:
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
             self.downloader = CheckpointDownloader(
-                azure_config_json_path=get_workspace(),
+                aml_workspace=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
                 checkpoint_filename="best_checkpoint.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_parent_directory())
+            os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
 
         self.encoder = self.get_encoder()
@@ -115,7 +115,7 @@ class DeepSMILECrck(BaseMIL):
             ]
         )
         return TcgaCrckTilesDataModule(
-            root_path=self.local_dataset,
+            root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             transform=transform,
@@ -141,7 +141,7 @@ class DeepSMILECrck(BaseMIL):
         if absolute_checkpoint_path.is_file():
             return absolute_checkpoint_path
 
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_parent_directory(),
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
                                                self.checkpoint_folder_path,
                                                self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():

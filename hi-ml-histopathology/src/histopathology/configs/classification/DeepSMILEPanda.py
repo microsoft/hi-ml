@@ -52,13 +52,11 @@ class DeepSMILEPanda(BaseMIL):
             is_finetune=False,
 
             # declared in DatasetParams:
-            local_dataset=Path("/tmp/datasets/PANDA_tiles"),
-            azure_dataset_id="PANDA_tiles",
-            extra_azure_dataset_ids=["PANDA"],
-            extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
+            local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
+            azure_dataseazure_datasets=["PANDA_tiles", "PANDA"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=200,
+            max_epochs=200,
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
@@ -104,7 +102,7 @@ class DeepSMILEPanda(BaseMIL):
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_parent_directory())
+            os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
         if not self.is_finetune:
@@ -121,15 +119,15 @@ class DeepSMILEPanda(BaseMIL):
                                 ])
 
         return PandaTilesDataModule(
-            root_path=self.local_dataset,
+            root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             transform=transform,
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-            cross_validation_split_index=self.cross_validation_split_index,
+            # number_of_cross_validation_splits=self.number_of_cross_validation_splits,
+            # cross_validation_split_index=self.cross_validation_split_index,
         )
 
     def create_model(self) -> DeepMILModule:
@@ -177,7 +175,7 @@ class DeepSMILEPanda(BaseMIL):
         if absolute_checkpoint_path.is_file():
             return absolute_checkpoint_path
 
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_parent_directory(),
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
                                                self.checkpoint_folder_path,
                                                self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
