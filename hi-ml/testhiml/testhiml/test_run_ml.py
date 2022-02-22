@@ -77,7 +77,7 @@ def test_run(ml_runner: MLRunner) -> None:
     """Test that model runner gets called """
     ml_runner.setup()
     assert not ml_runner.checkpoint_handler.has_continued_training
-    with patch.object(ml_runner, "run_inference_for_lightning_models"):
+    with patch.object(ml_runner, "run_inference"):
         with patch.object(ml_runner, "checkpoint_handler"):
             with patch("health_ml.run_ml.model_train", new=_mock_model_train):
                 ml_runner.run()
@@ -88,9 +88,9 @@ def test_run(ml_runner: MLRunner) -> None:
                 assert ml_runner.checkpoint_handler.has_continued_training
 
 
-def test_run_inference_for_lightning_models(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
+def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
     """
-    Test that run_inference_for_lightning_models gets called as expected.
+    Test that run_inference gets called as expected.
     """
     def _expected_files_exist() -> int:
         output_dir = ml_runner_with_container.container.outputs_folder
