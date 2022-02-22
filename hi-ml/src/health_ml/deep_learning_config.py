@@ -104,6 +104,7 @@ class ExperimentFolderHandler(Parameterized):
             else:
                 logging.info("All results will be written to a subfolder of the project root folder.")
                 root = project_root.absolute() / DEFAULT_AML_UPLOAD_DIR
+
             timestamp = create_unique_timestamp_id()
             run_folder = root / f"{timestamp}_{model_name}"
             outputs_folder = run_folder
@@ -114,6 +115,7 @@ class ExperimentFolderHandler(Parameterized):
             run_folder = project_root
             outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")
         return ExperimentFolderHandler(

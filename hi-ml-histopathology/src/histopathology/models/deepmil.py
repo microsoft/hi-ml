@@ -312,7 +312,8 @@ class DeepMILModule(LightningModule):
             list_slide_dicts.append(slide_dict)
             list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
 
-        outputs_path = fixed_paths.repository_parent_directory() / 'outputs'
+        outputs_path = fixed_paths.repository_root_directory() / 'outputs'
+        assert outputs_path.is_dir, f"No such dir: {outputs_path}"
         print(f"Metrics results will be output to {outputs_path}")
         outputs_fig_path = outputs_path / 'fig'
         csv_filename = outputs_path / 'test_output.csv'
@@ -324,7 +325,7 @@ class DeepMILModule(LightningModule):
             slide_dict = self.normalize_dict_for_df(slide_dict, use_gpu=False)
             df_list.append(pd.DataFrame.from_dict(slide_dict))
         df = pd.concat(df_list, ignore_index=True)
-        df.to_csv(csv_filename, mode='w', header=True)
+        df.to_csv(csv_filename, mode='w+', header=True)
 
         # Collect all features in a list and save
         features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)

@@ -6,6 +6,7 @@ import logging
 import os
 import tempfile
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -19,7 +20,8 @@ from health_azure.utils import RUN_CONTEXT, download_files_from_run_id, get_run_
     is_running_in_azure_ml
 from health_ml.deep_learning_config import OutputParams
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR, \
+    check_properties_are_not_none
 
 CHECKPOINT_SUFFIX = ".ckpt"
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
@@ -31,16 +33,42 @@ MODEL_INFERENCE_JSON_FILE_NAME = "model_inference_config.json"
 MODEL_WEIGHTS_DIR_NAME = "trained_models"
 
 
+@dataclass(frozen=True)
+class RunRecovery:
+    """
+    Class to encapsulate information relating to run recovery (eg: check point paths for parent and child runs)
+    """
+    checkpoints_roots: List[Path]
+
+    def get_recovery_checkpoint_paths(self) -> List[Path]:
+        return [get_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
+
+    def get_best_checkpoint_paths(self) -> List[Path]:
+        return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]
+
+    def _validate(self) -> None:
+        check_properties_are_not_none(self)
+        if len(self.checkpoints_roots) == 0:
+            raise ValueError("checkpoints_roots must not be empty")
+
+    def __post_init__(self) -> None:
+        self._validate()
+        logging.info(f"Storing {len(self.checkpoints_roots)}checkpoints roots:")
+        for p in self.checkpoints_roots:
+            logging.info(str(p))
+
+
 class CheckpointHandler:
     """
-    This class handles which checkpoints are used to initialize the model during train or test time based on the
-    azure config and model config.
+    This class handles which checkpoints are used to initialize the model during train or test time
     """
 
-    def __init__(self, container: LightningContainer,
-                 project_root: Path, run_context: Optional[Run] = None):
+    def __init__(self,
+                 container: LightningContainer,
+                 project_root: Path,
+                 run_context: Optional[Run] = None):
         self.container = container
-        # self.run_recovery: Optional[RunRecovery] = None
+        self.run_recovery: Optional[RunRecovery] = None
         self.project_root = project_root
         self.run_context = run_context
         self.trained_weights_paths: List[Path] = []
@@ -58,6 +86,7 @@ class CheckpointHandler:
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
         run_recovery_object, weights_url or local_weights_path.
         This is called at the start of training.
+
         :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
         downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
         nodes. If False, return the RunRecovery object and download the checkpoint to disk.
@@ -77,6 +106,7 @@ class CheckpointHandler:
         checkpoint folder. If run_recovery is provided, the checkpoints will have been downloaded to this folder
         prior to calling this function. Else, if the run gets pre-empted and automatically restarted in AML,
         the latest checkpoint will be present in this folder too.
+
         :return: Constructed checkpoint path to recover from.
         """
         if is_global_rank_zero():
@@ -85,6 +115,66 @@ class CheckpointHandler:
             for f in checkpoints:
                 logging.info(f)
         return find_recovery_checkpoint_on_disk_or_cloud(self.container.checkpoint_folder)
+
+    def get_best_checkpoints(self) -> List[Path]:
+        """
+        Get a list of checkpoints per epoch for testing/registration from the current training run.
+        This function also checks that the checkpoint at the returned checkpoint path exists.
+        """
+        if not self.run_recovery and not self.has_continued_training:
+            raise ValueError("Cannot recover checkpoint, no run recovery object provided and "
+                             "no training has been done in this run.")
+
+        checkpoint_paths = []
+        if self.run_recovery:
+            checkpoint_paths = self.run_recovery.get_best_checkpoint_paths()
+
+            checkpoint_exists = []
+            # Discard any checkpoint paths that do not exist - they will make inference/registration fail.
+            # This can happen when some child runs in a hyperdrive run fail; it may still be worth running inference
+            # or registering the model.
+            for path in checkpoint_paths:
+                if path.is_file():
+                    checkpoint_exists.append(path)
+                else:
+                    logging.warning(f"Could not recover checkpoint path {path}")
+            checkpoint_paths = checkpoint_exists
+
+        if self.has_continued_training:
+            # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
+            # training, so we look for it there.
+            # checkpoint_from_current_run = self.output_params.get_path_to_best_checkpoint()
+            checkpoint_from_current_run = get_recovery_checkpoint_path(Path(self.container.checkpoint_folder))
+            if checkpoint_from_current_run.is_file():
+                logging.info("Using checkpoints from current run.")
+                checkpoint_paths = [checkpoint_from_current_run]
+            else:
+                logging.info("Training has continued, but not yet written a checkpoint. Using recovery checkpoints.")
+        else:
+            logging.info("Using checkpoints from run recovery")
+
+        return checkpoint_paths
+
+    def get_checkpoints_to_test(self) -> List[Path]:
+        """
+        Find the checkpoints to test. If a run recovery is provided, or if the model has been training, look for
+        checkpoints corresponding to the epochs in get_test_epochs(). If there is no run recovery and the model was
+        not trained in this run, then return the checkpoint from the local_weights_path.
+        """
+
+        checkpoints = []
+
+        # If model was trained, look for the best checkpoint
+        if self.run_recovery or self.has_continued_training:
+            checkpoints = self.get_best_checkpoints()
+        elif self.trained_weights_paths:
+            # Model was not trained, check if there is a local weight path.
+            logging.info(f"Using model weights from {self.trained_weights_paths} to initialize model")
+            checkpoints = self.trained_weights_paths
+        else:
+            logging.warning("Could not find any local_weights_path, model_weights or model_id to get checkpoints from")
+
+        return checkpoints
 
     @staticmethod
     def download_weights(urls: List[str], download_folder: Path) -> List[Path]:
@@ -195,6 +285,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     Looks at all the checkpoint files and returns the path to the one that should be used for recovery.
     If no checkpoint files are found on disk, the function attempts to download from the current AzureML
     run.
+
     :param path: The folder to start searching in.
     :return: None if there is no suitable recovery checkpoints, or else a full path to the checkpoint file.
     """
@@ -209,6 +300,19 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
         temp_folder = download_folder_from_run_to_temp_folder(
             folder=f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
         recovery_checkpoint = find_recovery_checkpoint(temp_folder)
+    return recovery_checkpoint
+
+
+def get_recovery_checkpoint_path(path: Path) -> Path:
+    """
+    Returns the path to the last recovery checkpoint in the given folder or the provided filename. Raises a
+    FileNotFoundError if no recovery checkpoint file is present.
+    :param path: Path to checkpoint folder
+    """
+    recovery_checkpoint = find_recovery_checkpoint(path)
+    if recovery_checkpoint is None:
+        files = [f.name for f in path.glob("*")]
+        raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(files)}")
     return recovery_checkpoint
 
 

@@ -142,7 +142,8 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         batch = batch[SSLDataModuleType.LINEAR_HEAD] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
         with torch.no_grad():
-            representations = pl_module(x).flatten(start_dim=1)
+            representations = self.get_representations(pl_module, x)
+        representations = representations.detach()
 
         # Run the linear-head with SSL embeddings.
         mlp_preds = self.evaluator(representations)

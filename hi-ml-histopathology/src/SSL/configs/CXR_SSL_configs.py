@@ -44,7 +44,7 @@ class NIH_RSNA_SimCLR(SSLContainer):
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                          linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                          # the first Azure dataset is for training, the second is for the linear head
-                         azure_dataset_id=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
+                         azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
                          random_seed=1,
                          max_epochs=1000,
                          # We usually train this model with 16 GPUs, giving an effective batch size of 1200

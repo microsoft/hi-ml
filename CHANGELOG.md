@@ -18,6 +18,7 @@ the environment file since it is necessary for the augmentations.
 - ([#178](https://github.com/microsoft/hi-ml/pull/178)) Add runner script for running ML experiments.
 - ([#181](https://github.com/microsoft/hi-ml/pull/181)) Add computational pathology tools in hi-ml-histopathology folder.
 - ([#187](https://github.com/microsoft/hi-ml/pull/187)) Add mean pooling layer for MIL.
+- ([#186](https://github.com/microsoft/hi-ml/pull/186)) Add inference to hi-ml runner.
 
 ### Changed
 
