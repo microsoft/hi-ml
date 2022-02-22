@@ -49,4 +49,10 @@
     "[python]": {
         "editor.rulers": [120],
     },
+    "python.analysis.extraPaths": [
+        "./hi-ml-azure/src",
+        "./hi-ml-azure/testazure",
+        "./hi-ml/src",
+        "./hi-ml/testhiml",
+    ],
 }
