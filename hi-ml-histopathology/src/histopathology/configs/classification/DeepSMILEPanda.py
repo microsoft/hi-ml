@@ -53,7 +53,7 @@ class DeepSMILEPanda(BaseMIL):
 
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
-            azure_dataseazure_datasets=["PANDA_tiles", "PANDA"],
+            azure_datasets=["PANDA_tiles", "PANDA"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=200,
@@ -68,7 +68,6 @@ class DeepSMILEPanda(BaseMIL):
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99))
         default_kwargs.update(kwargs)
-        super().__init__(**default_kwargs)
         super().__init__(**default_kwargs)
         if not is_running_in_azure_ml():
             self.num_epochs = 1
@@ -130,6 +129,7 @@ class DeepSMILEPanda(BaseMIL):
             # cross_validation_split_index=self.cross_validation_split_index,
         )
 
+    # TODO: move self.class_names somewhere else since this is almost an exact copy of create_model in BaseMIL
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
@@ -166,7 +166,8 @@ class DeepSMILEPanda(BaseMIL):
     def get_path_to_best_checkpoint(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there.
+        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
+        folder.
         """
         # absolute path is required for registering the model.
         absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),

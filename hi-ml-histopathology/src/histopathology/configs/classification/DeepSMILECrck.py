@@ -53,7 +53,7 @@ class DeepSMILECrck(BaseMIL):
             precache_location=CacheLocation.CPU,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
-            azure_dataseazure_datasets=["TCGA-CRCk"],
+            azure_datasets=["TCGA-CRCk"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=50,
@@ -132,7 +132,8 @@ class DeepSMILECrck(BaseMIL):
     def get_path_to_best_checkpoint(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there.
+        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
+        folder.
         """
         # absolute path is required for registering the model.
         absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
