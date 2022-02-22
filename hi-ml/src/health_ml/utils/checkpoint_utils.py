@@ -60,8 +60,7 @@ class RunRecovery:
 
 class CheckpointHandler:
     """
-    This class handles which checkpoints are used to initialize the model during train or test time based on the
-    azure config and model config.
+    This class handles which checkpoints are used to initialize the model during train or test time
     """
 
     def __init__(self,
@@ -87,6 +86,7 @@ class CheckpointHandler:
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
         run_recovery_object, weights_url or local_weights_path.
         This is called at the start of training.
+
         :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
         downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
         nodes. If False, return the RunRecovery object and download the checkpoint to disk.
@@ -106,6 +106,7 @@ class CheckpointHandler:
         checkpoint folder. If run_recovery is provided, the checkpoints will have been downloaded to this folder
         prior to calling this function. Else, if the run gets pre-empted and automatically restarted in AML,
         the latest checkpoint will be present in this folder too.
+
         :return: Constructed checkpoint path to recover from.
         """
         if is_global_rank_zero():
@@ -284,6 +285,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     Looks at all the checkpoint files and returns the path to the one that should be used for recovery.
     If no checkpoint files are found on disk, the function attempts to download from the current AzureML
     run.
+
     :param path: The folder to start searching in.
     :return: None if there is no suitable recovery checkpoints, or else a full path to the checkpoint file.
     """

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from typing import Generator, Tuple
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from health_ml.configs.hello_container import HelloContainer
 from health_ml.experiment_config import ExperimentConfig
@@ -90,9 +90,13 @@ def test_run(ml_runner: MLRunner) -> None:
 
 def test_run_inference_for_lightning_models(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
     """
-    Test that run_inference_for_lightning_models gets called as expected. If no checkpoint paths are
-    provided, should raise an error. Otherwise, expect the trainer object's test method to be called
+    Test that run_inference_for_lightning_models gets called as expected.
     """
+    def _expected_files_exist() -> int:
+        output_dir = ml_runner_with_container.container.outputs_folder
+        expected_files = [Path("test_mse.txt"), Path("test_mae.txt")]
+        return sum([p.exists() for p in expected_files] + [output_dir.is_dir()])
+
     # create the test data
     import numpy as np
     import torch
@@ -104,21 +108,30 @@ def test_run_inference_for_lightning_models(ml_runner_with_container: MLRunner, 
     data_path = tmp_path / "hellocontainer.csv"
     np.savetxt(data_path, xy.numpy(), delimiter=",")
 
+    expected_ckpt_path = ml_runner_with_container.container.outputs_folder / "checkpoints" / "last.ckpt"
+    assert not expected_ckpt_path.exists()
     # update the container to look for test data at this location
     ml_runner_with_container.container.local_dataset_dir = tmp_path
+    assert _expected_files_exist() == 0
 
-    with patch.object(ml_runner_with_container, "checkpoint_handler") as mock_checkpoint_handler:
-        with patch("health_ml.run_ml.model_train", new=_mock_model_train):
-            with pytest.raises(ValueError) as e:
-                ml_runner_with_container.run()
-                assert "expects exactly 1 checkpoint for inference, but got 0" in str(e)
+    actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+    assert actual_train_ckpt_path is None
+    ml_runner_with_container.run()
+    actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+    assert actual_train_ckpt_path == expected_ckpt_path
 
-        with patch.object(ml_runner_with_container.container, "load_model_checkpoint"):
-            with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_train_trainer:
-                with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_inference_trainer:
-                    mock_trainer = MagicMock()
-                    mock_create_train_trainer.return_value = mock_trainer, ""
-                    mock_create_inference_trainer.return_value = mock_trainer, ""
-                    mock_checkpoint_handler.get_checkpoints_to_test.return_value = ['dummypath']
-                    ml_runner_with_container.run()
-                    mock_trainer.test.assert_called_once()
+    actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoints_to_test()
+    assert actual_test_ckpt_path == [expected_ckpt_path]
+    assert actual_test_ckpt_path[0].exists()
+    # After training, the outputs directory should now exist
+    assert _expected_files_exist() == 3
+
+    # if no checkpoint handler, no checkpoint paths will be saved and these are required for
+    # inference so ValueError will be raised
+    with pytest.raises(ValueError) as e:
+        ml_runner_with_container.checkpoint_handler = None  # type: ignore
+        ml_runner_with_container.run()
+        assert "expects exactly 1 checkpoint for inference, but got 0" in str(e)
+
+    Path("test_mae.txt").unlink()
+    Path("test_mse.txt").unlink()

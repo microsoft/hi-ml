@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import torch.multiprocessing
 from pytorch_lightning import LightningModule, seed_everything
@@ -144,16 +144,18 @@ class MLRunner:
 
         # Since we have trained the model, let the checkpoint_handler object know so it can handle
         # checkpoints correctly.
-        self.checkpoint_handler.additional_training_done()
+        if self.checkpoint_handler is not None:
+            self.checkpoint_handler.additional_training_done()
+            checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
+        else:
+            checkpoint_paths_for_testing = []
 
-        # Inference for all models that are specified via LightningContainers.
-        checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
         with logging_section("Model inference"):
-            self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
+            self.run_inference(checkpoint_paths_for_testing)
 
-    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> Optional[List[Dict[str, float]]]:
+    def run_inference(self, checkpoint_paths: List[Path]) -> None:
         """
-        Run inference on the test set for all models that are specified via a LightningContainer.
+        Run inference on the test set for all models.
 
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
@@ -182,8 +184,7 @@ class MLRunner:
             # Change the current working directory to ensure that test files go to thr right folder
             data_module = self.container.get_data_module()
 
-            results = trainer.test(self.container.model, datamodule=data_module)
-            return results
+            _ = trainer.test(self.container.model, datamodule=data_module)
+
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
-        return None
