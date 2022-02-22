@@ -23,7 +23,7 @@ class TcgaPrad_TilesDataset(TilesDataset):
     - `'slide_id'` (str): parent slide ID
     - `'tile_id'` (str): tile ID
     - `'image'` (`PIL.Image`): RGB tile
-    - `'label'` (str): BRCA 1/2 negative (0) vs BRCA 1/2 positive (1)
+    - `'label'` (str): negative (0) vs positive (1)
     - `'tile_x'`, `'tile_y'` (int): top-right tile coordinates
     - `'occupancy'`, `'slide_case_id'`, `'slide_project'`,
        `'slide_primary_site'`, `'slide_gender'`, `'slide_age_at_diagnosis'`,

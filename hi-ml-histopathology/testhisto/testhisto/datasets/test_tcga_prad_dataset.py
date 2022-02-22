@@ -40,12 +40,11 @@ def test_dataset() -> None:
 @pytest.mark.skipif(not os.path.isdir(TCGA_PRAD_TILES_DATASET_DIR), reason="TCGA-PRAD tiles dataset is unavailable")
 def test_tiles_dataset() -> None:
     dataset = TcgaPrad_TilesDataset(TCGA_PRAD_TILES_DATASET_DIR)
-
-    expected_length = 1993410
+    expected_length = 1993409
     assert len(dataset) == expected_length
 
-    sample_dataset = Dataset(dataset[0:2], transform=LoadTiled("image"))  # type: ignore
-    sample = sample_dataset[0]
+    image_dataset = Dataset(dataset, transform=LoadTiled('image'))  # type: ignore
+    sample = image_dataset[0]
     expected_keys = [
         dataset.SLIDE_ID_COLUMN,
         dataset.IMAGE_COLUMN,
@@ -54,15 +53,15 @@ def test_tiles_dataset() -> None:
         dataset.TILE_Y_COLUMN,
     ]
     assert all(key in sample for key in expected_keys)
-    assert isinstance(sample["image"], torch.Tensor)
-    assert sample["image"].shape == (3, 224, 224)
+    assert isinstance(sample['image'], torch.Tensor)
+    assert sample['image'].shape == (3, 224, 224)
 
     batch_size = 16
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)  # type: ignore
+    loader = DataLoader(image_dataset, batch_size=batch_size, shuffle=True)  # type: ignore
     batch = next(iter(loader))
     assert all(key in batch for key in expected_keys)
-    assert isinstance(batch["image"], torch.Tensor)
-    assert batch["image"].shape == (batch_size, 3, 224, 224)
-    assert batch["image"].dtype == torch.float32
-    assert batch["label"].shape == (batch_size,)
-    assert batch["label"].dtype == torch.int64
+    assert isinstance(batch['image'], torch.Tensor)
+    assert batch['image'].shape == (batch_size, 3, 224, 224)
+    assert batch['image'].dtype == torch.float32
+    assert batch['label'].shape == (batch_size,)
+    assert batch['label'].dtype == torch.int64

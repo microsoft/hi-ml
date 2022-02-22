@@ -71,7 +71,7 @@ class TilesDataset(Dataset):
             self.dataset_csv = None
         else:
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
-            dataset_df = pd.read_csv(self.dataset_csv)
+            dataset_df = pd.read_csv(self.dataset_csv, index_col=False)
 
         columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.LABEL_COLUMN,
                    self.SPLIT_COLUMN, self.TILE_X_COLUMN, self.TILE_Y_COLUMN]
