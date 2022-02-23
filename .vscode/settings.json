@@ -55,4 +55,10 @@
         "./hi-ml/src",
         "./hi-ml/testhiml",
     ],
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src"
+    },
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src"
+    }
 }
