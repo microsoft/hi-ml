@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 from health_ml.lightning_container import LightningContainer
 
 
-class HelloDataset(Dataset):
+class HelloWorldDataset(Dataset):
     """
     A simple 1dim regression task, read from a data file stored in the test data folder.
     """
@@ -49,7 +49,7 @@ class HelloDataset(Dataset):
     def from_path_and_indexes(
             root_folder: Path,
             start_index: int,
-            end_index: int) -> 'HelloDataset':
+            end_index: int) -> 'HelloWorldDataset':
         """
         Static method to instantiate a HelloDataset from the root folder with the start and end indexes.
 
@@ -59,10 +59,10 @@ class HelloDataset(Dataset):
         :return: A new instance based on the root folder and the start and end indexes.
         """
         raw_data = np.loadtxt(root_folder / "hellocontainer.csv", delimiter=",")[start_index:end_index]
-        return HelloDataset(raw_data)
+        return HelloWorldDataset(raw_data)
 
 
-class HelloDataModule(LightningDataModule):
+class HelloWorldDataModule(LightningDataModule):
     """
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
     """
@@ -70,9 +70,9 @@ class HelloDataModule(LightningDataModule):
             self,
             root_folder: Path) -> None:
         super().__init__()
-        self.train = HelloDataset.from_path_and_indexes(root_folder, start_index=0, end_index=50)
-        self.val = HelloDataset.from_path_and_indexes(root_folder, start_index=50, end_index=70)
-        self.test = HelloDataset.from_path_and_indexes(root_folder, start_index=70, end_index=100)
+        self.train = HelloWorldDataset.from_path_and_indexes(root_folder, start_index=0, end_index=50)
+        self.val = HelloWorldDataset.from_path_and_indexes(root_folder, start_index=50, end_index=70)
+        self.test = HelloWorldDataset.from_path_and_indexes(root_folder, start_index=70, end_index=100)
 
     def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -208,7 +208,7 @@ class HelloRegression(LightningModule):
         Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
 
 
-class HelloContainer(LightningContainer):
+class HelloWorld(LightningContainer):
     """
     An example container for using the hi-ml runner. This container has methods
     to generate the actual Lightning model, and read out the datamodule that will be used for training.
@@ -231,5 +231,5 @@ class HelloContainer(LightningContainer):
     # in turn contains 3 data loaders for training, validation, and test set.
     def get_data_module(self) -> LightningDataModule:
         assert self.local_dataset_dir is not None
-        return HelloDataModule(
+        return HelloWorldDataModule(
             root_folder=self.local_dataset_dir)  # type: ignore
