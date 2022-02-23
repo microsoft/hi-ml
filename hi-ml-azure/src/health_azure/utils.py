@@ -293,7 +293,7 @@ def _create_default_namespace(parser: ArgumentParser) -> Namespace:
 
 def parse_arguments(parser: ArgumentParser,
                     fail_on_unknown_args: bool = False,
-                    args: List[str] = None) -> ParserResult:
+                    args: Optional[List[str]] = None) -> ParserResult:
     """
     Parses a list of commandline arguments with a given parser. Returns results broken down into a full
     arguments dictionary, a dictionary of arguments that were set to non-default values, and unknown
@@ -565,7 +565,7 @@ class RunIdOrListParam(CustomTypeParam):
 
 
 class CheckpointDownloader:
-    def __init__(self, run_id: str, checkpoint_filename: str, azure_config_json_path: Path = None,
+    def __init__(self, run_id: str, checkpoint_filename: str, azure_config_json_path: Optional[Path] = None,
                  aml_workspace: Workspace = None, download_dir: PathOrString = "checkpoints",
                  remote_checkpoint_dir: PathOrString = "checkpoints") -> None:
         """
@@ -904,7 +904,7 @@ def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -
     return unique_deps_list
 
 
-def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: List[Path] = None,
+def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Optional[List[Path]] = None,
                       pip_clash_keep_method: str = "first") -> None:
     """
     Merges the given Conda environment files using the conda_merge package, optionally adds any
