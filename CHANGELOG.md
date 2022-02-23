@@ -21,7 +21,6 @@ the environment file since it is necessary for the augmentations.
 - ([#186](https://github.com/microsoft/hi-ml/pull/186)) Add inference to hi-ml runner.
 
 ### Changed
-- ([#184](https://github.com/microsoft/hi-ml/pull/184)) Upgrade to Pillow 9.0.0 due to security alerts
 
 ### Fixed
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
