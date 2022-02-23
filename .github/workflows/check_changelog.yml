@@ -9,7 +9,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog needed') == 0 && github.actor != 'dependabot[bot]' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog needed') == 0 && github.event.pull_request.user.login != 'dependabot[bot]' }}
     steps:
       - name: Get PR number
         run: |
