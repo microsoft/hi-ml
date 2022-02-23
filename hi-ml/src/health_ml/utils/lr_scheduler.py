@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
@@ -140,7 +140,7 @@ class SchedulerWithWarmUp(_LRScheduler):
         self._scheduler.load_state_dict(state_dict["_scheduler"])
         self._warmup.load_state_dict(state_dict["_warmup"])
 
-    def step(self, epoch: int = None) -> None:
+    def step(self, epoch: Optional[int] = None) -> None:
         # self.step() is called in the _LRScheduler.__init__, as the very last operation, when self.last_epoch == -1
         # Inside of the default implementation of self.step, it calls
         # self.last_epoch += 1
