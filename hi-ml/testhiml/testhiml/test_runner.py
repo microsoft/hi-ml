@@ -11,7 +11,7 @@ import pytest
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
-from health_ml.configs.hello_container import HelloContainer
+from health_ml.configs.hello_container import HelloWorld
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
@@ -123,7 +123,7 @@ def test_crossvalidation_flag() -> None:
     Checks the basic use of the flags that trigger cross validation
     :return:
     """
-    container = HelloContainer()
+    container = HelloWorld()
     assert not container.is_crossvalidation_enabled
     container.crossval_count = 2
     assert container.is_crossvalidation_enabled
@@ -139,7 +139,7 @@ def test_crossval_config() -> None:
     Check if the flags to trigger Hyperdrive runs work as expected.
     """
     mock_tuning_config = "foo"
-    container = HelloContainer()
+    container = HelloWorld()
     with patch("health_ml.configs.hello_container.HelloContainer.get_parameter_tuning_config",
                return_value=mock_tuning_config):
         # Without any flags set, no Hyperdrive config should be returned
@@ -159,7 +159,7 @@ def test_crossval_argument_names() -> None:
     """
     Cross validation uses hardcoded argument names, check if they match the field names
     """
-    container = HelloContainer()
+    container = HelloWorld()
     crossval_count = 8
     crossval_index = 5
     container.crossval_count = crossval_count

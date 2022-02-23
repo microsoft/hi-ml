@@ -5,7 +5,7 @@ import pytest
 from typing import Generator, Tuple
 from unittest.mock import patch
 
-from health_ml.configs.hello_container import HelloContainer
+from health_ml.configs.hello_container import HelloWorld
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
@@ -34,7 +34,7 @@ def ml_runner() -> Generator:
 @pytest.fixture(scope="module")
 def ml_runner_with_container() -> Generator:
     experiment_config = ExperimentConfig(model="HelloContainer")
-    container = HelloContainer()
+    container = HelloWorld()
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner

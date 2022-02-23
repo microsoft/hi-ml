@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch, Mock
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
 
-from health_ml.configs.hello_container import HelloContainer  # type: ignore
+from health_ml.configs.hello_container import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
@@ -88,7 +88,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
 
 
 def test_model_train() -> None:
-    container = HelloContainer()
+    container = HelloWorld()
     container.create_lightning_module_and_store()
 
     with patch.object(container, "get_data_module"):
