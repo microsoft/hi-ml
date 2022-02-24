@@ -3,13 +3,19 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
+import sys
 import uuid
 from pathlib import Path
 from typing import Generator
 
 import pytest
 
-from health_azure.himl import _package_setup
+full_folder = str(Path(__file__).parent.parent / "src")
+if full_folder not in sys.path:
+    print(f"Adding to sys.path for running hi-ml-azure: {full_folder}")
+    sys.path.insert(0, str(full_folder))
+
+from health_azure.himl import _package_setup  # noqa: E402
 
 
 def outputs_for_tests() -> Path:

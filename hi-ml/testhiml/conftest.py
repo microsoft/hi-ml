@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 
-root = Path(__file__).parent.parent
+root = Path(__file__).parent.parent.parent
 for folder in ["hi-ml-azure", "hi-ml"]:
     full_folder = str(root / folder / "src")
     if full_folder not in sys.path:
