@@ -6,13 +6,11 @@ This toolbox aims at providing low-level and high-level building blocks for Mach
 practitioners. It helps to simplify and streamline work on deep learning models for healthcare and life sciences,
 by providing tested components (data loaders, pre-processing), deep learning models, and cloud integration tools.
 
-This toolbox is still in very early stages, and presently offers only the cloud integration components. ML components
-will be added in the next few weeks.
+This repository consists of two Python packages, as well as project-specific codebases:
 
-This toolbox consists of two Python projects:
-
-* [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
-* [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
+* PyPi package [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
+* PyPi package [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
+* hi-ml-histopathology: Models and workflows for working with histopathology images
 
 ## Getting started
 
@@ -23,6 +21,8 @@ For the full toolbox (this will also install `hi-ml-azure`):
 For just the AzureML helper functions:
 
 * Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
+
+For the histopathology workflows, please follow the instructions [here](hi-ml-histopathology/README.md).
 
 ## Documentation
 
