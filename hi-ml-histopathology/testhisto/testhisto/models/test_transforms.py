@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from _typeshed import NoneType
 import os
 from pathlib import Path
 from typing import Callable, Sequence, Union
@@ -14,13 +15,15 @@ from monai.transforms import Compose
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import Subset
 from torchvision.models import resnet18
+from torchvision.transforms import RandomHorizontalFlip
 
 from health_ml.utils.bag_utils import BagDataset
+from health_ml.utils.data_augmentations import HEDJitter
 
 from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from histopathology.models.encoders import ImageNetEncoder
-from histopathology.models.transforms import EncodeTilesBatchd, LoadTiled, LoadTilesBatchd
+from histopathology.models.transforms import EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, transform_dict_adaptor
 
 import testhisto
 
@@ -163,3 +166,22 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
                                         bagged_subset,
                                         transform=transform,
                                         cache_subdir="TCGA-CRCk_embed_cache")
+
+
+def test_transform_dict_adaptor() -> None:
+    key = "key"
+    transf1 = transform_dict_adaptor(RandomHorizontalFlip(p=0), key, key)
+    transf2 = transform_dict_adaptor(RandomHorizontalFlip(p=1), key, key)
+    transf3 = transform_dict_adaptor(HEDJitter(0), key, key)
+    input_tensor = torch.arange(16).view(2, 2, 2, 2)
+    input_dict = {'dummy': [], key: input_tensor}
+    output_dict1 = transf1(input_dict)
+    output_dict2 = transf2(input_dict)
+    output_dict3 = transf3(input_dict)
+
+    expected_output_dict2 = input_dict
+    expected_output_dict2[key] = torch.flip(input_dict[key], [2])  # type: ignore
+
+    assert output_dict1 == input_dict
+    assert output_dict2 == expected_output_dict2
+    assert output_dict3 == input_dict
