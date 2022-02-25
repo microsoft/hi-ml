@@ -15,6 +15,7 @@ the section headers (Added/Changed/...) and incrementing the package version.
 ### Added
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) Add GaussianBlur and RotationByMultiplesOf90 augmentations. Added torchvision and opencv to
 the environment file since it is necessary for the augmentations.
+- ([#193](https://github.com/microsoft/hi-ml/pull/193)) Add transformation adaptor to hi-ml-histopathology.
 - ([#178](https://github.com/microsoft/hi-ml/pull/178)) Add runner script for running ML experiments.
 - ([#181](https://github.com/microsoft/hi-ml/pull/181)) Add computational pathology tools in hi-ml-histopathology folder.
 - ([#187](https://github.com/microsoft/hi-ml/pull/187)) Add mean pooling layer for MIL.

@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from _typeshed import NoneType
 import os
 from pathlib import Path
 from typing import Callable, Sequence, Union
