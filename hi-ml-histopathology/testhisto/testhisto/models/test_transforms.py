@@ -172,7 +172,7 @@ def test_transform_dict_adaptor() -> None:
     transf1 = transform_dict_adaptor(RandomHorizontalFlip(p=0), key, key)
     transf2 = transform_dict_adaptor(RandomHorizontalFlip(p=1), key, key)
     transf3 = transform_dict_adaptor(HEDJitter(0), key, key)
-    input_tensor = torch.arange(16).view(2, 2, 2, 2)
+    input_tensor = torch.arange(24).view(2, 3, 2, 2)
     input_dict = {'dummy': [], key: input_tensor}
     output_dict1 = transf1(input_dict)
     output_dict2 = transf2(input_dict)
