@@ -11,30 +11,34 @@ Reference:
 - Schirris (2021). DeepSMILE: Self-supervised heterogeneity-aware multiple instance learning for DNA
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
-import os
-from pathlib import Path
 from typing import Any, List
-
+from pathlib import Path
+import os
 from monai.transforms import Compose
-from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import Callback
 
-from health_azure import get_workspace
 from health_azure.utils import CheckpointDownloader
-
-from health_ml.networks.layers.attention_layers import GatedAttentionLayer
+from health_azure import get_workspace
+from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
-
-from histopathology.configs.classification.BaseMIL import BaseMIL
+from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
+
+from histopathology.models.transforms import (
+    EncodeTilesBatchd,
+    LoadTilesBatchd,
+)
 from histopathology.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
 )
-from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
+
+from histopathology.configs.classification.BaseMIL import BaseMIL
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 
 
@@ -43,13 +47,16 @@ class DeepSMILECrck(BaseMIL):
         # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(
             # declared in BaseMIL:
-            pooling_type=GatedAttentionLayer.__name__,
+            pooling_type=AttentionLayer.__name__,
+            encoding_chunk_size=60,
+            cache_mode=CacheMode.MEMORY,
+            precache_location=CacheLocation.CPU,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            max_epochs=16,
+            max_epochs=50,
             # declared in WorkflowParams:
             # number_of_cross_validation_splits=5,
             # cross_validation_split_index=0,
@@ -84,7 +91,7 @@ class DeepSMILECrck(BaseMIL):
 
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
-            from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint_crck_4ws
+            from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
             self.downloader = CheckpointDownloader(
                 aml_workspace=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
@@ -113,9 +120,10 @@ class DeepSMILECrck(BaseMIL):
             batch_size=self.batch_size,
             transform=transform,
             cache_mode=self.cache_mode,
+            precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            # number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-            # cross_validation_split_index=self.cross_validation_split_index,
+            number_of_cross_validation_splits=self.number_of_cross_validation_splits,
+            cross_validation_split_index=self.cross_validation_split_index,
         )
 
     def get_callbacks(self) -> List[Callback]:
@@ -124,14 +132,27 @@ class DeepSMILECrck(BaseMIL):
     def get_path_to_best_checkpoint(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there.
+        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
+        folder.
         """
         # absolute path is required for registering the model.
-        return (
-            fixed_paths.repository_root_directory()
-            / self.checkpoint_folder_path  # noqa: W503
-            / self.best_checkpoint_filename_with_suffix  # noqa: W503
-        )
+        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
+                                        self.checkpoint_folder_path,
+                                        self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path.is_file():
+            return absolute_checkpoint_path
+
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
+                                               self.checkpoint_folder_path,
+                                               self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path_parent.is_file():
+            return absolute_checkpoint_path_parent
+
+        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
+        raise ValueError("Path to best checkpoint not found")
 
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):

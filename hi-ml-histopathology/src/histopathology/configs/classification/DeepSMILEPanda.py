@@ -12,18 +12,13 @@ from pytorch_lightning.callbacks import Callback
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
-
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
-
+from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.panda_module import PandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
-
-from histopathology.configs.classification.BaseMIL import BaseMIL
-from histopathology.datasets.panda_dataset import PandaDataset
-from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
@@ -36,14 +31,25 @@ from histopathology.models.transforms import (
     LoadTilesBatchd,
 )
 
+from histopathology.configs.classification.BaseMIL import BaseMIL
+from histopathology.datasets.panda_dataset import PandaDataset
+from histopathology.models.deepmil import DeepMILModule
+
 
 class DeepSMILEPanda(BaseMIL):
+    """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
+    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
+    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, num_epochs=20, max_num_gpus=1 on PANDA.
+    """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
+            cache_mode=CacheMode.MEMORY,
+            precache_location=CacheLocation.CPU,
+            is_finetune=False,
 
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
@@ -54,15 +60,14 @@ class DeepSMILEPanda(BaseMIL):
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
-            # number_of_cross_validation_splits=5,
-            # cross_validation_split_index=0,
+            number_of_cross_validation_splits=5,
+            cross_validation_split_index=0,
 
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99))
         default_kwargs.update(kwargs)
-        super().__init__(**default_kwargs)
         super().__init__(**default_kwargs)
         if not is_running_in_azure_ml():
             self.num_epochs = 1
@@ -91,27 +96,29 @@ class DeepSMILEPanda(BaseMIL):
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_binary
             self.downloader = CheckpointDownloader(
                 aml_workspace=get_workspace(),
-                run_id=innereye_ssl_checkpoint_binary,
-                checkpoint_filename="best_checkpoint.ckpt",
+                run_id=innereye_ssl_checkpoint_binary,  # innereye_ssl_checkpoint
+                checkpoint_filename="best_checkpoint.ckpt",  # "last.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
             os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        if not self.is_finetune:
+            self.encoder.eval()
 
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
-        transform = Compose(
-            [
-                LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size),
-            ]
-        )
+        if self.is_finetune:
+            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+        else:
+            transform = Compose([
+                                LoadTilesBatchd(image_key, progress=True),
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                                ])
+
         return PandaTilesDataModule(
-            root_path=self.local_dataset,
+            root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             transform=transform,
@@ -122,13 +129,21 @@ class DeepSMILEPanda(BaseMIL):
             # cross_validation_split_index=self.cross_validation_split_index,
         )
 
+    # TODO: move self.class_names somewhere else since this is almost an exact copy of create_model in BaseMIL
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
-        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
@@ -138,7 +153,9 @@ class DeepSMILEPanda(BaseMIL):
                              adam_betas=self.adam_betas,
                              slide_dataset=self.get_slide_dataset(),
                              tile_size=self.tile_size,
-                             level=self.level)
+                             level=self.level,
+                             class_names=self.class_names,
+                             is_finetune=self.is_finetune)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
@@ -149,7 +166,8 @@ class DeepSMILEPanda(BaseMIL):
     def get_path_to_best_checkpoint(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there.
+        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
+        folder.
         """
         # absolute path is required for registering the model.
         absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
