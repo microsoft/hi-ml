@@ -78,12 +78,11 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     :param ax: Axes object to format.
     """
     if plot_type == 'pr':
-        title, xlabel, ylabel = "PR Curve", "Recall", "Precision"
+        xlabel, ylabel = "Recall", "Precision"
     elif plot_type == 'roc':
-        title, xlabel, ylabel = "ROC Curve", "False positive rate", "True positive rate"
+        xlabel, ylabel = "False positive rate", "True positive rate"
     else:
         raise ValueError(f"Plot type must be either 'pr' or 'roc' (received '{plot_type}')")
-    # ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_aspect(1)
@@ -98,7 +97,6 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         labels = slides_groupby[ResultsKey.TRUE_LABEL].agg(pd.Series.mode)
         scores = slides_groupby[ResultsKey.PROB].agg(pd.Series.mode)
-        # labels, scores = tiles_df[ResultsKey.TRUE_LABEL], tiles_df[ResultsKey.PROB]
         plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
         plot_pr_curve(labels, scores, label=f"Fold {k}", ax=pr_ax)
     legend_kwargs = dict(edgecolor='none')
@@ -108,15 +106,9 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
     format_pr_or_roc_axes('pr', pr_ax)
 
 
-def plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
-                                    title: str = "") -> Figure:
+def plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame]) -> Figure:
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
     _plot_crossval_roc_and_pr_curves(crossval_dfs, roc_ax=axs[0], pr_ax=axs[1])
-    # if title:
-    #     print(f">>> Title was given: '{title}'")
-    #     plt.suptitle(title)
-    #     print(f"??? Title was applied: '{fig._suptitle}'")
-    #     # plt.subplots_adjust(top=0.5)
     return fig
 
 
