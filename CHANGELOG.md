@@ -25,6 +25,7 @@ the environment file since it is necessary for the augmentations.
 ### Fixed
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
+- ([#195](https://github.com/microsoft/hi-ml/pull/195)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.
 
 ### Removed
 
