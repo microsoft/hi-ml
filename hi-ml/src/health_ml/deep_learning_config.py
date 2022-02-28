@@ -20,7 +20,8 @@ from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME, is_windows, parse_model_id_and_version)
+                                          DEFAULT_LOGS_DIR_NAME,
+                                          parse_model_id_and_version)
 from health_ml.utils.type_annotations import TupleFloat2
 
 
@@ -81,7 +82,7 @@ class ExperimentFolderHandler(Parameterized):
     def create(project_root: Path,
                is_offline_run: bool,
                model_name: str,
-               output_to: Path = Path()) -> ExperimentFolderHandler:
+               output_to: Optional[Path] = None) -> ExperimentFolderHandler:
         """
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp
@@ -98,8 +99,7 @@ class ExperimentFolderHandler(Parameterized):
         """
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
-        # output_to by default will be Path() which is not None, but Path().stem is None
-        if is_offline_run or output_to.stem:
+        if is_offline_run or output_to:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
                 root = Path(output_to).absolute()
@@ -226,10 +226,10 @@ class DatasetParams(param.Parameterized):
 
 
 class OutputParams(param.Parameterized):
-    output_to: Path = param.ClassSelector(class_=Path, default=Path(),
-                                          doc="If provided, the run outputs will be written to the given folder. "
-                                              "If not provided, outputs will go into a subfolder of the project "
-                                              "root folder.")
+    output_to: Optional[Path] = param.ClassSelector(class_=Path, default=None,
+                                                    doc="If provided, the run outputs will be written to the given "
+                                                        "folder. If not provided, outputs will go into a subfolder "
+                                                        "of the project root folder.")
     file_system_config: ExperimentFolderHandler = param.ClassSelector(default=ExperimentFolderHandler(),
                                                                       class_=ExperimentFolderHandler,
                                                                       instantiate=False,

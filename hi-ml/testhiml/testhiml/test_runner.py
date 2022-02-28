@@ -11,7 +11,7 @@ import pytest
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
-from health_ml.configs.hello_container import HelloWorld
+from health_ml.configs.hello_world import HelloWorld
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
@@ -129,8 +129,8 @@ def test_crossvalidation_flag() -> None:
     assert container.is_crossvalidation_enabled
     container.validate()
     # Validation should fail if the cross validation index is out of bounds
-    with pytest.raises(ValueError) as ex:
-        container.crossval_index = container.crossval_count
+    container.crossval_index = container.crossval_count
+    with pytest.raises(ValueError):
         container.validate()
 
 
@@ -140,7 +140,7 @@ def test_crossval_config() -> None:
     """
     mock_tuning_config = "foo"
     container = HelloWorld()
-    with patch("health_ml.configs.hello_container.HelloContainer.get_parameter_tuning_config",
+    with patch("health_ml.configs.hello_world.HelloWorld.get_parameter_tuning_config",
                return_value=mock_tuning_config):
         # Without any flags set, no Hyperdrive config should be returned
         assert container.get_hyperdrive_config() is None
@@ -171,7 +171,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     """
     Test if the hyperdrive configurations are passed to the submission function.
     """
-    model_name = "HelloContainer"
+    model_name = "HelloWorld"
     crossval_count = 2
     arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
     with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
@@ -190,3 +190,15 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
         hyperdrive_config = call_kwargs["hyperdrive_config"]
         parameter_space = hyperdrive_config._generator_config["parameter_space"]
         assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+
+
+def test_run_hello_world(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}"]
+    with patch("health_ml.runner.get_workspace") as mock_get_workspace:
+        with patch.object(sys, "argv", arguments):
+            mock_runner.run()
+        # get_workspace should not be called when using the runner outside AzureML, to not go through the 
+        # time-consuming auth
+        mock_get_workspace.assert_not_called()
+        

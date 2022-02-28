@@ -17,9 +17,9 @@ def config_loader() -> ModelConfigLoader:
 
 @pytest.fixture(scope="module")
 def hello_config() -> Any:
-    from health_ml.configs import hello_container  # type: ignore
-    assert Path(hello_container.__file__).exists(), "Can't find hello_container config"
-    return hello_container
+    from health_ml.configs import hello_world  # type: ignore
+    assert Path(hello_world.__file__).exists(), "Can't find hello_container config"
+    return hello_world
 
 
 def test_find_module_search_specs(config_loader: ModelConfigLoader) -> None:
@@ -85,9 +85,9 @@ def test_create_model_config_from_name(config_loader: ModelConfigLoader, hello_c
         assert "was not found in search namespaces" in str(e)
 
     # if > 1 config is found matching the model name, an exception should be raised
-    config_name = "HelloContainer"
+    config_name = "HelloWorld"
     hello_config_path = Path(hello_config.__file__)
-    duplicate_config_file = hello_config_path.parent / "hello_container_2.py"
+    duplicate_config_file = hello_config_path.parent / "hello_world.py"
     duplicate_config_file.touch()
     shutil.copyfile(str(hello_config_path), str(duplicate_config_file))
     with pytest.raises(Exception) as e:
@@ -103,8 +103,8 @@ def test_create_model_config_from_name(config_loader: ModelConfigLoader, hello_c
 
 def test_config_in_dif_location(tmp_path: Path, hello_config: Any) -> None:
     himl_root = Path(hello_config.__file__).parent.parent
-    model_name = "HelloContainer"
-    new_config_path = himl_root / "hello_container_to_delete.py"
+    model_name = "HelloWorld"
+    new_config_path = himl_root / "hello_world_to_delete.py"
     new_config_path.touch()
     hello_config_path = Path(hello_config.__file__)
     shutil.copyfile(str(hello_config_path), str(new_config_path))
@@ -115,7 +115,7 @@ def test_config_in_dif_location(tmp_path: Path, hello_config: Any) -> None:
     with pytest.raises(Exception) as e:
         config_loader.create_model_config_from_name(model_name)
         assert "Multiple instances of model name HelloContainer were found in namespaces: " \
-               "dict_keys(['health_ml.configs.hello_container', 'health_ml.hello_container_to_delete']) " in str(e)
+               "dict_keys(['health_ml.configs.hello_world', 'health_ml.hello_world_to_delete']) " in str(e)
     new_config_path.unlink()
 
 

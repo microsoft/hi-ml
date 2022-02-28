@@ -24,6 +24,8 @@ For just the AzureML helper functions:
 
 For the histopathology workflows, please follow the instructions [here](hi-ml-histopathology/README.md).
 
+If you would like to contribute to the code, please check the [developer guide](docs/source/developers.md).
+
 ## Documentation
 
 The detailed package documentation, with examples and API reference, is on 
