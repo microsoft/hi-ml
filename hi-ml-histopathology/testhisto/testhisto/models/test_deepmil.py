@@ -113,6 +113,23 @@ def test_lightningmodule(
             assert torch.all(score <= 1)
 
 
+def validate_metric_inputs(scores: torch.Tensor, labels: torch.Tensor) -> None:
+    def is_integral(x: torch.Tensor) -> bool:
+        return (x == x.long()).all()  # type: ignore
+
+    assert scores.shape == labels.shape
+    assert torch.is_floating_point(scores), "Received scores with integer dtype"
+    assert not is_integral(scores), "Received scores with integral values"
+    assert is_integral(labels), "Received labels with floating-point values"
+
+
+def add_callback(fn: Callable, callback: Callable) -> Callable:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        callback(*args, **kwargs)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 def test_metrics() -> None:
     input_dim = (128,)
     module = DeepMILModule(
@@ -144,9 +161,15 @@ def test_metrics() -> None:
         bags.append(sample)
     batch = default_collate(bags)
 
+    # ================
     # Test that the module metrics match manually computed metrics with the correct inputs
     module_metrics_dict = module.test_metrics
     independent_metrics_dict = module.get_metrics()
+
+    # Patch the metrics to check that the inputs are valid. In particular, test that the scores
+    # do not have integral values, which would suggest that hard labels were passed instead.
+    for metric_obj in module_metrics_dict.values():
+        metric_obj.update = add_callback(metric_obj.update, validate_metric_inputs)
 
     results = module.test_step(batch, 0)
     predicted_probs = results[ResultsKey.PROB]
@@ -157,11 +180,9 @@ def test_metrics() -> None:
         expected_value = independent_metrics_dict[key](predicted_probs, true_labels)
         assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
-    # TODO: Intercept calls to Metric.update() and check input dtype and num unique
-
-    # Test that thresholded metrics (e.g. accuracy, precision, etc.) change
-    # as the threshold is varied. If they don't, it's a sign that the inputs
-    # are hard labels instead of continuous scores.
+    # ================
+    # Test that thresholded metrics (e.g. accuracy, precision, etc.) change as the threshold is varied.
+    # If they don't, it suggests the inputs are hard labels instead of continuous scores.
     thresholded_metrics_keys = [key for key, metric in module_metrics_dict.items()
                                 if hasattr(metric, 'threshold')]
 
