@@ -12,19 +12,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
+from azureml.core import Workspace
 
 # Add hi-ml packages to sys.path so that AML can find them
 # Optionally add the histopathology module, if this exists
-
 himl_root = Path(__file__).absolute().parent.parent.parent.parent
-print(f"Starting the himl runner at {himl_root}")
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",
                   himl_root / "hi-ml-histopathology" / "src"]
 for folder in folders_to_add:
     if folder.is_dir():
         sys.path.insert(0, str(folder))
-print(f"sys.path: {sys.path}")
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
@@ -228,9 +226,15 @@ class Runner:
         # TODO: Update environment variables
         environment_variables: Dict[str, Any] = {}
 
-        # get default datastore from provided workspace
-        workspace = get_workspace()
-        default_datastore = workspace.get_default_datastore().name
+        # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
+        # that if we are really submitting to AzureML.
+        workspace: Optional[Workspace] = None
+        if self.experiment_config.azureml:
+            try:
+                workspace = get_workspace()
+            except ValueError:
+                logging.warning("No configuration file for an AzureML workspace was found.")
+        default_datastore = workspace.get_default_datastore().name if workspace is not None else ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
@@ -239,9 +243,14 @@ class Runner:
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore)
+        if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
+            raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         try:
             if self.experiment_config.azureml:
+                if workspace is None:
+                    raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
+                                     "(config.json) was found.")
                 if not self.experiment_config.cluster:
                     raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
                                      "the script to run in AzureML")
