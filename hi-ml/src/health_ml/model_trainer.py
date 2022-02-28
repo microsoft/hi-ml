@@ -216,6 +216,7 @@ def model_train(checkpoint_path: Optional[Path],
 
     logging.info("Starting training")
     trainer.fit(lightning_model, datamodule=data_module)
+    assert trainer.logger is not None
     trainer.logger.finalize('success')
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.

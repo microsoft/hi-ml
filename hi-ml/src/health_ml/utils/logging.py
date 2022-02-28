@@ -273,6 +273,7 @@ class AzureMLProgressBar(ProgressBarBase):
         if not should_update:
             return
         prefix = f"{self.stage}"
+        assert self.trainer is not None and self.trainer.lightning_module is not None  # for pyright
         if self.stage in [self.PROGRESS_STAGE_TRAIN, self.PROGRESS_STAGE_VAL]:
             prefix += f" epoch {self.trainer.current_epoch}"
         if self.stage == self.PROGRESS_STAGE_TRAIN:
