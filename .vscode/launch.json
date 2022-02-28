@@ -12,6 +12,16 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Run the HelloWorld model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Elevate: HI-ML-AZURE Local",
             "type": "python",
             "request": "launch",

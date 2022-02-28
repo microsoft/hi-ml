@@ -1,4 +1,5 @@
 {
+    "autoDocstring.docstringFormat": "sphinx",
     "fileHeaderComment.parameter":{
         "*":{
             "line": "-------------------------------------------------------------------------------------------",
@@ -55,6 +56,7 @@
         "./hi-ml/src",
         "./hi-ml/testhiml",
     ],
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
     "terminal.integrated.env.windows": {
         "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src"
     },
