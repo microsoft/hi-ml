@@ -27,7 +27,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
+from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
@@ -449,7 +449,7 @@ def submit_to_azure_if_needed(  # type: ignore
     workspace = get_workspace(aml_workspace, workspace_config_path)
 
     if conda_environment_file is None:
-        conda_environment_file = _find_file(CONDA_ENVIRONMENT_FILE)
+        conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
     conda_environment_file = _str_to_path(conda_environment_file)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")

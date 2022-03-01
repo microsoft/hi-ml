@@ -15,13 +15,19 @@ There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/conf
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `himl-runner --model=HelloWorld`.
 
-# Running ML experiments in Azure ML 
+## Running ML experiments in Azure ML 
 
 To train in AzureML, add a `--azureml` flag. Use the flag `--cluster` to specify the name of the cluster
 in your Workspace that you want to submit the job to. So the whole command would look like:
 `himl-runner --model=HelloContainer --cluster=my_cluster_name --azureml`. You can also specify `--num_nodes` if
 you wish to distribute the model training.
 
+When starting the runner, you need to do that from a directory that contains all the code that your experiment needs: 
+The current working directory will be used as the root of all data that will be copied to AzureML to run your experiment.
+(the only exception to this rule is if you start the runner from within an enlistment of the HI-ML GitHub repository).
+
+AzureML needs to know which Python/Conda environment it should use. For that, the runner expects a file `environment.yml`
+in the current working directory, that contains a Conda environment definition.
 
 ## Setup - creating your model config file
 
@@ -140,7 +146,11 @@ By default, config files will be looked for in the folder "health_ml.configs". T
 that live elsewhere, use a fully qualified name for the parameter `--model` - e.g. "MyModule.Configs.my_config.py"
 
 
-### Outputting files during training
+## Starting the model training in 
+
+You can 
+
+## Outputting files during training
 
 The Lightning model returned by `create_model` needs to write its output files to the current working directory.
 When running inside of AzureML, the output folders will be directly under the project root. If not running inside
@@ -150,7 +160,7 @@ When running in AzureML, the folder structure will be set up such that all files
 to the current working directory are later uploaded to Azure blob storage at the end of the AzureML job. The files
 will also be later available via the AzureML UI.
 
-### Trainer arguments
+## Trainer arguments
 All arguments that control the PyTorch Lightning `Trainer` object are defined in the class `TrainerParams`. A
 `LightningContainer` object inherits from this class. The most essential one is the `max_epochs` field, which controls
 the `max_epochs` argument of the `Trainer`.

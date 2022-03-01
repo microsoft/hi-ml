@@ -254,9 +254,9 @@ class OutputParams(param.Parameterized):
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
         self.output_to = Path(output_to)
-        self.create_filesystem()
+        self.create_filesystem(project_root=fixed_paths.repository_root_directory)
 
-    def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
+    def create_filesystem(self, project_root) -> None:
         """
         Creates new file system settings (outputs folder, logs folder) based on the information stored in the
         present object. If any of the folders do not yet exist, they are created.
@@ -404,7 +404,7 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
-    additional_env_files: List[str] = param.List(class_=Path, default=[],
+    additional_env_files: List[Path] = param.List(class_=Path, default=[],
                                                  doc="Additional conda environment (.yml) files to merge into the"
                                                      " overall environment definition")
 

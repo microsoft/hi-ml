@@ -167,13 +167,13 @@ class ModelConfigLoader:
             return list(configs.values())[0]
 
 
-def path_to_namespace(path: Path, root: PathOrString = fixed_paths.repository_root_directory()) -> str:
+def path_to_namespace(path: Path, root: Path) -> str:
     """
-    Given a path (in form R/A/B/C) and an optional root directory R, create a namespace A.B.C.
-    If root is provided, then path must be a relative child to it.
+    Given a path (in form R/A/B/C) and a root directory R, create a namespace string A.B.C.
+    The path must be located under the root directory.
 
     :param path: Path to convert to namespace
-    :param root: Path prefix to remove from namespace (default is project root)
-    :return:
+    :param root: Path prefix to remove from namespace.
+    :return: A Python namespace string
     """
     return ".".join([Path(x).stem for x in path.relative_to(root).parts])

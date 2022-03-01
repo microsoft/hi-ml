@@ -8,3 +8,5 @@ logs
 outputs
 config.json
 *.egg-info
+# Temporary files generated from conda merging
+temp_environment-*

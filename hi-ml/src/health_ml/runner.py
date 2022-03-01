@@ -9,13 +9,12 @@ import param
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import matplotlib
 from azureml.core import Workspace
 
-# Add hi-ml packages to sys.path so that AML can find them
-# Optionally add the histopathology module, if this exists
+# Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).absolute().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",
@@ -34,7 +33,7 @@ from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (get_all_environment_files,  # noqa: E402
+from health_ml.utils.common_utils import (check_conda_environments, get_all_environment_files,  # noqa: E402
                                           get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
@@ -203,26 +202,6 @@ class Runner:
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
 
-        additional_conda_env_files = self.lightning_container.additional_env_files
-        additional_env_files: Optional[List[Path]]
-        if additional_conda_env_files is not None:
-            additional_env_files = [Path(f) for f in additional_conda_env_files]
-        else:
-            additional_env_files = None
-
-        conda_dependencies_files = get_all_environment_files(self.project_root,
-                                                             additional_files=additional_env_files)
-        # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from source
-        # (submodule) rather than installed as a package.
-        pip_requirements_files = get_all_pip_requirements_files()
-
-        # Merge the project-specific dependencies with the packages and write unified definition
-        # to temp file. In case of version conflicts, the package version in the outer project is given priority.
-        temp_conda: Optional[Path] = None
-        if len(conda_dependencies_files) > 1 or len(pip_requirements_files) > 0:
-            temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-            merge_conda_files(conda_dependencies_files, temp_conda, pip_files=pip_requirements_files)
-
         # TODO: Update environment variables
         environment_variables: Dict[str, Any] = {}
 
@@ -246,8 +225,21 @@ class Runner:
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
             raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
+        temp_conda: Optional[Path] = None
         try:
             if self.experiment_config.azureml:
+                conda_files = get_all_environment_files(root_folder,
+                                                        additional_files=self.lightning_container.additional_env_files)
+                check_conda_environments(conda_files)
+                # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from
+                # source (submodule) rather than installed as a package.
+                pip_requirements_files = get_all_pip_requirements_files()
+
+                # Merge the project-specific dependencies with the packages and write unified definition to temp file.
+                if len(conda_files) > 1 or len(pip_requirements_files) > 0:
+                    temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+                    merge_conda_files(conda_files, temp_conda, pip_files=pip_requirements_files)
+
                 if workspace is None:
                     raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                      "(config.json) was found.")
@@ -258,12 +250,12 @@ class Runner:
                     entry_script=entry_script,
                     snapshot_root_directory=root_folder,
                     script_params=script_params,
-                    conda_environment_file=temp_conda or conda_dependencies_files[0],
+                    conda_environment_file=temp_conda or conda_files[0],
                     aml_workspace=workspace,
                     compute_cluster_name=self.experiment_config.cluster,
                     environment_variables=environment_variables,
                     default_datastore=default_datastore,
-                    experiment_name=self.lightning_container.name,  # create_experiment_name(),
+                    experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
                     input_datasets=input_datasets,  # type: ignore
                     num_nodes=self.experiment_config.num_nodes,
                     wait_for_completion=False,
@@ -279,7 +271,7 @@ class Runner:
                     input_datasets=input_datasets,  # type: ignore
                     submit_to_azureml=False)
         finally:
-            if temp_conda:
+            if temp_conda and temp_conda.is_file():
                 temp_conda.unlink()
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.

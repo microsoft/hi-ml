@@ -10,8 +10,11 @@ from typing import Any, Generator, Iterable, List, Optional, Union
 
 import torch
 from torch.nn import Module
+from health_azure import utils
+from health_azure import paths
+from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
 
-from health_azure.utils import PathOrString
+from health_azure.utils import PathOrString, is_conda_file_with_pip_include
 
 from health_ml.utils import fixed_paths
 
@@ -206,21 +209,53 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
 def get_all_environment_files(project_root: Path, additional_files: Optional[List[Path]] = None) -> List[Path]:
     """
     Returns a list of all Conda environment files that should be used. This is just an
-    environment.yml file that lives at the project root folder, plus any additional files provided.
+    environment.yml file that lives at the project root folder, plus any additional files provided in the model.
 
     :param project_root: The root folder of the code that starts the present training run.
     :param additional_files: Optional list of additional environment files to merge
-    :return: A list with 1 entry that is the root level repo's conda environment files.
+    :return: A list of Conda environment files to use.
     """
     env_files = []
-    project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+    project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
     if project_yaml.exists():
+        logging.info(f"Using Conda environment in current folder: {project_yaml}")
         env_files.append(project_yaml)
+    elif paths.is_himl_used_from_git_repo():
+        logging.info("Searching for Conda files in the parent folders")
+        git_repo_root = paths.git_repo_root_folder()
+        env_file = utils.find_file_in_parent_folders(file_name=paths.ENVIRONMENT_YAML_FILE_NAME,
+                                                     stop_at_path=[git_repo_root])
+        if env_file:
+            logging.info(f"Using Conda environment in {env_file}")
+            env_files.append(env_file)
+    if not env_files and not additional_files:
+        raise ValueError("No Conda environment files were found in the repository, and none were specified in the "
+                         "model itself.")
     if additional_files:
         for additional_file in additional_files:
             if additional_file.exists():
                 env_files.append(additional_file)
     return env_files
+
+
+def check_conda_environments(env_files: List[Path]) -> None:
+    """Tests if all conda environment files are valid. In particular, they must not contain "include" statements
+    in the pip section.
+
+    :param env_files: The list of Conda environment YAML files to check.
+    :type env_files: List[Path]
+    """
+    if is_himl_used_from_git_repo():
+        repo_root_yaml: Optional[Path] = git_repo_root_folder() / ENVIRONMENT_YAML_FILE_NAME
+    else:
+        repo_root_yaml = None
+    for file in env_files:
+        has_pip_include, _ = is_conda_file_with_pip_include(file)
+        # PIP include statements are only valid when reading from the repository root YAML file, because we
+        # are manually adding the included files in get_all_pip_requirements_files
+        if has_pip_include and file != repo_root_yaml:
+            raise ValueError(f"The Conda environment definition in {file} uses '-r' to reference pip requirements "
+                             "files. This does not work in AzureML. Please add the pip dependencies directly.")
 
 
 def get_all_pip_requirements_files() -> List[Path]:
@@ -229,21 +264,19 @@ def get_all_pip_requirements_files() -> List[Path]:
     downloaded directly into a parent repo) then we must add it's pip requirements to any environment
     definition. This function returns a list of the necessary pip requirements files. If the hi-ml
     root directory does not exist (e.g. hi-ml has been installed as a pip package, this is not necessary
-    and so this function returns None)
+    and so this function returns an empty list.)
 
     :return: An list list of pip requirements files in the hi-ml and hi-ml-azure packages if relevant,
         or else an empty list
     """
     files = []
-    himl_root_dir = fixed_paths.himl_root_dir()
-    if himl_root_dir is not None:
-        himl_yaml = himl_root_dir / "hi-ml" / "run_requirements.txt"
-        himl_az_yaml = himl_root_dir / "hi-ml-azure" / "run_requirements.txt"
-        files.append(himl_yaml)
-        files.append(himl_az_yaml)
-        return files
-    return []
-
+    if paths.is_himl_used_from_git_repo():
+        git_root = paths.git_repo_root_folder()
+        for folder in [Path("hi-ml") / "run_requirements.txt",
+                       Path("hi-ml-azure") / "run_requirements.txt"]:
+            files.append(git_root / folder)
+    return files
+    
 
 def create_unique_timestamp_id() -> str:
     """
