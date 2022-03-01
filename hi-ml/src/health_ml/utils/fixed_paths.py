@@ -5,25 +5,23 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+from health_azure.paths import git_repo_root_folder, is_himl_used_from_git_repo
 
 from health_azure.utils import PathOrString
 
 
-def repository_root_directory(path: Optional[PathOrString] = None) -> Path:
+def repository_root_directory() -> Path:
     """
     Gets the full path to the root directory that holds the present repository.
+    This function should only be called if the repository is available (for example, in unit tests).
+    It will raise a ValueError if the repo is not available.
 
     :param path: if provided, a relative path to append to the absolute path to the repository root.
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    root = Path.cwd()
-    if path:
-        full_path = root / path
-        assert full_path.exists(), f"Path {full_path} doesn't exist"
-        return root / path
-    else:
-        return root
-
+    if is_himl_used_from_git_repo():
+        return git_repo_root_folder()
+    raise ValueError("This function should not be used if hi-ml is used as an installed package.")
 
 
 @dataclass(frozen=True)

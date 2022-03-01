@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, Tuple
 import matplotlib
 from azureml.core import Workspace
 
+from health_azure.paths import is_himl_used_from_git_repo
+
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).absolute().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src",
@@ -315,7 +317,7 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
 
 
 def main() -> None:
-    run(project_root=fixed_paths.repository_root_directory())
+    run(project_root=fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd())
 
 
 if __name__ == '__main__':
