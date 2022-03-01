@@ -47,6 +47,19 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Run DeepSMILECrck in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=histopathology.configs.classification.DeepSMILECrck",
+                "--azureml",
+                "--cluster=lite-testing-ds2",
+                "--crossval_count=2"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Elevate: HI-ML-AZURE Local",
             "type": "python",
             "request": "launch",

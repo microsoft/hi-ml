@@ -14,8 +14,6 @@ from typing import Any, Dict, Optional, Tuple
 import matplotlib
 from azureml.core import Workspace
 
-from health_azure.paths import is_himl_used_from_git_repo
-
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).absolute().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src",
@@ -27,6 +25,7 @@ for folder in folders_to_add:
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
+from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,  # noqa: E402
                                 set_environment_variables_for_multi_node, create_argparser, parse_arguments,
                                 ParserResult, apply_overrides)
@@ -138,7 +137,7 @@ class Runner:
         self.experiment_config = experiment_config
         if not experiment_config.model:
             raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
-        model_config_loader: ModelConfigLoader = ModelConfigLoader(model_name=experiment_config.model)
+        model_config_loader: ModelConfigLoader = ModelConfigLoader()
         # Create the model as per the "model" commandline option. This is a LightningContainer.
         container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
 

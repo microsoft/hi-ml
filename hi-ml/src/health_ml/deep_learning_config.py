@@ -256,7 +256,7 @@ class OutputParams(param.Parameterized):
         self.output_to = Path(output_to)
         self.create_filesystem(project_root=fixed_paths.repository_root_directory)
 
-    def create_filesystem(self, project_root) -> None:
+    def create_filesystem(self, project_root: Path) -> None:
         """
         Creates new file system settings (outputs folder, logs folder) based on the information stored in the
         present object. If any of the folders do not yet exist, they are created.

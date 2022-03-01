@@ -103,3 +103,13 @@ To create a new package release, follow these steps:
 * Click "Auto-generate  release notes" to pull in the titles of the Pull Requests since the last release.
 * Before the auto-generated "What's changed" section, add a few sentences that summarize what's new.
 * Click "Publish release"
+
+
+## Troubleshooting
+
+### Debugging a test in VSCode fails on Windows
+
+* Symptom: Debugging just does not seem to do anything
+* Check: Debug Console shows error `from _sqlite3 import *: ImportError: DLL load failed: The specified module could not be found.`
+* Fix: [see here](https://stackoverflow.com/questions/54876404/unable-to-import-sqlite3-using-anaconda-python)
+* Run `conda info --envs` to see where your Conda environment lives, then place `sqlite3.dll` into the `DLLs` folder inside of the environment

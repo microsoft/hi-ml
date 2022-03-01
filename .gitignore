@@ -154,3 +154,5 @@ logs/
 
 # Temporary files generated from conda merging
 temp_environment-*
+# Temporary files from unittesting
+temp_config_for_unittests.py

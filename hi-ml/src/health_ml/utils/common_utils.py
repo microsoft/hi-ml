@@ -16,8 +16,6 @@ from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder,
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
 
-from health_ml.utils import fixed_paths
-
 
 MAX_PATH_LENGTH = 260
 
@@ -217,17 +215,18 @@ def get_all_environment_files(project_root: Path, additional_files: Optional[Lis
     """
     env_files = []
     project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
-    if project_yaml.exists():
-        logging.info(f"Using Conda environment in current folder: {project_yaml}")
-        env_files.append(project_yaml)
-    elif paths.is_himl_used_from_git_repo():
+    if paths.is_himl_used_from_git_repo():
         logging.info("Searching for Conda files in the parent folders")
         git_repo_root = paths.git_repo_root_folder()
         env_file = utils.find_file_in_parent_folders(file_name=paths.ENVIRONMENT_YAML_FILE_NAME,
                                                      stop_at_path=[git_repo_root])
-        if env_file:
-            logging.info(f"Using Conda environment in {env_file}")
-            env_files.append(env_file)
+        assert env_file is not None, "Expected to find at least the environment definition file at repo root"
+        logging.info(f"Using Conda environment in {env_file}")
+        env_files.append(env_file)
+    elif project_yaml.exists():
+        logging.info(f"Using Conda environment in current folder: {project_yaml}")
+        env_files.append(project_yaml)
+
     if not env_files and not additional_files:
         raise ValueError("No Conda environment files were found in the repository, and none were specified in the "
                          "model itself.")

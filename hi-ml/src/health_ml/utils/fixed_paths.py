@@ -4,10 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 from health_azure.paths import git_repo_root_folder, is_himl_used_from_git_repo
-
-from health_azure.utils import PathOrString
 
 
 def repository_root_directory() -> Path:
