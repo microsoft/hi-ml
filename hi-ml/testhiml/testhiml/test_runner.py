@@ -198,7 +198,6 @@ def test_run_hello_world(mock_runner: Runner) -> None:
     with patch("health_ml.runner.get_workspace") as mock_get_workspace:
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
-        # get_workspace should not be called when using the runner outside AzureML, to not go through the 
+        # get_workspace should not be called when using the runner outside AzureML, to not go through the
         # time-consuming auth
         mock_get_workspace.assert_not_called()
-        

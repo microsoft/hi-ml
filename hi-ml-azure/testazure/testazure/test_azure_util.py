@@ -453,7 +453,10 @@ def test_pip_include_1() -> None:
         assert_pip_length(original_yaml, 4)
         uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(root_yaml)
         assert uses_pip_include
-        assert_pip_length(modified_yaml, 0)
+        pip = util._get_pip_dependencies(modified_yaml)
+        # The pip section of the top-level yaml has nothing but include statements, so after filtering the 
+        # pip section is empty. In this case, no pip section shoudld be present at all.
+        assert pip is None
 
 
 @pytest.mark.fast

@@ -20,7 +20,7 @@ class ModelConfigLoader:
     Helper class to manage model config loading.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def default_module_spec(self) -> ModuleSpec:
