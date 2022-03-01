@@ -44,5 +44,5 @@ def git_repo_root_folder() -> Path:
     return: Path to the himl root dir if it exists, else None
     """
     if not is_himl_used_from_git_repo():
-        return ValueError("This function can only be used if the HI-ML package is used directly from the git repo.")
+        raise ValueError("This function can only be used if the HI-ML package is used directly from the git repo.")
     return Path(__file__).parent.parent.parent.parent

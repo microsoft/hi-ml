@@ -25,6 +25,7 @@ class ModelConfigLoader:
 
     def default_module_spec(self) -> ModuleSpec:
         from health_ml import configs  # type: ignore
+
         default_module = configs.__name__
         return importlib.util.find_spec(default_module)
 
@@ -65,10 +66,11 @@ class ModelConfigLoader:
             # The "if" clause checks that obj is a class, of the desired name, that is
             # defined in this module rather than being imported into it (and hence potentially
             # being found twice).
-            _class = next(obj for name, obj in inspect.getmembers(target_module)
-                            if inspect.isclass(obj)
-                            and name == model_name  # noqa: W503
-                            and inspect.getmodule(obj) == target_module)  # noqa: W503
+            _class = next(
+                obj
+                for name, obj in inspect.getmembers(target_module)
+                if inspect.isclass(obj) and name == model_name and inspect.getmodule(obj) == target_module
+            )
             logging.info(f"Found class {_class} in file {module_spec.origin}")
         # ignore the exception which will occur if the provided module cannot be loaded
         # or the loaded module does not have the required class as a member
@@ -80,8 +82,7 @@ class ModelConfigLoader:
         model_config = _class()
         return model_config
 
-    def _search_recursively_and_store(self, module_spec: ModuleSpec, model_name: str) -> \
-                                        Dict[str, LightningContainer]:
+    def _search_recursively_and_store(self, module_spec: ModuleSpec, model_name: str) -> Dict[str, LightningContainer]:
         """
         Given a root namespace eg: A.B.C searches recursively in all child namespaces
         for class property with the <model_name> provided. If found, this is
@@ -93,9 +94,10 @@ class ModelConfigLoader:
         root_namespace = module_spec.name
         namespaces_to_search: List[str] = []
         if module_spec.submodule_search_locations:
-            logging.debug(f"Searching through {len(module_spec.submodule_search_locations)} folders that "
-                            f"match namespace {module_spec.name}: "
-                            f"{module_spec.submodule_search_locations}")
+            logging.debug(
+                f"Searching through {len(module_spec.submodule_search_locations)} folders that match namespace "
+                f"{module_spec.name}: {module_spec.submodule_search_locations}"
+            )
             for root in module_spec.submodule_search_locations:
                 # List all python files in all the dirs under root, except for private dirs (prefixed with .)
                 all_py_files = [x for x in Path(root).rglob("*.py") if ".." not in str(x)]
@@ -127,8 +129,8 @@ class ModelConfigLoader:
         """
         Returns a model configuration for a model of the given name.
 
-        :param model_name: Class name (for example, "HelloWorld") if the model config is in the default search namespace,
-        or fully qualified name of the model, like mymodule.configs.MyConfig)
+        :param model_name: Class name (for example, "HelloWorld") if the model config is in the default search
+        namespace, or fully qualified name of the model, like mymodule.configs.MyConfig)
         """
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
@@ -143,7 +145,8 @@ class ModelConfigLoader:
             raise ValueError(f"Model name {model_name} was not found in search namespace {module_spec.name}")
         elif len(configs) > 1:
             raise ValueError(
-                f"Multiple instances of model '{model_name}' were found in namespaces: {[*configs.keys()]}")
+                f"Multiple instances of model '{model_name}' were found in namespaces: {[*configs.keys()]}"
+            )
         else:
             return list(configs.values())[0]
 

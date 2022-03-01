@@ -461,7 +461,7 @@ def test_pip_include_2(tmp_path: Path) -> None:
     """Test if Conda files that use PIP include are recognized.
     """
     # Environment file without a "-r" include statement
-    conda_str = """name: simple-envpip 
+    conda_str = """name: simple-envpip
 dependencies:
   - pip:
     - azureml-sdk==1.23.0

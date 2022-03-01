@@ -26,15 +26,17 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 # file and directory names
 CHECKPOINT_SUFFIX = ".ckpt"
 AUTOSAVE_CHECKPOINT_FILE_NAME = "autosave"
-AUTOSAVE_CHECKPOINT_CANDIDATES = [AUTOSAVE_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX,
-                                  AUTOSAVE_CHECKPOINT_FILE_NAME + "-v1" + CHECKPOINT_SUFFIX]
+AUTOSAVE_CHECKPOINT_CANDIDATES = [
+    AUTOSAVE_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX,
+    AUTOSAVE_CHECKPOINT_FILE_NAME + "-v1" + CHECKPOINT_SUFFIX,
+]
 CHECKPOINT_FOLDER = "checkpoints"
 DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_LOGS_DIR_NAME = "logs"
 EXPERIMENT_SUMMARY_FILE = "experiment_summary.txt"
 
 # run recovery
-RUN_RECOVERY_ID_KEY = 'run_recovery_id'
+RUN_RECOVERY_ID_KEY = "run_recovery_id"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 
 # other
@@ -46,6 +48,7 @@ class ModelExecutionMode(Enum):
     """
     Model execution mode
     """
+
     TRAIN = "Train"
     TEST = "Test"
     VAL = "Val"
@@ -112,8 +115,7 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
     """
     Adds a logging formatter that includes the timestamp and the logging level.
     """
-    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)-8s %(message)s",
-                                  datefmt="%Y-%m-%dT%H:%M:%SZ")
+    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ")
     # noinspection PyTypeHints
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
@@ -130,6 +132,7 @@ def logging_section(gerund: str) -> Generator:
     :param gerund: string expressing what happens in this section of the log.
     """
     from time import time
+
     logging.info("")
     msg = f"**** STARTING: {gerund} "
     logging.info(msg + (100 - len(msg)) * "*")
@@ -153,14 +156,14 @@ def is_windows() -> bool:
     """
     Returns True if the host operating system is Windows.
     """
-    return os.name == 'nt'
+    return os.name == "nt"
 
 
 def is_linux() -> bool:
     """
     Returns True if the host operating system is a flavour of Linux.
     """
-    return os.name == 'posix'
+    return os.name == "posix"
 
 
 def check_properties_are_not_none(obj: Any, ignore: Optional[List[str]] = None) -> None:
@@ -218,8 +221,9 @@ def get_all_environment_files(project_root: Path, additional_files: Optional[Lis
     if paths.is_himl_used_from_git_repo():
         logging.info("Searching for Conda files in the parent folders")
         git_repo_root = paths.git_repo_root_folder()
-        env_file = utils.find_file_in_parent_folders(file_name=paths.ENVIRONMENT_YAML_FILE_NAME,
-                                                     stop_at_path=[git_repo_root])
+        env_file = utils.find_file_in_parent_folders(
+            file_name=paths.ENVIRONMENT_YAML_FILE_NAME, stop_at_path=[git_repo_root]
+        )
         assert env_file is not None, "Expected to find at least the environment definition file at repo root"
         logging.info(f"Using Conda environment in {env_file}")
         env_files.append(env_file)
@@ -228,8 +232,9 @@ def get_all_environment_files(project_root: Path, additional_files: Optional[Lis
         env_files.append(project_yaml)
 
     if not env_files and not additional_files:
-        raise ValueError("No Conda environment files were found in the repository, and none were specified in the "
-                         "model itself.")
+        raise ValueError(
+            "No Conda environment files were found in the repository, and none were specified in the " "model itself."
+        )
     if additional_files:
         for additional_file in additional_files:
             if additional_file.exists():
@@ -253,8 +258,10 @@ def check_conda_environments(env_files: List[Path]) -> None:
         # PIP include statements are only valid when reading from the repository root YAML file, because we
         # are manually adding the included files in get_all_pip_requirements_files
         if has_pip_include and file != repo_root_yaml:
-            raise ValueError(f"The Conda environment definition in {file} uses '-r' to reference pip requirements "
-                             "files. This does not work in AzureML. Please add the pip dependencies directly.")
+            raise ValueError(
+                f"The Conda environment definition in {file} uses '-r' to reference pip requirements "
+                "files. This does not work in AzureML. Please add the pip dependencies directly."
+            )
 
 
 def get_all_pip_requirements_files() -> List[Path]:
@@ -271,11 +278,10 @@ def get_all_pip_requirements_files() -> List[Path]:
     files = []
     if paths.is_himl_used_from_git_repo():
         git_root = paths.git_repo_root_folder()
-        for folder in [Path("hi-ml") / "run_requirements.txt",
-                       Path("hi-ml-azure") / "run_requirements.txt"]:
+        for folder in [Path("hi-ml") / "run_requirements.txt", Path("hi-ml-azure") / "run_requirements.txt"]:
             files.append(git_root / folder)
     return files
-    
+
 
 def create_unique_timestamp_id() -> str:
     """
@@ -302,8 +308,7 @@ def parse_model_id_and_version(model_id_and_version: str) -> None:
     expected format
     """
     if len(model_id_and_version.split(":")) != 2:
-        raise ValueError(
-            f"model id should be in the form 'model_name:version', got {model_id_and_version}")
+        raise ValueError(f"model id should be in the form 'model_name:version', got {model_id_and_version}")
 
 
 @contextmanager

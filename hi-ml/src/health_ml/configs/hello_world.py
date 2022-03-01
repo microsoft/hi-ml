@@ -34,7 +34,7 @@ def _create_1d_regression_dataset(n: int = 100, seed: int = 0) -> torch.Tensor:
 
 def _split_crossval(xy: torch.Tensor, crossval_count: int, crossval_index: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Generates a split of the given dataset along the first dimension for cross-validation.  
+    Generates a split of the given dataset along the first dimension for cross-validation.
 
     :param xy: The data that should be split. The split will be generated acros dimension 0.
     :type xy: torch.Tensor
@@ -260,6 +260,6 @@ class HelloWorld(LightningContainer):
     def get_data_module(self) -> LightningDataModule:
         assert self.local_dataset_dir is not None
         # If you would like to use the built-in cross validation functionality that runs training in parallel,
-        # you need to provide the crossvalidation parameters in the LightningContainer to the datamodule. The 
+        # you need to provide the crossvalidation parameters in the LightningContainer to the datamodule. The
         # datamodule must carry out appropriate splitting of the data.
         return HelloWorldDataModule(crossval_count=self.crossval_count, crossval_index=self.crossval_index)

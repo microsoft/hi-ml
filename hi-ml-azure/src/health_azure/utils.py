@@ -658,7 +658,7 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
 
 
 def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Optional[Path]:
-    """Searches for a file of the given name in the current working directory, or any of its parent folders. 
+    """Searches for a file of the given name in the current working directory, or any of its parent folders.
     Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
     of the given folders in stop_at_path.
 
@@ -677,7 +677,7 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
         if start_at.parent == start_at or start_at in stop_at_path:
             return None
         return return_file_or_parent(start_at.parent)
-    
+
     return return_file_or_parent(start_at=Path.cwd())
 
 
@@ -728,7 +728,9 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         raise ValueError("Workspace config path is not a path, check your input.")
     elif workspace_config_path.is_file():
         auth = get_authentication()
-        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        logging.info(f"Logged into AzureML workspace {workspace.name}")
+        return workspace
 
     raise ValueError("Workspace config file does not exist or cannot be read.")
 
