@@ -1,5 +1,13 @@
 # Notes for developers
 
+## Development environment
+
+We suggest using Visual Studio Code (VSCode), available for multiple platforms [here](https://code.visualstudio.com/).
+On Windows system, we recommend using WSL, the Windows Subsystem for Linux, because some PyTorch features are not available on Windows.
+Inside VSCode, please install the extensions that are recommended for this project - they are available in `.vscode/extensions.json` in the
+repository root. 
+
+
 ## Creating a Conda environment
 
 To create a separate Conda environment with all packages that `hi-ml` requires for running and testing,

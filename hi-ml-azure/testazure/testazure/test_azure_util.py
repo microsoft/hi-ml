@@ -454,7 +454,7 @@ def test_pip_include_1() -> None:
         uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(root_yaml)
         assert uses_pip_include
         pip = util._get_pip_dependencies(modified_yaml)
-        # The pip section of the top-level yaml has nothing but include statements, so after filtering the 
+        # The pip section of the top-level yaml has nothing but include statements, so after filtering the
         # pip section is empty. In this case, no pip section shoudld be present at all.
         assert pip is None
 
