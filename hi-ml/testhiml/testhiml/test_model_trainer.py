@@ -66,7 +66,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
         return {"callbacks": callbacks}
 
     model_name = "HelloContainer"
-    model_config_loader = ModelConfigLoader(model=model_name)
+    model_config_loader = ModelConfigLoader()
     container = model_config_loader.create_model_config_from_name(model_name)
     container.monitor_gpu = False
     container.monitor_loading = False

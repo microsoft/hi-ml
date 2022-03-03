@@ -23,6 +23,9 @@ outside the Conda environment. For WSL, these are the required steps (see also
 [here](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)):
 ```shell
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+```
+Close your terminal and re-open it, then run:
+```shell
 nvm install node
 npm install -g pyright
 ```

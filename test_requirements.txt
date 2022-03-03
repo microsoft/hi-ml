@@ -7,3 +7,4 @@ pycobertura==2.0.1
 pytest==6.2.2
 pytest-cov==2.11.1
 pytest-timeout==2.0.1
+scikit-learn  # This is needed to make pyright pass on the docs folder

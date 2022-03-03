@@ -254,7 +254,7 @@ class OutputParams(param.Parameterized):
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
         self.output_to = Path(output_to)
-        self.create_filesystem(project_root=fixed_paths.repository_root_directory)
+        self.create_filesystem(project_root=fixed_paths.repository_root_directory())
 
     def create_filesystem(self, project_root: Path) -> None:
         """

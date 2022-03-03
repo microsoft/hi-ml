@@ -27,7 +27,7 @@ class ModelConfigLoader:
         from health_ml import configs  # type: ignore
 
         default_module = configs.__name__
-        return importlib.util.find_spec(default_module)
+        return find_spec(default_module)
 
     def find_module_search_specs(self, model_name: str) -> ModuleSpec:
         """
@@ -43,7 +43,7 @@ class ModelConfigLoader:
         module_name = ".".join(model_namespace_parts[:-1])
         logging.debug(f"Getting specification for module {module_name}")
         try:
-            custom_spec: Optional[ModuleSpec] = importlib.util.find_spec(module_name)
+            custom_spec: Optional[ModuleSpec] = find_spec(module_name)
         except Exception:
             custom_spec = None
         if custom_spec is None:
