@@ -51,7 +51,8 @@ def transform_dict_adaptor(function: Callable, k_input: str = None, k_output: st
     :param function: a transformation function
     :param k_input: key of the input dictionary that contains the object
         to which function should be applied
-    :param k_output: key of the input dictionary where to place the function output. If None
+    :param k_output: key of the input dictionary where to place the function output. If None the ouput of
+        the transformation is returned
 
     :return: adapted transformation
     """
