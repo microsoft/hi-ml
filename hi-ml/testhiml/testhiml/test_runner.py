@@ -193,6 +193,8 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
 
 
 def test_run_hello_world(mock_runner: Runner) -> None:
+    """Test running a model end-to-end via the commandline runner
+    """
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.get_workspace") as mock_get_workspace:
@@ -201,3 +203,7 @@ def test_run_hello_world(mock_runner: Runner) -> None:
         # get_workspace should not be called when using the runner outside AzureML, to not go through the
         # time-consuming auth
         mock_get_workspace.assert_not_called()
+        # Summary.txt is written at start, the other files during inference
+        expected_files = ["experiment_summary.txt", "test_mae.txt", "test_mse.txt"]
+        for file in expected_files:
+            assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
