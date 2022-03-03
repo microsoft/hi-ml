@@ -47,16 +47,6 @@ class LRSchedulerType(Enum):
 
 
 @unique
-class MultiprocessingStartMethod(Enum):
-    """
-    Different methods for starting data loader processes.
-    """
-    fork = "fork"
-    forkserver = "forkserver"
-    spawn = "spawn"
-
-
-@unique
 class OptimizerType(Enum):
     """
     Supported optimizers for model training

@@ -338,7 +338,8 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None
+        hyperdrive_config: Optional[HyperDriveConfig] = None,
+        create_output_folders: bool = True,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -391,6 +392,7 @@ def submit_to_azure_if_needed(  # type: ignore
         for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
+    :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """

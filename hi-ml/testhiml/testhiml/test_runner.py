@@ -24,12 +24,12 @@ def mock_runner(tmp_path: Path) -> Runner:
 
 
 @pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
-    ("HelloContainer", "dummyCluster", 1, False),
+    ("HelloWorld", "dummyCluster", 1, False),
     ("", "", None, True),
-    ("HelloContainer", "", None, False),
+    ("HelloWorld", "", None, False),
     ("a", None, 0, True),
     (None, "b", 10, True),
-    ("HelloContainer", "b", 10, False)
+    ("HelloWorld", "b", 10, False)
 ])
 def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cluster: Optional[str],
                               num_nodes: Optional[int], should_raise_value_error: bool) -> None:
@@ -66,7 +66,7 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
 
 
 def test_run(mock_runner: Runner) -> None:
-    model_name = "HelloContainer"
+    model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
         with patch("health_ml.runner.get_workspace"):

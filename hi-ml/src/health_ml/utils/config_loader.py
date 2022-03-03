@@ -142,7 +142,7 @@ class ModelConfigLoader:
         module_spec = self.find_module_search_specs(model_name)
         configs = self._search_recursively_and_store(module_spec=module_spec, model_name=class_name)
         if len(configs) == 0:
-            raise ValueError(f"Model name {model_name} was not found in search namespace {module_spec.name}")
+            raise ValueError(f"Model '{model_name}' was not found in search namespace {module_spec.name}")
         elif len(configs) > 1:
             raise ValueError(
                 f"Multiple instances of model '{model_name}' were found in namespaces: {[*configs.keys()]}"

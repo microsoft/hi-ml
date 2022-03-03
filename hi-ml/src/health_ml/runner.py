@@ -264,6 +264,7 @@ class Runner:
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                     hyperdrive_config=hyperdrive_config,
+                    create_output_folders=False,
                     tags=additional_run_tags(
                         commandline_args=" ".join(script_params))
                 )

@@ -19,7 +19,8 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
-from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
+from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE, 
+                                          change_working_directory)
 from health_ml.utils.lightning_loggers import StoringLogger
 
 TEMP_PREFIX = "temp/"
@@ -213,9 +214,11 @@ def model_train(checkpoint_path: Optional[Path],
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
 
     # get recovery checkpoint if it exists
-
     logging.info("Starting training")
-    trainer.fit(lightning_model, datamodule=data_module)
+    # Change to the outputs folder so that the model can write to current working directory, and still everything
+    # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
+    with change_working_directory(container.outputs_folder):
+        trainer.fit(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 
