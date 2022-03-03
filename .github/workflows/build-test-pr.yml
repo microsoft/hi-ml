@@ -235,19 +235,21 @@ jobs:
         id: download_himlazure
         uses: ./.github/actions/download_package_artifacts
         with:
-          folder: .
+          folder: hi-ml-azure
           package_type: ${{ matrix.packageName }}
 
       - name: Download hi-ml
         id: download_himl
         uses: ./.github/actions/download_package_artifacts
         with:
-          folder: .
+          folder: hi-ml
           package_type: ${{ matrix.packageName }}
 
       - name: Install dependencies
         run: |
+          cd hi-ml-azure
           pip install ${{ steps.download_himlazure.outputs.package_filename }} 
+          cd ../hi-ml
           pip install ${{ steps.download_himl.outputs.package_filename }}
 
       - name: Run tests
