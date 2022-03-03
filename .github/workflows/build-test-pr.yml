@@ -255,6 +255,7 @@ jobs:
       - name: Run tests
         run: |
           cd ${{ matrix.folder }}
+          make pip_local
           make pytest_and_coverage
 
       - name: Upload coverage artifacts
