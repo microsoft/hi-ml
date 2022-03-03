@@ -226,23 +226,29 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
+      - name: PIP upgrade
+        run: |
+          cd hi-ml-azure
+          make pip_upgrade
+
       - name: Download hi-ml-azure
         id: download_himlazure
         uses: ./.github/actions/download_package_artifacts
         with:
-          folder: hi-ml-azure
+          folder: .
           package_type: ${{ matrix.packageName }}
 
       - name: Download hi-ml
         id: download_himl
         uses: ./.github/actions/download_package_artifacts
         with:
-          folder: hi-ml
+          folder: .
           package_type: ${{ matrix.packageName }}
 
       - name: Install dependencies
         run: |
-          pip install ${{ steps.download_himlazure.outputs.package_filename }} ${{ steps.download_himl.outputs.package_filename }}
+          pip install ${{ steps.download_himlazure.outputs.package_filename }} 
+          pip install ${{ steps.download_himl.outputs.package_filename }}
 
       - name: Run tests
         run: |
