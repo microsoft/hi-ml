@@ -75,6 +75,8 @@ jobs:
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
+      # This will let all parts of the matrix run, to collect as many errors as possible, rather than aborting after first fail
+      fail-fast: false
     steps:
       - uses: actions/checkout@v2
         with:
@@ -116,7 +118,7 @@ jobs:
     needs: [ pytest_fast ]
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
+        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - uses: actions/checkout@v2
         with:

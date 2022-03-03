@@ -38,13 +38,6 @@ clean:
 	rm -vrf ./testhisto/testhisto/test_outputs ./testhistotestSSL/test_ouputs
 	rm -vf ./coverage ./coverage.txt ./coverage.xml
 
-# build package, assuming build requirements already installed
-call_build:
-	ls
-
-# pip install build requirements and build package
-build: pip_build call_build
-
 # run flake8, assuming test requirements already installed
 call_flake8:
 	flake8 --count --statistics --config=../.flake8 .
