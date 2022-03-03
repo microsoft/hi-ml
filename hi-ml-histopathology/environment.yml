@@ -39,7 +39,7 @@ dependencies:
       - stopit==1.1.2
       - tabulate==0.8.7
       - torch>=1.10.0
-      - torchvision==0.11.0
+      - torchvision==0.11.1
       - torchmetrics==0.6.0
       - umap-learn==0.5.2
       - yacs==0.1.8
