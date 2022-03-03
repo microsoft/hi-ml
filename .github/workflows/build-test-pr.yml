@@ -96,7 +96,7 @@ jobs:
       - name: Install hi-ml in editable mode
         if: ${{ matrix.folder != 'hi-ml-azure' && matrix.folder != 'hi-ml' }}
         run: |
-          cd hi-ml-azure
+          cd hi-ml
 
           # Install local package in editable mode
           make pip_local
