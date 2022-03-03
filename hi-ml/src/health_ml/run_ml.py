@@ -183,8 +183,9 @@ class MLRunner:
             self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
             data_module = self.container.get_data_module()
 
-            # Change to the outputs folder so that the model can write to current working directory, and still everything
-            # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
+            # Change to the outputs folder so that the model can write to current working directory, and still
+            # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
+            # retained)
             with change_working_directory(self.container.outputs_folder):
                 _ = trainer.test(self.container.model, datamodule=data_module)
 

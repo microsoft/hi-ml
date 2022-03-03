@@ -19,11 +19,9 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE, 
+from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
                                           change_working_directory)
 from health_ml.utils.lightning_loggers import StoringLogger
-
-TEMP_PREFIX = "temp/"
 
 T = TypeVar('T')
 

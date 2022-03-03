@@ -15,6 +15,19 @@ There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/conf
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `himl-runner --model=HelloWorld`.
 
+## Specifying the model to run
+
+The `--model` argument specifies the name of a class that should be used for model training. The class needs to
+be a subclass of `LightningContainer`, see below. There are different ways of telling the runner where to find 
+that class:
+* If just providing a single class name, like `--model=HelloWorld`, the class is expected somewhere in the 
+`health_ml.configs` namespace. It can be in any module/folder inside of that namespace.
+* If the class is outside of the `health_ml.configs` (as would be normal if using the `himl-runner` from a package),
+you need to provide some "hints" where to start searching. It is enough to provide the start of the namespace string:
+for example, `--model histopathology.PandaImageNetMIL` is effectively telling the runner to search for the 
+`PandaImageNetMIL` class _anywhere_ in the `histopathology` namespace. You can think of this as 
+`histopathology.*.PandaImageNetMIL`
+
 ## Running ML experiments in Azure ML 
 
 To train in AzureML, add a `--azureml` flag. Use the flag `--cluster` to specify the name of the cluster
@@ -145,10 +158,6 @@ class MyContainer(LightningContainer):
 By default, config files will be looked for in the folder "health_ml.configs". To specify config files 
 that live elsewhere, use a fully qualified name for the parameter `--model` - e.g. "MyModule.Configs.my_config.py"
 
-
-## Starting the model training in 
-
-You can 
 
 ## Outputting files during training
 
