@@ -144,7 +144,7 @@ jobs:
     needs: [ build-python ]
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
+        folder: [ hi-ml, hi-ml-azure ]
         packageName: [ '*.whl', '*.tar.gz' ]
     steps:
       - uses: actions/checkout@v2

@@ -17,9 +17,12 @@ pip_build:
 pip_test:
 	$(call call_parent,pip_test)
 
-# pip install local package in editable mode for development and testing
+# pip install all requirements for histo, read off the Conda file. This is somewhat hacky,
+# we could also build a full Conda before starting the tests. Unclear about the performance
+# impact of that.
 call_pip_local:
-	ls
+	sed -e '1,/pip:/ d' environment.yml | cut -d "-" -f 2- > temp_requirements.txt
+	pip install -r temp_requirements.txt
 
 # pip upgrade and install local package in editable mode
 pip_local: pip_upgrade call_pip_local
