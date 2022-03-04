@@ -247,7 +247,6 @@ def check_conda_environments(env_files: List[Path]) -> None:
     in the pip section.
 
     :param env_files: The list of Conda environment YAML files to check.
-    :type env_files: List[Path]
     """
     if is_himl_used_from_git_repo():
         repo_root_yaml: Optional[Path] = git_repo_root_folder() / ENVIRONMENT_YAML_FILE_NAME

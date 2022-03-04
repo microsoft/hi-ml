@@ -663,11 +663,8 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
     of the given folders in stop_at_path.
 
     :param file_name: The name of the file to find.
-    :type file_name: str
     :param stop_at_path: A list of folders. If any of them is reached, search stops.
-    :type stop_at_path: List[Path]
     :return: The absolute path of the file if found, or None if it was not found.
-    :rtype: Optional[Path]
     """
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
         logging.debug(f"Searching for file {file_name} in {start_at}")
@@ -933,9 +930,7 @@ def is_pip_include_dependency(package: str) -> bool:
     in the format "-r requirements.txt"
 
     :param package: The name of the PIP dependency to check.
-    :type package: str
     :return: True if the package name is a PIP include statement.
-    :rtype: bool
     """
     return package.strip().startswith("-r ")
 
@@ -947,10 +942,8 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     unmodified Conda yaml.
 
     :param conda_file: The path of a Conda environment file.
-    :type conda_file: Path
     :return: True if the file uses pip includes, False if not. Seconda return value is the modified Conda environment
     without the PIP include statements.
-    :rtype: bool
     """
     conda_yaml = conda_merge.read_file(str(conda_file))
     pip_dep = _get_pip_dependencies(conda_yaml)
