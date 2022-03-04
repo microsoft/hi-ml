@@ -72,6 +72,8 @@ class HEDJitter(object):
         return img
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        if img.shape[1] != 3:
+            raise ValueError("HED jitter can only be applied to images with 3 channels (RGB).")
         return self.adjust_hed(img, self.theta, self.hed_from_rgb, self.rgb_from_hed)
 
 

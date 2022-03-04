@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Mapping, Sequence, Union
+from typing import Mapping, Sequence, Union, Callable, Dict
 
 import torch
 import numpy as np
@@ -41,6 +41,37 @@ def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
                                  total=len(image_paths), leave=False)
     image_tensors = list(loading_generator)
     return torch.stack(image_tensors, dim=0)
+
+
+def transform_dict_adaptor(function: Callable, k_input: str = None, k_output: str = None) -> Callable:
+    """Adapt transformations to work with an input dictionary (rather than a tensor).
+       We can't reuse monai.transforms.adaptors because it is only compatible with transformations that accept
+       a dict as input.
+
+    :param function: a transformation function
+    :param k_input: key of the input dictionary that contains the object
+        to which function should be applied
+    :param k_output: key of the input dictionary where to place the function output. If None the ouput of
+        the transformation is returned
+
+    :return: adapted transformation
+    """
+    def _inner(ditems: dict) -> Dict:
+        if k_input is None:
+            dinputs = ditems
+        else:
+            dinputs = ditems[k_input]
+        ret = function(dinputs)
+        if k_output is None:
+            ditems = ret
+        else:
+            if isinstance(ret, type(ditems[k_output])):
+                ditems[k_output] = ret
+            else:
+                raise ValueError("The transformation is not expect to change the type."
+                                 "Check input and output are used correctly ")
+        return ditems
+    return _inner
 
 
 class LoadTiled(MapTransform):
