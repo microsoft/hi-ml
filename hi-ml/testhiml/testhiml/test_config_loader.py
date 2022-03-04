@@ -49,6 +49,7 @@ def test_create_model_config_from_name_duplicates() -> None:
 
     # if > 1 config is found matching the model name, an exception should be raised
     hello_config_path = Path(hello_config.__file__)
+    # This file must be excluded from coverage reports, check .coveragerc
     duplicate_config_file = hello_config_path.parent / "temp_config_for_unittests.py"
     shutil.copyfile(hello_config_path, duplicate_config_file)
     with pytest.raises(Exception) as e:
