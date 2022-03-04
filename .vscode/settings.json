@@ -55,12 +55,15 @@
         "./hi-ml-azure/testazure",
         "./hi-ml/src",
         "./hi-ml/testhiml",
+        "./hi-ml-histopathology/src",
+        "./hi-ml-histopathology/testhisto",
+        "./hi-ml-histopathology/testSSL",
     ],
     "terminal.integrated.defaultProfile.windows": "Command Prompt",
     "terminal.integrated.env.windows": {
-        "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src"
+        "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src:${workspaceFolder}/hi-ml-histopathology/src"
     },
     "terminal.integrated.env.linux": {
-        "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src"
+        "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src:${workspaceFolder}/hi-ml-histopathology/src"
     }
 }
