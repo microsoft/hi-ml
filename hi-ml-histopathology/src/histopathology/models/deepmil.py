@@ -13,20 +13,18 @@ import matplotlib.pyplot as plt
 import more_itertools as mi
 
 from pytorch_lightning import LightningModule
-from torch import Tensor, argmax, mode, nn, no_grad, optim, round
+from torch import Tensor, argmax, mode, nn, set_grad_enabled, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
-from health_azure.utils import is_global_rank_zero
-from health_ml.utils import fixed_paths, log_on_epoch
-
-from histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
-from histopathology.models.encoders import TileEncoder
-from histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
-                                                plot_scores_hist, plot_heatmap_overlay,
-                                                plot_slide, plot_normalized_confusion_matrix)
-from histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
-from histopathology.utils.viz_utils import load_image_dict
-
+from InnerEye.Common import fixed_paths
+from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
+from InnerEye.ML.Histopathology.models.encoders import TileEncoder
+from InnerEye.ML.Histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
+                                                            plot_scores_hist, plot_heatmap_overlay,
+                                                            plot_slide, plot_normalized_confusion_matrix)
+from InnerEye.ML.Histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
+from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
+from health_ml.utils import log_on_epoch
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -46,8 +44,8 @@ class DeepMILModule(LightningModule):
                  n_classes: int,
                  encoder: TileEncoder,
                  pooling_layer: Callable[[int, int, int], nn.Module],
-                 pool_hidden_dim: int = 128,
-                 pool_out_dim: int = 1,
+                 num_features: int,
+                 dropout_rate: Optional[float] = None,
                  class_weights: Optional[Tensor] = None,
                  l_rate: float = 5e-4,
                  weight_decay: float = 1e-4,
@@ -56,17 +54,17 @@ class DeepMILModule(LightningModule):
                  slide_dataset: SlidesDataset = None,
                  tile_size: int = 224,
                  level: int = 1,
-                 class_names: Optional[List[str]] = None) -> None:
+                 class_names: Optional[List[str]] = None,
+                 is_finetune: bool = False) -> None:
         """
         :param label_column: Label key for input batch dictionary.
-        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes
-        should be set to 1.
+        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
+         set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
         you should use `IdentityEncoder`.
-        :param pooling_layer: Type of pooling to use in multi-instance aggregation. Should be a
-        `torch.nn.Module` constructor accepting input, hidden, and output pooling `int` dimensions.
-        :param pool_hidden_dim: Hidden dimension of pooling layer (default=128).
-        :param pool_out_dim: Output dimension of pooling layer (default=1).
+        :param pooling_layer: TODO
+        :param num_features: TODO
+        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param class_weights: Tensor containing class weights (default=None).
         :param l_rate: Optimiser learning rate.
         :param weight_decay: Weight decay parameter for L2 regularisation.
@@ -76,18 +74,19 @@ class DeepMILModule(LightningModule):
         :param tile_size: The size of each tile (default=224).
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: The names of the classes if available (default=None).
+        :param is_finetune: Boolean value to enable/disable finetuning (default=False).
         """
         super().__init__()
 
         # Dataset specific attributes
         self.label_column = label_column
         self.n_classes = n_classes
-        self.pool_hidden_dim = pool_hidden_dim
-        self.pool_out_dim = pool_out_dim
-        self.pooling_layer = pooling_layer
+
+        self.dropout_rate = dropout_rate
         self.class_weights = class_weights
         self.encoder = encoder
-        self.num_encoding = self.encoder.num_encoding
+        self.aggregation_fn = pooling_layer
+        self.num_pooling = num_features
 
         if class_names is not None:
             self.class_names = class_names
@@ -97,11 +96,11 @@ class DeepMILModule(LightningModule):
             else:
                 self.class_names = ['0', '1']
         if self.n_classes > 1 and len(self.class_names) != self.n_classes:
-            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number"
-                             f"of classes ({self.n_classes})")
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes\
+                 ({self.n_classes})")
         if self.n_classes == 1 and len(self.class_names) != 2:
-            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number"
-                             f"of classes ({self.n_classes+1})")
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes\
+                 ({self.n_classes+1})")
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -117,7 +116,9 @@ class DeepMILModule(LightningModule):
 
         self.verbose = verbose
 
-        self.aggregation_fn, self.num_pooling = self.get_pooling()
+        # Finetuning attributes
+        self.is_finetune = is_finetune
+
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
@@ -127,16 +128,15 @@ class DeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_pooling(self) -> Tuple[Callable, int]:
-        pooling_layer = self.pooling_layer(self.num_encoding,
-                                           self.pool_hidden_dim,
-                                           self.pool_out_dim)
-        num_features = self.num_encoding * self.pool_out_dim
-        return pooling_layer, num_features
-
     def get_classifier(self) -> Callable:
-        return nn.Linear(in_features=self.num_pooling,
-                         out_features=self.n_classes)
+        classifier_layer = nn.Linear(in_features=self.num_pooling,
+                                     out_features=self.n_classes)
+        if self.dropout_rate is None:
+            return classifier_layer
+        elif 0 <= self.dropout_rate < 1:
+            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+        else:
+            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
@@ -192,13 +192,13 @@ class DeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
-    def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        with no_grad():
-            H = self.encoder(images)                        # N X L x 1 x 1
-        A, M = self.aggregation_fn(H)                       # A: K x N | M: K x L
-        M = M.view(-1, self.num_encoding * self.pool_out_dim)
-        Y_prob = self.classifier_fn(M)
-        return Y_prob, A
+    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
+        with set_grad_enabled(self.is_finetune):
+            instance_features = self.encoder(instances)                    # N X L x 1 x 1
+        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
+        bag_features = bag_features.view(1, -1)
+        bag_logit = self.classifier_fn(bag_features)
+        return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
         return optim.Adam(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay,
@@ -256,9 +256,7 @@ class DeepMILModule(LightningModule):
                            ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
                            )
         else:
-            if is_global_rank_zero():
-                logging.warning("Coordinates not found in batch. If this is not expected check your"
-                                "input tiles dataset.")
+            logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
 
         return results
 
@@ -313,8 +311,7 @@ class DeepMILModule(LightningModule):
             list_slide_dicts.append(slide_dict)
             list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
 
-        outputs_path = fixed_paths.repository_root_directory() / 'outputs'
-        assert outputs_path.is_dir, f"No such dir: {outputs_path}"
+        outputs_path = fixed_paths.repository_parent_directory() / 'outputs'
         print(f"Metrics results will be output to {outputs_path}")
         outputs_fig_path = outputs_path / 'fig'
         csv_filename = outputs_path / 'test_output.csv'
@@ -326,21 +323,17 @@ class DeepMILModule(LightningModule):
             slide_dict = self.normalize_dict_for_df(slide_dict, use_gpu=False)
             df_list.append(pd.DataFrame.from_dict(slide_dict))
         df = pd.concat(df_list, ignore_index=True)
-        df.to_csv(csv_filename, mode='w+', header=True)
+        df.to_csv(csv_filename, mode='w', header=True)
 
         # Collect all features in a list and save
         features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
         torch.save(features_list, encoded_features_filename)
 
         print("Selecting tiles ...")
-        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
-                                      select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
-                                         select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
-                                      select=('highest_pred', 'highest_att'))
-        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
-                                         select=('highest_pred', 'lowest_att'))
+        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
+        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
+        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
+        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
         report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
 
         for key in report_cases.keys():
@@ -358,11 +351,8 @@ class DeepMILModule(LightningModule):
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
 
                 if self.slide_dataset is not None:
-                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:  # type: ignore
-                                               entry[SlideKey.SLIDE_ID] == slide)
-                    _ = load_image_dict(slide_dict,
-                                        level=self.level,
-                                        margin=0)  # type: ignore
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                           # type: ignore
                     slide_image = slide_dict[SlideKey.IMAGE]
                     location_bbox = slide_dict[SlideKey.LOCATION]
 

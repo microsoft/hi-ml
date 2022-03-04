@@ -20,7 +20,7 @@ from pytorch_lightning.callbacks import Callback
 
 from health_azure.utils import CheckpointDownloader
 from health_azure import get_workspace
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_ml.networks.layers.attention_layers import TransformerPooling
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.base_module import TilesDataModule
@@ -47,7 +47,9 @@ class DeepSMILECrck(BaseMIL):
         # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(
             # declared in BaseMIL:
-            pooling_type=AttentionLayer.__name__,
+            pool_type=TransformerPooling.__name__,
+            num_transformer_pool_layers=4,
+            num_transformer_pool_heads=4,
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
