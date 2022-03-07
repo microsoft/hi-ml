@@ -116,7 +116,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
         - checkpoint loading and ImageClassifier module creation
         - training of image classifier for one epoch.
     """
-    model_namespace_simclr = "hi-ml-histopathology.SSL.configs.CIFAR10SimCLR"
+    model_namespace_simclr = "SSL.configs.CIFAR10SimCLR"
     args = common_test_args + [f"--model={model_namespace_simclr}"]
     runner = default_runner()
     with check_config_json(Path.cwd()):
@@ -160,7 +160,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     assert SslOnlineEvaluatorHiml.EVALUATOR_STATE_NAME in callback_state
 
     # Now run the actual SSL classifier off the stored checkpoint
-    model_namespace_cifar = "hi-ml-histopathology.SSL.configs.SSLClassifierCIFAR"
+    model_namespace_cifar = "SSL.configs.SSLClassifierCIFAR"
     args = common_test_args + [f"--model={model_namespace_cifar}",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with check_config_json(Path.cwd()):
@@ -180,7 +180,7 @@ def test_load_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     Tests that the parameters feed into the BYOL model and online evaluator are
     indeed the one we fed through our command line args
     """
-    model_namespace_byol = "hi-ml-histopathology.SSL.configs.CIFAR10CIFAR100BYOL"
+    model_namespace_byol = "SSL.configs.CIFAR10CIFAR100BYOL"
     args = common_test_args + [f"--model={model_namespace_byol}"]
     runner = default_runner()
     with mock.patch("sys.argv", args):
@@ -199,7 +199,7 @@ def test_ssl_container_rsna() -> None:
     runner = default_runner()
     path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
     # Test training of SSL model
-    model_namespace_byol = "hi-ml-histopathology.SSL.configs.NIH_RSNA_BYOL"
+    model_namespace_byol = "SSL.configs.NIH_RSNA_BYOL"
     args = common_test_args + [f"--model={model_namespace_byol}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)},{str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
@@ -249,7 +249,7 @@ def test_ssl_container_rsna() -> None:
 
     # Check that we are able to load the checkpoint and create classifier model
     checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    model_namespace_cxr = "hi-ml-histopathology.SSL.configs.CXRImageClassifier"
+    model_namespace_cxr = "SSL.configs.CXRImageClassifier"
     args = common_test_args + [f"--model={model_namespace_cxr}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",

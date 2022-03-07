@@ -27,7 +27,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import (create_python_environment, create_run_recovery_id, _find_file,
+from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
@@ -178,7 +178,7 @@ def create_run_configuration(workspace: Workspace,
 
 
 def create_crossval_hyperdrive_config(num_splits: int,
-                                      cross_val_index_arg_name: str = "cross_validation_split_index",
+                                      cross_val_index_arg_name: str = "crossval_index",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
     """
     Creates an Azure ML HyperDriveConfig object for running cross validation. Note: this config expects a metric
@@ -186,20 +186,21 @@ def create_crossval_hyperdrive_config(num_splits: int,
     https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
 
     :param num_splits: The number of splits for k-fold cross validation
-    :param cross_val_index_arg_name: The name of the argument received by each of the child runs that indicates which
-        split that child represents.
+    :param cross_val_index_arg_name: The name of the commandline argument that each of the child runs gets, to
+        indicate which split they should work on.
     :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(f"Creating a HyperDriveConfig. Please be aware that this expects to find the metric {metric_name}"
-                 f" logged to the Run during your training script.")
+    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
+                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
+                 f"AzureMLLogger with Pytorch Lightning)")
+    parameter_dict = {
+        cross_val_index_arg_name: choice(list(range(num_splits))),
+    }
     return HyperDriveConfig(
         run_config=ScriptRunConfig(""),
-        hyperparameter_sampling=GridParameterSampling(
-            {
-                cross_val_index_arg_name: choice(list(range(num_splits)))
-            }),
+        hyperparameter_sampling=GridParameterSampling(parameter_dict),
         primary_metric_name=metric_name,
         primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
         max_total_runs=num_splits
@@ -337,7 +338,8 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None
+        hyperdrive_config: Optional[HyperDriveConfig] = None,
+        create_output_folders: bool = True,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -390,6 +392,7 @@ def submit_to_azure_if_needed(  # type: ignore
         for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
+    :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -448,7 +451,7 @@ def submit_to_azure_if_needed(  # type: ignore
     workspace = get_workspace(aml_workspace, workspace_config_path)
 
     if conda_environment_file is None:
-        conda_environment_file = _find_file(CONDA_ENVIRONMENT_FILE)
+        conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
     conda_environment_file = _str_to_path(conda_environment_file)
 
     logging.info(f"Loaded AzureML workspace {workspace.name}")

@@ -10,15 +10,18 @@ from pathlib import Path
 from typing import List, Optional
 
 import param
+from azureml.train.hyperdrive import HyperDriveConfig
 from param import Parameterized
 
+from health_azure import create_crossval_hyperdrive_config
 from health_azure.utils import RUN_CONTEXT, PathOrString, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME, is_windows, parse_model_id_and_version)
+                                          DEFAULT_LOGS_DIR_NAME,
+                                          parse_model_id_and_version)
 from health_ml.utils.type_annotations import TupleFloat2
 
 
@@ -41,16 +44,6 @@ class LRSchedulerType(Enum):
     Polynomial = "Polynomial"
     Cosine = "Cosine"
     MultiStep = "MultiStep"
-
-
-@unique
-class MultiprocessingStartMethod(Enum):
-    """
-    Different methods for starting data loader processes.
-    """
-    fork = "fork"
-    forkserver = "forkserver"
-    spawn = "spawn"
 
 
 @unique
@@ -79,7 +72,7 @@ class ExperimentFolderHandler(Parameterized):
     def create(project_root: Path,
                is_offline_run: bool,
                model_name: str,
-               output_to: Path = Path()) -> ExperimentFolderHandler:
+               output_to: Optional[Path] = None) -> ExperimentFolderHandler:
         """
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp
@@ -96,8 +89,7 @@ class ExperimentFolderHandler(Parameterized):
         """
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
-        # output_to by default will be Path() which is not None, but Path().stem is None
-        if is_offline_run or output_to.stem:
+        if is_offline_run or output_to:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
                 root = Path(output_to).absolute()
@@ -140,20 +132,17 @@ class WorkflowParams(param.Parameterized):
     model_id: str = param.String(default="",
                                  doc="A model id string in the form 'model name:version' "
                                      "to use a registered model for inference.")
-    multiprocessing_start_method: MultiprocessingStartMethod = \
-        param.ClassSelector(class_=MultiprocessingStartMethod,
-                            default=(MultiprocessingStartMethod.spawn if is_windows()
-                                     else MultiprocessingStartMethod.fork),
-                            doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
-                                "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
-                                "Set to forkserver as a possible remedy for stuck jobs.")
-    regression_test_folder: Optional[Path] = \
-        param.ClassSelector(class_=Path, default=None, allow_None=True,
-                            doc="A path to a folder that contains a set of files. At the end of training and "
-                                "model evaluation, all files given in that folder must be present in the job's output "
-                                "folder, and their contents must match exactly. When running in AzureML, you need to "
-                                "ensure that this folder is part of the snapshot that gets uploaded. The path should "
-                                "be relative to the repository root directory.")
+    crossval_count: int = param.Integer(default=1, bounds=(0, None),
+                                        doc="The number of splits to use when doing cross-validation. "
+                                            "Use 1 to disable cross-validation")
+    crossval_index: int = param.Integer(default=0, bounds=(0, None),
+                                        doc="When doing cross validation, this is the index of the current "
+                                            "split. Valid values: 0 .. (crossval_count -1)")
+    hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
+                                                "LightningContainer to run hyperparameter tuning. If False, just "
+                                                "run a plain single training job.")
+    CROSSVAL_INDEX_ARG_NAME = "crossval_index"
+    CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
         if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
@@ -161,6 +150,10 @@ class WorkflowParams(param.Parameterized):
 
         if self.model_id:
             parse_model_id_and_version(self.model_id)
+
+        if self.crossval_count > 1:
+            if not (0 <= self.crossval_index < (self.crossval_count - 1)):
+                raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
     @property
     def is_running_in_aml(self) -> bool:
@@ -180,21 +173,37 @@ class WorkflowParams(param.Parameterized):
         seed = self.random_seed
         return seed
 
+    @property
+    def is_crossvalidation_enabled(self) -> bool:
+        """
+        Returns True if the present parameters indicate that cross-validation should be used.
+        """
+        return self.crossval_count > 1
+
+    def get_crossval_hyperdrive_config(self) -> HyperDriveConfig:
+        # For crossvalidation, the name of the metric to monitor does not matter because no early termination or such
+        # is specified.
+        return create_crossval_hyperdrive_config(num_splits=self.crossval_count,
+                                                 cross_val_index_arg_name=self.CROSSVAL_INDEX_ARG_NAME,
+                                                 metric_name="val/loss"
+                                                 )
+
 
 class DatasetParams(param.Parameterized):
     azure_datasets: List[str] = param.List(default=[], class_=str,
                                            doc="If provided, the ID of one or more datasets to use when running in"
-                                               " AzureML.This dataset must exist as a folder of the same name in the"
-                                               " 'datasets' container in the datasets storage account. This dataset"
-                                               " will be mounted and made available at the 'local_dataset' path"
-                                               " when running in AzureML.")
+                                               " AzureML. This dataset must exist as a folder of the same name "
+                                               "in the 'datasets' container in the datasets storage account. This "
+                                               "dataset will be mounted and made available at the 'local_dataset' "
+                                               "path when running in AzureML.")
     local_datasets: List[Path] = param.List(default=[], class_=Path,
                                             doc="A list of one or more paths to the dataset to use, when training"
                                                 " outside of Azure ML.")
     dataset_mountpoints: List[Path] = param.List(default=[], class_=Path,
-                                                 doc="The path at which the AzureML dataset should be made available "
-                                                     "via mounting or downloading. This only affects jobs running in "
-                                                     "AzureML. If empty, use a random mount/download point.")
+                                                 doc="The path at which the AzureML dataset should be made "
+                                                     "available via mounting or downloading. This only affects "
+                                                     "jobs running in AzureML. If empty, use a random "
+                                                     "mount/download point.")
 
     def validate(self) -> None:
         if (not self.azure_datasets) and (not self.local_datasets):
@@ -207,10 +216,10 @@ class DatasetParams(param.Parameterized):
 
 
 class OutputParams(param.Parameterized):
-    output_to: Path = param.ClassSelector(class_=Path, default=Path(),
-                                          doc="If provided, the run outputs will be written to the given folder. If "
-                                              "not provided, outputs will go into a subfolder of the project root "
-                                              "folder.")
+    output_to: Optional[Path] = param.ClassSelector(class_=Path, default=None,
+                                                    doc="If provided, the run outputs will be written to the given "
+                                                        "folder. If not provided, outputs will go into a subfolder "
+                                                        "of the project root folder.")
     file_system_config: ExperimentFolderHandler = param.ClassSelector(default=ExperimentFolderHandler(),
                                                                       class_=ExperimentFolderHandler,
                                                                       instantiate=False,
@@ -229,14 +238,15 @@ class OutputParams(param.Parameterized):
 
     def set_output_to(self, output_to: PathOrString) -> None:
         """
-        Adjusts the file system settings in the present object such that all outputs are written to the given folder.
+        Adjusts the file system settings in the present object such that all outputs are written to the given
+        folder.
 
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
         self.output_to = Path(output_to)
-        self.create_filesystem()
+        self.create_filesystem(project_root=fixed_paths.repository_root_directory())
 
-    def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
+    def create_filesystem(self, project_root: Path) -> None:
         """
         Creates new file system settings (outputs folder, logs folder) based on the information stored in the
         present object. If any of the folders do not yet exist, they are created.
@@ -268,7 +278,8 @@ class OutputParams(param.Parameterized):
 
 class OptimizerParams(param.Parameterized):
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
-    _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
+    _min_l_rate: float = param.Number(0.0,
+                                      doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
                                       bounds=(0.0, None))
     l_rate_scheduler: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
                                                             class_=LRSchedulerType,
@@ -338,19 +349,20 @@ class TrainerParams(param.Parameterized):
     autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
                                                      doc="Save epoch checkpoints every N validation epochs. "
                                                          "If pl_check_val_every_n_epoch > 1, this means that "
-                                                         "checkpoints are saved every N * pl_check_val_every_n_epoch "
-                                                         "training epochs.")
+                                                         "checkpoints are saved every "
+                                                         "N * pl_check_val_every_n_epoch training epochs.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
                                                     "training.")
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
                                                          "training.")
-    max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
-                                                      "all available GPUs. In distributed training, this is the "
-                                                      "maximum number of GPUs per node.")
+    max_num_gpus: int = param.Integer(default=-1,
+                                      doc="The maximum number of GPUS to use. If set to a value < 0, use"
+                                          "all available GPUs. In distributed training, this is the "
+                                          "maximum number of GPUs per node.")
     pl_progress_bar_refresh_rate: Optional[int] = \
         param.Integer(default=None,
-                      doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh progress "
-                          "bar (in steps). Value 0 disables progress bar. Value None chooses automatically.")
+                      doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh "
+                          "progress bar (in steps). Value 0 disables progress bar. If None choose, automatically.")
     pl_num_sanity_val_steps: int = \
         param.Integer(default=0,
                       doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
@@ -358,8 +370,8 @@ class TrainerParams(param.Parameterized):
     pl_deterministic: bool = \
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
-                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
-                          "you may see training speed increases.")
+                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, "
+                          "but you may see training speed increases.")
     pl_find_unused_parameters: bool = \
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
@@ -382,9 +394,9 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
-    additional_env_files: List[str] = param.List(class_=Path, default=[],
-                                                 doc="Additional conda environment (.yml) files to merge into the"
-                                                     " overall environment definition")
+    additional_env_files: List[Path] = param.List(class_=Path, default=[],
+                                                  doc="Additional conda environment (.yml) files to merge into the"
+                                                      " overall environment definition")
 
     @property
     def use_gpu(self) -> bool:
@@ -411,5 +423,6 @@ class TrainerParams(param.Parameterized):
             num_gpus = self.max_num_gpus
             logging.info(f"Restricting the number of GPUs to {num_gpus}")
         elif self.max_num_gpus > num_gpus:
-            logging.warning(f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
+            logging.warning(
+                f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus

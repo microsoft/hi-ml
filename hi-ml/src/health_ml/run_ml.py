@@ -20,7 +20,7 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_utils import CheckpointHandler
 from health_ml.utils.common_utils import (
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, logging_section,
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory, logging_section,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
@@ -181,10 +181,13 @@ class MLRunner:
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
             self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
-            # Change the current working directory to ensure that test files go to thr right folder
             data_module = self.container.get_data_module()
 
-            _ = trainer.test(self.container.model, datamodule=data_module)
+            # Change to the outputs folder so that the model can write to current working directory, and still
+            # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
+            # retained)
+            with change_working_directory(self.container.outputs_folder):
+                _ = trainer.test(self.container.model, datamodule=data_module)
 
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")

@@ -12,6 +12,10 @@ If in doubt, reach out to the core `hi-ml` team before starting your work.
 
 Please look through the existing folder structure to find a good home for your contribution.
 
+## Setting up your dev environment
+
+Please see the detailed instructions [here](developers.md).
+
 ## Submitting a Pull Request
 
 If you'd like to submit a PR to the codebase, please ensure you:

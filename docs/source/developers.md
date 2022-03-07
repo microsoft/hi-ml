@@ -1,5 +1,13 @@
 # Notes for developers
 
+## Development environment
+
+We suggest using Visual Studio Code (VSCode), available for multiple platforms [here](https://code.visualstudio.com/).
+On Windows system, we recommend using WSL, the Windows Subsystem for Linux, because some PyTorch features are not available on Windows.
+Inside VSCode, please install the extensions that are recommended for this project - they are available in `.vscode/extensions.json` in the
+repository root. 
+
+
 ## Creating a Conda environment
 
 To create a separate Conda environment with all packages that `hi-ml` requires for running and testing,
@@ -15,6 +23,9 @@ outside the Conda environment. For WSL, these are the required steps (see also
 [here](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)):
 ```shell
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+```
+Close your terminal and re-open it, then run:
+```shell
 nvm install node
 npm install -g pyright
 ```
@@ -103,3 +114,13 @@ To create a new package release, follow these steps:
 * Click "Auto-generate  release notes" to pull in the titles of the Pull Requests since the last release.
 * Before the auto-generated "What's changed" section, add a few sentences that summarize what's new.
 * Click "Publish release"
+
+
+## Troubleshooting
+
+### Debugging a test in VSCode fails on Windows
+
+* Symptom: Debugging just does not seem to do anything
+* Check: Debug Console shows error `from _sqlite3 import *: ImportError: DLL load failed: The specified module could not be found.`
+* Fix: [see here](https://stackoverflow.com/questions/54876404/unable-to-import-sqlite3-using-anaconda-python)
+* Run `conda info --envs` to see where your Conda environment lives, then place `sqlite3.dll` into the `DLLs` folder inside of the environment
