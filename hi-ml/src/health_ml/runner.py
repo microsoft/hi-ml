@@ -213,7 +213,8 @@ class Runner:
             try:
                 workspace = get_workspace()
             except ValueError:
-                logging.warning("No configuration file for an AzureML workspace was found.")
+                raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
+                                 "(config.json) was found.")
         default_datastore = workspace.get_default_datastore().name if workspace is not None else ""
 
         local_datasets = self.lightning_container.local_datasets
@@ -241,9 +242,6 @@ class Runner:
                     temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
                     merge_conda_files(conda_files, temp_conda, pip_files=pip_requirements_files)
 
-                if workspace is None:
-                    raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
-                                     "(config.json) was found.")
                 if not self.experiment_config.cluster:
                     raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
                                      "the script to run in AzureML")
