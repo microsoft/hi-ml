@@ -347,7 +347,7 @@ class DeepMILModule(LightningModule):
             slide_dict = self.normalize_dict_for_df(slide_dict, use_gpu=False)
             df_list.append(pd.DataFrame.from_dict(slide_dict))
         df = pd.concat(df_list, ignore_index=True)
-        df.to_csv(csv_filename, mode='w', header=True)
+        df.to_csv(csv_filename, mode='w+', header=True)
 
         # Collect all features in a list and save
         features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
