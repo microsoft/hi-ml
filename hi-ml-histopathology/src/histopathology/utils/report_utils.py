@@ -136,6 +136,12 @@ def get_best_epoch_metrics(metrics_df: pd.DataFrame, primary_metric: str,
     return pd.DataFrame(best_metrics).T
 
 
+def plot_crossval_training_curves(metrics_df: pd.DataFrame, metric: str, ax: Axes) -> None:
+    for k in sorted(metrics_df.columns):
+        values = metrics_df.loc[metric, k]
+        ax.plot(values)
+
+
 def get_formatted_run_info(parent_run_id: str, aml_workspace: Workspace) -> str:
     run = get_aml_run_from_run_id(parent_run_id, aml_workspace=aml_workspace)
 
