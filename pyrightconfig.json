@@ -14,16 +14,26 @@
   "reportPrivateImportUsage": false,
   "executionEnvironments": [
     {
-      "root": "hi-ml/src"
+      "root": "hi-ml/src",
+      "extraPaths": [
+        "hi-ml-azure/src"
+      ]
     },
     {
-      "root": "hi-ml/testhiml"
+      "root": "hi-ml/testhiml",
+      "extraPaths": [
+        "hi-ml-azure/src",
+        "hi-ml/src",
+      ]
     },
     {
       "root": "hi-ml-azure/src"
     },
     {
-      "root": "hi-ml-azure/testazure"
+      "root": "hi-ml-azure/testazure",
+      "extraPaths": [
+        "hi-ml-azure/src",
+      ]
     }
   ]
 }

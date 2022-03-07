@@ -8,8 +8,11 @@ from typing import List, Optional
 from unittest.mock import patch, MagicMock
 
 import pytest
+from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
+from health_ml.configs.hello_world import HelloWorld
+from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 
@@ -21,12 +24,12 @@ def mock_runner(tmp_path: Path) -> Runner:
 
 
 @pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
-    ("HelloContainer", "dummyCluster", 1, False),
+    ("HelloWorld", "dummyCluster", 1, False),
     ("", "", None, True),
-    ("HelloContainer", "", None, False),
+    ("HelloWorld", "", None, False),
     ("a", None, 0, True),
     (None, "b", 10, True),
-    ("HelloContainer", "b", 10, False)
+    ("HelloWorld", "b", 10, False)
 ])
 def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cluster: Optional[str],
                               num_nodes: Optional[int], should_raise_value_error: bool) -> None:
@@ -63,7 +66,7 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
 
 
 def test_run(mock_runner: Runner) -> None:
-    model_name = "HelloContainer"
+    model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
         with patch("health_ml.runner.get_workspace"):
@@ -113,3 +116,94 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
             assert run_info.input_datasets == []
             assert run_info.is_running_in_azure_ml is False
             assert run_info.output_folder is None
+
+
+def test_crossvalidation_flag() -> None:
+    """
+    Checks the basic use of the flags that trigger cross validation
+    :return:
+    """
+    container = HelloWorld()
+    assert not container.is_crossvalidation_enabled
+    container.crossval_count = 2
+    assert container.is_crossvalidation_enabled
+    container.validate()
+    # Validation should fail if the cross validation index is out of bounds
+    container.crossval_index = container.crossval_count
+    with pytest.raises(ValueError):
+        container.validate()
+
+
+def test_crossval_config() -> None:
+    """
+    Check if the flags to trigger Hyperdrive runs work as expected.
+    """
+    mock_tuning_config = "foo"
+    container = HelloWorld()
+    with patch("health_ml.configs.hello_world.HelloWorld.get_parameter_tuning_config",
+               return_value=mock_tuning_config):
+        # Without any flags set, no Hyperdrive config should be returned
+        assert container.get_hyperdrive_config() is None
+        # To trigger a hyperparameter search, the commandline flag for hyperdrive must be present
+        container.hyperdrive = True
+        assert container.get_hyperdrive_config() == mock_tuning_config
+        # Triggering cross validation works by just setting crossval_count
+        container.hyperdrive = False
+        container.crossval_count = 2
+        assert container.is_crossvalidation_enabled
+        crossval_config = container.get_hyperdrive_config()
+        assert isinstance(crossval_config, HyperDriveConfig)
+
+
+def test_crossval_argument_names() -> None:
+    """
+    Cross validation uses hardcoded argument names, check if they match the field names
+    """
+    container = HelloWorld()
+    crossval_count = 8
+    crossval_index = 5
+    container.crossval_count = crossval_count
+    container.crossval_index = crossval_index
+    assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+
+
+def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
+    """
+    Test if the hyperdrive configurations are passed to the submission function.
+    """
+    model_name = "HelloWorld"
+    crossval_count = 2
+    arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
+    with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
+        with patch("health_ml.runner.get_workspace"):
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
+        mock_run_in_situ.assert_called_once()
+        mock_submit_to_aml.assert_called_once()
+        # call_args is a tuple of (args, kwargs)
+        call_kwargs = mock_submit_to_aml.call_args[1]
+        # Submission to AzureML should have been turned on because a cluster name was supplied
+        assert mock_runner.experiment_config.azureml
+        assert call_kwargs["submit_to_azureml"]
+        # Check details of the Hyperdrive config
+        hyperdrive_config = call_kwargs["hyperdrive_config"]
+        parameter_space = hyperdrive_config._generator_config["parameter_space"]
+        assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+
+
+def test_run_hello_world(mock_runner: Runner) -> None:
+    """Test running a model end-to-end via the commandline runner
+    """
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}"]
+    with patch("health_ml.runner.get_workspace") as mock_get_workspace:
+        with patch.object(sys, "argv", arguments):
+            mock_runner.run()
+        # get_workspace should not be called when using the runner outside AzureML, to not go through the
+        # time-consuming auth
+        mock_get_workspace.assert_not_called()
+        # Summary.txt is written at start, the other files during inference
+        expected_files = ["experiment_summary.txt", "test_mae.txt", "test_mse.txt"]
+        for file in expected_files:
+            assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"

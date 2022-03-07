@@ -5,7 +5,6 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from torchmetrics import MeanAbsoluteError
@@ -16,63 +15,84 @@ from torch.utils.data import DataLoader, Dataset
 from health_ml.lightning_container import LightningContainer
 
 
-class HelloDataset(Dataset):
+def _create_1d_regression_dataset(n: int = 100, seed: int = 0) -> torch.Tensor:
+    """Creates a simple 1-D dataset of a noisy linear function.
+
+    :param n: The number of datapoints to generate, defaults to 100
+    :param seed: Random number generator seed, defaults to 0
+    :return: A tensor that contains X values in [:, 0] and Y values in [:, 1]
     """
-    A simple 1dim regression task, read from a data file stored in the test data folder.
+    torch.manual_seed(seed)
+    x = torch.rand((n, 1)) * 10
+    y = 0.2 * x + 0.1 * torch.randn(x.size())
+    xy = torch.cat((x, y), dim=1)
+    return xy
+
+
+def _split_crossval(xy: torch.Tensor, crossval_count: int, crossval_index: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    # Creating the data file:
-    # import numpy as np
-    # import torch
-    #
-    # N = 100
-    # x = torch.rand((N, 1)) * 10
-    # y = 0.2 * x + 0.1 * torch.randn(x.size())
-    # xy = torch.cat((x, y), dim=1)
-    # np.savetxt("health_ml/configs/hellocontainer.csv", xy.numpy(), delimiter=",")
-    def __init__(self, raw_data: List[List[float]]) -> None:
+    Generates a split of the given dataset along the first dimension for cross-validation.
+
+    :param xy: The data that should be split. The split will be generated acros dimension 0.
+    :param crossval_count: The number of splits in total
+    :param crossval_index: The index of the split that should be generated (0 <= crossval_index < crossval_count)
+    :return: A tuple of (training data, validation data)
+    """
+    n = xy.shape[0]
+    split_size = n // crossval_count
+    val_start = crossval_index * split_size
+    val_end = (crossval_index + 1) * split_size
+    train1_start = 0 if crossval_index == 0 else (crossval_index - 1) * split_size
+    train1_end = 0 if crossval_index == 0 else val_start
+    train2_start = val_end if crossval_index < (crossval_count - 1) else 0
+    train2_end = n if crossval_index < (crossval_count - 1) else 0
+    val = xy[val_start:val_end]
+    train = torch.concat([xy[train1_start:train1_end], xy[train2_start:train2_end]])
+    return (train, val)
+
+
+class HelloWorldDataset(Dataset):
+    """
+    A simple 1dim regression task
+    """
+
+    def __init__(self, xy: torch.Tensor) -> None:
         """
         Creates the 1-dim regression dataset.
 
-        :param raw_data: The raw data. This must be numeric data which can be converted into a tensor.
-            See the static method  from_path_and_indexes for an example call.
+        :param xy: The raw data, x in the first column, y in the second column
         """
         super().__init__()  # type: ignore
-        self.data = torch.tensor(raw_data, dtype=torch.float)
+        self.xy = xy
 
     def __len__(self) -> int:
-        return self.data.shape[0]
+        return self.xy.shape[0]
 
     def __getitem__(self, item: int) -> Dict[str, torch.Tensor]:
-        return {'x': self.data[item][0:1], 'y': self.data[item][1:2]}
-
-    @staticmethod
-    def from_path_and_indexes(
-            root_folder: Path,
-            start_index: int,
-            end_index: int) -> 'HelloDataset':
-        """
-        Static method to instantiate a HelloDataset from the root folder with the start and end indexes.
-
-        :param root_folder: The folder in which the data file lives ("hellocontainer.csv")
-        :param start_index: The first row to read.
-        :param end_index: The last row to read (exclusive)
-        :return: A new instance based on the root folder and the start and end indexes.
-        """
-        raw_data = np.loadtxt(root_folder / "hellocontainer.csv", delimiter=",")[start_index:end_index]
-        return HelloDataset(raw_data)
+        return {"x": self.xy[item][0:1], "y": self.xy[item][1:2]}
 
 
-class HelloDataModule(LightningDataModule):
+class HelloWorldDataModule(LightningDataModule):
     """
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
     """
-    def __init__(
-            self,
-            root_folder: Path) -> None:
+
+    def __init__(self, crossval_count: int, crossval_index: int) -> None:
         super().__init__()
-        self.train = HelloDataset.from_path_and_indexes(root_folder, start_index=0, end_index=50)
-        self.val = HelloDataset.from_path_and_indexes(root_folder, start_index=50, end_index=70)
-        self.test = HelloDataset.from_path_and_indexes(root_folder, start_index=70, end_index=100)
+        n_total = 200
+        xy = _create_1d_regression_dataset(n=n_total)
+        n_test = 40
+        n_val = 50
+        self.test = HelloWorldDataset(xy=xy[:n_test])
+        if crossval_count <= 1:
+            self.val = HelloWorldDataset(xy=xy[n_test:(n_test + n_val)])
+            self.train = HelloWorldDataset(xy=xy[(n_test + n_val):])
+        else:
+            # This could be done via a library function like sklearn's KFold function, but we don't want to add
+            # scikit-learn as a dependency just for this example.
+            train, val = _split_crossval(xy[n_test:], crossval_count=crossval_count, crossval_index=crossval_index)
+            self.val = HelloWorldDataset(xy=val)
+            self.train = HelloWorldDataset(xy=train)
 
     def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -126,8 +146,9 @@ class HelloRegression(LightningModule):
         self.log("loss", loss, on_epoch=True, on_step=False)
         return loss
 
-    def validation_step(self, batch: Dict[str, torch.Tensor], *args: Any,  # type: ignore
-                        **kwargs: Any) -> torch.Tensor:
+    def validation_step(  # type: ignore
+        self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
         """
         This method is part of the standard PyTorch Lightning interface. For an introduction, please see
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
@@ -208,7 +229,7 @@ class HelloRegression(LightningModule):
         Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
 
 
-class HelloContainer(LightningContainer):
+class HelloWorld(LightningContainer):
     """
     An example container for using the hi-ml runner. This container has methods
     to generate the actual Lightning model, and read out the datamodule that will be used for training.
@@ -231,5 +252,7 @@ class HelloContainer(LightningContainer):
     # in turn contains 3 data loaders for training, validation, and test set.
     def get_data_module(self) -> LightningDataModule:
         assert self.local_dataset_dir is not None
-        return HelloDataModule(
-            root_folder=self.local_dataset_dir)  # type: ignore
+        # If you would like to use the built-in cross validation functionality that runs training in parallel,
+        # you need to provide the crossvalidation parameters in the LightningContainer to the datamodule. The
+        # datamodule must carry out appropriate splitting of the data.
+        return HelloWorldDataModule(crossval_count=self.crossval_count, crossval_index=self.crossval_index)

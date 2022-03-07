@@ -1,14 +1,11 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Early versions of this toolbox used a manually created changelog. As of March 2022, we have switched to using Github's auto-generated changelog.
+If you would like to view the changelog for a particular release, you can do so on the [Releases page](https://github.com/microsoft/hi-ml/releases): 
+Each release contains a link for "Full Changelog"
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
-to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This file has sections for all previous releases, and the next one.
-For each Pull Request, the affected code parts should be briefly described and added in the section for the upcoming
-release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
-the section headers (Added/Changed/...) and incrementing the package version.
+## Changelog for Versions before March 2022
 
 ## 0.1.14
 
@@ -20,10 +17,17 @@ the environment file since it is necessary for the augmentations.
 - ([#181](https://github.com/microsoft/hi-ml/pull/181)) Add computational pathology tools in hi-ml-histopathology folder.
 - ([#187](https://github.com/microsoft/hi-ml/pull/187)) Add mean pooling layer for MIL.
 - ([#186](https://github.com/microsoft/hi-ml/pull/186)) Add inference to hi-ml runner.
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Add cross-validation to hi-ml runner.
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Improved editor setup for VSCode.
 
 ### Changed
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Model config loader is now more flexible, can accept fully qualified class name or just top-level module name and class (like histopathology.DeepSMILECrck)
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Runner raises an error when Conda environment file contains a pip include (-r) statement
+
+- ([#196](https://github.com/microsoft/hi-ml/pull/196)) Show current workspace name in error message.
 
 ### Fixed
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Dependencies for histopathology folder are no longer specified in `test_requirements.txt`, but correctly in the histopathology Conda environment.
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
 - ([#195](https://github.com/microsoft/hi-ml/pull/195)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.

@@ -51,6 +51,8 @@ class BaseMIL(LightningContainer):
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                              "enconding_chunk_size tiles per chunk")
+    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False, "
+                                      "keep the encoder frozen.")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
