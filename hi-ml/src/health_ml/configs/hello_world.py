@@ -19,11 +19,8 @@ def _create_1d_regression_dataset(n: int = 100, seed: int = 0) -> torch.Tensor:
     """Creates a simple 1-D dataset of a noisy linear function.
 
     :param n: The number of datapoints to generate, defaults to 100
-    :type n: int, optional
     :param seed: Random number generator seed, defaults to 0
-    :type seed: int, optional
     :return: A tensor that contains X values in [:, 0] and Y values in [:, 1]
-    :rtype: torch.Tensor
     """
     torch.manual_seed(seed)
     x = torch.rand((n, 1)) * 10
@@ -37,13 +34,9 @@ def _split_crossval(xy: torch.Tensor, crossval_count: int, crossval_index: int) 
     Generates a split of the given dataset along the first dimension for cross-validation.
 
     :param xy: The data that should be split. The split will be generated acros dimension 0.
-    :type xy: torch.Tensor
     :param crossval_count: The number of splits in total
-    :type crossval_count: int
     :param crossval_index: The index of the split that should be generated (0 <= crossval_index < crossval_count)
-    :type crossval_index: int
     :return: A tuple of (training data, validation data)
-    :rtype: Tuple[torch.Tensor, torch.Tensor]
     """
     n = xy.shape[0]
     split_size = n // crossval_count
