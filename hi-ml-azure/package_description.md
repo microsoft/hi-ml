@@ -7,20 +7,20 @@ practitioners. ML components can be found in the sibling package `hi-ml`.
 
 ## Installation
 
-You can install the latest version from `pypi` via 
+You can install the latest version from `pypi` via
 
-```
+```shell
 pip install hi-ml-azure
 ```
 
 ## Documentation
 
-The detailed package documentation, with examples and API reference, is on 
+The detailed package documentation, with examples and API reference, is on
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
 ## Getting started
 
-Examples that illustrate the use of the `hi-ml` toolbox can be found on 
+Examples that illustrate the use of the `hi-ml` toolbox can be found on
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
 ## Changelog

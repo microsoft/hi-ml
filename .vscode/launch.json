@@ -75,7 +75,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/hi-ml-azure/src/health_azure/examples/elevate_this.py",
-            "cwd": "${workspaceFolder}/hi-ml-azure/src/health_azure/examples/",
+            "cwd": "${workspaceFolder}",
             "args": [
                 "--message='Hello World :-)'",
                 "--azureml"
