@@ -5,19 +5,25 @@
 
 import logging
 import math
+from pathlib import Path
 import random
 from typing import List, Optional
 
+import matplotlib
 import numpy as np
 import pytest
 import torch
 from torch.functional import Tensor
 
-from health_ml.utils.common_utils import is_gpu_available
+from health_ml.utils.common_utils import is_gpu_available, is_windows
+from health_ml.utils.fixed_paths import OutputFolderForTests
 
-from histopathology.utils.metrics_utils import select_k_tiles
+from histopathology.utils.metrics_utils import plot_scores_hist, resize_and_save, select_k_tiles, plot_slide, \
+    plot_heatmap_overlay, plot_normalized_confusion_matrix
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
+from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
+# import testhisto
 
 
 def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:
@@ -130,6 +136,82 @@ def test_select_k_tiles() -> None:
                                 (7, Tensor([0.1, 0.9]), [1, 3], [Tensor([0.63]), Tensor([0.27])])])
     assert_equal_lists(bottom_fp, [(8, Tensor([0.01, 0.99]), [4, 2], [Tensor([0.15]), Tensor([0.31])]),
                                    (7, Tensor([0.1, 0.9]), [4, 2], [Tensor([0.05]), Tensor([0.21])])])
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_plot_scores_hist(test_output_dirs: OutputFolderForTests) -> None:
+    fig = plot_scores_hist(test_dict)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_score_hist.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "score_hist.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
+
+
+@pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
+def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
+    set_random_seed(0)
+    slide_image = np.random.rand(3, 1000, 2000)
+    fig = plot_slide(slide_image=slide_image, scale=scale)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_slide.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
+    set_random_seed(0)
+    slide_image = np.random.rand(3, 1000, 2000)
+    location_bbox = [100, 100]
+    slide = 1
+    tile_size = 224
+    level = 0
+    fig = plot_heatmap_overlay(slide=slide,  # type: ignore
+                               slide_image=slide_image,
+                               results=test_dict,  # type: ignore
+                               location_bbox=location_bbox,
+                               tile_size=tile_size,
+                               level=level)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "heatmap_overlay.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
+
+
+@pytest.mark.parametrize("n_classes", [1, 3])
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests, n_classes: int) -> None:
+    set_random_seed(0)
+    if n_classes > 1:
+        cm = np.random.randint(1, 1000, size=(n_classes, n_classes))
+        class_names = [str(i) for i in range(n_classes)]
+    else:
+        cm = np.random.randint(1, 1000, size=(n_classes + 1, n_classes + 1))
+        class_names = [str(i) for i in range(n_classes + 1)]
+    cm_n = cm / cm.sum(axis=1, keepdims=True)
+    assert (cm_n <= 1).all()
+
+    fig = plot_normalized_confusion_matrix(cm=cm_n, class_names=class_names)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / f"plot_confusion_matrix_{n_classes}.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_{n_classes}.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
 
 @pytest.mark.fast
