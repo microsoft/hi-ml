@@ -51,9 +51,9 @@ class BaseMIL(LightningContainer):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
-                                             "enconding_chunk_size tiles per chunk")
-    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False, "
-                                      "keep the encoder frozen.")
+                                                    "enconding_chunk_size tiles per chunk")
+    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
+                                                 "keep the encoder frozen.")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
@@ -65,8 +65,8 @@ class BaseMIL(LightningContainer):
             raise NotImplementedError("InnerEyeSSLEncoder requires a pre-trained checkpoint.")
 
         self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        if not self.is_finetune:
+            self.encoder.eval()
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
@@ -100,7 +100,13 @@ class BaseMIL(LightningContainer):
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
-        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
