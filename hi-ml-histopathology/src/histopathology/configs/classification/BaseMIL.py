@@ -15,7 +15,7 @@ from torch import nn
 from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
@@ -90,6 +90,8 @@ class BaseMIL(LightningContainer):
             return AttentionLayer
         elif self.pooling_type == GatedAttentionLayer.__name__:
             return GatedAttentionLayer
+        elif self.pooling_type == MeanPoolingLayer.__name__:
+            return MeanPoolingLayer
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 
