@@ -58,8 +58,8 @@ class DeepSMILECrck(BaseMIL):
             # declared in TrainerParams:
             max_epochs=50,
             # declared in WorkflowParams:
-            # number_of_cross_validation_splits=5,
-            # cross_validation_split_index=0,
+            # crossval_count=5,
+            # crossval_index=0,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -122,8 +122,8 @@ class DeepSMILECrck(BaseMIL):
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-            cross_validation_split_index=self.cross_validation_split_index,
+            crossval_count=self.crossval_count,
+            crossval_index=self.crossval_index,
         )
 
     def get_callbacks(self) -> List[Callback]:

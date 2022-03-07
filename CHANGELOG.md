@@ -20,10 +20,17 @@ the environment file since it is necessary for the augmentations.
 - ([#181](https://github.com/microsoft/hi-ml/pull/181)) Add computational pathology tools in hi-ml-histopathology folder.
 - ([#187](https://github.com/microsoft/hi-ml/pull/187)) Add mean pooling layer for MIL.
 - ([#186](https://github.com/microsoft/hi-ml/pull/186)) Add inference to hi-ml runner.
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Add cross-validation to hi-ml runner.
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Improved editor setup for VSCode.
 
 ### Changed
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Model config loader is now more flexible, can accept fully qualified class name or just top-level module name and class (like histopathology.DeepSMILECrck)
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Runner raises an error when Conda environment file contains a pip include (-r) statement
+
+- ([#196](https://github.com/microsoft/hi-ml/pull/196)) Show current workspace name in error message.
 
 ### Fixed
+- ([#198](https://github.com/microsoft/hi-ml/pull/198)) Dependencies for histopathology folder are no longer specified in `test_requirements.txt`, but correctly in the histopathology Conda environment.
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
 - ([#195](https://github.com/microsoft/hi-ml/pull/195)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.

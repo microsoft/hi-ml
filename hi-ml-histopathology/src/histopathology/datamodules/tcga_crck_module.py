@@ -31,9 +31,9 @@ class TcgaCrckTilesDataModule(TilesDataModule):
                                                 group_column=trainval_dataset.SLIDE_ID_COLUMN,
                                                 random_seed=5)
 
-        # if self.number_of_cross_validation_splits > 1:
+        # if self.crossval_count > 1:
         #     # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
-        #     splits = splits.get_k_fold_cross_validation_splits(self.number_of_cross_validation_splits)
+        #     splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)
         # [self.cross_validation_split_index]
 
         return (TcgaCrck_TilesDataset(self.root_path, dataset_df=splits.train),

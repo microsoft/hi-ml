@@ -30,6 +30,7 @@ class LightningContainer(WorkflowParams,
     should be trained is returned by the `get_model` method. The training data must be returned in the form of
     a LightningDataModule, by the `get_data_module` method.
     """
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
@@ -77,12 +78,20 @@ class LightningContainer(WorkflowParams,
         """
         return []
 
-    def get_parameter_search_hyperdrive_config(self, _: ScriptRunConfig) -> HyperDriveConfig:  # type: ignore
+    def get_parameter_tuning_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:  # type: ignore
         """
-        Parameter search is not implemented. It should be implemented in a sub class if needed.
+        Returns a configuration for hyperparameter tuning via AzureML's Hyperdrive capability.
+        Hyperparameter tuning can be triggered on the commandline via the "--hyperdrive" flag.
+        Override this method in your LightningContainer to use hyperparameter tuning.
+
+        The HyperDriveConfig config object needs to specify which parameters should be searched over, and which
+        metric should be monitored.
+
+        :param run_config: The ScriptRunConfig object that needs to be passed into the constructor of
+        HyperDriveConfig.
         """
-        raise NotImplementedError("Parameter search is not implemented. It should be implemented in"
-                                  "a sub class if needed.")
+        raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
+                                  "in your model container.")
 
     def update_experiment_config(self, experiment_config: ExperimentConfig) -> None:
         """
@@ -148,14 +157,17 @@ class LightningContainer(WorkflowParams,
             self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
             self._model._trainer_params = create_from_matching_params(self, TrainerParams)
 
-    def get_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+    def get_hyperdrive_config(self) -> Optional[HyperDriveConfig]:
         """
-        Returns the HyperDrive config for either parameter search
+        Returns the HyperDrive config for either hyperparameter tuning or cross validation.
 
-        :param run_config: AzureML estimator
-        :return: HyperDriveConfigs
+        :return: A configuration object for HyperDrive
         """
-        return self.get_parameter_search_hyperdrive_config(run_config)
+        if self.is_crossvalidation_enabled:
+            return self.get_crossval_hyperdrive_config()
+        if self.hyperdrive:
+            return self.get_parameter_tuning_config(ScriptRunConfig(source_directory=""))
+        return None
 
     def load_model_checkpoint(self, checkpoint_path: Path) -> None:
         """

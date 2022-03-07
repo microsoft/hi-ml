@@ -4,29 +4,29 @@ channels:
   - pytorch
   - conda-forge
 dependencies:
-  - cudatoolkit=11.1
+  - cudatoolkit=11.3.1
   - pip=20.1.1
   - python=3.7.3
   - pytorch=1.10.0
   - python-blosc==1.7.0
   - torchvision=0.11.1
   - pip:
-      - -r ../test_requirements.txt
-      - azureml-sdk==1.36.0
-      - cryptography==3.3.2
-      - docker==4.3.1
-      - flask==2.0.1
-      - gputil==1.4.0
       - hi-ml>=0.1.12
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
+      - lightning-bolts==0.4.0
       - mlflow==1.17.0
+      - monai==0.6.0
+      - more-itertools==8.10.0
       - mypy-extensions==0.4.3
       - numba==0.51.2
       - numpy==1.19.1
       - opencv-python-headless==4.5.1.48
+      - pandas==1.3.4
+      - pillow==9.0.0
       - psutil==5.7.2
+      - pydicom==2.0.0
       - pyflakes==2.2.0
       - PyJWT==1.7.1
       - rich==5.1.1
@@ -34,8 +34,12 @@ dependencies:
       - runstats==1.8.0
       - scikit-image==0.17.2
       - scipy==1.5.2
+      - simpleitk==1.2.4
       - six==1.15.0
       - stopit==1.1.2
       - tabulate==0.8.7
-      - torchprof==1.3.3
+      - torch>=1.10.0
+      - torchvision>=0.11.1
+      - torchmetrics==0.6.0
       - umap-learn==0.5.2
+      - yacs==0.1.8
