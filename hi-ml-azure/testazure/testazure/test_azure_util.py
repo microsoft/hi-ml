@@ -64,7 +64,7 @@ def test_find_file(tmp_path: Path) -> None:
     os.chdir(start_path)
     found_file = util.find_file_in_parent_to_pythonpath(file_name)
     assert found_file
-    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root.absolute())}):
+    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root)}):
         found_file = util.find_file_in_parent_to_pythonpath(file_name)
         assert not found_file
     os.chdir(where_are_we_now)

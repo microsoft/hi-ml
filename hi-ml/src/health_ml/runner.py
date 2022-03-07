@@ -15,7 +15,7 @@ import matplotlib
 from azureml.core import Workspace
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
-himl_root = Path(__file__).absolute().parent.parent.parent.parent
+himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",
                   himl_root / "hi-ml-histopathology" / "src"]
@@ -312,6 +312,7 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
+    print(f"project root: {project_root}")
     runner = Runner(project_root)
     return runner.run()
 

@@ -240,7 +240,7 @@ class HelloWorld(LightningContainer):
 
     def __init__(self) -> None:
         super().__init__()
-        self.local_dataset_dir = Path(__file__).parent
+        self.local_dataset_dir = Path(__file__).resolve().parent
         self.max_epochs = 20
 
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
