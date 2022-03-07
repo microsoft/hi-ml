@@ -19,3 +19,9 @@ In addition, please download an AzureML workspace configuration file for the wor
 After that, all Python runs that you start inside the `hi-ml-histopathology` folder will automatically use this config file.
 
 ## Running histopathology models
+
+To test your setup, please execute in the repository root:
+
+```shell
+python hi-ml/src/health_ml/runner.py --model histopathology.DeepSMILECrck --cluster=training-nd24
+```
