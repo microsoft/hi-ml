@@ -26,7 +26,8 @@ Examples that illustrate the use of the `hi-ml` toolbox can be found on
 
 ## Changelog
 
-A changelog is [maintained on Github](https://github.com/microsoft/hi-ml/blob/main/CHANGELOG.md)
+We are relying on Github's auto-generated changelog to describe what went into a release. Please check each individual release 
+([available here](https://github.com/microsoft/hi-ml/releases)) to see a full changelog.
 
 ## Links
 
