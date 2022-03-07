@@ -3,7 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Tuple, List, Any, Dict
+import sys
+from pathlib import Path
+from typing import Tuple, List, Any, Dict, Union
+
 import torch
 import matplotlib.pyplot as plt
 from math import ceil
@@ -184,3 +187,18 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> 
     ax.xaxis.set_ticklabels(class_names)
     ax.yaxis.set_ticklabels(class_names)
     return fig
+
+
+def resize_and_save(width_inch: int, height_inch: int, filename: Union[Path, str], dpi: int = 150) -> None:
+    """
+    Resizes the present figure to the given (width, height) in inches, and saves it to the given filename.
+    :param width_inch: The width of the figure in inches.
+    :param height_inch: The height of the figure in inches.
+    :param filename: The filename to save to.
+    :param dpi: Image resolution in dots per inch
+    """
+    fig = plt.gcf()
+    fig.set_size_inches(width_inch, height_inch)
+    # Workaround for Exception in Tkinter callback
+    fig.canvas.start_event_loop(sys.float_info.min)
+    plt.savefig(filename, dpi=dpi, bbox_inches='tight', pad_inches=0.1)
