@@ -23,6 +23,8 @@ the environment file since it is necessary for the augmentations.
 
 ### Changed
 
+- ([#196](https://github.com/microsoft/hi-ml/pull/196)) Show current workspace name in error message.
+
 ### Fixed
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.

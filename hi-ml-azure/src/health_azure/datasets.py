@@ -33,8 +33,8 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
                          f"However, the workspace has {len(existing_stores)} datastores: {existing_stores}")
     if datastore_name in datastores:
         return datastores[datastore_name]
-    raise ValueError(f"Datastore {datastore_name} was not found in the workspace. Existing datastores: "
-                     f"{existing_stores}")
+    raise ValueError(f"Datastore \"{datastore_name}\" was not found in the \"{workspace.name}\" workspace. "
+                     f"Existing datastores: {existing_stores}")
 
 
 def get_or_create_dataset(workspace: Workspace, datastore_name: str, dataset_name: str) -> FileDataset:
