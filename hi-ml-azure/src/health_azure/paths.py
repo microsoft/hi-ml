@@ -17,7 +17,6 @@ def is_himl_used_from_git_repo() -> bool:
     used from a clone of the full git repository.
 
     :return: False if HI-ML is installed as a package, True if used via source from git.
-    :rtype: bool
     """
     health_ml_root = Path(__file__).parent.parent
     logging.debug(f"health_ml root: {health_ml_root}")
