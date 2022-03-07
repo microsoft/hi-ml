@@ -1,3 +1,10 @@
+# Make commands for the toolbox users
+
+# Create a Conda environment for this folder only
+env:
+	conda env create --file environment.yml
+	pip install -r ../test_requirements.txt
+
 # call make for parent
 define call_parent
 	cd .. && $(MAKE) $(1)
