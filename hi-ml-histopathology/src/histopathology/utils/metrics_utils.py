@@ -75,7 +75,7 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
     for j in range(n_classes):
         scores = [results[prob_col][i][j].cpu().item() for i, gt in enumerate(results[gt_col]) if gt == j]
         scores_class.append(scores)
-    fig, ax = plt.subplots() 
+    fig, ax = plt.subplots()
     ax.hist(scores_class, label=[str(i) for i in range(n_classes)], alpha=0.5)
     ax.set_xlabel("Predicted Score")
     ax.legend()
@@ -83,7 +83,7 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
 
 
 def plot_attention_tiles(slide: str, scores: List[float], paths: List, attn: List, case: str, ncols: int = 5,
-                    size: Tuple = (10, 10)) -> plt.figure:
+                         size: Tuple = (10, 10)) -> plt.figure:
     """
     :param slide: slide identifier
     :param scores: predicted scores of each class for the slide

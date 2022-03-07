@@ -57,10 +57,12 @@ def assert_equal_lists(pred: List, expected: List) -> None:
                 raise TypeError("Unexpected list composition")
 
 
-test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4], [5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
-             ResultsKey.IMAGE_PATH: [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]],
+test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4],
+                                   [5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
+             ResultsKey.IMAGE_PATH: [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4],
+                                     [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]],
              ResultsKey.CLASS_PROBS: [Tensor([0.6, 0.4]), Tensor([0.3, 0.7]), Tensor([0.6, 0.4]), Tensor([0.0, 1.0]),
-                               Tensor([0.7, 0.3]), Tensor([0.8, 0.2]), Tensor([0.1, 0.9]), Tensor([0.01, 0.99])],
+                                      Tensor([0.7, 0.3]), Tensor([0.8, 0.2]), Tensor([0.1, 0.9]), Tensor([0.01, 0.99])],
              ResultsKey.TRUE_LABEL: [0, 1, 1, 1, 1, 0, 0, 0],
              ResultsKey.BAG_ATTN:
                  [Tensor([[0.10, 0.00, 0.20, 0.15]]),
@@ -89,8 +91,10 @@ def test_select_k_tiles() -> None:
     nslides = 2
     ntiles = 2
     # TP
-    top_tp = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles, select=('highest_pred', 'highest_att'))
-    bottom_tp = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles, select=('highest_pred', 'lowest_att'))
+    top_tp = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
+                            select=('highest_pred', 'highest_att'))
+    bottom_tp = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
+                               select=('highest_pred', 'lowest_att'))
     print(top_tp)
     assert_equal_lists(top_tp, [(4, Tensor([0.0, 1.0]), [3, 4], [Tensor([0.37]), Tensor([0.35])]),
                                 (2, Tensor([0.3, 0.7]), [2, 3], [Tensor([0.18]), Tensor([0.15])])])
@@ -98,28 +102,34 @@ def test_select_k_tiles() -> None:
                                    (2, Tensor([0.3, 0.7]), [1, 4], [Tensor([0.10]), Tensor([0.13])])])
 
     # FN
-    top_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles, select=('lowest_pred', 'highest_att'))
-    bottom_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles, select=('lowest_pred', 'lowest_att'))
+    top_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
+                            select=('lowest_pred', 'highest_att'))
+    bottom_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
+                               select=('lowest_pred', 'lowest_att'))
     assert_equal_lists(top_fn, [(5, Tensor([0.7, 0.3]), [1, 4], [Tensor([0.43]), Tensor([0.25])]),
                                 (3, Tensor([0.6, 0.4]), [1, 2], [Tensor([0.25]), Tensor([0.23])])])
     assert_equal_lists(bottom_fn, [(5, Tensor([0.7, 0.3]), [2, 3], [Tensor([0.01]), Tensor([0.07])]),
                                    (3, Tensor([0.6, 0.4]), [3, 4], [Tensor([0.20]), Tensor([0.21])])])
 
     # TN
-    top_tn = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles, select=('highest_pred', 'highest_att'))
-    bottom_tn = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles, select=('highest_pred', 'lowest_att'))
+    top_tn = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
+                            select=('highest_pred', 'highest_att'))
+    bottom_tn = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
+                               select=('highest_pred', 'lowest_att'))
     assert_equal_lists(top_tn, [(6, Tensor([0.8, 0.2]), [4, 1], [Tensor([0.55]), Tensor([0.53])]),
                                 (1, Tensor([0.6, 0.4]), [3, 4], [Tensor([0.2]), Tensor([0.15])])])
     assert_equal_lists(bottom_tn, [(6, Tensor([0.8, 0.2]), [2, 3], [Tensor([0.11]), Tensor([0.17])]),
-                                  (1, Tensor([0.6, 0.4]), [2, 1], [Tensor([0.00]), Tensor([0.10])])])
+                                   (1, Tensor([0.6, 0.4]), [2, 1], [Tensor([0.00]), Tensor([0.10])])])
 
     # FP
-    top_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles, select=('lowest_pred', 'highest_att'))
-    bottom_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles, select=('lowest_pred', 'lowest_att'))
+    top_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
+                            select=('lowest_pred', 'highest_att'))
+    bottom_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
+                               select=('lowest_pred', 'lowest_att'))
     assert_equal_lists(top_fp, [(8, Tensor([0.01, 0.99]), [1, 3], [Tensor([0.73]), Tensor([0.37])]),
                                 (7, Tensor([0.1, 0.9]), [1, 3], [Tensor([0.63]), Tensor([0.27])])])
     assert_equal_lists(bottom_fp, [(8, Tensor([0.01, 0.99]), [4, 2], [Tensor([0.15]), Tensor([0.31])]),
-                                  (7, Tensor([0.1, 0.9]), [4, 2], [Tensor([0.05]), Tensor([0.21])])])
+                                   (7, Tensor([0.1, 0.9]), [4, 2], [Tensor([0.05]), Tensor([0.21])])])
 
 
 @pytest.mark.fast

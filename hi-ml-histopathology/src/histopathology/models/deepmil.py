@@ -250,12 +250,13 @@ class DeepMILModule(LightningModule):
             probs_perclass = predicted_probs
         else:
             predicted_labels = round(predicted_probs)
-            probs_perclass = Tensor([[1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()] for i in range(len(predicted_probs))])
+            probs_perclass = Tensor([[1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()]
+                                     for i in range(len(predicted_probs))])
 
         loss = loss.view(-1, 1)
         predicted_labels = predicted_labels.view(-1, 1)
         if self.n_classes == 1:
-            predicted_probs = predicted_probs.view(-1, 1)                                                                               
+            predicted_probs = predicted_probs.view(-1, 1)
         bag_labels = bag_labels.view(-1, 1)
 
         results = dict()
@@ -266,10 +267,13 @@ class DeepMILModule(LightningModule):
                 metric_object.update(predicted_probs, bag_labels)
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
-                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: predicted_probs, ResultsKey.CLASS_PROBS: probs_perclass, 
+                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
+                        ResultsKey.LOSS: loss,
+                        ResultsKey.PROB: predicted_probs,
+                        ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
-                        ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
+                        ResultsKey.TRUE_LABEL: bag_labels,
+                        ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
 
         if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
@@ -354,21 +358,27 @@ class DeepMILModule(LightningModule):
         torch.save(features_list, encoded_features_filename)
 
         print("Selecting tiles ...")
+
+        def select_k_tiles_from_results(label: int, select: Tuple[str, str]) \
+                -> List[Tuple[Any, Any, List[Any], List[Any]]]:
+            return select_k_tiles(results, n_slides=10, label=label, n_tiles=10, select=select)
+
         # Class 0
-        tn_top_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('highest_pred', 'highest_att'))
-        tn_bottom_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('highest_pred', 'lowest_att'))
-        fp_top_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('lowest_pred', 'highest_att'))
-        fp_bottom_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('lowest_pred', 'lowest_att'))
+        tn_top_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'highest_att'))
+        tn_bottom_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'lowest_att'))
+        fp_top_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'highest_att'))
+        fp_bottom_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'lowest_att'))
         report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles], 'FP': [fp_top_tiles, fp_bottom_tiles]}
 
         # Class 1 to n_classes-1
         n_classes_to_select = self.n_classes if self.n_classes > 1 else 2
         for i in range(1, n_classes_to_select):
-            fn_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'highest_att'))
-            fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-            tp_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'highest_att'))
-            tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'lowest_att'))
-            report_cases.update({'TP_'+str(i): [tp_top_tiles, tp_bottom_tiles], 'FN_'+str(i): [fn_top_tiles, fn_bottom_tiles]})
+            fn_top_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'highest_att'))
+            fn_bottom_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'lowest_att'))
+            tp_top_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'highest_att'))
+            tp_bottom_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'lowest_att'))
+            report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
+                                 'FN_' + str(i): [fn_top_tiles, fn_bottom_tiles]})
 
         for key in report_cases.keys():
             print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
@@ -430,14 +440,14 @@ class DeepMILModule(LightningModule):
             if key not in [ResultsKey.CLASS_PROBS, ResultsKey.PROB]:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
-                    if value.ndim == 0:                                    
+                    if value.ndim == 0:
                         value = np.full(bag_size, fill_value=value)
                 dict_new[key] = value
             elif key == ResultsKey.CLASS_PROBS:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     for i in range(len(value)):
-                        dict_new[key+str(i)] = np.repeat(value[i], bag_size)
+                        dict_new[key + str(i)] = np.repeat(value[i], bag_size)
         return dict_new
 
     @staticmethod
