@@ -121,6 +121,12 @@ When running the tests locally, they can either be run against the source direct
 
 * To run the tests against the source as a package, build it with `make build`. This will build the local `src` folder into a new wheel in the `dist` folder. This wheel will be detected and passed to AzureML as a private package as part of the test process.
 
+### Test discovery in VSCode
+
+All tests in the repository should be picked up automatically by VSCode. In particular, this includes the tests in the `hi-ml-histopathology` folder, which
+are not always necessary when working on the core `hi-ml` projects.
+You can exclude a set of tests from test discovery by modifying `python.testing.pytestArgs` in the VSCode `settings.json` file.
+
 ## Creating a New Release
 
 To create a new package release, follow these steps:
