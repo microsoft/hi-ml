@@ -2,12 +2,18 @@
 
 ## Getting started
 
+### Setting up Python
+
 For working on the histopathology folder, please create a separate Conda environment.
 
 ```shell
 cd hi-ml-histopathology
 make env
 ```
+
+You can then activate the environment via `conda activate HimlHisto`
+
+### Setting up AzureML
 
 In addition, please download an AzureML workspace configuration file for the workspace that you wish to use:
 
@@ -16,12 +22,16 @@ In addition, please download an AzureML workspace configuration file for the wor
 * Select "Download config file".
 * Save that file into the `hi-ml-histopathology` folder of the git repo.
 
-After that, all Python runs that you start inside the `hi-ml-histopathology` folder will automatically use this config file.
+Once that config file is in place, all Python runs that you start inside the `hi-ml-histopathology` folder will automatically use this config file.
 
 ## Running histopathology models
 
 To test your setup, please execute in the repository root:
 
 ```shell
+conda activate HimlHisto 
 python hi-ml/src/health_ml/runner.py --model histopathology.DeepSMILECrck --cluster=training-nd24
 ```
+
+This should start an AzureML job in the AzureML workspace that you configured above via `config.json`. You may need to adjust the name of 
+the compute cluster (`training-nd24` in the above example).
