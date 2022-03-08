@@ -125,7 +125,7 @@ When running the tests locally, they can either be run against the source direct
 
 All tests in the repository should be picked up automatically by VSCode. In particular, this includes the tests in the `hi-ml-histopathology` folder, which
 are not always necessary when working on the core `hi-ml` projects.
-You can exclude a set of tests from test discovery by modifying `python.testing.pytestArgs` in the VSCode `settings.json` file.
+You can exclude a set of tests from test discovery by modifying `python.testing.pytestArgs` in the VSCode `.vscode/settings.json` file.
 
 ## Creating a New Release
 
