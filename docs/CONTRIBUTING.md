@@ -64,6 +64,9 @@ Those category prefixes must be in upper case, followed by a colon (`:`). Valid 
 
 ## Correct Sphinx Documentation
 
+We suggest using a VSCode extension for auto-generating documentation templates, for example `njpwerner.autodocstring`.
+This extension is already pre-configured in VSCode's workspace settings file.
+
 Common mistakes when writing docstrings:
 
 * There must be a separating line between a function description and the documentation for its parameters.
