@@ -4,10 +4,10 @@ Please follow the guidelines for PRs contained [here](docs/source/contributing.m
 
 - [ ] Ensure that your PR is small, and implements one change.
 - [ ] Give your PR title one of the prefixes FIX, ENH, STYLE, DOC, DEL to indicate what type of change that is.
+- [ ] Link the correct GitHub issue for tracking.
 - [ ] Add unit tests for all functions that you introduced or modified.
 - [ ] Run automatic code formatting / linting on all files.
 - [ ] Ensure that documentation renders correctly in Sphinx (run Sphinx via `make html` in the `docs folder)
-- [ ] Link the correct GitHub issue for tracking.
 
 ## Change the default merge message
 
