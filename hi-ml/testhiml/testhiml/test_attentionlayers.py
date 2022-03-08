@@ -18,9 +18,11 @@ def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
     row_sums = sum(attn_weights, dim=1, keepdim=True)
     assert allclose(row_sums, ones_like(row_sums))
 
-    pooled_features = attn_weights @ features.flatten(start_dim=1)
-    assert allclose(pooled_features, output_features)
-
+    if isinstance(attentionlayer, TransformerPooling):
+        pass
+    else:
+        pooled_features = attn_weights @ features.flatten(start_dim=1)
+        assert allclose(pooled_features, output_features)
 
 @pytest.mark.parametrize("dim_in", [1, 3])
 @pytest.mark.parametrize("dim_hid", [1, 4])
@@ -44,9 +46,11 @@ def test_mean_pooling(dim_in: int, batch_size: int,) -> None:
 
 
 @pytest.mark.parametrize("num_layers", [1, 4])
-@pytest.mark.parametrize("num_heads", [1, 4])
-@pytest.mark.parametrize("dim_in", [1, 3])
+@pytest.mark.parametrize("num_heads", [1, 2])
+@pytest.mark.parametrize("dim_in", [4, 8])
 @pytest.mark.parametrize("batch_size", [1, 7])
 def test_transformer_pooling(num_layers: int, num_heads: int, dim_in: int, batch_size: int) -> None:
-    transformer_pooling = TransformerPooling(num_layers=num_layers, num_heads=num_heads, dim_representation=dim_in)
+    transformer_pooling = TransformerPooling(num_layers=num_layers,
+                                             num_heads=num_heads,
+                                             dim_representation=dim_in).eval()
     _test_attention_layer(transformer_pooling, dim_in=dim_in, dim_att=1, batch_size=batch_size)

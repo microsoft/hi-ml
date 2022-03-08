@@ -62,8 +62,8 @@ class DeepSMILEPanda(BaseMIL):
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
-            number_of_cross_validation_splits=5,
-            cross_validation_split_index=0,
+            crossval_count=5,
+            crossval_index=0,
 
             # declared in OptimizerParams:
             l_rate=5e-4,
@@ -127,8 +127,8 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            # number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-            # cross_validation_split_index=self.cross_validation_split_index,
+            # crossval_count=self.crossval_count,
+            # crossval_index=self.crossval_index,
         )
 
     # TODO: move self.class_names somewhere else since this is almost an exact copy of create_model in BaseMIL
