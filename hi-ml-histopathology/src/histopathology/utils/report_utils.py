@@ -1,17 +1,24 @@
 from pathlib import Path
-from typing import List, Sequence
+import pickle
+from typing import List, Optional, Sequence
 
 import dateutil.parser
+from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from azureml.core import Experiment, Run, Workspace
 from health_azure import download_files_from_run_id, get_workspace
-from health_azure.utils import get_aml_run_from_run_id
+from health_azure.utils import aggregate_hyperdrive_metrics, get_aml_run_from_run_id
 from histopathology.utils.naming import ResultsKey
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from sklearn.metrics import auc, precision_recall_curve, roc_curve
+
+TRAIN_STYLE = dict(ls='-')
+VAL_STYLE = dict(ls='--')
+BEST_EPOCH_LINE_STYLE = dict(ls=':', lw=1)
+BEST_EPOCH_MARKER_STYLE = dict(marker='o', markeredgecolor='w')
 
 
 def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path, filename: str) -> None:
@@ -57,17 +64,36 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path,
     return all_outputs_dfs
 
 
+def collect_crossval_metrics(parent_run_id: str, download_dir: Path,
+                             aml_workspace: Workspace) -> pd.DataFrame:
+    # Save metrics as a pickle because complex dataframe structure is lost in CSV
+    metrics_pickle = download_dir / parent_run_id / "aml_metrics.pickle"
+    if metrics_pickle.is_file():
+        print(f"AML metrics file already exists at {metrics_pickle}")
+        with open(metrics_pickle, 'rb') as f:
+            metrics_df = pickle.load(f)
+    else:
+        metrics_df = aggregate_hyperdrive_metrics(run_id=parent_run_id,
+                                                  child_run_arg_name="cross_validation_split_index",
+                                                  aml_workspace=aml_workspace)
+        metrics_pickle.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Writing AML metrics file to {metrics_pickle}")
+        with open(metrics_pickle, 'wb') as f:
+            pickle.dump(metrics_df, f)
+    return metrics_df
+
+
 def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
     fpr, tpr, _ = roc_curve(labels, scores)
     auroc = auc(fpr, tpr)
-    label = f"{label} (auROC: {auroc:.3f})"
+    label = f"{label} (AUROC: {auroc:.3f})"
     ax.plot(fpr, tpr, label=label)
 
 
 def plot_pr_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
     precision, recall, _ = precision_recall_curve(labels, scores)
     aupr = auc(recall, precision)
-    label = f"{label} (auPR: {aupr:.3f})"
+    label = f"{label} (AUPR: {aupr:.3f})"
     ax.plot(recall, precision, label=label)
 
 
@@ -88,7 +114,7 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.set_aspect(1)
     ax.set_xlim(-.05, 1.05)
     ax.set_ylim(-.05, 1.05)
-    ax.grid(lw=1, color='lightgray')
+    ax.grid(color='0.9')
 
 
 def _plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
@@ -123,23 +149,61 @@ def get_crossval_metrics_table(metrics_df: pd.DataFrame,
         std = values.std()
         row = [metric] + [f"{v:.3f}" for v in values] + [f"{mean:.3f} ± {std:.3f}"]
         metrics_rows.append(row)
-    table = pd.DataFrame(metrics_rows, columns=header)
+    table = pd.DataFrame(metrics_rows, columns=header).set_index(header[0])
     return table
 
 
-def get_best_epoch_metrics(metrics_df: pd.DataFrame, primary_metric: str,
-                           metrics_list: Sequence[str], maximise: bool = True) -> pd.DataFrame:
+def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str,
+                    maximise: bool = True) -> pd.Series:
     best_fn = np.argmax if maximise else np.argmin
     best_epochs = metrics_df.loc[primary_metric].apply(best_fn)
+    return best_epochs
+
+
+def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
+                           best_epochs: Sequence[int]) -> pd.DataFrame:
     best_metrics = [metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
                     for k, epoch in enumerate(best_epochs)]
     return pd.DataFrame(best_metrics).T
 
 
-def plot_crossval_training_curves(metrics_df: pd.DataFrame, metric: str, ax: Axes) -> None:
+def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str,
+                                  ax: Axes, best_epochs: Optional[Sequence[int]] = None,
+                                  ylabel: Optional[str] = None) -> None:
     for k in sorted(metrics_df.columns):
-        values = metrics_df.loc[metric, k]
-        ax.plot(values)
+        train_values = metrics_df.loc[train_metric, k]
+        val_values = metrics_df.loc[val_metric, k]
+        line, = ax.plot(train_values, **TRAIN_STYLE, label=f"Fold {k}")
+        color = line.get_color()
+        ax.plot(val_values, color=color, **VAL_STYLE)
+        if best_epochs is not None:
+            best_epoch = best_epochs[k]
+            ax.plot(best_epoch, train_values[best_epoch], color=color, **BEST_EPOCH_MARKER_STYLE)
+            ax.plot(best_epoch, val_values[best_epoch], color=color, **BEST_EPOCH_MARKER_STYLE)
+            ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
+    ax.grid(color='0.9')
+    ax.set_xlabel("Epoch")
+    if ylabel:
+        ax.set_ylabel(ylabel)
+
+
+def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) -> None:
+    legend_kwargs = dict(edgecolor='none', fontsize='small', borderpad=.2)
+
+    # Add primary legend for main lines (crossval folds)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    fig.legend(by_label.values(), by_label.keys(), **legend_kwargs, loc='lower center',
+               bbox_to_anchor=(0.5, -0.06), ncol=len(by_label))
+
+    # Add secondary legend for line styles
+    legend_handles = [Line2D([], [], **TRAIN_STYLE, color='k', label="Training"),
+                      Line2D([], [], **VAL_STYLE, color='k', label="Validation")]
+    if include_best_epoch:
+        legend_handles.append(Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_EPOCH_MARKER_STYLE,
+                                     color='k', label="Best epoch"),)
+    fig.legend(handles=legend_handles, **legend_kwargs, loc='lower center',
+               bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
 
 
 def get_formatted_run_info(parent_run_id: str, aml_workspace: Workspace) -> str:
