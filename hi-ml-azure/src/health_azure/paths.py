@@ -17,9 +17,8 @@ def is_himl_used_from_git_repo() -> bool:
     used from a clone of the full git repository.
 
     :return: False if HI-ML is installed as a package, True if used via source from git.
-    :rtype: bool
     """
-    health_ml_root = Path(__file__).parent.parent
+    health_ml_root = Path(__file__).resolve().parent.parent
     logging.debug(f"health_ml root: {health_ml_root}")
     if health_ml_root.parent.stem == "site-packages":
         return False
@@ -45,4 +44,5 @@ def git_repo_root_folder() -> Path:
     """
     if not is_himl_used_from_git_repo():
         raise ValueError("This function can only be used if the HI-ML package is used directly from the git repo.")
-    return Path(__file__).parent.parent.parent.parent
+    current_file = Path(__file__).resolve()
+    return current_file.parent.parent.parent.parent

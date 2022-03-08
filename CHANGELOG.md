@@ -1,14 +1,11 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Early versions of this toolbox used a manually created changelog. As of March 2022, we have switched to using Github's auto-generated changelog.
+If you would like to view the changelog for a particular release, you can do so on the [Releases page](https://github.com/microsoft/hi-ml/releases): 
+Each release contains a link for "Full Changelog"
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
-to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This file has sections for all previous releases, and the next one.
-For each Pull Request, the affected code parts should be briefly described and added in the section for the upcoming
-release. In the first PR after a release has been made, a section for the upcoming release should be added, by copying
-the section headers (Added/Changed/...) and incrementing the package version.
+## Changelog for Versions before March 2022
 
 ## 0.1.14
 

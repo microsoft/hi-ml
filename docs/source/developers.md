@@ -131,8 +131,6 @@ You can exclude a set of tests from test discovery by modifying `python.testing.
 
 To create a new package release, follow these steps:
 
-* Double-check that `CHANGELOG.md` is up-to-date: It should contain a section for the next package version with
-  subsections Added/Changed/...
 * On the repository's github page, click on "Releases", then "Draft a new release"
 * In the "Draft a new release" page, click "Choose a tag". In the text box, enter a (new) tag name that has
   the desired version number, plus a "v" prefix. For example, to create package version 0.12.17, create a

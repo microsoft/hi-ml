@@ -1,5 +1,5 @@
 {
-    "autoDocstring.docstringFormat": "sphinx",
+    "autoDocstring.docstringFormat": "sphinx-notypes",
     "fileHeaderComment.parameter":{
         "*":{
             "line": "-------------------------------------------------------------------------------------------",

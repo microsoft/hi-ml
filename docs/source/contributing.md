@@ -24,7 +24,6 @@ If you'd like to submit a PR to the codebase, please ensure you:
 - Link to an issue, if relevant
 - Write unit tests for the code - see below for details.
 - Add appropriate documentation for any new code that you introduce
-- Ensure that you modified [CHANGELOG.md](../CHANGELOG.md) and described your PR there.
 - Only publish your PR for review once you have a build that is passing. You can make use of the "Create as Draft"
   feature of GitHub.
 

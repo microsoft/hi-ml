@@ -14,7 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from param import Parameterized
 
 from health_azure import create_crossval_hyperdrive_config
-from health_azure.utils import RUN_CONTEXT, PathOrString, is_running_in_azure_ml
+from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
@@ -92,13 +92,18 @@ class ExperimentFolderHandler(Parameterized):
         if is_offline_run or output_to:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
-                root = Path(output_to).absolute()
+                root = Path(output_to).resolve()
             else:
                 logging.info("All results will be written to a subfolder of the project root folder.")
-                root = project_root.absolute() / DEFAULT_AML_UPLOAD_DIR
-
-            timestamp = create_unique_timestamp_id()
-            run_folder = root / f"{timestamp}_{model_name}"
+                root = project_root.resolve() / DEFAULT_AML_UPLOAD_DIR
+            if is_global_rank_zero():
+                timestamp = create_unique_timestamp_id()
+                run_folder = root / f"{timestamp}_{model_name}"
+            else:
+                # Handle the case where there are multiple DDP threads on the same machine outside AML.
+                # Each child process will be started with the current working directory set to be the output
+                # folder of the rank 0 process. We want all other process to write to that same folder.
+                run_folder = Path.cwd()
             outputs_folder = run_folder
             logs_folder = run_folder / DEFAULT_LOGS_DIR_NAME
         else:

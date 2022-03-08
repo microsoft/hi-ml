@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -17,7 +16,7 @@ def tests_root_directory(path: Optional[PathOrString] = None) -> Path:
 
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    root = Path(os.path.realpath(__file__)).parent.parent.parent
+    root = Path(__file__).resolve().parent.parent.parent
     return root / path if path else root
 
 
