@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 from matplotlib import pyplot as plt
 
@@ -10,9 +11,10 @@ from histopathology.utils.report_utils import (add_training_curves_legend, colle
                                                plot_crossval_roc_and_pr_curves, plot_crossval_training_curves)
 
 
-def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Path) -> None:
+def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Path,
+                         workspace_config_path: Optional[Path] = None) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    aml_workspace = get_workspace()
+    aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
 
     report = HTMLReport(output_folder=output_dir)
 
@@ -66,20 +68,29 @@ def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Pat
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
-    output_dir = Path(__file__).absolute().parent.parent.parent.parent.parent / "outputs"
-    print(f"Output dir: {output_dir}")
 
     parser = ArgumentParser()
     parser.add_argument('--run_id', help="The parent Hyperdrive run ID")
-    parser.add_argument('--download_dir', help="The parent Hyperdrive run ID")
-    parser.add_argument('--output_dir', help="The ")
+    parser.add_argument('--download_dir', help="Directory where to download Azure ML run information")
+    parser.add_argument('--output_dir', help="Directory where to save the report")
+    parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
+                                                   "If omitted, will try to load default workspace.")
     args = parser.parse_args()
 
     if args.output_dir is None:
         args.output_dir = Path.cwd() / "outputs"
     if args.download_dir is None:
         args.download_dir = args.output_dir
+    workspace_config = Path(args.workspace_config).absolute() if args.workspace_config else None
+
+    print(f"Download dir: {args.download_dir.absolute()}")
+    print(f"Output dir: {args.output_dir.absolute()}")
+    if workspace_config is not None:
+        if not workspace_config.is_file():
+            raise ValueError(f"Specified workspace config file does not exist: {workspace_config}")
+        print(f"Workspace config: {workspace_config}")
 
     generate_html_report(parent_run_id=args.run_id,
                          download_dir=Path(args.download_dir),
-                         output_dir=Path(args.output_dir))
+                         output_dir=Path(args.output_dir),
+                         workspace_config_path=workspace_config)
