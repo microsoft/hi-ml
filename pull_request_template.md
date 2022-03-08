@@ -1,9 +1,9 @@
 Write a detailed description of your PR here.
 
-Please follow the guidelines for PRs contained [here](docs/source/contributing.md). Checklist:
+Please follow the guidelines for PRs contained [here](docs/source/CONTRIBUTING.md). Checklist:
 
 - [ ] Ensure that your PR is small, and implements one change.
-- [ ] Give your PR title one of the prefixes FIX, ENH, STYLE, DOC, DEL to indicate what type of change that is.
+- [ ] Give your PR title one of the prefixes ENH, BUG, STYLE, DOC, DEL to indicate what type of change that is, see [here](docs/source/CONTRIBUTING.md)
 - [ ] Link the correct GitHub issue for tracking.
 - [ ] Add unit tests for all functions that you introduced or modified.
 - [ ] Run automatic code formatting / linting on all files.
