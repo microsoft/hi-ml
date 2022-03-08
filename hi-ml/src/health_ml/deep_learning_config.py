@@ -92,10 +92,10 @@ class ExperimentFolderHandler(Parameterized):
         if is_offline_run or output_to:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
-                root = Path(output_to).absolute()
+                root = Path(output_to).resolve()
             else:
                 logging.info("All results will be written to a subfolder of the project root folder.")
-                root = project_root.absolute() / DEFAULT_AML_UPLOAD_DIR
+                root = project_root.resolve() / DEFAULT_AML_UPLOAD_DIR
             if is_global_rank_zero():
                 timestamp = create_unique_timestamp_id()
                 run_folder = root / f"{timestamp}_{model_name}"

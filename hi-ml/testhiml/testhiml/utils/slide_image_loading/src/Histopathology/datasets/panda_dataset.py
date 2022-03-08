@@ -42,8 +42,8 @@ class PandaDataset(Dataset):
         image_id = self.train_df.index[index]
         return {
             'image_id': image_id,
-            'image': str(self._get_image_path(image_id).absolute()),
-            'mask': str(self._get_mask_path(image_id).absolute()),
+            'image': str(self._get_image_path(image_id).resolve()),
+            'mask': str(self._get_mask_path(image_id).resolve()),
             **self.train_df.loc[image_id].to_dict()
         }
 
