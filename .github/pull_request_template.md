@@ -4,7 +4,7 @@ Write a detailed description of your Pull Request (PR) here.
 
 ## Guidelines
 
-Please follow the guidelines for PRs* contained [here](docs/CONTRIBUTING.md). Checklist:
+Please follow the guidelines for PRs contained [here](docs/CONTRIBUTING.md). Checklist:
 
 - [ ] Ensure that your PR is small, and implements one change.
 - [ ] Give your PR title one of the prefixes ENH, BUG, STYLE, DOC, DEL to indicate what type of change that is, see [here](docs/CONTRIBUTING.md)
