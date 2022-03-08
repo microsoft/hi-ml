@@ -11,7 +11,8 @@ cd hi-ml-histopathology
 make env
 ```
 
-You can then activate the environment via `conda activate HimlHisto`
+You can then activate the environment via `conda activate HimlHisto`. Set VSCode to use this Conda environment, by choosing "Python: Select Interpreter"
+from the command palette.
 
 ### Setting up AzureML
 
@@ -35,3 +36,11 @@ python hi-ml/src/health_ml/runner.py --model histopathology.DeepSMILECrck --clus
 
 This should start an AzureML job in the AzureML workspace that you configured above via `config.json`. You may need to adjust the name of 
 the compute cluster (`training-nd24` in the above example).
+
+## Running histopathology tests
+
+In the `hi-ml-histopathology` folder, run
+
+```shell
+make call_pytest
+```
