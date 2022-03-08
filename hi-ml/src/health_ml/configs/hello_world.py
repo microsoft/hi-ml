@@ -85,8 +85,8 @@ class HelloWorldDataModule(LightningDataModule):
         n_val = 50
         self.test = HelloWorldDataset(xy=xy[:n_test])
         if crossval_count <= 1:
-            self.val = HelloWorldDataset(xy=xy[n_test:(n_test + n_val)])
-            self.train = HelloWorldDataset(xy=xy[(n_test + n_val):])
+            self.val = HelloWorldDataset(xy=xy[n_test : (n_test + n_val)])
+            self.train = HelloWorldDataset(xy=xy[(n_test + n_val) :])
         else:
             # This could be done via a library function like sklearn's KFold function, but we don't want to add
             # scikit-learn as a dependency just for this example.
@@ -251,7 +251,6 @@ class HelloWorld(LightningContainer):
     # This method must be overridden by any subclass of LightningContainer. It returns a data module, which
     # in turn contains 3 data loaders for training, validation, and test set.
     def get_data_module(self) -> LightningDataModule:
-        assert self.local_dataset_dir is not None
         # If you would like to use the built-in cross validation functionality that runs training in parallel,
         # you need to provide the crossvalidation parameters in the LightningContainer to the datamodule. The
         # datamodule must carry out appropriate splitting of the data.
