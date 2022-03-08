@@ -34,6 +34,7 @@ Those category prefixes must be in upper case, followed by a colon (`:`). Valid 
 * `ENH` for enhancements, new capabilities
 * `STYLE` for stylistic changes (for example, refactoring) that does not impact the functionality
 * `DOC` for changes to documentation only
+* `DEL` for removing something from the codebase
 
 ## Code style
 
