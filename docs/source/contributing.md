@@ -27,6 +27,14 @@ If you'd like to submit a PR to the codebase, please ensure you:
 - Only publish your PR for review once you have a build that is passing. You can make use of the "Create as Draft"
   feature of GitHub.
 
+To enable good auto-generated changelogs, we prefix all PR titles with a category string, like "FIX: Out of bounds error when using small images".
+Those category prefixes must be in upper case, followed by a colon (`:`). Valid categories are
+
+* `FIX` for bugfixes
+* `ENH` for enhancements, new capabilities
+* `STYLE` for stylistic changes (for example, refactoring) that does not impact the functionality
+* `DOC` for changes to documentation only
+
 ## Code style
 
 - We use `flake8` as a linter, and `mypy` and pyright for static typechecking. Both tools run as part of the PR build,
