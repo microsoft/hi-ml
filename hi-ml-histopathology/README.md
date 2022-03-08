@@ -44,3 +44,6 @@ In the `hi-ml-histopathology` folder, run
 ```shell
 make call_pytest
 ```
+
+Inside of VSCode, all tests in the repository should be picked up automatically. You can exclude the tests for the `hi-ml` and `hi-ml-azure` packages by
+modifying `python.testing.pytestArgs` in the VSCode `.vscode/settings.json` file.
