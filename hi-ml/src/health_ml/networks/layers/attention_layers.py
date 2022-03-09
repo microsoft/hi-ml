@@ -237,10 +237,10 @@ class TransformerPooling(Module):
         M = H[:, 0]
 
         # Get attention weights with respect to the cls token, without the element where it attends to itself
-        self_attention_cls_token = A[0, 0, 0]
-        A = A[:, 0, 1:]
+        self_attention_cls_token = A[0, 0, 0]  # type: ignore
+        A = A[:, 0, 1:]  # type: ignore
 
         # We want A to sum to one, simple hack: add self_attention_cls_token/num_tiles to each element
-        A += self_attention_cls_token / A.shape[-1]  # type: ignore
+        A += self_attention_cls_token / A.shape[-1]
 
         return (A, M)
