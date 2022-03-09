@@ -55,8 +55,7 @@ def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Pat
         report.add_tables([test_metrics_table])
 
         # Add test ROC and PR curves
-        num_crossval_splits = len(metrics_df.columns)
-        crossval_dfs = collect_crossval_outputs(parent_run_id, download_dir, num_crossval_splits)
+        crossval_dfs = collect_crossval_outputs(parent_run_id, download_dir, aml_workspace)
 
         report.add_heading("Test ROC and PR curves", level=2)
         fig = plot_crossval_roc_and_pr_curves(crossval_dfs)

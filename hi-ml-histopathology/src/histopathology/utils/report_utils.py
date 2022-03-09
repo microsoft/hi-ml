@@ -1,19 +1,20 @@
-from pathlib import Path
 import pickle
-from typing import List, Optional, Sequence
+from pathlib import Path
+from typing import Dict, Optional, Sequence
 
 import dateutil.parser
-from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from azureml.core import Experiment, Run, Workspace
-from health_azure import download_files_from_run_id, get_workspace
-from health_azure.utils import aggregate_hyperdrive_metrics, get_aml_run_from_run_id
-from histopathology.utils.naming import ResultsKey
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from sklearn.metrics import auc, precision_recall_curve, roc_curve
+
+from health_azure import download_files_from_run_id
+from health_azure.utils import aggregate_hyperdrive_metrics, get_aml_run_from_run_id, get_tags_from_hyperdrive_run
+from histopathology.utils.naming import ResultsKey
 
 TRAIN_STYLE = dict(ls='-')
 VAL_STYLE = dict(ls='--')
@@ -22,20 +23,21 @@ BEST_TRAIN_MARKER_STYLE = dict(marker='o', markeredgecolor='w', markersize=6)
 BEST_VAL_MARKER_STYLE = dict(marker='*', markeredgecolor='w', markersize=11)
 
 
-def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path, filename: str) -> None:
+def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path, filename: str,
+                               aml_workspace: Workspace) -> None:
     """
     Function to download any file from an AML run if it doesn't exist locally
     :param run_id: run ID of the AML run
     :param remote_dir: remote directory from where the file is downloaded
     :param download_dir: local directory where to save the downloaded file
     :param filename: name of the file to be downloaded (e.g. `"test_output.csv"`).
+    :param aml_workspace: AML workspace from which to retrieve the specified run
     """
     local_path = download_dir / run_id / "outputs" / filename
     remote_path = remote_dir / filename
     if local_path.exists():
         print("File already exists at", local_path)
     else:
-        aml_workspace = get_workspace()
         local_dir = local_path.parent.parent
         local_dir.mkdir(exist_ok=True, parents=True)
         download_files_from_run_id(run_id=run_id,
@@ -48,21 +50,30 @@ def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path,
-                             num_splits: int) -> List[pd.DataFrame]:
+                             aml_workspace: Workspace) -> Dict[int, pd.DataFrame]:
     output_filename = "test_output.csv"
 
-    all_outputs_dfs = []
-    for i in range(num_splits):
-        child_run_id = f"{parent_run_id}_{i}"
-        download_file_if_necessary(run_id=child_run_id,
-                                   remote_dir=Path("outputs"),
-                                   download_dir=download_dir,
-                                   filename=output_filename)
+    parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace)
 
-        child_outputs_df = pd.read_csv(download_dir / child_run_id / "outputs" / output_filename)
-        all_outputs_dfs.append(child_outputs_df)
+    children_download_dir = download_dir / parent_run_id
+    all_outputs_dfs = {}
+    for child_run in parent_run.get_children():
+        child_run_index = get_tags_from_hyperdrive_run(child_run, "cross_validation_split_index")
+        if child_run_index is None:
+            raise ValueError("Child run expected to have the tag {child_run_tag}")
+        child_run_id = child_run.id
+        try:
+            download_file_if_necessary(run_id=child_run_id,
+                                       remote_dir=Path("outputs"),
+                                       download_dir=children_download_dir,
+                                       filename=output_filename,
+                                       aml_workspace=aml_workspace)
 
-    return all_outputs_dfs
+            child_outputs_df = pd.read_csv(children_download_dir / child_run_id / "outputs" / output_filename)
+            all_outputs_dfs[child_run_index] = child_outputs_df
+        except ValueError as e:
+            print(f"Failed to download {output_filename} for run {child_run_id}: {e}")
+    return dict(sorted(all_outputs_dfs.items()))
 
 
 def collect_crossval_metrics(parent_run_id: str, download_dir: Path,
@@ -81,7 +92,7 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path,
         print(f"Writing AML metrics file to {metrics_pickle}")
         with open(metrics_pickle, 'wb') as f:
             pickle.dump(metrics_df, f)
-    return metrics_df
+    return metrics_df.sort_index(axis='columns')
 
 
 def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
@@ -118,9 +129,9 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.grid(color='0.9')
 
 
-def _plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
+def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame],
                                      roc_ax: Axes, pr_ax: Axes) -> None:
-    for k, tiles_df in enumerate(crossval_dfs):
+    for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         labels = slides_groupby[ResultsKey.TRUE_LABEL].agg(pd.Series.mode)
         scores = slides_groupby[ResultsKey.PROB].agg(pd.Series.mode)
@@ -133,7 +144,7 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
     format_pr_or_roc_axes('pr', pr_ax)
 
 
-def plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame]) -> Figure:
+def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame]) -> Figure:
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
     _plot_crossval_roc_and_pr_curves(crossval_dfs, roc_ax=axs[0], pr_ax=axs[1])
     return fig
@@ -165,7 +176,7 @@ def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str]
     best_metrics = [metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
                     for k, epoch in best_epochs.items()]
     best_metrics_df = pd.DataFrame(best_metrics).T
-    return best_metrics_df.sort_index(axis='columns')
+    return best_metrics_df
 
 
 def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str,
