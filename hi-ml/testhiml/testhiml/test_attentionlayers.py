@@ -24,6 +24,7 @@ def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
         pooled_features = attn_weights @ features.flatten(start_dim=1)
         assert allclose(pooled_features, output_features)
 
+
 @pytest.mark.parametrize("dim_in", [1, 3])
 @pytest.mark.parametrize("dim_hid", [1, 4])
 @pytest.mark.parametrize("dim_att", [1, 5])
