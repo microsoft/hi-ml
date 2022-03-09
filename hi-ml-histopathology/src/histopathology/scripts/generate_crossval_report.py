@@ -12,7 +12,8 @@ from histopathology.utils.report_utils import (add_training_curves_legend, colle
 
 
 def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Path,
-                         workspace_config_path: Optional[Path] = None) -> None:
+                         workspace_config_path: Optional[Path] = None,
+                         include_test: bool = False) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
 
@@ -47,20 +48,21 @@ def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Pat
     val_metrics_table = get_crossval_metrics_table(val_metrics_df, val_metrics_list)
     report.add_tables([val_metrics_table])
 
-    report.add_heading("Test metrics", level=3)
-    test_metrics_list = ['test/' + metric for metric in base_metrics_list]
-    test_metrics_table = get_crossval_metrics_table(metrics_df, test_metrics_list)
-    report.add_tables([test_metrics_table])
+    if include_test:
+        report.add_heading("Test metrics", level=3)
+        test_metrics_list = ['test/' + metric for metric in base_metrics_list]
+        test_metrics_table = get_crossval_metrics_table(metrics_df, test_metrics_list)
+        report.add_tables([test_metrics_table])
 
-    # Add test ROC and PR curves
-    num_crossval_splits = len(metrics_df.columns)
-    crossval_dfs = collect_crossval_outputs(parent_run_id, download_dir, num_crossval_splits)
+        # Add test ROC and PR curves
+        num_crossval_splits = len(metrics_df.columns)
+        crossval_dfs = collect_crossval_outputs(parent_run_id, download_dir, num_crossval_splits)
 
-    report.add_heading("Test ROC and PR curves", level=2)
-    fig = plot_crossval_roc_and_pr_curves(crossval_dfs)
-    cohort_roc_pr_curves_fig_path = output_dir / "roc_pr_curves.png"
-    fig.savefig(cohort_roc_pr_curves_fig_path, bbox_inches='tight')
-    report.add_images([cohort_roc_pr_curves_fig_path], base64_encode=True)
+        report.add_heading("Test ROC and PR curves", level=2)
+        fig = plot_crossval_roc_and_pr_curves(crossval_dfs)
+        roc_pr_curves_fig_path = output_dir / "roc_pr_curves.png"
+        fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
+        report.add_images([roc_pr_curves_fig_path], base64_encode=True)
 
     print(f"Rendering report to: {report.report_path_html.absolute()}")
     report.render()
@@ -75,6 +77,8 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', help="Directory where to save the report")
     parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
                                                    "If omitted, will try to load default workspace.")
+    parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
+                                                                    "in the generated report")
     args = parser.parse_args()
 
     if args.output_dir is None:
@@ -93,4 +97,5 @@ if __name__ == "__main__":
     generate_html_report(parent_run_id=args.run_id,
                          download_dir=Path(args.download_dir),
                          output_dir=Path(args.output_dir),
-                         workspace_config_path=workspace_config)
+                         workspace_config_path=workspace_config,
+                         include_test=args.include_test)

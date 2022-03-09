@@ -178,8 +178,8 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
         ax.plot(val_values, color=color, **VAL_STYLE)
         if best_epochs is not None:
             best_epoch = best_epochs[k]
-            ax.plot(best_epoch, train_values[best_epoch], color=color, **BEST_EPOCH_MARKER_STYLE)
-            ax.plot(best_epoch, val_values[best_epoch], color=color, **BEST_EPOCH_MARKER_STYLE)
+            ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_EPOCH_MARKER_STYLE)
+            ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_EPOCH_MARKER_STYLE)
             ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
     ax.grid(color='0.9')
     ax.set_xlabel("Epoch")
