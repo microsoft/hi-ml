@@ -43,7 +43,6 @@
         "${workspaceFolder}/hi-ml/testhiml/testhiml",
         "${workspaceFolder}/hi-ml-azure/testazure/testazure",
         "${workspaceFolder}/hi-ml-histopathology/testhisto",
-        "${workspaceFolder}/hi-ml-histopathology/testSSL",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,

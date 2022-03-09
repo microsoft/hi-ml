@@ -6,6 +6,7 @@
 import os
 from pathlib import Path
 from typing import Callable, Sequence, Union
+import numpy as np
 
 import pytest
 import torch
@@ -22,9 +23,10 @@ from health_ml.utils.data_augmentations import HEDJitter
 from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from histopathology.models.encoders import ImageNetEncoder
-from histopathology.models.transforms import EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, transform_dict_adaptor
+from histopathology.models.transforms import (EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, Subsampled,
+                                              transform_dict_adaptor)
 
-import testhisto
+from testhisto.utils.utils_testhisto import assert_dicts_equal
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
@@ -38,15 +40,12 @@ def test_load_tile() -> None:
     # Test that the transform affects only the image entry in the sample
     input_sample = tiles_dataset[index]
     loaded_sample = load_transform(input_sample)
-    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
-        loaded_sample,
-        input_sample,
-        exclude_keys=[image_key])
+    assert_dicts_equal(loaded_sample, input_sample, exclude_keys=[image_key])
 
     # Test that the MONAI Dataset applies the same transform
     loaded_dataset = Dataset(tiles_dataset, transform=load_transform)  # type:ignore
     same_dataset_sample = loaded_dataset[index]
-    testhisto.utils.utils_testhisto.assert_dicts_equal(same_dataset_sample, loaded_sample)  # type: ignore
+    assert_dicts_equal(same_dataset_sample, loaded_sample)
 
     # Test that loading another sample gives different results
     different_sample = loaded_dataset[index + 1]
@@ -70,17 +69,13 @@ def test_load_tiles_batch() -> None:
     # and that the loaded images have the expected shape
     bagged_batch = bagged_dataset[index]
     manually_loaded_batch = load_batch_transform(bagged_batch)
-    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
-        manually_loaded_batch,
-        bagged_batch,
-        exclude_keys=[image_key])
+    assert_dicts_equal(manually_loaded_batch, bagged_batch, exclude_keys=[image_key])
     assert manually_loaded_batch[image_key].shape == (max_bag_size, *image_shape)
 
     # Test that the MONAI Dataset applies the same transform
     loaded_bagged_dataset = Dataset(bagged_dataset, transform=load_batch_transform)  # type:ignore
     loaded_bagged_batch = loaded_bagged_dataset[index]
-    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
-        loaded_bagged_batch, manually_loaded_batch)
+    assert_dicts_equal(loaded_bagged_batch, manually_loaded_batch)
 
     # Test that loading another batch gives different results
     different_batch = loaded_bagged_dataset[index + 1]
@@ -91,8 +86,7 @@ def test_load_tiles_batch() -> None:
                                        bag_ids=tiles_dataset.slide_ids,
                                        max_bag_size=max_bag_size)
     bagged_loaded_batch = bagged_loaded_dataset[index]
-    testhisto.utils.utils_testhisto.assert_dicts_equal(  # type: ignore
-        bagged_loaded_batch, loaded_bagged_batch)
+    assert_dicts_equal(bagged_loaded_batch, loaded_bagged_batch)
 
 
 def _test_cache_and_persistent_datasets(tmp_path: Path,
@@ -108,8 +102,8 @@ def _test_cache_and_persistent_datasets(tmp_path: Path,
 
     for default_sample, cached_sample, persistent_sample \
             in zip(default_dataset, cached_dataset, persistent_dataset):  # type: ignore
-        testhisto.utils.utils_testhisto.assert_dicts_equal(cached_sample, default_sample)  # type: ignore
-        testhisto.utils.utils_testhisto.assert_dicts_equal(persistent_sample, default_sample)  # type: ignore
+        assert_dicts_equal(cached_sample, default_sample)
+        assert_dicts_equal(persistent_sample, default_sample)
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
@@ -165,6 +159,60 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
                                         bagged_subset,
                                         transform=transform,
                                         cache_subdir="TCGA-CRCk_embed_cache")
+
+
+@pytest.mark.parametrize('include_non_indexable', [True, False])
+@pytest.mark.parametrize('allow_missing_keys', [True, False])
+def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> None:
+    batch_size = 5
+    max_size = batch_size // 2
+    data = {
+        'array_1d': np.random.randn(batch_size),
+        'array_2d': np.random.randn(batch_size, 4),
+        'tensor_1d': torch.randn(batch_size),
+        'tensor_2d': torch.randn(batch_size, 4),
+        'list': torch.randn(batch_size).tolist(),
+        'indices': list(range(batch_size)),
+        'non-indexable': 42,
+    }
+
+    keys_to_subsample = list(data.keys())
+    if not include_non_indexable:
+        keys_to_subsample.remove('non-indexable')
+    keys_to_subsample.append('missing-key')
+
+    subsampling = Subsampled(keys_to_subsample, max_size=max_size,
+                             allow_missing_keys=allow_missing_keys)
+
+    if include_non_indexable:
+        with pytest.raises(ValueError):
+            sub_data = subsampling(data)
+        return
+    elif not allow_missing_keys:
+        with pytest.raises(KeyError):
+            sub_data = subsampling(data)
+        return
+    else:
+        sub_data = subsampling(data)
+
+    assert set(sub_data.keys()) == set(data.keys())
+
+    # Check lenghts before and after subsampling
+    for key in keys_to_subsample:
+        if key not in data:
+            continue  # Skip missing keys
+        assert len(data[key]) == batch_size  # type: ignore
+        assert len(sub_data[key]) == min(max_size, batch_size)  # type: ignore
+
+    # Check contents of subsampled elements
+    for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
+        for idx, elem in zip(sub_data['indices'], sub_data[key]):
+            assert np.array_equal(elem, data[key][idx])  # type: ignore
+
+    # Check that subsampling is random, i.e. subsequent calls shouldn't give identical results
+    sub_data2 = subsampling(data)
+    for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
+        assert not np.array_equal(sub_data[key], sub_data2[key])  # type: ignore
 
 
 def test_transform_dict_adaptor() -> None:

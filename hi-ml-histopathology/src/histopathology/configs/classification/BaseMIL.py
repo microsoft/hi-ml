@@ -36,9 +36,8 @@ class BaseMIL(LightningContainer):
          of encoding layers.")
     num_transformer_pool_heads: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
          of attention heads.")
-
-    is_finetune: bool = param.Boolean(doc="Whether to fine-tune the encoder. Options:"
-                                      "`False` (default), or `True`.")
+    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
+                                                 "keep the encoder frozen.")
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
@@ -62,7 +61,8 @@ class BaseMIL(LightningContainer):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
-                                             "enconding_chunk_size tiles per chunk")
+                                                    "enconding_chunk_size tiles per chunk")
+    
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property

@@ -27,6 +27,15 @@ If you'd like to submit a PR to the codebase, please ensure you:
 - Only publish your PR for review once you have a build that is passing. You can make use of the "Create as Draft"
   feature of GitHub.
 
+To enable good auto-generated changelogs, we prefix all PR titles with a category string, like "BUG: Out of bounds error when using small images".
+Those category prefixes must be in upper case, followed by a colon (`:`). Valid categories are
+
+* `ENH` for enhancements, new capabilities
+* `BUG` for bugfixes
+* `STYLE` for stylistic changes (for example, refactoring) that does not impact the functionality
+* `DOC` for changes to documentation only
+* `DEL` for removing something from the codebase
+
 ## Code style
 
 - We use `flake8` as a linter, and `mypy` and pyright for static typechecking. Both tools run as part of the PR build,
@@ -54,6 +63,9 @@ If you'd like to submit a PR to the codebase, please ensure you:
   then start to code up the fix.
 
 ## Correct Sphinx Documentation
+
+We suggest using a VSCode extension for auto-generating documentation templates, for example `njpwerner.autodocstring`.
+This extension is already pre-configured in VSCode's workspace settings file.
 
 Common mistakes when writing docstrings:
 
