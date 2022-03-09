@@ -18,7 +18,8 @@ from sklearn.metrics import auc, precision_recall_curve, roc_curve
 TRAIN_STYLE = dict(ls='-')
 VAL_STYLE = dict(ls='--')
 BEST_EPOCH_LINE_STYLE = dict(ls=':', lw=1)
-BEST_EPOCH_MARKER_STYLE = dict(marker='o', markeredgecolor='w')
+BEST_TRAIN_MARKER_STYLE = dict(marker='o', markeredgecolor='w', markersize=6)
+BEST_VAL_MARKER_STYLE = dict(marker='*', markeredgecolor='w', markersize=11)
 
 
 def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path, filename: str) -> None:
@@ -125,7 +126,7 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Sequence[pd.DataFrame],
         scores = slides_groupby[ResultsKey.PROB].agg(pd.Series.mode)
         plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
         plot_pr_curve(labels, scores, label=f"Fold {k}", ax=pr_ax)
-    legend_kwargs = dict(edgecolor='none')
+    legend_kwargs = dict(edgecolor='none', fontsize='small')
     roc_ax.legend(**legend_kwargs)
     pr_ax.legend(**legend_kwargs)
     format_pr_or_roc_axes('roc', roc_ax)
@@ -178,8 +179,8 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
         ax.plot(val_values, color=color, **VAL_STYLE)
         if best_epochs is not None:
             best_epoch = best_epochs.loc[k]
-            ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_EPOCH_MARKER_STYLE)
-            ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_EPOCH_MARKER_STYLE)
+            ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
+            ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
             ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
     ax.grid(color='0.9')
     ax.set_xlabel("Epoch")
@@ -200,8 +201,10 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
     legend_handles = [Line2D([], [], **TRAIN_STYLE, color='k', label="Training"),
                       Line2D([], [], **VAL_STYLE, color='k', label="Validation")]
     if include_best_epoch:
-        legend_handles.append(Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_EPOCH_MARKER_STYLE,
-                                     color='k', label="Best epoch"),)
+        legend_handles.append(Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_TRAIN_MARKER_STYLE,
+                                     color='k', label="Best epoch (train)"),)
+        legend_handles.append(Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_VAL_MARKER_STYLE,
+                                     color='k', label="Best epoch (val.)"),)
     fig.legend(handles=legend_handles, **legend_kwargs, loc='lower center',
                bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
 
