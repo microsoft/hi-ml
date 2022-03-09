@@ -41,7 +41,8 @@
     "python.sortImports.args": ["-l", "120"],
     "python.testing.pytestArgs": [
         "${workspaceFolder}/hi-ml/testhiml/testhiml",
-        "${workspaceFolder}/hi-ml-azure/testazure/testazure"
+        "${workspaceFolder}/hi-ml-azure/testazure/testazure",
+        "${workspaceFolder}/hi-ml-histopathology/testhisto",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
