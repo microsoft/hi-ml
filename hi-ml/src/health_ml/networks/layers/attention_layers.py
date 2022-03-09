@@ -6,7 +6,7 @@
 Created using the original DeepMIL paper and code from Ilse et al., 2018
 https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
 """
-from typing import Tuple, Optional
+from typing import Callable, Tuple, Optional
 from torch import nn, Tensor, transpose, mm
 import torch
 import torch.nn.functional as F
@@ -121,36 +121,31 @@ class CustomTransformerEncoderLayer(Module):
     """
     __constants__ = ['batch_first', 'norm_first']
 
-    def __init__(self, d_model,
-                 nhead,
-                 dim_feedforward=2048,
-                 dropout=0.1,
-                 activation=F.relu,
-                 layer_norm_eps=1e-5,
-                 batch_first=False,
-                 norm_first=False,
-                 device=None,
-                 dtype=None) -> None:
+    def __init__(self, d_model: int,
+                 nhead: int,
+                 dim_feedforward: int = 2048,
+                 dropout: float = 0.1,
+                 activation: Callable = F.relu,
+                 layer_norm_eps: float = 1e-5,
+                 batch_first: bool = True,
+                 norm_first: bool = False,
+                 device: str = None,
+                 dtype: str = None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super(CustomTransformerEncoderLayer, self).__init__()
         self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
                                             **factory_kwargs)
         # Implementation of Feedforward model
-        self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
+        self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)  # type: ignore
         self.dropout = Dropout(dropout)
-        self.linear2 = Linear(dim_feedforward, d_model, **factory_kwargs)
+        self.linear2 = Linear(dim_feedforward, d_model, **factory_kwargs)  # type: ignore
 
         self.norm_first = norm_first
-        self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)  # type: ignore
+        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)  # type: ignore
         self.dropout1 = Dropout(dropout)
         self.dropout2 = Dropout(dropout)
         self.activation = activation
-
-    def __setstate__(self, state):
-        if 'activation' not in state:
-            state['activation'] = F.relu
-        super(CustomTransformerEncoderLayer, self).__setstate__(state)
 
     def forward(self, src: torch.Tensor,
                 src_mask: Optional[torch.Tensor] = None,
@@ -207,19 +202,20 @@ class TransformerPooling(Module):
 
         self.transformer_encoder_layers = []
         for _ in range(self.num_layers):
-            self.transformer_encoder_layers.append(CustomTransformerEncoderLayer(self.dim_representation,
-                                                                                 self.num_heads,
-                                                                                 dim_feedforward=self.dim_representation,
-                                                                                 dropout=0.1,
-                                                                                 activation=F.gelu,
-                                                                                 batch_first=True))
-        self.transformer_encoder_layers = torch.nn.ModuleList(self.transformer_encoder_layers)
+            self.transformer_encoder_layers.append(
+                CustomTransformerEncoderLayer(self.dim_representation,
+                                              self.num_heads,
+                                              dim_feedforward=self.dim_representation,
+                                              dropout=0.1,
+                                              activation=F.gelu,
+                                              batch_first=True))
+        self.transformer_encoder_layers = torch.nn.ModuleList(self.transformer_encoder_layers)  # type: ignore
 
     def forward(self, features: Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         cls_token = (torch.ones(1, self.dim_representation, device=features.device) * self.cls_token)
 
         # Append cls token
-        H = torch.cat([cls_token, features], axis=0).unsqueeze(0)
+        H = torch.vstack([cls_token, features]).unsqueeze(0)
 
         for i in range(self.num_layers):
             H, A = self.transformer_encoder_layers[i](H)
@@ -227,11 +223,11 @@ class TransformerPooling(Module):
         # Extract cls token
         M = H[:, 0]
 
-        # Get attention weights of cls token, without the element where it attends to itself
-        self_attention_cls_token = A[0, 0]
+        # Get attention weights with respect to the cls token, without the element where it attends to itself
+        self_attention_cls_token = A[0, 0, 0]
         A = A[:, 0, 1:]
 
         # We want A to sum to one, simple hack: add self_attention_cls_token/num_tiles to each element
-        A +=  self_attention_cls_token / A.shape[-1]
+        A += self_attention_cls_token / A.shape[-1]
 
         return (A, M)

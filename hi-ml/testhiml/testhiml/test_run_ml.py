@@ -5,7 +5,7 @@ import pytest
 from typing import Generator, Tuple
 from unittest.mock import patch
 
-from health_ml.configs.hello_container import HelloContainer
+from health_ml.configs.hello_world import HelloWorld
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
@@ -34,7 +34,7 @@ def ml_runner() -> Generator:
 @pytest.fixture(scope="module")
 def ml_runner_with_container() -> Generator:
     experiment_config = ExperimentConfig(model="HelloContainer")
-    container = HelloContainer()
+    container = HelloWorld()
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
@@ -92,10 +92,12 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     """
     Test that run_inference gets called as expected.
     """
-    def _expected_files_exist() -> int:
+    def _expected_files_exist() -> bool:
         output_dir = ml_runner_with_container.container.outputs_folder
-        expected_files = [Path("test_mse.txt"), Path("test_mae.txt")]
-        return sum([p.exists() for p in expected_files] + [output_dir.is_dir()])
+        if not output_dir.is_dir():
+            return False
+        expected_files = ["test_mse.txt", "test_mae.txt"]
+        return all([(output_dir / p).exists() for p in expected_files])
 
     # create the test data
     import numpy as np
@@ -112,7 +114,7 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     assert not expected_ckpt_path.exists()
     # update the container to look for test data at this location
     ml_runner_with_container.container.local_dataset_dir = tmp_path
-    assert _expected_files_exist() == 0
+    assert not _expected_files_exist()
 
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path is None
@@ -123,8 +125,8 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoints_to_test()
     assert actual_test_ckpt_path == [expected_ckpt_path]
     assert actual_test_ckpt_path[0].exists()
-    # After training, the outputs directory should now exist
-    assert _expected_files_exist() == 3
+    # After training, the outputs directory should now exist and contain the 2 error files
+    assert _expected_files_exist()
 
     # if no checkpoint handler, no checkpoint paths will be saved and these are required for
     # inference so ValueError will be raised
@@ -132,6 +134,3 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
         ml_runner_with_container.checkpoint_handler = None  # type: ignore
         ml_runner_with_container.run()
         assert "expects exactly 1 checkpoint for inference, but got 0" in str(e)
-
-    Path("test_mae.txt").unlink()
-    Path("test_mse.txt").unlink()

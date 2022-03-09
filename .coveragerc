@@ -2,7 +2,7 @@
     omit =
         **/pytest
         **/__init__.py
-        */hello_container_2.py
+        **/temp_config_for_unittests.py
 
 [html]
 skip_empty = true

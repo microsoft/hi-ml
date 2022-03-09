@@ -8,25 +8,25 @@ by providing tested components (data loaders, pre-processing), and deep learning
 
 ## Installation
 
-You can install the latest version from `pypi` via 
+You can install the latest version from `pypi` via
 
-```
+```console
 pip install hi-ml
 ```
 
 ## Documentation
 
-The detailed package documentation, with examples and API reference, is on 
+The detailed package documentation, with examples and API reference, is on
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
 ## Getting started
 
-Examples that illustrate the use of the `hi-ml` toolbox can be found on 
+Examples that illustrate the use of the `hi-ml` toolbox can be found on
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
 ## Changelog
 
-A changelog is [maintained on Github](https://github.com/microsoft/hi-ml/blob/main/CHANGELOG.md)
+We are relying on Github's auto-generated changelog to describe what went into a release. Please check [each individual release](https://github.com/microsoft/hi-ml/releases) to see a full changelog.
 
 ## Links
 

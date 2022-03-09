@@ -12,17 +12,18 @@ from typing import Optional, Tuple, Type  # noqa
 
 import param
 from torch import nn
-from torchvision.models.resnet import resnet18
+from torchvision.models import resnet18
 
+from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,\
     TransformerPooling
-from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.Histopathology.datasets.base_dataset import SlidesDataset
-from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
-from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
-from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
-                                                        ImageNetEncoder, ImageNetSimCLREncoder,
-                                                        InnerEyeSSLEncoder, TileEncoder)
+
+from histopathology.datasets.base_dataset import SlidesDataset
+from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
+from histopathology.models.deepmil import DeepMILModule
+from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
+                                            ImageNetEncoder, ImageNetSimCLREncoder,
+                                            SSLEncoder, TileEncoder)
 
 
 class BaseMIL(LightningContainer):
@@ -48,7 +49,7 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
-    max_bag_size: int = param.Integer(500, bounds=(0, None),
+    max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
@@ -61,13 +62,7 @@ class BaseMIL(LightningContainer):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
-<<<<<<< HEAD
-                                                    "enconding_chunk_size tiles per chunk")
-=======
                                              "enconding_chunk_size tiles per chunk")
-    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False, "
-                                      "keep the encoder frozen.")
->>>>>>> 314433cb95d27966a9f6ca617121faf2d892d9c7
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
@@ -75,8 +70,8 @@ class BaseMIL(LightningContainer):
         raise NotImplementedError
 
     def setup(self) -> None:
-        if self.encoder_type == InnerEyeSSLEncoder.__name__:
-            raise NotImplementedError("InnerEyeSSLEncoder requires a pre-trained checkpoint.")
+        if self.encoder_type == SSLEncoder.__name__:
+            raise NotImplementedError("SSLEncoder requires a pre-trained checkpoint.")
 
         self.encoder = self.get_encoder()
         if not self.is_finetune:
@@ -93,9 +88,9 @@ class BaseMIL(LightningContainer):
         elif self.encoder_type == HistoSSLEncoder.__name__:
             return HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
-        elif self.encoder_type == InnerEyeSSLEncoder.__name__:
-            return InnerEyeSSLEncoder(pl_checkpoint_path=self.downloader.local_checkpoint_path,
-                                      tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == SSLEncoder.__name__:
+            return SSLEncoder(pl_checkpoint_path=self.downloader.local_checkpoint_path,
+                              tile_size=self.tile_size, n_channels=self.n_channels)
 
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")

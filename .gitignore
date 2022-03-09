@@ -151,3 +151,10 @@ node_modules/
 package-lock.json
 
 logs/
+
+# Temporary files generated from conda merging
+temp_environment-*
+# Temporary files from unittesting
+temp_config_for_unittests.py
+# Temp file from building requirements for histo
+temp_requirements.txt

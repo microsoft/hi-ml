@@ -16,15 +16,16 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, set_grad_enabled, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
-from InnerEye.Common import fixed_paths
-from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
-from InnerEye.ML.Histopathology.models.encoders import TileEncoder
-from InnerEye.ML.Histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
-                                                            plot_scores_hist, plot_heatmap_overlay,
-                                                            plot_slide, plot_normalized_confusion_matrix)
-from InnerEye.ML.Histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
-from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
-from health_ml.utils import log_on_epoch
+from health_azure.utils import is_global_rank_zero
+from health_ml.utils import fixed_paths, log_on_epoch
+
+from histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
+from histopathology.models.encoders import TileEncoder
+from histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
+                                                plot_scores_hist, plot_heatmap_overlay,
+                                                plot_slide, plot_normalized_confusion_matrix)
+from histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
+from histopathology.utils.viz_utils import load_image_dict
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -96,11 +97,11 @@ class DeepMILModule(LightningModule):
             else:
                 self.class_names = ['0', '1']
         if self.n_classes > 1 and len(self.class_names) != self.n_classes:
-            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes\
-                 ({self.n_classes})")
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number"
+                             f"of classes ({self.n_classes})")
         if self.n_classes == 1 and len(self.class_names) != 2:
-            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes\
-                 ({self.n_classes+1})")
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number"
+                             f"of classes ({self.n_classes+1})")
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -256,8 +257,9 @@ class DeepMILModule(LightningModule):
                            ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
                            )
         else:
-            logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
-
+            if is_global_rank_zero():
+                logging.warning("Coordinates not found in batch. If this is not expected check your"
+                                "input tiles dataset.")
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -311,7 +313,8 @@ class DeepMILModule(LightningModule):
             list_slide_dicts.append(slide_dict)
             list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
 
-        outputs_path = fixed_paths.repository_parent_directory() / 'outputs'
+        outputs_path = fixed_paths.repository_root_directory() / 'outputs'
+        assert outputs_path.is_dir, f"No such dir: {outputs_path}"
         print(f"Metrics results will be output to {outputs_path}")
         outputs_fig_path = outputs_path / 'fig'
         csv_filename = outputs_path / 'test_output.csv'
@@ -323,17 +326,21 @@ class DeepMILModule(LightningModule):
             slide_dict = self.normalize_dict_for_df(slide_dict, use_gpu=False)
             df_list.append(pd.DataFrame.from_dict(slide_dict))
         df = pd.concat(df_list, ignore_index=True)
-        df.to_csv(csv_filename, mode='w', header=True)
+        df.to_csv(csv_filename, mode='w+', header=True)
 
         # Collect all features in a list and save
         features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
         torch.save(features_list, encoded_features_filename)
 
         print("Selecting tiles ...")
-        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
-        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
+        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                      select=('lowest_pred', 'highest_att'))
+        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                         select=('lowest_pred', 'lowest_att'))
+        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                      select=('highest_pred', 'highest_att'))
+        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10,
+                                         select=('highest_pred', 'lowest_att'))
         report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
 
         for key in report_cases.keys():
@@ -351,8 +358,11 @@ class DeepMILModule(LightningModule):
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
 
                 if self.slide_dataset is not None:
-                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
-                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                           # type: ignore
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:  # type: ignore
+                                               entry[SlideKey.SLIDE_ID] == slide)
+                    _ = load_image_dict(slide_dict,
+                                        level=self.level,
+                                        margin=0)  # type: ignore
                     slide_image = slide_dict[SlideKey.IMAGE]
                     location_bbox = slide_dict[SlideKey.LOCATION]
 

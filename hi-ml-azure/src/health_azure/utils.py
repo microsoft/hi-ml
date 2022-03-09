@@ -65,6 +65,13 @@ RUN_CONTEXT = Run.get_context()
 PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 WORKSPACE_CONFIG_JSON = "config.json"
 
+# Names for sections in a Conda environment definition
+CONDA_NAME = "name"
+CONDA_CHANNELS = "channels"
+CONDA_DEPENDENCIES = "dependencies"
+CONDA_PIP = "pip"
+
+
 # By default, define several environment variables that work around known issues in the software stack
 DEFAULT_ENVIRONMENT_VARIABLES = {
     "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": "3600",
@@ -112,14 +119,15 @@ class GenericConfig(param.Parameterized):
         """
         # check if illegal arguments are passed in
         legal_params = self.get_overridable_parameters()
-        illegal = [k for k, v in params.items() if (k in self.params().keys()) and (k not in legal_params)]
+        current_param_names = self.param.values().keys()
+        illegal = [k for k, v in params.items() if (k in current_param_names) and (k not in legal_params)]
 
         if illegal:
             raise ValueError(f"The following parameters cannot be overridden as they are either "
                              f"readonly, constant, or private members : {illegal}")
         if throw_if_unknown_param:
             # check if parameters not defined by the config class are passed in
-            unknown = [k for k, v in params.items() if (k not in self.params().keys())]
+            unknown = [k for k, v in params.items() if (k not in current_param_names)]
             if unknown:
                 raise ValueError(f"The following parameters do not exist: {unknown}")
         # set known arguments
@@ -358,7 +366,7 @@ def get_overridable_parameters(config: Any) -> Dict[str, param.Parameter]:
     :return: A dictionary of parameter names and their definitions.
     """
     assert isinstance(config, param.Parameterized)
-    return dict((k, v) for k, v in config.params().items()
+    return dict((k, v) for k, v in config.param.params().items()
                 if reason_not_overridable(v) is None)
 
 
@@ -424,16 +432,17 @@ def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any], keys_to
     :param keys_to_ignore: set of dictionary keys not to report on
     """
     assert isinstance(config, param.Parameterized)
+    current_params = config.param.params()
     for key, desired in overrides_to_apply.items():
         if key in keys_to_ignore:
             continue
         actual = getattr(config, key, None)
         if actual == desired:
             continue
-        if key not in config.params():
+        if key not in current_params:
             reason = "parameter is undefined"
         else:
-            val = config.params()[key]
+            val = current_params[key]
             reason = reason_not_overridable(val)  # type: ignore
             if reason is None:
                 reason = "for UNKNOWN REASONS"
@@ -456,7 +465,7 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     c = cls_()
     if not isinstance(c, param.Parameterized):
         raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
-    for param_name, p in c.params().items():
+    for param_name, p in c.param.params().items():
         if not p.constant and not p.readonly:
             setattr(c, param_name, getattr(from_object, param_name))
     return c
@@ -648,38 +657,39 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
     return run_or_recovery_id
 
 
-def _find_file(file_name: str, stop_at_pythonpath: bool = True) -> Optional[Path]:
+def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Optional[Path]:
+    """Searches for a file of the given name in the current working directory, or any of its parent folders.
+    Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
+    of the given folders in stop_at_path.
+
+    :param file_name: The name of the file to find.
+    :param stop_at_path: A list of folders. If any of them is reached, search stops.
+    :return: The absolute path of the file if found, or None if it was not found.
     """
-    Recurse up the file system, starting at the current working directory, to find a file. Optionally stop when we hit
-    the PYTHONPATH root (defaults to stopping).
-
-    :param file_name: The file name of the file to find.
-    :param stop_at_pythonpath: (Defaults to True.) Whether to stop at the PYTHONPATH root.
-    :return: The path to the file, or None if it cannot be found.
-    """
-
-    def return_file_or_parent(
-            start_at: Path,
-            file_name: str,
-            stop_at_pythonpath: bool,
-            pythonpaths: List[Path]) -> Optional[Path]:
-
-        logging.info(f"Searching for file {file_name} in {start_at}")
+    def return_file_or_parent(start_at: Path) -> Optional[Path]:
+        logging.debug(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
         if expected.is_file() and expected.name == file_name:
             return expected
-        if start_at.parent == start_at or start_at in pythonpaths:
+        if start_at.parent == start_at or start_at in stop_at_path:
             return None
-        return return_file_or_parent(start_at.parent, file_name, stop_at_pythonpath, pythonpaths)
+        return return_file_or_parent(start_at.parent)
 
+    return return_file_or_parent(start_at=Path.cwd())
+
+
+def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
+    """
+    Recurse up the file system, starting at the current working directory, to find a file. Stop when we hit
+    any of the folders in PYTHONPATH.
+
+    :param file_name: The file name of the file to find.
+    :return: The path to the file, or None if it cannot be found.
+    """
     pythonpaths: List[Path] = []
     if 'PYTHONPATH' in os.environ:
         pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
-    return return_file_or_parent(
-        start_at=Path.cwd(),
-        file_name=file_name,
-        stop_at_pythonpath=stop_at_pythonpath,
-        pythonpaths=pythonpaths)
+    return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
 
 
 def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
@@ -705,7 +715,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         return aml_workspace
 
     if workspace_config_path is None:
-        workspace_config_path = _find_file(WORKSPACE_CONFIG_JSON)
+        workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
         else:
@@ -715,7 +725,9 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         raise ValueError("Workspace config path is not a path, check your input.")
     elif workspace_config_path.is_file():
         auth = get_authentication()
-        return Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        logging.info(f"Logged into AzureML workspace {workspace.name}")
+        return workspace
 
     raise ValueError("Workspace config file does not exist or cannot be read.")
 
@@ -902,6 +914,52 @@ def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -
     return unique_deps_list
 
 
+def _get_pip_dependencies(parsed_yaml: Any) -> Optional[Tuple[int, List[Any]]]:
+    """Gets the first pip dependencies section of a Conda yaml file. Returns the index at which the pip section
+    was found, and the pip section itself. If no pip section was found, returns None
+    """
+    if CONDA_DEPENDENCIES in parsed_yaml:
+        for i, dep in enumerate(parsed_yaml.get(CONDA_DEPENDENCIES)):
+            if isinstance(dep, dict) and CONDA_PIP in dep:
+                return i, dep[CONDA_PIP]
+    return None
+
+
+def is_pip_include_dependency(package: str) -> bool:
+    """Returns True if the given package name (as used in a Conda environment file) relies on PIP includes,
+    in the format "-r requirements.txt"
+
+    :param package: The name of the PIP dependency to check.
+    :return: True if the package name is a PIP include statement.
+    """
+    return package.strip().startswith("-r ")
+
+
+def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
+    """Checks if the given Conda environment file uses the "include" syntax in the pip section, like
+    `-r requirements.txt`. If it uses pip includes, the function returns True and a modified Conda yaml
+    without all the pip include statements. If no pip include statements are found, False is returned and the
+    unmodified Conda yaml.
+
+    :param conda_file: The path of a Conda environment file.
+    :return: True if the file uses pip includes, False if not. Seconda return value is the modified Conda environment
+    without the PIP include statements.
+    """
+    conda_yaml = conda_merge.read_file(str(conda_file))
+    pip_dep = _get_pip_dependencies(conda_yaml)
+    if pip_dep is not None:
+        pip_index, pip = pip_dep
+        pip_without_include = [package for package in pip if not is_pip_include_dependency(package)]
+        if len(pip) != len(pip_without_include):
+            if len(pip_without_include) == 0:
+                # Avoid empty PIP dependencies section, this causes a failure in conda_merge
+                conda_yaml.get(CONDA_DEPENDENCIES).pop(pip_index)
+            else:
+                conda_yaml.get(CONDA_DEPENDENCIES)[pip_index] = {CONDA_PIP: pip_without_include}
+            return True, conda_yaml
+    return False, conda_yaml
+
+
 def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Optional[List[Path]] = None,
                       pip_clash_keep_method: str = "first") -> None:
     """
@@ -914,43 +972,42 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Opt
     :param pip_clash_keep_method: If two or more pip packages are specified with the same name, this determines
         which one should be kept. Current options: ['first', 'last']
     """
-    env_definitions = [conda_merge.read_file(str(f)) for f in conda_files]
+    env_definitions: List[Any] = []
+    for file in conda_files:
+        _, pip_without_include = is_conda_file_with_pip_include(file)
+        env_definitions.append(pip_without_include)
     unified_definition = {}
-    NAME = "name"
-    CHANNELS = "channels"
-    DEPENDENCIES = "dependencies"
 
     extra_pip_deps = []
     for pip_file in pip_files or []:
-        with open(pip_file, "r") as f_path:
-            additional_pip_deps = [d for d in f_path.read().split("\n") if d]
-            extra_pip_deps.extend(additional_pip_deps)
+        additional_pip_deps = [d for d in pip_file.read_text().split("\n") if d and not is_pip_include_dependency(d)]
+        extra_pip_deps.extend(additional_pip_deps)
 
-    name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
+    name = conda_merge.merge_names(env.get(CONDA_NAME) for env in env_definitions)
     if name:
-        unified_definition[NAME] = name
+        unified_definition[CONDA_NAME] = name
 
     try:
-        channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
+        channels = conda_merge.merge_channels(env.get(CONDA_CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
         logging.error("Failed to merge channel priorities.")
         raise
     if channels:
-        unified_definition[CHANNELS] = channels
+        unified_definition[CONDA_CHANNELS] = channels
 
     try:
-        deps_to_merge = [env.get(DEPENDENCIES) for env in env_definitions]
+        deps_to_merge = [env.get(CONDA_DEPENDENCIES) for env in env_definitions]
         if len(extra_pip_deps) > 0:
-            deps_to_merge.extend([[{"pip": extra_pip_deps}]])
+            deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
         # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
         # duplicated, the first value encountered will be retained.
-        pip_deps_entries = [d for d in deps if isinstance(d, dict) and "pip" in d]  # type: ignore
+        pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
         if len(pip_deps_entries) == 0:
             raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
         pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
-        pip_deps = pip_deps_entry["pip"]
+        pip_deps = pip_deps_entry[CONDA_PIP]
         # temporarily remove pip dependencies from deps to be added back after deduplicaton
         deps.remove(pip_deps_entry)
 
@@ -960,13 +1017,13 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Opt
         unique_pip_deps = _retrieve_unique_deps(pip_deps, keep_method=pip_clash_keep_method)
 
         # finally add back the deduplicated list of dependencies
-        unique_deps.append({"pip": unique_pip_deps})  # type: ignore
+        unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
 
     except conda_merge.MergeError:
         logging.error("Failed to merge dependencies.")
         raise
     if unique_deps:
-        unified_definition[DEPENDENCIES] = unique_deps
+        unified_definition[CONDA_DEPENDENCIES] = unique_deps
     else:
         raise ValueError("No dependencies found in any of the conda files.")
 
@@ -1439,7 +1496,7 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
     if script_config.run is None:
         if script_config.experiment is None:
             # default to latest run file
-            latest_run_file = _find_file("most_recent_run.txt")
+            latest_run_file = find_file_in_parent_to_pythonpath("most_recent_run.txt")
             if latest_run_file is None:
                 raise ValueError("Could not find most_recent_run.txt")
             runs = [get_most_recent_run(latest_run_file, workspace)]
@@ -1678,7 +1735,7 @@ def aml_workspace_for_unittests() -> Workspace:
     is found, the workspace details are read from environment variables. Authentication information is also read
     from environment variables.
     """
-    config_json = _find_file(WORKSPACE_CONFIG_JSON)
+    config_json = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
     if config_json is not None:
         return Workspace.from_config(path=str(config_json))
     else:
