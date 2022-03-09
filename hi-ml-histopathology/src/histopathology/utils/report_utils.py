@@ -12,7 +12,6 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from sklearn.metrics import auc, precision_recall_curve, roc_curve
 
-from health_azure import download_files_from_run_id
 from health_azure.utils import aggregate_hyperdrive_metrics, get_aml_run_from_run_id, get_tags_from_hyperdrive_run
 from histopathology.utils.naming import ResultsKey
 
@@ -23,70 +22,61 @@ BEST_TRAIN_MARKER_STYLE = dict(marker='o', markeredgecolor='w', markersize=6)
 BEST_VAL_MARKER_STYLE = dict(marker='*', markeredgecolor='w', markersize=11)
 
 
-def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path, filename: str,
-                               aml_workspace: Workspace) -> None:
+def download_from_run_if_necessary(run: Run, remote_dir: Path, download_dir: Path, filename: str) -> Path:
+    """Download any file from an AML run if it doesn't exist locally.
+
+    :param run: AML Run object.
+    :param remote_dir: Remote directory from where the file is downloaded.
+    :param download_dir: Local directory where to save the downloaded file.
+    :param filename: Name of the file to be downloaded (e.g. `"test_output.csv"`).
+    :return: Local path to the downloaded file.
     """
-    Function to download any file from an AML run if it doesn't exist locally
-    :param run_id: run ID of the AML run
-    :param remote_dir: remote directory from where the file is downloaded
-    :param download_dir: local directory where to save the downloaded file
-    :param filename: name of the file to be downloaded (e.g. `"test_output.csv"`).
-    :param aml_workspace: AML workspace from which to retrieve the specified run
-    """
-    local_path = download_dir / run_id / "outputs" / filename
+    local_path = download_dir / filename
     remote_path = remote_dir / filename
     if local_path.exists():
         print("File already exists at", local_path)
     else:
-        local_dir = local_path.parent.parent
-        local_dir.mkdir(exist_ok=True, parents=True)
-        download_files_from_run_id(run_id=run_id,
-                                   output_folder=local_dir,
-                                   prefix=str(remote_path),
-                                   workspace=aml_workspace,
-                                   validate_checksum=True)
+        local_path.parent.mkdir(exist_ok=True, parents=True)
+        run.download_file(str(remote_path), str(local_path), _validate_checksum=True)
         assert local_path.exists()
         print("File is downloaded at", local_path)
+    return local_path
 
 
-def collect_crossval_outputs(parent_run_id: str, download_dir: Path,
-                             aml_workspace: Workspace) -> Dict[int, pd.DataFrame]:
+def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
+                             crossval_arg_name: str = "cross_validation_split_index") -> Dict[int, pd.DataFrame]:
     output_filename = "test_output.csv"
 
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace)
 
-    children_download_dir = download_dir / parent_run_id
     all_outputs_dfs = {}
     for child_run in parent_run.get_children():
-        child_run_index = get_tags_from_hyperdrive_run(child_run, "cross_validation_split_index")
+        child_run_index = get_tags_from_hyperdrive_run(child_run, crossval_arg_name)
         if child_run_index is None:
-            raise ValueError("Child run expected to have the tag {child_run_tag}")
-        child_run_id = child_run.id
+            raise ValueError(f"Child run expected to have the tag '{crossval_arg_name}'")
+        child_dir = download_dir / str(child_run_index)
         try:
-            download_file_if_necessary(run_id=child_run_id,
-                                       remote_dir=Path("outputs"),
-                                       download_dir=children_download_dir,
-                                       filename=output_filename,
-                                       aml_workspace=aml_workspace)
-
-            child_outputs_df = pd.read_csv(children_download_dir / child_run_id / "outputs" / output_filename)
-            all_outputs_dfs[child_run_index] = child_outputs_df
-        except ValueError as e:
-            print(f"Failed to download {output_filename} for run {child_run_id}: {e}")
+            child_csv = download_from_run_if_necessary(child_run,
+                                                       remote_dir=Path("outputs"),
+                                                       download_dir=child_dir,
+                                                       filename=output_filename)
+            all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
+        except Exception as e:
+            print(f"Failed to download {output_filename} for run {child_run.id}: {e}")
     return dict(sorted(all_outputs_dfs.items()))
 
 
-def collect_crossval_metrics(parent_run_id: str, download_dir: Path,
-                             aml_workspace: Workspace) -> pd.DataFrame:
+def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
+                             crossval_arg_name: str = "cross_validation_split_index") -> pd.DataFrame:
     # Save metrics as a pickle because complex dataframe structure is lost in CSV
-    metrics_pickle = download_dir / parent_run_id / "aml_metrics.pickle"
+    metrics_pickle = download_dir / "aml_metrics.pickle"
     if metrics_pickle.is_file():
         print(f"AML metrics file already exists at {metrics_pickle}")
         with open(metrics_pickle, 'rb') as f:
             metrics_df = pickle.load(f)
     else:
         metrics_df = aggregate_hyperdrive_metrics(run_id=parent_run_id,
-                                                  child_run_arg_name="cross_validation_split_index",
+                                                  child_run_arg_name=crossval_arg_name,
                                                   aml_workspace=aml_workspace)
         metrics_pickle.parent.mkdir(parents=True, exist_ok=True)
         print(f"Writing AML metrics file to {metrics_pickle}")

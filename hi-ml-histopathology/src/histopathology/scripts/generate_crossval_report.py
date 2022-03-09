@@ -3,7 +3,7 @@ from typing import Optional
 
 from matplotlib import pyplot as plt
 
-from health_azure.utils import get_workspace
+from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
 from histopathology.utils.report_utils import (add_training_curves_legend, collect_crossval_metrics,
                                                collect_crossval_outputs, get_best_epoch_metrics, get_best_epochs,
@@ -11,20 +11,22 @@ from histopathology.utils.report_utils import (add_training_curves_legend, colle
                                                plot_crossval_roc_and_pr_curves, plot_crossval_training_curves)
 
 
-def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Path,
+def generate_html_report(parent_run_id: str, output_dir: Path,
                          workspace_config_path: Optional[Path] = None,
                          include_test: bool = False) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
     aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
+    parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace=aml_workspace)
+    report_dir = output_dir / parent_run.display_name
+    report_dir.mkdir(parents=True, exist_ok=True)
 
-    report = HTMLReport(output_folder=output_dir)
+    report = HTMLReport(output_folder=report_dir)
 
     report.add_text(get_formatted_run_info(parent_run_id, aml_workspace))
 
     report.add_heading("Azure ML metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
-    metrics_df = collect_crossval_metrics(parent_run_id, download_dir, aml_workspace)
+    metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace)
     best_epochs = get_best_epochs(metrics_df, 'val/auroc', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
@@ -35,7 +37,7 @@ def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Pat
     plot_crossval_training_curves(metrics_df, train_metric='train/auroc', val_metric='val/auroc',
                                   ylabel="AUROC", best_epochs=best_epochs, ax=ax2)
     add_training_curves_legend(fig, include_best_epoch=True)
-    training_curves_fig_path = output_dir / "training_curves.png"
+    training_curves_fig_path = report_dir / "training_curves.png"
     fig.savefig(training_curves_fig_path, bbox_inches='tight')
     report.add_images([training_curves_fig_path], base64_encode=True)
 
@@ -55,11 +57,11 @@ def generate_html_report(parent_run_id: str, download_dir: Path, output_dir: Pat
         report.add_tables([test_metrics_table])
 
         # Add test ROC and PR curves
-        crossval_dfs = collect_crossval_outputs(parent_run_id, download_dir, aml_workspace)
+        crossval_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace)
 
         report.add_heading("Test ROC and PR curves", level=2)
         fig = plot_crossval_roc_and_pr_curves(crossval_dfs)
-        roc_pr_curves_fig_path = output_dir / "roc_pr_curves.png"
+        roc_pr_curves_fig_path = report_dir / "roc_pr_curves.png"
         fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
         report.add_images([roc_pr_curves_fig_path], base64_encode=True)
 
@@ -72,8 +74,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument('--run_id', help="The parent Hyperdrive run ID")
-    parser.add_argument('--download_dir', help="Directory where to download Azure ML run information")
-    parser.add_argument('--output_dir', help="Directory where to save the report")
+    parser.add_argument('--output_dir', help="Directory where to download Azure ML data and save the report")
     parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
                                                    "If omitted, will try to load default workspace.")
     parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
@@ -82,11 +83,8 @@ if __name__ == "__main__":
 
     if args.output_dir is None:
         args.output_dir = Path.cwd() / "outputs"
-    if args.download_dir is None:
-        args.download_dir = args.output_dir
     workspace_config = Path(args.workspace_config).absolute() if args.workspace_config else None
 
-    print(f"Download dir: {args.download_dir.absolute()}")
     print(f"Output dir: {args.output_dir.absolute()}")
     if workspace_config is not None:
         if not workspace_config.is_file():
@@ -94,7 +92,6 @@ if __name__ == "__main__":
         print(f"Workspace config: {workspace_config}")
 
     generate_html_report(parent_run_id=args.run_id,
-                         download_dir=Path(args.download_dir),
                          output_dir=Path(args.output_dir),
                          workspace_config_path=workspace_config,
                          include_test=args.include_test)
