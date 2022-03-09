@@ -94,7 +94,7 @@ class BaseMIL(LightningContainer):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
 
-    def get_pooling_layer(self) -> Tuple[Type[nn.Module], int]:
+    def get_pooling_layer(self) -> Tuple[nn.Module, int]:
         num_encoding = self.encoder.num_encoding
 
         if self.pool_type == AttentionLayer.__name__:

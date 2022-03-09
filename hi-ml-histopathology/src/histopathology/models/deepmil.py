@@ -44,7 +44,7 @@ class DeepMILModule(LightningModule):
                  label_column: str,
                  n_classes: int,
                  encoder: TileEncoder,
-                 pooling_layer: Callable[[int, int, int], nn.Module],
+                 pooling_layer: Callable[[Tensor], Tuple[Tensor, Tensor]],
                  num_features: int,
                  dropout_rate: Optional[float] = None,
                  class_weights: Optional[Tensor] = None,
