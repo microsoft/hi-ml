@@ -89,7 +89,9 @@ class GatedAttentionLayer(nn.Module):
 
 
 class CustomTransformerEncoderLayer(Module):
-    r"""TransformerEncoderLayer is made up of self-attn and feedforward network.
+    """Adaptation of the pytorch TransformerEncoderLayer that always outputs the attention weights.
+
+    TransformerEncoderLayer is made up of self-attn and feedforward network.
     This standard encoder layer is based on the paper "Attention Is All You Need".
     Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
     Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Advances in
@@ -112,12 +114,12 @@ class CustomTransformerEncoderLayer(Module):
     Examples::
         >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8)
         >>> src = torch.rand(10, 32, 512)
-        >>> out = encoder_layer(src)
+        >>> out, attention_weights = encoder_layer(src)
 
     Alternatively, when ``batch_first`` is ``True``:
         >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8, batch_first=True)
         >>> src = torch.rand(32, 10, 512)
-        >>> out = encoder_layer(src)
+        >>> out, attention_weights = encoder_layer(src)
     """
     __constants__ = ['batch_first', 'norm_first']
 
@@ -192,6 +194,17 @@ class CustomTransformerEncoderLayer(Module):
 
 
 class TransformerPooling(Module):
+    """Create a Transformer encoder module consisting of multiple Transformer encoder layers.
+
+    We use a additional classification token (cls token) for pooling like seen in ViT/Bert. First, the cls token is
+    appended to the list of tiles encodings. Second, we perform self-attention between all tile encodings and the cls
+    token. Last, we extract the cls token and use it for classification.
+
+    Args:
+        num_layers: Number of Transformer encoder layers.
+        num_heads: Number of attention heads per layer.
+        dim_representation: Dimension of input encoding.
+    """
     def __init__(self, num_layers: int, num_heads: int, dim_representation: int) -> None:
         super(TransformerPooling, self).__init__()
         self.num_layers = num_layers

@@ -62,7 +62,6 @@ class BaseMIL(LightningContainer):
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
-    
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
