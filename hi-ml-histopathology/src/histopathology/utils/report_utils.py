@@ -227,7 +227,7 @@ def get_formatted_run_info(parent_run_id: str, aml_workspace: Workspace) -> str:
         return f"<a href={experiment.get_portal_url()}>{experiment.name}</a>"
 
     def format_run(run: Run) -> str:
-        return f"<a href={run.get_portal_url()}>{run.display_name}</a> ({run.id})"
+        return f"<a href={run.get_portal_url()}>{run.display_name}</a> ({run.id}, {run.get_status()})"
 
     def format_submission_info(run: Run) -> str:
         details = run.get_details()
