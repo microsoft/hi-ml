@@ -224,7 +224,11 @@ def get_all_environment_files(project_root: Path, additional_files: Optional[Lis
         env_file = utils.find_file_in_parent_folders(
             file_name=paths.ENVIRONMENT_YAML_FILE_NAME, stop_at_path=[git_repo_root]
         )
-        assert env_file is not None, "Expected to find at least the environment definition file at repo root"
+        if env_file is None:
+            # Searching for Conda file starts at current working directory, meaning it might not find
+            # the file if cwd is outside the git repo
+            env_file = git_repo_root / paths.ENVIRONMENT_YAML_FILE_NAME
+            assert env_file.is_file(), "Expected to find at least the environment definition file at repo root"
         logging.info(f"Using Conda environment in {env_file}")
         env_files.append(env_file)
     elif project_yaml.exists():
