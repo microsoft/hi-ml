@@ -131,8 +131,8 @@ class CustomTransformerEncoderLayer(Module):
                  layer_norm_eps: float = 1e-5,
                  batch_first: bool = True,
                  norm_first: bool = False,
-                 device: torch.device = None,
-                 dtype: torch.dtype = None) -> None:
+                 device: Optional[torch.device] = None,
+                 dtype: Optional[torch.dtype] = None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super(CustomTransformerEncoderLayer, self).__init__()
         self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
