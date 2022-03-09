@@ -3,7 +3,6 @@
         "njpwerner.autodocstring",
         "doi.fileheadercomment",
         "ms-python.python",
-        "ms-python.vscode-pylance",
-        "DavidAnson.vscode-markdownlint"
+        "ms-python.vscode-pylance"
     ]
 }
