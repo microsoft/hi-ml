@@ -14,7 +14,7 @@ from typing import Generator
 import pytest
 
 # temporary workaround until these hi-ml package release
-testSSL_root_dir = Path(__file__).resolve().parent
+testSSL_root_dir = Path(__file__).parent
 print(f"Adding {testSSL_root_dir} to sys path")
 sys.path.insert(0, str(testSSL_root_dir))
 
