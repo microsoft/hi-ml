@@ -183,7 +183,7 @@ class CustomTransformerEncoderLayer(Module):
         x, a = self.self_attn(x, x, x,
                               attn_mask=attn_mask,
                               key_padding_mask=key_padding_mask,
-                              need_weights=True)
+                              need_weights=True)  # Just because of this flag I had to copy all of the code...
         x = x[0]
         return self.dropout1(x), a
 
