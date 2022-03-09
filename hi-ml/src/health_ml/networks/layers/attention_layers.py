@@ -241,6 +241,6 @@ class TransformerPooling(Module):
         A = A[:, 0, 1:]
 
         # We want A to sum to one, simple hack: add self_attention_cls_token/num_tiles to each element
-        A += self_attention_cls_token / A.shape[-1]
+        A += self_attention_cls_token / A.shape[-1]  # type: ignore
 
         return (A, M)
