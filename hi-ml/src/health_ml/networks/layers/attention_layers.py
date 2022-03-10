@@ -6,11 +6,11 @@
 Created using the original DeepMIL paper and code from Ilse et al., 2018
 https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
 """
-from typing import Callable, Tuple, Optional
+from typing import Tuple, Optional
 from torch import nn, Tensor, transpose, mm
 import torch
 import torch.nn.functional as F
-from torch.nn import Module, MultiheadAttention, Dropout, Linear, LayerNorm, TransformerEncoderLayer
+from torch.nn import Module, TransformerEncoderLayer
 
 
 class MeanPoolingLayer(nn.Module):
@@ -121,7 +121,7 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
         >>> src = torch.rand(32, 10, 512)
         >>> out, attention_weights = encoder_layer(src)
     """
-    def forward(self, src: torch.Tensor,
+    def forward(self, src: torch.Tensor,  # type: ignore
                 src_mask: Optional[torch.Tensor] = None,
                 src_key_padding_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """Pass the input through the encoder layer.
@@ -150,8 +150,9 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
         return x, a
 
     # self-attention block
-    def _sa_block(self, x: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _sa_block(self, x: Tensor,  # type: ignore
+                  attn_mask: Optional[Tensor],
+                  key_padding_mask: Optional[Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, a = self.self_attn(x, x, x,
                               attn_mask=attn_mask,
                               key_padding_mask=key_padding_mask,

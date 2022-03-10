@@ -29,9 +29,9 @@ from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
 class BaseMIL(LightningContainer):
     # Model parameters:
     pool_type: str = param.String(doc="Name of the pooling layer class to use.")
-    pool_hidden_dim: str = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the\
+    pool_hidden_dim: int = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the\
         hidden dimensions.")
-    pool_out_dim: str = param.Integer(1, doc="Dimension of the pooled representation.")
+    pool_out_dim: int = param.Integer(1, doc="Dimension of the pooled representation.")
     num_transformer_pool_layers: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
          of encoding layers.")
     num_transformer_pool_heads: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
