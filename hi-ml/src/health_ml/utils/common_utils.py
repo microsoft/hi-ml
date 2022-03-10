@@ -20,8 +20,6 @@ from health_azure import paths
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
-from health_azure.utils import PathOrString
-from health_ml.utils import fixed_paths
 
 MAX_PATH_LENGTH = 260
 
