@@ -5,14 +5,14 @@
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import torch.multiprocessing
-from pytorch_lightning import seed_everything
+from pytorch_lightning import LightningModule, seed_everything
 
 from health_azure import AzureRunInfo
-from health_azure.utils import (ENV_OMPI_COMM_WORLD_RANK, RUN_CONTEXT, create_run_recovery_id,
-                                PARENT_RUN_CONTEXT, is_running_in_azure_ml)
+from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
+                                is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT)
 
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -20,8 +20,8 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_utils import CheckpointHandler
 from health_ml.utils.common_utils import (
-    change_working_directory, logging_section, RUN_RECOVERY_ID_KEY,
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME)
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory, logging_section,
+    RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.type_annotations import PathOrString
 
@@ -142,35 +142,52 @@ class MLRunner:
                                             container=self.container)
             self.storing_logger = storing_logger
 
-    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> List[Dict[str, float]]:
+        # Since we have trained the model, let the checkpoint_handler object know so it can handle
+        # checkpoints correctly.
+        if self.checkpoint_handler is not None:
+            self.checkpoint_handler.additional_training_done()
+            checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
+        else:
+            checkpoint_paths_for_testing = []
+
+        with logging_section("Model inference"):
+            self.run_inference(checkpoint_paths_for_testing)
+
+    def run_inference(self, checkpoint_paths: List[Path]) -> None:
         """
-        Run inference on the test set for all models that are specified via a LightningContainer.
+        Run inference on the test set for all models.
 
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-        # lightning_model = self.container.model
 
-        # Run Lightning's built-in test procedure if the `test_step` method has been overridden
-        logging.info("Running inference via the LightningModule.test_step method")
-        # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
-        # now, restrict number of GPUs to 1, meaning that it will not start DDP.
-        self.container.max_num_gpus = 1
-        # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
-        # searching for Horovod
-        if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-            del os.environ[ENV_OMPI_COMM_WORLD_RANK]
-        # From the training setup, torch still thinks that it should run in a distributed manner,
-        # and would block on some GPU operations. Hence, clean up distributed training.
-        if torch.distributed.is_initialized():  # type: ignore
-            torch.distributed.destroy_process_group()  # type: ignore
+        lightning_model = self.container.model
+        if type(lightning_model).test_step != LightningModule.test_step:
+            # Run Lightning's built-in test procedure if the `test_step` method has been overridden
+            logging.info("Running inference via the LightningModule.test_step method")
+            # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
+            # now, restrict number of GPUs to 1, meaning that it will not start DDP.
+            self.container.max_num_gpus = 1
+            # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
+            # searching for Horovod
+            if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+                del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+            # From the training setup, torch still thinks that it should run in a distributed manner,
+            # and would block on some GPU operations. Hence, clean up distributed training.
+            if torch.distributed.is_initialized():  # type: ignore
+                torch.distributed.destroy_process_group()  # type: ignore
 
-        trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
-        self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
-        # Change the current working directory to ensure that test files go to thr right folder
-        data_module = self.container.get_data_module()
-        with change_working_directory(self.container.outputs_folder):
-            results = trainer.test(self.container.model, datamodule=data_module)
-        return results
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
+            data_module = self.container.get_data_module()
+
+            # Change to the outputs folder so that the model can write to current working directory, and still
+            # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
+            # retained)
+            with change_working_directory(self.container.outputs_folder):
+                _ = trainer.test(self.container.model, datamodule=data_module)
+
+        else:
+            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")

@@ -60,6 +60,7 @@ def test_workflow_params_get_effective_random_seed() -> None:
     assert seed == params.random_seed
 
 
+@pytest.mark.fast
 def test_validate_dataset_params() -> None:
     # DatasetParams cannot be initialized with neither of azure_datasets or local_datasets set
     with pytest.raises(ValueError) as ex:
@@ -78,11 +79,11 @@ def test_validate_dataset_params() -> None:
     # local datasets and dataset_mountpoints must be Paths
     with pytest.raises(Exception) as e:
         DatasetParams(local_datasets=["foo"])
-    assert "is not an instance of" in str(e)
+    assert "items must be instances of type <class 'pathlib.Path'>" in str(e)
 
     with pytest.raises(Exception) as e:
         DatasetParams(dataset_mountpoints=["foo"])
-    assert "is not an instance of" in str(e)
+    assert "items must be instances of type <class 'pathlib.Path'>" in str(e)
 
     # The following should be okay
     DatasetParams(local_datasets=[Path("foo")]).validate()

@@ -12,6 +12,10 @@ If in doubt, reach out to the core `hi-ml` team before starting your work.
 
 Please look through the existing folder structure to find a good home for your contribution.
 
+## Setting up your dev environment
+
+Please see the detailed instructions [here](developers.md).
+
 ## Submitting a Pull Request
 
 If you'd like to submit a PR to the codebase, please ensure you:
@@ -20,9 +24,17 @@ If you'd like to submit a PR to the codebase, please ensure you:
 - Link to an issue, if relevant
 - Write unit tests for the code - see below for details.
 - Add appropriate documentation for any new code that you introduce
-- Ensure that you modified [CHANGELOG.md](../CHANGELOG.md) and described your PR there.
 - Only publish your PR for review once you have a build that is passing. You can make use of the "Create as Draft"
   feature of GitHub.
+
+To enable good auto-generated changelogs, we prefix all PR titles with a category string, like "BUG: Out of bounds error when using small images".
+Those category prefixes must be in upper case, followed by a colon (`:`). Valid categories are
+
+* `ENH` for enhancements, new capabilities
+* `BUG` for bugfixes
+* `STYLE` for stylistic changes (for example, refactoring) that does not impact the functionality
+* `DOC` for changes to documentation only
+* `DEL` for removing something from the codebase
 
 ## Code style
 
@@ -51,6 +63,9 @@ If you'd like to submit a PR to the codebase, please ensure you:
   then start to code up the fix.
 
 ## Correct Sphinx Documentation
+
+We suggest using a VSCode extension for auto-generating documentation templates, for example `njpwerner.autodocstring`.
+This extension is already pre-configured in VSCode's workspace settings file.
 
 Common mistakes when writing docstrings:
 

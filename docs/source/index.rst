@@ -43,10 +43,16 @@ The `hi-ml` toolbox provides
 
 .. toctree::
    :maxdepth: 1
+   :caption: Self supervised learning
+
+   self_supervised_models.md
+
+.. toctree::
+   :maxdepth: 1
    :caption: Developers
 
    developers.md
-   contributing.md
+   ../CONTRIBUTING.md
 
 .. toctree::
    :maxdepth: 1

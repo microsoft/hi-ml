@@ -29,6 +29,7 @@ from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
+from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -61,10 +62,10 @@ def test_find_file(tmp_path: Path) -> None:
     start_path.mkdir(exist_ok=False)
     where_are_we_now = Path.cwd()
     os.chdir(start_path)
-    found_file = util._find_file(file_name, False)
+    found_file = util.find_file_in_parent_to_pythonpath(file_name)
     assert found_file
-    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root.absolute())}):
-        found_file = util._find_file(file_name)
+    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root)}):
+        found_file = util.find_file_in_parent_to_pythonpath(file_name)
         assert not found_file
     os.chdir(where_are_we_now)
 
@@ -228,11 +229,11 @@ def test_split_recovery_id_fails() -> None:
     with pytest.raises(ValueError) as e:
         id = util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
         util.split_recovery_id(id)
-    assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
+        assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
     with pytest.raises(ValueError) as e:
         id = "foo_bar"
         util.split_recovery_id(id)
-    assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
+        assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
 
 
 @pytest.mark.parametrize(["id", "expected1", "expected2"],
@@ -384,6 +385,110 @@ dependencies:
             util.merge_conda_files(files, merged_file)
 
 
+def test_merge_conda_pip_include(random_folder: Path) -> None:
+    """
+    Tests the logic to exclude PIP include statements from Conda environments.
+    """
+    env1 = """
+channels:
+  - default
+dependencies:
+  - conda_both=3.0
+  - pip:
+      - -r requirements.txt
+      - foo==1.0
+"""
+    file1 = random_folder / "env1.yml"
+    file1.write_text(env1)
+    merged_file = random_folder / "merged.yml"
+    util.merge_conda_files([file1], merged_file)
+    merged_contents = merged_file.read_text()
+    assert "-r requirements.txt" not in merged_contents
+
+    file2 = random_folder / "requirements.txt"
+    file2.write_text("package==1.0.0")
+    merged_file2 = random_folder / "merged2.yml"
+    util.merge_conda_files([file1], merged_file2, pip_files=[file2])
+    merged_contents2 = merged_file2.read_text()
+    assert merged_contents2 == """channels:
+- default
+dependencies:
+- conda_both=3.0
+- pip:
+  - foo==1.0
+  - package==1.0.0
+"""
+
+
+def test_merge_conda_pip_include2(random_folder: Path) -> None:
+    """
+    Tests the logic to exclude PIP include statements from Conda environments, on the root level environment file.
+    """
+    if paths.is_himl_used_from_git_repo():
+        root_yaml = paths.git_repo_root_folder() / paths.ENVIRONMENT_YAML_FILE_NAME
+        requirements = paths.git_repo_root_folder() / "hi-ml-azure" / "run_requirements.txt"
+        merged_file2 = random_folder / "merged2.yml"
+        util.merge_conda_files([root_yaml], merged_file2, pip_files=[requirements])
+
+
+def assert_pip_length(yaml: Any, expected_length: int) -> None:
+    """Checks if the pip dependencies section of a Conda YAML file has the expected number of entries
+    """
+    pip = util._get_pip_dependencies(yaml)
+    assert pip is not None
+    assert len(pip[1]) == expected_length
+
+
+@pytest.mark.fast
+def test_pip_include_1() -> None:
+    """Test if Conda files that use PIP include are handled correctly. This uses the top-level environment.yml
+    file in the repository.
+    """
+    if paths.is_himl_used_from_git_repo():
+        root_yaml = paths.git_repo_root_folder() / paths.ENVIRONMENT_YAML_FILE_NAME
+        assert root_yaml.is_file()
+        original_yaml = conda_merge.read_file(root_yaml)
+        # At the time of writing, the top-level environment file only had 4 include statements in the pip
+        # section, they should all be filtered out.
+        assert_pip_length(original_yaml, 4)
+        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(root_yaml)
+        assert uses_pip_include
+        pip = util._get_pip_dependencies(modified_yaml)
+        # The pip section of the top-level yaml has nothing but include statements, so after filtering the
+        # pip section is empty. In this case, no pip section shoudld be present at all.
+        assert pip is None
+
+
+@pytest.mark.fast
+def test_pip_include_2(tmp_path: Path) -> None:
+    """Test if Conda files that use PIP include are recognized.
+    """
+    # Environment file without a "-r" include statement
+    conda_str = """name: simple-envpip
+dependencies:
+  - pip:
+    - azureml-sdk==1.23.0
+  - more_conda
+"""
+    tmp_conda = tmp_path / "env.yml"
+    tmp_conda.write_text(conda_str)
+    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(tmp_conda)
+    assert not uses_pip_include
+    assert_pip_length(modified_yaml, 1)
+
+    # Environment file that has a "-r" include statement
+    conda_str = """name: simple-env
+dependencies:
+  - pip:
+    - -r foo.txt
+    - any_package
+"""
+    tmp_conda.write_text(conda_str)
+    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(tmp_conda)
+    assert uses_pip_include
+    assert util._get_pip_dependencies(modified_yaml) == (0, ["any_package"])
+
+
 @pytest.mark.parametrize(["s", "expected"],
                          [
                              ("1s", 1),
@@ -392,6 +497,7 @@ dependencies:
                              ("1.0d", 24 * 3600),
                              ("", None),
                          ])  # NOQA
+@pytest.mark.fast
 def test_run_duration(s: str, expected: Optional[float]) -> None:
     actual = util.run_duration_string_to_seconds(s)
     assert actual == expected
@@ -399,11 +505,13 @@ def test_run_duration(s: str, expected: Optional[float]) -> None:
         assert isinstance(actual, int)
 
 
+@pytest.mark.fast
 def test_run_duration_fails() -> None:
     with pytest.raises(Exception):
         util.run_duration_string_to_seconds("17b")
 
 
+@pytest.mark.fast
 def test_repository_root() -> None:
     root = repository_root()
     assert (root / "SECURITY.md").is_file()

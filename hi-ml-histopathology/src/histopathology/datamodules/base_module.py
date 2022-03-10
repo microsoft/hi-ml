@@ -39,8 +39,8 @@ class TilesDataModule(LightningDataModule):
                  cache_mode: CacheMode = CacheMode.NONE,
                  precache_location: CacheLocation = CacheLocation.NONE,
                  cache_dir: Optional[Path] = None,
-                 number_of_cross_validation_splits: int = 0,
-                 cross_validation_split_index: int = 0) -> None:
+                 crossval_count: int = 0,
+                 crosval_index: int = 0) -> None:
         """
         :param root_path: Root directory of the source dataset.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag. If 0 (default),
@@ -67,8 +67,8 @@ class TilesDataModule(LightningDataModule):
           device it was saved from;
         If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
-        :param number_of_cross_validation_splits: Number of folds to perform.
-        :param cross_validation_split_index: Index of the cross validation split to be performed.
+        :param crossval_count: Number of folds to perform.
+        :param crosval_index: Index of the cross validation split to be performed.
         """
         if precache_location is not CacheLocation.NONE and cache_mode is CacheMode.NONE:
             raise ValueError("Can only pre-cache if caching is enabled")
@@ -85,8 +85,8 @@ class TilesDataModule(LightningDataModule):
         self.precache_location = precache_location
         self.cache_dir = cache_dir
         self.batch_size = batch_size
-        self.number_of_cross_validation_splits = number_of_cross_validation_splits
-        self.cross_validation_split_index = cross_validation_split_index
+        self.crossval_count = crossval_count
+        self.crosval_index = crosval_index
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
@@ -102,7 +102,7 @@ class TilesDataModule(LightningDataModule):
             self._load_dataset(self.test_dataset, stage='test', shuffle=True)
 
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
-        if self.cache_dir is None:
+        if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
 

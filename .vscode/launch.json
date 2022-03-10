@@ -12,6 +12,54 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Run the HelloWorld model locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Run the HelloWorld model in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld",
+                "--azureml",
+                "--cluster=lite-testing-ds2",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Run HelloWorld with cross-validation",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld",
+                "--azureml",
+                "--cluster=lite-testing-ds2",
+                "--crossval_count=2"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Run DeepSMILECrck in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "cwd": "${workspaceFolder}/hi-ml-histopathology",
+            "args": [
+                "--model=histopathology.configs.classification.DeepSMILECrck",
+                "--azureml",
+                "--cluster=lite-testing-ds2",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Elevate: HI-ML-AZURE Local",
             "type": "python",
             "request": "launch",
