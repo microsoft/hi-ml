@@ -10,7 +10,7 @@ from typing import Callable, Tuple, Optional
 from torch import nn, Tensor, transpose, mm
 import torch
 import torch.nn.functional as F
-from torch.nn import Module, MultiheadAttention, Dropout, Linear, LayerNorm
+from torch.nn import Module, MultiheadAttention, Dropout, Linear, LayerNorm, TransformerEncoderLayer
 
 
 class MeanPoolingLayer(nn.Module):
@@ -18,10 +18,10 @@ class MeanPoolingLayer(nn.Module):
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
         num_instances = features.shape[0]
-        A = torch.full((1, num_instances), 1. / num_instances)
-        M = features.mean(dim=0)
-        M = M.view(1, -1)
-        return (A, M)
+        attention_weights = torch.full((1, num_instances), 1. / num_instances)
+        pooled_features = features.mean(dim=0)
+        pooled_features = pooled_features.view(1, -1)
+        return (attention_weights, pooled_features)
 
 
 class AttentionLayer(nn.Module):
@@ -45,12 +45,12 @@ class AttentionLayer(nn.Module):
         )
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
-        H = features.view(-1, self.input_dims)      # N x L
-        A = self.attention(H)                       # N x K
-        A = transpose(A, 1, 0)                      # K x N
-        A = F.softmax(A, dim=1)                     # Softmax over N : K x N
-        M = mm(A, H)                                # Matrix multiplication : K x L
-        return(A, M)
+        features = features.view(-1, self.input_dims)            # N x L
+        attention_weights = self.attention(features)             # N x K
+        attention_weights = transpose(attention_weights, 1, 0)   # K x N
+        attention_weights = F.softmax(attention_weights, dim=1)  # Softmax over N : K x N
+        pooled_features = mm(attention_weights, features)        # Matrix multiplication : K x L
+        return(attention_weights, pooled_features)
 
 
 class GatedAttentionLayer(nn.Module):
@@ -78,17 +78,17 @@ class GatedAttentionLayer(nn.Module):
         self.attention_weights = nn.Linear(self.hidden_dims, self.attention_dims)
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
-        H = features.view(-1, self.input_dims)      # N x L
-        A_V = self.attention_V(H)                   # N x D
-        A_U = self.attention_U(H)                   # N x D
-        A = self.attention_weights(A_V * A_U)       # Element-wise multiplication : N x K
-        A = transpose(A, 1, 0)                      # K x N
-        A = F.softmax(A, dim=1)                     # Softmax over N : K x N
-        M = mm(A, H)                                # Matrix multiplication : K x L
-        return(A, M)
+        features = features.view(-1, self.input_dims)            # N x L
+        A_V = self.attention_V(features)                         # N x D
+        A_U = self.attention_U(features)                         # N x D
+        attention_weights = self.attention_weights(A_V * A_U)    # Element-wise multiplication : N x K
+        attention_weights = transpose(attention_weights, 1, 0)   # K x N
+        attention_weights = F.softmax(attention_weights, dim=1)  # Softmax over N : K x N
+        pooled_features = mm(attention_weights, features)        # Matrix multiplication : K x L
+        return(attention_weights, pooled_features)
 
 
-class CustomTransformerEncoderLayer(Module):
+class CustomTransformerEncoderLayer(TransformerEncoderLayer):
     """Adaptation of the pytorch TransformerEncoderLayer that always outputs the attention weights.
 
     TransformerEncoderLayer is made up of self-attn and feedforward network.
@@ -121,34 +121,6 @@ class CustomTransformerEncoderLayer(Module):
         >>> src = torch.rand(32, 10, 512)
         >>> out, attention_weights = encoder_layer(src)
     """
-    __constants__ = ['batch_first', 'norm_first']
-
-    def __init__(self, d_model: int,
-                 nhead: int,
-                 dim_feedforward: int = 2048,
-                 dropout: float = 0.1,
-                 activation: Callable = F.relu,
-                 layer_norm_eps: float = 1e-5,
-                 batch_first: bool = True,
-                 norm_first: bool = False,
-                 device: Optional[torch.device] = None,
-                 dtype: Optional[torch.dtype] = None) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super(CustomTransformerEncoderLayer, self).__init__()
-        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
-                                            **factory_kwargs)
-        # Implementation of Feedforward model
-        self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)  # type: ignore
-        self.dropout = Dropout(dropout)
-        self.linear2 = Linear(dim_feedforward, d_model, **factory_kwargs)  # type: ignore
-
-        self.norm_first = norm_first
-        self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)  # type: ignore
-        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)  # type: ignore
-        self.dropout1 = Dropout(dropout)
-        self.dropout2 = Dropout(dropout)
-        self.activation = activation
-
     def forward(self, src: torch.Tensor,
                 src_mask: Optional[torch.Tensor] = None,
                 src_key_padding_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -187,11 +159,6 @@ class CustomTransformerEncoderLayer(Module):
         x = x[0]
         return self.dropout1(x), a
 
-    # feed forward block
-    def _ff_block(self, x: Tensor) -> Tensor:
-        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        return self.dropout2(x)
-
 
 class TransformerPooling(Module):
     """Create a Transformer encoder module consisting of multiple Transformer encoder layers.
@@ -211,7 +178,7 @@ class TransformerPooling(Module):
         self.num_heads = num_heads
         self.dim_representation = dim_representation
 
-        self.cls_token = nn.Parameter(torch.zeros(dim_representation))
+        self.cls_token = nn.Parameter(torch.zeros([1, dim_representation]))
 
         self.transformer_encoder_layers = []
         for _ in range(self.num_layers):
@@ -225,22 +192,21 @@ class TransformerPooling(Module):
         self.transformer_encoder_layers = torch.nn.ModuleList(self.transformer_encoder_layers)  # type: ignore
 
     def forward(self, features: Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        cls_token = (torch.ones(1, self.dim_representation, device=features.device) * self.cls_token)
-
         # Append cls token
-        H = torch.vstack([cls_token, features]).unsqueeze(0)
+        features = torch.vstack([self.cls_token, features]).unsqueeze(0)
 
         for i in range(self.num_layers):
-            H, A = self.transformer_encoder_layers[i](H)
+            features, attention_weights = self.transformer_encoder_layers[i](features)
 
         # Extract cls token
-        M = H[:, 0]
+        pooled_features = features[:, 0]
 
         # Get attention weights with respect to the cls token, without the element where it attends to itself
-        self_attention_cls_token = A[0, 0, 0]  # type: ignore
-        A = A[:, 0, 1:]  # type: ignore
+
+        self_attention_cls_token = attention_weights[0, 0, 0]  # type: ignore
+        attention_weights = attention_weights[:, 0, 1:]  # type: ignore
 
         # We want A to sum to one, simple hack: add self_attention_cls_token/num_tiles to each element
-        A += self_attention_cls_token / A.shape[-1]
+        attention_weights += self_attention_cls_token / attention_weights.shape[-1]
 
-        return (A, M)
+        return (attention_weights, pooled_features)

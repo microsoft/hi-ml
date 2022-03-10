@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import Callback
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
-from health_ml.networks.layers.attention_layers import TransformerPooling
+from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.panda_module import PandaTilesDataModule
@@ -44,7 +44,7 @@ class DeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
-            pool_type=TransformerPooling.__name__,
+            pool_type=AttentionLayer.__name__,
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             # average number of tiles is 56 for PANDA

@@ -63,8 +63,8 @@ class DeepMILModule(LightningModule):
          set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
         you should use `IdentityEncoder`.
-        :param pooling_layer: TODO
-        :param num_features: TODO
+        :param pooling_layer: A pooling layer nn.module
+        :param num_features: Dimensions of the input encoding features * attention dim outputs
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param class_weights: Tensor containing class weights (default=None).
         :param l_rate: Optimiser learning rate.

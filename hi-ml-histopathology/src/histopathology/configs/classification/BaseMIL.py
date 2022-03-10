@@ -111,6 +111,7 @@ class BaseMIL(LightningContainer):
             pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
                                                self.num_transformer_pool_heads,
                                                num_encoding)
+            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 

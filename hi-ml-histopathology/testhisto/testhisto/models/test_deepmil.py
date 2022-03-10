@@ -32,8 +32,8 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
 
 
 def get_attention_pooling_layer(num_encoding: int = 512,
-                                pool_hidden_dim: int = 5,
-                                pool_out_dim: int = 1) -> Tuple[Type[nn.Module], int]:
+                                pool_hidden_dim: int = 5) -> Tuple[Type[nn.Module], int]:
+    pool_out_dim = 1
     pooling_layer = AttentionLayer(num_encoding,
                                    pool_hidden_dim,
                                    pool_out_dim)
@@ -47,7 +47,6 @@ def _test_lightningmodule(
     batch_size: int,
     max_bag_size: int,
     pool_hidden_dim: int,
-    pool_out_dim: int,
     dropout_rate: Optional[float],
 ) -> None:
 
@@ -57,8 +56,7 @@ def _test_lightningmodule(
     encoder = get_supervised_imagenet_encoder()
 
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_hidden_dim=pool_hidden_dim,
-                                                              pool_out_dim=pool_out_dim)
+    pooling_layer, num_features = get_attention_pooling_layer(pool_hidden_dim=pool_hidden_dim)
 
     module = DeepMILModule(
         encoder=encoder,
@@ -81,7 +79,7 @@ def _test_lightningmodule(
         bag_labels_list.append(module.get_bag_label(labels))
         logit, attn = module(bag)
         assert logit.shape == (1, n_classes)
-        assert attn.shape == (pool_out_dim, max_bag_size)
+        assert attn.shape == (1, max_bag_size)
         bag_logits_list.append(logit.view(-1))
         bag_attn_list.append(attn)
 
@@ -124,21 +122,18 @@ def _test_lightningmodule(
 @pytest.mark.parametrize("batch_size", [1, 15])
 @pytest.mark.parametrize("max_bag_size", [1, 7])
 @pytest.mark.parametrize("pool_hidden_dim", [1, 5])
-@pytest.mark.parametrize("pool_out_dim", [1, 6])
 @pytest.mark.parametrize("dropout_rate", [None, 0.5])
 def test_lightningmodule_attention(
     n_classes: int,
     batch_size: int,
     max_bag_size: int,
     pool_hidden_dim: int,
-    pool_out_dim: int,
     dropout_rate: Optional[float],
 ) -> None:
     _test_lightningmodule(n_classes=n_classes,
                           batch_size=batch_size,
                           max_bag_size=max_bag_size,
                           pool_hidden_dim=pool_hidden_dim,
-                          pool_out_dim=pool_out_dim,
                           dropout_rate=dropout_rate)
 
 
@@ -164,8 +159,7 @@ def test_metrics() -> None:
 
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(num_encoding=input_dim[0],
-                                                              pool_hidden_dim=128,
-                                                              pool_out_dim=1)
+                                                              pool_hidden_dim=128)
 
     module = DeepMILModule(
         encoder=IdentityEncoder(input_dim=input_dim),
@@ -324,7 +318,7 @@ def test_class_weights_binary() -> None:
     n_classes = 1
 
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_hidden_dim=5, pool_out_dim=1)
+    pooling_layer, num_features = get_attention_pooling_layer(pool_hidden_dim=5)
 
     module = DeepMILModule(
         encoder=get_supervised_imagenet_encoder(),
@@ -352,7 +346,7 @@ def test_class_weights_multiclass() -> None:
     n_classes = 3
 
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_hidden_dim=5, pool_out_dim=1)
+    pooling_layer, num_features = get_attention_pooling_layer(pool_hidden_dim=5)
 
     module = DeepMILModule(
         encoder=get_supervised_imagenet_encoder(),
