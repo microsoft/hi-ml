@@ -4,17 +4,21 @@
 #  ------------------------------------------------------------------------------------------
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Any
+from typing import Any, Optional
+from unittest import mock
 
 import torch
 from torchvision.transforms import Compose, Resize, CenterCrop
+from azureml.core import Run
 
-from health_azure import object_to_yaml
+from health_azure import object_to_yaml, create_aml_run_object
+from health_azure.utils import is_running_in_azure_ml
 from health_ml.utils.serialization import ModelInfo
+from testazure.utils_testazure import DEFAULT_WORKSPACE
 
 
 class MyTestModule(torch.nn.Module):
-    def forward(self, input: torch.Tensor):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         return torch.max(input)
 
 
@@ -25,7 +29,7 @@ class MyModelConfig:
 
 
 class MyTokenizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.token = torch.tensor([3.14])
 
     def tokenize(self, input: Any) -> torch.Tensor:
@@ -54,18 +58,19 @@ def test_serialization_roundtrip() -> None:
     image_preprocessing = Compose([Resize(size=20), CenterCrop(size=10)])
     example_image = torch.randn((3, 30, 30))
     image_output = image_preprocessing(example_image)
-    info1 = ModelInfo(model=model,
-                      model_example_input=example_inputs,
-                      model_config=model_config,
-                      text_tokenizer=tokenizer,
-                      git_repository="repo",
-                      git_commit_hash="hash",
-                      dataset_name="dataset",
-                      azure_ml_workspace="workspace",
-                      azure_ml_run_id="run_id",
-                      image_dimensions="dimensions",
-                      image_pre_processing=image_preprocessing,
-                      )
+    info1 = ModelInfo(
+        model=model,
+        model_example_input=example_inputs,
+        model_config=model_config,
+        text_tokenizer=tokenizer,
+        git_repository="repo",
+        git_commit_hash="hash",
+        dataset_name="dataset",
+        azure_ml_workspace="workspace",
+        azure_ml_run_id="run_id",
+        image_dimensions="dimensions",
+        image_pre_processing=image_preprocessing,
+    )
 
     state_dict = torch_save_and_load(info1.state_dict())
     info2 = ModelInfo()
@@ -88,3 +93,30 @@ def test_serialization_roundtrip() -> None:
     # Test if the deserialized preprocessing gives the same as the original object
     image_output2 = info2.image_pre_processing(example_image)
     assert torch.allclose(image_output, image_output2, atol=0, rtol=0)
+
+
+def test_get_metadata() -> None:
+    """Test if model metadata is read correctly from the AzureML run."""
+    run_name = "foo"
+    experiment_name = "himl-tests"
+    run: Optional[Run] = None
+    try:
+        run = create_aml_run_object(
+            experiment_name=experiment_name, run_name=run_name, workspace=DEFAULT_WORKSPACE.workspace
+        )
+        assert is_running_in_azure_ml(aml_run=run)
+        # This ModelInfo object has no fields pre-set
+        model_info = ModelInfo()
+        # If AzureML run info is already present in the object, those fields should be preserved.
+        model_info2 = ModelInfo(azure_ml_run_id="foo", azure_ml_workspace="bar")
+        with mock.patch("health_ml.utils.serialization.RUN_CONTEXT", run):
+            with mock.patch("health_ml.utils.serialization.is_running_in_azure_ml", return_value=True):
+                model_info.get_metadata_from_azureml()
+                model_info2.get_metadata_from_azureml()
+        assert model_info.azure_ml_run_id == run.id
+        assert model_info.azure_ml_workspace == DEFAULT_WORKSPACE.workspace.name
+        assert model_info2.azure_ml_run_id == "foo"
+        assert model_info2.azure_ml_workspace == "bar"
+    finally:
+        if run is not None:
+            run.complete()

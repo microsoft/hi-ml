@@ -61,7 +61,7 @@ ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
 MODEL_ID_KEY_NAME = "model_id"
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
-RUN_CONTEXT = Run.get_context()
+RUN_CONTEXT: Run = Run.get_context()
 PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 WORKSPACE_CONFIG_JSON = "config.json"
 

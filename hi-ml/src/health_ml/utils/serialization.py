@@ -8,7 +8,7 @@ from typing import Any, Optional, Callable, Dict, Union
 
 import torch.nn
 
-from health_azure import object_to_yaml
+from health_azure import RUN_CONTEXT, object_to_yaml, is_running_in_azure_ml
 
 
 def _dump_to_stream(o: Any) -> BytesIO:
@@ -61,7 +61,24 @@ class ModelInfo:
         self.image_pre_processing = image_pre_processing
         self.image_dimensions = image_dimensions
 
+    def get_metadata_from_azureml(self) -> None:
+        """Reads information about the git repository and AzureML-related info from the AzureML run context.
+        If any of those information are already stored in the object, those have higher priority.
+        """
+        if not is_running_in_azure_ml():
+            return
+        if not self.azure_ml_workspace:
+            self.azure_ml_workspace = RUN_CONTEXT.experiment.workspace.name
+        if not self.azure_ml_run_id:
+            self.azure_ml_run_id = RUN_CONTEXT.id
+        properties: Dict = RUN_CONTEXT.get_properties()
+        if not self.git_repository:
+            self.git_repository = properties.get("azureml.git.repository_uri", "")
+        if not self.git_commit_hash:
+            self.git_commit_hash = properties.get("azureml.git.commit", "")
+
     def state_dict(self) -> Dict[str, Any]:
+        """Creates a dictionary representation of the current object."""
         def bytes_or_none(o: Any) -> Optional[bytes]:
             return _dump_to_stream(o).getvalue() if o is not None else None
 
@@ -92,6 +109,10 @@ class ModelInfo:
         }
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        """Loads a dictionary representation into the current object, overwriting all matching fields.
+
+        :param state_dict: The dictionary to load from.
+        """
         def unpickle_from_bytes(field: str) -> Any:
             if field not in state_dict:
                 raise KeyError(f"State_dict does not contain a field '{field}'")
