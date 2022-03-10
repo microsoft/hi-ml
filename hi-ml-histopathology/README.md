@@ -21,7 +21,7 @@ In addition, please download an AzureML workspace configuration file for the wor
 * In the browser, navigate to the workspace in question
 * Click on the drop-down menu on upper right of the page, to the left of your account picture.
 * Select "Download config file".
-* Save that file into the `hi-ml-histopathology` folder of the git repo.
+* Save that file into the the repository root.
 
 Once that config file is in place, all Python runs that you start inside the `hi-ml-histopathology` folder will automatically use this config file.
 
