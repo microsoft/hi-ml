@@ -42,5 +42,5 @@ jobs:
           scanType: 'Register'
           verbosity: 'Normal'
           alertWarningLevel: 'High'
-          failOnAlert: true
+          failOnAlert: false
           failOnStderr: true
