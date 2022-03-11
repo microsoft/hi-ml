@@ -153,24 +153,22 @@ def get_crossval_metrics_table(metrics_df: pd.DataFrame,
     return table
 
 
-def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str,
-                    maximise: bool = True) -> pd.Series:
+def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: bool = True) -> Dict[int, int]:
     best_fn = np.argmax if maximise else np.argmin
     best_epochs = metrics_df.loc[primary_metric].apply(best_fn)
-    return best_epochs
+    return best_epochs.to_dict()
 
 
 def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
-                           best_epochs: pd.Series) -> pd.DataFrame:
+                           best_epochs: Dict[int, int]) -> pd.DataFrame:
     best_metrics = [metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
                     for k, epoch in best_epochs.items()]
     best_metrics_df = pd.DataFrame(best_metrics).T
     return best_metrics_df
 
 
-def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str,
-                                  ax: Axes, best_epochs: Optional[pd.Series] = None,
-                                  ylabel: Optional[str] = None) -> None:
+def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str, ax: Axes,
+                                  best_epochs: Optional[Dict[int, int]] = None, ylabel: Optional[str] = None) -> None:
     for k in sorted(metrics_df.columns):
         train_values = metrics_df.loc[train_metric, k]
         val_values = metrics_df.loc[val_metric, k]
@@ -178,7 +176,7 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
         color = line.get_color()
         ax.plot(val_values, color=color, **VAL_STYLE)
         if best_epochs is not None:
-            best_epoch = best_epochs.loc[k]
+            best_epoch = best_epochs[k]
             ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
             ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
             ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)

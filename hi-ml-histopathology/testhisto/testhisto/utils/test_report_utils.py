@@ -115,12 +115,12 @@ def metrics_df() -> pd.DataFrame:
 
 
 @pytest.fixture
-def best_epochs(metrics_df: pd.DataFrame) -> pd.Series:
+def best_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
     return get_best_epochs(metrics_df, 'val/accuracy', maximise=True)
 
 
 @pytest.fixture
-def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: pd.Series) -> pd.Series:
+def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) -> pd.Series:
     metrics_list = ['val/accuracy', 'val/auroc']
     return get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
 
@@ -128,15 +128,15 @@ def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: pd.Series) -> pd.S
 @pytest.mark.parametrize('maximise', [True, False])
 def test_get_best_epochs(metrics_df: pd.DataFrame, maximise: bool) -> None:
     best_epochs = get_best_epochs(metrics_df, 'val/accuracy', maximise=maximise)
-    assert list(best_epochs.index) == list(metrics_df.columns)
-    assert best_epochs.dtype == int
+    assert list(best_epochs.keys()) == list(metrics_df.columns)
+    assert all(isinstance(epoch, int) for epoch in best_epochs.values())
 
     expected_best = {0: 0, 1: 1, 3: 2} if maximise else {0: 1, 1: 2, 3: 0}
     for split in metrics_df.columns:
         assert best_epochs[split] == expected_best[split]
 
 
-def test_get_best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: pd.Series) -> None:
+def test_get_best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) -> None:
     metrics_list = ['val/accuracy', 'val/auroc']
     best_metrics_df = get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
     assert list(best_metrics_df.index) == metrics_list
