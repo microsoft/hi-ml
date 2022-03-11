@@ -121,6 +121,7 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
         >>> src = torch.rand(32, 10, 512)
         >>> out, attention_weights = encoder_layer(src)
     """
+    # new forward returns output as well as attention weights
     def forward(self, src: torch.Tensor,  # type: ignore
                 src_mask: Optional[torch.Tensor] = None,
                 src_key_padding_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -149,7 +150,7 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
 
         return x, a
 
-    # self-attention block
+    # new self-attention block, returns output as well as attention weights
     def _sa_block(self, x: Tensor,  # type: ignore
                   attn_mask: Optional[Tensor],
                   key_padding_mask: Optional[Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
