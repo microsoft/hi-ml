@@ -141,6 +141,9 @@ def test_get_best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int,
     best_metrics_df = get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
     assert list(best_metrics_df.index) == metrics_list
     assert list(best_metrics_df.columns) == list(metrics_df.columns)
+    # Check that all values are now scalars instead of lists:
+    for metric in metrics_list:
+        assert best_metrics_df.loc[metric].map(pd.api.types.is_number).all()
 
 
 def _test_get_crossval_metrics_table(df: pd.DataFrame, metrics_list: List[str]) -> None:
