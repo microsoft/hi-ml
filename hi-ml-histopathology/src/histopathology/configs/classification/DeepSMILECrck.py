@@ -47,7 +47,9 @@ class DeepSMILECrck(BaseMIL):
         # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(
             # declared in BaseMIL:
-            pooling_type=AttentionLayer.__name__,
+            pool_type=AttentionLayer.__name__,
+            num_transformer_pool_layers=4,
+            num_transformer_pool_heads=4,
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,

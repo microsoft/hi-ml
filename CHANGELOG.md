@@ -10,6 +10,7 @@ Each release contains a link for "Full Changelog"
 ## 0.1.14
 
 ### Added
+- ([#227](https://github.com/microsoft/hi-ml/pull/227)) Add TransformerPooling.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) Add GaussianBlur and RotationByMultiplesOf90 augmentations. Added torchvision and opencv to
 the environment file since it is necessary for the augmentations.
 - ([#193](https://github.com/microsoft/hi-ml/pull/193)) Add transformation adaptor to hi-ml-histopathology.
@@ -21,6 +22,7 @@ the environment file since it is necessary for the augmentations.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Improved editor setup for VSCode.
 
 ### Changed
+- ([#227](https://github.com/microsoft/hi-ml/pull/227)) Pooling constructor is outside of DeepMIL and inside of BaseMIL now.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Model config loader is now more flexible, can accept fully qualified class name or just top-level module name and class (like histopathology.DeepSMILECrck)
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Runner raises an error when Conda environment file contains a pip include (-r) statement
 

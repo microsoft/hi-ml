@@ -52,7 +52,7 @@ The `hi-ml` toolbox provides
    :caption: Developers
 
    developers.md
-   contributing.md
+   ../CONTRIBUTING.md
 
 .. toctree::
    :maxdepth: 1
