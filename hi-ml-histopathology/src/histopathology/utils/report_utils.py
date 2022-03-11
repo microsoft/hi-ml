@@ -44,9 +44,8 @@ def download_from_run_if_necessary(run: Run, remote_dir: Path, download_dir: Pat
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "cross_validation_split_index") -> Dict[int, pd.DataFrame]:
-    output_filename = "test_output.csv"
-
+                             crossval_arg_name: str = "cross_validation_split_index",
+                             output_filename: str = "test_output.csv") -> Dict[int, pd.DataFrame]:
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace)
 
     all_outputs_dfs = {}

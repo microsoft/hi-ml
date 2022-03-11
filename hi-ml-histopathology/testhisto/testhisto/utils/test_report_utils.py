@@ -64,12 +64,13 @@ class MockHyperDriveRun:
 def test_collect_crossval_outputs(tmp_path: Path) -> None:
     download_dir = tmp_path
     crossval_arg_name = "child_run_index"
+    output_filename = "output.csv"
     child_indices = [0, 3, 1]  # Missing and unsorted children
 
     columns = ['id', 'value', 'split']
     for child_index in child_indices:
         csv_contents = ','.join(columns) + f"\n0,0.1,{child_index}\n1,0.2,{child_index}"
-        csv_path = download_dir / str(child_index) / "test_output.csv"
+        csv_path = download_dir / str(child_index) / output_filename
         csv_path.parent.mkdir()
         csv_path.write_text(csv_contents)
 
@@ -78,7 +79,8 @@ def test_collect_crossval_outputs(tmp_path: Path) -> None:
         crossval_dfs = collect_crossval_outputs(parent_run_id="",
                                                 download_dir=download_dir,
                                                 aml_workspace=None,
-                                                crossval_arg_name=crossval_arg_name)
+                                                crossval_arg_name=crossval_arg_name,
+                                                output_filename=output_filename)
 
     assert set(crossval_dfs.keys()) == set(child_indices)
     assert list(crossval_dfs.keys()) == sorted(crossval_dfs.keys())
