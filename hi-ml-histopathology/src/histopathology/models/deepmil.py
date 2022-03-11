@@ -27,7 +27,6 @@ from histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_t
 from histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
 from histopathology.utils.viz_utils import load_image_dict
 
-
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
 
@@ -45,9 +44,8 @@ class DeepMILModule(LightningModule):
                  label_column: str,
                  n_classes: int,
                  encoder: TileEncoder,
-                 pooling_layer: Callable[[int, int, int], nn.Module],
-                 pool_hidden_dim: int = 128,
-                 pool_out_dim: int = 1,
+                 pooling_layer: Callable[[Tensor], Tuple[Tensor, Tensor]],
+                 num_features: int,
                  dropout_rate: Optional[float] = None,
                  class_weights: Optional[Tensor] = None,
                  l_rate: float = 5e-4,
@@ -61,14 +59,12 @@ class DeepMILModule(LightningModule):
                  is_finetune: bool = False) -> None:
         """
         :param label_column: Label key for input batch dictionary.
-        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes
-        should be set to 1.
+        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
+         set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
         you should use `IdentityEncoder`.
-        :param pooling_layer: Type of pooling to use in multi-instance aggregation. Should be a
-        `torch.nn.Module` constructor accepting input, hidden, and output pooling `int` dimensions.
-        :param pool_hidden_dim: Hidden dimension of pooling layer (default=128).
-        :param pool_out_dim: Output dimension of pooling layer (default=1).
+        :param pooling_layer: A pooling layer nn.module
+        :param num_features: Dimensions of the input encoding features * attention dim outputs
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param class_weights: Tensor containing class weights (default=None).
         :param l_rate: Optimiser learning rate.
@@ -86,13 +82,11 @@ class DeepMILModule(LightningModule):
         # Dataset specific attributes
         self.label_column = label_column
         self.n_classes = n_classes
-        self.pool_hidden_dim = pool_hidden_dim
-        self.pool_out_dim = pool_out_dim
-        self.pooling_layer = pooling_layer
         self.dropout_rate = dropout_rate
         self.class_weights = class_weights
         self.encoder = encoder
-        self.num_encoding = self.encoder.num_encoding
+        self.aggregation_fn = pooling_layer
+        self.num_pooling = num_features
 
         if class_names is not None:
             self.class_names = class_names
@@ -125,7 +119,6 @@ class DeepMILModule(LightningModule):
         # Finetuning attributes
         self.is_finetune = is_finetune
 
-        self.aggregation_fn, self.num_pooling = self.get_pooling()
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
@@ -134,13 +127,6 @@ class DeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
-
-    def get_pooling(self) -> Tuple[Callable, int]:
-        pooling_layer = self.pooling_layer(self.num_encoding,
-                                           self.pool_hidden_dim,
-                                           self.pool_out_dim)
-        num_features = self.num_encoding * self.pool_out_dim
-        return pooling_layer, num_features
 
     def get_classifier(self) -> Callable:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
@@ -284,7 +270,6 @@ class DeepMILModule(LightningModule):
             if is_global_rank_zero():
                 logging.warning("Coordinates not found in batch. If this is not expected check your"
                                 "input tiles dataset.")
-
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore

@@ -8,14 +8,15 @@ It is responsible for instantiating the encoder and full DeepMIL model. Subclass
 their datamodules and configure experiment-specific parameters.
 """
 from pathlib import Path
-from typing import Optional, Type  # noqa
+from typing import Optional, Tuple, Type  # noqa
 
 import param
 from torch import nn
 from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,\
+    TransformerPooling
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
@@ -27,7 +28,16 @@ from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
 
 class BaseMIL(LightningContainer):
     # Model parameters:
-    pooling_type: str = param.String(doc="Name of the pooling layer class to use.")
+    pool_type: str = param.String(doc="Name of the pooling layer class to use.")
+    pool_hidden_dim: int = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the\
+        hidden dimensions.")
+    pool_out_dim: int = param.Integer(1, doc="Dimension of the pooled representation.")
+    num_transformer_pool_layers: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
+         of encoding layers.")
+    num_transformer_pool_heads: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
+         of attention heads.")
+    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
+                                                 "keep the encoder frozen.")
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
@@ -52,8 +62,6 @@ class BaseMIL(LightningContainer):
                                                  "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
-    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
-                                                 "keep the encoder frozen.")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
@@ -62,7 +70,7 @@ class BaseMIL(LightningContainer):
 
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
-            raise NotImplementedError("InnerEyeSSLEncoder requires a pre-trained checkpoint.")
+            raise NotImplementedError("SSLEncoder requires a pre-trained checkpoint.")
 
         self.encoder = self.get_encoder()
         if not self.is_finetune:
@@ -86,15 +94,29 @@ class BaseMIL(LightningContainer):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
 
-    def get_pooling_layer(self) -> Type[nn.Module]:
-        if self.pooling_type == AttentionLayer.__name__:
-            return AttentionLayer
-        elif self.pooling_type == GatedAttentionLayer.__name__:
-            return GatedAttentionLayer
-        elif self.pooling_type == MeanPoolingLayer.__name__:
-            return MeanPoolingLayer
+    def get_pooling_layer(self) -> Tuple[nn.Module, int]:
+        num_encoding = self.encoder.num_encoding
+
+        if self.pool_type == AttentionLayer.__name__:
+            pooling_layer = AttentionLayer(num_encoding,
+                                           self.pool_hidden_dim,
+                                           self.pool_out_dim)
+        elif self.pool_type == GatedAttentionLayer.__name__:
+            pooling_layer = GatedAttentionLayer(num_encoding,
+                                                self.pool_hidden_dim,
+                                                self.pool_out_dim)
+        elif self.pool_type == MeanPoolingLayer.__name__:
+            pooling_layer = MeanPoolingLayer()
+        elif self.pool_type == TransformerPooling.__name__:
+            pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
+                                               self.num_transformer_pool_heads,
+                                               num_encoding)
+            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
+
+        num_features = num_encoding * self.pool_out_dim
+        return pooling_layer, num_features
 
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
@@ -106,10 +128,15 @@ class BaseMIL(LightningContainer):
                 params.requires_grad = True
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+
+        # Construct pooling layer
+        pooling_layer, num_features = self.get_pooling_layer()
+
         return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
-                             pooling_layer=self.get_pooling_layer(),
+                             pooling_layer=pooling_layer,
+                             num_features=num_features,
                              dropout_rate=self.dropout_rate,
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
