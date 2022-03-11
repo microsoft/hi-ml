@@ -139,7 +139,7 @@ class HTMLReport:
         tag this heading by providing the class name in the "tag_class" parameter.
 
         :param text: The contents of the heading to add to the report
-        :param level: 
+        :param level: The heading level, e.g. 2 for `<h2>` etc.
         :param tag_class: An optional class name to apply styling to the text
         """
         class_spec = f" class={tag_class}" if tag_class else ""
