@@ -21,7 +21,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     report = HTMLReport(output_folder=report_dir)
 
-    report.add_text(get_formatted_run_info(parent_run_id, aml_workspace))
+    report.add_text(get_formatted_run_info(parent_run))
 
     report.add_heading("Azure ML metrics", level=2)
 

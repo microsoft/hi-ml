@@ -302,9 +302,14 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
                bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
 
 
-def get_formatted_run_info(parent_run_id: str, aml_workspace: Workspace) -> str:
-    run = get_aml_run_from_run_id(parent_run_id, aml_workspace=aml_workspace)
+def get_formatted_run_info(parent_run: Run) -> str:
+    """Format Azure ML cross-validation run information as HTML.
 
+    Includes details of the parent and child runs, as well as submission information.
+
+    :param parent_run: Parent Hyperdrive Azure ML run object.
+    :return: Formatted HTML string.
+    """
     def format_experiment(experiment: Experiment) -> str:
         return f"<a href={experiment.get_portal_url()}>{experiment.name}</a>"
 
@@ -316,14 +321,14 @@ def get_formatted_run_info(parent_run_id: str, aml_workspace: Workspace) -> str:
         start_time = dateutil.parser.parse(details['startTimeUtc'])
         return f"Started on {start_time.strftime('%d %b %Y %H:%M %Z')} by {details['submittedBy']}"
 
-    html = f"<p>Experiment: {format_experiment(run.experiment)}"
-    html += f"\n<br>Parent run: {format_run(run)}"
+    html = f"<p>Experiment: {format_experiment(parent_run.experiment)}"
+    html += f"\n<br>Parent run: {format_run(parent_run)}"
 
     html += "\n<ul>"
-    for k, child_run in enumerate(sorted(run.get_children(), key=lambda r: r.id)):
+    for k, child_run in enumerate(sorted(parent_run.get_children(), key=lambda r: r.id)):
         html += f"\n<li>Child {k}: {format_run(child_run)}</li>"
     html += "\n</ul>"
 
-    html += f"\n<p>{format_submission_info(run)}"
-    html += f"\n<p>Command-line arguments: <code>{run.get_tags()['commandline_args']}</code>"
+    html += f"\n<p>{format_submission_info(parent_run)}"
+    html += f"\n<p>Command-line arguments: <code>{parent_run.get_tags()['commandline_args']}</code>"
     return html
