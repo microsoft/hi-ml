@@ -46,6 +46,18 @@ def download_from_run_if_necessary(run: Run, remote_dir: Path, download_dir: Pat
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
                              crossval_arg_name: str = "cross_validation_split_index",
                              output_filename: str = "test_output.csv") -> Dict[int, pd.DataFrame]:
+    """Fetch output CSV files from cross-validation runs as dataframes.
+
+    Will only download the CSV files if they do not already exist locally.
+
+    :param parent_run_id: Azure ML run ID for the parent Hyperdrive run.
+    :param download_dir: Base directory where to download the CSV files. A new sub-directory will
+        be created for each child run (e.g. `<download_dir>/<crossval index>/*.csv`).
+    :param aml_workspace: Azure ML workspace in which the runs were executed.
+    :param crossval_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
+    :param output_filename: Filename of the output CSVs to download.
+    :return: A dictionary of dataframes with the sorted cross-validation indices as keys.
+    """
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace)
 
     all_outputs_dfs = {}
@@ -67,6 +79,17 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
 
 def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
                              crossval_arg_name: str = "cross_validation_split_index") -> pd.DataFrame:
+    """Fetch metrics logged to Azure ML from cross-validation runs as a dataframe.
+
+    Will only download the metrics if they do not already exist locally, as this can take several
+    seconds for each child run.
+
+    :param parent_run_id: Azure ML run ID for the parent Hyperdrive run.
+    :param download_dir: Directory where to save the downloaded metrics as `aml_metrics.pickle`.
+    :param aml_workspace: Azure ML workspace in which the runs were executed.
+    :param crossval_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
+    :return: A dataframe in the format returned by :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    """
     # Save metrics as a pickle because complex dataframe structure is lost in CSV
     metrics_pickle = download_dir / "aml_metrics.pickle"
     if metrics_pickle.is_file():
@@ -85,6 +108,13 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspa
 
 
 def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
+    """Plot ROC curve for the given labels and scores, with AUROC in the line legend.
+
+    :param labels: The true binary labels.
+    :param scores: Scores predicted by the model.
+    :param label: An line identifier to be displayed in the legend.
+    :param ax: `Axes` object onto which to plot.
+    """
     fpr, tpr, _ = roc_curve(labels, scores)
     auroc = auc(fpr, tpr)
     label = f"{label} (AUROC: {auroc:.3f})"
@@ -92,6 +122,13 @@ def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> 
 
 
 def plot_pr_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
+    """Plot precision-recall curve for the given labels and scores, with AUROC in the line legend.
+
+    :param labels: The true binary labels.
+    :param scores: Scores predicted by the model.
+    :param label: An line identifier to be displayed in the legend.
+    :param ax: `Axes` object onto which to plot.
+    """
     precision, recall, _ = precision_recall_curve(labels, scores)
     aupr = auc(recall, precision)
     label = f"{label} (AUPR: {aupr:.3f})"
@@ -99,10 +136,10 @@ def plot_pr_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> N
 
 
 def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
-    """
-    Format PR or ROC plot with appropriate title, axis labels, limits, and grid.
+    """Format PR or ROC plot with appropriate axis labels, limits, and grid.
+
     :param plot_type: Either 'pr' or 'roc'.
-    :param ax: Axes object to format.
+    :param ax: `Axes` object to format.
     """
     if plot_type == 'pr':
         xlabel, ylabel = "Recall", "Precision"
@@ -134,6 +171,14 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame],
 
 
 def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame]) -> Figure:
+    """Plot ROC and precision-recall curves for multiple cross-validation runs.
+
+    This will create a new figure with two subplots (left: ROC, right: PR).
+
+    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
+        as returned by :py:func:`collect_crossval_outputs()`.
+    :return: The created `Figure` object.
+    """
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
     _plot_crossval_roc_and_pr_curves(crossval_dfs, roc_ax=axs[0], pr_ax=axs[1])
     return fig
@@ -141,6 +186,17 @@ def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame]) -> Fi
 
 def get_crossval_metrics_table(metrics_df: pd.DataFrame,
                                metrics_list: Sequence[str]) -> pd.DataFrame:
+    """Format raw cross-validation metrics into a table with a summary "Mean ± Std" column.
+
+    Note that this function only supports scalar metrics. To format metrics that are logged
+    hroughout training, you should call :py:func:`get_best_epoch_metrics()` first.
+
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :param metrics_list: The list of metrics to include in the table.
+    :return: A dataframe with the values of the selected metrics formatted as strings, including a
+        header and a summary column.
+    """
     header = ["Metric"] + [f"Split {k}" for k in metrics_df.columns] + ["Mean ± Std"]
     metrics_rows = []
     for metric in metrics_list:
@@ -154,6 +210,18 @@ def get_crossval_metrics_table(metrics_df: pd.DataFrame,
 
 
 def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: bool = True) -> Dict[int, int]:
+    """Determine the best epoch for each cross-validation run based on a given metric.
+
+    The returned epoch indices are relative to the logging frequency of the chosen metric, i.e.
+    should not be mixed between training and validation metrics if the latter are not logged at
+    every training epoch.
+
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :param primary_metric: Name of the reference metric to optimise.
+    :param maximise: Whether the given metric should be maximised (minimised if `False`).
+    :return: Dictionary mapping each cross-validation index to its best epoch.
+    """
     best_fn = np.argmax if maximise else np.argmin
     best_epochs = metrics_df.loc[primary_metric].apply(best_fn)
     return best_epochs.to_dict()
@@ -161,6 +229,17 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: boo
 
 def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
                            best_epochs: Dict[int, int]) -> pd.DataFrame:
+    """Extract the values of the selected cross-validation metrics at the given best epochs.
+
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :param metrics_list: Names of the metrics to index by the best epoch indices provided. Their
+        values in `metrics_df` should be lists.
+    :param best_epochs: Dictionary of cross-validation indices to best epochs, as returned by
+        :py:func:`get_best_epochs()`.
+    :return: Dataframe with the same columns as `metrics_df` and rows specified by `metrics_list`,
+        containing only scalar values.
+    """
     best_metrics = [metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
                     for k, epoch in best_epochs.items()]
     best_metrics_df = pd.DataFrame(best_metrics).T
@@ -169,6 +248,16 @@ def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str]
 
 def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str, ax: Axes,
                                   best_epochs: Optional[Dict[int, int]] = None, ylabel: Optional[str] = None) -> None:
+    """Plot paired training and validation metrics for every training epoch of cross-validation runs.
+
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :param train_metric: Name of the training metric to plot.
+    :param val_metric: Name of the validation metric to plot.
+    :param ax: `Axes` object onto which to plot.
+    :param best_epochs: If provided, adds visual indicators of the best epoch for each run.
+    :param ylabel: If provided, adds a label to the Y-axis.
+    """
     for k in sorted(metrics_df.columns):
         train_values = metrics_df.loc[train_metric, k]
         val_values = metrics_df.loc[val_metric, k]
@@ -187,6 +276,12 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
 
 
 def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) -> None:
+    """Add a legend to a training curves figure, indicating cross-validation indices and train/val.
+
+    :param fig: `Figure` object onto which to add the legend.
+    :param include_best_epoch: If `True`, adds legend items for the best epoch indicators from
+        :py:func:`plot_crossval_training_curves()`.
+    """
     legend_kwargs = dict(edgecolor='none', fontsize='small', borderpad=.2)
 
     # Add primary legend for main lines (crossval folds)
