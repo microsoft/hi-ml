@@ -24,6 +24,17 @@ class MeanPoolingLayer(nn.Module):
         return (attention_weights, pooled_features)
 
 
+class MaxPoolingLayer(nn.Module):
+    """Max pooling returns uniform weights and the maximum feature vector over the first axis"""
+
+    def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
+        num_instances = features.shape[0]
+        attention_weights = torch.full((1, num_instances), 1. / num_instances)
+        pooled_features = features.max(dim=0).values
+        pooled_features = pooled_features.view(1, -1)
+        return (attention_weights, pooled_features)
+
+
 class AttentionLayer(nn.Module):
     """ AttentionLayer: Simple attention layer
     Requires size of input L, hidden D, and attention layers K (default K=1)

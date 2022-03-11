@@ -106,15 +106,24 @@ def _test_lightningmodule(
         assert probs.shape[0] == batch_size
 
     if n_classes > 1:
-        preds = argmax(probs, dim=1)
+        predlabels = argmax(probs, dim=1)
     else:
-        preds = round(probs)
-    assert preds.shape[0] == batch_size
+        predlabels = round(probs)
 
+    assert predlabels.shape[0] == batch_size
+    assert probs.shape[1] == n_classes
+
+    bag_labels = bag_labels.view(-1, 1)
     for metric_name, metric_object in module.train_metrics.items():
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
-        score = metric_object(preds.view(-1, 1), bag_labels.view(-1, 1))
+        if n_classes > 1:
+            if bag_labels.shape == torch.Size([1, 1]):
+                score = metric_object(probs, bag_labels.squeeze(0))
+            else:
+                score = metric_object(probs, bag_labels.squeeze())
+        else:
+            score = metric_object(probs.view(-1, 1), bag_labels)
         assert torch.all(score >= 0)
         assert torch.all(score <= 1)
 
@@ -142,7 +151,7 @@ def validate_metric_inputs(scores: torch.Tensor, labels: torch.Tensor) -> None:
     def is_integral(x: torch.Tensor) -> bool:
         return (x == x.long()).all()  # type: ignore
 
-    assert scores.shape == labels.shape
+    assert scores.shape[0] == labels.shape[0]
     assert torch.is_floating_point(scores), "Received scores with integer dtype"
     assert not is_integral(scores), "Received scores with integral values"
     assert is_integral(labels), "Received labels with floating-point values"
@@ -155,7 +164,8 @@ def add_callback(fn: Callable, callback: Callable) -> Callable:
     return wrapper
 
 
-def test_metrics() -> None:
+@pytest.mark.parametrize("n_classes", [1, 3])
+def test_metrics(n_classes: int) -> None:
     input_dim = (128,)
 
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
@@ -165,7 +175,7 @@ def test_metrics() -> None:
     module = DeepMILModule(
         encoder=IdentityEncoder(input_dim=input_dim),
         label_column=TilesDataset.LABEL_COLUMN,
-        n_classes=1,
+        n_classes=n_classes,
         pooling_layer=pooling_layer,
         num_features=num_features
     )
@@ -176,7 +186,10 @@ def test_metrics() -> None:
 
     batch_size = 20
     bag_size = 5
-    class_weights = torch.tensor([.8, .2])
+    if n_classes > 1:
+        class_weights = torch.rand(n_classes)
+    else:
+        class_weights = torch.tensor([0.8, 0.2])
     bags: List[Dict] = []
     for slide_idx in range(batch_size):
         bag_label = torch.multinomial(class_weights, 1)
@@ -208,7 +221,10 @@ def test_metrics() -> None:
 
     for key, metric_obj in module_metrics_dict.items():
         value = metric_obj.compute()
-        expected_value = independent_metrics_dict[key](predicted_probs, true_labels)
+        if n_classes > 1:
+            expected_value = independent_metrics_dict[key](predicted_probs, true_labels.squeeze())
+        else:
+            expected_value = independent_metrics_dict[key](predicted_probs, true_labels)
         assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
     # ================
@@ -225,23 +241,23 @@ def test_metrics() -> None:
         for metric_obj in metrics_dict.values():
             metric_obj.reset()
 
-    low_threshold, high_threshold = torch.quantile(predicted_probs, torch.tensor([0.1, 0.9]))
-
-    reset_metrics(module_metrics_dict)
-    set_metrics_threshold(module_metrics_dict, threshold=low_threshold)
-    _ = module.test_step(batch, 0)
-    results_low_threshold = {key: module_metrics_dict[key].compute()
+    if n_classes == 1:
+        low_threshold, high_threshold = torch.quantile(predicted_probs, torch.tensor([0.1, 0.9]))
+        reset_metrics(module_metrics_dict)
+        set_metrics_threshold(module_metrics_dict, threshold=low_threshold)
+        _ = module.test_step(batch, 0)
+        results_low_threshold = {key: module_metrics_dict[key].compute()
                              for key in thresholded_metrics_keys}
 
-    reset_metrics(module_metrics_dict)
-    set_metrics_threshold(module_metrics_dict, threshold=high_threshold)
-    _ = module.test_step(batch, 0)
-    results_high_threshold = {key: module_metrics_dict[key].compute()
+        reset_metrics(module_metrics_dict)
+        set_metrics_threshold(module_metrics_dict, threshold=high_threshold)
+        _ = module.test_step(batch, 0)
+        results_high_threshold = {key: module_metrics_dict[key].compute()
                               for key in thresholded_metrics_keys}
 
-    for key in thresholded_metrics_keys:
-        assert not torch.allclose(results_low_threshold[key], results_high_threshold[key]), \
-            f"Got same value for '{key}' metric with low and high thresholds"
+        for key in thresholded_metrics_keys:
+            assert not torch.allclose(results_low_threshold[key], results_high_threshold[key]), \
+                f"Got same value for '{key}' metric with low and high thresholds"
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:

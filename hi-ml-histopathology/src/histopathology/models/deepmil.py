@@ -165,9 +165,10 @@ class DeepMILModule(LightningModule):
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
-            return nn.ModuleDict({MetricsKey.ACC: Accuracy(num_classes=self.n_classes, average='micro'),
+            return nn.ModuleDict({MetricsKey.ACC: Accuracy(num_classes=self.n_classes),
                                   MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
                                   MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted'),
+                                  MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes)})
         else:
             threshold = 0.5
@@ -248,7 +249,10 @@ class DeepMILModule(LightningModule):
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
             if self.n_classes > 1:
-                metric_object.update(predicted_probs, bag_labels.squeeze())
+                if bag_labels.shape == torch.Size([1, 1]):
+                    metric_object.update(predicted_probs, bag_labels.squeeze(0))
+                else:
+                    metric_object.update(predicted_probs, bag_labels.squeeze())
             else:
                 metric_object.update(predicted_probs, bag_labels)
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
