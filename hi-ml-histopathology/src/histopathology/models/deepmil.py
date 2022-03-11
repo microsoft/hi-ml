@@ -4,28 +4,18 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from pathlib import Path
-import pandas as pd
-import numpy as np
-from typing import Any, Callable, Dict, Optional, Tuple, List
-import torch
-import matplotlib.pyplot as plt
-import more_itertools as mi
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import torch
 from pytorch_lightning import LightningModule
-from torch import Tensor, argmax, mode, nn, set_grad_enabled, optim, round
-from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
+from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
+from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_azure.utils import is_global_rank_zero
-from health_ml.utils import fixed_paths, log_on_epoch
-
-from histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
+from health_ml.utils import log_on_epoch
+from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
-                                                plot_scores_hist, plot_heatmap_overlay,
-                                                plot_slide, plot_normalized_confusion_matrix)
-from histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
-from histopathology.utils.viz_utils import load_image_dict
+from histopathology.utils.naming import MetricsKey, ResultsKey
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -52,9 +42,6 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
-                 slide_dataset: SlidesDataset = None,
-                 tile_size: int = 224,
-                 level: int = 1,
                  class_names: Optional[List[str]] = None,
                  is_finetune: bool = False) -> None:
         """
@@ -71,9 +58,6 @@ class DeepMILModule(LightningModule):
         :param weight_decay: Weight decay parameter for L2 regularisation.
         :param adam_betas: Beta parameters for Adam optimiser.
         :param verbose: if True statements about memory usage are output at each step.
-        :param slide_dataset: Slide dataset object, if available.
-        :param tile_size: The size of each tile (default=224).
-        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: The names of the classes if available (default=None).
         :param is_finetune: Boolean value to enable/disable finetuning (default=False).
         """
@@ -106,11 +90,6 @@ class DeepMILModule(LightningModule):
         self.l_rate = l_rate
         self.weight_decay = weight_decay
         self.adam_betas = adam_betas
-
-        # Slide specific attributes
-        self.slide_dataset = slide_dataset
-        self.tile_size = tile_size
-        self.level = level
 
         self.save_hyperparameters()
 
@@ -294,153 +273,3 @@ class DeepMILModule(LightningModule):
                  sync_dist=True)
         self.log_metrics('test')
         return test_result
-
-    def test_epoch_end(self, outputs: List[Dict[str, Any]]) -> None:  # type: ignore
-        # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
-        # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
-        # example of batch_key ResultsKey.SLIDE_ID_COL
-        # for batch keys that contains multiple values for slides e.g. ResultsKey.BAG_ATTN_COL
-        # outputs[batch_idx][batch_key][bag_idx][tile_idx]
-        # contains the tile value
-
-        # collate the batches
-        results: Dict[str, List[Any]] = {}
-        [results.update({col: []}) for col in outputs[0].keys()]
-        for key in results.keys():
-            for batch_id in range(len(outputs)):
-                results[key] += outputs[batch_id][key]
-
-        print("Saving outputs ...")
-        # collate at slide level
-        list_slide_dicts = []
-        list_encoded_features = []
-        # any column can be used here, the assumption is that the first dimension is the N of slides
-        for slide_idx in range(len(results[ResultsKey.SLIDE_ID])):
-            slide_dict = dict()
-            for key in results.keys():
-                if key not in [ResultsKey.IMAGE, ResultsKey.LOSS]:
-                    slide_dict[key] = results[key][slide_idx]
-            list_slide_dicts.append(slide_dict)
-            list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
-
-        outputs_path = fixed_paths.repository_root_directory() / 'outputs'
-        assert outputs_path.is_dir, f"No such dir: {outputs_path}"
-        print(f"Metrics results will be output to {outputs_path}")
-        outputs_fig_path = outputs_path / 'fig'
-        csv_filename = outputs_path / 'test_output.csv'
-        encoded_features_filename = outputs_path / 'test_encoded_features.pickle'
-
-        # Collect the list of dictionaries in a list of pandas dataframe and save
-        df_list = []
-        for slide_dict in list_slide_dicts:
-            slide_dict = self.normalize_dict_for_df(slide_dict, use_gpu=False)
-            df_list.append(pd.DataFrame.from_dict(slide_dict))
-        df = pd.concat(df_list, ignore_index=True)
-        df.to_csv(csv_filename, mode='w+', header=True)
-
-        # Collect all features in a list and save
-        features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
-        torch.save(features_list, encoded_features_filename)
-
-        print("Selecting tiles ...")
-
-        def select_k_tiles_from_results(label: int, select: Tuple[str, str]) \
-                -> List[Tuple[Any, Any, List[Any], List[Any]]]:
-            return select_k_tiles(results, n_slides=10, label=label, n_tiles=10, select=select)
-
-        # Class 0
-        tn_top_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'highest_att'))
-        tn_bottom_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'lowest_att'))
-        fp_top_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'highest_att'))
-        fp_bottom_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'lowest_att'))
-        report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles], 'FP': [fp_top_tiles, fp_bottom_tiles]}
-
-        # Class 1 to n_classes-1
-        n_classes_to_select = self.n_classes if self.n_classes > 1 else 2
-        for i in range(1, n_classes_to_select):
-            fn_top_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'highest_att'))
-            fn_bottom_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'lowest_att'))
-            tp_top_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'highest_att'))
-            tp_bottom_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'lowest_att'))
-            report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
-                                 'FN_' + str(i): [fn_top_tiles, fn_bottom_tiles]})
-
-        for key in report_cases.keys():
-            print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
-            key_folder_path = outputs_fig_path / f'{key}'
-            Path(key_folder_path).mkdir(parents=True, exist_ok=True)
-            nslides = len(report_cases[key][0])
-            for i in range(nslides):
-                slide, score, paths, top_attn = report_cases[key][0][i]
-                fig = plot_attention_tiles(slide, score, paths, top_attn, key + '_top', ncols=4)
-                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_top.png'))
-
-                slide, score, paths, bottom_attn = report_cases[key][1][i]
-                fig = plot_attention_tiles(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
-                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
-
-                if self.slide_dataset is not None:
-                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry:  # type: ignore
-                                               entry[SlideKey.SLIDE_ID] == slide)
-                    _ = load_image_dict(slide_dict,
-                                        level=self.level,
-                                        margin=0)  # type: ignore
-                    slide_image = slide_dict[SlideKey.IMAGE]
-                    location_bbox = slide_dict[SlideKey.LOCATION]
-
-                    fig = plot_slide(slide_image=slide_image, scale=1.0)
-                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_thumbnail.png'))
-                    fig = plot_heatmap_overlay(slide=slide, slide_image=slide_image, results=results,
-                                               location_bbox=location_bbox, tile_size=self.tile_size, level=self.level)
-                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_heatmap.png'))
-
-        print("Plotting histogram ...")
-        fig = plot_scores_hist(results)
-        self.save_figure(fig=fig, figpath=outputs_fig_path / 'hist_scores.png')
-
-        print("Computing and saving confusion matrix...")
-        metrics_dict = self.get_metrics_dict('test')
-        cf_matrix = metrics_dict[MetricsKey.CONF_MATRIX].compute()
-        cf_matrix = np.array(cf_matrix.cpu())
-        #  We can't log tensors in the normal way - just print it to console
-        print('test/confusion matrix:')
-        print(cf_matrix)
-        #  Save the normalized confusion matrix as a figure in outputs
-        cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-        fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=self.class_names)
-        self.save_figure(fig=fig, figpath=outputs_fig_path / 'normalized_confusion_matrix.png')
-
-    @staticmethod
-    def save_figure(fig: plt.figure, figpath: Path) -> None:
-        fig.savefig(figpath, bbox_inches='tight')
-
-    @staticmethod
-    def normalize_dict_for_df(dict_old: Dict[str, Any], use_gpu: bool) -> Dict:
-        # slide-level dictionaries are processed by making value dimensions uniform and converting to numpy arrays.
-        # these steps are required to convert the dictionary to pandas dataframe.
-        device = 'cuda' if use_gpu else 'cpu'
-        dict_new = dict()
-        bag_size = len(dict_old[ResultsKey.SLIDE_ID])
-        for key, value in dict_old.items():
-            if key not in [ResultsKey.CLASS_PROBS, ResultsKey.PROB]:
-                if isinstance(value, Tensor):
-                    value = value.squeeze(0).to(device).numpy()
-                    if value.ndim == 0:
-                        value = np.full(bag_size, fill_value=value)
-                dict_new[key] = value
-            elif key == ResultsKey.CLASS_PROBS:
-                if isinstance(value, Tensor):
-                    value = value.squeeze(0).to(device).numpy()
-                    for i in range(len(value)):
-                        dict_new[key + str(i)] = np.repeat(value[i], bag_size)
-        return dict_new
-
-    @staticmethod
-    def move_list_to_device(list_encoded_features: List, use_gpu: bool) -> List:
-        # a list of features on cpu obtained from original list on gpu
-        features_list = []
-        device = 'cuda' if use_gpu else 'cpu'
-        for feature in list_encoded_features:
-            feature = feature.squeeze(0).to(device)
-            features_list.append(feature)
-        return features_list
