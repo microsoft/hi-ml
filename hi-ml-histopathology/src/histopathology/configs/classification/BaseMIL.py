@@ -8,22 +8,22 @@ It is responsible for instantiating the encoder and full DeepMIL model. Subclass
 their datamodules and configure experiment-specific parameters.
 """
 from pathlib import Path
-from typing import Optional, Tuple, Type  # noqa
+from typing import List, Optional, Tuple
 
 import param
+from pytorch_lightning.callbacks.base import Callback
 from torch import nn
 from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,\
-    TransformerPooling
-
+from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,
+                                                        TransformerPooling)
+from histopathology.datamodules.base_module import CacheLocation, CacheMode, TilesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from histopathology.models.deepmil import DeepMILModule
-from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
-                                            ImageNetEncoder, ImageNetSimCLREncoder,
+from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
+from histopathology.utils.logging_utils import DeepMILOutputsCallback
 
 
 class BaseMIL(LightningContainer):
@@ -146,5 +146,16 @@ class BaseMIL(LightningContainer):
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
 
-    def get_slide_dataset(self) -> SlidesDataset:
-        raise NotImplementedError
+    def get_slide_dataset(self) -> Optional[SlidesDataset]:
+        return None
+
+    def get_callbacks(self) -> List[Callback]:
+        outputs_callback = DeepMILOutputsCallback(
+            outputs_dir=self.outputs_folder,
+            n_classes=self.n_classes,
+            tile_size=self.tile_size,
+            level=1,
+            slide_dataset=self.get_slide_dataset(),
+            class_names=self.class_names
+        )
+        return [outputs_callback]
