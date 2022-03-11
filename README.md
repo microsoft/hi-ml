@@ -28,7 +28,7 @@ If you would like to contribute to the code, please check the [developer guide](
 
 ## Documentation
 
-The detailed package documentation, with examples and API reference, is on 
+The detailed package documentation, with examples and API reference, is on
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
 
@@ -88,12 +88,12 @@ on the commandline, like `python myscript.py --azureml`.
 That's it!
 
 For details, please refer to the [onboarding page](docs/source/first_steps.md).
- 
+
 For more examples, please see [examples.md](docs/source/examples.md).
 
 ## Issues
-If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page. 
-If no existing issue exists, please open a new one. Be sure to include 
+If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page.
+If no existing issue exists, please open a new one. Be sure to include
 - A descriptive title
 - Expected behaviour (including a code sample if possible)
 - Actual behavior
@@ -107,7 +107,7 @@ Examples of contributions are
 * Tools to analyze and/or visualize data
 * ...
 
-Please check the [detailed page about contributions](docs/CONTRIBUTING.md).
+Please check the [detailed page about contributions](./CONTRIBUTING.md).
 
 ## Licensing
 
@@ -118,7 +118,7 @@ Please check the [detailed page about contributions](docs/CONTRIBUTING.md).
 
 ## Contact
 
-If you have any feature requests, or find issues in the code, please create an 
+If you have any feature requests, or find issues in the code, please create an
 [issue on GitHub](https://github.com/microsoft/hi-ml/issues).
 
 ## Contributing
@@ -137,8 +137,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
+trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
