@@ -10,10 +10,11 @@ from matplotlib import pyplot as plt
 
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
-from histopathology.utils.report_utils import (add_training_curves_legend, collect_crossval_metrics,
-                                               collect_crossval_outputs, get_best_epoch_metrics, get_best_epochs,
-                                               get_crossval_metrics_table, get_formatted_run_info,
-                                               plot_crossval_roc_and_pr_curves, plot_crossval_training_curves)
+from histopathology.utils.analysis_plot_utils import (add_training_curves_legend, plot_crossval_roc_and_pr_curves,
+                                                      plot_crossval_training_curves)
+from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
+                                               get_best_epoch_metrics, get_best_epochs, get_crossval_metrics_table,
+                                               get_formatted_run_info)
 
 
 def generate_html_report(parent_run_id: str, output_dir: Path,
