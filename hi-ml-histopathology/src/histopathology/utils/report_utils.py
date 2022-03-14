@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-import pickle
 from pathlib import Path
 from typing import Dict, Optional, Sequence
 
@@ -64,32 +63,31 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
 
 
 def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "cross_validation_split_index") -> pd.DataFrame:
+                             crossval_arg_name: str = "cross_validation_split_index",
+                             overwrite: bool = False) -> pd.DataFrame:
     """Fetch metrics logged to Azure ML from cross-validation runs as a dataframe.
 
     Will only download the metrics if they do not already exist locally, as this can take several
     seconds for each child run.
 
     :param parent_run_id: Azure ML run ID for the parent Hyperdrive run.
-    :param download_dir: Directory where to save the downloaded metrics as `aml_metrics.pickle`.
+    :param download_dir: Directory where to save the downloaded metrics as `aml_metrics.json`.
     :param aml_workspace: Azure ML workspace in which the runs were executed.
     :param crossval_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
+    :param overwrite: Whether to force the download even if metrics are already saved locally.
     :return: A dataframe in the format returned by :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     """
-    # Save metrics as a pickle because complex dataframe structure is lost in CSV
-    metrics_pickle = download_dir / "aml_metrics.pickle"
-    if metrics_pickle.is_file():
-        print(f"AML metrics file already exists at {metrics_pickle}")
-        with open(metrics_pickle, 'rb') as f:
-            metrics_df = pickle.load(f)
+    metrics_json = download_dir / "aml_metrics.json"
+    if not overwrite and metrics_json.is_file():
+        print(f"AML metrics file already exists at {metrics_json}")
+        metrics_df = pd.read_json(metrics_json)
     else:
         metrics_df = aggregate_hyperdrive_metrics(run_id=parent_run_id,
                                                   child_run_arg_name=crossval_arg_name,
                                                   aml_workspace=aml_workspace)
-        metrics_pickle.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Writing AML metrics file to {metrics_pickle}")
-        with open(metrics_pickle, 'wb') as f:
-            pickle.dump(metrics_df, f)
+        metrics_json.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Writing AML metrics file to {metrics_json}")
+        metrics_df.to_json(metrics_json)
     return metrics_df.sort_index(axis='columns')
 
 

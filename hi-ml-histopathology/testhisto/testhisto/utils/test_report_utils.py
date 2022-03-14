@@ -5,11 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
+import pandas.testing
 import pytest
 
 from health_azure.utils import download_file_if_necessary
-from histopathology.utils.report_utils import (collect_crossval_outputs, get_best_epoch_metrics, get_best_epochs,
-                                               get_crossval_metrics_table)
+from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
+                                               get_best_epoch_metrics, get_best_epochs, get_crossval_metrics_table)
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
@@ -128,6 +129,25 @@ def best_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
 def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) -> pd.Series:
     metrics_list = ['val/accuracy', 'val/auroc']
     return get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
+
+
+@pytest.mark.parametrize('overwrite', [False, True])
+def test_collect_crossval_metrics(metrics_df: pd.DataFrame, tmp_path: Path, overwrite: bool) -> None:
+    with patch('histopathology.utils.report_utils.aggregate_hyperdrive_metrics',
+               return_value=metrics_df) as mock_aggregate:
+        returned_df = collect_crossval_metrics(parent_run_id="", download_dir=tmp_path,
+                                               aml_workspace=None, overwrite=overwrite)
+        mock_aggregate.assert_called_once()
+        mock_aggregate.reset_mock()
+
+        new_returned_df = collect_crossval_metrics(parent_run_id="", download_dir=tmp_path,
+                                                   aml_workspace=None, overwrite=overwrite)
+        if overwrite:
+            mock_aggregate.assert_called_once()
+        else:
+            mock_aggregate.assert_not_called()
+
+        pandas.testing.assert_frame_equal(returned_df, new_returned_df, check_exact=False)
 
 
 @pytest.mark.parametrize('maximise', [True, False])
