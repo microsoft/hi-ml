@@ -11,14 +11,15 @@ from histopathology.utils.report_utils import (collect_crossval_outputs, downloa
                                                get_best_epoch_metrics, get_best_epochs, get_crossval_metrics_table)
 
 
-def test_download_from_run_if_necessary(tmp_path: Path) -> None:
+@pytest.mark.parametrize('overwrite', [False, True])
+def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
     filename = "test_output.csv"
     download_dir = tmp_path
     remote_dir = Path("outputs")
     expected_local_path = download_dir / filename
 
-    def create_mock_file(remote_path: str, local_path: str, _validate_checksum: bool) -> None:
-        Path(local_path).write_text("mock content")
+    def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
+        Path(output_file_path).write_text("mock content")
 
     run = MagicMock()
     run.download_file.side_effect = create_mock_file
@@ -26,13 +27,18 @@ def test_download_from_run_if_necessary(tmp_path: Path) -> None:
     local_path = download_from_run_if_necessary(run, remote_dir=remote_dir, download_dir=download_dir,
                                                 filename=filename)
     assert local_path == expected_local_path
+    assert local_path.exists()
     run.download_file.assert_called_once()
 
     run.reset_mock()
-    local_path = download_from_run_if_necessary(run, remote_dir=remote_dir, download_dir=download_dir,
-                                                filename=filename)
-    assert local_path == expected_local_path
-    run.download_file.assert_not_called()
+    new_local_path = download_from_run_if_necessary(run, remote_dir=remote_dir, download_dir=download_dir,
+                                                    filename=filename, overwrite=overwrite)
+    assert new_local_path == local_path
+    assert new_local_path.exists()
+    if overwrite:
+        run.download_file.assert_called_once()
+    else:
+        run.download_file.assert_not_called()
 
 
 class MockChildRun:

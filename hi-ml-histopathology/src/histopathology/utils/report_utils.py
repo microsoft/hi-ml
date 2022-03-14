@@ -17,7 +17,8 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from sklearn.metrics import auc, precision_recall_curve, roc_curve
 
-from health_azure.utils import aggregate_hyperdrive_metrics, get_aml_run_from_run_id, get_tags_from_hyperdrive_run
+from health_azure.utils import (_download_file_from_run, aggregate_hyperdrive_metrics, get_aml_run_from_run_id,
+                                get_tags_from_hyperdrive_run)
 from histopathology.utils.naming import ResultsKey
 
 TRAIN_STYLE = dict(ls='-')
@@ -27,22 +28,24 @@ BEST_TRAIN_MARKER_STYLE = dict(marker='o', markeredgecolor='w', markersize=6)
 BEST_VAL_MARKER_STYLE = dict(marker='*', markeredgecolor='w', markersize=11)
 
 
-def download_from_run_if_necessary(run: Run, remote_dir: Path, download_dir: Path, filename: str) -> Path:
+def download_from_run_if_necessary(run: Run, remote_dir: Path, download_dir: Path, filename: str,
+                                   overwrite: bool = False) -> Path:
     """Download any file from an AML run if it doesn't exist locally.
 
     :param run: AML Run object.
     :param remote_dir: Remote directory from where the file is downloaded.
     :param download_dir: Local directory where to save the downloaded file.
     :param filename: Name of the file to be downloaded (e.g. `"test_output.csv"`).
+    :param overwrite: Whether to force the download even if the file already exists locally.
     :return: Local path to the downloaded file.
     """
     local_path = download_dir / filename
     remote_path = remote_dir / filename
-    if local_path.exists():
+    if not overwrite and local_path.exists():
         print("File already exists at", local_path)
     else:
         local_path.parent.mkdir(exist_ok=True, parents=True)
-        run.download_file(str(remote_path), str(local_path), _validate_checksum=True)
+        _download_file_from_run(run, str(remote_path), str(local_path), validate_checksum=True)
         assert local_path.exists()
         print("File is downloaded at", local_path)
     return local_path
