@@ -82,7 +82,6 @@ setup(
     keywords='InnerEye, HealthIntelligence, AzureML',
     license='MIT License',
     packages=find_packages(include=['health_azure']),
-    package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
     entry_points={

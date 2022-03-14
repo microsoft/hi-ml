@@ -662,11 +662,11 @@ def render_and_run_test_script(path: Path,
         print(f"Added pypi: {himl_pypi_version} option")
     else:
         # No packages found, so copy the src folder as a fallback
-        src_path = repository_root() / "hi-ml-azure" / "src"
+        src_path = repository_root() / "hi-ml-azure"
         if src_path.is_dir():
-            shutil.copytree(src=src_path / 'health_azure', dst=path / 'health_azure')
+            shutil.copytree(src=src_path, dst=path)
             run_requirements = True
-            print("Copied 'src' folder.")
+            print(f"Copied '{src_path.name}' folder.")
 
     environment_yaml_path = path / "environment.yml"
     render_environment_yaml(environment_yaml_path, version, run_requirements, extra_options=extra_options)
@@ -762,10 +762,10 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
 def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
-    Test against either the local src folder or a package. If running locally, ensure that there
+    Test against either the local source folder or a package. If running locally, ensure that there
     are no whl's in the dist folder, or that will be used.
     :param run_target: Local execution if True, else in AzureML.
-    :param use_package: True to test against package, False to test against copy of src folder.
+    :param use_package: True to test against package, False to test against copy of the source folder.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     if not use_package and \
