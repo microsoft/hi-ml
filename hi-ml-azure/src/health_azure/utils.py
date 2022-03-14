@@ -1354,6 +1354,26 @@ def _download_file_from_run(run: Run, filename: str, output_file: Path, validate
     return output_file
 
 
+def download_file_if_necessary(run: Run, filename: str, output_file: Path, overwrite: bool = False) -> Path:
+    """Download any file from an Azure ML run if it doesn't exist locally.
+
+    :param run: AML Run object.
+    :param remote_dir: Remote directory from where the file is downloaded.
+    :param download_dir: Local directory where to save the downloaded file.
+    :param filename: Name of the file to be downloaded (e.g. `"outputs/test_output.csv"`).
+    :param overwrite: Whether to force the download even if the file already exists locally.
+    :return: Local path to the downloaded file.
+    """
+    if not overwrite and output_file.exists():
+        print("File already exists at", output_file)
+    else:
+        output_file.parent.mkdir(exist_ok=True, parents=True)
+        _download_file_from_run(run, filename, output_file, validate_checksum=True)
+        assert output_file.exists()
+        print("File is downloaded at", output_file)
+    return output_file
+
+
 def is_global_rank_zero() -> bool:
     """
     Tries to guess if the current process is running as DDP rank zero, before the training has actually started,

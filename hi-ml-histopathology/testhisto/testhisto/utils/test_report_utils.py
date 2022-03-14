@@ -7,15 +7,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from histopathology.utils.report_utils import (collect_crossval_outputs, download_from_run_if_necessary,
-                                               get_best_epoch_metrics, get_best_epochs, get_crossval_metrics_table)
+from health_azure.utils import download_file_if_necessary
+from histopathology.utils.report_utils import (collect_crossval_outputs, get_best_epoch_metrics, get_best_epochs,
+                                               get_crossval_metrics_table)
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
 def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
     filename = "test_output.csv"
     download_dir = tmp_path
-    remote_dir = Path("outputs")
+    remote_filename = "outputs/" + filename
     expected_local_path = download_dir / filename
 
     def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
@@ -24,15 +25,13 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
     run = MagicMock()
     run.download_file.side_effect = create_mock_file
 
-    local_path = download_from_run_if_necessary(run, remote_dir=remote_dir, download_dir=download_dir,
-                                                filename=filename)
+    local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
     assert local_path == expected_local_path
     assert local_path.exists()
     run.download_file.assert_called_once()
 
     run.reset_mock()
-    new_local_path = download_from_run_if_necessary(run, remote_dir=remote_dir, download_dir=download_dir,
-                                                    filename=filename, overwrite=overwrite)
+    new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
     assert new_local_path == local_path
     assert new_local_path.exists()
     if overwrite:

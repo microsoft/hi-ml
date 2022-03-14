@@ -17,7 +17,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from sklearn.metrics import auc, precision_recall_curve, roc_curve
 
-from health_azure.utils import (_download_file_from_run, aggregate_hyperdrive_metrics, get_aml_run_from_run_id,
+from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
 from histopathology.utils.naming import ResultsKey
 
@@ -28,32 +28,10 @@ BEST_TRAIN_MARKER_STYLE = dict(marker='o', markeredgecolor='w', markersize=6)
 BEST_VAL_MARKER_STYLE = dict(marker='*', markeredgecolor='w', markersize=11)
 
 
-def download_from_run_if_necessary(run: Run, remote_dir: Path, download_dir: Path, filename: str,
-                                   overwrite: bool = False) -> Path:
-    """Download any file from an AML run if it doesn't exist locally.
-
-    :param run: AML Run object.
-    :param remote_dir: Remote directory from where the file is downloaded.
-    :param download_dir: Local directory where to save the downloaded file.
-    :param filename: Name of the file to be downloaded (e.g. `"test_output.csv"`).
-    :param overwrite: Whether to force the download even if the file already exists locally.
-    :return: Local path to the downloaded file.
-    """
-    local_path = download_dir / filename
-    remote_path = remote_dir / filename
-    if not overwrite and local_path.exists():
-        print("File already exists at", local_path)
-    else:
-        local_path.parent.mkdir(exist_ok=True, parents=True)
-        _download_file_from_run(run, str(remote_path), str(local_path), validate_checksum=True)
-        assert local_path.exists()
-        print("File is downloaded at", local_path)
-    return local_path
-
-
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
                              crossval_arg_name: str = "cross_validation_split_index",
-                             output_filename: str = "test_output.csv") -> Dict[int, pd.DataFrame]:
+                             output_filename: str = "test_output.csv",
+                             overwrite: bool = False) -> Dict[int, pd.DataFrame]:
     """Fetch output CSV files from cross-validation runs as dataframes.
 
     Will only download the CSV files if they do not already exist locally.
@@ -64,6 +42,7 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
     :param aml_workspace: Azure ML workspace in which the runs were executed.
     :param crossval_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
     :param output_filename: Filename of the output CSVs to download.
+    :param overwrite: Whether to force the download even if each file already exists locally.
     :return: A dictionary of dataframes with the sorted cross-validation indices as keys.
     """
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace)
@@ -75,10 +54,9 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
             raise ValueError(f"Child run expected to have the tag '{crossval_arg_name}'")
         child_dir = download_dir / str(child_run_index)
         try:
-            child_csv = download_from_run_if_necessary(child_run,
-                                                       remote_dir=Path("outputs"),
-                                                       download_dir=child_dir,
-                                                       filename=output_filename)
+            remote_filename = "outputs/" + output_filename
+            child_csv = download_file_if_necessary(child_run, remote_filename, child_dir / output_filename,
+                                                   overwrite=overwrite)
             all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
         except Exception as e:
             print(f"Failed to download {output_filename} for run {child_run.id}: {e}")
