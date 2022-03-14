@@ -17,9 +17,8 @@ from histopathology.utils.report_utils import (collect_crossval_metrics, collect
                                                get_formatted_run_info)
 
 
-def generate_html_report(parent_run_id: str, output_dir: Path,
-                         workspace_config_path: Optional[Path] = None,
-                         include_test: bool = False) -> None:
+def generate_html_report(parent_run_id: str, output_dir: Path, workspace_config_path: Optional[Path] = None,
+                         include_test: bool = False, overwrite: bool = False) -> None:
     aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace=aml_workspace)
     report_dir = output_dir / parent_run.display_name
@@ -32,7 +31,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     report.add_heading("Azure ML metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
-    metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace)
+    metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
     best_epochs = get_best_epochs(metrics_df, 'val/auroc', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
@@ -63,7 +62,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         report.add_tables([test_metrics_table])
 
         # Add test ROC and PR curves
-        crossval_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace)
+        crossval_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
 
         report.add_heading("Test ROC and PR curves", level=2)
         fig = plot_crossval_roc_and_pr_curves(crossval_dfs)
@@ -84,7 +83,9 @@ if __name__ == "__main__":
     parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
                                                    "If omitted, will try to load default workspace.")
     parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
-                                                                    "in the generated report")
+                                                                    "in the generated report.")
+    parser.add_argument('--overwrite', action='store_true', help="Forces (re)download of metrics and output files, "
+                                                                 "even if they already exist locally.")
     args = parser.parse_args()
 
     if args.output_dir is None:
@@ -100,4 +101,5 @@ if __name__ == "__main__":
     generate_html_report(parent_run_id=args.run_id,
                          output_dir=Path(args.output_dir),
                          workspace_config_path=workspace_config,
-                         include_test=args.include_test)
+                         include_test=args.include_test,
+                         overwrite=args.overwrite)
