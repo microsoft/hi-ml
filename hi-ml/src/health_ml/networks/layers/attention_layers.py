@@ -6,7 +6,7 @@
 Created using the original DeepMIL paper and code from Ilse et al., 2018
 https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
 """
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 from torch import nn, Tensor, transpose, mm
 import torch
 import torch.nn.functional as F
@@ -26,6 +26,10 @@ class MeanPoolingLayer(nn.Module):
 
 class MaxPoolingLayer(nn.Module):
     """Max pooling returns uniform weights and the maximum feature vector over the first axis"""
+
+     # args/kwargs added here for compatibility with parametrised pooling modules
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__()
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
         num_instances = features.shape[0]
