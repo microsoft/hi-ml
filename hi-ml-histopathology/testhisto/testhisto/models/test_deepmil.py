@@ -100,30 +100,23 @@ def _test_lightningmodule(
 
     probs = module.activation_fn(bag_logits)
     assert ((probs >= 0) & (probs <= 1)).all()
-    if n_classes > 1:
-        assert probs.shape == (batch_size, n_classes)
-    else:
-        assert probs.shape[0] == batch_size
 
     if n_classes > 1:
         predlabels = argmax(probs, dim=1)
     else:
         predlabels = round(probs)
 
+    predlabels = predlabels.view(-1,1)
     assert predlabels.shape[0] == batch_size
-    assert probs.shape[1] == n_classes
+    assert probs.shape == (batch_size, n_classes)
 
     bag_labels = bag_labels.view(-1, 1)
+    if n_classes == 1:
+        probs = probs.squeeze(dim=1)
     for metric_name, metric_object in module.train_metrics.items():
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
-        if n_classes > 1:
-            if bag_labels.shape == torch.Size([1, 1]):
-                score = metric_object(probs, bag_labels.squeeze(0))
-            else:
-                score = metric_object(probs, bag_labels.squeeze())
-        else:
-            score = metric_object(probs.view(-1, 1), bag_labels)
+        score = metric_object(probs, bag_labels.view(batch_size,))
         assert torch.all(score >= 0)
         assert torch.all(score <= 1)
 
@@ -151,7 +144,7 @@ def validate_metric_inputs(scores: torch.Tensor, labels: torch.Tensor) -> None:
     def is_integral(x: torch.Tensor) -> bool:
         return (x == x.long()).all()  # type: ignore
 
-    assert scores.shape[0] == labels.shape[0]
+    assert labels.shape == (scores.shape[0], )
     assert torch.is_floating_point(scores), "Received scores with integer dtype"
     assert not is_integral(scores), "Received scores with integral values"
     assert is_integral(labels), "Received labels with floating-point values"
@@ -221,10 +214,7 @@ def test_metrics(n_classes: int) -> None:
 
     for key, metric_obj in module_metrics_dict.items():
         value = metric_obj.compute()
-        if n_classes > 1:
-            expected_value = independent_metrics_dict[key](predicted_probs, true_labels.squeeze())
-        else:
-            expected_value = independent_metrics_dict[key](predicted_probs, true_labels)
+        expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
         assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
 
