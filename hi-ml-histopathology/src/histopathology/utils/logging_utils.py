@@ -163,15 +163,19 @@ def save_slide_thumbnail_and_heatmap(results: Dict[ResultsKey, List[Any]], slide
 
     fig = plot_slide(slide_image=slide_image, scale=1.0)
     save_figure(fig=fig, figpath=key_dir / f'{slide_id}_thumbnail.png')
+    fig.close()
+
     fig = plot_heatmap_overlay(slide=slide_id, slide_image=slide_image, results=results,
                                location_bbox=location_bbox, tile_size=tile_size, level=level)
     save_figure(fig=fig, figpath=key_dir / f'{slide_id}_heatmap.png')
+    fig.close()
 
 
 def save_scores_histogram(results: Dict[ResultsKey, List[Any]], figures_dir: Path) -> None:
     print("Plotting histogram ...")
     fig = plot_scores_hist(results)
     save_figure(fig=fig, figpath=figures_dir / 'hist_scores.png')
+    fig.close()
 
 
 def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List[str], figures_dir: Path) -> None:
@@ -184,6 +188,7 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
     cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=class_names)
     save_figure(fig=fig, figpath=figures_dir / 'normalized_confusion_matrix.png')
+    fig.close()
 
 
 class DeepMILOutputsCallback(Callback):
