@@ -227,38 +227,6 @@ def test_metrics(n_classes: int) -> None:
             expected_value = independent_metrics_dict[key](predicted_probs, true_labels)
         assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
-    # ================
-    # Test that thresholded metrics (e.g. accuracy, precision, etc.) change as the threshold is varied.
-    # If they don't, it suggests the inputs are hard labels instead of continuous scores.
-    thresholded_metrics_keys = [key for key, metric in module_metrics_dict.items()
-                                if hasattr(metric, 'threshold')]
-
-    def set_metrics_threshold(metrics_dict: Any, threshold: float) -> None:
-        for key in thresholded_metrics_keys:
-            metrics_dict[key].threshold = threshold
-
-    def reset_metrics(metrics_dict: Any) -> None:
-        for metric_obj in metrics_dict.values():
-            metric_obj.reset()
-
-    if n_classes == 1:
-        low_threshold, high_threshold = torch.quantile(predicted_probs, torch.tensor([0.1, 0.9]))
-        reset_metrics(module_metrics_dict)
-        set_metrics_threshold(module_metrics_dict, threshold=low_threshold)
-        _ = module.test_step(batch, 0)
-        results_low_threshold = {key: module_metrics_dict[key].compute()
-                                 for key in thresholded_metrics_keys}
-
-        reset_metrics(module_metrics_dict)
-        set_metrics_threshold(module_metrics_dict, threshold=high_threshold)
-        _ = module.test_step(batch, 0)
-        results_high_threshold = {key: module_metrics_dict[key].compute()
-                                  for key in thresholded_metrics_keys}
-
-        for key in thresholded_metrics_keys:
-            assert not torch.allclose(results_low_threshold[key], results_high_threshold[key], rtol=1e-3), \
-                f"Got same value for '{key}' metric with low and high thresholds"
-
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
     device = "cuda" if use_gpu else "cpu"
