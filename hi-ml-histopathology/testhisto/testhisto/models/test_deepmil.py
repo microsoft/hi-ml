@@ -247,13 +247,13 @@ def test_metrics(n_classes: int) -> None:
         set_metrics_threshold(module_metrics_dict, threshold=low_threshold)
         _ = module.test_step(batch, 0)
         results_low_threshold = {key: module_metrics_dict[key].compute()
-                             for key in thresholded_metrics_keys}
+                                 for key in thresholded_metrics_keys}
 
         reset_metrics(module_metrics_dict)
         set_metrics_threshold(module_metrics_dict, threshold=high_threshold)
         _ = module.test_step(batch, 0)
         results_high_threshold = {key: module_metrics_dict[key].compute()
-                              for key in thresholded_metrics_keys}
+                                  for key in thresholded_metrics_keys}
 
         for key in thresholded_metrics_keys:
             assert not torch.allclose(results_low_threshold[key], results_high_threshold[key]), \
