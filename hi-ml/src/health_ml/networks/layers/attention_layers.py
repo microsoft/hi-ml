@@ -27,7 +27,7 @@ class MeanPoolingLayer(nn.Module):
 class MaxPoolingLayer(nn.Module):
     """Max pooling returns uniform weights and the maximum feature vector over the first axis"""
 
-     # args/kwargs added here for compatibility with parametrised pooling modules
+    # args/kwargs added here for compatibility with parametrised pooling modules
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__()
 
