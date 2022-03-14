@@ -20,7 +20,7 @@ import sys
 
 # Make the source code for both packages available here
 sys.path.insert(0, os.path.abspath('../../hi-ml/src'))
-sys.path.insert(0, os.path.abspath('../../hi-ml-azure/src'))
+sys.path.insert(0, os.path.abspath('../../hi-ml-azure'))
 sys.path.insert(0, os.path.abspath('../../hi-ml-histopathology/src'))
 
 # -- Project information -----------------------------------------------------

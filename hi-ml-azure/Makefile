@@ -34,8 +34,8 @@ clean:
 	rm -vrf `find . -type d -name __pycache__`
 	rm -vrf `find . -type d -name logs`
 	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.mypy_cache ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
-	rm -vrf ./testazure/testazure/test_data/test_make_tests
+	rm -vrf ./.mypy_cache ./.pytest_cache ./build ./dist ./htmlcov ./*.egg-info
+	rm -vrf ./tests/testazure/test_data/test_make_tests
 	rm -vf ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
 
 # build package, assuming build requirements already installed
@@ -55,8 +55,8 @@ flake8: pip_test call_flake8
 # run mypy, assuming test requirements already installed
 call_mypy:
 	mypy --config=../mypy.ini --install-types --non-interactive setup.py
-	mypy --config=../mypy.ini --install-types --non-interactive -p src
-	mypy --config=../mypy.ini --install-types --non-interactive -p testazure
+	mypy --config=../mypy.ini --install-types --non-interactive -p .
+	mypy --config=../mypy.ini --install-types --non-interactive -p tests
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
@@ -69,21 +69,21 @@ check: pip_test call_check
 
 # run pytest on package, assuming test requirements already installed
 call_pytest:
-	pytest testazure
+	pytest tests
 
 # install test requirements and run tests
 pytest: pip_test call_pytest
 
 # run pytest fast subset on package, assuming test requirements already installed
 call_pytest_fast:
-	pytest -m fast testazure
+	pytest -m fast tests
 
 # install test requirements and run pytest fast subset
 pytest_fast: pip_test call_pytest_fast
 
 # run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
 call_pytest_and_coverage:
-	pytest --cov=health_azure  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testazure
+	pytest --cov=health_azure --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc tests
 	pycobertura show --format text --output coverage.txt coverage.xml
 
 # install test requirements and run pytest coverage

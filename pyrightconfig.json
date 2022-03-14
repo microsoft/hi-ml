@@ -16,23 +16,23 @@
     {
       "root": "hi-ml/src",
       "extraPaths": [
-        "hi-ml-azure/src"
+        "hi-ml-azure"
       ]
     },
     {
       "root": "hi-ml/testhiml",
       "extraPaths": [
-        "hi-ml-azure/src",
+        "hi-ml-azure",
         "hi-ml/src",
       ]
     },
     {
-      "root": "hi-ml-azure/src"
+      "root": "hi-ml-azure"
     },
     {
-      "root": "hi-ml-azure/testazure",
+      "root": "hi-ml-azure/tests",
       "extraPaths": [
-        "hi-ml-azure/src",
+        "hi-ml-azure",
       ]
     }
   ]

@@ -5,7 +5,7 @@
 We suggest using Visual Studio Code (VSCode), available for multiple platforms [here](https://code.visualstudio.com/).
 On Windows system, we recommend using WSL, the Windows Subsystem for Linux, because some PyTorch features are not available on Windows.
 Inside VSCode, please install the extensions that are recommended for this project - they are available in `.vscode/extensions.json` in the
-repository root. 
+repository root.
 
 
 ## Creating a Conda environment
@@ -19,7 +19,7 @@ conda activate himl
 
 ## Installing `pyright`
 We are using static typechecking for our code via `mypy` and `pyright`. The latter requires a separate installation
-outside the Conda environment. For WSL, these are the required steps (see also 
+outside the Conda environment. For WSL, these are the required steps (see also
 [here](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)):
 ```shell
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
@@ -30,7 +30,7 @@ nvm install node
 npm install -g pyright
 ```
 
-## Using specific versions `hi-ml` in your Python environments 
+## Using specific versions `hi-ml` in your Python environments
 
 If you'd like to test specific changes to the `hi-ml` package in your code, you can use two different routes:
 
@@ -56,14 +56,14 @@ dependencies:
 
 ## Common things to do
 
-The repository contains a makefile with definitions for common operations. 
+The repository contains a makefile with definitions for common operations.
 * `make check`: Run `flake8` and `mypy` on the repository.
 * `make test`: Run `flake8` and `mypy` on the repository, then all tests via `pytest`
 * `make pip`: Install all packages for running and testing in the current interpreter.
 * `make conda`: Update the hi-ml Conda environment and activate it
 
 ## Building documentation
-To build the sphinx documentation, you must have sphinx and related packages installed 
+To build the sphinx documentation, you must have sphinx and related packages installed
 (see `build_requirements.txt` in the repository root). Then run:
 ```
 cd docs
@@ -74,10 +74,10 @@ This will build all your documentation in `docs/build/html`.
 
 ## Setting up your AzureML workspace
 
-* In the browser, navigate to the AzureML workspace that you want to use for running your tests. 
+* In the browser, navigate to the AzureML workspace that you want to use for running your tests.
 * In the top right section, there will be a dropdown menu showing the name of your AzureML workspace. Expand that.
 * In the panel, there is a link "Download config file". Click that.
-* This will download a file `config.json`. Move that file to both of the folders `hi-ml/testhiml` and `hi-ml/testazure` 
+* This will download a file `config.json`. Move that file to both of the folders `hi-ml/testhiml` and `hi-ml-azure/tests`
   The file `config.json` is already present in `.gitignore`, and will hence not be checked in.
 
 ## Creating and Deleting Docker Environments in AzureML
@@ -105,8 +105,8 @@ When running the tests locally, they can either be run against the source direct
 
 To create a new package release, follow these steps:
 * On the repository's github page, click on "Releases", then "Draft a new release"
-* In the "Draft a new release" page, click "Choose a tag". In the text box, enter a (new) tag name that has 
-  the desired version number, plus a "v" prefix. For example, to create package version 0.12.17, create a 
+* In the "Draft a new release" page, click "Choose a tag". In the text box, enter a (new) tag name that has
+  the desired version number, plus a "v" prefix. For example, to create package version 0.12.17, create a
   tag `v0.12.17`. Then choose "+ Create new tag" below the text box.
 * Enter a "Release title" that highlights the main feature(s) of this new package version.
 * Click "Auto-generate  release notes" to pull in the titles of the Pull Requests since the last release.

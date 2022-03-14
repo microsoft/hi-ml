@@ -63,8 +63,8 @@
             "name": "Elevate: HI-ML-AZURE Local",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/hi-ml-azure/src/health_azure/examples/elevate_this.py",
-            "cwd": "${workspaceFolder}/hi-ml-azure/src/health_azure/examples/",
+            "program": "${workspaceFolder}/hi-ml-azure/health_azure/examples/elevate_this.py",
+            "cwd": "${workspaceFolder}/hi-ml-azure/health_azure/examples/",
             "args": [
                 "--message='Hello World :-)'"
             ],
@@ -74,8 +74,8 @@
             "name": "Elevate: HI-ML-AZURE AML",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/hi-ml-azure/src/health_azure/examples/elevate_this.py",
-            "cwd": "${workspaceFolder}/hi-ml-azure/src/health_azure/examples/",
+            "program": "${workspaceFolder}/hi-ml-azure/health_azure/examples/elevate_this.py",
+            "cwd": "${workspaceFolder}/hi-ml-azure/health_azure/examples/",
             "args": [
                 "--message='Hello World :-)'",
                 "--azureml"
@@ -111,7 +111,7 @@
             "type": "python",
             "request": "launch",
             "module": "testazure.test_data.make_tests",
-            "cwd": "${workspaceFolder}/hi-ml-azure/testazure/",
+            "cwd": "${workspaceFolder}/hi-ml-azure/tests/",
             "console": "integratedTerminal"
         },
         {
