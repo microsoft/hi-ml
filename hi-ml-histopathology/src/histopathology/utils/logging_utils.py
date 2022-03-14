@@ -15,6 +15,7 @@ from pytorch_lightning.callbacks.base import Callback
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 
 from histopathology.datasets.base_dataset import SlidesDataset
+from histopathology.models.deepmil import validate_class_names
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
@@ -187,7 +188,7 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
 
 class DeepMILOutputsCallback(Callback):
     def __init__(self, outputs_dir: Path, n_classes: int, tile_size: int, level: int,
-                 slide_dataset: Optional[SlidesDataset], class_names: Sequence[str]) -> None:
+                 slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]]) -> None:
         super().__init__()
         self.outputs_dir = outputs_dir
         self.figures_dir = outputs_dir / "fig"
@@ -196,7 +197,7 @@ class DeepMILOutputsCallback(Callback):
         self.tile_size = tile_size
         self.level = level
         self.slide_dataset = slide_dataset
-        self.class_names = class_names
+        self.class_names = validate_class_names(class_names, self.n_classes)
 
     def test_epoch_end(self, outputs: List[Dict[str, Any]]) -> None:  # type: ignore
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
