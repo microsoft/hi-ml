@@ -256,7 +256,7 @@ def test_metrics(n_classes: int) -> None:
                                   for key in thresholded_metrics_keys}
 
         for key in thresholded_metrics_keys:
-            assert not torch.allclose(results_low_threshold[key], results_high_threshold[key]), \
+            assert not torch.allclose(results_low_threshold[key], results_high_threshold[key], rtol=1e-3), \
                 f"Got same value for '{key}' metric with low and high thresholds"
 
 
