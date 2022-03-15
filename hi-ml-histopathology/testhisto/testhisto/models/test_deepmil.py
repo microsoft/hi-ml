@@ -106,7 +106,7 @@ def _test_lightningmodule(
     else:
         predlabels = round(probs)
 
-    predlabels = predlabels.view(-1,1)
+    predlabels = predlabels.view(-1, 1)
     assert predlabels.shape[0] == batch_size
     assert probs.shape == (batch_size, n_classes)
 
