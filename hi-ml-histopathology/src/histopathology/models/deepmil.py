@@ -248,7 +248,7 @@ class DeepMILModule(LightningModule):
             predicted_probs = predicted_probs.squeeze(dim=1)
 
         bag_labels = bag_labels.view(-1, 1)
- 
+
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
             metric_object.update(predicted_probs, bag_labels.view(batch_size,))
