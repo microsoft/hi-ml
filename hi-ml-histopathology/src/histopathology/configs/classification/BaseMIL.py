@@ -8,10 +8,9 @@ It is responsible for instantiating the encoder and full DeepMIL model. Subclass
 their datamodules and configure experiment-specific parameters.
 """
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 import param
-from pytorch_lightning.callbacks.base import Callback
 from torch import nn
 from torchvision.models import resnet18
 
@@ -23,7 +22,6 @@ from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
-from histopathology.utils.logging_utils import DeepMILOutputsCallback
 
 
 class BaseMIL(LightningContainer):
@@ -122,6 +120,7 @@ class BaseMIL(LightningContainer):
         return pooling_layer, num_features
 
     def create_model(self) -> DeepMILModule:
+        # TODO: Pass outputs handler(s) into DeepMILModule
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
@@ -152,14 +151,3 @@ class BaseMIL(LightningContainer):
 
     def get_slide_dataset(self) -> Optional[SlidesDataset]:
         return None
-
-    def get_callbacks(self) -> List[Callback]:
-        outputs_callback = DeepMILOutputsCallback(
-            outputs_dir=self.outputs_folder,
-            n_classes=self.data_module.train_dataset.N_CLASSES,
-            tile_size=self.tile_size,
-            level=1,
-            slide_dataset=self.get_slide_dataset(),
-            class_names=self.class_names  # TODO: Add class_names as a dataset attribute
-        )
-        return [outputs_callback]

@@ -4,15 +4,15 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import more_itertools as mi
 import numpy as np
 import pandas as pd
 import torch
-from pytorch_lightning import Callback, LightningModule, Trainer
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
+from torchmetrics.metric import Metric
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import validate_class_names
@@ -191,7 +191,7 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
     fig.close()
 
 
-class DeepMILOutputsCallback(Callback):
+class DeepMILOutputsHandler:
     def __init__(self, outputs_dir: Path, n_classes: int, tile_size: int, level: int,
                  slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]]) -> None:
         super().__init__()
@@ -204,16 +204,8 @@ class DeepMILOutputsCallback(Callback):
         self.slide_dataset = slide_dataset
         self.class_names = validate_class_names(class_names, self.n_classes)
 
-        self.test_outputs = []
-
-    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self.test_outputs = []
-
-    def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Dict[ResultsKey, Any],
-                          batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.test_outputs.append(outputs)
-
-    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:  # type: ignore
+    def save_outputs(self, outputs: List[Dict[ResultsKey, Any]],
+                     metrics_dict: Mapping[MetricsKey, Metric]) -> None:  # type: ignore
         print("... test_epoch_end() called")
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
@@ -222,7 +214,8 @@ class DeepMILOutputsCallback(Callback):
         # outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # contains the tile value
         # TODO: Ensure this works with multi-GPU (e.g. using @rank_zero_only and pl_module.all_gather())
-        results = collate_results(self.test_outputs)
+        # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
+        results = collate_results(outputs)
 
         save_outputs_and_features(results, self.outputs_dir)
 
@@ -236,6 +229,5 @@ class DeepMILOutputsCallback(Callback):
 
         save_scores_histogram(results, figures_dir=self.figures_dir)
 
-        metrics_dict = pl_module.get_metrics_dict('test')
-        save_confusion_matrix(metrics_dict[MetricsKey.CONF_MATRIX], class_names=self.class_names,
-                              figures_dir=self.figures_dir)
+        conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
+        save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=self.figures_dir)
