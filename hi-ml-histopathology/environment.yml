@@ -11,6 +11,8 @@ dependencies:
   - python-blosc==1.7.0
   - torchvision=0.11.1
   - pip:
+      - azureml-sdk==1.36.0
+      - cucim==21.10.1
       - hi-ml>=0.1.12
       - joblib==0.16.0
       - jupyter==1.0.0
@@ -29,6 +31,7 @@ dependencies:
       - pydicom==2.0.0
       - pyflakes==2.2.0
       - PyJWT==1.7.1
+      - pytest==7.0.1
       - rich==5.1.1
       - rpdb==0.1.6
       - runstats==1.8.0

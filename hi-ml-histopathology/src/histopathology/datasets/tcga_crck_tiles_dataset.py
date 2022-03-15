@@ -42,7 +42,7 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
                  **kwargs: Any) -> None:
         super().__init__(root=root, transform=transform)
         self.base_dataset = TcgaCrck_TilesDataset(root=root,
-                                                  dataset_csv=dataset_csv,
+                                                  dataset_csv=datamodule_args.dataset_name,
                                                   dataset_df=dataset_df,
                                                   train=train)
 
