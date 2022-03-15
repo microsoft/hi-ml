@@ -171,7 +171,11 @@ def test_get_best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int,
         assert best_metrics_df.loc[metric].map(pd.api.types.is_number).all()
 
 
-def _test_get_crossval_metrics_table(df: pd.DataFrame, metrics_list: List[str]) -> None:
+@pytest.mark.parametrize('fixture_name, metrics_list', [('metrics_df', ['test/accuracy', 'test/auroc']),
+                                                        ('best_epoch_metrics', ['val/accuracy', 'val/auroc'])])
+def test_get_crossval_metrics_table(fixture_name: str, metrics_list: List[str], request: pytest.FixtureRequest) -> None:
+    df = request.getfixturevalue(fixture_name)
+
     metrics_table = get_crossval_metrics_table(df, metrics_list)
     assert list(metrics_table.index) == metrics_list
     assert len(metrics_table.columns) == len(df.columns) + 1
@@ -179,11 +183,3 @@ def _test_get_crossval_metrics_table(df: pd.DataFrame, metrics_list: List[str]) 
     original_values = df.loc[metrics_list].values
     table_values = metrics_table.iloc[:, :-1].applymap(float).values
     assert (table_values == original_values).all()
-
-
-def test_get_crossval_metrics_table_val(best_epoch_metrics: pd.DataFrame) -> None:
-    _test_get_crossval_metrics_table(best_epoch_metrics, ['val/accuracy', 'val/auroc'])
-
-
-def test_get_crossval_metrics_table_test(metrics_df: pd.DataFrame) -> None:
-    _test_get_crossval_metrics_table(metrics_df, ['test/accuracy', 'test/auroc'])
