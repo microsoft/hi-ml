@@ -1,7 +1,7 @@
 # Changelog
 
 Early versions of this toolbox used a manually created changelog. As of March 2022, we have switched to using Github's auto-generated changelog.
-If you would like to view the changelog for a particular release, you can do so on the [Releases page](https://github.com/microsoft/hi-ml/releases): 
+If you would like to view the changelog for a particular release, you can do so on the [Releases page](https://github.com/microsoft/hi-ml/releases):
 Each release contains a link for "Full Changelog"
 
 
@@ -22,10 +22,10 @@ the environment file since it is necessary for the augmentations.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Improved editor setup for VSCode.
 
 ### Changed
+- ([#239](https://github.com/microsoft/hi-ml/pull/239) Separate out hi-ml-histopathology build pipeline workflow)
 - ([#227](https://github.com/microsoft/hi-ml/pull/227)) Pooling constructor is outside of DeepMIL and inside of BaseMIL now.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Model config loader is now more flexible, can accept fully qualified class name or just top-level module name and class (like histopathology.DeepSMILECrck)
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Runner raises an error when Conda environment file contains a pip include (-r) statement
-
 - ([#196](https://github.com/microsoft/hi-ml/pull/196)) Show current workspace name in error message.
 
 ### Fixed
