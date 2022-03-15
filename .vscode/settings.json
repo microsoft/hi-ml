@@ -38,7 +38,12 @@
     "python.formatting.blackArgs": [
         "--line-length=120"
     ],
-    "python.sortImports.args": ["-l", "120"],
+    "python.sortImports.args": [
+        "-l=120",
+        "--src=${workspaceFolder}/hi-ml/src",
+        "--src=${workspaceFolder}/hi-ml-azure/src",
+        "--src=${workspaceFolder}/hi-ml-histopathology/src"
+    ],
     "python.testing.pytestArgs": [
         "${workspaceFolder}/hi-ml/testhiml/testhiml",
         "${workspaceFolder}/hi-ml-azure/testazure/testazure",
