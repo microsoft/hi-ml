@@ -204,11 +204,10 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
 
 
 class DeepMILOutputsHandler:
-    def __init__(self, outputs_dir: Path, n_classes: int, tile_size: int, level: int,
+    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
                  primary_val_metric: MetricsKey, maximise: bool) -> None:
-        self.outputs_dir = outputs_dir
-        self.figures_dir = outputs_dir / "fig"
+        self.outputs_root = outputs_root
 
         self.n_classes = n_classes
         self.tile_size = tile_size
@@ -239,8 +238,25 @@ class DeepMILOutputsHandler:
 
         return is_best
 
+    @property
+    def validation_outputs_dir(self) -> Path:
+        return self.outputs_root / "val"
+
+    @property
+    def validation_figures_dir(self) -> Path:
+        return self.validation_outputs_dir / "fig"
+
+    @property
+    def test_outputs_dir(self) -> Path:
+        return self.outputs_root / "test"
+
+    @property
+    def test_figures_dir(self) -> Path:
+        return self.test_outputs_dir / "fig"
+
     def _save_outputs(self, outputs: List[Dict[ResultsKey, Any]],
-                      metrics_dict: Mapping[MetricsKey, Metric]) -> None:
+                      metrics_dict: Mapping[MetricsKey, Metric],
+                      outputs_dir: Path, figures_dir: Path) -> None:
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # example of batch_key ResultsKey.SLIDE_ID_COL
@@ -251,26 +267,31 @@ class DeepMILOutputsHandler:
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results(outputs)
 
-        save_outputs_and_features(results, self.outputs_dir)
+        save_outputs_and_features(results, outputs_dir)
 
         print("Selecting tiles ...")
-        selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes,
-                                                       figures_dir=self.figures_dir)
+        selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
 
         if self.slide_dataset is not None:
             save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size, level=self.level,
-                                               slide_dataset=self.slide_dataset, figures_dir=self.figures_dir)
+                                               slide_dataset=self.slide_dataset, figures_dir=figures_dir)
 
-        save_scores_histogram(results, figures_dir=self.figures_dir)
+        save_scores_histogram(results, figures_dir=figures_dir)
 
         conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
-        save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=self.figures_dir)
+        save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
     def save_validation_outputs(self, outputs: List[Dict[ResultsKey, Any]],
                                 metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> None:
+        # TODO: Persist best metric value and epoch to allow recovery
         if self.should_save_validation_outputs(metrics_dict, epoch):
-            self._save_outputs(outputs, metrics_dict)
+            # TODO: Atomically replace existing outputs
+            self._save_outputs(outputs, metrics_dict,
+                               outputs_dir=self.validation_outputs_dir,
+                               figures_dir=self.validation_figures_dir)
 
     def save_test_outputs(self, outputs: List[Dict[ResultsKey, Any]],
                           metrics_dict: Mapping[MetricsKey, Metric]) -> None:
-        self._save_outputs(outputs, metrics_dict)
+        self._save_outputs(outputs, metrics_dict,
+                           outputs_dir=self.test_outputs_dir,
+                           figures_dir=self.test_figures_dir)

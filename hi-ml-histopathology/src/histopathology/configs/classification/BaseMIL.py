@@ -138,7 +138,7 @@ class BaseMIL(LightningContainer):
         # Construct pooling layer
         pooling_layer, num_features = self.get_pooling_layer()
 
-        outputs_handler = DeepMILOutputsHandler(outputs_dir=self.outputs_folder,
+        outputs_handler = DeepMILOutputsHandler(outputs_root=self.outputs_folder,
                                                 n_classes=self.data_module.train_dataset.N_CLASSES,
                                                 tile_size=self.tile_size,
                                                 level=1,
