@@ -15,6 +15,7 @@ from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
+from histopathology.utils.logging_utils import DeepMILOutputsHandler, validate_class_names
 from histopathology.utils.naming import MetricsKey, ResultsKey
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -25,22 +26,6 @@ def _format_cuda_memory_stats() -> str:
     return (f"GPU {torch.cuda.current_device()} memory: "
             f"{torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB allocated, "
             f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved")
-
-
-def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -> Tuple[str]:
-    """Return valid names for the specified number of classes.
-
-    :param class_names: List of class names. If `None`, will return `('0', '1', ...)`.
-    :param n_classes: Number of classes. If `1` (binary), expects `len(class_names) == 2`.
-    :return: Validated class names tuple with length `2` for binary classes (`n_classes == 1`), otherwise `n_classes`.
-    """
-    effective_n_classes = n_classes if n_classes > 1 else 2
-    if class_names is None:
-        class_names = [str(i) for i in range(effective_n_classes)]
-    if len(class_names) != effective_n_classes:
-        raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
-                         f"of classes ({effective_n_classes})")
-    return tuple(class_names)
 
 
 class DeepMILModule(LightningModule):

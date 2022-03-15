@@ -23,6 +23,22 @@ from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
 
+def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -> Tuple[str]:
+    """Return valid names for the specified number of classes.
+
+    :param class_names: List of class names. If `None`, will return `('0', '1', ...)`.
+    :param n_classes: Number of classes. If `1` (binary), expects `len(class_names) == 2`.
+    :return: Validated class names tuple with length `2` for binary classes (`n_classes == 1`), otherwise `n_classes`.
+    """
+    effective_n_classes = n_classes if n_classes > 1 else 2
+    if class_names is None:
+        class_names = [str(i) for i in range(effective_n_classes)]
+    if len(class_names) != effective_n_classes:
+        raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
+                         f"of classes ({effective_n_classes})")
+    return tuple(class_names)
+
+
 def save_figure(fig: plt.figure, figpath: Path) -> None:
     fig.savefig(figpath, bbox_inches='tight')
 
