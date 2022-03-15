@@ -79,12 +79,11 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspa
     return metrics_df.sort_index(axis='columns')
 
 
-def get_crossval_metrics_table(metrics_df: pd.DataFrame,
-                               metrics_list: Sequence[str]) -> pd.DataFrame:
+def get_crossval_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[str]) -> pd.DataFrame:
     """Format raw cross-validation metrics into a table with a summary "Mean ± Std" column.
 
     Note that this function only supports scalar metrics. To format metrics that are logged
-    hroughout training, you should call :py:func:`get_best_epoch_metrics()` first.
+    throughout training, you should call :py:func:`get_best_epoch_metrics()` first.
 
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
@@ -108,8 +107,7 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: boo
     """Determine the best epoch for each cross-validation run based on a given metric.
 
     The returned epoch indices are relative to the logging frequency of the chosen metric, i.e.
-    should not be mixed between training and validation metrics if the latter are not logged at
-    every training epoch.
+    should not be mixed between pipeline stages that log metrics at different epoch intervals.
 
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
@@ -125,6 +123,9 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: boo
 def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
                            best_epochs: Dict[int, int]) -> pd.DataFrame:
     """Extract the values of the selected cross-validation metrics at the given best epochs.
+
+    The `best_epoch` indices are relative to the logging frequency of the chosen primary metric,
+    i.e. the metrics in `metrics_list` must have been logged at the same epoch intervals.
 
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
