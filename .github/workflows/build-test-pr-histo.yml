@@ -1,0 +1,198 @@
+name: PR BuildAndTest.CI
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'hi-ml-histopathology/**'
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'hi-ml-histopathology/**'
+
+env:
+  pythonVersion: 3.7
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  HIML_DIST_ARTIFACT_SUFFIX: '-dist'
+  HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
+  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  HIML_COV_DOT_ARTIFACT_SUFFIX: '-code_coverage_report_dot'
+  HIML_COV_HTML_ARTIFACT_SUFFIX: '-code_coverage_report_html'
+  HIML_COV_TXT_ARTIFACT_SUFFIX: '-code_coverage_txt'
+  HIML_COV_XML_ARTIFACT_SUFFIX: '-code_coverage_xml'
+
+jobs:
+  flake8:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: flake8
+        run: make flake8
+
+  mypy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: mypy
+        run: make mypy
+
+  pyright:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: conda-incubator/setup-miniconda@v2
+      - name: pyright
+        shell: bash -l {0}
+        run: |
+          conda info
+          make pyright
+
+  pytest_fast:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install hi-ml-azure in editable mode
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Install hi-ml in editable mode
+        run: |
+          cd hi-ml
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Test with pytest, fast only
+        run: |
+          cd hi-ml-histopathology
+
+          # Run fast tests
+          make pytest_fast
+
+  test-project-folders:
+    runs-on: ubuntu-18.04
+    needs: [ build-python ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: PIP upgrade
+        run: |
+          cd hi-ml-azure
+          make pip_upgrade
+
+      # - name: Download hi-ml-azure
+      #   id: download_himlazure
+      #   uses: ./.github/actions/download_package_artifacts
+      #   with:
+      #     folder: hi-ml-azure
+      #     package_type: ${{ matrix.packageName }}
+
+      # - name: Download hi-ml
+      #   id: download_himl
+      #   uses: ./.github/actions/download_package_artifacts
+      #   with:
+      #     folder: hi-ml
+      #     package_type: ${{ matrix.packageName }}
+
+      - name: Install dependencies
+        run: |
+          cd hi-ml-azure
+          pip install -e
+          cd ../hi-ml
+          pip install -e
+
+      - name: Run tests
+        with:
+          folder: hi-ml-histopathology
+        run: |
+          cd hi-ml-histopathology
+          make pip_local
+          make pytest_and_coverage
+
+      - name: Upload coverage artifacts
+        uses: ./.github/actions/upload_coverage_artifacts
+        with:
+          folder: hi-ml-histopathology
+
+  build-coverage:
+    runs-on: ubuntu-18.04
+    needs: [ test-artifact-pkg ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install dependencies
+        run: |
+          cd hi-ml-azure
+
+          make pip_upgrade
+
+          # Install package
+          pip install ${{ steps.download_dep.outputs.package_filename }}
+
+      - name: Download coverage artifacts
+        uses: ./.github/actions/download_coverage_artifacts
+        with:
+          folder: hi-ml-histopathology
+
+      - name: Upload combined coverage artifacts
+        uses: ./.github/actions/upload_coverage_artifacts
+        with:e
+          folder: coverage
+
+      - name: Add coverage as a commit comment
+        uses: ./.github/actions/format_coverage
+        with:
+          file: coverage/coverage.txt
+          token: ${{ secrets.GITHUB_TOKEN }}

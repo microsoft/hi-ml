@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
+        folder: [ hi-ml, hi-ml-azure ]
       # This will let all parts of the matrix run, to collect as many errors as possible, rather than aborting after first fail
       fail-fast: false
     steps:
@@ -248,7 +248,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd hi-ml-azure
-          pip install ${{ steps.download_himlazure.outputs.package_filename }} 
+          pip install ${{ steps.download_himlazure.outputs.package_filename }}
           cd ../hi-ml
           pip install ${{ steps.download_himl.outputs.package_filename }}
 
@@ -317,11 +317,6 @@ jobs:
         uses: ./.github/actions/download_coverage_artifacts
         with:
           folder: hi-ml-azure
-
-      - name: Download coverage artifacts
-        uses: ./.github/actions/download_coverage_artifacts
-        with:
-          folder: hi-ml-histopathology
 
       - name: Combine coverage artifacts
         run: make combine
