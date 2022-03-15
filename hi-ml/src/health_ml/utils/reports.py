@@ -142,6 +142,8 @@ class HTMLReport:
         :param level: The heading level, e.g. 2 for `<h2>` etc.
         :param tag_class: An optional class name to apply styling to the text
         """
+        if level < 1 or level > 5:
+            raise ValueError(f"Level must be an integer between 1 and 5 (inclusive), but got {level}")
         class_spec = f" class={tag_class}" if tag_class else ""
         template_addition = f"""<div class="container" >
         <h{level}{class_spec}>{text}</h{level}>
