@@ -16,7 +16,7 @@ from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,\
-    TransformerPooling
+    MaxPoolingLayer, TransformerPooling
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
@@ -107,6 +107,8 @@ class BaseMIL(LightningContainer):
                                                 self.pool_out_dim)
         elif self.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
+        elif self.pool_type == MaxPoolingLayer.__name__:
+            pooling_layer = MaxPoolingLayer()
         elif self.pool_type == TransformerPooling.__name__:
             pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
                                                self.num_transformer_pool_heads,
