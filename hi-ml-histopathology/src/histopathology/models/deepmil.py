@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
@@ -44,7 +44,8 @@ class DeepMILModule(LightningModule):
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
                  class_names: Optional[List[str]] = None,
-                 is_finetune: bool = False) -> None:
+                 is_finetune: bool = False,
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -86,6 +87,8 @@ class DeepMILModule(LightningModule):
 
         # Finetuning attributes
         self.is_finetune = is_finetune
+
+        self.outputs_handler = outputs_handler
 
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
@@ -255,7 +258,7 @@ class DeepMILModule(LightningModule):
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         self.log_metrics('val')
-        return val_result[ResultsKey.LOSS]
+        return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> Dict[ResultsKey, Any]:   # type: ignore
         test_result = self._shared_step(batch, batch_idx, 'test')
@@ -263,3 +266,12 @@ class DeepMILModule(LightningModule):
                  sync_dist=True)
         self.log_metrics('test')
         return test_result
+
+    def validation_epoch_end(self, outputs: List[Dict[ResultsKey, Any]]) -> None:
+        if self.outputs_handler:
+            self.outputs_handler.save_validation_outputs(outputs=outputs, metrics_dict=self.get_metrics_dict('val'),
+                                                         epoch=self.current_epoch)
+
+    def test_epoch_end(self, outputs: List[Dict[ResultsKey, Any]]) -> None:
+        if self.outputs_handler:
+            self.outputs_handler.save_test_outputs(outputs=outputs, metrics_dict=self.get_metrics_dict('test'))

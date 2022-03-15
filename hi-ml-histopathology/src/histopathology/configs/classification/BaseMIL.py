@@ -22,6 +22,8 @@ from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
+from histopathology.utils.logging_utils import DeepMILOutputsHandler
+from histopathology.utils.naming import MetricsKey
 
 
 class BaseMIL(LightningContainer):
@@ -136,6 +138,15 @@ class BaseMIL(LightningContainer):
         # Construct pooling layer
         pooling_layer, num_features = self.get_pooling_layer()
 
+        outputs_handler = DeepMILOutputsHandler(outputs_dir=self.outputs_folder,
+                                                n_classes=self.data_module.train_dataset.N_CLASSES,
+                                                tile_size=self.tile_size,
+                                                level=1,
+                                                slide_dataset=self.get_slide_dataset(),
+                                                class_names=None,
+                                                primary_val_metric=MetricsKey.AUROC,
+                                                maximise=True)
+
         return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
@@ -146,7 +157,8 @@ class BaseMIL(LightningContainer):
                              l_rate=self.l_rate,
                              weight_decay=self.weight_decay,
                              adam_betas=self.adam_betas,
-                             is_finetune=self.is_finetune)
+                             is_finetune=self.is_finetune,
+                             outputs_handler=outputs_handler)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError

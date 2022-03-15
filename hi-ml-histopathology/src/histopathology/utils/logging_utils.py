@@ -15,7 +15,6 @@ from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.models.deepmil import validate_class_names
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
@@ -209,8 +208,8 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
 
 class DeepMILOutputsHandler:
     def __init__(self, outputs_dir: Path, n_classes: int, tile_size: int, level: int,
-                 slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]]) -> None:
-        super().__init__()
+                 slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
+                 primary_val_metric: MetricsKey, maximise: bool) -> None:
         self.outputs_dir = outputs_dir
         self.figures_dir = outputs_dir / "fig"
 
@@ -220,9 +219,31 @@ class DeepMILOutputsHandler:
         self.slide_dataset = slide_dataset
         self.class_names = validate_class_names(class_names, self.n_classes)
 
-    def save_outputs(self, outputs: List[Dict[ResultsKey, Any]],
-                     metrics_dict: Mapping[MetricsKey, Metric]) -> None:  # type: ignore
-        print("... test_epoch_end() called")
+        self.primary_val_metric = primary_val_metric
+        self.maximise = maximise
+
+        self._reset_best_metric()
+
+    def _reset_best_metric(self) -> None:
+        self._best_metric_epoch = 0
+        self._best_metric_value = float('-inf') if self.maximise else float('inf')
+
+    def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> bool:
+        metric_value = metrics_dict[self.primary_val_metric].compute()
+
+        if self.maximise:
+            is_best = metric_value > self._best_metric_value
+        else:
+            is_best = metric_value < self._best_metric_value
+
+        if is_best:
+            self._best_metric_value = metric_value
+            self._best_metric_epoch = epoch
+
+        return is_best
+
+    def _save_outputs(self, outputs: List[Dict[ResultsKey, Any]],
+                      metrics_dict: Mapping[MetricsKey, Metric]) -> None:
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # example of batch_key ResultsKey.SLIDE_ID_COL
@@ -247,3 +268,12 @@ class DeepMILOutputsHandler:
 
         conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
         save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=self.figures_dir)
+
+    def save_validation_outputs(self, outputs: List[Dict[ResultsKey, Any]],
+                                metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> None:
+        if self.should_save_validation_outputs(metrics_dict, epoch):
+            self._save_outputs(outputs, metrics_dict)
+
+    def save_test_outputs(self, outputs: List[Dict[ResultsKey, Any]],
+                          metrics_dict: Mapping[MetricsKey, Metric]) -> None:
+        self._save_outputs(outputs, metrics_dict)
