@@ -183,7 +183,7 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
 
     subsampling = Subsampled(keys_to_subsample, max_size=max_size,
                              allow_missing_keys=allow_missing_keys)
-
+    subsampling.set_random_state(seed=0)
     if include_non_indexable:
         with pytest.raises(ValueError):
             sub_data = subsampling(data)
