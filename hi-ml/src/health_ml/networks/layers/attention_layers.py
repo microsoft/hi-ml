@@ -6,7 +6,7 @@
 Created using the original DeepMIL paper and code from Ilse et al., 2018
 https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
 """
-from typing import Tuple, Optional, Any
+from typing import Tuple, Optional
 from torch import nn, Tensor, transpose, mm
 import torch
 import torch.nn.functional as F
@@ -31,7 +31,7 @@ class MaxPoolingLayer(nn.Module):
         num_instances = features.shape[0]
         pooled_features, indices = features.max(dim=0)
         frequency = torch.bincount(indices, minlength=num_instances)
-        frequency_norm = frequency/sum(frequency)
+        frequency_norm = frequency / sum(frequency)
         attention_weights = frequency_norm.view(1, num_instances)
         pooled_features = pooled_features.view(1, -1)
         return (attention_weights, pooled_features)
