@@ -21,6 +21,8 @@ def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
 
     if isinstance(attentionlayer, TransformerPooling):
         pass
+    elif isinstance(attentionlayer, MaxPoolingLayer):
+        pass
     else:
         pooled_features = attn_weights @ features.flatten(start_dim=1)
         assert allclose(pooled_features, output_features)

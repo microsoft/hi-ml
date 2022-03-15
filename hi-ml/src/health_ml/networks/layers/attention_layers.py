@@ -27,14 +27,12 @@ class MeanPoolingLayer(nn.Module):
 class MaxPoolingLayer(nn.Module):
     """Max pooling returns uniform weights and the maximum feature vector over the first axis"""
 
-    # args/kwargs added here for compatibility with parametrised pooling modules
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__()
-
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
         num_instances = features.shape[0]
-        attention_weights = torch.full((1, num_instances), 1. / num_instances)
-        pooled_features = features.max(dim=0).values
+        pooled_features, indices = features.max(dim=0)
+        frequency = torch.bincount(indices, minlength=num_instances)
+        frequency_norm = frequency/sum(frequency)
+        attention_weights = frequency_norm.view(1, num_instances)
         pooled_features = pooled_features.view(1, -1)
         return (attention_weights, pooled_features)
 
