@@ -159,8 +159,16 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.grid(color='0.9')
 
 
-def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame],
-                                     roc_ax: Axes, pr_ax: Axes) -> None:
+def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes) -> None:
+    """Plot ROC and precision-recall curves for multiple cross-validation runs onto provided axes.
+
+    This is called by :py:func:`plot_crossval_roc_and_pr_curves()`, which additionally creates a figure and the axes.
+
+    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
+        as returned by :py:func:`collect_crossval_outputs()`.
+    :param roc_ax: `Axes` object onto which to plot ROC curves.
+    :param pr_ax: `Axes` object onto which to plot precision-recall curves.
+    """
     for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         labels = slides_groupby[ResultsKey.TRUE_LABEL].agg(pd.Series.mode)
