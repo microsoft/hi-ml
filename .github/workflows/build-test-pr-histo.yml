@@ -145,8 +145,6 @@ jobs:
           pip install -e
 
       - name: Run tests
-        with:
-          folder: hi-ml-histopathology
         run: |
           cd hi-ml-histopathology
           make pip_local
