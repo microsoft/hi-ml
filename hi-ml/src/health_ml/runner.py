@@ -39,6 +39,13 @@ from health_ml.utils.common_utils import (check_conda_environments, get_all_envi
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
+
+# We change the current working directory before starting the actual training. However, this throws off starting
+# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
+# path.
+runner_path = Path(sys.argv[0])
+sys.argv[0] = str(runner_path.resolve())
+
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
@@ -261,6 +268,7 @@ class Runner:
                     ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                    docker_shm_size=self.experiment_config.docker_shm_size,
                     hyperdrive_config=hyperdrive_config,
                     create_output_folders=False,
                     tags=additional_run_tags(
