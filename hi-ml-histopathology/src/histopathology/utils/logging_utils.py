@@ -284,7 +284,6 @@ class DeepMILOutputsHandler:
         # for batch keys that contains multiple values for slides e.g. ResultsKey.BAG_ATTN_COL
         # outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # contains the tile value
-        # TODO: Ensure this works with multi-GPU (e.g. using @rank_zero_only and pl_module.all_gather())
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results(outputs)
         figures_dir = outputs_dir / "fig"

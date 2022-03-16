@@ -124,7 +124,6 @@ class BaseMIL(LightningContainer):
         return pooling_layer, num_features
 
     def create_model(self) -> DeepMILModule:
-        # TODO: Pass outputs handler(s) into DeepMILModule
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
