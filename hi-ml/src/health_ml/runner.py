@@ -9,10 +9,10 @@ import param
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
-from azureml.core import Workspace
+from azureml.core import Workspace, Run
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -96,17 +96,6 @@ def create_runner_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def additional_run_tags(commandline_args: str) -> Dict[str, str]:
-    """
-    Gets the set of tags from the commandline arguments that will be added to the AzureML run as metadata
-
-    :param commandline_args: A string that holds all commandline arguments that were used for the present run.
-    """
-    return {
-        "commandline_args": commandline_args,
-    }
-
-
 class Runner:
     """
     This class contains the high-level logic to start a training run: choose a model configuration by name,
@@ -172,6 +161,17 @@ class Runner:
                 logging.info("You have provided a compute cluster name, hence we switched on submitting to AzureML.")
                 self.experiment_config.azureml = True
 
+    def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
+        """
+        Gets the set of tags that will be added to the AzureML run as metadata.
+
+        :param script_params: The commandline arguments used to invoke the present script.
+        """
+        return {
+            "commandline_args": script_params,
+            "tag": self.experiment_config.tag
+        }
+
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -199,6 +199,16 @@ class Runner:
             specified, the attribute 'run' will None, but the object still contains helpful information
             about datasets etc
         """
+
+        def after_submission_hook(azure_run: Run) -> None:
+            """
+            A function that will be called right after job submission.
+            """
+            # Set the default display name to what was provided as the "tag". This will affect single runs
+            # and Hyperdrive parent runs
+            if self.experiment_config.tag:
+                azure_run.display_name = self.experiment_config.tag
+
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
@@ -267,9 +277,17 @@ class Runner:
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                     hyperdrive_config=hyperdrive_config,
                     create_output_folders=False,
-                    tags=additional_run_tags(
-                        commandline_args=" ".join(script_params))
+                    after_submission=after_submission_hook,
+                    tags=self.additional_run_tags(script_params)
                 )
+                if self.experiment_config.tag and azure_run_info.run:
+                    if self.lightning_container.is_crossvalidation_enabled:
+                        # This code is only reached inside Azure. Set display name again - this will now affect
+                        # Hypdrive child runs (for other jobs, this has already been done after submission)
+                        cv_index = self.lightning_container.crossval_index
+                        full_display_name = f"{self.experiment_config.tag} {cv_index}"
+                        azure_run_info.run.display_name = full_display_name
+
             else:
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,  # type: ignore
