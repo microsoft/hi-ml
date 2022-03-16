@@ -7,7 +7,7 @@ import logging
 import math
 from pathlib import Path
 import random
-from typing import List, Optional
+from typing import Any, List, Optional, Sequence
 
 import matplotlib
 import numpy as np
@@ -19,7 +19,7 @@ from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
 
 from histopathology.utils.metrics_utils import plot_scores_hist, resize_and_save, select_k_tiles, plot_slide, \
-    plot_heatmap_overlay, plot_normalized_confusion_matrix
+    plot_heatmap_overlay, plot_normalized_confusion_matrix, select_slides_by_probability
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
@@ -44,7 +44,7 @@ def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None
     logging.debug(f"{prefix}Random seed set to: {random_seed}")
 
 
-def assert_equal_lists(pred: List, expected: List) -> None:
+def old_assert_equal_lists(pred: List, expected: List) -> None:
     assert len(pred) == len(expected)
     for i, slide in enumerate(pred):
         for j, value in enumerate(slide):
@@ -61,6 +61,33 @@ def assert_equal_lists(pred: List, expected: List) -> None:
                         assert math.isclose(idx.item(), expected[i][j][k].item(), rel_tol=1e-06)
             else:
                 raise TypeError("Unexpected list composition")
+
+
+def old_assert_equal_lists2(pred: List, expected: List) -> None:
+    assert len(pred) == len(expected)
+    for slide, exp_slide in zip(pred, expected):
+        for value, exp_value in zip(slide, exp_slide):
+            if isinstance(value, (int, float)):
+                assert math.isclose(value, exp_value, rel_tol=1e-06)
+            elif isinstance(value, Tensor):
+                assert value.allclose(exp_value, rtol=1e-06)
+            elif isinstance(value, List):
+                old_assert_equal_lists2(value, exp_value)
+            else:
+                raise TypeError("Unexpected list composition")
+
+
+def assert_equal_lists(x: Any, y: Any) -> None:
+    if isinstance(x, (int, float)):
+        assert math.isclose(x, y, rel_tol=1e-06)
+    elif isinstance(x, Tensor):
+        assert x.allclose(y, rtol=1e-06)
+    elif isinstance(x, Sequence):
+        assert len(x) == len(y)
+        for x_, y_ in zip(x, y):
+            assert_equal_lists(x_, y_)
+    else:
+        raise TypeError(f"Unexpected list composition: {type(x)}, {type(y)}")
 
 
 test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4],
@@ -136,6 +163,26 @@ def test_select_k_tiles() -> None:
                                 (7, Tensor([0.1, 0.9]), [1, 3], [Tensor([0.63]), Tensor([0.27])])])
     assert_equal_lists(bottom_fp, [(8, Tensor([0.01, 0.99]), [4, 2], [Tensor([0.15]), Tensor([0.31])]),
                                    (7, Tensor([0.1, 0.9]), [4, 2], [Tensor([0.05]), Tensor([0.21])])])
+
+
+@pytest.mark.fast
+def test_select_slides_by_probability() -> None:
+    n_slides = 2
+
+    tp = select_slides_by_probability(test_dict, n_slides=n_slides, label=1, highest=True)
+    assert_equal_lists(tp, ([4, 2], Tensor([[0.0, 1.0], [0.3, 0.7]])))
+
+    fn = select_slides_by_probability(test_dict, n_slides=n_slides, label=1, highest=False)
+    assert_equal_lists(fn, ([5, 3], Tensor([[0.7, 0.3], [0.6, 0.4]])))
+
+    tn = select_slides_by_probability(test_dict, n_slides=n_slides, label=0, highest=True)
+    assert_equal_lists(tn, ([6, 1], Tensor([[0.8, 0.2], [0.6, 0.4]])))
+
+    fp = select_slides_by_probability(test_dict, n_slides=n_slides, label=0, highest=False)
+    assert_equal_lists(fp, ([8, 7], Tensor([[0.01, 0.99], [0.1, 0.9]])))
+
+
+# TODO: Add test for select_tiles_by_attention()
 
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")

@@ -18,7 +18,7 @@ from torchmetrics.metric import Metric
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
-                                                select_k_tiles)
+                                                select_k_tiles, select_slides_by_probability, select_tiles_by_attention)
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
@@ -111,7 +111,7 @@ def save_features(results: Dict[ResultsKey, List[Any]], outputs_dir: Path) -> No
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
-def save_top_and_bottom_tiles(results: Dict[ResultsKey, List[Any]], n_classes: int, figures_dir: Path) \
+def old_save_top_and_bottom_tiles(results: Dict[ResultsKey, List[Any]], n_classes: int, figures_dir: Path) \
         -> Dict[str, List[str]]:
     print("Selecting tiles ...")
 
@@ -156,6 +156,40 @@ def save_top_and_bottom_tiles(results: Dict[ResultsKey, List[Any]], n_classes: i
 
             selected_slide_ids[key].append(slide_id)
 
+    return selected_slide_ids
+
+
+def save_top_and_bottom_tiles(results: Dict[ResultsKey, List[Any]], n_classes: int, figures_dir: Path) \
+        -> Dict[str, List[str]]:
+    print("Selecting tiles ...")
+
+    report_cases: Dict[str, Tuple[List[str], torch.Tensor]] = {}
+
+    # Class 0
+    report_cases['TN'] = select_slides_by_probability(results, n_slides=10, label=0, highest=True)
+    report_cases['FP'] = select_slides_by_probability(results, n_slides=10, label=0, highest=False)
+
+    # Class 1 to n_classes-1
+    n_classes_to_select = n_classes if n_classes > 1 else 2
+    for c in range(1, n_classes_to_select):
+        report_cases[f'TP_{c}'] = select_slides_by_probability(results, n_slides=10, label=c, highest=True)
+        report_cases[f'FN_{c}'] = select_slides_by_probability(results, n_slides=10, label=c, highest=False)
+
+    for key, (slide_ids, slide_probs) in report_cases.items():
+        print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
+        key_dir = figures_dir / key
+        key_dir.mkdir(parents=True, exist_ok=True)
+
+        for slide_id, score in zip(slide_ids, slide_probs):
+            paths, top_attn = select_tiles_by_attention(results, slide_id, n_tiles=10, highest=True)
+            fig = plot_attention_tiles(slide_id, score, paths, top_attn, key + '_top', ncols=4)
+            save_figure(fig=fig, figpath=key_dir / f'{slide_id}_top.png')
+
+            paths, bottom_attn = select_tiles_by_attention(results, slide_id, n_tiles=10, highest=False)
+            fig = plot_attention_tiles(slide_id, score, paths, bottom_attn, key + '_bottom', ncols=4)
+            save_figure(fig=fig, figpath=key_dir / f'{slide_id}_bottom.png')
+
+    selected_slide_ids = {key: slide_ids for key, (slide_ids, _) in report_cases.items()}
     return selected_slide_ids
 
 

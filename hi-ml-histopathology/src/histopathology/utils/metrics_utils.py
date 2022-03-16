@@ -4,26 +4,26 @@
 #  ------------------------------------------------------------------------------------------
 
 import sys
-from pathlib import Path
-from typing import Tuple, List, Any, Dict, Union
-
-import torch
-import matplotlib.pyplot as plt
 from math import ceil
-import numpy as np
-import matplotlib.patches as patches
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
+
 import matplotlib.collections as collection
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
 
 from histopathology.models.transforms import load_pil_image
-from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
+from histopathology.utils.naming import ResultsKey
 
 
-def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
-                   select: Tuple = ('lowest_pred', 'highest_att'),
-                   slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
-                   attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROBS,
-                   return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
+def old_select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
+                       select: Tuple = ('lowest_pred', 'highest_att'),
+                       slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
+                       attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROBS,
+                       return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
     """
     :param results: List that contains slide_level dicts
     :param n_tiles: number of tiles to be selected for each slide
@@ -63,6 +63,51 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
                       results[prob_col][slide_idx],
                       k_tiles, scores))
     return k_idx
+
+
+def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
+                   select: Tuple = ('lowest_pred', 'highest_att'),
+                   slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
+                   attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROBS,
+                   return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
+    selected_slide_ids, selected_slide_probs = select_slides_by_probability(
+        results, n_slides=n_slides, label=label, highest=(select[0] == 'highest_pred'))
+    outputs = []
+    for slide_id, slide_prob in zip(selected_slide_ids, selected_slide_probs):
+        selected_image_paths, selected_attentions = select_tiles_by_attention(
+            results, slide_id, n_tiles=n_tiles, highest=(select[1] == 'highest_att'))
+        outputs.append((slide_id, slide_prob, selected_image_paths, selected_attentions))
+    return outputs
+
+
+def select_slides_by_probability(results: Dict[ResultsKey, Any], n_slides: int = 5, label: int = 1,
+                                 highest: bool = True) -> Tuple[List[str], torch.Tensor]:
+    class_indices = (torch.as_tensor(results[ResultsKey.TRUE_LABEL]) == label).nonzero().squeeze()
+    all_class_probs = torch.stack(results[ResultsKey.CLASS_PROBS])
+    class_prob = all_class_probs[class_indices, label]
+    assert class_prob.shape == (len(class_indices),)
+
+    n_slides = min(n_slides, len(class_prob))
+    _, sorting_indices = class_prob.topk(n_slides, largest=highest, sorted=True)
+    sorted_class_indices = class_indices[sorting_indices]
+    selected_slide_ids = [results[ResultsKey.SLIDE_ID][i][0] for i in sorted_class_indices]
+    selected_probs = all_class_probs[sorted_class_indices]
+    return selected_slide_ids, selected_probs
+
+
+def select_tiles_by_attention(results: Dict[ResultsKey, Any], slide_id: str, n_tiles: int = 5,
+                              highest: bool = True) -> Tuple[List[str], List[torch.Tensor]]:
+    slide_ids = [tile_slide_ids[0] for tile_slide_ids in results[ResultsKey.SLIDE_ID]]
+    slide_index = slide_ids.index(slide_id)
+
+    attentions = results[ResultsKey.BAG_ATTN][slide_index].squeeze()
+    n_tiles = min(n_tiles, len(attentions))
+    _, sorting_indices = attentions.topk(n_tiles, largest=highest, sorted=True)
+
+    image_paths = results[ResultsKey.IMAGE_PATH][slide_index]
+    selected_image_paths = [image_paths[i] for i in sorting_indices]
+    selected_attentions = [attentions[i] for i in sorting_indices]
+    return selected_image_paths, selected_attentions
 
 
 def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
