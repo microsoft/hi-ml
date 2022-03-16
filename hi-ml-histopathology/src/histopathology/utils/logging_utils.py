@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
-import more_itertools as mi
 import numpy as np
 import pandas as pd
 import torch
@@ -174,8 +173,10 @@ def save_slide_thumbnails_and_heatmaps(results: Dict[ResultsKey, List[Any]], sel
 
 def save_slide_thumbnail_and_heatmap(results: Dict[ResultsKey, List[Any]], slide_id: str, tile_size: int, level: int,
                                      slide_dataset: SlidesDataset, key_dir: Path) -> None:
-    slide_dict = mi.first_true(slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide_id)
-    slide_dict = load_image_dict(slide_dict, level=level, margin=0)  # type: ignore
+    slide_index = slide_dataset.dataset_df.index.get_loc(slide_id)
+    assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_id}"
+    slide_dict = slide_dataset[slide_index]
+    slide_dict = load_image_dict(slide_dict, level=level, margin=0)
     slide_image = slide_dict[SlideKey.IMAGE]
     location_bbox = slide_dict[SlideKey.LOCATION]
 
