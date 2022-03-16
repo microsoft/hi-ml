@@ -226,11 +226,15 @@ class Runner:
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
+        # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
+        # datasets to be quicker.
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.azureml else True
         input_datasets = \
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=default_datastore)
+                                   datastore=default_datastore,
+                                   use_mounting=use_mounting)
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
             raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
