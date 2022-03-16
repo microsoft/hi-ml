@@ -3,6 +3,7 @@ from typing import Dict, List, Mapping
 from unittest.mock import MagicMock
 
 import pytest
+from ruamel.yaml import YAML
 from torchmetrics.metric import Metric
 
 from histopathology.utils.logging_utils import DeepMILOutputsHandler
@@ -34,10 +35,12 @@ def test_best_val_metric_persistence(tmp_path: Path) -> None:
     initial_epoch = 0
     initial_value = float('-inf')
 
+    # New handler should match initial settings
     outputs_handler = _create_outputs_handler(tmp_path)
     assert outputs_handler._best_metric_epoch == initial_epoch
     assert outputs_handler._best_metric_value == initial_value
 
+    # Recreating a handler should recover the same (arbitrary) settings
     arbitrary_epoch = 42
     arbitrary_value = 0.123
     outputs_handler._best_metric_epoch = arbitrary_epoch
@@ -48,6 +51,18 @@ def test_best_val_metric_persistence(tmp_path: Path) -> None:
     assert reloaded_outputs_handler._best_metric_epoch == arbitrary_epoch
     assert reloaded_outputs_handler._best_metric_value == arbitrary_value
 
+    # Handler re-creation should fail if primary metric name differs from what is saved
+    wrong_metric_name = 'wrong_metric_name'
+    yaml = YAML()
+    contents = yaml.load(outputs_handler.best_metric_file_path)
+    contents[DeepMILOutputsHandler._PRIMARY_METRIC_KEY] = wrong_metric_name
+    yaml.dump(contents, outputs_handler.best_metric_file_path)
+
+    with pytest.raises(ValueError) as e:
+        _create_outputs_handler(tmp_path)
+    assert wrong_metric_name in str(e.value)
+
+    # If the best-metric file is missing, a new handler should have a fresh initialisation
     outputs_handler.best_metric_file_path.unlink()  # delete best metric file
 
     fresh_outputs_handler = _create_outputs_handler(tmp_path)

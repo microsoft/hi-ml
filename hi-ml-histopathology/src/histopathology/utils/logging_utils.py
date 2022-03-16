@@ -208,6 +208,7 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
 class DeepMILOutputsHandler:
     _BEST_EPOCH_KEY = 'best_epoch'
     _BEST_VALUE_KEY = 'best_value'
+    _PRIMARY_METRIC_KEY = 'primary_metric'
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
@@ -234,17 +235,21 @@ class DeepMILOutputsHandler:
             contents = YAML().load(self.best_metric_file_path)
             self._best_metric_epoch = contents[self._BEST_EPOCH_KEY]
             self._best_metric_value = contents[self._BEST_VALUE_KEY]
+            if contents[self._PRIMARY_METRIC_KEY] != self.primary_val_metric:
+                raise ValueError(f"Expected primary metric '{self.primary_val_metric}', but found "
+                                 f"'{contents[self._PRIMARY_METRIC_KEY]}' in {self.best_metric_file_path}")
         else:
             self._best_metric_epoch = 0
             self._best_metric_value = float('-inf') if self.maximise else float('inf')
 
     def _save_best_metric(self) -> None:
         contents = {self._BEST_EPOCH_KEY: self._best_metric_epoch,
-                    self._BEST_VALUE_KEY: self._best_metric_value}
+                    self._BEST_VALUE_KEY: self._best_metric_value,
+                    self._PRIMARY_METRIC_KEY: self.primary_val_metric.value}
         YAML().dump(contents, self.best_metric_file_path)
 
     def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> bool:
-        metric_value = metrics_dict[self.primary_val_metric].compute()
+        metric_value = float(metrics_dict[self.primary_val_metric].compute())
 
         if self.maximise:
             is_best = metric_value > self._best_metric_value
