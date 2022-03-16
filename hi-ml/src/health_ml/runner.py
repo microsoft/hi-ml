@@ -221,7 +221,7 @@ class Runner:
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
-        use_mounting = self.experiment_config.use_dataset_mount if self.experiment_config.azureml else True
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.azureml else True
         input_datasets = \
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
