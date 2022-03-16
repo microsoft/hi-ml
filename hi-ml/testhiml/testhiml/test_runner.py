@@ -207,3 +207,15 @@ def test_run_hello_world(mock_runner: Runner) -> None:
         expected_files = ["experiment_summary.txt", "test_mae.txt", "test_mse.txt"]
         for file in expected_files:
             assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
+
+
+def test_invalid_args(mock_runner: Runner) -> None:
+    """Test if invalid commandline arguments raise an error.
+    """
+    invalid_arg = "--no_such_argument"
+    arguments = ["", "--model=HelloWorld", invalid_arg]
+    with patch.object(sys, "argv", arguments):
+        with pytest.raises(ValueError) as ex:
+            mock_runner.run()
+        assert "Unknown arguments" in str(ex)
+        assert invalid_arg in str(ex)
