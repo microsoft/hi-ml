@@ -4,7 +4,8 @@ from typing import Type, Union
 from torch import nn, rand, sum, allclose, ones_like
 
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer,
-                                                        MeanPoolingLayer)
+                                                        MeanPoolingLayer, TransformerPooling,
+                                                        MaxPoolingLayer)
 
 
 def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
@@ -18,8 +19,13 @@ def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
     row_sums = sum(attn_weights, dim=1, keepdim=True)
     assert allclose(row_sums, ones_like(row_sums))
 
-    pooled_features = attn_weights @ features.flatten(start_dim=1)
-    assert allclose(pooled_features, output_features)
+    if isinstance(attentionlayer, TransformerPooling):
+        pass
+    elif isinstance(attentionlayer, MaxPoolingLayer):
+        pass
+    else:
+        pooled_features = attn_weights @ features.flatten(start_dim=1)
+        assert allclose(pooled_features, output_features)
 
 
 @pytest.mark.parametrize("dim_in", [1, 3])
@@ -41,3 +47,20 @@ def test_attentionlayer(dim_in: int, dim_hid: int, dim_att: int, batch_size: int
 @pytest.mark.parametrize("batch_size", [1, 7])
 def test_mean_pooling(dim_in: int, batch_size: int,) -> None:
     _test_attention_layer(MeanPoolingLayer(), dim_in=dim_in, dim_att=1, batch_size=batch_size)
+
+
+@pytest.mark.parametrize("dim_in", [1, 3])
+@pytest.mark.parametrize("batch_size", [1, 7])
+def test_max_pooling(dim_in: int, batch_size: int,) -> None:
+    _test_attention_layer(MaxPoolingLayer(), dim_in=dim_in, dim_att=1, batch_size=batch_size)
+
+
+@pytest.mark.parametrize("num_layers", [1, 4])
+@pytest.mark.parametrize("num_heads", [1, 2])
+@pytest.mark.parametrize("dim_in", [4, 8])   # dim_in % num_heads must be 0
+@pytest.mark.parametrize("batch_size", [1, 7])
+def test_transformer_pooling(num_layers: int, num_heads: int, dim_in: int, batch_size: int) -> None:
+    transformer_pooling = TransformerPooling(num_layers=num_layers,
+                                             num_heads=num_heads,
+                                             dim_representation=dim_in).eval()
+    _test_attention_layer(transformer_pooling, dim_in=dim_in, dim_att=1, batch_size=batch_size)

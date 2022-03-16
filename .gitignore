@@ -145,6 +145,7 @@ docs/source/api
 !docs/source/api/api.rst
 # This file is copied from repository root to docs/source by the makefile
 /docs/source/CHANGELOG.md
+/docs/source/CONTRIBUTING.md
 
 node_modules/
 !.github/actions/format_coverage/dist/
@@ -163,3 +164,4 @@ cifar-10-python.tar.gz
 cifar-10-batches-py/
 None/
 hi-ml-histopathology/testSSL/test_outputs
+test_outputs/

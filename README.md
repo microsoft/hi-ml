@@ -111,7 +111,7 @@ Examples of contributions are
 * Tools to analyze and/or visualize data
 * ...
 
-Please check the [detailed page about contributions](docs/source/contributing.md).
+Please check the [detailed page about contributions](./CONTRIBUTING.md).
 
 ## Licensing
 

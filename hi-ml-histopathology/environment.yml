@@ -34,6 +34,7 @@ dependencies:
       - runstats==1.8.0
       - scikit-image==0.17.2
       - scipy==1.5.2
+      - seaborn==0.10.1
       - simpleitk==1.2.4
       - six==1.15.0
       - stopit==1.1.2
@@ -41,5 +42,6 @@ dependencies:
       - torch>=1.10.0
       - torchvision>=0.11.1
       - torchmetrics==0.6.0
+      - types-python-dateutil==2.8.9
       - umap-learn==0.5.2
       - yacs==0.1.8
