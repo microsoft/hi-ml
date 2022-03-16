@@ -465,7 +465,7 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     c = cls_()
     if not isinstance(c, param.Parameterized):
         raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
-    for param_name, p in c.param.params().items():
+    for param_name, p in c.param.params().items():  # type: ignore
         if not p.constant and not p.readonly:
             setattr(c, param_name, getattr(from_object, param_name))
     return c
