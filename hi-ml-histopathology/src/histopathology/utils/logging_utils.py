@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -11,6 +12,7 @@ import more_itertools as mi
 import numpy as np
 import pandas as pd
 import torch
+from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
@@ -252,6 +254,7 @@ class DeepMILOutputsHandler:
         if is_best:
             self._best_metric_value = metric_value
             self._best_metric_epoch = epoch
+            self._save_best_metric()
 
         return is_best
 
@@ -260,20 +263,16 @@ class DeepMILOutputsHandler:
         return self.outputs_root / "val"
 
     @property
-    def validation_figures_dir(self) -> Path:
-        return self.validation_outputs_dir / "fig"
+    def previous_validation_outputs_dir(self) -> Path:
+        return self.validation_outputs_dir.with_name("val_old")
 
     @property
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / "test"
 
-    @property
-    def test_figures_dir(self) -> Path:
-        return self.test_outputs_dir / "fig"
-
     def _save_outputs(self, outputs: List[Dict[ResultsKey, Any]],
                       metrics_dict: Mapping[MetricsKey, Metric],
-                      outputs_dir: Path, figures_dir: Path) -> None:
+                      outputs_dir: Path) -> None:
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # example of batch_key ResultsKey.SLIDE_ID_COL
@@ -283,6 +282,10 @@ class DeepMILOutputsHandler:
         # TODO: Ensure this works with multi-GPU (e.g. using @rank_zero_only and pl_module.all_gather())
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results(outputs)
+        figures_dir = outputs_dir / "fig"
+
+        outputs_dir.mkdir(exist_ok=True, parents=True)
+        figures_dir.mkdir(exist_ok=True, parents=True)
 
         save_outputs_and_features(results, outputs_dir)
 
@@ -300,15 +303,18 @@ class DeepMILOutputsHandler:
 
     def save_validation_outputs(self, outputs: List[Dict[ResultsKey, Any]],
                                 metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> None:
-        # TODO: Persist best metric value and epoch to allow recovery
         if self.should_save_validation_outputs(metrics_dict, epoch):
-            # TODO: Atomically replace existing outputs
-            self._save_outputs(outputs, metrics_dict,
-                               outputs_dir=self.validation_outputs_dir,
-                               figures_dir=self.validation_figures_dir)
+            # First move existing outputs to a temporary directory, to avoid mixing
+            # outputs of different epochs in case writing fails halfway through
+            if self.validation_outputs_dir.exists():
+                self.validation_outputs_dir.replace(self.previous_validation_outputs_dir)
+
+            self._save_outputs(outputs, metrics_dict, self.validation_outputs_dir)
+
+            # Writing completed successfully; delete temporary back-up
+            if self.previous_validation_outputs_dir.exists():
+                shutil.rmtree(self.previous_validation_outputs_dir)
 
     def save_test_outputs(self, outputs: List[Dict[ResultsKey, Any]],
                           metrics_dict: Mapping[MetricsKey, Metric]) -> None:
-        self._save_outputs(outputs, metrics_dict,
-                           outputs_dir=self.test_outputs_dir,
-                           figures_dir=self.test_figures_dir)
+        self._save_outputs(outputs, metrics_dict, self.test_outputs_dir)
