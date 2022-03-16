@@ -20,7 +20,6 @@ or
 
 ```shell script
 make env
-conda activate himl
 ```
 
 Afterwards, please activate this environment via `conda activate himl`. Select this Python interpreter also inside VSCode,
