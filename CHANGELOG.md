@@ -131,7 +131,7 @@ argparsing with parametrized classes.
 
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names,
 from `health.azure` to `health_azure`.
-- ([#144])(https://github.com/microsoft/hi-ml/pull/141) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
+- ([#141])(https://github.com/microsoft/hi-ml/pull/141)) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
 
 ### Fixed
 
