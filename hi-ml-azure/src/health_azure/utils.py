@@ -12,7 +12,7 @@ import os
 import re
 import sys
 import tempfile
-from argparse import ArgumentParser, OPTIONAL, ArgumentError, _UNRECOGNIZED_ARGS_ATTR, Namespace, SUPPRESS
+from argparse import ArgumentParser, OPTIONAL, ArgumentError, _UNRECOGNIZED_ARGS_ATTR, Namespace, SUPPRESS, ArgumentDefaultsHelpFormatter
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import islice
@@ -170,7 +170,7 @@ def create_argparser(config: param.Parameterized) -> ArgumentParser:
     :return: ArgumentParser
     """
     assert isinstance(config, param.Parameterized)
-    parser = ArgumentParser()
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     _add_overrideable_config_args_to_parser(config, parser)
     return parser
 

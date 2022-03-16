@@ -8,6 +8,7 @@ from typing import List, Optional
 from unittest.mock import patch, MagicMock
 
 import pytest
+from _pytest.capture import SysCapture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
@@ -190,6 +191,39 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
         hyperdrive_config = call_kwargs["hyperdrive_config"]
         parameter_space = hyperdrive_config._generator_config["parameter_space"]
         assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+
+
+def test_submit_to_azure_docker(mock_runner: Runner) -> None:
+    """
+    Test if the docker arguments are passed through to the submission function.
+    """
+    model_name = "HelloWorld"
+    docker_shm_size = "100k"
+    arguments = ["", f"--model={model_name}", "--cluster=foo", f"--docker_shm_size={docker_shm_size}"]
+    with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
+        with patch("health_ml.runner.get_workspace"):
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
+        mock_run_in_situ.assert_called_once()
+        mock_submit_to_aml.assert_called_once()
+        # call_args is a tuple of (args, kwargs)
+        call_kwargs = mock_submit_to_aml.call_args[1]
+        # Submission to AzureML should have been turned on because a cluster name was supplied
+        assert mock_runner.experiment_config.docker_shm_size == docker_shm_size
+        assert call_kwargs["docker_shm_size"] == docker_shm_size
+
+
+def test_runner_help(mock_runner: Runner, capsys: SysCapture) -> None:
+    """Test if the runner outputs default values correctly then using --help
+    """
+    arguments = ["", "--help"]
+    with pytest.raises(SystemExit):
+        with patch.object(sys, "argv", arguments):
+            mock_runner.run()
+    stdout: str = capsys.readouterr().out  # type: ignore
+    # There are at least 3 parameters in ExperimentConfig that should print with defaults
+    assert stdout.count("(default: ") > 3
 
 
 def test_run_hello_world(mock_runner: Runner) -> None:
