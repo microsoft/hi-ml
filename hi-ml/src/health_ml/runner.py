@@ -137,9 +137,9 @@ class Runner:
 
         :return: ParserResult object containing args, overrides and settings
         """
-        parser = create_runner_parser()
-        parser_result = parse_arguments(parser, args=sys.argv[1:])
-        experiment_config = ExperimentConfig(**parser_result.args)
+        parser1 = create_runner_parser()
+        parser1_result = parse_arguments(parser1, args=sys.argv[1:])
+        experiment_config = ExperimentConfig(**parser1_result.args)
 
         self.experiment_config = experiment_config
         if not experiment_config.model:
@@ -150,17 +150,17 @@ class Runner:
 
         # parse overrides and apply
         assert isinstance(container, param.Parameterized)
-        parser_ = create_argparser(container)
+        parser2 = create_argparser(container)
         # For each parser, feed in the unknown settings from the previous parser. All commandline args should
         # be consumed by name, hence fail if there is something that is still unknown.
-        parser_result_ = parse_arguments(parser_, args=parser_result.unknown)
+        parser2_result = parse_arguments(parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
         # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-        _ = apply_overrides(container, parser_result_.overrides)  # type: ignore
+        apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
 
         self.lightning_container = container
 
-        return parser_result_
+        return parser2_result
 
     def validate(self) -> None:
         """
