@@ -19,7 +19,7 @@ from argparse import (
     Namespace,
     OPTIONAL,
     SUPPRESS,
-    _UNRECOGNIZED_ARGS_ATTR
+    _UNRECOGNIZED_ARGS_ATTR,
 )
 from collections import defaultdict
 from dataclasses import dataclass
@@ -112,9 +112,7 @@ class IntTuple(param.NumericTuple):
             for i, n in enumerate(val):
                 if not isinstance(n, int):
                     raise ValueError(
-                        "{}: tuple element at index {} with value {} in {} is not an integer".format(
-                            self.name, i, n, val
-                        )
+                        f"{self.name}: tuple element at index {i} with value {n} in {val} is not an integer"
                     )
 
 
@@ -135,7 +133,7 @@ class GenericConfig(param.Parameterized):
 
         if illegal:
             raise ValueError(
-                f"The following parameters cannot be overridden as they are either "
+                "The following parameters cannot be overridden as they are either "
                 f"readonly, constant, or private members : {illegal}"
             )
         if throw_if_unknown_param:
@@ -239,7 +237,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
             p_type = _p.from_string
 
         else:
-            raise TypeError("Parameter of type: {} is not supported".format(_p))
+            raise TypeError(f"Parameter of type {_p} is not supported")
 
         return p_type
 
@@ -598,18 +596,18 @@ class CheckpointDownloader:
         remote_checkpoint_dir: PathOrString = "checkpoints",
     ) -> None:
         """
-         Utility class for downloading checkpoint files from an Azure ML run
+        Utility class for downloading checkpoint files from an Azure ML run
 
         :param run_id: Recovery ID of the run from which to load the checkpoint.
-         :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
-         `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
-         :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
-             experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
-             is required.
-         :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
-             azure_config_json_path is provided, this is required.
-         :param download_dir: The local directory in which to save the downloaded checkpoint files.
-         :param remote_checkpoint_dir: The remote folder from which to download the checkpoint file
+        :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
+        `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
+        :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
+            experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
+            is required.
+        :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
+            azure_config_json_path is provided, this is required.
+        :param download_dir: The local directory in which to save the downloaded checkpoint files.
+        :param remote_checkpoint_dir: The remote folder from which to download the checkpoint file
         """
         self.azure_config_json_path = azure_config_json_path
         self.aml_workspace = aml_workspace
@@ -776,14 +774,14 @@ def split_recovery_id(id_str: str) -> Tuple[str, str]:
     """
     components = id_str.strip().split(EXPERIMENT_RUN_SEPARATOR)
     if len(components) > 2:
-        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id_str))
+        raise ValueError(f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id_str}")
     elif len(components) == 2:
         return components[0], components[1]
     else:
         recovery_id_regex = r"^(\w+)_\d+_[0-9a-f]+$|^(\w+)_\d+$"
         match = re.match(recovery_id_regex, id_str)
         if not match:
-            raise ValueError("The recovery ID was not in the expected format: {}".format(id_str))
+            raise ValueError(f"The recovery ID was not in the expected format: {id_str}")
         return (match.group(1) or match.group(2)), id_str
 
 
@@ -803,7 +801,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     except Exception as ex:
         raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
+    logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
     return run_to_recover
 
 
@@ -820,12 +818,8 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
     except Exception:
         available_runs = experiment_to_recover.get_runs()
         available_ids = ", ".join([run.id for run in available_runs])
-        raise (
-            Exception(
-                "Run {} not found for experiment: {}. Available runs are: {}".format(
-                    run_id, experiment_to_recover.name, available_ids
-                )
-            )
+        raise Exception(
+            f"Run {run_id} not found for experiment: {experiment_to_recover.name}. Available runs are: {available_ids}"
         )
 
 
