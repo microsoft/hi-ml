@@ -168,7 +168,7 @@ class Runner:
         :param script_params: The commandline arguments used to invoke the present script.
         """
         return {
-            "commandline_args": script_params,
+            "commandline_args": " ".join(script_params),
             "tag": self.experiment_config.tag
         }
 
