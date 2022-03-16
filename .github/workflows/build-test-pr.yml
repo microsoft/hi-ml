@@ -318,6 +318,11 @@ jobs:
         with:
           folder: hi-ml-azure
 
+      - name: Download coverage artifacts
+        uses: ./.github/actions/download_coverage_artifacts
+        with:
+          folder: hi-ml-histopathology
+
       - name: Combine coverage artifacts
         run: make combine
 
