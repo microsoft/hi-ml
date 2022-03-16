@@ -204,6 +204,9 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
 
 
 class DeepMILOutputsHandler:
+    _BEST_EPOCH_KEY = 'best_epoch'
+    _BEST_VALUE_KEY = 'best_value'
+
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
                  primary_val_metric: MetricsKey, maximise: bool) -> None:
@@ -218,11 +221,25 @@ class DeepMILOutputsHandler:
         self.primary_val_metric = primary_val_metric
         self.maximise = maximise
 
-        self._reset_best_metric()
+        self._init_best_metric()
 
-    def _reset_best_metric(self) -> None:
-        self._best_metric_epoch = 0
-        self._best_metric_value = float('-inf') if self.maximise else float('inf')
+    @property
+    def best_metric_file_path(self) -> Path:
+        return self.outputs_root / "best_val_metric.yml"
+
+    def _init_best_metric(self) -> None:
+        if self.best_metric_file_path.exists():
+            contents = YAML().load(self.best_metric_file_path)
+            self._best_metric_epoch = contents[self._BEST_EPOCH_KEY]
+            self._best_metric_value = contents[self._BEST_VALUE_KEY]
+        else:
+            self._best_metric_epoch = 0
+            self._best_metric_value = float('-inf') if self.maximise else float('inf')
+
+    def _save_best_metric(self) -> None:
+        contents = {self._BEST_EPOCH_KEY: self._best_metric_epoch,
+                    self._BEST_VALUE_KEY: self._best_metric_value}
+        YAML().dump(contents, self.best_metric_file_path)
 
     def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> bool:
         metric_value = metrics_dict[self.primary_val_metric].compute()
