@@ -142,7 +142,7 @@ class BaseMIL(LightningContainer):
                                                 tile_size=self.tile_size,
                                                 level=1,
                                                 slide_dataset=self.get_slide_dataset(),
-                                                class_names=None,
+                                                class_names=self.class_names,
                                                 primary_val_metric=MetricsKey.AUROC,
                                                 maximise=True)
 
@@ -157,6 +157,7 @@ class BaseMIL(LightningContainer):
                              weight_decay=self.weight_decay,
                              adam_betas=self.adam_betas,
                              is_finetune=self.is_finetune,
+                             class_names=self.class_names,
                              outputs_handler=outputs_handler)
 
     def get_data_module(self) -> TilesDataModule:
