@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
@@ -15,8 +15,9 @@ from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.output_utils import DeepMILOutputsHandler, validate_class_names
 from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
+                                               validate_class_names)
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -179,7 +180,7 @@ class DeepMILModule(LightningModule):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
-    def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> Dict[ResultsKey, Tensor]:
+    def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
         # This means we can't stack them along a new axis without padding to the same length.
         # We could alternatively concatenate them, but this would require other changes (e.g. in
@@ -253,25 +254,27 @@ class DeepMILModule(LightningModule):
         self.log_metrics('train')
         return train_result[ResultsKey.LOSS]
 
-    def validation_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
+    def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, 'val')
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         self.log_metrics('val')
         return val_result
 
-    def test_step(self, batch: Dict, batch_idx: int) -> Dict[ResultsKey, Any]:   # type: ignore
+    def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:   # type: ignore
         test_result = self._shared_step(batch, batch_idx, 'test')
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         self.log_metrics('test')
         return test_result
 
-    def validation_epoch_end(self, outputs: List[Dict[ResultsKey, Any]]) -> None:
+    def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:
         if self.outputs_handler:
-            self.outputs_handler.save_validation_outputs(outputs=outputs, metrics_dict=self.get_metrics_dict('val'),
+            self.outputs_handler.save_validation_outputs(epoch_results=epoch_results,
+                                                         metrics_dict=self.get_metrics_dict('val'),
                                                          epoch=self.current_epoch)
 
-    def test_epoch_end(self, outputs: List[Dict[ResultsKey, Any]]) -> None:
+    def test_epoch_end(self, epoch_results: EpochResultsType) -> None:
         if self.outputs_handler:
-            self.outputs_handler.save_test_outputs(outputs=outputs, metrics_dict=self.get_metrics_dict('test'))
+            self.outputs_handler.save_test_outputs(epoch_results=epoch_results,
+                                                   metrics_dict=self.get_metrics_dict('test'))

@@ -22,7 +22,8 @@ from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatm
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
-EpochResultsType = List[Dict[ResultsKey, Any]]
+BatchResultsType = Dict[ResultsKey, Any]
+EpochResultsType = List[BatchResultsType]
 ResultsType = Dict[ResultsKey, List[Any]]
 
 
