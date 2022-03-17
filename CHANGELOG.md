@@ -32,6 +32,7 @@ the environment file since it is necessary for the augmentations.
 
 ### Fixed
 
+- ([#246](https://github.com/microsoft/hi-ml/pull/246)) Added tolerance to `test_attentionlayers.py`.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Dependencies for histopathology folder are no longer specified in `test_requirements.txt`, but correctly in the histopathology Conda environment.
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
