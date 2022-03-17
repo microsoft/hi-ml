@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
 from pytorch_lightning import Callback, Trainer, seed_everything
-from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
+from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -134,6 +134,8 @@ def create_lightning_trainer(container: LightningContainer,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
     else:
+        # Use a local import here to be able to support older PL versions
+        from pytorch_lightning.callbacks import TQDMProgressBar
         callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
