@@ -31,13 +31,13 @@ If you would like to contribute to the code, please check the [developer guide](
 The detailed package documentation, with examples and API reference, is on
 [readthedocs](https://hi-ml.readthedocs.io/en/latest/).
 
-
 ## Quick start: Using the Azure layer
 
 Use case: you have a Python script that does something - that could be training a model, or pre-processing some data.
 The `hi-ml-azure` package can help easily run that on Azure Machine Learning (AML) services.
 
 Here is an example script that reads images from a folder, resizes and saves them to an output folder:
+
 ```python
 from pathlib import Path
 if __name__ == '__main__':
@@ -48,6 +48,7 @@ if __name__ == '__main__':
         resized = contents.resize(0.5)
         write_image(output_folder / file.name)
 ```
+
 Doing that at scale can take a long time. **We'd like to run that script in AzureML, consume the data from a folder in
 blob storage, and write the results back to blob storage**.
 
@@ -92,16 +93,19 @@ For details, please refer to the [onboarding page](docs/source/first_steps.md).
 For more examples, please see [examples.md](docs/source/examples.md).
 
 ## Issues
+
 If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page.
 If no existing issue exists, please open a new one. Be sure to include
-- A descriptive title
-- Expected behaviour (including a code sample if possible)
-- Actual behavior
 
+* A descriptive title
+* Expected behaviour (including a code sample if possible)
+* Actual behavior
 
 ## Contributing
+
 We welcome all contributions that help us achieve our aim of speeding up ML/AI research in health and life sciences.
 Examples of contributions are
+
 * Data loaders for specific health & life sciences data
 * Network architectures and components for deep learning models
 * Tools to analyze and/or visualize data
@@ -121,11 +125,11 @@ Please check the [detailed page about contributions](./CONTRIBUTING.md).
 If you have any feature requests, or find issues in the code, please create an
 [issue on GitHub](https://github.com/microsoft/hi-ml/issues).
 
-## Contributing
+## Contribution Licensing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+the rights to use your contribution. For details, visit <https://cla.opensource.microsoft.com>.
 
 When you submit a pull request, a CLA bot will automatically determine whether you need to provide
 a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions

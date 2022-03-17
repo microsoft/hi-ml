@@ -16,7 +16,7 @@ from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,\
-    TransformerPooling
+    MaxPoolingLayer, TransformerPooling
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
@@ -48,7 +48,7 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
+    max_bag_size: int = param.Integer(100, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
@@ -107,6 +107,8 @@ class BaseMIL(LightningContainer):
                                                 self.pool_out_dim)
         elif self.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
+        elif self.pool_type == MaxPoolingLayer.__name__:
+            pooling_layer = MaxPoolingLayer()
         elif self.pool_type == TransformerPooling.__name__:
             pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
                                                self.num_transformer_pool_heads,

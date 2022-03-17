@@ -20,7 +20,7 @@ if local_mode:
     max_epochs = 2
 else:
     is_debug_model = False
-    num_workers = 6
+    num_workers = 12
     max_epochs = 200
 
 
@@ -51,9 +51,9 @@ class CRCK_SimCLR(HistoSSLContainer):
                          model_monitor_metric='ssl_online_evaluator/val/AreaUnderRocCurve',
                          model_monitor_mode='max',
                          max_epochs=max_epochs,
-                         ssl_training_batch_size=32,  # GPU memory is at 70% with batch_size=32, 2GPUs
+                         ssl_training_batch_size=48,  # GPU memory is at 70% with batch_size=32, 2GPUs
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLTrainingType.BYOL,
+                         ssl_training_type=SSLTrainingType.SimCLR,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=None,  # Change to path_augmentation to use the config
                          linear_head_augmentation_config=None,  # Change to path_augmentation to use the config

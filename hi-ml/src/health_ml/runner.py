@@ -39,6 +39,13 @@ from health_ml.utils.common_utils import (check_conda_environments, get_all_envi
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
+
+# We change the current working directory before starting the actual training. However, this throws off starting
+# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
+# path.
+runner_path = Path(sys.argv[0])
+sys.argv[0] = str(runner_path.resolve())
+
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
@@ -130,9 +137,9 @@ class Runner:
 
         :return: ParserResult object containing args, overrides and settings
         """
-        parser = create_runner_parser()
-        parser_result = parse_arguments(parser, args=sys.argv[1:])
-        experiment_config = ExperimentConfig(**parser_result.args)
+        parser1 = create_runner_parser()
+        parser1_result = parse_arguments(parser1, args=sys.argv[1:])
+        experiment_config = ExperimentConfig(**parser1_result.args)
 
         self.experiment_config = experiment_config
         if not experiment_config.model:
@@ -143,17 +150,17 @@ class Runner:
 
         # parse overrides and apply
         assert isinstance(container, param.Parameterized)
-        parser_ = create_argparser(container)
+        parser2 = create_argparser(container)
         # For each parser, feed in the unknown settings from the previous parser. All commandline args should
         # be consumed by name, hence fail if there is something that is still unknown.
-        parser_result_ = parse_arguments(parser_, args=parser_result.unknown)
+        parser2_result = parse_arguments(parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
         # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-        _ = apply_overrides(container, parser_result_.overrides)  # type: ignore
+        apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
 
         self.lightning_container = container
 
-        return parser_result_
+        return parser2_result
 
     def validate(self) -> None:
         """
@@ -219,12 +226,15 @@ class Runner:
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
+        # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
+        # datasets to be quicker.
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.azureml else True
         input_datasets = \
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore,
-                                   use_mounting=True)
+                                   use_mounting=use_mounting)
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
             raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
@@ -262,6 +272,7 @@ class Runner:
                     ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                    docker_shm_size=self.experiment_config.docker_shm_size,
                     hyperdrive_config=hyperdrive_config,
                     create_output_folders=False,
                     tags=additional_run_tags(
