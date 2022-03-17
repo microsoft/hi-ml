@@ -73,8 +73,7 @@ def test_best_val_metric_persistence(tmp_path: Path) -> None:
 def test_overwriting_val_outputs(tmp_path: Path) -> None:
     mock_output_filename = "mock_output.txt"
 
-    def mock_save_outputs(outputs: List, metrics_dict: Mapping[MetricsKey, Metric],
-                          outputs_dir: Path, figures_dir: Path) -> None:
+    def mock_save_outputs(outputs: List, metrics_dict: Mapping[MetricsKey, Metric], outputs_dir: Path) -> None:
         outputs_dir.mkdir(exist_ok=True, parents=True)
         metric_value = metrics_dict[_PRIMARY_METRIC_KEY].compute()
         mock_output_file = outputs_dir / mock_output_filename
