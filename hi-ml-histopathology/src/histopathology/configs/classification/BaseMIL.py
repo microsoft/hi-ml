@@ -22,7 +22,7 @@ from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
-from histopathology.utils.logging_utils import DeepMILOutputsHandler
+from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey
 
 

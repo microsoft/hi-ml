@@ -6,7 +6,7 @@ import pytest
 from ruamel.yaml import YAML
 from torchmetrics.metric import Metric
 
-from histopathology.utils.logging_utils import DeepMILOutputsHandler
+from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC

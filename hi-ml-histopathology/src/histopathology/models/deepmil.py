@@ -15,7 +15,7 @@ from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.logging_utils import DeepMILOutputsHandler, validate_class_names
+from histopathology.utils.output_utils import DeepMILOutputsHandler, validate_class_names
 from histopathology.utils.naming import MetricsKey, ResultsKey
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
