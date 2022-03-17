@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from health_ml.configs import hello_world as hello_config
+from health_ml.configs import hello_world as hello_config  # type: ignore
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
 
