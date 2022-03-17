@@ -208,22 +208,13 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequ
     save_figure(fig=fig, figpath=figures_dir / 'normalized_confusion_matrix.png')
 
 
-class DeepMILOutputsHandler:
+class OutputsPolicy:
     _BEST_EPOCH_KEY = 'best_epoch'
     _BEST_VALUE_KEY = 'best_value'
     _PRIMARY_METRIC_KEY = 'primary_metric'
 
-    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
-                 slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
-                 primary_val_metric: MetricsKey, maximise: bool) -> None:
+    def __init__(self, outputs_root: Path, primary_val_metric: MetricsKey, maximise: bool) -> None:
         self.outputs_root = outputs_root
-
-        self.n_classes = n_classes
-        self.tile_size = tile_size
-        self.level = level
-        self.slide_dataset = slide_dataset
-        self.class_names = validate_class_names(class_names, self.n_classes)
-
         self.primary_val_metric = primary_val_metric
         self.maximise = maximise
 
@@ -265,6 +256,23 @@ class DeepMILOutputsHandler:
             self._save_best_metric()
 
         return is_best
+
+
+class DeepMILOutputsHandler:
+    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
+                 slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
+                 primary_val_metric: MetricsKey, maximise: bool) -> None:
+        self.outputs_root = outputs_root
+
+        self.n_classes = n_classes
+        self.tile_size = tile_size
+        self.level = level
+        self.slide_dataset = slide_dataset
+        self.class_names = validate_class_names(class_names, self.n_classes)
+
+        self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
+                                            primary_val_metric=primary_val_metric,
+                                            maximise=maximise)
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -309,7 +317,7 @@ class DeepMILOutputsHandler:
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                                 epoch: int) -> None:
-        if self.should_save_validation_outputs(metrics_dict, epoch):
+        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
