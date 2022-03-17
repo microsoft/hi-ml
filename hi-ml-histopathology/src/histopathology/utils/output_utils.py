@@ -164,21 +164,21 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
 
 
 def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
-                                       level: int, slide_dataset: SlidesDataset, figures_dir: Path) -> None:
+                                       level: int, slides_dataset: SlidesDataset, figures_dir: Path) -> None:
     for key in selected_slide_ids:
         print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
         key_dir = figures_dir / key
         key_dir.mkdir(parents=True, exist_ok=True)
         for slide_id in selected_slide_ids[key]:
             save_slide_thumbnail_and_heatmap(results, slide_id=slide_id, tile_size=tile_size, level=level,
-                                             slide_dataset=slide_dataset, key_dir=key_dir)
+                                             slides_dataset=slides_dataset, key_dir=key_dir)
 
 
 def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_size: int, level: int,
-                                     slide_dataset: SlidesDataset, key_dir: Path) -> None:
-    slide_index = slide_dataset.dataset_df.index.get_loc(slide_id)
+                                     slides_dataset: SlidesDataset, key_dir: Path) -> None:
+    slide_index = slides_dataset.dataset_df.index.get_loc(slide_id)
     assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_id}"
-    slide_dict = slide_dataset[slide_index]
+    slide_dict = slides_dataset[slide_index]
     slide_dict = load_image_dict(slide_dict, level=level, margin=0)
     slide_image = slide_dict[SlideKey.IMAGE]
     location_bbox = slide_dict[SlideKey.LOCATION]
@@ -210,11 +210,18 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequ
 
 
 class OutputsPolicy:
+    """Utility class that defines when to save validation epoch outputs."""
+
     _BEST_EPOCH_KEY = 'best_epoch'
     _BEST_VALUE_KEY = 'best_value'
     _PRIMARY_METRIC_KEY = 'primary_metric'
 
     def __init__(self, outputs_root: Path, primary_val_metric: MetricsKey, maximise: bool) -> None:
+        """
+        :param outputs_root: Root directory where to save a recovery file with best epoch and metric value.
+        :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
+        :param maximise: Whether higher is better for `primary_val_metric`.
+        """
         self.outputs_root = outputs_root
         self.primary_val_metric = primary_val_metric
         self.maximise = maximise
@@ -226,6 +233,10 @@ class OutputsPolicy:
         return self.outputs_root / "best_val_metric.yml"
 
     def _init_best_metric(self) -> None:
+        """Initialise running best metric epoch and value (recovered from disk if available).
+
+        :raises ValueError: If the primary metric name does not match the one saved on disk.
+        """
         if self.best_metric_file_path.exists():
             contents = YAML().load(self.best_metric_file_path)
             self._best_metric_epoch = contents[self._BEST_EPOCH_KEY]
@@ -238,12 +249,20 @@ class OutputsPolicy:
             self._best_metric_value = float('-inf') if self.maximise else float('inf')
 
     def _save_best_metric(self) -> None:
+        """Save best metric epoch, value, and name to disk, to allow recovery (e.g. in case of pre-emption)."""
         contents = {self._BEST_EPOCH_KEY: self._best_metric_epoch,
                     self._BEST_VALUE_KEY: self._best_metric_value,
                     self._PRIMARY_METRIC_KEY: self.primary_val_metric.value}
         YAML().dump(contents, self.best_metric_file_path)
 
     def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> bool:
+        """Determine whether validation outputs should be saved given the current epoch's metrics.
+
+        :param metrics_dict: Current epoch's metrics dictionary from
+            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param epoch: Current epoch number.
+        :return: Whether this is the best validation epoch so far.
+        """
         metric_value = float(metrics_dict[self.primary_val_metric].compute())
 
         if self.maximise:
@@ -260,15 +279,28 @@ class OutputsPolicy:
 
 
 class DeepMILOutputsHandler:
+    """Class that manages writing validation and test outputs for DeepMIL models."""
+
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
-                 slide_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
+                 slides_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
                  primary_val_metric: MetricsKey, maximise: bool) -> None:
+        """
+        :param outputs_root: Root directory where to save all produced outputs.
+        :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
+        :param tile_size: The size of each tile.
+        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
+        :param slides_dataset: Optional slides dataset from which to plot thumbnails and heatmaps.
+        :param class_names: List of class names. For binary (`n_classes == 1`), expects `len(class_names) == 2`.
+            If `None`, will return `('0', '1', ...)`.
+        :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
+        :param maximise: Whether higher is better for `primary_val_metric`.
+        """
         self.outputs_root = outputs_root
 
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.slide_dataset = slide_dataset
+        self.slides_dataset = slides_dataset
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
@@ -289,6 +321,13 @@ class DeepMILOutputsHandler:
 
     def _save_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                       outputs_dir: Path) -> None:
+        """Trigger the rendering and saving of DeepMIL outputs and figures.
+
+        :param epoch_results: Aggregated results from all epoch batches.
+        :param metrics_dict: Current epoch's validation metrics dictionary from
+            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param outputs_dir: Specific directory into which outputs should be saved (different for validation and test).
+        """
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # example of batch_key ResultsKey.SLIDE_ID_COL
@@ -307,9 +346,9 @@ class DeepMILOutputsHandler:
         print("Selecting tiles ...")
         selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
 
-        if self.slide_dataset is not None:
+        if self.slides_dataset is not None:
             save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size, level=self.level,
-                                               slide_dataset=self.slide_dataset, figures_dir=figures_dir)
+                                               slides_dataset=self.slides_dataset, figures_dir=figures_dir)
 
         save_scores_histogram(results, figures_dir=figures_dir)
 
@@ -318,6 +357,13 @@ class DeepMILOutputsHandler:
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                                 epoch: int) -> None:
+        """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
+
+        :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
+        :param metrics_dict: Current epoch's validation metrics dictionary from
+            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param epoch: Current epoch number.
+        """
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
@@ -331,4 +377,9 @@ class DeepMILOutputsHandler:
                 shutil.rmtree(self.previous_validation_outputs_dir)
 
     def save_test_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
+        """Render and save test epoch outputs.
+
+        :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`test_epoch_end()`.
+        :param metrics_dict: Test metrics dictionary from :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        """
         self._save_outputs(epoch_results, metrics_dict, self.test_outputs_dir)
