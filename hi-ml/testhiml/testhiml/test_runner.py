@@ -126,9 +126,13 @@ def test_crossvalidation_flag() -> None:
     """
     container = HelloWorld()
     assert not container.is_crossvalidation_enabled
-    container.crossval_count = 2
+    container.crossval_count = 5
     assert container.is_crossvalidation_enabled
     container.validate()
+    # Try all valid values
+    for i in range(container.crossval_count):
+        container.crossval_index = i
+        container.validate()
     # Validation should fail if the cross validation index is out of bounds
     container.crossval_index = container.crossval_count
     with pytest.raises(ValueError):
