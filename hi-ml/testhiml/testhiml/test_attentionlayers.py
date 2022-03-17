@@ -14,7 +14,7 @@ def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
     attn_weights, output_features = attentionlayer(features)
     assert attn_weights.shape == (dim_att, batch_size)          # K x N
     assert output_features.shape == (dim_att, dim_in)           # K x L
-    assert ((attn_weights >= 0) & (attn_weights <= 1)).all()
+    assert ((attn_weights >= 0) & (attn_weights <= 1 + 1e-8)).all()  # added tolerance due to rounding issues
 
     row_sums = sum(attn_weights, dim=1, keepdim=True)
     assert allclose(row_sums, ones_like(row_sums))

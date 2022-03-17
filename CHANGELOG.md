@@ -32,6 +32,7 @@ the environment file since it is necessary for the augmentations.
 
 ### Fixed
 
+- ([#246](https://github.com/microsoft/hi-ml/pull/246)) Added tolerance to `test_attentionlayers.py`.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Dependencies for histopathology folder are no longer specified in `test_requirements.txt`, but correctly in the histopathology Conda environment.
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
@@ -131,7 +132,7 @@ argparsing with parametrized classes.
 
 - ([#133](https://github.com/microsoft/hi-ml/pull/133)) Made _**large breaking changes**_ to module names,
 from `health.azure` to `health_azure`.
-- ([#144])(https://github.com/microsoft/hi-ml/pull/141) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
+- ([#141])(https://github.com/microsoft/hi-ml/pull/141)) Update changelog for release and increase scope of test_register_environment to ensure that by default environments are registered with a version number
 
 ### Fixed
 
