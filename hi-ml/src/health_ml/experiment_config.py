@@ -16,3 +16,5 @@ class ExperimentConfig(param.Parameterized):
                                                "job start. If True, datasets in AzureML are mounted (read on demand "
                                                "over the network). When running outside AzureML, datasets will "
                                                "always be mounted.")
+    docker_shm_size: str = param.String("400g",
+                                        doc="The shared memory in the Docker image for the AzureML VMs.")

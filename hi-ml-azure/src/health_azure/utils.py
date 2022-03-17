@@ -12,7 +12,15 @@ import os
 import re
 import sys
 import tempfile
-from argparse import ArgumentParser, OPTIONAL, ArgumentError, _UNRECOGNIZED_ARGS_ATTR, Namespace, SUPPRESS
+from argparse import (
+    ArgumentDefaultsHelpFormatter,
+    ArgumentError,
+    ArgumentParser,
+    Namespace,
+    OPTIONAL,
+    SUPPRESS,
+    _UNRECOGNIZED_ARGS_ATTR,
+)
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import islice
@@ -30,7 +38,7 @@ from azureml.core.conda_dependencies import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 EXPERIMENT_RUN_SEPARATOR = ":"
 DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
@@ -103,8 +111,9 @@ class IntTuple(param.NumericTuple):
         if val is not None:
             for i, n in enumerate(val):
                 if not isinstance(n, int):
-                    raise ValueError("{}: tuple element at index {} with value {} in {} is not an integer"
-                                     .format(self.name, i, n, val))
+                    raise ValueError(
+                        f"{self.name}: tuple element at index {i} with value {n} in {val} is not an integer"
+                    )
 
 
 class GenericConfig(param.Parameterized):
@@ -123,8 +132,10 @@ class GenericConfig(param.Parameterized):
         illegal = [k for k, v in params.items() if (k in current_param_names) and (k not in legal_params)]
 
         if illegal:
-            raise ValueError(f"The following parameters cannot be overridden as they are either "
-                             f"readonly, constant, or private members : {illegal}")
+            raise ValueError(
+                "The following parameters cannot be overridden as they are either "
+                f"readonly, constant, or private members : {illegal}"
+            )
         if throw_if_unknown_param:
             # check if parameters not defined by the config class are passed in
             unknown = [k for k, v in params.items() if (k not in current_param_names)]
@@ -170,7 +181,7 @@ def create_argparser(config: param.Parameterized) -> ArgumentParser:
     :return: ArgumentParser
     """
     assert isinstance(config, param.Parameterized)
-    parser = ArgumentParser()
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     _add_overrideable_config_args_to_parser(config, parser)
     return parser
 
@@ -193,9 +204,9 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         :return: Bool value if string valid, otherwise a ValueError is raised.
         """
         sx = str(x).lower()
-        if sx in ('on', 't', 'true', 'y', 'yes', '1'):
+        if sx in ("on", "t", "true", "y", "yes", "1"):
             return True
-        if sx in ('off', 'f', 'false', 'n', 'no', '0'):
+        if sx in ("off", "f", "false", "n", "no", "0"):
             return False
         raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
 
@@ -216,17 +227,17 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         elif isinstance(_p, param.String):
             p_type = str
         elif isinstance(_p, param.List):
-            p_type = lambda x: [_p.class_(item) for item in x.split(',')]
+            p_type = lambda x: [_p.class_(item) for item in x.split(",")]
         elif isinstance(_p, param.NumericTuple):
             float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
-            p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
+            p_type = lambda x: tuple([float_or_int(item) for item in x.split(",")])
         elif isinstance(_p, param.ClassSelector):
             p_type = _p.class_
         elif isinstance(_p, CustomTypeParam):
             p_type = _p.from_string
 
         else:
-            raise TypeError("Parameter of type: {} is not supported".format(_p))
+            raise TypeError(f"Parameter of type {_p} is not supported")
 
         return p_type
 
@@ -245,15 +256,14 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
             # This means that the argument is optional.
             # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
             # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
-            parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False,
-                                nargs=OPTIONAL, const=True)
+            parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False, nargs=OPTIONAL, const=True)
         else:
             # If the parameter default is True then create an exclusive group of arguments.
             # Either --flag=value as usual
             # Or --no-flag to store False in the parameter k.
             group = parser.add_mutually_exclusive_group(required=False)
             group.add_argument("--" + k, help=p.doc, type=parse_bool)
-            group.add_argument('--no-' + k, dest=k, action='store_false')
+            group.add_argument("--no-" + k, dest=k, action="store_false")
             parser.set_defaults(**{k: p.default})
 
     for k, p in get_overridable_parameters(config).items():
@@ -273,6 +283,7 @@ class ParserResult:
     Stores the results of running an argument parser, broken down into a argument-to-value dictionary,
     arguments that the parser does not recognize.
     """
+
     args: Dict[str, Any]
     unknown: List[str]
     overrides: Dict[str, Any]
@@ -298,9 +309,9 @@ def _create_default_namespace(parser: ArgumentParser) -> Namespace:
     return namespace
 
 
-def parse_arguments(parser: ArgumentParser,
-                    fail_on_unknown_args: bool = False,
-                    args: Optional[List[str]] = None) -> ParserResult:
+def parse_arguments(
+    parser: ArgumentParser, fail_on_unknown_args: bool = False, args: Optional[List[str]] = None
+) -> ParserResult:
     """
     Parses a list of commandline arguments with a given parser. Returns results broken down into a full
     arguments dictionary, a dictionary of arguments that were set to non-default values, and unknown
@@ -335,7 +346,7 @@ def parse_arguments(parser: ArgumentParser,
     parsed_args = vars(namespace).copy()
     overrides = vars(namespace_without_defaults).copy()
     if len(unknown) > 0 and fail_on_unknown_args:
-        raise ValueError(f'Unknown arguments: {unknown}')
+        raise ValueError(f"Unknown arguments: {unknown}")
     return ParserResult(
         args=parsed_args,
         unknown=unknown,
@@ -366,8 +377,7 @@ def get_overridable_parameters(config: Any) -> Dict[str, param.Parameter]:
     :return: A dictionary of parameter names and their definitions.
     """
     assert isinstance(config, param.Parameterized)
-    return dict((k, v) for k, v in config.param.params().items()
-                if reason_not_overridable(v) is None)
+    return dict((k, v) for k, v in config.param.params().items() if reason_not_overridable(v) is None)
 
 
 def reason_not_overridable(value: param.Parameter) -> Optional[str]:
@@ -390,8 +400,12 @@ def reason_not_overridable(value: param.Parameter) -> Optional[str]:
     return None
 
 
-def apply_overrides(config: Any, overrides_to_apply: Optional[Dict[str, Any]], should_validate: bool = False,
-                    keys_to_ignore: Optional[Set[str]] = None) -> Dict[str, Any]:
+def apply_overrides(
+    config: Any,
+    overrides_to_apply: Optional[Dict[str, Any]],
+    should_validate: bool = False,
+    keys_to_ignore: Optional[Set[str]] = None,
+) -> Dict[str, Any]:
     """
     Applies the provided `values` overrides to the config.
     Only properties that are marked as overridable are actually overwritten.
@@ -527,10 +541,10 @@ class ListOrDictParam(CustomTypeParam):
         :param x: the string to parse
         :return: a List or Dict object, as evaluated from the input string
         """
-        if x.startswith("{") or x.startswith('['):
-            res = json.loads(x.replace("'", "\""))
+        if x.startswith("{") or x.startswith("["):
+            res = json.loads(x.replace("'", '"'))
         else:
-            res = [str(item) for item in x.split(',')]
+            res = [str(item) for item in x.split(",")]
         if isinstance(res, Dict):
             return res
         elif isinstance(res, List):
@@ -567,18 +581,24 @@ class RunIdOrListParam(CustomTypeParam):
         :param x: The string to evaluate
         :return: a list of one or more strings representing run ids
         """
-        res = [str(item) for item in x.split(',')]
+        res = [str(item) for item in x.split(",")]
         return [determine_run_id_type(x) for x in res]
 
 
 class CheckpointDownloader:
-    def __init__(self, run_id: str, checkpoint_filename: str, azure_config_json_path: Optional[Path] = None,
-                 aml_workspace: Workspace = None, download_dir: PathOrString = "checkpoints",
-                 remote_checkpoint_dir: PathOrString = "checkpoints") -> None:
+    def __init__(
+        self,
+        run_id: str,
+        checkpoint_filename: str,
+        azure_config_json_path: Optional[Path] = None,
+        aml_workspace: Workspace = None,
+        download_dir: PathOrString = "checkpoints",
+        remote_checkpoint_dir: PathOrString = "checkpoints",
+    ) -> None:
         """
         Utility class for downloading checkpoint files from an Azure ML run
 
-       :param run_id: Recovery ID of the run from which to load the checkpoint.
+        :param run_id: Recovery ID of the run from which to load the checkpoint.
         :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
         `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
         :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
@@ -616,14 +636,13 @@ class CheckpointDownloader:
 
         :return: The local path to the downloaded checkpoint file.
         """
-        workspace = get_workspace(aml_workspace=self.aml_workspace,
-                                  workspace_config_path=self.azure_config_json_path)
+        workspace = get_workspace(aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
 
         if not self.local_checkpoint_path.exists():
             self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
-            download_checkpoints_from_run_id(self.run_id, str(self.remote_checkpoint_path),
-                                             self.local_checkpoint_dir,
-                                             aml_workspace=workspace)
+            download_checkpoints_from_run_id(
+                self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
+            )
             assert self.local_checkpoint_path.exists()
 
         return self.local_checkpoint_path
@@ -666,6 +685,7 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
     :param stop_at_path: A list of folders. If any of them is reached, search stops.
     :return: The absolute path of the file if found, or None if it was not found.
     """
+
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
         logging.debug(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
@@ -687,8 +707,8 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
     :return: The path to the file, or None if it cannot be found.
     """
     pythonpaths: List[Path] = []
-    if 'PYTHONPATH' in os.environ:
-        pythonpaths = [Path(path_string) for path_string in os.environ['PYTHONPATH'].split(os.pathsep)]
+    if "PYTHONPATH" in os.environ:
+        pythonpaths = [Path(path_string) for path_string in os.environ["PYTHONPATH"].split(os.pathsep)]
     return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
 
 
@@ -734,11 +754,11 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
 
 def create_run_recovery_id(run: Run) -> str:
     """
-    Creates a unique ID for a run, from which the experiment name and the run ID can be re-created
+     Creates a unique ID for a run, from which the experiment name and the run ID can be re-created
 
-   :param run: an instantiated run.
-   :return: recovery id for a given run in format: [experiment name]:[run id]
-   """
+    :param run: an instantiated run.
+    :return: recovery id for a given run in format: [experiment name]:[run id]
+    """
     return str(run.experiment.name + EXPERIMENT_RUN_SEPARATOR + run.id)
 
 
@@ -754,14 +774,14 @@ def split_recovery_id(id_str: str) -> Tuple[str, str]:
     """
     components = id_str.strip().split(EXPERIMENT_RUN_SEPARATOR)
     if len(components) > 2:
-        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id_str))
+        raise ValueError(f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id_str}")
     elif len(components) == 2:
         return components[0], components[1]
     else:
         recovery_id_regex = r"^(\w+)_\d+_[0-9a-f]+$|^(\w+)_\d+$"
         match = re.match(recovery_id_regex, id_str)
         if not match:
-            raise ValueError("The recovery ID was not in the expected format: {}".format(id_str))
+            raise ValueError(f"The recovery ID was not in the expected format: {id_str}")
         return (match.group(1) or match.group(2)), id_str
 
 
@@ -781,7 +801,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     except Exception as ex:
         raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
+    logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
     return run_to_recover
 
 
@@ -798,9 +818,9 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
     except Exception:
         available_runs = experiment_to_recover.get_runs()
         available_ids = ", ".join([run.id for run in available_runs])
-        raise (Exception(
-            "Run {} not found for experiment: {}. Available runs are: {}".format(
-                run_id, experiment_to_recover.name, available_ids)))
+        raise Exception(
+            f"Run {run_id} not found for experiment: {experiment_to_recover.name}. Available runs are: {available_ids}"
+        )
 
 
 def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincipalAuthentication]:
@@ -818,9 +838,12 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
             service_principal_id=service_principal_id,
-            service_principal_password=service_principal_password)
-    logging.info("Using interactive login to Azure. To use Service Principal authentication, set the environment "
-                 f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}")
+            service_principal_password=service_principal_password,
+        )
+    logging.info(
+        "Using interactive login to Azure. To use Service Principal authentication, set the environment "
+        f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
+    )
     return InteractiveLoginAuthentication()
 
 
@@ -851,7 +874,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     if x is None:
         return x
     else:
-        return re.sub('_+', '_', re.sub(r'\W+', '_', x))
+        return re.sub("_+", "_", re.sub(r"\W+", "_", x))
 
 
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
@@ -889,11 +912,11 @@ def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -
         len_parts = len(dep_parts)
         dep_name = dep_parts[0]
         if len_parts > 1:
-            dep_join = ''.join(dep_parts[1:-1])
+            dep_join = "".join(dep_parts[1:-1])
             dep_version = dep_parts[-1]
         else:
-            dep_join = ''
-            dep_version = ''
+            dep_join = ""
+            dep_version = ""
 
         if dep_name in unique_deps:
             if keep_method == "first":
@@ -902,10 +925,13 @@ def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -
                 keep_version = dep_version
                 unique_deps[dep_name] = (keep_version, dep_join)
             else:
-                raise ValueError(f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
-                                 f" include: ['first', 'last']")
-            logging.warning(f"Found duplicate requirements: {dep}. Keeping the {keep_method} "
-                            f"version: {keep_version}")
+                raise ValueError(
+                    f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
+                    f" include: ['first', 'last']"
+                )
+            logging.warning(
+                f"Found duplicate requirements: {dep}. Keeping the {keep_method} " f"version: {keep_version}"
+            )
 
         else:
             unique_deps[dep_name] = (dep_version, dep_join)
@@ -960,8 +986,12 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     return False, conda_yaml
 
 
-def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Optional[List[Path]] = None,
-                      pip_clash_keep_method: str = "first") -> None:
+def merge_conda_files(
+    conda_files: List[Path],
+    result_file: Path,
+    pip_files: Optional[List[Path]] = None,
+    pip_clash_keep_method: str = "first",
+) -> None:
     """
     Merges the given Conda environment files using the conda_merge package, optionally adds any
     dependencies from pip requirements files, and writes the merged file to disk.
@@ -1032,12 +1062,14 @@ def merge_conda_files(conda_files: List[Path], result_file: Path, pip_files: Opt
     _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
 
 
-def create_python_environment(conda_environment_file: Path,
-                              pip_extra_index_url: str = "",
-                              workspace: Optional[Workspace] = None,
-                              private_pip_wheel_path: Optional[Path] = None,
-                              docker_base_image: str = "",
-                              environment_variables: Optional[Dict[str, str]] = None) -> Environment:
+def create_python_environment(
+    conda_environment_file: Path,
+    pip_extra_index_url: str = "",
+    workspace: Optional[Workspace] = None,
+    private_pip_wheel_path: Optional[Path] = None,
+    docker_base_image: str = "",
+    environment_variables: Optional[Dict[str, str]] = None,
+) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the arguments.
     The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
@@ -1060,34 +1092,35 @@ def create_python_environment(conda_environment_file: Path,
         conda_dependencies.set_pip_option(f"--index-url {pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # By default, define several environment variables that work around known issues in the software stack
-    environment_variables = {
-        **DEFAULT_ENVIRONMENT_VARIABLES,
-        **(environment_variables or {})
-    }
+    environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
     # See if this package as a whl exists, and if so, register it with AzureML environment.
     if private_pip_wheel_path is not None:
         if not private_pip_wheel_path.is_file():
             raise FileNotFoundError(f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
         if workspace is None:
             raise ValueError("To use a private pip wheel, an AzureML workspace must be provided.")
-        whl_url = Environment.add_private_pip_wheel(workspace=workspace,
-                                                    file_path=str(private_pip_wheel_path),
-                                                    exist_ok=True)
+        whl_url = Environment.add_private_pip_wheel(
+            workspace=workspace, file_path=str(private_pip_wheel_path), exist_ok=True
+        )
         conda_dependencies.add_pip_package(whl_url)
         logging.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
-    hash_string = "\n".join([yaml_contents,
-                             docker_base_image,
-                             # Changing the index URL can lead to differences in package version resolution
-                             pip_extra_index_url,
-                             str(environment_variables),
-                             # Use the path of the private wheel as a proxy. This could lead to problems if
-                             # a new environment uses the same private wheel file name, but the wheel has different
-                             # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
-                             # should not occur there.
-                             str(private_pip_wheel_path)])
+    hash_string = "\n".join(
+        [
+            yaml_contents,
+            docker_base_image,
+            # Changing the index URL can lead to differences in package version resolution
+            pip_extra_index_url,
+            str(environment_variables),
+            # Use the path of the private wheel as a proxy. This could lead to problems if
+            # a new environment uses the same private wheel file name, but the wheel has different
+            # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
+            # should not occur there.
+            str(private_pip_wheel_path),
+        ]
+    )
     # Python's hash function gives different results for the same string in different python instances,
     # hence need to use hashlib
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
@@ -1120,8 +1153,10 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
     except Exception:  # type: ignore
         if environment.version is None:
             environment.version = ENVIRONMENT_VERSION
-        logging.info(f"Python environment '{environment.name}' does not yet exist, creating and registering it"
-                     f" with version '{environment.version}'")
+        logging.info(
+            f"Python environment '{environment.name}' does not yet exist, creating and registering it"
+            f" with version '{environment.version}'"
+        )
         return environment.register(workspace)
 
 
@@ -1203,9 +1238,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     :param run_recovery_file: The path of the run recovery file
     :return: The run id
     """
-    assert (
-        run_recovery_file.is_file()
-    ), f"No such file: {run_recovery_file}"
+    assert run_recovery_file.is_file(), f"No such file: {run_recovery_file}"
 
     run_id = run_recovery_file.read_text().strip()
     logging.info(f"Read this run ID from file: {run_id}.")
@@ -1224,9 +1257,9 @@ def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
     return get_aml_run_from_run_id(run_or_recovery_id, aml_workspace=workspace)
 
 
-def get_aml_run_from_run_id(run_id: str,
-                            aml_workspace: Optional[Workspace] = None,
-                            workspace_config_path: Optional[Path] = None) -> Run:
+def get_aml_run_from_run_id(
+    run_id: str, aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None
+) -> Run:
     """
     Returns an AML Run object, given the run id (run recovery id will also be accepted but is not recommended
     since AML no longer requires the experiment name in order to find the run from a workspace).
@@ -1245,12 +1278,13 @@ def get_aml_run_from_run_id(run_id: str,
     return workspace.get_run(run_id_)
 
 
-def get_latest_aml_runs_from_experiment(experiment_name: str,
-                                        num_runs: int = 1,
-                                        tags: Optional[Dict[str, str]] = None,
-                                        aml_workspace: Optional[Workspace] = None,
-                                        workspace_config_path: Optional[Path] = None
-                                        ) -> List[Run]:
+def get_latest_aml_runs_from_experiment(
+    experiment_name: str,
+    num_runs: int = 1,
+    tags: Optional[Dict[str, str]] = None,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+) -> List[Run]:
     """
     Retrieves the experiment <experiment_name> from the identified workspace and returns <num_runs> latest
     runs from it, optionally filtering by tags - e.g. {'tag_name':'tag_value'}
@@ -1303,10 +1337,14 @@ def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", valid
         _download_file_from_run(run, run_path, output_path, validate_checksum=validate_checksum)
 
 
-def download_files_from_run_id(run_id: str, output_folder: Path, prefix: str = "",
-                               workspace: Optional[Workspace] = None,
-                               workspace_config_path: Optional[Path] = None,
-                               validate_checksum: bool = False) -> None:
+def download_files_from_run_id(
+    run_id: str,
+    output_folder: Path,
+    prefix: str = "",
+    workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+    validate_checksum: bool = False,
+) -> None:
     """
     For a given Azure ML run id, first retrieve the Run, and then download all files, which optionally start
     with a given prefix. E.g. if the Run creates a folder called "outputs", which you wish to download all
@@ -1333,8 +1371,9 @@ def download_files_from_run_id(run_id: str, output_folder: Path, prefix: str = "
     torch_barrier()
 
 
-def _download_file_from_run(run: Run, filename: str, output_file: Path, validate_checksum: bool = False
-                            ) -> Optional[Path]:
+def _download_file_from_run(
+    run: Run, filename: str, output_file: Path, validate_checksum: bool = False
+) -> Optional[Path]:
     """
     Download a single file from an Azure ML Run, optionally validating the content to ensure the file is not
     corrupted during download. If running inside a distributed setting, will only attempt to download the file
@@ -1401,11 +1440,15 @@ def is_local_rank_zero() -> bool:
     return global_rank is None and local_rank is None
 
 
-def download_from_datastore(datastore_name: str, file_prefix: str, output_folder: Path,
-                            aml_workspace: Optional[Workspace] = None,
-                            workspace_config_path: Optional[Path] = None,
-                            overwrite: bool = False,
-                            show_progress: bool = False) -> None:
+def download_from_datastore(
+    datastore_name: str,
+    file_prefix: str,
+    output_folder: Path,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+    overwrite: bool = False,
+    show_progress: bool = False,
+) -> None:
     """
     Download file(s) from an Azure ML Datastore that are registered within a given Workspace. The path
     to the file(s) to be downloaded, relative to the datastore <datastore_name>, is specified by the parameter
@@ -1434,17 +1477,22 @@ def download_from_datastore(datastore_name: str, file_prefix: str, output_folder
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     datastore = workspace.datastores[datastore_name]
-    assert isinstance(datastore, AzureBlobDatastore), \
-        "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
+    assert isinstance(
+        datastore, AzureBlobDatastore
+    ), "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
     datastore.download(str(output_folder), prefix=file_prefix, overwrite=overwrite, show_progress=show_progress)
     logging.info(f"Downloaded data to {str(output_folder)}")
 
 
-def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_path: Path,
-                        aml_workspace: Optional[Workspace] = None,
-                        workspace_config_path: Optional[Path] = None,
-                        overwrite: bool = False,
-                        show_progress: bool = False) -> None:
+def upload_to_datastore(
+    datastore_name: str,
+    local_data_folder: Path,
+    remote_path: Path,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+    overwrite: bool = False,
+    show_progress: bool = False,
+) -> None:
     """
     Upload a folder to an Azure ML Datastore that is registered within a given Workspace. Note that this will upload
     all files within the folder, but will not copy the folder itself. E.g. if you specify the local_data_dir="foo/bar"
@@ -1470,10 +1518,12 @@ def upload_to_datastore(datastore_name: str, local_data_folder: Path, remote_pat
 
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     datastore = workspace.datastores[datastore_name]
-    assert isinstance(datastore, AzureBlobDatastore), \
-        "Invalid datastore type. Can only upload to AzureBlobDatastore"  # for mypy
-    datastore.upload(str(local_data_folder), target_path=str(remote_path), overwrite=overwrite,
-                     show_progress=show_progress)
+    assert isinstance(
+        datastore, AzureBlobDatastore
+    ), "Invalid datastore type. Can only upload to AzureBlobDatastore"  # for mypy
+    datastore.upload(
+        str(local_data_folder), target_path=str(remote_path), overwrite=overwrite, show_progress=show_progress
+    )
     logging.info(f"Uploaded data to {str(remote_path)}")
 
 
@@ -1485,20 +1535,30 @@ class AmlRunScriptConfig(param.Parameterized):
     parameters by default. This class can be inherited from if you wish to add additional command line arguments
     to your script (see HimlDownloadConfig and HimlTensorboardConfig for examples)
     """
-    latest_run_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
-                                                doc="Optional path to most_recent_run.txt where the ID of the"
-                                                    "latest run is stored")
-    experiment: str = param.String(default=None, allow_None=True,
-                                   doc="The name of the AML Experiment that you wish to download Run files from")
-    num_runs: int = param.Integer(default=1, allow_None=True, doc="The number of runs to download from the "
-                                                                  "named experiment")
-    config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
-                                            doc="Path to config.json where Workspace name is defined")
+
+    latest_run_file: Path = param.ClassSelector(
+        class_=Path,
+        default=None,
+        instantiate=False,
+        doc="Optional path to most_recent_run.txt where the ID of the" "latest run is stored",
+    )
+    experiment: str = param.String(
+        default=None, allow_None=True, doc="The name of the AML Experiment that you wish to download Run files from"
+    )
+    num_runs: int = param.Integer(
+        default=1, allow_None=True, doc="The number of runs to download from the " "named experiment"
+    )
+    config_file: Path = param.ClassSelector(
+        class_=Path, default=None, instantiate=False, doc="Path to config.json where Workspace name is defined"
+    )
     tags: Dict[str, Any] = param.Dict()
-    run: List[str] = RunIdOrListParam(default=None, allow_None=True,
-                                      doc="Either single or multiple run id(s). Will be stored as a list"
-                                          " of strings. Also supports run_recovery_ids but this is not "
-                                          "recommended")
+    run: List[str] = RunIdOrListParam(
+        default=None,
+        allow_None=True,
+        doc="Either single or multiple run id(s). Will be stored as a list"
+        " of strings. Also supports run_recovery_ids but this is not "
+        "recommended",
+    )
 
 
 def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: Workspace) -> List[Run]:
@@ -1522,8 +1582,12 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
             runs = [get_most_recent_run(latest_run_file, workspace)]
         else:
             # get latest runs from experiment
-            runs = get_latest_aml_runs_from_experiment(script_config.experiment, tags=script_config.tags,
-                                                       num_runs=script_config.num_runs, aml_workspace=workspace)
+            runs = get_latest_aml_runs_from_experiment(
+                script_config.experiment,
+                tags=script_config.tags,
+                num_runs=script_config.num_runs,
+                aml_workspace=workspace,
+            )
     else:
         run_ids: List[str]
         run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]  # type: ignore
@@ -1531,9 +1595,13 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
     return runs
 
 
-def download_checkpoints_from_run_id(run_id: str, checkpoint_path_or_folder: str, output_folder: Path,
-                                     aml_workspace: Optional[Workspace] = None,
-                                     workspace_config_path: Optional[Path] = None) -> None:
+def download_checkpoints_from_run_id(
+    run_id: str,
+    checkpoint_path_or_folder: str,
+    output_folder: Path,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+) -> None:
     """
     Given an Azure ML run id, download all files from a given checkpoint directory within that run, to
     the path specified by output_path.
@@ -1549,8 +1617,9 @@ def download_checkpoints_from_run_id(run_id: str, checkpoint_path_or_folder: str
     :param workspace_config_path: Optional workspace config file
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    download_files_from_run_id(run_id, output_folder, prefix=checkpoint_path_or_folder, workspace=workspace,
-                               validate_checksum=True)
+    download_files_from_run_id(
+        run_id, output_folder, prefix=checkpoint_path_or_folder, workspace=workspace, validate_checksum=True
+    )
 
 
 def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
@@ -1563,7 +1632,7 @@ def is_running_in_azure_ml(aml_run: Run = RUN_CONTEXT) -> bool:
     :param aml_run: The run to check. If omitted, use the default run in RUN_CONTEXT
     :return: True if the given run is inside of an AzureML machine, or False if it is a machine outside AzureML.
     """
-    return hasattr(aml_run, 'experiment')
+    return hasattr(aml_run, "experiment")
 
 
 def is_running_on_azure_agent() -> bool:
@@ -1607,12 +1676,15 @@ def get_tags_from_hyperdrive_run(run: Run, arg_name: str) -> str:
         specified in sampling.
     :return: A string representing the value of the tag, if found.
     """
-    return json.loads(run.tags.get('hyperparameters')).get(arg_name)
+    return json.loads(run.tags.get("hyperparameters")).get(arg_name)
 
 
-def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
-                                 aml_workspace: Optional[Workspace] = None,
-                                 workspace_config_path: Optional[Path] = None) -> pd.DataFrame:
+def aggregate_hyperdrive_metrics(
+    run_id: str,
+    child_run_arg_name: str,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+) -> pd.DataFrame:
     """
     For a given HyperDrive run id, retrieves the metrics from each of its children and then aggregates it.
     Returns a DataFrame where each column is one child run, and each row is a metric logged by that child run.
@@ -1668,8 +1740,9 @@ def aggregate_hyperdrive_metrics(run_id: str, child_run_arg_name: str,
     return df
 
 
-def download_files_from_hyperdrive_children(run: Run, remote_file_paths: str, local_download_folder: Path,
-                                            hyperparam_name: str = '') -> List[str]:
+def download_files_from_hyperdrive_children(
+    run: Run, remote_file_paths: str, local_download_folder: Path, hyperparam_name: str = ""
+) -> List[str]:
     """
     Download a specified file or folder from each of the children of an Azure ML Hyperdrive run. For each child
     run, create a separate folder within your report folder, based on the value of whatever hyperparameter
@@ -1686,8 +1759,9 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_paths: str, lo
     :return: A list of paths to the downloaded files
     """
     if len(hyperparam_name) == 0:
-        raise ValueError("To download results from a HyperDrive run you must provide the hyperparameter name"
-                         "that was sampled over")
+        raise ValueError(
+            "To download results from a HyperDrive run you must provide the hyperparameter name" "that was sampled over"
+        )
 
     # For each child run we create a directory in the local_download_folder named after value of the
     # hyperparam sampled for this child.
@@ -1699,25 +1773,28 @@ def download_files_from_hyperdrive_children(run: Run, remote_file_paths: str, lo
 
         # The artifact will be downloaded into a child folder within local_download_folder
         # strip any special characters from the hyperparam index name
-        local_folder_child_run = local_download_folder / re.sub('[^A-Za-z0-9]+', '', str(child_run_index))
+        local_folder_child_run = local_download_folder / re.sub("[^A-Za-z0-9]+", "", str(child_run_index))
         local_folder_child_run.mkdir(exist_ok=True)
         for remote_file_path in remote_file_paths.split(","):
             download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
             downloaded_file_path = local_folder_child_run / remote_file_path
             if not downloaded_file_path.exists():
-                logging.warning(f"Unable to download the file {remote_file_path} from the datastore associated"
-                                "with this run.")
+                logging.warning(
+                    f"Unable to download the file {remote_file_path} from the datastore associated" "with this run."
+                )
             else:
                 downloaded_file_paths.append(str(downloaded_file_path))
 
     return downloaded_file_paths
 
 
-def create_aml_run_object(experiment_name: str,
-                          run_name: Optional[str] = None,
-                          workspace: Optional[Workspace] = None,
-                          workspace_config_path: Optional[Path] = None,
-                          snapshot_directory: Optional[PathOrString] = None) -> Run:
+def create_aml_run_object(
+    experiment_name: str,
+    run_name: Optional[str] = None,
+    workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+    snapshot_directory: Optional[PathOrString] = None,
+) -> Run:
     """
     Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
     This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
@@ -1763,10 +1840,9 @@ def aml_workspace_for_unittests() -> Workspace:
         subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=False)
         resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=False)
         auth = get_authentication()
-        return Workspace.get(name=workspace_name,
-                             auth=auth,
-                             subscription_id=subscription_id,
-                             resource_group=resource_group)
+        return Workspace.get(
+            name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
+        )
 
 
 class UnitTestWorkspaceWrapper:
