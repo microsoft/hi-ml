@@ -22,8 +22,11 @@ from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatm
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
+EpochResultsType = List[Dict[ResultsKey, Any]]
+ResultsType = Dict[ResultsKey, List[Any]]
 
-def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -> Tuple[str]:
+
+def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -> Tuple[str, ...]:
     """Return valid names for the specified number of classes.
 
     :param class_names: List of class names. If `None`, will return `('0', '1', ...)`.
@@ -73,16 +76,16 @@ def move_list_to_device(list_encoded_features: List) -> List:
     return features_list
 
 
-def collate_results(outputs: List[Dict[ResultsKey, Any]]) -> Dict[ResultsKey, List[Any]]:
+def collate_results(epoch_results: EpochResultsType) -> ResultsType:
     results: Dict[str, List[Any]] = {}
-    for key in outputs[0].keys():
+    for key in epoch_results[0].keys():
         results[key] = []
-        for batch_outputs in outputs:
-            results[key] += batch_outputs[key]
+        for batch_results in epoch_results:
+            results[key] += batch_results[key]
     return results
 
 
-def save_outputs_and_features(results: Dict[ResultsKey, List[Any]], outputs_dir: Path) -> None:
+def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
     print("Saving outputs ...")
     # collate at slide level
     list_slide_dicts = []
@@ -105,13 +108,13 @@ def save_outputs_and_features(results: Dict[ResultsKey, List[Any]], outputs_dir:
     df.to_csv(csv_filename, mode='w+', header=True)
 
 
-def save_features(results: Dict[ResultsKey, List[Any]], outputs_dir: Path) -> None:
+def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
     features_list = move_list_to_device(results[ResultsKey.IMAGE])
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
-def save_top_and_bottom_tiles(results: Dict[ResultsKey, List[Any]], n_classes: int, figures_dir: Path) \
+def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path) \
         -> Dict[str, List[str]]:
     print("Selecting tiles ...")
 
@@ -159,9 +162,8 @@ def save_top_and_bottom_tiles(results: Dict[ResultsKey, List[Any]], n_classes: i
     return selected_slide_ids
 
 
-def save_slide_thumbnails_and_heatmaps(results: Dict[ResultsKey, List[Any]], selected_slide_ids: Dict[str, List[str]],
-                                       tile_size: int, level: int, slide_dataset: SlidesDataset,
-                                       figures_dir: Path) -> None:
+def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
+                                       level: int, slide_dataset: SlidesDataset, figures_dir: Path) -> None:
     for key in selected_slide_ids:
         print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
         key_dir = figures_dir / key
@@ -171,7 +173,7 @@ def save_slide_thumbnails_and_heatmaps(results: Dict[ResultsKey, List[Any]], sel
                                              slide_dataset=slide_dataset, key_dir=key_dir)
 
 
-def save_slide_thumbnail_and_heatmap(results: Dict[ResultsKey, List[Any]], slide_id: str, tile_size: int, level: int,
+def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_size: int, level: int,
                                      slide_dataset: SlidesDataset, key_dir: Path) -> None:
     slide_index = slide_dataset.dataset_df.index.get_loc(slide_id)
     assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_id}"
@@ -188,13 +190,13 @@ def save_slide_thumbnail_and_heatmap(results: Dict[ResultsKey, List[Any]], slide
     save_figure(fig=fig, figpath=key_dir / f'{slide_id}_heatmap.png')
 
 
-def save_scores_histogram(results: Dict[ResultsKey, List[Any]], figures_dir: Path) -> None:
+def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
     print("Plotting histogram ...")
     fig = plot_scores_hist(results)
     save_figure(fig=fig, figpath=figures_dir / 'hist_scores.png')
 
 
-def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List[str], figures_dir: Path) -> None:
+def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequence[str], figures_dir: Path) -> None:
     print("Computing and saving confusion matrix...")
     cf_matrix = conf_matrix_metric.compute().cpu().numpy()
     #  We can't log tensors in the normal way - just print it to console
@@ -202,7 +204,7 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: List
     print(cf_matrix)
     #  Save the normalized confusion matrix as a figure in outputs
     cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=class_names)
+    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
     save_figure(fig=fig, figpath=figures_dir / 'normalized_confusion_matrix.png')
 
 
@@ -276,8 +278,7 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / "test"
 
-    def _save_outputs(self, outputs: List[Dict[ResultsKey, Any]],
-                      metrics_dict: Mapping[MetricsKey, Metric],
+    def _save_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                       outputs_dir: Path) -> None:
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
@@ -286,7 +287,7 @@ class DeepMILOutputsHandler:
         # outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # contains the tile value
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
-        results = collate_results(outputs)
+        results = collate_results(epoch_results)
         figures_dir = outputs_dir / "fig"
 
         outputs_dir.mkdir(exist_ok=True, parents=True)
@@ -306,20 +307,19 @@ class DeepMILOutputsHandler:
         conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
         save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
-    def save_validation_outputs(self, outputs: List[Dict[ResultsKey, Any]],
-                                metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> None:
+    def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
+                                epoch: int) -> None:
         if self.should_save_validation_outputs(metrics_dict, epoch):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
                 self.validation_outputs_dir.replace(self.previous_validation_outputs_dir)
 
-            self._save_outputs(outputs, metrics_dict, self.validation_outputs_dir)
+            self._save_outputs(epoch_results, metrics_dict, self.validation_outputs_dir)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir)
 
-    def save_test_outputs(self, outputs: List[Dict[ResultsKey, Any]],
-                          metrics_dict: Mapping[MetricsKey, Metric]) -> None:
-        self._save_outputs(outputs, metrics_dict, self.test_outputs_dir)
+    def save_test_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
+        self._save_outputs(epoch_results, metrics_dict, self.test_outputs_dir)
