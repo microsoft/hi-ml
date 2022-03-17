@@ -215,8 +215,8 @@ def model_train(checkpoint_path: Optional[Path],
     logging.info("Starting training")
     # Change to the outputs folder so that the model can write to current working directory, and still everything
     # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
-    with change_working_directory(container.outputs_folder):
-        trainer.fit(lightning_model, datamodule=data_module)
+    # with change_working_directory(container.outputs_folder):
+    trainer.fit(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 

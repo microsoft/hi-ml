@@ -223,7 +223,8 @@ class Runner:
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=default_datastore)
+                                   datastore=default_datastore,
+                                   use_mounting=True)
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
             raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()

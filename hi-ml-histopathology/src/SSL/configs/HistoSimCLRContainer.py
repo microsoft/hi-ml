@@ -10,6 +10,7 @@ from SSL.data.transforms_utils import DualViewTransformWrapper
 from SSL.data.transform_pipeline import ImageTransformationPipeline
 from SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
 
+
 class HistoSSLContainer(SSLContainer):
     """
     Config to train SSL model on one of the histo datasets (e.g. PANDA, CRCk). The main reason to create a
