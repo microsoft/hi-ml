@@ -12,7 +12,7 @@ from _pytest.capture import SysCapture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
-from health_ml.configs.hello_world import HelloWorld
+from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
