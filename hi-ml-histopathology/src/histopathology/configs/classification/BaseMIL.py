@@ -141,7 +141,7 @@ class BaseMIL(LightningContainer):
                                                 n_classes=self.data_module.train_dataset.N_CLASSES,
                                                 tile_size=self.tile_size,
                                                 level=1,
-                                                slide_dataset=self.get_slide_dataset(),
+                                                slides_dataset=self.get_slides_dataset(),
                                                 class_names=self.class_names,
                                                 primary_val_metric=MetricsKey.AUROC,
                                                 maximise=True)
@@ -163,5 +163,5 @@ class BaseMIL(LightningContainer):
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
 
-    def get_slide_dataset(self) -> Optional[SlidesDataset]:
+    def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None

@@ -130,7 +130,7 @@ class DeepSMILEPanda(BaseMIL):
             # crossval_index=self.crossval_index,
         )
 
-    def get_slide_dataset(self) -> PandaDataset:
+    def get_slides_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
     def get_callbacks(self) -> List[Callback]:
