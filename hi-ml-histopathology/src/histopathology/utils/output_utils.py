@@ -48,7 +48,7 @@ def save_figure(fig: plt.figure, figpath: Path) -> None:
     plt.close(fig)
 
 
-def normalize_dict_for_df(dict_old: Dict[str, Any]) -> Dict:
+def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
     # slide-level dictionaries are processed by making value dimensions uniform and converting to numpy arrays.
     # these steps are required to convert the dictionary to pandas dataframe.
     dict_new = dict()
@@ -68,17 +68,8 @@ def normalize_dict_for_df(dict_old: Dict[str, Any]) -> Dict:
     return dict_new
 
 
-def move_list_to_device(list_encoded_features: List) -> List:
-    # a list of features on cpu obtained from original list on gpu
-    features_list = []
-    for feature in list_encoded_features:
-        feature = feature.squeeze(0).cpu()
-        features_list.append(feature)
-    return features_list
-
-
 def collate_results(epoch_results: EpochResultsType) -> ResultsType:
-    results: Dict[str, List[Any]] = {}
+    results: ResultsType = {}
     for key in epoch_results[0].keys():
         results[key] = []
         for batch_results in epoch_results:
@@ -111,7 +102,7 @@ def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
 
 def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
-    features_list = move_list_to_device(results[ResultsKey.IMAGE])
+    features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.IMAGE]]
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 

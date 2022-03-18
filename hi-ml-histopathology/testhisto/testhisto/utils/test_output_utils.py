@@ -41,12 +41,12 @@ def test_outputs_policy_persistence(tmp_path: Path) -> None:
     initial_epoch = 0
     initial_value = float('-inf')
 
-    # New handler should match initial settings
+    # New policy should match initial settings
     policy = _create_outputs_policy(tmp_path)
     assert policy._best_metric_epoch == initial_epoch
     assert policy._best_metric_value == initial_value
 
-    # Recreating a handler should recover the same (arbitrary) settings
+    # Recreating a policy should recover the same (arbitrary) settings
     arbitrary_epoch = 42
     arbitrary_value = 0.123
     policy._best_metric_epoch = arbitrary_epoch
@@ -57,7 +57,7 @@ def test_outputs_policy_persistence(tmp_path: Path) -> None:
     assert reloaded_policy._best_metric_epoch == arbitrary_epoch
     assert reloaded_policy._best_metric_value == arbitrary_value
 
-    # Handler re-creation should fail if primary metric name differs from what is saved
+    # Policy re-creation should fail if primary metric name differs from what is saved
     wrong_metric_name = 'wrong_metric_name'
     yaml = YAML()
     contents = yaml.load(policy.best_metric_file_path)
@@ -68,7 +68,7 @@ def test_outputs_policy_persistence(tmp_path: Path) -> None:
         _create_outputs_policy(tmp_path)
     assert wrong_metric_name in str(e.value)
 
-    # If the best-metric file is missing, a new handler should have a fresh initialisation
+    # If the best-metric file is missing, a new policy should have a fresh initialisation
     policy.best_metric_file_path.unlink()  # delete best metric file
 
     fresh_policy = _create_outputs_policy(tmp_path)

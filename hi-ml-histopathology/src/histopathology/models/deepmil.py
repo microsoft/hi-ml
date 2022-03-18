@@ -63,6 +63,9 @@ class DeepMILModule(LightningModule):
         :param verbose: if True statements about memory usage are output at each step.
         :param class_names: The names of the classes if available (default=None).
         :param is_finetune: Boolean value to enable/disable finetuning (default=False).
+        :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
+            validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
+            metrics logging).
         """
         super().__init__()
 

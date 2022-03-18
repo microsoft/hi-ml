@@ -41,8 +41,8 @@ class BaseMIL(LightningContainer):
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
-    class_names: Sequence[str] = param.List(None, item_type=str,
-                                            doc="List of class names. If `None`, defaults to `('0', '1', ...)`.")
+    class_names: Optional[Sequence[str]] = param.List(None, item_type=str,
+                                                      doc="List of class names. If `None`, defaults to `('0', '1', ...)`.")
 
     # Encoder parameters:
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
