@@ -77,15 +77,18 @@ class ModelInfo:
         if not self.git_commit_hash:
             self.git_commit_hash = properties.get("azureml.git.commit", "")
 
-    def state_dict(self) -> Dict[str, Any]:
-        """Creates a dictionary representation of the current object."""
+    def state_dict(self, strict: bool = True) -> Dict[str, Any]:
+        """Creates a dictionary representation of the current object.
+        
+        :param strict: The setting for the 'strict' flag in the call to torch.jit.trace.
+        """
         def bytes_or_none(o: Any) -> Optional[bytes]:
             return _dump_to_stream(o).getvalue() if o is not None else None
 
         if self.model is None or self.model_example_input is None:
             raise ValueError("To generate a state dict, the model and model_example_input must be present.")
         try:
-            traced_model = torch.jit.trace(self.model, self.model_example_input)
+            traced_model = torch.jit.trace(self.model, self.model_example_input, strict=strict)
         except Exception as ex:
             raise ValueError(f"Unable to convert the model to torchscript: {ex}")
         jit_stream = BytesIO()
