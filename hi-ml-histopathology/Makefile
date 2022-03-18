@@ -1,3 +1,9 @@
+
+# Create a Conda environment for this folder only
+env:
+	conda env create --file environment.yml
+	pip install -r ../test_requirements.txt
+
 # call make for parent
 define call_parent
 	cd .. && $(MAKE) $(1)
@@ -27,9 +33,9 @@ call_pip_local:
 # pip upgrade and install local package in editable mode
 pip_local: pip_upgrade call_pip_local
 
-
 # pip install everything for local development and testing
-pip: pip_build pip_test call_pip_local
+pip: pip_build pip_test
+
 
 ## Actions
 # clean build artifacts
@@ -48,7 +54,7 @@ call_flake8:
 # pip install test requirements and run flake8
 flake8: pip_test call_flake8
 
-# run mypy, assuming test requirements already installed
+# run mypy for hi-ml and hi-ml-azure, assuming test requirements already installed
 call_mypy:
 	mypy --config=../mypy.ini --install-types --non-interactive -p src
 	mypy --config=../mypy.ini --install-types --non-interactive -p testhisto
@@ -56,6 +62,14 @@ call_mypy:
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
+
+# run pyright, assuming test requirements already installed
+call_pyright:
+	npm install -g pyright
+	pyright
+
+# conda install test requirements and run pyright
+pyright: conda call_pyright
 
 # run basic checks
 call_check: call_flake8 call_mypy

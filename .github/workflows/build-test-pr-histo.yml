@@ -1,4 +1,4 @@
-name: PR BuildAndTest.CI
+name: PR BuildAndTest.CI.Histo
 on:
   push:
     branches: [ main ]
@@ -69,6 +69,7 @@ jobs:
       - name: pyright
         shell: bash -l {0}
         run: |
+          cd hi-ml-histopathology
           conda info
           make pyright
 
@@ -122,26 +123,12 @@ jobs:
           cd hi-ml-azure
           make pip_upgrade
 
-      # - name: Download hi-ml-azure
-      #   id: download_himlazure
-      #   uses: ./.github/actions/download_package_artifacts
-      #   with:
-      #     folder: hi-ml-azure
-      #     package_type: ${{ matrix.packageName }}
-
-      # - name: Download hi-ml
-      #   id: download_himl
-      #   uses: ./.github/actions/download_package_artifacts
-      #   with:
-      #     folder: hi-ml
-      #     package_type: ${{ matrix.packageName }}
-
       - name: Install dependencies
         run: |
           cd hi-ml-azure
-          pip install -e
+          pip install -e .
           cd ../hi-ml
-          pip install -e
+          pip install -e .
 
       - name: Run tests
         run: |
@@ -165,15 +152,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.pythonVersion }}
-
-      - name: Install dependencies
-        run: |
-          cd hi-ml-azure
-
-          make pip_upgrade
-
-          # Install package
-          pip install ${{ steps.download_dep.outputs.package_filename }}
 
       - name: Download coverage artifacts
         uses: ./.github/actions/download_coverage_artifacts

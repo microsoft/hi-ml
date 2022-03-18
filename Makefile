@@ -70,7 +70,7 @@ mypy: pip_test call_mypy
 # run pyright, assuming test requirements already installed
 call_pyright:
 	npm install -g pyright
-	pyright
+	pyright hi-ml hi-ml-azure docs
 
 # conda install test requirements and run pyright
 pyright: conda call_pyright
