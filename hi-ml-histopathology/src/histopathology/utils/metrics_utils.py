@@ -66,7 +66,7 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
 
 
 def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
-                     gt_col: str = ResultsKey.TRUE_LABEL) -> plt.figure:
+                     gt_col: str = ResultsKey.TRUE_LABEL) -> plt.Figure:
     """
     :param results: List that contains slide_level dicts
     :param prob_col: column name that contains the scores
@@ -86,7 +86,7 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
 
 
 def plot_attention_tiles(slide: str, scores: List[float], paths: List, attn: List, case: str, ncols: int = 5,
-                         size: Tuple = (10, 10)) -> plt.figure:
+                         size: Tuple = (10, 10)) -> plt.Figure:
     """
     :param slide: slide identifier
     :param scores: predicted scores of each class for the slide
@@ -109,7 +109,7 @@ def plot_attention_tiles(slide: str, scores: List[float], paths: List, attn: Lis
     return fig
 
 
-def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
+def plot_slide(slide_image: np.ndarray, scale: float) -> plt.Figure:
     """Plots a slide thumbnail from a given slide image and scale.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :return: matplotlib figure of the slide thumbnail.
@@ -128,7 +128,7 @@ def plot_heatmap_overlay(slide: str,
                          results: Dict[str, List[Any]],
                          location_bbox: List[int],
                          tile_size: int = 224,
-                         level: int = 1) -> plt.figure:
+                         level: int = 1) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
     :param slide: slide identifier.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
@@ -173,7 +173,7 @@ def plot_heatmap_overlay(slide: str,
     return fig
 
 
-def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> plt.figure:
+def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> plt.Figure:
     """Plots a normalized confusion matrix and returns the figure.
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.
