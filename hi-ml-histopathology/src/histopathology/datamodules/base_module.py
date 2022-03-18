@@ -40,7 +40,7 @@ class TilesDataModule(LightningDataModule):
                  precache_location: CacheLocation = CacheLocation.NONE,
                  cache_dir: Optional[Path] = None,
                  crossval_count: int = 0,
-                 crosval_index: int = 0) -> None:
+                 crossval_index: int = 0) -> None:
         """
         :param root_path: Root directory of the source dataset.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag. If 0 (default),
@@ -68,7 +68,7 @@ class TilesDataModule(LightningDataModule):
         If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
         :param crossval_count: Number of folds to perform.
-        :param crosval_index: Index of the cross validation split to be performed.
+        :param crossval_index: Index of the cross validation split to be performed.
         """
         if precache_location is not CacheLocation.NONE and cache_mode is CacheMode.NONE:
             raise ValueError("Can only pre-cache if caching is enabled")
@@ -86,7 +86,7 @@ class TilesDataModule(LightningDataModule):
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.crossval_count = crossval_count
-        self.crosval_index = crosval_index
+        self.crossval_index = crossval_index
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
