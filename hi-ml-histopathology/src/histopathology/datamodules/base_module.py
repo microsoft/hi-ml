@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 import torch
 from enum import Enum
 from pathlib import Path
@@ -15,7 +14,7 @@ from torch.utils.data import DataLoader
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
 
-from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.transforms import LoadTilesBatchd
 
 
@@ -31,8 +30,8 @@ class CacheLocation(Enum):
     SAME = 'same'
 
 
-class TilesDataModule(LightningDataModule):
-    """Base class to load the tiles of a dataset as train, val, test sets"""
+class HistoDataModule(LightningDataModule):
+    """Base class to load a histopathology dataset as train, val, test sets"""
 
     def __init__(self, root_path: Path, max_bag_size: int = 0, batch_size: int = 1,
                  seed: Optional[int] = None, transform: Optional[Callable] = None,
@@ -106,7 +105,9 @@ class TilesDataModule(LightningDataModule):
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
 
-    def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
+    def _load_dataset(self, stage: str) -> Optional[Path]:
+        """Load the tiles/slides dataset depending on the specified stage: train/val/test"""
+        # TODO rewrite to prevent from use - abstract behavior
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
@@ -119,7 +120,46 @@ class TilesDataModule(LightningDataModule):
 
             with dataset_pickle_path.open('rb') as f:
                 return torch.load(f, map_location=memory_location)
+        return dataset_pickle_path
 
+    def _get_transformed_dataset(self, base_dataset: Dataset,
+                                 transform: Union[Sequence[Callable], Callable]) -> Dataset:
+        if self.cache_mode is CacheMode.MEMORY:
+            dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
+        elif self.cache_mode is CacheMode.DISK:
+            dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
+            if self.precache_location != CacheLocation.NONE:
+                import tqdm  # TODO: Make optional
+                for i in tqdm.trange(len(dataset), desc="Loading dataset"):
+                    dataset[i]  # empty loop to pre-compute all transformed samples
+        else:
+            dataset = Dataset(base_dataset, transform)  # type: ignore
+        return dataset
+
+    def _get_dataloader(self, histo_dataset: Union[TilesDataset, SlidesDataset], stage: str, shuffle: bool,
+                        **dataloader_kwargs: Any) -> DataLoader:
+        """Return the appropriate dataloader for a given histo_dataset"""
+        raise NotImplementedError
+
+    def train_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.train_dataset, 'train', shuffle=True)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.val_dataset, 'val', shuffle=True)
+
+    def test_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.test_dataset, 'test', shuffle=True)
+
+
+class TilesDataModule(HistoDataModule):
+    """Base class to load the tiles of a dataset as train, val, test sets"""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+    def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
+        dataset_pickle_path = super()._load_dataset(stage)
+      
         generator = _create_generator(self.seed)
         bag_dataset = BagDataset(tiles_dataset,  # type: ignore
                                  bag_ids=tiles_dataset.slide_ids,
@@ -141,21 +181,6 @@ class TilesDataModule(LightningDataModule):
 
         return transformed_bag_dataset
 
-    def _get_transformed_dataset(self, base_dataset: BagDataset,
-                                 transform: Union[Sequence[Callable], Callable]) -> Dataset:
-        if self.cache_mode is CacheMode.MEMORY:
-            dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
-        elif self.cache_mode is CacheMode.DISK:
-            dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
-            if self.precache_location != CacheLocation.NONE:
-                import tqdm  # TODO: Make optional
-
-                for i in tqdm.trange(len(dataset), desc="Loading dataset"):
-                    dataset[i]  # empty loop to pre-compute all transformed samples
-        else:
-            dataset = Dataset(base_dataset, transform)  # type: ignore
-        return dataset
-
     def _get_dataloader(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool,
                         **dataloader_kwargs: Any) -> DataLoader:
         transformed_bag_dataset = self._load_dataset(tiles_dataset, stage=stage, shuffle=shuffle)
@@ -166,11 +191,8 @@ class TilesDataModule(LightningDataModule):
                           pin_memory=False,  # disable pinning as loaded data may already be on GPU
                           **dataloader_kwargs)
 
-    def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, 'train', shuffle=True)
 
-    def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, 'val', shuffle=True)
+class SlidesDataModule(HistoDataModule):
+    """Base class to load the slides of a dataset as train, val, test sets"""
 
-    def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, 'test', shuffle=True)
+
