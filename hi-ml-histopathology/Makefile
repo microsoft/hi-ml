@@ -28,7 +28,7 @@ pip_test:
 # we could also build a full Conda before starting the tests. Unclear about the performance
 # impact of that.
 call_pip_local:
-	sed -e '1,/pip:/ d' environment.yml | cut -d "-" -f 2- > temp_requirements.txt
+	sed -e '1,/pip:/ d' environment.yml | grep -v "#" | cut -d "-" -f 2- > temp_requirements.txt
 	pip install -r temp_requirements.txt
 
 # pip upgrade and install local package in editable mode
