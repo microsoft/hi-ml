@@ -895,15 +895,39 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -> List[str]:
+def _split_dependency(dep_str: str) -> Tuple[str, str, str]:
+    """Splits a string like those coming from PIP constraints into 3 parts: package name, operator, version.
+    The operator field can be empty if no constraint is found at all
+    :param dep_str: A pip constraint string, like "package-name>=1.0.1"
+    :return: A tuple of [package name, operator, version ]
+    """
+    parts: List[str] = re.split("(<=|==|=|>=|<|>)", dep_str)
+    if len(parts) == 1:
+        return (parts[0].strip(), "", "")
+    if len(parts) == 3:
+        return tuple(p.strip() for p in parts)
+    raise ValueError(f"Unable to split this package string: {dep_str}")
+
+
+def _resolve_dependencies(versions: List[Tuple[str, str]]) -> Tuple[str, str]:
+    """Apply conflict resolution for pip package versions. This accepts a list of (operator, version) tuples.
+
+    :param versions: _description_
+    :return: _description_
+    """
+
+
+def _retrieve_unique_deps(dependencies: List[str]) -> List[str]:
     """
     Given a list of conda dependencies, which may contain duplicate versions
     of the same package name with the same or different versions, returns a
     list of them where each package name occurs only once. If a
-    package name appears more than once, only the first value will be retained.
+    package name appears more than once, a simple resolution strategy will be applied:
+    If any of the versions is listed with an equality constraint, that will be kept, irrespective
+    of the other constraints, even if they clash with the equality constraint. Multiple equality
+    constraints raise an error.
 
     :param dependencies: The original list of package names to deduplicate
-    :param keep_method: The strategy for choosing which package version to keep
     :return: a list in which each package name occurs only once
     """
     unique_deps: Dict[str, Tuple[str, str]] = {}

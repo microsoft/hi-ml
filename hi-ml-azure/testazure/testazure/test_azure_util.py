@@ -254,6 +254,14 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
+def test_split_dependency() -> None:
+    assert util._split_dependency("foo.bar") == ("foo.bar", "", "")
+    assert util._split_dependency(" foo.bar == 1.0 ") == ("foo.bar", "==", "1.0")
+    assert util._split_dependency("foo.bar>=1.0") == ("foo.bar", ">=", "1.0")
+    assert util._split_dependency("foo.bar<=1.0") == ("foo.bar", "<=", "1.0")
+    assert util._split_dependency("foo.bar=1.0") == ("foo.bar", "=", "1.0")
+
+
 def test_retrieve_unique_deps() -> None:
     deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
 
