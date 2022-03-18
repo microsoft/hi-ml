@@ -24,7 +24,7 @@ dependencies:
       - azureml-tensorboard==1.36.0
       - conda-merge==0.1.5
       - param==1.12
-      - pysocks==1.5.8
+      - pysocks==1.6.0
       - ruamel.yaml==0.16.12
       - tensorboard==2.6.0
       # Histopathology requirements
