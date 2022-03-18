@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+import os
 import pandas as pd
 import json
 import logging
@@ -27,9 +28,10 @@ def dump_dataset_csv_from_wsi_ids(datalist_json: str, dataset_csv: str, dest_dat
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    panda_tiles_root = "/tmp/datasets/PANDA_tiles/PANDA_tiles_20210926-135446/panda_tiles_level1_224"
     logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
     parser.add_argument("--datalist-json", type=str, default="panda/datalist_20.json")
-    parser.add_argument("--dataset-csv", type=str, default="/tmp/datasets/PANDA_tiles/PANDA_tiles_20210926-135446/panda_tiles_level1_224/dataset.csv")
+    parser.add_argument("--dataset-csv", type=str, default=os.path.join(panda_tiles_root, "dataset.csv"))
     parser.add_argument("--dest-csv", type=str, default="panda/train_20.csv")
     parser.add_argument("--subset", type=str, default="training")
     args = parser.parse_args()
