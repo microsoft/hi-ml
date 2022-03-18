@@ -107,21 +107,7 @@ class HistoDataModule(LightningDataModule):
 
     def _load_dataset(self, stage: str) -> Optional[Path]:
         """Load the tiles/slides dataset depending on the specified stage: train/val/test"""
-        # TODO rewrite to prevent from use - abstract behavior
-        dataset_pickle_path = self._dataset_pickle_path(stage)
-
-        if dataset_pickle_path and dataset_pickle_path.is_file():
-            if self.precache_location == CacheLocation.CPU:
-                memory_location = torch.device('cpu')
-                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
-            else:
-                # by default torch.load will reload on the same device it was saved from
-                memory_location = None  # type: ignore
-
-            with dataset_pickle_path.open('rb') as f:
-                return torch.load(f, map_location=memory_location)
-        
-        return dataset_pickle_path
+        raise NotImplementedError
 
     def _get_transformed_dataset(self, base_dataset: Dataset,
                                  transform: Union[Sequence[Callable], Callable]) -> Dataset:
@@ -159,28 +145,39 @@ class TilesDataModule(HistoDataModule):
         super().__init__(**kwargs)
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
-        dataset_pickle_path = super()._load_dataset(stage)
-        if isinstance(dataset_pickle_path, Path):
-            generator = _create_generator(self.seed)
-            bag_dataset = BagDataset(tiles_dataset,  # type: ignore
-                                     bag_ids=tiles_dataset.slide_ids,
-                                     max_bag_size=self.max_bag_size,
-                                     shuffle_samples=shuffle,
-                                     generator=generator)
-            transform = self.transform or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
+        dataset_pickle_path = self._dataset_pickle_path(stage)
 
-            # Save and restore PRNG state for consistency across (pre-)caching options
-            generator_state = generator.get_state()
-            transformed_bag_dataset = self._get_transformed_dataset(bag_dataset, transform)  # type: ignore
-            generator.set_state(generator_state)
+        if dataset_pickle_path and dataset_pickle_path.is_file():
+            if self.precache_location == CacheLocation.CPU:
+                memory_location = torch.device('cpu')
+                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
+            else:
+                # by default torch.load will reload on the same device it was saved from
+                memory_location = None  # type: ignore
 
-            # Dataset is saved if cache_dir is True, regardless of CacheMode
-            if dataset_pickle_path:
-                dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
-                with dataset_pickle_path.open('wb') as f:
-                    torch.save(transformed_bag_dataset, f)
+            with dataset_pickle_path.open('rb') as f:
+                return torch.load(f, map_location=memory_location)
+        
+        generator = _create_generator(self.seed)
+        bag_dataset = BagDataset(tiles_dataset,  # type: ignore
+                                 bag_ids=tiles_dataset.slide_ids,
+                                 max_bag_size=self.max_bag_size,
+                                 shuffle_samples=shuffle,
+                                 generator=generator)
+        transform = self.transform or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
-            return transformed_bag_dataset
+        # Save and restore PRNG state for consistency across (pre-)caching options
+        generator_state = generator.get_state()
+        transformed_bag_dataset = self._get_transformed_dataset(bag_dataset, transform)  # type: ignore
+        generator.set_state(generator_state)
+
+        # Dataset is saved if cache_dir is True, regardless of CacheMode
+        if dataset_pickle_path:
+            dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
+            with dataset_pickle_path.open('wb') as f:
+                torch.save(transformed_bag_dataset, f)
+
+        return transformed_bag_dataset
 
     def _get_dataloader(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool,
                         **dataloader_kwargs: Any) -> DataLoader:
@@ -197,3 +194,5 @@ class SlidesDataModule(HistoDataModule):
     """Base class to load the slides of a dataset as train, val, test sets"""
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+
+    
