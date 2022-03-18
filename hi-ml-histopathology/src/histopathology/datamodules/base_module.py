@@ -159,7 +159,7 @@ class TilesDataModule(HistoDataModule):
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pickle_path = super()._load_dataset(stage)
-      
+     
         generator = _create_generator(self.seed)
         bag_dataset = BagDataset(tiles_dataset,  # type: ignore
                                  bag_ids=tiles_dataset.slide_ids,

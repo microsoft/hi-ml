@@ -15,7 +15,7 @@ from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
-from histopathology.datamodules.panda_module import PandaTilesDataModule
+from histopathology.datamodules.panda_module import PandaTilesDataModule, SubPandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
@@ -209,3 +209,36 @@ class PandaSSLMIL(DeepSMILEPanda):
 class PandaHistoSSLMIL(DeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
+
+
+class SubPandaSSLMIL(PandaSSLMIL):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        root = "~/workspace/hi-ml/hi-ml-histopathology/src/histopathology/configs/classification"
+        self.crossval_count = 1
+        self.train_csv = os.path.join(root, "custom_subset/panda/train_20.csv")
+        self.val_csv = os.path.join(root, "custom_subset/panda/val_20.csv")
+
+    def get_data_module(self) -> SubPandaTilesDataModule:
+        image_key = PandaTilesDataset.IMAGE_COLUMN
+        if self.is_finetune:
+            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+        else:
+            transform = Compose(
+                [
+                    LoadTilesBatchd(image_key, progress=True),
+                    EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size),
+                ]
+            )
+
+        return SubPandaTilesDataModule(
+            train_csv=self.train_csv,
+            val_csv=self.val_csv,
+            root_path=self.local_datasets[0],
+            max_bag_size=self.max_bag_size,
+            batch_size=self.batch_size,
+            transform=transform,
+            cache_mode=self.cache_mode,
+            precache_location=self.precache_location,
+            cache_dir=self.cache_dir,
+        )

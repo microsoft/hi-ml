@@ -1,0 +1,106 @@
+{
+    "training": [
+        {
+            "image": "0005f7aaab2800f6170c399693a96917.tiff",
+            "label": 0
+        },
+        {
+            "image": "0018ae58b01bdadc8e347995b69f99aa.tiff",
+            "label": 4
+        },
+        {
+            "image": "001c62abd11fa4b57bf7a6c603a11bb9.tiff",
+            "label": 4
+        },
+        {
+            "image": "001d865e65ef5d2579c190a0e0350d8f.tiff",
+            "label": 0
+        },
+        {
+            "image": "002a4db09dad406c85505a00fb6f6144.tiff",
+            "label": 0
+        },
+        {
+            "image": "003046e27c8ead3e3db155780dc5498e.tiff",
+            "label": 1
+        },
+        {
+            "image": "0032bfa835ce0f43a92ae0bbab6871cb.tiff",
+            "label": 1
+        },
+        {
+            "image": "003d4dd6bd61221ebc0bfb9350db333f.tiff",
+            "label": 1
+        },
+        {
+            "image": "00412139e6b04d1e1cee8421f38f6e90.tiff",
+            "label": 0
+        },
+        {
+            "image": "004391d48d58b18156f811087cd38abf.tiff",
+            "label": 1
+        },
+        {
+            "image": "004dd32d9cd167d9cc31c13b704498af.tiff",
+            "label": 1
+        },
+        {
+            "image": "004f6b3a66189b4e88b6a01ba19d7d31.tiff",
+            "label": 1
+        },
+        {
+            "image": "005e66f06bce9c2e49142536caf2f6ee.tiff",
+            "label": 1
+        },
+        {
+            "image": "0068d4c7529e34fd4c9da863ce01a161.tiff",
+            "label": 3
+        },
+        {
+            "image": "006f4d8d3556dd21f6424202c2d294a9.tiff",
+            "label": 0
+        },
+        {
+            "image": "0076bcb66e46fb485f5ba432b9a1fe8a.tiff",
+            "label": 3
+        },
+        {
+            "image": "008069b542b0439ed69b194674051964.tiff",
+            "label": 4
+        },
+        {
+            "image": "00928370e2dfeb8a507667ef1d4efcbb.tiff",
+            "label": 5
+        },
+        {
+            "image": "00951a7fad040bf7e90f32e81fc0746f.tiff",
+            "label": 1
+        },
+        {
+            "image": "00a26aaa82c959624d90dfb69fcf259c.tiff",
+            "label": 4
+        }
+    ],
+    "validation": [
+        {
+            "image": "000920ad0b612851f8e01bcc880d9b3d.tiff",
+            "label": 0
+        },
+        {
+            "image": "003a91841da04a5a31f808fb5c21538a.tiff",
+            "label": 1
+        },
+        {
+            "image": "006f6aa35a78965c92fffd1fbd53a058.tiff",
+            "label": 3
+        },
+        {
+            "image": "007433133235efc27a39f11df6940829.tiff",
+            "label": 0
+        },
+        {
+            "image": "008308f099f0c565fbc024ece6b8b08c.tiff",
+            "label": 1
+        }
+    ]
+}
