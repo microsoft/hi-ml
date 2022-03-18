@@ -9,10 +9,10 @@ import param
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
-from azureml.core import Workspace
+from azureml.core import Workspace, Run
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -38,6 +38,13 @@ from health_ml.utils.common_utils import (check_conda_environments, get_all_envi
                                           get_all_pip_requirements_files,
                                           is_linux, logging_to_stdout)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
+
+
+# We change the current working directory before starting the actual training. However, this throws off starting
+# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
+# path.
+runner_path = Path(sys.argv[0])
+sys.argv[0] = str(runner_path.resolve())
 
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
@@ -96,17 +103,6 @@ def create_runner_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def additional_run_tags(commandline_args: str) -> Dict[str, str]:
-    """
-    Gets the set of tags from the commandline arguments that will be added to the AzureML run as metadata
-
-    :param commandline_args: A string that holds all commandline arguments that were used for the present run.
-    """
-    return {
-        "commandline_args": commandline_args,
-    }
-
-
 class Runner:
     """
     This class contains the high-level logic to start a training run: choose a model configuration by name,
@@ -130,9 +126,9 @@ class Runner:
 
         :return: ParserResult object containing args, overrides and settings
         """
-        parser = create_runner_parser()
-        parser_result = parse_arguments(parser, args=sys.argv[1:])
-        experiment_config = ExperimentConfig(**parser_result.args)
+        parser1 = create_runner_parser()
+        parser1_result = parse_arguments(parser1, args=sys.argv[1:])
+        experiment_config = ExperimentConfig(**parser1_result.args)
 
         self.experiment_config = experiment_config
         if not experiment_config.model:
@@ -143,17 +139,17 @@ class Runner:
 
         # parse overrides and apply
         assert isinstance(container, param.Parameterized)
-        parser_ = create_argparser(container)
+        parser2 = create_argparser(container)
         # For each parser, feed in the unknown settings from the previous parser. All commandline args should
         # be consumed by name, hence fail if there is something that is still unknown.
-        parser_result_ = parse_arguments(parser_, args=parser_result.unknown)
+        parser2_result = parse_arguments(parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
         # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-        _ = apply_overrides(container, parser_result_.overrides)  # type: ignore
+        apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
 
         self.lightning_container = container
 
-        return parser_result_
+        return parser2_result
 
     def validate(self) -> None:
         """
@@ -171,6 +167,17 @@ class Runner:
             if self.experiment_config.cluster:
                 logging.info("You have provided a compute cluster name, hence we switched on submitting to AzureML.")
                 self.experiment_config.azureml = True
+
+    def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
+        """
+        Gets the set of tags that will be added to the AzureML run as metadata.
+
+        :param script_params: The commandline arguments used to invoke the present script.
+        """
+        return {
+            "commandline_args": " ".join(script_params),
+            "tag": self.experiment_config.tag
+        }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
@@ -199,6 +206,16 @@ class Runner:
             specified, the attribute 'run' will None, but the object still contains helpful information
             about datasets etc
         """
+
+        def after_submission_hook(azure_run: Run) -> None:
+            """
+            A function that will be called right after job submission.
+            """
+            # Set the default display name to what was provided as the "tag". This will affect single runs
+            # and Hyperdrive parent runs
+            if self.experiment_config.tag:
+                azure_run.display_name = self.experiment_config.tag
+
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
@@ -219,11 +236,15 @@ class Runner:
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
+        # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
+        # datasets to be quicker.
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.azureml else True
         input_datasets = \
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=default_datastore)
+                                   datastore=default_datastore,
+                                   use_mounting=use_mounting)
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
             raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
@@ -261,11 +282,20 @@ class Runner:
                     ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                    docker_shm_size=self.experiment_config.docker_shm_size,
                     hyperdrive_config=hyperdrive_config,
                     create_output_folders=False,
-                    tags=additional_run_tags(
-                        commandline_args=" ".join(script_params))
+                    after_submission=after_submission_hook,
+                    tags=self.additional_run_tags(script_params)
                 )
+                if self.experiment_config.tag and azure_run_info.run:
+                    if self.lightning_container.is_crossvalidation_enabled:
+                        # This code is only reached inside Azure. Set display name again - this will now affect
+                        # Hypdrive child runs (for other jobs, this has already been done after submission)
+                        cv_index = self.lightning_container.crossval_index
+                        full_display_name = f"{self.experiment_config.tag} {cv_index}"
+                        azure_run_info.run.display_name = full_display_name
+
             else:
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,  # type: ignore

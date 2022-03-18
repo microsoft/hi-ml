@@ -55,6 +55,21 @@ def test_html_report_validate() -> None:
         assert "report_html is missing the tag" in str(e.value)
 
 
+def test_html_report_add_heading(html_report: HTMLReport) -> None:
+    dummy_heading = "Heading"
+
+    for invalid_level in [0, 6]:
+        with pytest.raises(ValueError) as e:
+            html_report.add_heading(dummy_heading, level=invalid_level)
+            assert "Level must be an integer between 1 and 5" in str(e)
+
+    level = 2
+    html_template_before = html_report._remove_html_end(html_report.template)
+    html_report.add_heading(dummy_heading, level)
+    html_template_difference = html_report.template.replace(html_template_before, "")
+    assert html_template_difference.count(f"<h{level}") == 1
+
+
 def test_html_report_add_tables(html_report: HTMLReport, dummy_df: pd.DataFrame, tmp_path: Path) -> None:
     # assert that ValueError is raised if neither table_path nor table is provided
     with pytest.raises(ValueError) as e:

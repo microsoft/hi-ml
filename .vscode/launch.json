@@ -60,6 +60,17 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Run DeepSMILECrck locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
+            "cwd": "${workspaceFolder}/hi-ml-histopathology",
+            "args": [
+                "--model=histopathology.DeepSMILECrck",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Elevate: HI-ML-AZURE Local",
             "type": "python",
             "request": "launch",

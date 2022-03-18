@@ -1,3 +1,11 @@
+# Make commands for the toolbox users
+
+# Create a Conda environment for use with both the hi-ml and hi-ml-azure folder
+env:
+	conda env create --file environment.yml
+
+# Make commands that are used in the build pipeline
+
 # call make for each sub package
 define call_packages
 	cd hi-ml-histopathology && ${MAKE} $(1)
