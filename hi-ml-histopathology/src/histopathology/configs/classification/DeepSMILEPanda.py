@@ -145,10 +145,14 @@ class DeepSMILEPanda(BaseMIL):
                 params.requires_grad = True
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        # Construct pooling layer
+        pooling_layer, num_features = self.get_pooling_layer()
+
         return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
-                             pooling_layer=self.get_pooling_layer(),
+                             pooling_layer=pooling_layer,
+                             num_features=num_features,
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
                              weight_decay=self.weight_decay,
@@ -160,7 +164,7 @@ class DeepSMILEPanda(BaseMIL):
                              is_finetune=self.is_finetune)
 
     def get_slide_dataset(self) -> PandaDataset:
-        return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
+        return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
     def get_callbacks(self) -> List[Callback]:
         return super().get_callbacks() + [self.callbacks]
