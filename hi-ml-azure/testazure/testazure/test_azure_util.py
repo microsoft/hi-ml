@@ -33,6 +33,7 @@ from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from health_azure.utils import PipDependency
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        repository_root)
@@ -254,6 +255,7 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     assert util.split_recovery_id(id) == (expected1, expected2)
 
 
+@pytest.mark.fast
 def test_split_dependency() -> None:
     assert util._split_dependency("foo.bar") == ("foo.bar", "", "")
     assert util._split_dependency(" foo.bar == 1.0 ") == ("foo.bar", "==", "1.0")
@@ -262,14 +264,97 @@ def test_split_dependency() -> None:
     assert util._split_dependency("foo.bar=1.0") == ("foo.bar", "=", "1.0")
 
 
+@pytest.fixture
+def dummy_dependency_list_one_pinned() -> List[PipDependency]:
+    return [PipDependency("a==0.1"), PipDependency("a>=0.2"), PipDependency("a=0.3"), PipDependency("a")]
+
+
+@pytest.fixture
+def dummy_dependency_list_two_pinned() -> List[PipDependency]:
+    return [PipDependency("b==0.1"), PipDependency("b==0.2")]
+
+
+@pytest.fixture
+def dummy_dependency_list_none_pinned() -> List[PipDependency]:
+    return [PipDependency("c>=0.1"), PipDependency("c=0.2"), PipDependency("c")]
+
+
+@pytest.mark.fast
+def test_resolve_package_clash(dummy_dependency_list_one_pinned: List[PipDependency],
+                               dummy_dependency_list_two_pinned: List[PipDependency],
+                               dummy_dependency_list_none_pinned: List[PipDependency]
+                               ) -> None:
+    # if only one pinned version, that should be returned
+    expected_keep_dep = PipDependency("a==0.1")
+
+    keep_dep = util._resolve_package_clash(dummy_dependency_list_one_pinned)
+    assert keep_dep.package_name == expected_keep_dep.package_name
+    assert keep_dep.operator == expected_keep_dep.operator
+    assert keep_dep.version == expected_keep_dep.version
+
+    # if two pinned versions are found, a ValueError should be raised
+    with pytest.raises(ValueError) as e:
+        util._resolve_package_clash(dummy_dependency_list_two_pinned)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+    # if no pinned package versions are found, a ValueError should be raised
+    with pytest.raises(ValueError) as e:
+        util._resolve_package_clash(dummy_dependency_list_none_pinned)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
+
+
+@pytest.mark.fast
+def test_resolve_dependencies(dummy_dependency_list_one_pinned: List[PipDependency],
+                              dummy_dependency_list_two_pinned: List[PipDependency],
+                              dummy_dependency_list_none_pinned: List[PipDependency]) -> None:
+    # if only one pinned version, a list containing only that should be returned
+    dummy_dependency_dict_one_pinned = {"a": dummy_dependency_list_one_pinned}
+    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned)
+    assert len(resolved_list) == 1
+    resolved_package = resolved_list[0]
+    assert isinstance(resolved_package, PipDependency)
+    assert resolved_package.package_name == "a"
+    assert resolved_package.operator == "=="
+    assert resolved_package.version == "0.1"
+
+    # if two pinned versions are found, a ValueError should be raised
+    dummy_dependency_dict_two_pinned = {"b": dummy_dependency_list_two_pinned}
+    with pytest.raises(ValueError) as e:
+        util._resolve_dependencies(dummy_dependency_dict_two_pinned)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+    # if no pinned package versions are found, a ValueError should be raised
+    dummy_dependency_dict_none_pinned = {"c": dummy_dependency_list_none_pinned}
+    with pytest.raises(ValueError) as e:
+        util._resolve_dependencies(dummy_dependency_dict_none_pinned)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
+
+    # even if one package has exactly one pinned version, if other packages don't, a
+    # ValueError should be raised
+    dummy_dependency_dict = {"a": dummy_dependency_list_one_pinned, "b": dummy_dependency_list_two_pinned}
+    with pytest.raises(ValueError) as e:
+        util._resolve_dependencies(dummy_dependency_dict)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+
+@pytest.mark.fast
 def test_retrieve_unique_deps() -> None:
+    # if one pinned package is found, that should be retained
+    deps_with_one_pinned = ["package==1.0", "git+https:www.github.com/something.git"]
+    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned)  # type: ignore
+    assert dedup_deps == deps_with_one_pinned
+
+    # if duplicates are found with more than one pinned, a ValueError should be raised
     deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
+    with pytest.raises(ValueError) as e:
+        util._retrieve_unique_deps(deps_with_duplicates)
+        assert "Found more than one pinned dependency for package" in str(e)
 
-    dedup_deps = util._retrieve_unique_deps(deps_with_duplicates)  # type: ignore
-    assert dedup_deps == ["package==1.0", "git+https:www.github.com/something.git"]
-
-    dedup_deps_keep_last = util._retrieve_unique_deps(deps_with_duplicates, keep_method="last")
-    assert dedup_deps_keep_last == ["package==1.1", "git+https:www.github.com/something.git"]
+    # if duplicates are found with none pinned, a ValueErorr should be raised
+    deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
+    with pytest.raises(ValueError) as e:
+        util._retrieve_unique_deps(deps_with_duplicates)
+        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
 
 
 def test_merge_conda(
