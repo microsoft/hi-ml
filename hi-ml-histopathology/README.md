@@ -30,8 +30,8 @@ Once that config file is in place, all Python runs that you start inside the `hi
 To test your setup, please execute in the `hi-ml-histopathology` folder:
 
 ```shell
-conda activate HimlHisto 
-python ../hi-ml/src/health_ml/runner.py --model histopathology.DeepSMILECrck --cluster=training-nd24
+conda activate HimlHisto
+python ../hi-ml/src/health_ml/runner.py --model histopathology.TcgaCrckImageNetMIL  --cluster=training-nd24
 ```
 
 This should start an AzureML job in the AzureML workspace that you configured above via `config.json`. You may need to adjust the name of
