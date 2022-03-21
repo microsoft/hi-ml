@@ -184,8 +184,9 @@ def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_l
 
 def compare_bag_size(dl: DataLoader, bag_size: int) -> None:
     for batch in dl:
-         for bag in batch:
-             assert len(bag) <= bag_size
+        for bag in batch:
+            assert len(bag) <= bag_size
+
 
 @pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
                          [(CacheMode.DISK, CacheLocation.SAME, True),
