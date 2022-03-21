@@ -33,11 +33,10 @@ from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from health_azure.utils import PipDependency
+from health_azure.utils import PackageDependency
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        repository_root)
-
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -265,127 +264,236 @@ def test_split_dependency() -> None:
 
 
 @pytest.fixture
-def dummy_dependency_list_one_pinned() -> List[PipDependency]:
-    return [PipDependency("a==0.1"), PipDependency("a>=0.2"), PipDependency("a=0.3"), PipDependency("a")]
+def dummy_pip_dep_list_one_pinned() -> List[PackageDependency]:
+    return [PackageDependency("a==0.1"), PackageDependency("a>=0.2"), PackageDependency("a=0.3"),
+            PackageDependency("a")]
 
 
 @pytest.fixture
-def dummy_dependency_list_two_pinned() -> List[PipDependency]:
-    return [PipDependency("b==0.1"), PipDependency("b==0.2")]
+def dummy_pip_dep_list_two_pinned() -> List[PackageDependency]:
+    return [PackageDependency("b==0.1"), PackageDependency("b==0.2")]
 
 
 @pytest.fixture
-def dummy_dependency_list_none_pinned() -> List[PipDependency]:
-    return [PipDependency("c>=0.1"), PipDependency("c=0.2"), PipDependency("c")]
+def dummy_pip_dep_list_none_pinned() -> List[PackageDependency]:
+    return [PackageDependency("c>=0.1"), PackageDependency("c=0.2"), PackageDependency("c")]
 
 
 @pytest.mark.fast
-def test_resolve_package_clash(dummy_dependency_list_one_pinned: List[PipDependency],
-                               dummy_dependency_list_two_pinned: List[PipDependency],
-                               dummy_dependency_list_none_pinned: List[PipDependency]
-                               ) -> None:
+def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned,
+                                   dummy_pip_dep_list_two_pinned,
+                                   dummy_pip_dep_list_none_pinned
+                                   ) -> None:
+    pin_pip_operator = util.PinnedOperator.PIP
     # if only one pinned version, that should be returned
-    expected_keep_dep = PipDependency("a==0.1")
+    expected_keep_dep = PackageDependency("a==0.1")
 
-    keep_dep = util._resolve_package_clash(dummy_dependency_list_one_pinned)
+    keep_dep = util._resolve_package_clash(dummy_pip_dep_list_one_pinned, pin_pip_operator)
     assert keep_dep.package_name == expected_keep_dep.package_name
     assert keep_dep.operator == expected_keep_dep.operator
     assert keep_dep.version == expected_keep_dep.version
 
     # if two pinned versions are found, a ValueError should be raised
     with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(dummy_dependency_list_two_pinned)
+        util._resolve_package_clash(dummy_pip_dep_list_two_pinned, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if no pinned package versions are found, a ValueError should be raised
     with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(dummy_dependency_list_none_pinned)
+        util._resolve_package_clash(dummy_pip_dep_list_none_pinned, pin_pip_operator)
         assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
 
 
 @pytest.mark.fast
-def test_resolve_dependencies(dummy_dependency_list_one_pinned: List[PipDependency],
-                              dummy_dependency_list_two_pinned: List[PipDependency],
-                              dummy_dependency_list_none_pinned: List[PipDependency]) -> None:
+def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned,
+                                  dummy_pip_dep_list_two_pinned,
+                                  dummy_pip_dep_list_none_pinned) -> None:
+    pin_pip_operator = util.PinnedOperator.PIP
+
     # if only one pinned version, a list containing only that should be returned
-    dummy_dependency_dict_one_pinned = {"a": dummy_dependency_list_one_pinned}
-    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned)
+    dummy_dependency_dict_one_pinned = {"a": dummy_pip_dep_list_one_pinned}
+    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned, pin_pip_operator)
     assert len(resolved_list) == 1
     resolved_package = resolved_list[0]
-    assert isinstance(resolved_package, PipDependency)
+    assert isinstance(resolved_package, PackageDependency)
     assert resolved_package.package_name == "a"
     assert resolved_package.operator == "=="
     assert resolved_package.version == "0.1"
 
     # if two pinned versions are found, a ValueError should be raised
-    dummy_dependency_dict_two_pinned = {"b": dummy_dependency_list_two_pinned}
+    dummy_dependency_dict_two_pinned = {"b": dummy_pip_dep_list_two_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict_two_pinned)
+        util._resolve_dependencies(dummy_dependency_dict_two_pinned, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if no pinned package versions are found, a ValueError should be raised
-    dummy_dependency_dict_none_pinned = {"c": dummy_dependency_list_none_pinned}
+    dummy_dependency_dict_none_pinned = {"c": dummy_pip_dep_list_none_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict_none_pinned)
+        util._resolve_dependencies(dummy_dependency_dict_none_pinned, pin_pip_operator)
         assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
 
     # even if one package has exactly one pinned version, if other packages don't, a
     # ValueError should be raised
-    dummy_dependency_dict = {"a": dummy_dependency_list_one_pinned, "b": dummy_dependency_list_two_pinned}
+    dummy_dependency_dict = {"a": dummy_pip_dep_list_one_pinned, "b": dummy_pip_dep_list_two_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict)
+        util._resolve_dependencies(dummy_dependency_dict, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
 
 @pytest.mark.fast
-def test_retrieve_unique_deps() -> None:
+def test_retrieve_unique_pip_deps() -> None:
+    pin_pip_operator = util.PinnedOperator.PIP
     # if one pinned package is found, that should be retained
     deps_with_one_pinned = ["package==1.0", "git+https:www.github.com/something.git"]
-    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned)  # type: ignore
+    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_pip_operator)  # type: ignore
     assert dedup_deps == deps_with_one_pinned
 
     # if duplicates are found with more than one pinned, a ValueError should be raised
     deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
     with pytest.raises(ValueError) as e:
-        util._retrieve_unique_deps(deps_with_duplicates)
+        util._retrieve_unique_deps(deps_with_duplicates, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if duplicates are found with none pinned, a ValueErorr should be raised
     deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
     with pytest.raises(ValueError) as e:
-        util._retrieve_unique_deps(deps_with_duplicates)
+        util._retrieve_unique_deps(deps_with_duplicates, pin_pip_operator)
         assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
 
+    # A more complex case
+    complex_deps_with_duplicates = ["a==0.1", "b>=0.2", "c", "a>=1.1", "b==1.2", "c>=1.3", "c==2.3"]
+    expected_dedup_deps = ["a==0.1", "b==1.2", "c==2.3"]
+    dedup_deps = util._retrieve_unique_deps(complex_deps_with_duplicates, pin_pip_operator)  # type: ignore
+    assert dedup_deps == expected_dedup_deps
 
-def test_merge_conda(
-        random_folder: Path,
-        caplog: CaptureFixture,
-) -> None:
-    """
-    Tests the logic for merging Conda environment files.
-    """
+
+@pytest.fixture
+def dummy_conda_dep_list_one_pinned() -> List[PackageDependency]:
+    return [PackageDependency("a=0.1"), PackageDependency("a>=0.2"), PackageDependency("a")]
+
+
+@pytest.fixture
+def dummy_conda_dep_list_two_pinned() -> List[PackageDependency]:
+    return [PackageDependency("b=0.1"), PackageDependency("b=0.2")]
+
+
+@pytest.fixture
+def dummy_conda_dep_list_none_pinned() -> List[PackageDependency]:
+    return [PackageDependency("c>=0.1"), PackageDependency("c")]
+
+
+@pytest.mark.fast
+def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned,
+                                     dummy_conda_dep_list_two_pinned,
+                                     dummy_conda_dep_list_none_pinned
+                                     ) -> None:
+    pin_conda_operator = util.PinnedOperator.CONDA
+    # if only one pinned version, that should be returned
+    expected_keep_dep = PackageDependency("a=0.1")
+
+    keep_dep = util._resolve_package_clash(dummy_conda_dep_list_one_pinned, pin_conda_operator)
+    assert keep_dep.package_name == expected_keep_dep.package_name
+    assert keep_dep.operator == expected_keep_dep.operator
+    assert keep_dep.version == expected_keep_dep.version
+
+    # if two pinned versions are found, a ValueError should be raised
+    with pytest.raises(ValueError) as e:
+        util._resolve_package_clash(dummy_conda_dep_list_two_pinned, pin_conda_operator)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+    # if no pinned package versions are found, a ValueError should be raised
+    with pytest.raises(ValueError) as e:
+        util._resolve_package_clash(dummy_conda_dep_list_none_pinned, pin_conda_operator)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
+
+
+@pytest.mark.fast
+def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned,
+                                    dummy_conda_dep_list_two_pinned,
+                                    dummy_conda_dep_list_none_pinned) -> None:
+    pin_conda_operator = util.PinnedOperator.CONDA
+
+    # if only one pinned version, a list containing only that should be returned
+    dummy_dependency_dict_one_pinned = {"a": dummy_conda_dep_list_one_pinned}
+    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned, pin_conda_operator)
+    assert len(resolved_list) == 1
+    resolved_package = resolved_list[0]
+    assert isinstance(resolved_package, PackageDependency)
+    assert resolved_package.package_name == "a"
+    assert resolved_package.operator == "="
+    assert resolved_package.version == "0.1"
+
+    # if two pinned versions are found, a ValueError should be raised
+    dummy_dependency_dict_two_pinned = {"b": dummy_conda_dep_list_two_pinned}
+    with pytest.raises(ValueError) as e:
+        util._resolve_dependencies(dummy_dependency_dict_two_pinned, pin_conda_operator)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+    # if no pinned package versions are found, a ValueError should be raised
+    dummy_dependency_dict_none_pinned = {"c": dummy_conda_dep_list_none_pinned}
+    with pytest.raises(ValueError) as e:
+        util._resolve_dependencies(dummy_dependency_dict_none_pinned, pin_conda_operator)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
+
+    # even if one package has exactly one pinned version, if other packages don't, a
+    # ValueError should be raised
+    dummy_dependency_dict = {"a": dummy_conda_dep_list_one_pinned, "b": dummy_conda_dep_list_two_pinned}
+    with pytest.raises(ValueError) as e:
+        util._resolve_dependencies(dummy_dependency_dict, pin_conda_operator)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+
+@pytest.mark.fast
+def test_retrieve_unique_conda_deps() -> None:
+    pin_conda_operator = util.PinnedOperator.CONDA
+    # if one pinned package is found, that should be retained
+    deps_with_one_pinned = ["package=1.0", "git+https:www.github.com/something.git"]
+    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_conda_operator)  # type: ignore
+    assert dedup_deps == deps_with_one_pinned
+
+    # if duplicates are found with more than one pinned, a ValueError should be raised
+    deps_with_duplicates = ["package=1.0", "package=1.1", "git+https:www.github.com/something.git"]
+    with pytest.raises(ValueError) as e:
+        util._retrieve_unique_deps(deps_with_duplicates, pin_conda_operator)
+        assert "Found more than one pinned dependency for package" in str(e)
+
+    # if duplicates are found with none pinned, a ValueErorr should be raised
+    deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
+    with pytest.raises(ValueError) as e:
+        util._retrieve_unique_deps(deps_with_duplicates, pin_conda_operator)
+        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
+
+    # A more complex case
+    complex_deps_with_duplicates = ["a=0.1", "b>=0.2", "c", "a>=1.1", "b=1.2", "c>=1.3", "c=2.3"]
+    expected_dedup_deps = ["a=0.1", "b=1.2", "c=2.3"]
+    dedup_deps = util._retrieve_unique_deps(complex_deps_with_duplicates, pin_conda_operator)  # type: ignore
+    assert dedup_deps == expected_dedup_deps
+
+
+def test_merge_conda_one_pinned(random_folder: Path, caplog: CaptureFixture) -> None:
+    """Tests the logic for merging Conda environment files."""
     env1 = """
-channels:
-  - defaults
-  - pytorch
-dependencies:
-  - conda1=1.0
-  - conda2=2.0
-  - conda_both=3.0
-  - pip:
-      - azureml-sdk==1.7.0
-      - foo==1.0
-"""
+        channels:
+          - defaults
+          - pytorch
+        dependencies:
+          - conda1=1.0
+          - conda2=2.0
+          - conda_both=3.0
+          - pip:
+              - azureml-sdk==1.7.0
+              - foo==1.0
+        """
     env2 = """
-channels:
-  - defaults
-dependencies:
-  - conda1=1.1
-  - conda_both=3.0
-  - pip:
-      - azureml-sdk==1.6.0
-      - bar==2.0
-"""
+        channels:
+          - defaults
+        dependencies:
+          - conda1
+          - conda2
+          - pip:
+              - azureml-sdk>=1.6.0
+              - bar==2.0
+        """
     # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
     time.sleep(0.5)
     file1 = random_folder / "env1.yml"
@@ -406,7 +514,7 @@ dependencies:
 - conda2=2.0
 - conda_both=3.0
 - pip:
-  - azureml-sdk==1.6.0
+  - azureml-sdk==1.7.0
   - bar==2.0
   - foo==1.0
 """.splitlines()
@@ -417,7 +525,7 @@ dependencies:
 
     # Package version conflicts are not resolved, both versions are retained.
     assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda2=2.0", "conda_both=3.0"]
-    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "bar==2.0", "foo==1.0"]
+    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
 
     # Assert that extra pip requirements are added correctly
     pip_contents = """package1==0.0.1
@@ -435,7 +543,7 @@ dependencies:
 - conda2=2.0
 - conda_both=3.0
 - pip:
-  - azureml-sdk==1.6.0
+  - azureml-sdk==1.7.0
   - bar==2.0
   - foo==1.0
   - package1==0.0.1
@@ -476,6 +584,153 @@ dependencies:
         mock_merge_dependencies.return_value = []
         with pytest.raises(ValueError):
             util.merge_conda_files(files, merged_file)
+
+
+def test_merge_conda_two_pinned(random_folder: Path) -> None:
+    # first test the case where duplicate pinned conda packages are specified
+    env1 = """
+        channels:
+          - defaults
+          - pytorch
+        dependencies:
+          - conda1=1.0
+          - conda2=2.0
+          - conda_both=3.0
+          - pip:
+              - azureml-sdk==1.7.0
+              - foo==1.0
+        """
+    env2 = """
+        channels:
+          - defaults
+        dependencies:
+          - conda1=0.1
+          - conda2
+          - pip:
+              - azureml-sdk>=1.6.0
+              - bar==2.0
+        """
+    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
+    time.sleep(0.5)
+    file1 = random_folder / "env1.yml"
+    file1.write_text(env1)
+    file2 = random_folder / "env2.yml"
+    file2.write_text(env2)
+    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
+    time.sleep(0.5)
+    files = [file1, file2]
+    merged_file = random_folder / "merged.yml"
+    with pytest.raises(ValueError) as e:
+        util.merge_conda_files(files, merged_file)
+        assert "Found more than one pinned dependency for package: conda1" in str(e)
+
+    # now test the case where duplicate pinned pip packages are specified
+    env1 = """
+        channels:
+          - defaults
+          - pytorch
+        dependencies:
+          - conda1=1.0
+          - conda2=2.0
+          - conda_both=3.0
+          - pip:
+              - azureml-sdk==1.7.0
+              - foo==1.0
+        """
+    env2 = """
+        channels:
+          - defaults
+        dependencies:
+          - conda2
+          - pip:
+              - azureml-sdk>=1.6.0
+              - foo==2.0
+        """
+    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
+    time.sleep(0.5)
+    file1 = random_folder / "env1.yml"
+    file1.write_text(env1)
+    file2 = random_folder / "env2.yml"
+    file2.write_text(env2)
+    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
+    time.sleep(0.5)
+    files = [file1, file2]
+    merged_file = random_folder / "merged.yml"
+    with pytest.raises(ValueError) as e:
+        util.merge_conda_files(files, merged_file)
+        assert "Found more than one pinned dependency for package: foo" in str(e)
+
+
+def test_merge_conda_none_pinned(random_folder: Path) -> None:
+    # first test the case where duplicate conda packages are specified with no pinned version
+    env1 = """
+        channels:
+          - defaults
+          - pytorch
+        dependencies:
+          - conda1
+          - pip:
+              - azureml-sdk==1.7.0
+              - foo
+        """
+    env2 = """
+        channels:
+          - defaults
+        dependencies:
+          - conda1
+          - pip:
+              - azureml-sdk>=1.6.0
+              - foo==2.0
+        """
+    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
+    time.sleep(0.5)
+    file1 = random_folder / "env1.yml"
+    file1.write_text(env1)
+    file2 = random_folder / "env2.yml"
+    file2.write_text(env2)
+    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
+    time.sleep(0.5)
+    files = [file1, file2]
+    merged_file = random_folder / "merged.yml"
+    with pytest.raises(ValueError) as e:
+        util.merge_conda_files(files, merged_file)
+        assert "Encountered 2 requirements for package conda1, none of which specify a pinned version" in str(e)
+
+    # now test the case where duplicate pinned pip packages are specified
+    env1 = """
+        channels:
+          - defaults
+          - pytorch
+        dependencies:
+          - conda1=1.0
+          - conda2=2.0
+          - conda_both=3.0
+          - pip:
+              - azureml-sdk==1.7.0
+              - foo
+        """
+    env2 = """
+        channels:
+          - defaults
+        dependencies:
+          - conda2
+          - pip:
+              - azureml-sdk>=1.6.0
+              - foo
+        """
+    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
+    time.sleep(0.5)
+    file1 = random_folder / "env1.yml"
+    file1.write_text(env1)
+    file2 = random_folder / "env2.yml"
+    file2.write_text(env2)
+    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
+    time.sleep(0.5)
+    files = [file1, file2]
+    merged_file = random_folder / "merged.yml"
+    with pytest.raises(ValueError) as e:
+        util.merge_conda_files(files, merged_file)
+        assert "Encountered 2 requirements for package foo, none of which specify a pinned version" in str(e)
 
 
 def test_merge_conda_pip_include(random_folder: Path) -> None:

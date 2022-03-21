@@ -23,6 +23,7 @@ from argparse import (
 )
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum
 from itertools import islice
 from pathlib import Path
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
@@ -902,14 +903,15 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
     :param dep_str: A pip constraint string, like "package-name>=1.0.1"
     :return: A tuple of [package name, operator, version ]
     """
-    parts: List[str] = re.split("(<=|==|=|>=|<|>)", dep_str)
+    parts: List[str] = re.split('(<=|==|=|>=|<|>)', dep_str)
     if len(parts) == 1:
         return (parts[0].strip(), "", "")
     if len(parts) == 3:
         return tuple(p.strip() for p in parts)
     raise ValueError(f"Unable to split this package string: {dep_str}")
 
-class PipDependency:
+
+class PackageDependency:
     def __init__(self, dependency_str: str) -> None:
         self.package_name = ""
         self.operator = ""
@@ -924,18 +926,23 @@ class PipDependency:
             self.version = parts[2]
 
 
-def _resolve_package_clash(duplicate_dependencies: List[PipDependency]) -> PipDependency:
+class PinnedOperator(Enum):
+    CONDA = "="
+    PIP = "=="
+
+
+def _resolve_package_clash(duplicate_dependencies: List[PackageDependency], pinned_operator: PinnedOperator
+                           ) -> PackageDependency:
     """Given a list of duplicate package names with conflicting versions, if exactly one of these
     is pinned, return that, otherwise raise a ValueError
 
-    :param duplicate_dependencies: a list of PipDependency objects with the same package name
+    :param duplicate_dependencies: a list of PackageDependency objects with the same package name
     :raises ValueError: if none of the depencencies specify a pinned version
-    :return: A single PipDependency object specifying a pinned version (e.g. 'pkg==0.1')
+    :return: A single PackageDependency object specifying a pinned version (e.g. 'pkg==0.1')
     """
-    pinned_operator = "=="
     found_pinned_dependecy = None
     for dependency in duplicate_dependencies:
-        if dependency.operator == pinned_operator:
+        if dependency.operator == pinned_operator.value:
             if not found_pinned_dependecy:
                 found_pinned_dependecy = dependency
             else:
@@ -950,17 +957,17 @@ def _resolve_package_clash(duplicate_dependencies: List[PipDependency]) -> PipDe
             " a pinned version.")
 
 
-def _resolve_dependencies(all_dependencies: Dict[str, List[PipDependency]],
-                          ) -> List[PipDependency]:
-    """Apply conflict resolution for pip package versions. Given a dictionary of package name: PipDependency
+def _resolve_dependencies(all_dependencies: Dict[str, List[PackageDependency]], pinned_operator: PinnedOperator
+                          ) -> List[PackageDependency]:
+    """Apply conflict resolution for pip package versions. Given a dictionary of package name: PackageDependency
     objects, applies the following logic:
         - if the package only appears once in all definitions, keep that package version
         - if the package appears in multiple definitions, and is pinned only once, keep that package version
         - otherwise, raise a ValueError
 
-    :param all_dependencies: a dictionary of package name: list of PipDependency objects including description of
+    :param all_dependencies: a dictionary of package name: list of PackageDependency objects including description of
         the specified names and versions for that package
-    :return: a list of unique PipDependency objects
+    :return: a list of unique PackageDependency objects
     """
     unique_dependencies = []
     for dep_name, dep_list in all_dependencies.items():
@@ -968,12 +975,12 @@ def _resolve_dependencies(all_dependencies: Dict[str, List[PipDependency]],
             keep_dependency = dep_list[0]
             unique_dependencies.append(keep_dependency)
         else:
-            keep_dependency = _resolve_package_clash(dep_list)
+            keep_dependency = _resolve_package_clash(dep_list, pinned_operator)
             unique_dependencies.append(keep_dependency)
     return unique_dependencies
 
 
-def _retrieve_unique_deps(dependencies: List[str]) -> List[str]:
+def _retrieve_unique_deps(dependencies: List[str], pinned_operator: PinnedOperator) -> List[str]:
     """
     Given a list of conda dependencies, which may contain duplicate versions
     of the same package name with the same or different versions, returns a
@@ -986,9 +993,9 @@ def _retrieve_unique_deps(dependencies: List[str]) -> List[str]:
     :param dependencies: the original list of package names to deduplicate
     :return: a list of package specifications in which each package name occurs only once
     """
-    all_deps: DefaultDict[str, List[PipDependency]] = defaultdict()
+    all_deps: DefaultDict[str, List[PackageDependency]] = defaultdict()
     for dep in dependencies:
-        dependency = PipDependency(dep)
+        dependency = PackageDependency(dep)
 
         dependency_name = dependency.package_name
         if dependency_name in all_deps:
@@ -996,7 +1003,7 @@ def _retrieve_unique_deps(dependencies: List[str]) -> List[str]:
         else:
             all_deps[dependency_name] = [dependency]
 
-    unique_deps: List[PipDependency] = _resolve_dependencies(all_deps)
+    unique_deps: List[PackageDependency] = _resolve_dependencies(all_deps, pinned_operator)
 
     unique_deps_list = [f"{dep.package_name}{dep.operator}{dep.version}" for dep in unique_deps]
     return unique_deps_list
@@ -1093,8 +1100,7 @@ def merge_conda_files(
             deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
-        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
-        # duplicated, the first value encountered will be retained.
+        # Get conda dependencies and pip dependencies from specification
         pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
         if len(pip_deps_entries) == 0:
             raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
@@ -1104,9 +1110,9 @@ def merge_conda_files(
         deps.remove(pip_deps_entry)
 
         # remove all non-pip duplicates from the list of dependencies
-        unique_deps = _retrieve_unique_deps(deps)
+        unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
 
-        unique_pip_deps = _retrieve_unique_deps(pip_deps)
+        unique_pip_deps = _retrieve_unique_deps(pip_deps, PinnedOperator.PIP)
 
         # finally add back the deduplicated list of dependencies
         unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
