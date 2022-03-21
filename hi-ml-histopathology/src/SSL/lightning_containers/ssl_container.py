@@ -175,7 +175,7 @@ class SSLContainer(LightningContainer):
         if num_of_total_gpus > 1:
             l_rate = self.l_rate * num_of_total_gpus  # type ignore
             logging.info(f"We found {num_of_total_gpus} GPUs, SSL encoder learning rate has been adjusted from\
-                 {self.l_rate} to {l_rate}")  
+                 {self.l_rate} to {l_rate}")
             self.l_rate = l_rate
 
         if self.ssl_training_type == SSLTrainingType.SimCLR:
