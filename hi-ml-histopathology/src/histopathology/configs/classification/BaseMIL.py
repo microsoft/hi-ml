@@ -8,22 +8,22 @@ It is responsible for instantiating the encoder and full DeepMIL model. Subclass
 their datamodules and configure experiment-specific parameters.
 """
 from pathlib import Path
-from typing import Optional, Tuple, Type  # noqa
+from typing import Optional, Sequence, Tuple
 
 import param
 from torch import nn
 from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer,\
-    MaxPoolingLayer, TransformerPooling
-
+from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
+                                                        MeanPoolingLayer, TransformerPooling)
+from histopathology.datamodules.base_module import CacheLocation, CacheMode, TilesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from histopathology.models.deepmil import DeepMILModule
-from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
-                                            ImageNetEncoder, ImageNetSimCLREncoder,
+from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
+from histopathology.utils.output_utils import DeepMILOutputsHandler
+from histopathology.utils.naming import MetricsKey
 
 
 class BaseMIL(LightningContainer):
@@ -40,6 +40,9 @@ class BaseMIL(LightningContainer):
                                                  "keep the encoder frozen.")
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
+
+    class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
+                                                                               "defaults to `('0', '1', ...)`.")
 
     # Encoder parameters:
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
@@ -134,6 +137,15 @@ class BaseMIL(LightningContainer):
         # Construct pooling layer
         pooling_layer, num_features = self.get_pooling_layer()
 
+        outputs_handler = DeepMILOutputsHandler(outputs_root=self.outputs_folder,
+                                                n_classes=self.data_module.train_dataset.N_CLASSES,
+                                                tile_size=self.tile_size,
+                                                level=1,
+                                                slides_dataset=self.get_slides_dataset(),
+                                                class_names=self.class_names,
+                                                primary_val_metric=MetricsKey.AUROC,
+                                                maximise=True)
+
         return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
@@ -143,10 +155,13 @@ class BaseMIL(LightningContainer):
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
                              weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas)
+                             adam_betas=self.adam_betas,
+                             is_finetune=self.is_finetune,
+                             class_names=self.class_names,
+                             outputs_handler=outputs_handler)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
 
-    def get_slide_dataset(self) -> SlidesDataset:
-        raise NotImplementedError
+    def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None

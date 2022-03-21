@@ -199,11 +199,11 @@ def model_train(checkpoint_path: Optional[Path],
     # through the get_trainer_arguments method of the container because cycle mode is not yet available.
     multiple_trainloader_mode = "max_size_cycle"
     try:
-        from SSL.data.datamodules import CombinedDataModule
+        from SSL.data.datamodules import CombinedDataModule  # type: ignore
         if isinstance(data_module, CombinedDataModule):
             data_module.prepare_data()
-            assert data_module.train_loader_cycle_mode is not None, "This field should be computed during prepare_data"
-            multiple_trainloader_mode = data_module.train_loader_cycle_mode
+            multiple_trainloader_mode = data_module.train_loader_cycle_mode  # type: ignore
+            assert multiple_trainloader_mode, "train_loader_cycle_mode should be available now"
     except ModuleNotFoundError:
         pass
 
