@@ -3,11 +3,11 @@ from pathlib import Path
 from typing import Any, Optional
 import sys
 
-from InnerEyePrivate.Common.fixed_paths import repository_root_directory
-from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from InnerEye.ML.SSL.utils import SSLTrainingType
-from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
-from InnerEyePrivate.ML.configs.histo_configs.ssl.HistoSimCLRContainer import HistoSSLContainer
+from health_ml.utils.fixed_paths import repository_root_directory
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.utils import SSLTrainingType
+from histopathology.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
+from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
 current_file = Path(__file__)
 print(f"Running container from {current_file}")
 print(f"Sys path container level {sys.path}")
@@ -19,17 +19,11 @@ local_mode = False
 path_local_data: Optional[Path]
 if local_mode:
     is_debug_model = True
-    drop_last = False
-    # This dataset has been used for test purposes on a local machine, change to your local path
-    path_local_data = Path("/Users/vsalvatelli/workspace/data/PANDA_tiles_toy/panda_tiles_level1_224")
     num_workers = 0
-    PANDA_AZURE_DATASET_ID = 'Dummy'
+
 else:
     is_debug_model = False
-    drop_last = False
-    path_local_data = None
     num_workers = 5
-    PANDA_AZURE_DATASET_ID = 'PANDA_tiles'
 
 
 class SSLDatasetNameRadiomicsNN(SSLDatasetName, Enum):
@@ -49,8 +43,7 @@ class PANDA_SimCLR(HistoSSLContainer):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetNameRadiomicsNN.PANDA,
                          linear_head_dataset_name=SSLDatasetNameRadiomicsNN.PANDA,
-                         local_dataset=path_local_data,
-                         azure_dataset_id=PANDA_AZURE_DATASET_ID,
+                         azure_datasets=['PANDA_tiles'],
                          random_seed=1,
                          num_workers=num_workers,
                          is_debug_model=is_debug_model,
@@ -65,8 +58,7 @@ class PANDA_SimCLR(HistoSSLContainer):
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=None,  # Change to path_augmentation to use the config
                          linear_head_augmentation_config=None,  # Change to path_augmentation to use the config
-                         drop_last=drop_last,
+                         drop_last=False,
                          **kwargs)
         self.pl_check_val_every_n_epoch = 10
         PandaTilesDatasetWithReturnIndex.occupancy_threshold = 0
-
