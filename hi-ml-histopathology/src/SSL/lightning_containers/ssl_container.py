@@ -169,7 +169,7 @@ class SSLContainer(LightningContainer):
         use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
 
         # Rescale the learning rate linearly according to the number of available GPUs, as seen in:
-        # https://arxiv.org/abs/1706.02677, to avoid a drop in performance
+        # https://arxiv.org/abs/1706.02677, to avoid a drop in performance.
         gpus_per_node = self.num_gpus_per_node()
         num_of_total_gpus = self.num_nodes * gpus_per_node
         if num_of_total_gpus > 1:
