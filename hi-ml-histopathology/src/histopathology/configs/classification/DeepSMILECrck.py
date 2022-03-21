@@ -53,9 +53,6 @@ class DeepSMILECrck(BaseMIL):
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
-            # Full slide validation and test possible when max_bag_size_inf = 0
-            # Capping max_bag_size_inf to a large value (based on experiments) to avoid memory issues
-            max_bag_size_inf=1800,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
@@ -116,7 +113,7 @@ class DeepSMILECrck(BaseMIL):
         transform = Compose(
             [
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder),
+                EncodeTilesBatchd(keys=image_key, encoder=self.encoder, chunk_size=self.encoding_chunk_size)
             ]
         )
         return TcgaCrckTilesDataModule(
