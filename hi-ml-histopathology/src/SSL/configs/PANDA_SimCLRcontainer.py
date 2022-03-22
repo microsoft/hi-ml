@@ -12,9 +12,6 @@ current_file = Path(__file__)
 print(f"Running container from {current_file}")
 print(f"Sys path container level {sys.path}")
 
-path_augmentation = repository_root_directory() / "InnerEyePrivate" / "ML" / "configs" / "histo_configs" / "ssl" / \
-                    "panda_encoder_augmentations.yml"
-
 local_mode = False
 path_local_data: Optional[Path]
 if local_mode:
