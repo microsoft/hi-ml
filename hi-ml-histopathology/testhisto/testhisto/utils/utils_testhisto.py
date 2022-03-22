@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-from typing import Any, Collection, Mapping, Optional
+from typing import Any, Callable, Collection, Mapping, Optional
 
 import numpy as np
 import torch
@@ -83,3 +83,17 @@ def full_ml_test_data_path(suffix: str = "") -> Path:
     root = Path(os.path.realpath(__file__)).parent.parent.parent
     test_data_dir = root / "test_data"
     return test_data_dir / suffix
+
+
+def _run_distributed_process(rank: int, world_size: int, fn: Callable[[int, int], None], backend: str = 'nccl') -> None:
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = '29500'
+    torch.distributed.init_process_group(backend, rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
+    fn(rank, world_size)
+    torch.distributed.destroy_process_group()
+
+
+def run_distributed(fn: Callable, world_size: int) -> None:
+    # TODO: Add docstring for run_distributed() and _run_distributed_process()
+    torch.multiprocessing.spawn(_run_distributed_process, args=(world_size, fn), nprocs=world_size)
