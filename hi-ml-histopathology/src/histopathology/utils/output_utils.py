@@ -4,6 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 import shutil
+from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -15,7 +16,7 @@ from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
-from health_azure.utils import replace_directory
+from health_azure.utils import is_global_rank_zero, replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
@@ -67,6 +68,16 @@ def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
                 for i in range(len(value)):
                     dict_new[key + str(i)] = np.repeat(value[i], bag_size)
     return dict_new
+
+
+def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
+    if torch.distributed.is_initialized():
+        world_size = torch.distributed.get_world_size()
+        if world_size > 1:
+            object_list: EpochResultsType = [None] * world_size
+            torch.distributed.all_gather_object(object_list, epoch_results)
+            epoch_results = list(chain(*object_list))
+    return epoch_results
 
 
 def collate_results(epoch_results: EpochResultsType) -> ResultsType:
@@ -356,18 +367,20 @@ class DeepMILOutputsHandler:
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         :param epoch: Current epoch number.
         """
-        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch):
-            # First move existing outputs to a temporary directory, to avoid mixing
-            # outputs of different epochs in case writing fails halfway through
-            if self.validation_outputs_dir.exists():
-                replace_directory(source=self.validation_outputs_dir,
-                                  target=self.previous_validation_outputs_dir)
+        gathered_epoch_results = gather_results(epoch_results)
+        if is_global_rank_zero():
+            if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch):
+                # First move existing outputs to a temporary directory, to avoid mixing
+                # outputs of different epochs in case writing fails halfway through
+                if self.validation_outputs_dir.exists():
+                    replace_directory(source=self.validation_outputs_dir,
+                                      target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(epoch_results, metrics_dict, self.validation_outputs_dir)
+                self._save_outputs(gathered_epoch_results, metrics_dict, self.validation_outputs_dir)
 
-            # Writing completed successfully; delete temporary back-up
-            if self.previous_validation_outputs_dir.exists():
-                shutil.rmtree(self.previous_validation_outputs_dir)
+                # Writing completed successfully; delete temporary back-up
+                if self.previous_validation_outputs_dir.exists():
+                    shutil.rmtree(self.previous_validation_outputs_dir)
 
     def save_test_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
         """Render and save test epoch outputs.
@@ -375,4 +388,6 @@ class DeepMILOutputsHandler:
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`test_epoch_end()`.
         :param metrics_dict: Test metrics dictionary from :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         """
-        self._save_outputs(epoch_results, metrics_dict, self.test_outputs_dir)
+        gathered_epoch_results = gather_results(epoch_results)
+        if is_global_rank_zero():
+            self._save_outputs(gathered_epoch_results, metrics_dict, self.test_outputs_dir)
