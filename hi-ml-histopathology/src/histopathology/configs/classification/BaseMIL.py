@@ -51,10 +51,16 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
-    max_bag_size: int = param.Integer(2, bounds=(0, None),
-                                      doc="Upper bound on number of tiles in each loaded bag. "
+    max_bag_size: int = param.Integer(500, bounds=(0, None),
+                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
+                                          "random subsets of instances.")
+    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
+                                          doc="Upper bound on number of tiles in each loaded bag during "
+                                          "validation and test stages."
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
                                           "random subsets of instances.")
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
@@ -158,7 +164,7 @@ class BaseMIL(LightningContainer):
                              adam_betas=self.adam_betas,
                              is_finetune=self.is_finetune,
                              class_names=self.class_names,
-                             outputs_handler=outputs_handler)
+                             outputs_handler=None)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError

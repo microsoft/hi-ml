@@ -15,6 +15,7 @@ from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
+from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
@@ -359,7 +360,8 @@ class DeepMILOutputsHandler:
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
-                self.validation_outputs_dir.replace(self.previous_validation_outputs_dir)
+                replace_directory(source=self.validation_outputs_dir,
+                                  target=self.previous_validation_outputs_dir)
 
             self._save_outputs(epoch_results, metrics_dict, self.validation_outputs_dir)
 

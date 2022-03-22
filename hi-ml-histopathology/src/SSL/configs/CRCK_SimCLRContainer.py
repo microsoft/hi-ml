@@ -53,7 +53,7 @@ class CRCK_SimCLR(HistoSSLContainer):
                          max_epochs=max_epochs,
                          ssl_training_batch_size=48,  # GPU memory is at 70% with batch_size=32, 2GPUs
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLTrainingType.SimCLR,
+                         ssl_training_type=SSLTrainingType.BYOL,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=None,  # Change to path_augmentation to use the config
                          linear_head_augmentation_config=None,  # Change to path_augmentation to use the config

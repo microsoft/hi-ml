@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "hi-ml/src/health_ml/runner.py",
-            "args": ["--model=histopathology.TcgaCrckImageNetMIL", "--max_num_gpus=2", "--azureml=False"],
+            "args": ["--model=histopathology.TcgaCrckImageNetMIL", "--max_num_gpus=1", "--azureml=False"],
             "console": "integratedTerminal",
             "justMyCode": false,
         },
