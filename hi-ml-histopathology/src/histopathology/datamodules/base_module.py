@@ -259,7 +259,7 @@ class SlidesDataModule(HistoDataModule):
         self.background_val = background_val
         self.filter_mode = filter_mode
 
-    def _load_dataset(self, stage: str) -> Dataset:
+    def _load_dataset(self, stage: str, slides_dataset_class: SlidesDataset = PandaDataset) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
@@ -273,12 +273,12 @@ class SlidesDataModule(HistoDataModule):
             with dataset_pickle_path.open("rb") as f:
                 return torch.load(f, map_location=memory_location)
 
-        slides_dataset = PandaDataset(root=self.root_path)
+        slides_dataset = slides_dataset_class(root=self.root_path)
 
         base_transform = Compose(
             [
                 LoadImaged(
-                    keys=PandaDataset.IMAGE_COLUMN,
+                    keys=slides_dataset_class.IMAGE_COLUMN,
                     reader=WSIReader,
                     backend="cucim",
                     dtype=np.uint8,

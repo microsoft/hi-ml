@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch.utils.data.dataloader import default_collate
 from collections.abc import Sequence
 
@@ -12,6 +13,6 @@ def list_data_collate(batch: Sequence):
 
     for i, item in enumerate(batch):
         data = item[0]
-        data["image"] = torch.stack([ix["image"] for ix in item], dim=0)
+        data["image"] = torch.tensor(np.array([ix["image"] for ix in item]))
         batch[i] = data
     return default_collate(batch)
