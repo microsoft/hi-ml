@@ -1,0 +1,6 @@
+image_id,data_provider,isup_grade,gleason_score
+000920ad0b612851f8e01bcc880d9b3d,karolinska,0,0+0
+003a91841da04a5a31f808fb5c21538a,karolinska,1,3+3
+006f6aa35a78965c92fffd1fbd53a058,radboud,3,4+3
+007433133235efc27a39f11df6940829,radboud,0,negative
+008308f099f0c565fbc024ece6b8b08c,karolinska,1,3+3
