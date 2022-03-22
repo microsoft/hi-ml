@@ -3,11 +3,17 @@ from typing import Dict, List, Mapping
 from unittest.mock import MagicMock
 
 import pytest
+import torch
+import torch.distributed
+import torch.multiprocessing
 from ruamel.yaml import YAML
+from testhisto.utils.utils_testhisto import run_distributed
+from torch.testing import assert_close
 from torchmetrics.metric import Metric
 
-from histopathology.utils.output_utils import DeepMILOutputsHandler, OutputsPolicy
-from histopathology.utils.naming import MetricsKey
+from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
+                                               ResultsType, collate_results, gather_results)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
 
@@ -131,3 +137,71 @@ def test_overwriting_val_outputs(tmp_path: Path) -> None:
                                                 metrics_dict=_get_mock_metrics_dict(best_metric_value),
                                                 epoch=3)
     assert previous_mock_output_file.read_text() == str(better_metric_value)
+
+
+def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, rank: int) -> BatchResultsType:
+    bag_sizes = [(rank * num_batches + batch_idx) * batch_size + slide_idx + 1 for slide_idx in range(batch_size)]
+    print(rank, bag_sizes)
+    results: BatchResultsType = {
+        ResultsKey.SLIDE_ID: [[bag_size] * bag_size for bag_size in bag_sizes],
+        ResultsKey.TILE_ID: [[bag_size * bag_size + tile_idx for tile_idx in range(bag_size)]
+                             for bag_size in bag_sizes],
+        ResultsKey.BAG_ATTN: [torch.rand(1, bag_size).cuda() for bag_size in bag_sizes],
+        ResultsKey.LOSS: torch.randn(1).cuda(),
+    }
+    for key, values in results.items():
+        if key is ResultsKey.LOSS:
+            continue  # loss is a scalar
+        assert len(values) == batch_size
+        for value, ref_value in zip(values, results[ResultsKey.SLIDE_ID]):
+            if isinstance(value, torch.Tensor):
+                assert value.numel() == len(ref_value)
+            else:
+                assert len(value) == len(ref_value)
+    return results
+
+
+def _create_epoch_results(batch_size: int, num_batches: int, rank: int) -> EpochResultsType:
+    epoch_results: EpochResultsType = []
+    for batch_idx in range(num_batches):
+        batch_results = _create_batch_results(batch_idx, batch_size, num_batches, rank)
+        epoch_results.append(batch_results)
+    return epoch_results
+
+
+def collate_distributed_results(epoch_results: EpochResultsType) -> ResultsType:
+    return collate_results(gather_results(epoch_results))
+
+
+def _test_gather_results(rank: int, world_size: int) -> None:
+    num_batches = 5
+    batch_size = 3
+    epoch_results = _create_epoch_results(batch_size, num_batches, rank)
+    assert len(epoch_results) == num_batches
+
+    gathered_results = gather_results(epoch_results)
+    assert len(gathered_results) == world_size * num_batches
+
+    rank_offset = rank * num_batches
+    for batch_idx in range(num_batches):
+        assert_close(actual=gathered_results[batch_idx + rank_offset],
+                     expected=epoch_results[batch_idx])
+
+    # TODO: Add tests for collate_results()
+    # collated_results = collate_results(gathered_results)
+
+    # for key, value in collated_results.items():
+    #     assert len(value) == world_size * num_batches * batch_size, f"Wrong length for {key}: {len(value)}"
+
+
+@pytest.mark.skipif(torch.cuda.device_count() == 0, reason="No GPUs available")
+def test_gather_results() -> None:
+    _test_gather_results(0, 1)
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() == 0, reason="No GPUs available")
+def test_gather_results_distributed() -> None:
+    # These tests need to be called sequentially to prevent them to be run in parallel
+    run_distributed(_test_gather_results, world_size=1)
+    run_distributed(_test_gather_results, world_size=2)
