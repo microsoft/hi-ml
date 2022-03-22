@@ -113,13 +113,14 @@ class DeepSMILECrck(BaseMIL):
         transform = Compose(
             [
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder),
+                EncodeTilesBatchd(keys=image_key, encoder=self.encoder, chunk_size=self.encoding_chunk_size)
             ]
         )
         return TcgaCrckTilesDataModule(
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            max_bag_size_inf=self.max_bag_size_inf,
             transform=transform,
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
