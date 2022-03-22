@@ -60,7 +60,7 @@ class DeepSMILEPanda(BaseMIL):
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
-            crossval_count=5,
+            crossval_count=1,
             crossval_index=0,
 
             # declared in OptimizerParams:
@@ -182,7 +182,7 @@ class PandaHistoSSLMIL(DeepSMILEPanda):
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
 
 
-class SubPandaSSLMIL(PandaSSLMIL):
+class SubPandaImageNetMIL(PandaImageNetMIL):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         root = "~/workspace/hi-ml/hi-ml-histopathology/src/histopathology/configs/classification"

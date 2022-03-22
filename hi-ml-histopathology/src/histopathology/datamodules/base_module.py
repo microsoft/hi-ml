@@ -194,5 +194,3 @@ class SlidesDataModule(HistoDataModule):
     """Base class to load the slides of a dataset as train, val, test sets"""
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-
-    
