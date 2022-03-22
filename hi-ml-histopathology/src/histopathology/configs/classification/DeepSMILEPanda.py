@@ -122,6 +122,7 @@ class DeepSMILEPanda(BaseMIL):
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            max_bag_size_inf=self.max_bag_size_inf,
             transform=transform,
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,

@@ -34,6 +34,7 @@ class HistoDataModule(LightningDataModule):
     """Base class to load a histopathology dataset as train, val, test sets"""
 
     def __init__(self, root_path: Path, max_bag_size: int = 0, batch_size: int = 1,
+                 max_bag_size_inf: int = 0,
                  seed: Optional[int] = None, transform: Optional[Callable] = None,
                  cache_mode: CacheMode = CacheMode.NONE,
                  precache_location: CacheLocation = CacheLocation.NONE,
@@ -42,10 +43,13 @@ class HistoDataModule(LightningDataModule):
                  crossval_index: int = 0) -> None:
         """
         :param root_path: Root directory of the source dataset.
-        :param max_bag_size: Upper bound on number of tiles in each loaded bag. If 0 (default),
+        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
         random subsets of instances.
         :param batch_size: Number of slides to load per batch.
+        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
+        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
+        random subsets of instances.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A transform to apply to the source tiles dataset, or a composition of
@@ -79,6 +83,7 @@ class HistoDataModule(LightningDataModule):
 
         self.root_path = root_path
         self.max_bag_size = max_bag_size
+        self.max_bag_size_inf = max_bag_size_inf
         self.transform = transform
         self.cache_mode = cache_mode
         self.precache_location = precache_location
@@ -159,9 +164,15 @@ class TilesDataModule(HistoDataModule):
                 return torch.load(f, map_location=memory_location)
         
         generator = _create_generator(self.seed)
+
+        if stage in ['val', 'test']:
+            eff_max_bag_size = self.max_bag_size_inf
+        else:
+            eff_max_bag_size = self.max_bag_size
+
         bag_dataset = BagDataset(tiles_dataset,  # type: ignore
                                  bag_ids=tiles_dataset.slide_ids,
-                                 max_bag_size=self.max_bag_size,
+                                 max_bag_size=eff_max_bag_size,
                                  shuffle_samples=shuffle,
                                  generator=generator)
         transform = self.transform or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)

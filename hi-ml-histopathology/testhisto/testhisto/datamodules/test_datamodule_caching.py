@@ -94,7 +94,8 @@ def mock_data_dir(tmp_path: Path) -> Path:
 
 
 def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
-                    cache_dir_provided: bool, data_dir: Path) -> TilesDataModule:
+                    cache_dir_provided: bool, data_dir: Path,
+                    max_bag_size: int = 0, max_bag_size_inf: int = 0) -> TilesDataModule:
     if (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE) \
             or (cache_mode is CacheMode.DISK and not cache_dir_provided) \
             or (precache_location is not CacheLocation.NONE and not cache_dir_provided):
@@ -112,7 +113,9 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
                                batch_size=2,
                                cache_mode=cache_mode,
                                precache_location=precache_location,
-                               cache_dir=cache_dir)
+                               cache_dir=cache_dir,
+                               max_bag_size=max_bag_size,
+                               max_bag_size_inf=max_bag_size_inf)
 
 
 @pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
@@ -177,3 +180,34 @@ def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_l
                 f"Tile IDs already seen: {bag_tile_ids}"
             loaded_tile_ids.update(bag_tile_ids)
     assert loaded_tile_ids == expected_tile_ids
+
+
+def compare_bag_size(dl: DataLoader, bag_size: int) -> None:
+    for batch in dl:
+        for bag in batch:
+            assert len(bag) <= bag_size
+
+
+@pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
+                         [(CacheMode.DISK, CacheLocation.SAME, True),
+                          (CacheMode.DISK, CacheLocation.CPU, True),
+                          (CacheMode.MEMORY, CacheLocation.SAME, True),
+                          (CacheMode.MEMORY, CacheLocation.CPU, True),
+                          (CacheMode.MEMORY, CacheLocation.NONE, False),
+                          (CacheMode.NONE, CacheLocation.NONE, False)
+                          ])
+def test_max_bag_size(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
+                      cache_dir_provided: bool) -> None:
+    datamodule = _get_datamodule(cache_mode=cache_mode,
+                                 precache_location=precache_location,
+                                 cache_dir_provided=cache_dir_provided,
+                                 data_dir=mock_data_dir,
+                                 max_bag_size=10,
+                                 max_bag_size_inf=20)
+    datamodule.prepare_data()
+    train_dataloader = datamodule.train_dataloader()
+    val_dataloader = datamodule.val_dataloader()
+    test_dataloader = datamodule.test_dataloader()
+    compare_bag_size(train_dataloader, 10)
+    compare_bag_size(val_dataloader, 20)
+    compare_bag_size(test_dataloader, 20)
