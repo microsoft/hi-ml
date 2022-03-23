@@ -898,10 +898,10 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
 
 def _split_dependency(dep_str: str) -> Tuple[str, ...]:
     """Splits a string like those coming from PIP constraints into 3 parts: package name, operator, version.
-    The operator field can be empty if no constraint is found at all
+    The operator and version fields can be empty if no constraint is found at all
 
     :param dep_str: A pip constraint string, like "package-name>=1.0.1"
-    :return: A tuple of [package name, operator, version ]
+    :return: A tuple of [package name, operator, version]
     """
     parts: List[str] = re.split('(<=|==|=|>=|<|>)', dep_str)
     if len(parts) == 1:
@@ -912,6 +912,7 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
 
 
 class PackageDependency:
+    """Class to hold information from a single line of a conda/pip environment file  (i.e. a single package spec)"""
     def __init__(self, dependency_str: str) -> None:
         self.package_name = ""
         self.operator = ""
@@ -919,11 +920,20 @@ class PackageDependency:
         self._split_dependency_str(dependency_str)
 
     def _split_dependency_str(self, dependency_str: str) -> None:
+        """
+        Split the requirement string into package name, and optionally operator (e.g. ==, > etc) and version
+        if available, and store these values
+
+        :param dependency_str: A conda/pip constraint string, like "package-name>=1.0.1"
+        """
         parts = _split_dependency(dependency_str)
         self.package_name = parts[0]
-        if len(parts) > 0:
-            self.operator = parts[1]
-            self.version = parts[2]
+        self.operator = parts[1]
+        self.version = parts[2]
+
+    def name_operator_version_str(self) -> str:
+        """Concatenate the stored package name, operator and version and return it"""
+        return f"{self.package_name}{self.operator}{self.version}"
 
 
 class PinnedOperator(Enum):
@@ -1005,7 +1015,7 @@ def _retrieve_unique_deps(dependencies: List[str], pinned_operator: PinnedOperat
 
     unique_deps: List[PackageDependency] = _resolve_dependencies(all_deps, pinned_operator)
 
-    unique_deps_list = [f"{dep.package_name}{dep.operator}{dep.version}" for dep in unique_deps]
+    unique_deps_list = [dep.name_operator_version_str() for dep in unique_deps]
     return unique_deps_list
 
 
