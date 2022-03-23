@@ -71,6 +71,12 @@ def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
 
 
 def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
+    """Gather epoch results across all DDP processes into a single list.
+
+    :param epoch_results: The collected epoch results (i.e. list of batch results) for the current process.
+    :return: A list in the same format as `epoch_results`, containing batch results from all DDP processes. Returns
+        `epoch_results` unchanged if not in distributed mode.
+    """
     if torch.distributed.is_initialized():
         world_size = torch.distributed.get_world_size()
         if world_size > 1:
@@ -81,6 +87,13 @@ def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
 
 
 def collate_results(epoch_results: EpochResultsType) -> ResultsType:
+    """Convert a list of results dictionaries into a dictionary of lists.
+
+    :param epoch_results: Collected epoch results, whose elements are dictionaries of :py:class:`ResultsKey` to the
+        outputs of the respective batch (i.e. indexed as `epoch_results[batch_index][results_key]`).
+    :return: A dictionary mapping each :py:class:`ResultsKey` to a list containing the corresponding outputs for every
+        batch (i.e. indexed as `collated_results[results_key][batch_index]`).
+    """
     results: ResultsType = {}
     for key in epoch_results[0].keys():
         results[key] = []
