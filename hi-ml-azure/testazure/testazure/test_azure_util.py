@@ -280,9 +280,9 @@ def dummy_pip_dep_list_none_pinned() -> List[PackageDependency]:
 
 
 @pytest.mark.fast
-def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned,
-                                   dummy_pip_dep_list_two_pinned,
-                                   dummy_pip_dep_list_none_pinned
+def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned: List[PackageDependency],
+                                   dummy_pip_dep_list_two_pinned: List[PackageDependency],
+                                   dummy_pip_dep_list_none_pinned: List[PackageDependency]
                                    ) -> None:
     pin_pip_operator = util.PinnedOperator.PIP
     # if only one pinned version, that should be returned
@@ -305,9 +305,10 @@ def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned,
 
 
 @pytest.mark.fast
-def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned,
-                                  dummy_pip_dep_list_two_pinned,
-                                  dummy_pip_dep_list_none_pinned) -> None:
+def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDependency],
+                                  dummy_pip_dep_list_two_pinned: List[PackageDependency],
+                                  dummy_pip_dep_list_none_pinned: List[PackageDependency]
+                                  ) -> None:
     pin_pip_operator = util.PinnedOperator.PIP
 
     # if only one pinned version, a list containing only that should be returned
@@ -383,9 +384,9 @@ def dummy_conda_dep_list_none_pinned() -> List[PackageDependency]:
 
 
 @pytest.mark.fast
-def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned,
-                                     dummy_conda_dep_list_two_pinned,
-                                     dummy_conda_dep_list_none_pinned
+def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned: List[PackageDependency],
+                                     dummy_conda_dep_list_two_pinned: List[PackageDependency],
+                                     dummy_conda_dep_list_none_pinned: List[PackageDependency]
                                      ) -> None:
     pin_conda_operator = util.PinnedOperator.CONDA
     # if only one pinned version, that should be returned
@@ -408,9 +409,10 @@ def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned,
 
 
 @pytest.mark.fast
-def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned,
-                                    dummy_conda_dep_list_two_pinned,
-                                    dummy_conda_dep_list_none_pinned) -> None:
+def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned: List[PackageDependency],
+                                    dummy_conda_dep_list_two_pinned: List[PackageDependency],
+                                    dummy_conda_dep_list_none_pinned: List[PackageDependency]
+                                    ) -> None:
     pin_conda_operator = util.PinnedOperator.CONDA
 
     # if only one pinned version, a list containing only that should be returned
@@ -470,6 +472,7 @@ def test_retrieve_unique_conda_deps() -> None:
     assert dedup_deps == expected_dedup_deps
 
 
+@pytest.mark.fast
 def test_merge_conda_one_pinned(random_folder: Path, caplog: CaptureFixture) -> None:
     """Tests the logic for merging Conda environment files."""
     env1 = """
@@ -586,15 +589,14 @@ dependencies:
             util.merge_conda_files(files, merged_file)
 
 
+@pytest.mark.fast
 def test_merge_conda_two_pinned(random_folder: Path) -> None:
-    # first test the case where duplicate pinned conda packages are specified
+    # first test the case where duplicate pinned conda packages are specified, with different pinned verions
     env1 = """
         channels:
           - defaults
           - pytorch
         dependencies:
-          - conda1=1.0
-          - conda2=2.0
           - conda_both=3.0
           - pip:
               - azureml-sdk==1.7.0
@@ -604,8 +606,7 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
         channels:
           - defaults
         dependencies:
-          - conda1=0.1
-          - conda2
+          - conda_both=1.0
           - pip:
               - azureml-sdk>=1.6.0
               - bar==2.0
@@ -624,26 +625,24 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
         util.merge_conda_files(files, merged_file)
         assert "Found more than one pinned dependency for package: conda1" in str(e)
 
-    # now test the case where duplicate pinned pip packages are specified
+
+@pytest.mark.fast
+def test_merge_conda_exact_duplicates(random_folder: Path) -> None:
+    """If conda_merge encounters exact matches in packages, it won't throw an error, and will keep only one of them"""
     env1 = """
         channels:
           - defaults
-          - pytorch
         dependencies:
-          - conda1=1.0
-          - conda2=2.0
-          - conda_both=3.0
+          - conda_both=1.0
           - pip:
-              - azureml-sdk==1.7.0
-              - foo==1.0
+              - foo
         """
     env2 = """
         channels:
           - defaults
         dependencies:
-          - conda2
+          - conda_both=1.0
           - pip:
-              - azureml-sdk>=1.6.0
               - foo==2.0
         """
     # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
@@ -656,30 +655,33 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
     time.sleep(0.5)
     files = [file1, file2]
     merged_file = random_folder / "merged.yml"
-    with pytest.raises(ValueError) as e:
-        util.merge_conda_files(files, merged_file)
-        assert "Found more than one pinned dependency for package: foo" in str(e)
+    util.merge_conda_files(files, merged_file)
+    merged_contents = merged_file.read_text()
+    assert merged_contents.splitlines() == """channels:
+- defaults
+dependencies:
+- conda_both=1.0
+- pip:
+  - foo==2.0""".splitlines()
 
 
 def test_merge_conda_none_pinned(random_folder: Path) -> None:
+
     # first test the case where duplicate conda packages are specified with no pinned version
     env1 = """
         channels:
           - defaults
-          - pytorch
         dependencies:
           - conda1
           - pip:
-              - azureml-sdk==1.7.0
               - foo
         """
     env2 = """
         channels:
           - defaults
         dependencies:
-          - conda1
+          - conda1>0.1
           - pip:
-              - azureml-sdk>=1.6.0
               - foo==2.0
         """
     # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
@@ -695,42 +697,6 @@ def test_merge_conda_none_pinned(random_folder: Path) -> None:
     with pytest.raises(ValueError) as e:
         util.merge_conda_files(files, merged_file)
         assert "Encountered 2 requirements for package conda1, none of which specify a pinned version" in str(e)
-
-    # now test the case where duplicate pinned pip packages are specified
-    env1 = """
-        channels:
-          - defaults
-          - pytorch
-        dependencies:
-          - conda1=1.0
-          - conda2=2.0
-          - conda_both=3.0
-          - pip:
-              - azureml-sdk==1.7.0
-              - foo
-        """
-    env2 = """
-        channels:
-          - defaults
-        dependencies:
-          - conda2
-          - pip:
-              - azureml-sdk>=1.6.0
-              - foo
-        """
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file1 = random_folder / "env1.yml"
-    file1.write_text(env1)
-    file2 = random_folder / "env2.yml"
-    file2.write_text(env2)
-    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
-    time.sleep(0.5)
-    files = [file1, file2]
-    merged_file = random_folder / "merged.yml"
-    with pytest.raises(ValueError) as e:
-        util.merge_conda_files(files, merged_file)
-        assert "Encountered 2 requirements for package foo, none of which specify a pinned version" in str(e)
 
 
 def test_merge_conda_pip_include(random_folder: Path) -> None:
