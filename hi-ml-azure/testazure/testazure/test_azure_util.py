@@ -1329,6 +1329,36 @@ from health_azure.utils import download_files_from_run_id""",
     render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
+def test_replace_directory(tmp_path: Path) -> None:
+    extra_options = {
+        "imports": """
+import sys
+import shutil
+from pathlib import Path
+from health_azure.utils import replace_directory
+""",
+
+        "body": """
+output_dir = Path("outputs/test_outputs")
+output_dir.mkdir(parents=True, exist_ok=True)
+file_name = "hello.txt"
+(output_dir / file_name).write_text("Hello World!")
+assert (output_dir / file_name).exists()
+new_output_dir = output_dir.parent / "more_test_outputs"
+
+replace_directory(output_dir, new_output_dir)
+
+assert not output_dir.exists()
+assert (new_output_dir / file_name).exists()
+"""
+    }
+
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    print("Local run finished")
+
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+
+
 def test_is_global_rank_zero() -> None:
     with mock.patch.dict(os.environ, {util.ENV_NODE_RANK: "0", util.ENV_GLOBAL_RANK: "0", util.ENV_LOCAL_RANK: "0"}):
         assert not util.is_global_rank_zero()

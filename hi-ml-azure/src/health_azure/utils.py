@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
 from argparse import (
@@ -1864,6 +1865,36 @@ def download_files_from_hyperdrive_children(
                 downloaded_file_paths.append(str(downloaded_file_path))
 
     return downloaded_file_paths
+
+
+def replace_directory(source: Path, target: Path) -> None:
+    """
+    Safely move the contents of a source directory, deleting any files at the target location.
+
+    Because of how Azure ML mounts output folders, it is impossible to move or rename existing files. Therefore, if
+    running in Azure ML, this function creates a copy of the contents of `source`, then deletes the original files.
+
+    :param source: Source directory whose contents should be moved.
+    :param target: Target directory into which the contents should be moved. If not empty, all of its contents will be
+        deleted first.
+    """
+    if not source.is_dir():
+        raise ValueError(f"Source must be a directory, but got {source}")
+
+    if is_running_in_azure_ml():
+        if target.exists():
+            shutil.rmtree(target)
+        assert not target.exists()
+
+        shutil.copytree(source, target)
+        shutil.rmtree(source)
+    else:
+        # Outside of Azure ML, it should be much faster to rename the directory
+        # than to copy all contents then delete, especially for large dirs.
+        source.replace(target)
+
+    assert target.exists()
+    assert not source.exists()
 
 
 def create_aml_run_object(
