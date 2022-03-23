@@ -169,11 +169,8 @@ def _create_epoch_results(batch_size: int, num_batches: int, rank: int) -> Epoch
     return epoch_results
 
 
-def collate_distributed_results(epoch_results: EpochResultsType) -> ResultsType:
-    return collate_results(gather_results(epoch_results))
-
-
-def _test_gather_results(rank: int, world_size: int) -> None:
+@pytest.mark.skipif(torch.cuda.device_count() == 0, reason="No GPUs available")
+def test_gather_results(rank: int = 0, world_size: int = 1) -> None:
     num_batches = 5
     batch_size = 3
     epoch_results = _create_epoch_results(batch_size, num_batches, rank)
@@ -187,21 +184,24 @@ def _test_gather_results(rank: int, world_size: int) -> None:
         assert_close(actual=gathered_results[batch_idx + rank_offset],
                      expected=epoch_results[batch_idx])
 
-    # TODO: Add tests for collate_results()
-    # collated_results = collate_results(gathered_results)
-
-    # for key, value in collated_results.items():
-    #     assert len(value) == world_size * num_batches * batch_size, f"Wrong length for {key}: {len(value)}"
-
-
-@pytest.mark.skipif(torch.cuda.device_count() == 0, reason="No GPUs available")
-def test_gather_results() -> None:
-    _test_gather_results(0, 1)
-
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
-@pytest.mark.skipif(torch.cuda.device_count() == 0, reason="No GPUs available")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="No GPUs available")
 def test_gather_results_distributed() -> None:
     # These tests need to be called sequentially to prevent them to be run in parallel
-    run_distributed(_test_gather_results, world_size=1)
-    run_distributed(_test_gather_results, world_size=2)
+    run_distributed(test_gather_results, world_size=1)
+    run_distributed(test_gather_results, world_size=2)
+
+
+def test_collate_results() -> None:
+    epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0)
+
+    collated_results = collate_results(epoch_results)
+
+    for key, value in collated_results.items():
+        epoch_values = [batch_results[key] for batch_results in epoch_results]
+        if key == ResultsKey.LOSS:
+            assert value == epoch_values
+        else:
+            expected: List = sum(epoch_values, [])  # concatenated lists
+            assert_close(value, expected)
