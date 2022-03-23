@@ -139,15 +139,16 @@ def test_overwriting_val_outputs(tmp_path: Path) -> None:
     assert previous_mock_output_file.read_text() == str(better_metric_value)
 
 
-def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, rank: int) -> BatchResultsType:
+def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, rank: int,
+                          device: str) -> BatchResultsType:
     bag_sizes = [(rank * num_batches + batch_idx) * batch_size + slide_idx + 1 for slide_idx in range(batch_size)]
     print(rank, bag_sizes)
     results: BatchResultsType = {
         ResultsKey.SLIDE_ID: [[bag_size] * bag_size for bag_size in bag_sizes],
         ResultsKey.TILE_ID: [[bag_size * bag_size + tile_idx for tile_idx in range(bag_size)]
                              for bag_size in bag_sizes],
-        ResultsKey.BAG_ATTN: [torch.rand(1, bag_size).cuda() for bag_size in bag_sizes],
-        ResultsKey.LOSS: torch.randn(1).cuda(),
+        ResultsKey.BAG_ATTN: [torch.rand(1, bag_size, device=device) for bag_size in bag_sizes],
+        ResultsKey.LOSS: torch.randn(1, device=device),
     }
     for key, values in results.items():
         if key is ResultsKey.LOSS:
@@ -161,19 +162,18 @@ def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, ran
     return results
 
 
-def _create_epoch_results(batch_size: int, num_batches: int, rank: int) -> EpochResultsType:
+def _create_epoch_results(batch_size: int, num_batches: int, rank: int, device: str) -> EpochResultsType:
     epoch_results: EpochResultsType = []
     for batch_idx in range(num_batches):
-        batch_results = _create_batch_results(batch_idx, batch_size, num_batches, rank)
+        batch_results = _create_batch_results(batch_idx, batch_size, num_batches, rank, device)
         epoch_results.append(batch_results)
     return epoch_results
 
 
-@pytest.mark.skipif(torch.cuda.device_count() == 0, reason="No GPUs available")
-def test_gather_results(rank: int = 0, world_size: int = 1) -> None:
+def test_gather_results(rank: int = 0, world_size: int = 1, device: str = 'cpu') -> None:
     num_batches = 5
     batch_size = 3
-    epoch_results = _create_epoch_results(batch_size, num_batches, rank)
+    epoch_results = _create_epoch_results(batch_size, num_batches, rank, device)
     assert len(epoch_results) == num_batches
 
     gathered_results = gather_results(epoch_results)
@@ -186,7 +186,7 @@ def test_gather_results(rank: int = 0, world_size: int = 1) -> None:
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
-@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="No GPUs available")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 def test_gather_results_distributed() -> None:
     # These tests need to be called sequentially to prevent them to be run in parallel
     run_distributed(test_gather_results, world_size=1)
@@ -194,7 +194,7 @@ def test_gather_results_distributed() -> None:
 
 
 def test_collate_results() -> None:
-    epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0)
+    epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0, device='cpu')
 
     collated_results = collate_results(epoch_results)
 

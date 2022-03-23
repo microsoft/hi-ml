@@ -85,7 +85,8 @@ def full_ml_test_data_path(suffix: str = "") -> Path:
     return test_data_dir / suffix
 
 
-def _run_distributed_process(rank: int, world_size: int, fn: Callable[[int, int], None], backend: str = 'nccl') -> None:
+def _run_distributed_process(rank: int, world_size: int, fn: Callable[[int, int, str], None],
+                             backend: str = 'nccl') -> None:
     """Run a function in the current subprocess within a PyTorch Distributed context.
 
     This function should be called with :py:func:`torch.multiprocessing.spawn()`.
@@ -94,23 +95,24 @@ def _run_distributed_process(rank: int, world_size: int, fn: Callable[[int, int]
 
     :param rank: Process rank.
     :param world_size: Total number of distributed subprocesses.
-    :param fn: Function to execute in this subprocess, taking as arguments the process rank and the `world_size`.
+    :param fn: Function to execute in this subprocess, taking as arguments the process rank, `world_size`, and device.
     :param backend: Distributed communication backend (default: `'nccl'`).
     """
     os.environ['MASTER_ADDR'] = '127.0.0.1'
     os.environ['MASTER_PORT'] = '29500'
     torch.distributed.init_process_group(backend, rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
-    fn(rank, world_size)
+    device = f'cuda:{rank}'
+    fn(rank, world_size, device)
     torch.distributed.destroy_process_group()
 
 
-def run_distributed(fn: Callable[[int, int], None], world_size: int) -> None:
+def run_distributed(fn: Callable[[int, int, str], None], world_size: int) -> None:
     """Run a function in multiple subprocesses using PyTorch Distributed.
 
     Reference: https://pytorch.org/tutorials/intermediate/dist_tuto.html
 
-    :param fn: Function to execute in each subprocess, taking as arguments the process rank and the `world_size`.
+    :param fn: Function to execute in each subprocess, taking as arguments the process rank, `world_size`, and device.
     :param world_size: Total number of distributed subprocesses to spawn.
     """
     torch.multiprocessing.spawn(_run_distributed_process, args=(world_size, fn), nprocs=world_size)
