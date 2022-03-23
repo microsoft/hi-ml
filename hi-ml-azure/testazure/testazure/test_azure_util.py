@@ -589,9 +589,6 @@ def test_merge_conda_failure_cases(random_folder: Path, caplog: CaptureFixture) 
     time.sleep(0.5)
     file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
     file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-
-    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
-    time.sleep(0.5)
     files = [file1, file2]
 
     def raise_a_merge_error() -> None:
@@ -637,8 +634,6 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
     file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
     file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
 
-    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
-    time.sleep(0.5)
     files = [file1, file2]
     merged_file = random_folder / "merged.yml"
     with pytest.raises(ValueError) as e:
@@ -658,8 +653,6 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
     time.sleep(0.5)
     file3 = _create_and_write_env_file(env3, random_folder, "env3.yml")
     file4 = _create_and_write_env_file(env4, random_folder, "env4.yml")
-    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
-    time.sleep(0.5)
 
     merged_path, merged_contents = _merge_conda_files_and_read_text([file3, file4], random_folder)
     assert merged_contents.splitlines() ==\
