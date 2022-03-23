@@ -80,7 +80,7 @@ def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
     if torch.distributed.is_initialized():
         world_size = torch.distributed.get_world_size()
         if world_size > 1:
-            object_list: EpochResultsType = [None] * world_size
+            object_list: EpochResultsType = [None] * world_size  # type: ignore
             torch.distributed.all_gather_object(object_list, epoch_results)
             epoch_results = list(chain(*object_list))
     return epoch_results
