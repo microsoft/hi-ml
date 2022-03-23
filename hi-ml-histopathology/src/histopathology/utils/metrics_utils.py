@@ -37,7 +37,10 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     :param return_col: column name of the values we want to return for each tile
     :return: tuple containing the slides id, the slide score, the tile ids, the tiles scores
     """
+    # TODO: Refactor into separate functions to select slides by probabilities and tiles by attentions
     tmp_s = [(results[prob_col][i][label], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
+    if len(tmp_s) == 0:
+        return []
     if select[0] == 'lowest_pred':
         tmp_s.sort(reverse=False)
     elif select[0] == 'highest_pred':

@@ -13,7 +13,7 @@ from torchmetrics.metric import Metric
 
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
-                                               ResultsType, collate_results, gather_results)
+                                               collate_results, gather_results)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
 
