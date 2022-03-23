@@ -1112,7 +1112,7 @@ def merge_conda_files(
         # remove all non-pip duplicates from the list of dependencies
         unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
 
-        unique_pip_deps = _retrieve_unique_deps(pip_deps, PinnedOperator.PIP)
+        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
 
         # finally add back the deduplicated list of dependencies
         unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
