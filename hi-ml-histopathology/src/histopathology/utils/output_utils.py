@@ -274,8 +274,8 @@ class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
-                 slides_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
-                 primary_val_metric: MetricsKey, maximise: bool) -> None:
+                 class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey, maximise: bool, 
+                 slides_dataset: Optional[SlidesDataset] = None) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -336,11 +336,11 @@ class DeepMILOutputsHandler:
         save_outputs_and_features(results, outputs_dir)
 
         print("Selecting tiles ...")
-        selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
+        # selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
 
-        if self.slides_dataset is not None:
-            save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size, level=self.level,
-                                               slides_dataset=self.slides_dataset, figures_dir=figures_dir)
+        # if self.slides_dataset is not None:
+        #     save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size, level=self.level,
+        #                                        slides_dataset=self.slides_dataset, figures_dir=figures_dir)
 
         save_scores_histogram(results, figures_dir=figures_dir)
 

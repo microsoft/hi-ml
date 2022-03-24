@@ -184,7 +184,7 @@ class PandaHistoSSLMIL(DeepSMILEPanda):
 class SubPandaImageNetMIL(PandaImageNetMIL):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        root = "~/workspace/hi-ml/hi-ml-histopathology/src/histopathology/configs/classification"
+        root = "~/workspace/repos/hi-ml/hi-ml-histopathology/src/histopathology/configs/classification"
         self.crossval_count = 1
         self.train_csv = os.path.join(root, "custom_subset/panda/train_tiles_20.csv")
         self.val_csv = os.path.join(root, "custom_subset/panda/val_tiles_5.csv")
