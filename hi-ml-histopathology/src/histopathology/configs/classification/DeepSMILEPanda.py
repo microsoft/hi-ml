@@ -53,7 +53,6 @@ class DeepSMILEPanda(BaseMIL):
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
-            # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
