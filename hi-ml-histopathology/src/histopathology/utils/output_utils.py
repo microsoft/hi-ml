@@ -335,13 +335,10 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / "test"
 
-    def _save_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                      outputs_dir: Path) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
-        :param metrics_dict: Current epoch's validation metrics dictionary from
-            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         :param outputs_dir: Specific directory into which outputs should be saved (different for validation and test).
         """
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
@@ -368,8 +365,9 @@ class DeepMILOutputsHandler:
 
         save_scores_histogram(results, figures_dir=figures_dir)
 
-        conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
-        save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
+        # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
+        # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
+        # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                                 epoch: int) -> None:
@@ -389,7 +387,7 @@ class DeepMILOutputsHandler:
                     replace_directory(source=self.validation_outputs_dir,
                                       target=self.previous_validation_outputs_dir)
 
-                self._save_outputs(gathered_epoch_results, metrics_dict, self.validation_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
 
                 # Writing completed successfully; delete temporary back-up
                 if self.previous_validation_outputs_dir.exists():
@@ -403,4 +401,4 @@ class DeepMILOutputsHandler:
         """
         gathered_epoch_results = gather_results(epoch_results)
         if is_global_rank_zero():
-            self._save_outputs(gathered_epoch_results, metrics_dict, self.test_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
