@@ -272,14 +272,14 @@ class OutputsPolicy:
         YAML().dump(contents, self.best_metric_file_path)
 
     def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int,
-                                       is_global_rank_zero: bool) -> bool:
+                                       is_global_rank_zero: bool = True) -> bool:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         :param epoch: Current epoch number.
-        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
-            if not running in distributed mode.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         :return: Whether this is the best validation epoch so far.
         """
         # The metric needs to be computed on all ranks to allow synchronisation
@@ -301,11 +301,11 @@ class OutputsPolicy:
 
         return is_best
 
-    def should_save_test_outputs(self, is_global_rank_zero: bool) -> bool:
+    def should_save_test_outputs(self, is_global_rank_zero: bool = True) -> bool:
         """Determine whether test outputs should be saved.
 
-        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
-            if not running in distributed mode.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         """
         # This is implemented as a method in case we want to add custom logic in the future
         return is_global_rank_zero
@@ -387,14 +387,14 @@ class DeepMILOutputsHandler:
         # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool) -> None:
+                                epoch: int, is_global_rank_zero: bool = True) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
         :param metrics_dict: Current epoch's validation metrics dictionary from
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
-        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
-            if not running in distributed mode.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
         """
         # All DDP processes must reach this point to allow synchronising epoch results
@@ -414,13 +414,13 @@ class DeepMILOutputsHandler:
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir)
 
-    def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool) -> None:
+    def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool = True) -> None:
         """Render and save test epoch outputs.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`test_epoch_end()`.
         :param metrics_dict: Test metrics dictionary from :py:class:`~histopathology.models.deepmil.DeepMILModule`.
-        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
-            if not running in distributed mode.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
