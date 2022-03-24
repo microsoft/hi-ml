@@ -276,7 +276,7 @@ class DatasetSplits:
 
     @staticmethod
     def get_df_from_ids(df: pd.DataFrame, ids: Sequence[str],
-                        subject_column: str = "") -> pd.DataFrame:
+                        subject_column: Optional[str] = "") -> pd.DataFrame:
         """
         Retrieve a subset dataframe where the subject column is restricted to a sequence of provided ids
 
@@ -299,10 +299,8 @@ class DatasetSplits:
         """
         if n_splits <= 0:
             raise ValueError("n_splits must be >= 0 found {}".format(n_splits))
-
         # concatenate train and val, as training set = train + val
         cv_dataset = pd.concat([self.train, self.val])
-
         if self.group_column is None:  # perform standard subject-based k-fold cross-validation
             # unique subjects
             subject_ids = cv_dataset[self.subject_column].unique()
@@ -319,7 +317,6 @@ class DatasetSplits:
             # that tries to balance the group sizes in all folds
             k_folds = GroupKFold(n_splits=n_splits)
             folds_gen = k_folds.split(subject_ids, groups=groups)
-
         ids_from_indices = lambda indices: [subject_ids[x] for x in indices]
         # create the number of requested splits of the dataset
         return [

@@ -24,6 +24,7 @@ from argparse import (
 )
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum
 from itertools import islice
 from pathlib import Path
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
@@ -896,54 +897,135 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -> List[str]:
+def _split_dependency(dep_str: str) -> Tuple[str, ...]:
+    """Splits a string like those coming from PIP constraints into 3 parts: package name, operator, version.
+    The operator and version fields can be empty if no constraint is found at all
+
+    :param dep_str: A pip constraint string, like "package-name>=1.0.1"
+    :return: A tuple of [package name, operator, version]
+    """
+    parts: List[str] = re.split('(<=|==|=|>=|<|>)', dep_str)
+    if len(parts) == 1:
+        return (parts[0].strip(), "", "")
+    if len(parts) == 3:
+        return tuple(p.strip() for p in parts)
+    raise ValueError(f"Unable to split this package string: {dep_str}")
+
+
+class PackageDependency:
+    """Class to hold information from a single line of a conda/pip environment file  (i.e. a single package spec)"""
+    def __init__(self, dependency_str: str) -> None:
+        self.package_name = ""
+        self.operator = ""
+        self.version = ""
+        self._split_dependency_str(dependency_str)
+
+    def _split_dependency_str(self, dependency_str: str) -> None:
+        """
+        Split the requirement string into package name, and optionally operator (e.g. ==, > etc) and version
+        if available, and store these values
+
+        :param dependency_str: A conda/pip constraint string, like "package-name>=1.0.1"
+        """
+        parts = _split_dependency(dependency_str)
+        self.package_name = parts[0]
+        self.operator = parts[1]
+        self.version = parts[2]
+
+    def name_operator_version_str(self) -> str:
+        """Concatenate the stored package name, operator and version and return it"""
+        return f"{self.package_name}{self.operator}{self.version}"
+
+
+class PinnedOperator(Enum):
+    CONDA = "="
+    PIP = "=="
+
+
+def _resolve_package_clash(duplicate_dependencies: List[PackageDependency], pinned_operator: PinnedOperator
+                           ) -> PackageDependency:
+    """Given a list of duplicate package names with conflicting versions, if exactly one of these
+    is pinned, return that, otherwise raise a ValueError
+
+    :param duplicate_dependencies: a list of PackageDependency objects with the same package name
+    :raises ValueError: if none of the depencencies specify a pinned version
+    :return: A single PackageDependency object specifying a pinned version (e.g. 'pkg==0.1')
+    """
+    found_pinned_dependecy = None
+    for dependency in duplicate_dependencies:
+        if dependency.operator == pinned_operator.value:
+            if not found_pinned_dependecy:
+                found_pinned_dependecy = dependency
+            else:
+                raise ValueError(f"Found more than one pinned dependency for package: {dependency.package_name}")
+    if found_pinned_dependecy:
+        return found_pinned_dependecy
+    else:
+        num_clashes = len(duplicate_dependencies)
+        pkg_name = duplicate_dependencies[0].package_name
+        raise ValueError(
+            f"Encountered {num_clashes} requirements for package {pkg_name}, none of which specify"
+            " a pinned version.")
+
+
+def _resolve_dependencies(all_dependencies: Dict[str, List[PackageDependency]], pinned_operator: PinnedOperator
+                          ) -> List[PackageDependency]:
+    """Apply conflict resolution for pip package versions. Given a dictionary of package name: PackageDependency
+    objects, applies the following logic:
+        - if the package only appears once in all definitions, keep that package version
+        - if the package appears in multiple definitions, and is pinned only once, keep that package version
+        - otherwise, raise a ValueError
+
+    :param all_dependencies: a dictionary of package name: list of PackageDependency objects including description of
+        the specified names and versions for that package
+    :return: a list of unique PackageDependency objects
+    """
+    unique_dependencies = []
+    for dep_name, dep_list in all_dependencies.items():
+        if len(dep_list) == 1:
+            keep_dependency = dep_list[0]
+            unique_dependencies.append(keep_dependency)
+        else:
+            keep_dependency = _resolve_package_clash(dep_list, pinned_operator)
+            unique_dependencies.append(keep_dependency)
+    return unique_dependencies
+
+
+def _retrieve_unique_deps(dependencies: List[str], pinned_operator: PinnedOperator) -> List[str]:
     """
     Given a list of conda dependencies, which may contain duplicate versions
     of the same package name with the same or different versions, returns a
     list of them where each package name occurs only once. If a
-    package name appears more than once, only the first value will be retained.
+    package name appears more than once, a simple resolution strategy will be applied:
+    If any of the versions is listed with an equality constraint, that will be kept, irrespective
+    of the other constraints, even if they clash with the equality constraint. Multiple equality
+    constraints raise an error.
 
-    :param dependencies: The original list of package names to deduplicate
-    :param keep_method: The strategy for choosing which package version to keep
-    :return: a list in which each package name occurs only once
+    :param dependencies: the original list of package names to deduplicate
+    :return: a list of package specifications in which each package name occurs only once
     """
-    unique_deps: Dict[str, Tuple[str, str]] = {}
+    all_deps: DefaultDict[str, List[PackageDependency]] = defaultdict()
     for dep in dependencies:
-        dep_parts: List[str] = re.split("(=<|==|=|>=|<|>)", dep)
-        len_parts = len(dep_parts)
-        dep_name = dep_parts[0]
-        if len_parts > 1:
-            dep_join = "".join(dep_parts[1:-1])
-            dep_version = dep_parts[-1]
+        dependency = PackageDependency(dep)
+
+        dependency_name = dependency.package_name
+        if dependency_name in all_deps:
+            all_deps[dependency_name].append(dependency)
         else:
-            dep_join = ""
-            dep_version = ""
+            all_deps[dependency_name] = [dependency]
 
-        if dep_name in unique_deps:
-            if keep_method == "first":
-                keep_version, _ = unique_deps[dep_name]
-            elif keep_method == "last":
-                keep_version = dep_version
-                unique_deps[dep_name] = (keep_version, dep_join)
-            else:
-                raise ValueError(
-                    f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
-                    f" include: ['first', 'last']"
-                )
-            logging.warning(
-                f"Found duplicate requirements: {dep}. Keeping the {keep_method} " f"version: {keep_version}"
-            )
+    unique_deps: List[PackageDependency] = _resolve_dependencies(all_deps, pinned_operator)
 
-        else:
-            unique_deps[dep_name] = (dep_version, dep_join)
-
-    unique_deps_list = [f"{pkg}{joiner}{vrsn}" for pkg, (vrsn, joiner) in unique_deps.items()]
+    unique_deps_list = [dep.name_operator_version_str() for dep in unique_deps]
     return unique_deps_list
 
 
 def _get_pip_dependencies(parsed_yaml: Any) -> Optional[Tuple[int, List[Any]]]:
     """Gets the first pip dependencies section of a Conda yaml file. Returns the index at which the pip section
     was found, and the pip section itself. If no pip section was found, returns None
+
+    :param parsed_yaml: the conda yaml file to get the pip requirements from
+    :return: the index at which the pip section was found, and the pip section itself
     """
     if CONDA_DEPENDENCIES in parsed_yaml:
         for i, dep in enumerate(parsed_yaml.get(CONDA_DEPENDENCIES)):
@@ -991,7 +1073,6 @@ def merge_conda_files(
     conda_files: List[Path],
     result_file: Path,
     pip_files: Optional[List[Path]] = None,
-    pip_clash_keep_method: str = "first",
 ) -> None:
     """
     Merges the given Conda environment files using the conda_merge package, optionally adds any
@@ -1000,8 +1081,6 @@ def merge_conda_files(
     :param conda_files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
-    :param pip_clash_keep_method: If two or more pip packages are specified with the same name, this determines
-        which one should be kept. Current options: ['first', 'last']
     """
     env_definitions: List[Any] = []
     for file in conda_files:
@@ -1032,8 +1111,7 @@ def merge_conda_files(
             deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
-        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
-        # duplicated, the first value encountered will be retained.
+        # Get conda dependencies and pip dependencies from specification
         pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
         if len(pip_deps_entries) == 0:
             raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
@@ -1043,9 +1121,9 @@ def merge_conda_files(
         deps.remove(pip_deps_entry)
 
         # remove all non-pip duplicates from the list of dependencies
-        unique_deps = _retrieve_unique_deps(deps, keep_method=pip_clash_keep_method)
+        unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
 
-        unique_pip_deps = _retrieve_unique_deps(pip_deps, keep_method=pip_clash_keep_method)
+        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
 
         # finally add back the deduplicated list of dependencies
         unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore

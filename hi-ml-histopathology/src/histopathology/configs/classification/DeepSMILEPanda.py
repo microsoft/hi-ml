@@ -50,16 +50,14 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             is_finetune=False,
-
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
-            # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
             # declared in WorkflowParams:
-            crossval_count=1,
+            crossval_count=5,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
