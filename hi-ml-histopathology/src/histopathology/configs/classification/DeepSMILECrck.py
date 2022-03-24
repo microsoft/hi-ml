@@ -95,7 +95,7 @@ class DeepSMILECrck(BaseMIL):
             self.downloader = CheckpointDownloader(
                 aml_workspace=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
-                checkpoint_filename="best_checkpoint.ckpt",
+                checkpoint_filename="last.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
