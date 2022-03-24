@@ -16,7 +16,7 @@ from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
-from health_azure.utils import is_global_rank_zero, replace_directory
+from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
@@ -271,15 +271,23 @@ class OutputsPolicy:
                     self._PRIMARY_METRIC_KEY: self.primary_val_metric.value}
         YAML().dump(contents, self.best_metric_file_path)
 
-    def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> bool:
+    def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int,
+                                       is_global_rank_zero: bool) -> bool:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         :param epoch: Current epoch number.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
+            if not running in distributed mode.
         :return: Whether this is the best validation epoch so far.
         """
+        # The metric needs to be computed on all ranks to allow synchronisation
         metric_value = float(metrics_dict[self.primary_val_metric].compute())
+
+        # Validation outputs and best metric should be saved only by the global rank-0 process
+        if not is_global_rank_zero:
+            return False
 
         if self.maximise:
             is_best = metric_value > self._best_metric_value
@@ -292,6 +300,15 @@ class OutputsPolicy:
             self._save_best_metric()
 
         return is_best
+
+    def should_save_test_outputs(self, is_global_rank_zero: bool) -> bool:
+        """Determine whether test outputs should be saved.
+
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
+            if not running in distributed mode.
+        """
+        # This is implemented as a method in case we want to add custom logic in the future
+        return is_global_rank_zero
 
 
 class DeepMILOutputsHandler:
@@ -370,35 +387,44 @@ class DeepMILOutputsHandler:
         # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int) -> None:
+                                epoch: int, is_global_rank_zero: bool) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
         :param metrics_dict: Current epoch's validation metrics dictionary from
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
+            if not running in distributed mode.
         :param epoch: Current epoch number.
         """
+        # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if is_global_rank_zero():
-            if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch):
-                # First move existing outputs to a temporary directory, to avoid mixing
-                # outputs of different epochs in case writing fails halfway through
-                if self.validation_outputs_dir.exists():
-                    replace_directory(source=self.validation_outputs_dir,
-                                      target=self.previous_validation_outputs_dir)
+
+        # Only global rank-0 process should actually render and save the outputs
+        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
+            # First move existing outputs to a temporary directory, to avoid mixing
+            # outputs of different epochs in case writing fails halfway through
+            if self.validation_outputs_dir.exists():
+                replace_directory(source=self.validation_outputs_dir,
+                                  target=self.previous_validation_outputs_dir)
 
             self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
 
-                # Writing completed successfully; delete temporary back-up
-                if self.previous_validation_outputs_dir.exists():
-                    shutil.rmtree(self.previous_validation_outputs_dir)
+            # Writing completed successfully; delete temporary back-up
+            if self.previous_validation_outputs_dir.exists():
+                shutil.rmtree(self.previous_validation_outputs_dir)
 
-    def save_test_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
+    def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool) -> None:
         """Render and save test epoch outputs.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`test_epoch_end()`.
         :param metrics_dict: Test metrics dictionary from :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios. Set to `True`
+            if not running in distributed mode.
         """
+        # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if is_global_rank_zero():
+
+        # Only global rank-0 process should actually render and save the outputs
+        if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
