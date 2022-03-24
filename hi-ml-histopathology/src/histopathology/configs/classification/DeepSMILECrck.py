@@ -60,8 +60,7 @@ class DeepSMILECrck(BaseMIL):
             # declared in TrainerParams:
             max_epochs=50,
             # declared in WorkflowParams:
-            # crossval_count=5,
-            # crossval_index=0,
+            crossval_count=5,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,

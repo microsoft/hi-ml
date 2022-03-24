@@ -164,7 +164,7 @@ class BaseMIL(LightningContainer):
                              adam_betas=self.adam_betas,
                              is_finetune=self.is_finetune,
                              class_names=self.class_names,
-                             outputs_handler=outputs_handler)
+                             outputs_handler=None)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
