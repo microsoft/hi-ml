@@ -147,24 +147,27 @@ class BaseMIL(LightningContainer):
                                                 n_classes=self.data_module.train_dataset.N_CLASSES,
                                                 tile_size=self.tile_size,
                                                 level=1,
-                                                slides_dataset=self.get_slides_dataset(),
                                                 class_names=self.class_names,
                                                 primary_val_metric=MetricsKey.AUROC,
                                                 maximise=True)
-
-        return DeepMILModule(encoder=self.model_encoder,
-                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                             n_classes=self.data_module.train_dataset.N_CLASSES,
-                             pooling_layer=pooling_layer,
-                             num_features=num_features,
-                             dropout_rate=self.dropout_rate,
-                             class_weights=self.data_module.class_weights,
-                             l_rate=self.l_rate,
-                             weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas,
-                             is_finetune=self.is_finetune,
-                             class_names=self.class_names,
-                             outputs_handler=outputs_handler)
+        deepmil_module = DeepMILModule(encoder=self.model_encoder,
+                                       label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                                       n_classes=self.data_module.train_dataset.N_CLASSES,
+                                       pooling_layer=pooling_layer,
+                                       num_features=num_features,
+                                       dropout_rate=self.dropout_rate,
+                                       class_weights=self.data_module.class_weights,
+                                       l_rate=self.l_rate,
+                                       weight_decay=self.weight_decay,
+                                       adam_betas=self.adam_betas,
+                                       is_finetune=self.is_finetune,
+                                       class_names=self.class_names,
+                                       outputs_handler=outputs_handler)
+        
+        # WARNING: We set slides_dataset out of the constructor so that it's not saved as a hyperparameter as  
+        # slides_datasets are not dumpable by yaml.
+        deepmil_module.outputs_handler.slides_dataset = self.get_slides_dataset()
+        return deepmil_module
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
