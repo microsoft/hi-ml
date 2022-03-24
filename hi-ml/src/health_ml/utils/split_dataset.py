@@ -276,7 +276,7 @@ class DatasetSplits:
 
     @staticmethod
     def get_df_from_ids(df: pd.DataFrame, ids: Sequence[str],
-                        subject_column: str = "") -> pd.DataFrame:
+                        subject_column: Optional[str] = "") -> pd.DataFrame:
         """
         Retrieve a subset dataframe where the subject column is restricted to a sequence of provided ids
 
