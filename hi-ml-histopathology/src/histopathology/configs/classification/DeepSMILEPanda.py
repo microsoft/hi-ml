@@ -50,15 +50,12 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             is_finetune=False,
-
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
-            # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
-
             # declared in WorkflowParams:
             crossval_count=1,
             crossval_index=0,
@@ -127,8 +124,8 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            # crossval_count=self.crossval_count,
-            # crossval_index=self.crossval_index,
+            crossval_count=self.crossval_count,
+            crossval_index=self.crossval_index,
         )
 
     def get_slides_dataset(self) -> PandaDataset:
