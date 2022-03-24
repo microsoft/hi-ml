@@ -157,7 +157,7 @@ class WorkflowParams(param.Parameterized):
             parse_model_id_and_version(self.model_id)
 
         if self.crossval_count > 1:
-            if not (0 <= self.crossval_index < (self.crossval_count - 1)):
+            if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
     @property

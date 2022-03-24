@@ -47,19 +47,19 @@ class DeepSMILECrck(BaseMIL):
         # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(
             # declared in BaseMIL:
-            pooling_type=AttentionLayer.__name__,
+            pool_type=AttentionLayer.__name__,
+            num_transformer_pool_layers=4,
+            num_transformer_pool_heads=4,
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
-            # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=50,
             # declared in WorkflowParams:
-            # crossval_count=5,
-            # crossval_index=0,
+            crossval_count=5,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -111,13 +111,14 @@ class DeepSMILECrck(BaseMIL):
         transform = Compose(
             [
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder),
+                EncodeTilesBatchd(keys=image_key, encoder=self.encoder, chunk_size=self.encoding_chunk_size)
             ]
         )
         return TcgaCrckTilesDataModule(
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            max_bag_size_inf=self.max_bag_size_inf,
             transform=transform,
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,

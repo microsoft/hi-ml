@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import Callback
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
-from health_ml.networks.layers.attention_layers import GatedAttentionLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.panda_module import PandaTilesDataModule
@@ -24,7 +24,6 @@ from histopathology.models.encoders import (
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
-    IdentityEncoder
 )
 from histopathology.models.transforms import (
     EncodeTilesBatchd,
@@ -33,7 +32,6 @@ from histopathology.models.transforms import (
 
 from histopathology.configs.classification.BaseMIL import BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
-from histopathology.models.deepmil import DeepMILModule
 
 
 class DeepSMILEPanda(BaseMIL):
@@ -44,31 +42,29 @@ class DeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
-            pooling_type=GatedAttentionLayer.__name__,
+            pool_type=AttentionLayer.__name__,
+            num_transformer_pool_layers=4,
+            num_transformer_pool_heads=4,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             is_finetune=False,
-
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
-            # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
-
             # declared in WorkflowParams:
             crossval_count=5,
-            crossval_index=0,
-
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99))
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
+        self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         if not is_running_in_azure_ml():
             self.num_epochs = 1
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
@@ -121,44 +117,17 @@ class DeepSMILEPanda(BaseMIL):
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            max_bag_size_inf=self.max_bag_size_inf,
             transform=transform,
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
-            # crossval_count=self.crossval_count,
-            # crossval_index=self.crossval_index,
+            crossval_count=self.crossval_count,
+            crossval_index=self.crossval_index,
         )
 
-    # TODO: move self.class_names somewhere else since this is almost an exact copy of create_model in BaseMIL
-    def create_model(self) -> DeepMILModule:
-        self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        self.slide_dataset = self.get_slide_dataset()
-        self.level = 1
-        self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
-        if self.is_finetune:
-            self.model_encoder = self.encoder
-            for params in self.model_encoder.parameters():
-                params.requires_grad = True
-        else:
-            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
-        return DeepMILModule(encoder=self.model_encoder,
-                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                             n_classes=self.data_module.train_dataset.N_CLASSES,
-                             pooling_layer=self.get_pooling_layer(),
-                             class_weights=self.data_module.class_weights,
-                             l_rate=self.l_rate,
-                             weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas,
-                             slide_dataset=self.get_slide_dataset(),
-                             tile_size=self.tile_size,
-                             level=self.level,
-                             class_names=self.class_names,
-                             is_finetune=self.is_finetune)
-
-    def get_slide_dataset(self) -> PandaDataset:
-        return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
+    def get_slides_dataset(self) -> PandaDataset:
+        return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
     def get_callbacks(self) -> List[Callback]:
         return super().get_callbacks() + [self.callbacks]

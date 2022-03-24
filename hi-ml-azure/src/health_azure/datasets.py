@@ -143,18 +143,15 @@ class DatasetConfig:
         target_path = self.target_folder or Path(tempfile.mkdtemp())
         use_mounting = self.use_mounting if self.use_mounting is not None else False
         if use_mounting:
-            status += "mounted at "
+            status += f"mounted at {target_path}"
+            print(status)
             mount_context = azureml_dataset.mount(mount_point=str(target_path))
             result = target_path, mount_context
         else:
-            status += "downloaded to "
+            status += f"downloaded to {target_path}"
+            print(status)
             azureml_dataset.download(target_path=str(target_path), overwrite=False)
             result = target_path, None
-        if self.target_folder is not None:
-            status += f"{str(self.target_folder)}."
-        else:
-            status += f"a randomly chosen folder: {target_path}."
-        print(status)
         return result
 
     def to_input_dataset(self,
@@ -167,7 +164,7 @@ class DatasetConfig:
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked INPUT_{index}
         """
-        status = f"Dataset {self.name} (index {dataset_index}) will be "
+        status = f"In AzureML, dataset {self.name} (index {dataset_index}) will be "
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
