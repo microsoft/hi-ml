@@ -8,10 +8,11 @@ import random
 from dataclasses import dataclass
 from itertools import combinations
 from math import ceil
-from typing import Any, Dict, Iterable, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, Optional, Sequence, Set, Tuple, List
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import GroupKFold, KFold
 
 from health_ml.utils import common_utils
 from health_ml.utils.common_utils import ModelExecutionMode
@@ -285,3 +286,44 @@ class DatasetSplits:
         :return: A subset of the dataframe
         """
         return df[df[subject_column].isin(ids)]
+
+    def get_k_fold_cross_validation_splits(self, n_splits: int, random_seed: int = 0) -> List[DatasetSplits]:
+        """
+        Creates K folds from the Train + Val splits.
+        If a group_column has been specified, the folds will be split such that
+        subjects in a group will not be separated. In this case, the splits are
+        fully deterministic, and random_seed is ignored.
+        :param n_splits: number of folds to perform.
+        :param random_seed: random seed to be used for shuffle 0 is default.
+        :return: List of K dataset splits
+        """
+        if n_splits <= 0:
+            raise ValueError("n_splits must be >= 0 found {}".format(n_splits))
+
+        # concatenate train and val, as training set = train + val
+        cv_dataset = pd.concat([self.train, self.val])
+
+        if self.group_column is None:  # perform standard subject-based k-fold cross-validation
+            # unique subjects
+            subject_ids = cv_dataset[self.subject_column].unique()
+            # calculate the random split indices
+            k_folds = KFold(n_splits=n_splits, shuffle=True, random_state=random_seed)
+            folds_gen = k_folds.split(subject_ids)
+        else:  # perform grouped k-fold cross-validation
+            # Here we take all entries, rather than unique, to keep subjects
+            # matched to groups in the resulting arrays. This works, but could
+            # perhaps be improved with group-by logic...?
+            subject_ids = cv_dataset[self.subject_column].values
+            groups = cv_dataset[self.group_column].values
+            # scikit-learn uses a deterministic algorithm for grouped splits
+            # that tries to balance the group sizes in all folds
+            k_folds = GroupKFold(n_splits=n_splits)
+            folds_gen = k_folds.split(subject_ids, groups=groups)
+
+        ids_from_indices = lambda indices: [subject_ids[x] for x in indices]
+        # create the number of requested splits of the dataset
+        return [
+            DatasetSplits(train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),
+                          val=self.get_df_from_ids(cv_dataset, ids_from_indices(val_indices), self.subject_column),
+                          test=self.test, subject_column=self.subject_column, group_column=self.group_column)
+            for train_indices, val_indices in folds_gen]
