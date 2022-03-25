@@ -13,8 +13,8 @@ from health_ml.utils.reports import HTMLReport
 from histopathology.utils.analysis_plot_utils import (add_training_curves_legend, plot_crossval_roc_and_pr_curves,
                                                       plot_crossval_training_curves)
 from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
-                                               get_best_epoch_metrics, get_best_epochs, get_crossval_metrics_table,
-                                               get_formatted_run_info)
+                                               crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
+                                               get_best_epochs, get_crossval_metrics_table, get_formatted_run_info)
 
 
 def generate_html_report(parent_run_id: str, output_dir: Path, workspace_config_path: Optional[Path] = None,
@@ -61,14 +61,37 @@ def generate_html_report(parent_run_id: str, output_dir: Path, workspace_config_
         test_metrics_table = get_crossval_metrics_table(metrics_df, test_metrics_list)
         report.add_tables([test_metrics_table])
 
-        # Add test ROC and PR curves
-        crossval_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
+    report.add_heading("Model outputs", level=2)
 
-        report.add_heading("Test ROC and PR curves", level=2)
-        fig = plot_crossval_roc_and_pr_curves(crossval_dfs)
-        roc_pr_curves_fig_path = report_dir / "roc_pr_curves.png"
-        fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
-        report.add_images([roc_pr_curves_fig_path], base64_encode=True)
+    has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
+
+    if has_val_and_test_outputs:
+        # Add val. ROC and PR curves
+        val_outputs_filename = "val/test_output.csv"
+        val_outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace,
+                                                   output_filename=val_outputs_filename,
+                                                   overwrite=overwrite)
+
+        report.add_heading("Validation ROC and PR curves", level=3)
+        fig = plot_crossval_roc_and_pr_curves(val_outputs_dfs, scores_column='prob_class1')
+        val_roc_pr_curves_fig_path = report_dir / "val_roc_pr_curves.png"
+        fig.savefig(val_roc_pr_curves_fig_path, bbox_inches='tight')
+        report.add_images([val_roc_pr_curves_fig_path], base64_encode=True)
+
+    if include_test:
+        # Add test ROC and PR curves
+        test_outputs_filename = "test_output.csv"
+        if has_val_and_test_outputs:
+            test_outputs_filename = "test/" + test_outputs_filename
+        test_outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace,
+                                                    output_filename=test_outputs_filename,
+                                                    overwrite=overwrite)
+
+        report.add_heading("Test ROC and PR curves", level=3)
+        fig = plot_crossval_roc_and_pr_curves(test_outputs_dfs, scores_column='prob_class1')
+        test_roc_pr_curves_fig_path = report_dir / "test_roc_pr_curves.png"
+        fig.savefig(test_roc_pr_curves_fig_path, bbox_inches='tight')
+        report.add_images([test_roc_pr_curves_fig_path], base64_encode=True)
 
     print(f"Rendering report to: {report.report_path_html.absolute()}")
     report.render()

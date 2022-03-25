@@ -4,7 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, List, Sequence
 
 import dateutil.parser
 import numpy as np
@@ -13,6 +13,27 @@ from azureml.core import Experiment, Run, Workspace
 
 from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
+
+
+def run_has_val_and_test_outputs(run: Run) -> bool:
+    outputs_filename = "test_output.csv"
+    val_outputs_filename = "val/" + outputs_filename
+    test_outputs_filename = "test/" + outputs_filename
+
+    outputs_folder = "outputs/"
+    all_available_files: List[str] = run.get_file_names()
+    output_files = [filename[len(outputs_folder):] for filename in all_available_files
+                    if filename.startswith(outputs_folder)]
+    if val_outputs_filename in output_files and test_outputs_filename in output_files:
+        return True
+    elif outputs_filename in output_files:
+        return False
+    else:
+        raise ValueError(f"Run {run.display_name} ({run.id}) does not have the expected files: {output_files}")
+
+
+def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
+    return all(run_has_val_and_test_outputs(child_run) for child_run in parent_run.get_children())
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
