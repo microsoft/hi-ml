@@ -16,7 +16,7 @@ from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_n
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "cross_validation_split_index",
+                             crossval_arg_name: str = "crossval_index",
                              output_filename: str = "test_output.csv",
                              overwrite: bool = False) -> Dict[int, pd.DataFrame]:
     """Fetch output CSV files from cross-validation runs as dataframes.
@@ -51,7 +51,7 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
 
 
 def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "cross_validation_split_index",
+                             crossval_arg_name: str = "crossval_index",
                              overwrite: bool = False) -> pd.DataFrame:
     """Fetch metrics logged to Azure ML from cross-validation runs as a dataframe.
 
