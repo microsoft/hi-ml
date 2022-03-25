@@ -24,6 +24,8 @@ def _dump_to_stream(o: Any) -> BytesIO:
 
 
 class ModelInfo:
+    """Stores a model, its example input, and metadata that describes how the model was trained.
+    """
     MODEL = "model"
     MODEL_EXAMPLE_INPUT = "model_example_input"
     MODEL_CONFIG_YAML = "model_config_yaml"
@@ -49,6 +51,20 @@ class ModelInfo:
                  image_pre_processing: Optional[Callable] = None,
                  image_dimensions: str = "",
                  ):
+        """
+        :param model: The model that should be serialized, or the deserialized model, defaults to None
+        :param model_example_input: A tensor that can be input to the forward pass of the model, defaults to None
+        :param model_config: The configuration object that was used to start the training run, defaults to None
+        :param git_repository: The name of the git repository that contains the training codebase, defaults to ""
+        :param git_commit_hash: The git commit hash that was used to run the training, defaults to ""
+        :param dataset_name: The name of the dataset that was used to train the model, defaults to ""
+        :param azure_ml_workspace: The name of the AzureML workspace that contains the training run, defaults to ""
+        :param azure_ml_run_id: The AzureML run that did the training, defaults to ""
+        :param text_tokenizer: A text tokenizer object to pre-process the model input, defaults to None
+        :param image_pre_processing: An object that describes the processing for the image before it is input to the 
+        model, defaults to None
+        :param image_dimensions: The size of the pre-processed image that is accepted by the model, defaults to ""
+        """
         self.model = model
         self.model_example_input = model_example_input
         self.model_config = model_config
