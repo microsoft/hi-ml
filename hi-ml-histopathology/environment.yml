@@ -58,5 +58,7 @@ dependencies:
       - yacs==0.1.8
       - cucim==22.2.0
       - medmnist==2.0.2
-      - bitarray==2.4.0
-      - pylibtiff==0.4.4
+      # - bitarray==2.4.0
+      # - pylibtiff==0.4.4
+      - tifffile==2021.11.2
+      - imagecodecs==2021.11.20
