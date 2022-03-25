@@ -197,8 +197,17 @@ def model_train(checkpoint_path: Optional[Path],
     container.before_training_on_all_ranks()
 
     # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
-    # because training data that uses a CombinedLoader is not split correctly in DDP
+    # because training data that uses a CombinedLoader is not split correctly in DDP. This flag cannot be passed
+    # through the get_trainer_arguments method of the container because cycle mode is not yet available.
     multiple_trainloader_mode = "max_size_cycle"
+    try:
+        from SSL.data.datamodules import CombinedDataModule  # type: ignore
+        if isinstance(data_module, CombinedDataModule):
+            data_module.prepare_data()
+            multiple_trainloader_mode = data_module.train_loader_cycle_mode  # type: ignore
+            assert multiple_trainloader_mode, "train_loader_cycle_mode should be available now"
+    except ModuleNotFoundError:
+        pass
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.

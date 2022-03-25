@@ -133,6 +133,23 @@ class HTMLReport:
         self.template += template_addition
         self._add_html_end()
 
+    def add_heading(self, text: str, level: int = 2, tag_class: str = '') -> None:
+        """
+        Add a heading to the report content. If you wish to provide your own css classes, you can
+        tag this heading by providing the class name in the "tag_class" parameter.
+
+        :param text: The contents of the heading to add to the report
+        :param level: The heading level, e.g. 2 for `<h2>` etc.
+        :param tag_class: An optional class name to apply styling to the text
+        """
+        if level < 1 or level > 5:
+            raise ValueError(f"Level must be an integer between 1 and 5 (inclusive), but got {level}")
+        class_spec = f" class={tag_class}" if tag_class else ""
+        template_addition = f"""<div class="container" >
+        <h{level}{class_spec}>{text}</h{level}>
+        </div>"""
+        self.add_to_template(template_addition)
+
     def add_text(self, text: str, tag_class: str = '') -> None:
         """
         Add text to the report content, in the form of a new paragraph. This will start on a new line by default.

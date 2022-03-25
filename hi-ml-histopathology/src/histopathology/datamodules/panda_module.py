@@ -27,6 +27,11 @@ class PandaTilesDataModule(TilesDataModule):
                                                 proportion_val=.1,
                                                 subject_column=dataset.TILE_ID_COLUMN,
                                                 group_column=dataset.SLIDE_ID_COLUMN)
+
+        if self.crossval_count > 1:
+            # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
+            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[self.crossval_index]
+
         return (PandaTilesDataset(self.root_path, dataset_df=splits.train),
                 PandaTilesDataset(self.root_path, dataset_df=splits.val),
                 PandaTilesDataset(self.root_path, dataset_df=splits.test))

@@ -52,7 +52,7 @@ The `hi-ml` toolbox provides
    :caption: Developers
 
    developers.md
-   ../CONTRIBUTING.md
+   CONTRIBUTING.md
 
 .. toctree::
    :maxdepth: 1
@@ -81,4 +81,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
