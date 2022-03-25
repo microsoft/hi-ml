@@ -35,7 +35,7 @@ def create_stitched_patches(
     return np.transpose(mock_image, (1, 2, 0))
 
 
-def create_multi_resolution_wsi(mock_image: np.ndarray, n_series: int, zoom_factor: int) -> List[np.ndarray]:
+def create_multi_resolution_wsi(mock_image: np.ndarray, n_series: int, zoom_factor: float) -> List[np.ndarray]:
     series = [ndimage.zoom(mock_image, (1 + i * zoom_factor, 1 + i * zoom_factor, 1)) for i in range(n_series)]
     return series
 
