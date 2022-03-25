@@ -106,12 +106,14 @@ class DeepSMILEPanda(BaseMIL):
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
         if self.is_finetune:
-            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+            transform = LoadTilesBatchd(image_key, progress=True)
+            dataloader_kwargs = dict(num_workers=os.cpu_count(), pin_memory=True)
         else:
             transform = Compose([
-                                LoadTilesBatchd(image_key, progress=True),
-                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
-                                ])
+                LoadTilesBatchd(image_key, progress=True),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+            ])
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
 
         return PandaTilesDataModule(
             root_path=self.local_datasets[0],
@@ -124,6 +126,7 @@ class DeepSMILEPanda(BaseMIL):
             cache_dir=self.cache_dir,
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
+            dataloader_kwargs=dataloader_kwargs,
         )
 
     def get_slides_dataset(self) -> PandaDataset:
