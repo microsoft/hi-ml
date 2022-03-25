@@ -4,10 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-from typing import Any, Collection, Mapping, Optional
+from typing import Any, Callable, Collection, Mapping, Optional, Sequence
 
 import numpy as np
 import torch
+import torch.distributed
 from PIL import Image
 
 from health_azure.utils import PathOrString
@@ -83,3 +84,51 @@ def full_ml_test_data_path(suffix: str = "") -> Path:
     root = Path(os.path.realpath(__file__)).parent.parent.parent
     test_data_dir = root / "test_data"
     return test_data_dir / suffix
+
+
+def _run_distributed_process(rank: int, world_size: int, fn: Callable[..., None], args: Sequence[Any] = (),
+                             backend: str = 'nccl') -> None:
+    """Run a function in the current subprocess within a PyTorch Distributed context.
+
+    This function should be called with :py:func:`torch.multiprocessing.spawn()`.
+
+    Reference: https://pytorch.org/tutorials/intermediate/dist_tuto.html
+
+    :param rank: Rank of the current process.
+    :param world_size: Total number of distributed subprocesses.
+    :param fn: Function to execute in each subprocess, accepting least the following keyword arguments:
+
+        * `rank` (`int`): The (global) rank assigned to the subprocess executing the function.
+        * `world_size` (`int`): Total number of distributed subprocesses.
+        * `device` (`str`): CUDA device allocated to this process (e.g. `'cuda:1'`).
+
+    :param args: Any positional arguments to be passed to `fn`, which will be called as
+        ``fn(*args, rank=..., world_size=..., device=...)``.
+    :param backend: Distributed communication backend (default: `'nccl'`).
+    """
+    # TODO: Add timeouts and proper handling of CUDA/NCCL errors
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = '29500'
+    torch.distributed.init_process_group(backend, rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
+    device = f'cuda:{rank}'
+    fn(*args, rank=rank, world_size=world_size, device=device)
+    torch.distributed.destroy_process_group()
+
+
+def run_distributed(fn: Callable[..., None], args: Sequence[Any] = (), world_size: int = 1) -> None:
+    """Run a function in multiple subprocesses using PyTorch Distributed.
+
+    Reference: https://pytorch.org/tutorials/intermediate/dist_tuto.html
+
+    :param fn: Function to execute in each subprocess, accepting least the following keyword arguments:
+
+        * `rank` (`int`): The (global) rank assigned to the subprocess executing the function.
+        * `world_size` (`int`): Total number of distributed subprocesses.
+        * `device` (`str`): CUDA device allocated to this process (e.g. `'cuda:1'`).
+
+    :param args: Any positional arguments to be passed to `fn`, which will be called as
+        ``fn(*args, rank=..., world_size=..., device=...)``.
+    :param world_size: Total number of distributed subprocesses to spawn.
+    """
+    torch.multiprocessing.spawn(_run_distributed_process, args=(world_size, fn, args), nprocs=world_size)
