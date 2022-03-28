@@ -34,7 +34,7 @@ def create_patchmnist_stitched_patches(
         mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = (
             np.tile(patch, (2, 2)) * 255
         )
-        np.save(os.path.join("pathmnist", str(sample_counter), f"patch_{i}.npy"), patch.numpy())
+        np.save(os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), patch.numpy())
     return np.transpose(mock_image, (1, 2, 0))
 
 
@@ -63,7 +63,7 @@ def create_pathmnist_mock_wsis(
 
     data_loader = get_pathmnist_data_loader(n_repeat)
     for sample_counter in range(n_samples):
-        os.makedirs(f"pathmnist/{sample_counter}", exist_ok=True)
+        os.makedirs(f"pathmnist/_{sample_counter}", exist_ok=True)
         patches, _ = next(iter(data_loader))
         mock_image = create_patchmnist_stitched_patches(
             patches,
@@ -73,7 +73,7 @@ def create_pathmnist_mock_wsis(
             step_size=n_patches * patch_size,
         )
         series = create_multi_resolution_wsi(mock_image, n_series)
-        save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"{sample_counter}.tiff"), series)
+        save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"_{sample_counter}.tiff"), series)
 
 
 def create_fake_stitched_patches(
@@ -103,7 +103,7 @@ def create_fake_mock_wsis(
             fill_val=np.random.randint(0, 60),
         )
         series = create_multi_resolution_wsi(mock_image, n_series)
-        save_mock_wsi_as_tiff_file(os.path.join("fake", f"{sample_counter}.tiff"), series)
+        save_mock_wsi_as_tiff_file(os.path.join("fake", f"_{sample_counter}.tiff"), series)
 
 
 if __name__ == "__main__":
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mock_type",
         type=str,
-        default="fake",
+        default="pathmnist",
         help="Mock data type: pathmnist for patches from pathmnist dataset, fake for patches with fake values",
     )
     args = parser.parse_args()

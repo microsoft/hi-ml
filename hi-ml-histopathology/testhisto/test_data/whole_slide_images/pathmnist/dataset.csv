@@ -1,5 +1,5 @@
 image_id,data_provider,isup_grade,gleason_score
-0,karolinska,4,4+4
-1,karolinska,0,0+0
-2,karolinska,2,3+4
-3,karolinska,0,0+0
+_0,karolinska,5,5+5
+_1,karolinska,4,4+4
+_2,radboud,3,4+3
+_3,karolinska,3,4+3
