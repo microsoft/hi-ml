@@ -260,12 +260,14 @@ def test_split_dependency() -> None:
     assert util._split_dependency("foo.bar>=1.0") == ("foo.bar", ">=", "1.0")
     assert util._split_dependency("foo.bar<=1.0") == ("foo.bar", "<=", "1.0")
     assert util._split_dependency("foo.bar=1.0") == ("foo.bar", "=", "1.0")
+    assert util._split_dependency("foo=1.0; platform_system=='Linux'") ==\
+           ("foo", "=", "1.0", ";", "platform_system", "==", "'Linux'")
 
 
 @pytest.fixture
 def dummy_pip_dep_list_one_pinned() -> List[PackageDependency]:
     return [PackageDependency("a==0.1"), PackageDependency("a>=0.2"), PackageDependency("a=0.3"),
-            PackageDependency("a")]
+            PackageDependency("a=0.4; platform_system='Linux'"), PackageDependency("a")]
 
 
 @pytest.fixture
@@ -344,9 +346,11 @@ def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDep
 def test_retrieve_unique_pip_deps() -> None:
     pin_pip_operator = util.PinnedOperator.PIP
     # if one pinned package is found, that should be retained
-    deps_with_one_pinned = ["package==1.0", "git+https:www.github.com/something.git"]
+    deps_with_one_pinned = ["package==1.0",
+                            "git+https:www.github.com/something.git",
+                            "foo=1.0; platform_system='Linux'"]
     dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_pip_operator)  # type: ignore
-    assert dedup_deps == deps_with_one_pinned
+    assert dedup_deps == [d.replace(" ", "") for d in deps_with_one_pinned]
 
     # if duplicates are found with more than one pinned, a ValueError should be raised
     deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
