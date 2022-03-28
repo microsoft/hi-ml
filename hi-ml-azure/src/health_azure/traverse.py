@@ -164,7 +164,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                 if t_value != t_value_to_write:
                     report_issue(name, f"Skipped. Current value has type {t_value.__name__}, but trying to "
                                        f"write {t_value_to_write.__name__}")
-                try_set_field(name, value)
+                try_set_field(name, value_to_write)
             elif isinstance(value, enum.Enum):
                 if isinstance(value_to_write, str):
                     try:
@@ -195,7 +195,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
 
 
 def write_dict_to_object(o: Any, d: Dict[str, Any],
-                         strict: bool = False) -> None:
+                         strict: bool = True) -> None:
     """
     Writes a dictionary of values into an object, assuming that the attributes of the object and the dictionary keys
     are in sync. For example, to write a dictionary {"foo": 1, "bar": "baz"} to an object, the object needs to have

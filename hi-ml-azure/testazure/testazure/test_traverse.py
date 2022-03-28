@@ -115,7 +115,7 @@ def test_traverse_none() -> None:
     config.optimizer = None
     assert _object_to_dict(None) is None
     assert _object_to_dict(config) == {"learning_rate": 1e-3, "optimizer": None}
-    assert object_to_yaml(config) == """learning_rate: 1e-3
+    assert object_to_yaml(config) == """learning_rate: 0.001
 optimizer: null
 """
 
@@ -138,7 +138,7 @@ def test_params_roundtrip() -> None:
 
 def test_write_flat() -> None:
     obj = OptimizerConfig()
-    learning_rate = 3
+    learning_rate = 3.0
     optimizer = "Foo"
     d = {"learning_rate": learning_rate, "optimizer": optimizer}
     write_dict_to_object(obj, d)
@@ -152,9 +152,9 @@ def test_write_nested() -> None:
     print("\n" + yaml)
     float1 = 2.0
     int1 = 2
-    blur_p = 7
-    blur_sigma = 8
-    learning_rate = 3
+    blur_p = 7.0
+    blur_sigma = 8.0
+    learning_rate = 3.0
     optimizer = "Foo"
     d1 = {"transforms": {"blur_sigma": blur_sigma, "blur_p": blur_p},
           "optimizer": {"learning_rate": learning_rate, "optimizer": optimizer}}
