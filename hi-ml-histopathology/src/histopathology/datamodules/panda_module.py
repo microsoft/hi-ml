@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Tuple
+from typing import Tuple
 
 from health_ml.utils.split_dataset import DatasetSplits
 

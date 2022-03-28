@@ -117,6 +117,7 @@ class DeepSMILECrck(BaseMIL):
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+
         return TcgaCrckTilesDataModule(
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
