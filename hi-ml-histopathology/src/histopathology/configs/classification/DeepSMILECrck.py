@@ -17,6 +17,7 @@ import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
+import torch
 
 from health_azure.utils import CheckpointDownloader
 from health_azure import get_workspace
@@ -108,12 +109,17 @@ class DeepSMILECrck(BaseMIL):
 
     def get_data_module(self) -> TilesDataModule:
         image_key = TcgaCrck_TilesDataset.IMAGE_COLUMN
-        transform = Compose(
-            [
+        if self.is_finetune:
+            transform = LoadTilesBatchd(image_key, progress=True)
+            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(keys=image_key, encoder=self.encoder, chunk_size=self.encoding_chunk_size)
-            ]
-        )
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+            ])
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+
         return TcgaCrckTilesDataModule(
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
@@ -125,6 +131,7 @@ class DeepSMILECrck(BaseMIL):
             cache_dir=self.cache_dir,
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
+            dataloader_kwargs=dataloader_kwargs,
         )
 
     def get_callbacks(self) -> List[Callback]:
