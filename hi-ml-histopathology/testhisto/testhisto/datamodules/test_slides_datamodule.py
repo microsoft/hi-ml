@@ -46,7 +46,7 @@ class MockSlidesDataModule(SlidesDataModule):
 # @pytest.mark.parametrize("level", [(0,), (1,), (2,)])
 def test_tiling_on_the_fly() -> None:
     datamodule = MockSlidesDataModule(root_path=MOCK_DATA_PATH, batch_size=1, tile_count=16, tile_size=28, level=0)
-    dataloader = datamodule._get_dataloader(stage="train", shuffle=False)
+    dataloader = datamodule.train_dataloader()
     sample = next(iter(dataloader))
     tiles = sample["image"]
     wsi_id = sample["slide_id"]
