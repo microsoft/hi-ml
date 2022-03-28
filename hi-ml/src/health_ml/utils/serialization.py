@@ -61,7 +61,7 @@ class ModelInfo:
         :param azure_ml_workspace: The name of the AzureML workspace that contains the training run, defaults to ""
         :param azure_ml_run_id: The AzureML run that did the training, defaults to ""
         :param text_tokenizer: A text tokenizer object to pre-process the model input, defaults to None
-        :param image_pre_processing: An object that describes the processing for the image before it is input to the 
+        :param image_pre_processing: An object that describes the processing for the image before it is input to the
         model, defaults to None
         :param image_dimensions: The size of the pre-processed image that is accepted by the model, defaults to ""
         """
@@ -95,7 +95,7 @@ class ModelInfo:
 
     def state_dict(self, strict: bool = True) -> Dict[str, Any]:
         """Creates a dictionary representation of the current object.
-        
+
         :param strict: The setting for the 'strict' flag in the call to torch.jit.trace.
         """
         def bytes_or_none(o: Any) -> Optional[bytes]:
