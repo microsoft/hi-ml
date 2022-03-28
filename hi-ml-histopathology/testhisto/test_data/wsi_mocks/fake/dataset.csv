@@ -1,5 +1,5 @@
 image_id,data_provider,isup_grade,gleason_score
-wsi_0,karolinska,4,4+4
-wsi_1,radboud,2,3+4
-wsi_2,radboud,4,5+3
-wsi_3,radboud,5,4+5
+wsi_0,radboud,0,negative
+wsi_1,karolinska,5,5+4
+wsi_2,radboud,0,0+0
+wsi_3,radboud,2,3+4

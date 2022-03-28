@@ -1,0 +1,38 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
+import pandas as pd
+
+from pathlib import Path
+from typing import Any, Tuple, Union, Optional
+from histopathology.datamodules.base_module import SlidesDataModule
+from histopathology.datasets.base_dataset import SlidesDataset
+
+
+class MockSlidesDataset(SlidesDataset):
+    DEFAULT_CSV_FILENAME = "dataset.csv"
+
+    def __init__(
+        self,
+        root: Union[str, Path],
+        dataset_csv: Optional[Union[str, Path]] = None,
+        dataset_df: Optional[pd.DataFrame] = None,
+    ) -> None:
+        super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
+        slide_ids = self.dataset_df.index
+        self.dataset_df[self.IMAGE_COLUMN] = slide_ids + ".tiff"
+        self.validate_columns()
+
+
+class MockSlidesDataModule(SlidesDataModule):
+    def __init__(**kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+    def _get_slides_dataset_class(self) -> None:
+        return MockSlidesDataset
+
+    def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
+        return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
+

@@ -223,8 +223,8 @@ class SlidesDataModule(HistoDataModule):
         tile_count: number of tiles to extract, if None extracts all non-background tiles
             Defaults to ``None``.
         tile_size: size of the square tile
-            Defaults to ``256``.
-        step: step size
+            Defaults to ``224``.
+        step: step size to create overlapping tiles
             Defaults to ``None`` (same as tile_size)
         random_offset: Randomize position of the grid, instead of starting from the top-left corner
             Defaults to ``False``.
@@ -239,14 +239,14 @@ class SlidesDataModule(HistoDataModule):
 
     def __init__(
         self,
-        level: Optional[int] = 1,
+        level: Optional[int] = 0,
         tile_count: Optional[int] = None,
-        tile_size: int = 256,
+        tile_size: Optional[int] = 224,
         step: Optional[int] = None,
-        random_offset: bool = False,
-        pad_full: bool = False,
-        background_val: int = 255,
-        filter_mode: str = "min",
+        random_offset: Optional[bool] = False,
+        pad_full: Optional[bool] = False,
+        background_val: Optional[int] = 255,
+        filter_mode: Optional[str] = "min",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -258,8 +258,12 @@ class SlidesDataModule(HistoDataModule):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
+        self.slides_dataset_class = self._get_slides_dataset_class()
 
-    def _load_dataset(self, stage: str, slides_dataset_class: SlidesDataset = PandaDataset) -> Dataset:
+    def _get_slides_dataset_class(self) -> SlidesDataset:
+        raise NotImplementedError
+
+    def _load_dataset(self, stage: str) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
@@ -273,12 +277,12 @@ class SlidesDataModule(HistoDataModule):
             with dataset_pickle_path.open("rb") as f:
                 return torch.load(f, map_location=memory_location)
 
-        slides_dataset = slides_dataset_class(root=self.root_path)
+        slides_dataset = self.slides_dataset_class(root=self.root_path)
 
         base_transform = Compose(
             [
                 LoadImaged(
-                    keys=slides_dataset_class.IMAGE_COLUMN,
+                    keys=self.slides_dataset_class.IMAGE_COLUMN,
                     reader=WSIReader,
                     backend="cucim",
                     dtype=np.uint8,

@@ -66,6 +66,9 @@ class PandaSlidesDataModule(SlidesDataModule):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
+    def _get_slides_dataset_class(self) -> None:
+        self.set_slides_dataset_class = PandaDataset
+
     def get_splits(self) -> Tuple[PandaDataset, PandaDataset, PandaDataset]:
         dataset = PandaDataset(self.root_path)
         splits = DatasetSplits.from_proportions(dataset.dataset_df.reset_index(),
