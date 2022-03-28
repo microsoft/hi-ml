@@ -273,11 +273,16 @@ class DeepMILModule(LightningModule):
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:
         if self.outputs_handler:
-            self.outputs_handler.save_validation_outputs(epoch_results=epoch_results,
-                                                         metrics_dict=self.get_metrics_dict('val'),
-                                                         epoch=self.current_epoch)
+            self.outputs_handler.save_validation_outputs(
+                epoch_results=epoch_results,
+                metrics_dict=self.get_metrics_dict('val'),
+                epoch=self.current_epoch,
+                is_global_rank_zero=self.global_rank == 0
+            )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:
         if self.outputs_handler:
-            self.outputs_handler.save_test_outputs(epoch_results=epoch_results,
-                                                   metrics_dict=self.get_metrics_dict('test'))
+            self.outputs_handler.save_test_outputs(
+                epoch_results=epoch_results,
+                is_global_rank_zero=self.global_rank == 0
+            )
