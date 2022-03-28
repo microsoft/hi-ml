@@ -144,11 +144,11 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
     issues: List[str] = []
     traversed = traversed_fields or []
 
-    def report_issue(name, message: str) -> None:
+    def report_issue(name: str, message: str) -> None:
         full_field_name = ".".join(traversed + [name])
         issues.append(f"Attribute {full_field_name}: {message}")
 
-    def try_set_field(name, value_to_write: Any) -> None:
+    def try_set_field(name: str, value_to_write: Any) -> None:
         try:
             setattr(o, name, value_to_write)
         except Exception as ex:
