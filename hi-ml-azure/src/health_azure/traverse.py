@@ -148,7 +148,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
         full_field_name = ".".join(traversed + [name])
         issues.append(f"Attribute {full_field_name}: {message}")
 
-    def try_set_field(name, value_to_write) -> None:
+    def try_set_field(name, value_to_write: Any) -> None:
         try:
             setattr(o, name, value_to_write)
         except Exception as ex:
@@ -169,7 +169,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                 if isinstance(value_to_write, str):
                     try:
                         enum_case = getattr(t_value, value_to_write)
-                    except:
+                    except Exception:
                         report_issue(name, f"Skipped. Enum type {t_value.__name__} has no case {value_to_write}")
                     else:
                         try_set_field(name, enum_case)

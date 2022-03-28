@@ -77,6 +77,8 @@ def test_serialization_roundtrip() -> None:
     info2.load_state_dict(state_dict)
     # Test if the deserialized model gives the same output as the original model
     assert isinstance(info2.model, torch.jit.ScriptModule)
+    assert info1.model_example_input is not None
+    assert info2.model_example_input is not None
     assert torch.allclose(info2.model_example_input, info1.model_example_input, atol=0, rtol=0)
     serialized_output = info2.model.forward(info2.model_example_input)
     assert torch.allclose(serialized_output, model_output, atol=0, rtol=0)
@@ -91,6 +93,7 @@ def test_serialization_roundtrip() -> None:
     assert info2.azure_ml_run_id == "run_id"
     assert info2.image_dimensions == "dimensions"
     # Test if the deserialized preprocessing gives the same as the original object
+    assert info2.image_pre_processing is not None
     image_output2 = info2.image_pre_processing(example_image)
     assert torch.allclose(image_output, image_output2, atol=0, rtol=0)
 
@@ -113,7 +116,7 @@ def test_get_metadata() -> None:
             with mock.patch("health_ml.utils.serialization.is_running_in_azure_ml", return_value=True):
                 model_info.get_metadata_from_azureml()
                 model_info2.get_metadata_from_azureml()
-        assert model_info.azure_ml_run_id == run.id
+        assert model_info.azure_ml_run_id == run.id  # type: ignore
         assert model_info.azure_ml_workspace == DEFAULT_WORKSPACE.workspace.name
         assert model_info2.azure_ml_run_id == "foo"
         assert model_info2.azure_ml_workspace == "bar"

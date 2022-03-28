@@ -6,7 +6,7 @@ import pickle
 from io import BytesIO
 from typing import Any, Optional, Callable, Dict, Union
 
-import torch.nn
+import torch
 
 from health_azure import RUN_CONTEXT, object_to_yaml, is_running_in_azure_ml
 

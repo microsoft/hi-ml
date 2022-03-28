@@ -5,6 +5,7 @@
 import enum
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 import param
 import pytest
@@ -19,7 +20,7 @@ from health_azure.traverse import (_object_to_dict, get_all_writable_attributes,
 @dataclass
 class OptimizerConfig:
     learning_rate: float = 1e-3
-    optimizer: str = "Adam"
+    optimizer: Optional[str] = "Adam"
 
 
 @dataclass
