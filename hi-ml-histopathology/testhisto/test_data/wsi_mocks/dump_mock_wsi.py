@@ -25,7 +25,7 @@ def save_mock_wsi_as_tiff_file(file_name: str, series: List[np.ndarray]) -> None
         imwrite(file_name, serie, photometric="rgb", bigtiff=True, compression="zlib", append=(i > 0))
 
 
-def create_stitched_patches(
+def create_patchmnist_stitched_patches(
     patches: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.float32)
@@ -40,7 +40,16 @@ def create_multi_resolution_wsi(mock_image: np.ndarray, n_series: int, zoom_fact
     return series
 
 
-def create_mock_wsis(
+def get_pathmnist_data_loader(batch_size: int = 4) -> Iterable[Tensor]:
+    info = INFO["pathmnist"]
+    DataClass = getattr(medmnist, info["python_class"])
+    data_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])])
+    dataset = DataClass(split="train", transform=data_transform, download=True)
+    data_loader = data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+    return data_loader
+
+
+def create_pathmnist_mock_wsis(
     patch_size: int = 28,
     n_patches: int = 2,
     n_repeat: int = 4,
@@ -52,9 +61,9 @@ def create_mock_wsis(
 
     data_loader = get_pathmnist_data_loader(n_repeat)
     for sample_counter in range(n_samples):
-        os.makedirs(str(sample_counter), exist_ok=True)
+        os.makedirs(f"pathmnist/{sample_counter}", exist_ok=True)
         patches, _ = next(iter(data_loader))
-        mock_image = create_stitched_patches(
+        mock_image = create_patchmnist_stitched_patches(
             patches,
             sample_counter,
             img_size=n_patches * n_repeat * patch_size,
@@ -65,13 +74,35 @@ def create_mock_wsis(
         save_mock_wsi_as_tiff_file(os.path.join(str(sample_counter), "wsi.tiff"), series)
 
 
-def get_pathmnist_data_loader(batch_size: int = 4) -> Iterable[Tensor]:
-    info = INFO["pathmnist"]
-    DataClass = getattr(medmnist, info["python_class"])
-    data_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])])
-    dataset = DataClass(split="train", transform=data_transform, download=True)
-    data_loader = data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
-    return data_loader
+def create_fake_stitched_patches(
+    img_size: int, n_channels: int, step_size: int, n_repeat: int, fill_val: float
+) -> np.ndarray:
+    mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.float32)
+    for i in range(n_repeat):
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = fill_val * (i + 1)
+    return np.transpose(mock_image, (1, 2, 0))
+
+
+def create_fake_mock_wsis(
+    patch_size: int = 28,
+    n_patches: int = 2,
+    n_repeat: int = 4,
+    n_channels: int = 3,
+    n_samples: int = 4,
+    n_series: int = 3,
+    zoom_factor: float = 0.1,
+) -> None:
+
+    for sample_counter in range(n_samples):
+        mock_image = create_fake_stitched_patches(
+            img_size=n_patches * n_repeat * patch_size,
+            n_channels=n_channels,
+            step_size=n_patches * patch_size,
+            n_repeat=n_repeat,
+            fill_val=np.random.uniform(0.05, 0.230),
+        )
+        series = create_multi_resolution_wsi(mock_image, n_series, zoom_factor)
+        save_mock_wsi_as_tiff_file(os.path.join("fake", f"wsi_{sample_counter}.tiff"), series)
 
 
 if __name__ == "__main__":
@@ -84,8 +115,31 @@ if __name__ == "__main__":
     parser.add_argument("--n-samples", type=int, default=4)
     parser.add_argument("--n-series", type=int, default=3)
     parser.add_argument("--zoom-factor", type=float, default=0.1)
+    parser.add_argument(
+        "--mock_type",
+        type=str,
+        default="fake",
+        help="Mock data type: pathmnist for patches from pathmnist dataset, fake for patches with fake values",
+    )
     args = parser.parse_args()
     logging.info(f"Creating {args.n_samples} mock WSIs")
-    create_mock_wsis(
-        args.patch_size, args.n_patches, args.n_repeat, args.n_channels, args.n_samples, args.n_series, args.zoom_factor
-    )
+    if args.mock_type == "pathmnist":
+        create_pathmnist_mock_wsis(
+            args.patch_size,
+            args.n_patches,
+            args.n_repeat,
+            args.n_channels,
+            args.n_samples,
+            args.n_series,
+            args.zoom_factor,
+        )
+    elif args.mock_type == "fake":
+        create_fake_mock_wsis(
+            args.patch_size,
+            args.n_patches,
+            args.n_repeat,
+            args.n_channels,
+            args.n_samples,
+            args.n_series,
+            args.zoom_factor,
+        )
