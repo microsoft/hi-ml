@@ -907,9 +907,7 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
     parts: List[str] = re.split('(<=|==|=|>=|<|>|;)', dep_str)
     if len(parts) == 1:
         return (parts[0].strip(), "", "")
-    if len(parts) == 3:
-        return tuple(p.strip() for p in parts)
-    if len(parts) > 3:
+    if len(parts) >= 3:
         return tuple(p.strip() for p in parts)
     raise ValueError(f"Unable to split this package string: {dep_str}")
 
