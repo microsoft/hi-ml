@@ -19,12 +19,12 @@ def create_mock_dataframe(n_samples: int = 4) -> None:
     data: dict = {"image_id": [], "data_provider": [], "isup_grade": [], "gleason_score": []}
     for i in range(n_samples):
         rand_id = np.random.randint(0, 11)
-        data["image_id"].append(f"wsi_{i}")
+        data["image_id"].append(f"{i}")
         data["data_provider"].append(np.random.choice(DATA_PROVIDERS, 1)[0])
         data["isup_grade"].append(ISUP_GRADES[rand_id])
         data["gleason_score"].append(GLEASON_SCORES[rand_id])
     df = pd.DataFrame(data=data)
-    df.to_csv("fake/dataset.csv", index=False)
+    df.to_csv("pathmnist/dataset.csv", index=False)
 
 
 if __name__ == "__main__":

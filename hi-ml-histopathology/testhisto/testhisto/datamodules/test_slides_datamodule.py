@@ -48,7 +48,10 @@ def test_tiling_on_the_fly(level: int = 0) -> None:
     dataloader = datamodule._get_dataloader(stage="train", shuffle=False)
     sample = next(iter(dataloader))
     tiles = sample["image"]
+    wsi_id = sample["slide_id"].split("/")[0]
+    patches = np.array([])
     assert tiles.shape == (1, 16, 3, 28, 28)
+
 
 def test_overlapping_tiling()->None:
     pass

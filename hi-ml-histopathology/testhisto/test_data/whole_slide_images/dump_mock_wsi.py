@@ -73,7 +73,7 @@ def create_pathmnist_mock_wsis(
             step_size=n_patches * patch_size,
         )
         series = create_multi_resolution_wsi(mock_image, n_series)
-        save_mock_wsi_as_tiff_file(os.path.join("pathmnist", str(sample_counter), "wsi.tiff"), series)
+        save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"{sample_counter}.tiff"), series)
 
 
 def create_fake_stitched_patches(
@@ -103,7 +103,7 @@ def create_fake_mock_wsis(
             fill_val=np.random.randint(0, 60),
         )
         series = create_multi_resolution_wsi(mock_image, n_series)
-        save_mock_wsi_as_tiff_file(os.path.join("fake", f"wsi_{sample_counter}.tiff"), series)
+        save_mock_wsi_as_tiff_file(os.path.join("fake", f"{sample_counter}.tiff"), series)
 
 
 if __name__ == "__main__":
