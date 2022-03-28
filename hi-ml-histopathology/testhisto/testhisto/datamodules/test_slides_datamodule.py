@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import pytest
 import pandas as pd
 import numpy as np
 
@@ -35,7 +36,7 @@ class MockSlidesDataModule(SlidesDataModule):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def _get_slides_dataset_class(self) -> MockSlidesDataset:
+    def _get_slides_dataset_class(self):
         return MockSlidesDataset
 
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
@@ -43,7 +44,7 @@ class MockSlidesDataModule(SlidesDataModule):
 
 
 # @pytest.mark.parametrize("level", [(0,), (1,), (2,)])
-def test_tiling_on_the_fly(level: int = 0) -> None:
+def test_tiling_on_the_fly() -> None:
     datamodule = MockSlidesDataModule(root_path=MOCK_DATA_PATH, batch_size=1, tile_count=16, tile_size=28, level=0)
     dataloader = datamodule._get_dataloader(stage="train", shuffle=False)
     sample = next(iter(dataloader))
