@@ -351,7 +351,7 @@ def test_retrieve_unique_pip_deps() -> None:
                             "git+https:www.github.com/something.git",
                             "foo=1.0; platform_system='Linux'"]
     dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_pip_operator)  # type: ignore
-    assert dedup_deps == [d.strip() for d in deps_with_one_pinned]
+    assert dedup_deps == [d.replace(" ","") for d in deps_with_one_pinned]
 
     # if duplicates are found with more than one pinned, a ValueError should be raised
     deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
