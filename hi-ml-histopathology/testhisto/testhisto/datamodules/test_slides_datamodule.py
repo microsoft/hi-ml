@@ -7,8 +7,13 @@ import pandas as pd
 
 from pathlib import Path
 from typing import Any, Tuple, Union, Optional
+
+import pytest
+from torch.utils.data import dataloader
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
+
+MOCK_DATA_PATH = "../../test_data/whole_slide_images/pathmnist"
 
 
 class MockSlidesDataset(SlidesDataset):
@@ -36,3 +41,14 @@ class MockSlidesDataModule(SlidesDataModule):
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
+
+@pytest.mark.parametrize("level", [(0,), (1,), (2,)])
+def test_tiling_on_the_fly(level: int = 0) -> None:
+    datamodule = MockSlidesDataModule(root_path=MOCK_DATA_PATH, batch_size=1, tile_count=16, tile_size=28, level=level)
+    dataloader = datamodule._get_dataloader(stage="train", shuffle=False)
+    sample = next(iter(dataloader))
+    tiles = sample["image"]
+    assert tiles.shape == (1, 16, 3, 28, 28)
+
+def test_overlapping_tiling()->None:
+    pass
