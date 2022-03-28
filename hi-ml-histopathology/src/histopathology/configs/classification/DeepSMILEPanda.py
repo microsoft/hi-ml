@@ -9,6 +9,7 @@ import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
+import torch
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
@@ -107,7 +108,8 @@ class DeepSMILEPanda(BaseMIL):
         image_key = PandaTilesDataset.IMAGE_COLUMN
         if self.is_finetune:
             transform = LoadTilesBatchd(image_key, progress=True)
-            dataloader_kwargs = dict(num_workers=os.cpu_count(), pin_memory=True)
+            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
