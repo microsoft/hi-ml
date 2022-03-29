@@ -187,6 +187,8 @@ class Runner:
         :return: a tuple of the LightningContainer object and an AzureRunInfo containing all information about
             the present run (whether running in AzureML or not)
         """
+        sys.path.insert(0, str(self.project_root))
+
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(logging.INFO if is_local_rank_zero() else "ERROR")
@@ -340,13 +342,11 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    print(f"project root: {project_root}")
     runner = Runner(project_root)
     return runner.run()
 
-
 def main() -> None:
-    run(project_root=fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd())
+    run(project_root=fixed_paths.repository_root_directory().parent if is_himl_used_from_git_repo() else Path.cwd())
 
 
 if __name__ == '__main__':
