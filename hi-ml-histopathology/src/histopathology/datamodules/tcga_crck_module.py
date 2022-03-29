@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Tuple, Any
+from typing import Tuple
 
 from health_ml.utils.split_dataset import DatasetSplits
 
@@ -14,9 +14,6 @@ from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatase
 class TcgaCrckTilesDataModule(TilesDataModule):
     """ TcgaCrckTilesDataModule is the child class of TilesDataModule specific to TCGA-Crck dataset
     """
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
 
     def get_splits(self) -> Tuple[TcgaCrck_TilesDataset, TcgaCrck_TilesDataset, TcgaCrck_TilesDataset]:
         """
@@ -31,10 +28,9 @@ class TcgaCrckTilesDataModule(TilesDataModule):
                                                 group_column=trainval_dataset.SLIDE_ID_COLUMN,
                                                 random_seed=5)
 
-        # if self.crossval_count > 1:
-        #     # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
-        #     splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)
-        # [self.cross_validation_split_index]
+        if self.crossval_count > 1:
+            # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
+            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[self.crossval_index]
 
         return (TcgaCrck_TilesDataset(self.root_path, dataset_df=splits.train),
                 TcgaCrck_TilesDataset(self.root_path, dataset_df=splits.val),
