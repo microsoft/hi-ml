@@ -260,8 +260,10 @@ jobs:
 
       - name: Run GPU tests
         run: |
-          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }}
-
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
 
       - name: Upload coverage artifacts
         uses: ./.github/actions/upload_coverage_artifacts
