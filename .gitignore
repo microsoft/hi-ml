@@ -165,3 +165,4 @@ cifar-10-batches-py/
 None/
 hi-ml-histopathology/testSSL/test_outputs
 test_outputs/
+lightning_logs/
