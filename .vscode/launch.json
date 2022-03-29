@@ -54,7 +54,6 @@
             "cwd": "${workspaceFolder}",
             "args": [
                 "--mark=gpu",
-                "--azureml",
                 "--cluster=pr-gpu",
                 "--conda_env=${workspaceFolder}/hi-ml-histopathology/environment.yml",
             ],

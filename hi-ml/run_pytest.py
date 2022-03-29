@@ -27,7 +27,6 @@ class RunPytestConfig(param.Parameterized):
     mark: str = param.String(default="", doc="The value to pass to pytest for the -m (mark) argument.")
     folder: str = param.String(default="", doc="The folder of tests that should be run.")
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
-    azureml: bool = param.Boolean(default=False, doc="If True, submit the present script to AzureML.")
     conda_env: str = param.String(default="", doc="The path to the Conda environment file that should be used.")
     experiment: str = param.String(default="", doc="The name of the AzureML experiment where the run should live.")
 
@@ -46,7 +45,7 @@ def run_pytest(folder: str, pytest_mark: str) -> Tuple[bool, Path]:
 
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
-    logging.info(f"Starting pytest with args: {pytest_args}")
+    logging.info(f"Starting pytest with these args: {pytest_args}")
     status_code = pytest.main(pytest_args)
     if status_code == ExitCode.NO_TESTS_COLLECTED:
         raise ValueError(f"PyTest did not find any tests to run, when restricting with this mark: {pytest_mark}")
@@ -73,7 +72,7 @@ if __name__ == "__main__":
     config = RunPytestConfig(**parser_results.args)
     submit_to_azure_if_needed(
         compute_cluster_name=config.cluster,
-        submit_to_azureml=config.azureml,
+        submit_to_azureml=(config.cluster != ""),
         wait_for_completion=True,
         snapshot_root_directory=repository_root_directory(),
         conda_environment_file=config.conda_env,
