@@ -27,6 +27,8 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
     datastores = workspace.datastores
     existing_stores = list(datastores.keys())
     if not datastore_name:
+        # First check if there is only one datastore, which is then obviously unique.
+        # Only then try to use the default datastore, because there may not be a default set.
         if len(existing_stores) == 1:
             return datastores[existing_stores[0]]
         datastore = workspace.get_default_datastore()
@@ -116,7 +118,7 @@ class DatasetConfig:
             raise ValueError("Can't mount or download a dataset to the current working directory.")
         self.local_folder = Path(local_folder) if local_folder else None
 
-    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Optional[Path], Optional[MountContext]]:
+    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Path, Optional[MountContext]]:
         """
         Return a local path to the dataset when outside of an AzureML run.
         If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
@@ -124,7 +126,7 @@ class DatasetConfig:
         returned.
 
         :param workspace: The AzureML workspace to read from.
-        :return: Pair of path to dataset and optional mountcontext.
+        :return: Tuple of (path to dataset, optional mountcontext)
         """
         status = f"Dataset '{self.name}' will be "
 
