@@ -17,11 +17,11 @@ from testhisto.utils.utils_testhisto import full_ml_test_data_path
 
 
 class MockSlidesDataset(SlidesDataset):
-    SLIDE_ID_COLUMN = 'image_id'
-    IMAGE_COLUMN = 'image'
-    LABEL_COLUMN = 'isup_grade'
+    SLIDE_ID_COLUMN = "image_id"
+    IMAGE_COLUMN = "image"
+    LABEL_COLUMN = "isup_grade"
 
-    METADATA_COLUMNS = ('data_provider', 'isup_grade', 'gleason_score')
+    METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
 
     def __init__(
         self,
@@ -36,12 +36,8 @@ class MockSlidesDataset(SlidesDataset):
 
 
 class MockSlidesDataModule(SlidesDataModule):
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-
-    def _get_slides_dataset_class(self):
-        return MockSlidesDataset
 
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
@@ -58,10 +54,6 @@ def test_tiling_on_the_fly() -> None:
     patches = np.array([np.load(os.path.join(root_path, wsi_id, f"patch_{i}.npy")) for i in range(4)])
     assert tiles.shape == (1, 16, 3, 28, 28)
     for i in range(0, 16, 4):
-        # import matplotlib.pyplot as plt
-        # plt.imshow(patches[i // 4].transpose((1, 2, 0)))            
-        # plt.imshow(tiles[0, i].numpy().transpose((1, 2, 0)))  
-        # plt.show()      
         assert (patches[i // 4] == tiles[0, i].numpy()).all()
 
 

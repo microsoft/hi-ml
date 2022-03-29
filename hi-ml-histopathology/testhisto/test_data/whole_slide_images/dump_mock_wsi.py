@@ -27,11 +27,12 @@ def save_mock_wsi_as_tiff_file(file_name: str, series: List[np.ndarray]) -> None
 
 
 def create_patchmnist_stitched_patches(
-    patches: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int
+    patches: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int, different_tiles: bool = False
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=255, dtype=np.uint8)
     for i, patch in enumerate(patches):
-        _patch = (patches[0].numpy() * 255).astype(np.uint8)
+        patch = patches[0] if not different_tiles else patch
+        _patch = (patch.numpy() * 255).astype(np.uint8)
         mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_patch, (2, 2)) 
         np.save(os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), _patch)
     return np.transpose(mock_image, (1, 2, 0))
