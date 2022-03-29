@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Tuple, Any
+from typing import Tuple
 
 from health_ml.utils.split_dataset import DatasetSplits
 
@@ -14,9 +14,6 @@ from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatase
 class TcgaCrckTilesDataModule(TilesDataModule):
     """ TcgaCrckTilesDataModule is the child class of TilesDataModule specific to TCGA-Crck dataset
     """
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
 
     def get_splits(self) -> Tuple[TcgaCrck_TilesDataset, TcgaCrck_TilesDataset, TcgaCrck_TilesDataset]:
         """
