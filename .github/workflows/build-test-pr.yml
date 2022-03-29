@@ -25,41 +25,6 @@ env:
 
 jobs:
 
-  run_gpu:
-    runs-on: ubuntu-18.04
-    strategy:
-      matrix:
-        folder: [ hi-ml-histopathology ]
-        packageName: [ '*.whl' ]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: PIP upgrade
-        run: |
-          cd hi-ml-azure
-          make pip_upgrade
-
-      - name: Install dependencies
-        run: |
-          cd hi-ml-azure
-          pip install ${{ steps.download_himlazure.outputs.package_filename }} 
-          cd ../hi-ml
-          pip install ${{ steps.download_himl.outputs.package_filename }}
-
-      - name: Run GPU tests
-        run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
-
   flake8:
     runs-on: ubuntu-18.04
     steps:
