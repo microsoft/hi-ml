@@ -33,7 +33,7 @@ def create_pathmnist_stitched_tiles(
     for i, tile in enumerate(tiles):
         tile = tiles[0] if not different_tiles else tile
         _tile = (tile.numpy() * 255).astype(np.uint8)
-        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_tile, (2, 2))
+        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = np.tile(_tile, (2, 2))
         if different_tiles:
             np.save(os.path.join("pathmnist", f"_{sample_counter}", f"tile_{i}.npy"), _tile)
         elif i == 0:
@@ -62,6 +62,7 @@ def create_pathmnist_mock_wsis(
     n_channels: int = 3,
     n_samples: int = 4,
     n_series: int = 3,
+    different_tiles: bool = False,
 ) -> None:
 
     data_loader = get_pathmnist_data_loader(n_repeat)
@@ -74,6 +75,7 @@ def create_pathmnist_mock_wsis(
             img_size=n_tiles * n_repeat * tile_size,
             n_channels=n_channels,
             step_size=n_tiles * tile_size,
+            different_tiles=different_tiles,
         )
         series = create_multi_resolution_wsi(mock_image, n_series)
         save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"_{sample_counter}.tiff"), series)
@@ -84,7 +86,7 @@ def create_fake_stitched_tiles(
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.uint8)
     for i in range(n_repeat):
-        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = fill_val * (i + 1)
+        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = fill_val * (i + 1)
     return np.transpose(mock_image, (1, 2, 0))
 
 
@@ -118,6 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-channels", type=int, default=3)
     parser.add_argument("--n-samples", type=int, default=4)
     parser.add_argument("--n-series", type=int, default=3)
+    parser.add_argument("--different-tiles", type=bool, default=False)
     parser.add_argument(
         "--mock_type",
         type=str,
@@ -128,7 +131,13 @@ if __name__ == "__main__":
     logging.info(f"Creating {args.n_samples} mock WSIs")
     if args.mock_type == "pathmnist":
         create_pathmnist_mock_wsis(
-            args.tile_size, args.n_tiles, args.n_repeat, args.n_channels, args.n_samples, args.n_series
+            args.tile_size,
+            args.n_tiles,
+            args.n_repeat,
+            args.n_channels,
+            args.n_samples,
+            args.n_series,
+            args.different_tiles,
         )
     elif args.mock_type == "fake":
         create_fake_mock_wsis(
