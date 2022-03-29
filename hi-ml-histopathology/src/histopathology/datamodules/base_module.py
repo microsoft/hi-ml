@@ -28,15 +28,15 @@ from monai.data.image_reader import WSIReader
 
 
 class CacheMode(Enum):
-    NONE = 'none'
-    MEMORY = 'memory'
-    DISK = 'disk'
+    NONE = "none"
+    MEMORY = "memory"
+    DISK = "disk"
 
 
 class CacheLocation(Enum):
-    NONE = 'none'
-    CPU = 'cpu'
-    SAME = 'same'
+    NONE = "none"
+    CPU = "cpu"
+    SAME = "same"
 
 
 class HistoDataModule(LightningDataModule):
@@ -116,9 +116,9 @@ class HistoDataModule(LightningDataModule):
 
     def prepare_data(self) -> None:
         if self.precache_location != CacheLocation.NONE:
-            self._load_dataset(self.train_dataset, stage='train', shuffle=True)
-            self._load_dataset(self.val_dataset, stage='val', shuffle=True)
-            self._load_dataset(self.test_dataset, stage='test', shuffle=True)
+            self._load_dataset(self.train_dataset, stage="train", shuffle=True)
+            self._load_dataset(self.val_dataset, stage="val", shuffle=True)
+            self._load_dataset(self.test_dataset, stage="test", shuffle=True)
 
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
@@ -129,32 +129,36 @@ class HistoDataModule(LightningDataModule):
         """Load the tiles/slides dataset depending on the specified stage: train/val/test"""
         raise NotImplementedError
 
-    def _get_transformed_dataset(self, base_dataset: Dataset,
-                                 transform: Union[Sequence[Callable], Callable]) -> Dataset:
+    def _get_transformed_dataset(
+        self, base_dataset: Dataset, transform: Union[Sequence[Callable], Callable]
+    ) -> Dataset:
         if self.cache_mode is CacheMode.MEMORY:
             dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
         elif self.cache_mode is CacheMode.DISK:
             dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
             if self.precache_location != CacheLocation.NONE:
                 import tqdm  # TODO: Make optional
+
                 for i in tqdm.trange(len(dataset), desc="Loading dataset"):
                     dataset[i]  # empty loop to pre-compute all transformed samples
         else:
             dataset = Dataset(base_dataset, transform)  # type: ignore
         return dataset
 
-    def _get_dataloader(self) -> DataLoader:
-        """Return the appropriate dataloader for a given histo_dataset"""
+    def _get_dataloader(
+        self, histo_dataset: Dataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
+        """Return the corresponding dataloader for a given histo_dataset at a given stage"""
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, 'train', shuffle=True)
+        return self._get_dataloader(self.train_dataset, "train", shuffle=True)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, 'val', shuffle=True)
+        return self._get_dataloader(self.val_dataset, "val", shuffle=True)
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, 'test', shuffle=True)
+        return self._get_dataloader(self.test_dataset, "test", shuffle=True)
 
 
 class TilesDataModule(HistoDataModule):
@@ -168,27 +172,29 @@ class TilesDataModule(HistoDataModule):
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
             if self.precache_location == CacheLocation.CPU:
-                memory_location = torch.device('cpu')
+                memory_location = torch.device("cpu")
                 print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
             else:
                 # by default torch.load will reload on the same device it was saved from
                 memory_location = None  # type: ignore
 
-            with dataset_pickle_path.open('rb') as f:
+            with dataset_pickle_path.open("rb") as f:
                 return torch.load(f, map_location=memory_location)
 
         generator = _create_generator(self.seed)
 
-        if stage in ['val', 'test']:
+        if stage in ["val", "test"]:
             eff_max_bag_size = self.max_bag_size_inf
         else:
             eff_max_bag_size = self.max_bag_size
 
-        bag_dataset = BagDataset(tiles_dataset,  # type: ignore
-                                 bag_ids=tiles_dataset.slide_ids,
-                                 max_bag_size=eff_max_bag_size,
-                                 shuffle_samples=shuffle,
-                                 generator=generator)
+        bag_dataset = BagDataset(
+            tiles_dataset,  # type: ignore
+            bag_ids=tiles_dataset.slide_ids,
+            max_bag_size=eff_max_bag_size,
+            shuffle_samples=shuffle,
+            generator=generator,
+        )
         transform = self.transform or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
         # Save and restore PRNG state for consistency across (pre-)caching options
@@ -199,20 +205,26 @@ class TilesDataModule(HistoDataModule):
         # Dataset is saved if cache_dir is True, regardless of CacheMode
         if dataset_pickle_path:
             dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
-            with dataset_pickle_path.open('wb') as f:
+            with dataset_pickle_path.open("wb") as f:
                 torch.save(transformed_bag_dataset, f)
 
         return transformed_bag_dataset
 
-    def _get_dataloader(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool,
-                        **dataloader_kwargs: Any) -> DataLoader:
+    def _get_dataloader(
+        self, tiles_dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
         transformed_bag_dataset = self._load_dataset(tiles_dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
-        return DataLoader(transformed_bag_dataset, batch_size=self.batch_size,
-                          collate_fn=multibag_collate, shuffle=shuffle, generator=generator,
-                          pin_memory=False,  # disable pinning as loaded data may already be on GPU
-                          **dataloader_kwargs)
+        return DataLoader(
+            transformed_bag_dataset,
+            batch_size=self.batch_size,
+            collate_fn=multibag_collate,
+            shuffle=shuffle,
+            generator=generator,
+            pin_memory=False,  # disable pinning as loaded data may already be on GPU
+            **dataloader_kwargs,
+        )
 
 
 class SlidesDataModule(HistoDataModule):
@@ -260,10 +272,7 @@ class SlidesDataModule(HistoDataModule):
         self.filter_mode = filter_mode
         self.slides_dataset_class = self._get_slides_dataset_class()
 
-    def _get_slides_dataset_class(self) -> SlidesDataset:
-        raise NotImplementedError
-
-    def _load_dataset(self, stage: str) -> Dataset:
+    def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
@@ -277,12 +286,10 @@ class SlidesDataModule(HistoDataModule):
             with dataset_pickle_path.open("rb") as f:
                 return torch.load(f, map_location=memory_location)
 
-        slides_dataset = self.slides_dataset_class(root=self.root_path)
-
         base_transform = Compose(
             [
                 LoadImaged(
-                    keys=self.slides_dataset_class.IMAGE_COLUMN,
+                    keys=slides_dataset.IMAGE_COLUMN,
                     reader=WSIReader,
                     backend="cucim",
                     dtype=np.uint8,
@@ -315,8 +322,10 @@ class SlidesDataModule(HistoDataModule):
 
         return transformed_slides_dataset
 
-    def _get_dataloader(self, stage: str, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
-        transformed_slides_dataset = self._load_dataset(stage=stage)
+    def _get_dataloader(
+        self, slides_dataset: SlidesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
+        transformed_slides_dataset = self._load_dataset(slides_dataset, stage)
         generator = _create_generator(self.seed)
         return DataLoader(
             transformed_slides_dataset,
@@ -327,3 +336,4 @@ class SlidesDataModule(HistoDataModule):
             pin_memory=False,  # disable pinning as loaded data may already be on GPU
             **dataloader_kwargs,
         )
+
