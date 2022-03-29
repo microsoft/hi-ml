@@ -31,17 +31,17 @@ class RunPytestConfig(param.Parameterized):
     experiment: str = param.String(default="", doc="The name of the AzureML experiment where the run should live.")
 
 
-def run_pytest(folder: str, pytest_mark: str) -> Tuple[bool, Path]:
+def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
     """
     Runs pytest on a given folder, restricting to the tests that have the given PyTest mark.
+    If pytest finds no tests, or any of the tests fail, this function raises a ValueError. When run inside
+    AzureML, this will make the job fail.
 
     :param pytest_mark: The PyTest mark to use for filtering out the tests to run.
-    :param outputs_folder: The folder into which the test result XML file should be written.
-    :return: True if PyTest found tests to execute and completed successfully, False otherwise.
-    Also returns the path to the generated PyTest results file.
+    :param folder_to_test: The folder with tests that should be run.
     """
     results_file = Path(DEFAULT_AML_UPLOAD_DIR) / PYTEST_RESULTS_FILE
-    pytest_args = [folder, f"--junitxml={str(results_file)}"]
+    pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
 
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
@@ -78,4 +78,4 @@ if __name__ == "__main__":
         conda_environment_file=config.conda_env,
         experiment_name=config.experiment,
     )
-    run_pytest(folder=config.folder, pytest_mark=config.mark)
+    run_pytest(folder_to_test=config.folder, pytest_mark=config.mark)
