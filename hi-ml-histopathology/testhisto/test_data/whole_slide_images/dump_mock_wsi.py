@@ -67,7 +67,8 @@ def create_pathmnist_mock_wsis(
 
     data_loader = get_pathmnist_data_loader(n_repeat)
     for sample_counter in range(n_samples):
-        os.makedirs(f"pathmnist/_{sample_counter}", exist_ok=True)
+        if different_tiles:
+            os.makedirs(f"pathmnist/_{sample_counter}", exist_ok=True)
         tiles, _ = next(iter(data_loader))
         mock_image = create_pathmnist_stitched_tiles(
             tiles,
