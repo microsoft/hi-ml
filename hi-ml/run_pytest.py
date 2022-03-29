@@ -15,7 +15,13 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from health_azure import submit_to_azure_if_needed  # noqa: E402
-from health_azure.utils import WORKSPACE_CONFIG_JSON, check_config_json, create_argparser, parse_arguments  # noqa: E402
+from health_azure.utils import (  # noqa: E402
+    WORKSPACE_CONFIG_JSON,
+    check_config_json,
+    create_argparser,
+    is_running_in_azure_ml,
+    parse_arguments,
+)
 from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR  # noqa: E402
 from health_ml.utils.fixed_paths import repository_root_directory  # noqa: E402
 
@@ -70,7 +76,7 @@ if __name__ == "__main__":
     parser_results = parse_arguments(parser, fail_on_unknown_args=True)
     config = RunPytestConfig(**parser_results.args)
     submit_to_azureml = config.cluster != ""
-    if submit_to_azureml:
+    if submit_to_azureml and not is_running_in_azure_ml():
         # For runs on the github agents: Create a workspace config file from environment variables.
         # For local runs, this will fall back to a config.json file in the current folder or at repository root
         root_config_json = himl_root / WORKSPACE_CONFIG_JSON
