@@ -309,7 +309,7 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
             workspace = get_workspace(aml_workspace, workspace_config_path)
             logging.info(f"Found workspace for datasets: {workspace.name}")
         except Exception as ex:
-            logging.info(f"Could not find workspace for datasets: {ex.message}. Exception: {ex}")
+            logging.info(f"Could not find workspace for datasets. Exception: {ex}")
     return workspace
 
 

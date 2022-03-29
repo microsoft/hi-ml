@@ -944,7 +944,7 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
+@pytest.mark.parametrize(["run_target", "local_folder"],
                          [(RunTarget.LOCAL, False),
                           (RunTarget.LOCAL, True),
                           (RunTarget.AZUREML, False)])
