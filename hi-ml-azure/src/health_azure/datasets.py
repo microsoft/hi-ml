@@ -29,8 +29,9 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
     if not datastore_name:
         if len(existing_stores) == 1:
             return datastores[existing_stores[0]]
-        raise ValueError("No datastore name provided. This is only possible if the workspace has a single datastore. "
-                         f"However, the workspace has {len(existing_stores)} datastores: {existing_stores}")
+        datastore = workspace.get_default_datastore()
+        logging.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
+        return datastore
     if datastore_name in datastores:
         return datastores[datastore_name]
     raise ValueError(f"Datastore \"{datastore_name}\" was not found in the \"{workspace.name}\" workspace. "
@@ -123,9 +124,9 @@ class DatasetConfig:
         returned.
 
         :param workspace: The AzureML workspace to read from.
-        :return: Pair of optional path to dataset and optional mountcontext.
+        :return: Pair of path to dataset and optional mountcontext.
         """
-        status = f"Dataset {self.name} will be "
+        status = f"Dataset '{self.name}' will be "
 
         if self.local_folder is not None:
             status += f"obtained from local folder {str(self.local_folder)}"
@@ -133,9 +134,8 @@ class DatasetConfig:
             return self.local_folder, None
 
         if workspace is None:
-            status += "'None' - neither local_folder nor workspace available"
-            print(status)
-            return None, None
+            raise ValueError(f"Unable to make dataset '{self.name} available for a local run because no AzureML "
+                             "workspace has been provided. Provide a workspace, or set a folder for local execution.")
 
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
@@ -308,8 +308,8 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
         try:
             workspace = get_workspace(aml_workspace, workspace_config_path)
             logging.info(f"Found workspace for datasets: {workspace.name}")
-        except Exception:
-            logging.info("Could not find workspace for datasets.")
+        except Exception as ex:
+            logging.info(f"Could not find workspace for datasets: {ex.message}. Exception: {ex}")
     return workspace
 
 
