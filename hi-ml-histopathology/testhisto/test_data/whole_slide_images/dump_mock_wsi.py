@@ -21,7 +21,7 @@ from health_ml.utils.common_utils import logging_to_stdout
 
 def save_mock_wsi_as_tiff_file(file_name: str, series: List[np.ndarray]) -> None:
     with TiffWriter(file_name, bigtiff=True) as tif:
-        options = dict(photometric="rgb", compression="jpeg")
+        options = dict(photometric="rgb", compression="zlib")
         for i, serie in enumerate(series):
             tif.write(serie, **options, subfiletype=int(i > 0))
 
@@ -31,12 +31,9 @@ def create_patchmnist_stitched_patches(
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=255, dtype=np.uint8)
     for i, patch in enumerate(patches):
-        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = (
-            np.tile(patch, (2, 2)) * 255
-        )
-        np.save(
-            os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), (patch.numpy() * 255).astype(np.uint8)
-        )
+        _patch = (patches[0].numpy() * 255).astype(np.uint8)
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_patch, (2, 2)) 
+        np.save(os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), _patch)
     return np.transpose(mock_image, (1, 2, 0))
 
 

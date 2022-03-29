@@ -270,7 +270,6 @@ class SlidesDataModule(HistoDataModule):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        self.slides_dataset_class = self._get_slides_dataset_class()
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
