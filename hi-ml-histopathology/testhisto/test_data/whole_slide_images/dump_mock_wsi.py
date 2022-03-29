@@ -26,18 +26,18 @@ def save_mock_wsi_as_tiff_file(file_name: str, series: List[np.ndarray]) -> None
             tif.write(serie, **options, subfiletype=int(i > 0))
 
 
-def create_patchmnist_stitched_patches(
-    patches: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int, different_tiles: bool = False
+def create_pathmnist_stitched_tiles(
+    tiles: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int, different_tiles: bool = False
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=255, dtype=np.uint8)
-    for i, patch in enumerate(patches):
-        patch = patches[0] if not different_tiles else patch
-        _patch = (patch.numpy() * 255).astype(np.uint8)
-        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_patch, (2, 2))
+    for i, tile in enumerate(tiles):
+        tile = tiles[0] if not different_tiles else tile
+        _tile = (tile.numpy() * 255).astype(np.uint8)
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_tile, (2, 2))
         if different_tiles:
-            np.save(os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), _patch)
+            np.save(os.path.join("pathmnist", f"_{sample_counter}", f"tile_{i}.npy"), _tile)
         elif i == 0:
-            np.save(os.path.join("pathmnist", f"_{sample_counter}_patch.npy"), _patch)
+            np.save(os.path.join("pathmnist", f"_{sample_counter}_tile.npy"), _tile)
     return np.transpose(mock_image, (1, 2, 0))
 
 
@@ -56,8 +56,8 @@ def get_pathmnist_data_loader(batch_size: int = 4) -> Iterable[Tensor]:
 
 
 def create_pathmnist_mock_wsis(
-    patch_size: int = 28,
-    n_patches: int = 2,
+    tile_size: int = 28,
+    n_tiles: int = 2,
     n_repeat: int = 4,
     n_channels: int = 3,
     n_samples: int = 4,
@@ -67,19 +67,19 @@ def create_pathmnist_mock_wsis(
     data_loader = get_pathmnist_data_loader(n_repeat)
     for sample_counter in range(n_samples):
         os.makedirs(f"pathmnist/_{sample_counter}", exist_ok=True)
-        patches, _ = next(iter(data_loader))
-        mock_image = create_patchmnist_stitched_patches(
-            patches,
+        tiles, _ = next(iter(data_loader))
+        mock_image = create_pathmnist_stitched_tiles(
+            tiles,
             sample_counter,
-            img_size=n_patches * n_repeat * patch_size,
+            img_size=n_tiles * n_repeat * tile_size,
             n_channels=n_channels,
-            step_size=n_patches * patch_size,
+            step_size=n_tiles * tile_size,
         )
         series = create_multi_resolution_wsi(mock_image, n_series)
         save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"_{sample_counter}.tiff"), series)
 
 
-def create_fake_stitched_patches(
+def create_fake_stitched_tiles(
     img_size: int, n_channels: int, step_size: int, n_repeat: int, fill_val: int
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.uint8)
@@ -89,8 +89,8 @@ def create_fake_stitched_patches(
 
 
 def create_fake_mock_wsis(
-    patch_size: int = 28,
-    n_patches: int = 2,
+    tile_size: int = 28,
+    n_tiles: int = 2,
     n_repeat: int = 4,
     n_channels: int = 3,
     n_samples: int = 4,
@@ -98,10 +98,10 @@ def create_fake_mock_wsis(
 ) -> None:
 
     for sample_counter in range(n_samples):
-        mock_image = create_fake_stitched_patches(
-            img_size=n_patches * n_repeat * patch_size,
+        mock_image = create_fake_stitched_tiles(
+            img_size=n_tiles * n_repeat * tile_size,
             n_channels=n_channels,
-            step_size=n_patches * patch_size,
+            step_size=n_tiles * tile_size,
             n_repeat=n_repeat,
             fill_val=np.random.randint(0, 60),
         )
@@ -112,8 +112,8 @@ def create_fake_mock_wsis(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
-    parser.add_argument("--patch-size", type=int, default=28)
-    parser.add_argument("--n-patches", type=int, default=2)
+    parser.add_argument("--tile-size", type=int, default=28)
+    parser.add_argument("--n-tiles", type=int, default=2)
     parser.add_argument("--n-repeat", type=int, default=4)
     parser.add_argument("--n-channels", type=int, default=3)
     parser.add_argument("--n-samples", type=int, default=4)
@@ -122,15 +122,15 @@ if __name__ == "__main__":
         "--mock_type",
         type=str,
         default="pathmnist",
-        help="Mock data type: pathmnist for patches from pathmnist dataset, fake for patches with fake values",
+        help="Mock data type: pathmnist for tiles from pathmnist dataset, fake for tiles with fake values",
     )
     args = parser.parse_args()
     logging.info(f"Creating {args.n_samples} mock WSIs")
     if args.mock_type == "pathmnist":
         create_pathmnist_mock_wsis(
-            args.patch_size, args.n_patches, args.n_repeat, args.n_channels, args.n_samples, args.n_series
+            args.tile_size, args.n_tiles, args.n_repeat, args.n_channels, args.n_samples, args.n_series
         )
     elif args.mock_type == "fake":
         create_fake_mock_wsis(
-            args.patch_size, args.n_patches, args.n_repeat, args.n_channels, args.n_samples, args.n_series
+            args.tile_size, args.n_tiles, args.n_repeat, args.n_channels, args.n_samples, args.n_series
         )
