@@ -41,8 +41,7 @@ class CacheLocation(Enum):
 class HistoDataModule(LightningDataModule):
     """Base class to load a histopathology dataset as train, val, test sets"""
 
-    def __init__(self, root_path: Path, max_bag_size: int = 0, batch_size: int = 1,
-                 max_bag_size_inf: int = 0,
+    def __init__(self, root_path: Path, batch_size: int = 1,
                  seed: Optional[int] = None, transform: Optional[Callable] = None,
                  cache_mode: CacheMode = CacheMode.NONE,
                  precache_location: CacheLocation = CacheLocation.NONE,
@@ -52,13 +51,7 @@ class HistoDataModule(LightningDataModule):
                  dataloader_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param root_path: Root directory of the source dataset.
-        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
-        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
-        random subsets of instances.
         :param batch_size: Number of slides to load per batch.
-        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
-        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A transform to apply to the source tiles dataset, or a composition of
@@ -92,8 +85,6 @@ class HistoDataModule(LightningDataModule):
         super().__init__()
 
         self.root_path = root_path
-        self.max_bag_size = max_bag_size
-        self.max_bag_size_inf = max_bag_size_inf
         self.transform = transform
         self.cache_mode = cache_mode
         self.precache_location = precache_location
@@ -153,7 +144,17 @@ class HistoDataModule(LightningDataModule):
 class TilesDataModule(HistoDataModule):
     """Base class to load the tiles of a dataset as train, val, test sets"""
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, max_bag_size: int = 0, max_bag_size_inf: int = 0, **kwargs: Any) -> None:
+        """
+        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
+        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
+        random subsets of instances.
+        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
+        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
+        random subsets of instances.
+        """
+        self.max_bag_size = max_bag_size
+        self.max_bag_size_inf = max_bag_size_inf
         super().__init__(**kwargs)
 
     def prepare_data(self) -> None:
