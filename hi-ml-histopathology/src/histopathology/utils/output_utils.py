@@ -315,7 +315,7 @@ class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
-                 class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey, maximise: bool, 
+                 class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey, maximise: bool,
                  slides_dataset: Optional[SlidesDataset] = None) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
