@@ -33,7 +33,7 @@ def create_pathmnist_stitched_tiles(
     for i, tile in enumerate(tiles):
         tile = tiles[0] if not different_tiles else tile
         _tile = (tile.numpy() * 255).astype(np.uint8)
-        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = np.tile(_tile, (2, 2))
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_tile, (2, 2))
         if different_tiles:
             np.save(os.path.join("pathmnist", f"_{sample_counter}", f"tile_{i}.npy"), _tile)
         elif i == 0:
@@ -87,7 +87,7 @@ def create_fake_stitched_tiles(
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.uint8)
     for i in range(n_repeat):
-        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = fill_val * (i + 1)
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = fill_val * (i + 1)
     return np.transpose(mock_image, (1, 2, 0))
 
 
