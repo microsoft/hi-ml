@@ -5,6 +5,7 @@
 """
 Utility functions for interacting with AzureML runs
 """
+from contextlib import contextmanager
 import hashlib
 import json
 import logging
@@ -27,7 +28,7 @@ from dataclasses import dataclass
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, DefaultDict, Dict, Generator, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import conda_merge
 import pandas as pd
@@ -1974,3 +1975,45 @@ class UnitTestWorkspaceWrapper:
         if self._workspace is None:
             self._workspace = aml_workspace_for_unittests()
         return self._workspace
+
+
+@contextmanager
+def check_config_json(script_folder: Path, shared_config_json: Path) -> Generator:
+    """
+    Create a workspace config.json file exists in the folder where we expect a test script. This is either copied
+    from the location given in shared_config_json (this should be the case when executing a test on a dev machine), 
+    or created from environment variables (this should trigger in builds on the github agents).
+
+    :param script_folder: This is the folder in which the config.json file should be created
+    :param shared_config_json: Path to a shared config.json file
+    """
+    target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+    target_config_exists = target_config_json.is_file()
+    if target_config_exists:
+        pass
+    elif shared_config_json.exists():
+        # This will execute on local dev machines
+        logging.info(f"Copying {shared_config_json} to folder {script_folder}")
+        shutil.copy(shared_config_json, target_config_json)
+    else:
+        # This will execute on github agents
+        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
+        resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
+        workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
+        if subscription_id and resource_group and workspace_name:
+            with open(str(target_config_json), 'w', encoding="utf-8") as file:
+                config = {
+                    "subscription_id": os.getenv(ENV_SUBSCRIPTION_ID, ""),
+                    "resource_group": os.getenv(ENV_RESOURCE_GROUP, ""),
+                    "workspace_name": os.getenv(ENV_WORKSPACE_NAME, "")
+                }
+                json.dump(config, file)
+        else:
+            raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
+                             "workspace creation must exist.")
+    try:
+        yield
+    finally:
+        if not target_config_exists:
+            target_config_json.unlink()
