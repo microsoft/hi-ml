@@ -4,14 +4,12 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-from typing import Any, Callable, Collection, Mapping, Optional, Sequence
+from typing import Any, Callable, Collection, Mapping, Sequence
 
 import numpy as np
 import torch
 import torch.distributed
 from PIL import Image
-
-from health_azure.utils import PathOrString
 
 
 def assert_dicts_equal(d1: Mapping, d2: Mapping, exclude_keys: Collection[Any] = (),

@@ -2,19 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import json
-import logging
-import os
-import shutil
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Optional
 
 import numpy as np
 import pydicom
 import SimpleITK as sitk
 from SSL.data.io_util import PhotometricInterpretation
-from health_azure.utils import PathOrString
 
 ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
 ENV_SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
