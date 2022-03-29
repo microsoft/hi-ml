@@ -258,6 +258,11 @@ jobs:
           make pip_local
           make pytest_and_coverage
 
+      - name: Run GPU tests
+        run: |
+          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }}
+
+
       - name: Upload coverage artifacts
         uses: ./.github/actions/upload_coverage_artifacts
         if: ${{ matrix.packageName == '*.whl' }}

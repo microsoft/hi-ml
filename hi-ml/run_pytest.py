@@ -46,7 +46,7 @@ def run_pytest(folder: str, pytest_mark: str) -> Tuple[bool, Path]:
 
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
-    logging.info(f"Starting pytest, with args: {pytest_args}")
+    logging.info(f"Starting pytest with args: {pytest_args}")
     status_code = pytest.main(pytest_args)
     if status_code == ExitCode.NO_TESTS_COLLECTED:
         raise ValueError(f"PyTest did not find any tests to run, when restricting with this mark: {pytest_mark}")
