@@ -34,7 +34,8 @@ from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_da
 from health_azure.utils import (ENVIRONMENT_VERSION, EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON,
                                 check_config_json, get_most_recent_run, get_workspace, is_running_in_azure_ml)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.utils_testazure import DEFAULT_DATASTORE, change_working_directory, get_shared_config_json, repository_root
+from testazure.utils_testazure import (DEFAULT_DATASTORE, change_working_directory, get_shared_config_json,
+                                       repository_root)
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"

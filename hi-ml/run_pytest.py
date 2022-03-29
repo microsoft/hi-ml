@@ -1,7 +1,6 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Tuple
 
 import pytest
 import param
@@ -75,7 +74,7 @@ if __name__ == "__main__":
         # For runs on the github agents: Create a workspace config file from environment variables.
         # For local runs, this will fall back to a config.json file in the current folder or at repository root
         root_config_json = himl_root / WORKSPACE_CONFIG_JSON
-        with check_config_json(path=Path.cwd(), shared_config_json=root_config_json):
+        with check_config_json(script_folder=Path.cwd(), shared_config_json=root_config_json):
             submit_to_azure_if_needed(
                 compute_cluster_name=config.cluster,
                 submit_to_azureml=submit_to_azureml,
