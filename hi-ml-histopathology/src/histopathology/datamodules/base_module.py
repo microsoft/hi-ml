@@ -116,31 +116,27 @@ class HistoDataModule(LightningDataModule):
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
 
-    def _load_dataset(self, dataset: Dataset, stage: str, shuffle: bool) -> Optional[Path]:
-        """Load the tiles/slides dataset depending on the specified stage: train/val/test"""
-        raise NotImplementedError
-
     def prepare_data(self) -> None:
         raise NotImplementedError
 
     def _get_transformed_dataset(
-        self, base_dataset: Dataset, transform: Union[Sequence[Callable], Callable]
+        self, dataset: Dataset, transform: Union[Sequence[Callable], Callable]
     ) -> Dataset:
         if self.cache_mode is CacheMode.MEMORY:
-            dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
+            dataset = CacheDataset(dataset, transform, num_workers=1)  # type: ignore
         elif self.cache_mode is CacheMode.DISK:
-            dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
+            dataset = PersistentDataset(dataset, transform, cache_dir=self.cache_dir)  # type: ignore
             if self.precache_location != CacheLocation.NONE:
                 import tqdm  # TODO: Make optional
 
                 for i in tqdm.trange(len(dataset), desc="Loading dataset"):
                     dataset[i]  # empty loop to pre-compute all transformed samples
         else:
-            dataset = Dataset(base_dataset, transform)  # type: ignore
+            dataset = Dataset(dataset, transform)  # type: ignore
         return dataset
 
     def _get_dataloader(
-        self, histo_dataset: Dataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+        self, dataset: Dataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
     ) -> DataLoader:
         """Return the corresponding dataloader for a given histo_dataset at a given stage"""
         raise NotImplementedError
@@ -211,9 +207,9 @@ class TilesDataModule(HistoDataModule):
         return transformed_bag_dataset
 
     def _get_dataloader(
-        self, tiles_dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+        self, dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
     ) -> DataLoader:
-        transformed_bag_dataset = self._load_dataset(tiles_dataset, stage=stage, shuffle=shuffle)
+        transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
         return DataLoader(
@@ -328,9 +324,9 @@ class SlidesDataModule(HistoDataModule):
         return transformed_slides_dataset
 
     def _get_dataloader(
-        self, slides_dataset: SlidesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+        self, dataset: SlidesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
     ) -> DataLoader:
-        transformed_slides_dataset = self._load_dataset(slides_dataset, stage)
+        transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
         return DataLoader(
             transformed_slides_dataset,
