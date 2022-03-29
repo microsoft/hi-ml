@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import param
 from azureml.train.hyperdrive import HyperDriveConfig
