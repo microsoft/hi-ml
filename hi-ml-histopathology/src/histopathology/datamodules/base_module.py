@@ -18,7 +18,6 @@ from health_ml.utils.common_utils import _create_generator
 from health_ml.utils.wsi_utils import list_data_collate
 
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
-from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.models.transforms import LoadTilesBatchd
 
 from monai.transforms.compose import Compose
@@ -298,7 +297,7 @@ class SlidesDataModule(HistoDataModule):
                     image_only=True,
                 ),
                 TileOnGridd(
-                    keys=PandaDataset.IMAGE_COLUMN,
+                    keys=slides_dataset.IMAGE_COLUMN,
                     tile_count=self.tile_count,
                     tile_size=self.tile_size,
                     step=self.step,
