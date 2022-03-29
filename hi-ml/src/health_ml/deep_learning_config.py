@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import param
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -22,7 +22,7 @@ from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           DEFAULT_AML_UPLOAD_DIR,
                                           DEFAULT_LOGS_DIR_NAME,
                                           parse_model_id_and_version)
-from health_ml.utils.type_annotations import TupleFloat2
+from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2
 
 
 @unique
@@ -381,14 +381,14 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
                           "Setting it to True comes with a performance hit.")
-    pl_limit_train_batches: Optional[int] = \
-        param.Integer(default=None,
-                      doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
-                          "given number of batches.")
-    pl_limit_val_batches: Optional[int] = \
-        param.Integer(default=None,
-                      doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
-                          "given number of batches.")
+    pl_limit_train_batches: Optional[IntOrFloat] = \
+        param.Number(default=None,
+                     doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
+                         "given number of batches.")
+    pl_limit_val_batches: Optional[IntOrFloat] = \
+        param.Number(default=None,
+                     doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
+                         "given number of batches.")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "

@@ -87,6 +87,32 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert isinstance(storing_logger, StoringLogger)
 
 
+def test_create_lightning_trainer_limit_batches():
+    model_name = "HelloWorld"
+    model_config_loader = ModelConfigLoader()
+    container = model_config_loader.create_model_config_from_name(model_name)
+    original_limit_train_batches = 2
+    container.pl_limit_train_batches = original_limit_train_batches
+    container.monitor_gpu = False
+    container.monitor_loading = False
+
+    # first create a trainer and check what the default number of train batches is
+    trainer, _ = create_lightning_trainer(container)
+    assert trainer.limit_train_batches == original_limit_train_batches
+
+    # Now try to limit the number of train batches to an integer number
+    limit_train_batches_int = 1
+    container.pl_limit_train_batches = limit_train_batches_int
+    trainer2, _ = create_lightning_trainer(container)
+    assert trainer2.limit_train_batches == limit_train_batches_int
+
+    # try to limit the number of train batches with float number (i.e. proportion of full data)
+    limit_train_batches_float = 0.1
+    container.pl_limit_train_batches = limit_train_batches_float
+    trainer3, _ = create_lightning_trainer(container)
+    assert trainer3.limit_train_batches == limit_train_batches_float
+
+
 def test_model_train() -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
