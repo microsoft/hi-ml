@@ -9,7 +9,6 @@ import numpy as np
 from pathlib import Path
 from typing import Any, Tuple, Union, Optional
 
-
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from testhisto.utils.utils_testhisto import full_ml_test_data_path
@@ -62,7 +61,7 @@ def test_tiling_on_the_fly() -> None:
 
 
 @pytest.mark.gpu
-def test_tiling_without_fixed_tile_count():
+def test_tiling_without_fixed_tile_count() -> None:
     batch_size, tile_count, tile_size, level = 1, None, 28, 0
     min_expected_tile_count = 16
     root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
