@@ -29,14 +29,15 @@ def dump_dataset_csv_from_wsi_ids(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # panda_root = "/tmp/datasets/PANDA_tiles/PANDA_tiles_20210926-135446/panda_tiles_level1_224"
-    panda_root = "panda"
+    panda_root = "/tmp/datasets/PANDA_tiles/PANDA_tiles_20210926-135446/panda_tiles_level1_224"
     logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
-    parser.add_argument("--datalist-json", type=str, default="panda/datalist_20.json")
+    parser.add_argument("--datalist-json", type=str, default="panda/sub_datalist.json")
     parser.add_argument("--dataset-csv", type=str, default=os.path.join(panda_root, "dataset.csv"))
-    parser.add_argument("--dest-csv", type=str, default="panda/val_tiles_5.csv")
-    parser.add_argument("--subset", type=str, default="validation")
-    parser.add_argument("--image-id", type=str, default="slide_id")
+    parser.add_argument("--dest-csv", type=str, default="panda/sub_train_tiles.csv")
+    parser.add_argument("--subset", type=str, default="training")
+    parser.add_argument(
+        "--image-id", type=str, default="slide_id", help="use image_id for slides and slide_id for tiles"
+    )
     args = parser.parse_args()
     logging.info(f"Selecting target WSI ids from {args.datalist_json} and writing them to {args.dest_csv}")
     dump_dataset_csv_from_wsi_ids(args.datalist_json, args.dataset_csv, args.dest_csv, args.subset, args.image_id)
