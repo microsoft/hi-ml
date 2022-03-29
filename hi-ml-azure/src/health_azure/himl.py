@@ -445,16 +445,17 @@ def submit_to_azure_if_needed(  # type: ignore
         )
 
     if snapshot_root_directory is None:
-        logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
+        print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
+    print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
+        print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
-    logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,
