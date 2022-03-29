@@ -116,7 +116,7 @@ class HistoDataModule(LightningDataModule):
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
 
-    def _load_dataset(self) -> Optional[Path]:
+    def _load_dataset(self, dataset: Dataset, stage: str, shuffle: bool) -> Optional[Path]:
         """Load the tiles/slides dataset depending on the specified stage: train/val/test"""
         raise NotImplementedError
 
