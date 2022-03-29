@@ -4,6 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 import shutil
+from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -69,7 +70,30 @@ def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
     return dict_new
 
 
+def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
+    """Gather epoch results across all DDP processes into a single list.
+
+    :param epoch_results: The collected epoch results (i.e. list of batch results) for the current process.
+    :return: A list in the same format as `epoch_results`, containing batch results from all DDP processes. Returns
+        `epoch_results` unchanged if not in distributed mode.
+    """
+    if torch.distributed.is_initialized():
+        world_size = torch.distributed.get_world_size()
+        if world_size > 1:
+            object_list: EpochResultsType = [None] * world_size  # type: ignore
+            torch.distributed.all_gather_object(object_list, epoch_results)
+            epoch_results = list(chain(*object_list))
+    return epoch_results
+
+
 def collate_results(epoch_results: EpochResultsType) -> ResultsType:
+    """Convert a list of results dictionaries into a dictionary of lists.
+
+    :param epoch_results: Collected epoch results, whose elements are dictionaries of :py:class:`ResultsKey` to the
+        outputs of the respective batch (i.e. indexed as `epoch_results[batch_index][results_key]`).
+    :return: A dictionary mapping each :py:class:`ResultsKey` to a list containing the corresponding outputs for every
+        batch (i.e. indexed as `collated_results[results_key][batch_index]`).
+    """
     results: ResultsType = {}
     for key in epoch_results[0].keys():
         results[key] = []
@@ -247,15 +271,23 @@ class OutputsPolicy:
                     self._PRIMARY_METRIC_KEY: self.primary_val_metric.value}
         YAML().dump(contents, self.best_metric_file_path)
 
-    def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int) -> bool:
+    def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int,
+                                       is_global_rank_zero: bool = True) -> bool:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         :param epoch: Current epoch number.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         :return: Whether this is the best validation epoch so far.
         """
+        # The metric needs to be computed on all ranks to allow synchronisation
         metric_value = float(metrics_dict[self.primary_val_metric].compute())
+
+        # Validation outputs and best metric should be saved only by the global rank-0 process
+        if not is_global_rank_zero:
+            return False
 
         if self.maximise:
             is_best = metric_value > self._best_metric_value
@@ -268,6 +300,15 @@ class OutputsPolicy:
             self._save_best_metric()
 
         return is_best
+
+    def should_save_test_outputs(self, is_global_rank_zero: bool = True) -> bool:
+        """Determine whether test outputs should be saved.
+
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
+        """
+        # This is implemented as a method in case we want to add custom logic in the future
+        return is_global_rank_zero
 
 
 class DeepMILOutputsHandler:
@@ -311,13 +352,10 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / "test"
 
-    def _save_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                      outputs_dir: Path) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
-        :param metrics_dict: Current epoch's validation metrics dictionary from
-            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
         :param outputs_dir: Specific directory into which outputs should be saved (different for validation and test).
         """
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
@@ -344,35 +382,49 @@ class DeepMILOutputsHandler:
 
         save_scores_histogram(results, figures_dir=figures_dir)
 
-        conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
-        save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
+        # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
+        # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
+        # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int) -> None:
+                                epoch: int, is_global_rank_zero: bool = True) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
         :param metrics_dict: Current epoch's validation metrics dictionary from
             :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
         """
-        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch):
+        # All DDP processes must reach this point to allow synchronising epoch results
+        gathered_epoch_results = gather_results(epoch_results)
+
+        # Only global rank-0 process should actually render and save the outputs
+        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(epoch_results, metrics_dict, self.validation_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir)
 
-    def save_test_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
+    def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool = True) -> None:
         """Render and save test epoch outputs.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`test_epoch_end()`.
         :param metrics_dict: Test metrics dictionary from :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
+            Set to `True` (default) if running a single process.
         """
-        self._save_outputs(epoch_results, metrics_dict, self.test_outputs_dir)
+        # All DDP processes must reach this point to allow synchronising epoch results
+        gathered_epoch_results = gather_results(epoch_results)
+
+        # Only global rank-0 process should actually render and save the outputs
+        if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir)

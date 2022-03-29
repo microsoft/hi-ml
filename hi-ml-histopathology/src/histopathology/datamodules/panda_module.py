@@ -18,9 +18,6 @@ class PandaTilesDataModule(TilesDataModule):
     Method get_splits() returns the train, val, test splits from the PANDA dataset
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-
     def get_splits(self) -> Tuple[PandaTilesDataset, PandaTilesDataset, PandaTilesDataset]:
         dataset = PandaTilesDataset(self.root_path)
         splits = DatasetSplits.from_proportions(dataset.dataset_df.reset_index(),
@@ -63,12 +60,6 @@ class PandaSlidesDataModule(SlidesDataModule):
     Method get_splits() returns the train, val, test splits from the PANDA dataset
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-
-    def _get_slides_dataset_class(self) -> None:
-        self.set_slides_dataset_class = PandaDataset
-
     def get_splits(self) -> Tuple[PandaDataset, PandaDataset, PandaDataset]:
         dataset = PandaDataset(self.root_path)
         splits = DatasetSplits.from_proportions(dataset.dataset_df.reset_index(),
@@ -77,6 +68,11 @@ class PandaSlidesDataModule(SlidesDataModule):
                                                 proportion_val=.1,
                                                 subject_column=dataset.TILE_ID_COLUMN,
                                                 group_column=dataset.SLIDE_ID_COLUMN)
+
+        if self.crossval_count > 1:
+            # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
+            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[self.crossval_index]
+
         return (PandaDataset(self.root_path, dataset_df=splits.train),
                 PandaDataset(self.root_path, dataset_df=splits.val),
                 PandaDataset(self.root_path, dataset_df=splits.test))

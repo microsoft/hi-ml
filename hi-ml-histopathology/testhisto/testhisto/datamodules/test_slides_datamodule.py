@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from pathlib import Path
-from typing import Any, Tuple, Union, Optional
+from typing import Tuple, Union, Optional
 
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
@@ -34,8 +34,6 @@ class MockSlidesDataset(SlidesDataset):
 
 
 class MockSlidesDataModule(SlidesDataModule):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
 
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))

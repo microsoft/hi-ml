@@ -1,15 +1,22 @@
 from pathlib import Path
-from typing import Dict, List, Mapping
+from typing import Dict, List
 from unittest.mock import MagicMock
 
 import pytest
+import torch
+import torch.distributed
+import torch.multiprocessing
 from ruamel.yaml import YAML
+from testhisto.utils.utils_testhisto import run_distributed
+from torch.testing import assert_close
 from torchmetrics.metric import Metric
 
-from histopathology.utils.output_utils import DeepMILOutputsHandler, OutputsPolicy
-from histopathology.utils.naming import MetricsKey
+from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
+                                               collate_results, gather_results)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
+_RANK_KEY = 'rank'
 
 
 def _create_outputs_policy(outputs_root: Path) -> OutputsPolicy:
@@ -76,12 +83,17 @@ def test_outputs_policy_persistence(tmp_path: Path) -> None:
     assert fresh_policy._best_metric_value == initial_value
 
 
-def test_overwriting_val_outputs(tmp_path: Path) -> None:
+def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int = 1, device: str = 'cpu') -> None:
     mock_output_filename = "mock_output.txt"
+    is_rank_zero = (rank == 0)
 
-    def mock_save_outputs(epoch_results: List, metrics_dict: Mapping[MetricsKey, Metric], outputs_dir: Path) -> None:
+    def mock_save_outputs(epoch_results: List, outputs_dir: Path) -> None:
+        assert rank == 0, f"Expected to save only on rank 0, got rank {rank}"
+        assert len(epoch_results) == world_size, f"Expected {world_size} results, got {len(epoch_results)}"
+        assert [batch_results[_RANK_KEY] for batch_results in epoch_results] == list(range(world_size))
+
         outputs_dir.mkdir(exist_ok=True, parents=True)
-        metric_value = metrics_dict[_PRIMARY_METRIC_KEY].compute()
+        metric_value = epoch_results[0][_PRIMARY_METRIC_KEY]
         mock_output_file = outputs_dir / mock_output_filename
         mock_output_file.write_text(str(metric_value))
 
@@ -90,24 +102,30 @@ def test_overwriting_val_outputs(tmp_path: Path) -> None:
     mock_output_file = outputs_handler.validation_outputs_dir / mock_output_filename
     previous_mock_output_file = outputs_handler.previous_validation_outputs_dir / mock_output_filename
 
+    def save_validation_outputs(handler: DeepMILOutputsHandler, metric_value: float, epoch: int) -> None:
+        handler.save_validation_outputs(epoch_results=[{_PRIMARY_METRIC_KEY: metric_value,
+                                                        _RANK_KEY: rank}],
+                                        metrics_dict=_get_mock_metrics_dict(metric_value),
+                                        epoch=epoch,
+                                        is_global_rank_zero=is_rank_zero)
+
     assert not outputs_handler.validation_outputs_dir.exists()
     assert not outputs_handler.previous_validation_outputs_dir.exists()
 
     # Call first time: expected to save
     initial_metric_value = 0.5
-    outputs_handler.save_validation_outputs(epoch_results=[],
-                                            metrics_dict=_get_mock_metrics_dict(initial_metric_value),
-                                            epoch=0)
-    outputs_handler._save_outputs.assert_called_once()
-    assert mock_output_file.read_text() == str(initial_metric_value)
-    assert not outputs_handler.previous_validation_outputs_dir.exists()
+    save_validation_outputs(outputs_handler, initial_metric_value, epoch=0)
+    if is_rank_zero:
+        outputs_handler._save_outputs.assert_called_once()
+        assert mock_output_file.read_text() == str(initial_metric_value)
+        assert not outputs_handler.previous_validation_outputs_dir.exists()
+    else:
+        outputs_handler._save_outputs.assert_not_called()
     outputs_handler._save_outputs.reset_mock()
 
     # Call second time with worse metric value: expected to skip
     worse_metric_value = 0.3
-    outputs_handler.save_validation_outputs(epoch_results=[],
-                                            metrics_dict=_get_mock_metrics_dict(worse_metric_value),
-                                            epoch=1)
+    save_validation_outputs(outputs_handler, worse_metric_value, epoch=1)
     outputs_handler._save_outputs.assert_not_called()
     assert mock_output_file.read_text() == str(initial_metric_value)
     assert not outputs_handler.previous_validation_outputs_dir.exists()
@@ -115,19 +133,95 @@ def test_overwriting_val_outputs(tmp_path: Path) -> None:
 
     # Call third time with better metric value: expected to overwrite
     better_metric_value = 0.8
-    outputs_handler.save_validation_outputs(epoch_results=[],
-                                            metrics_dict=_get_mock_metrics_dict(better_metric_value),
-                                            epoch=2)
-    outputs_handler._save_outputs.assert_called_once()
-    assert mock_output_file.read_text() == str(better_metric_value)
-    assert not outputs_handler.previous_validation_outputs_dir.exists()
+    save_validation_outputs(outputs_handler, better_metric_value, epoch=2)
+    if is_rank_zero:
+        outputs_handler._save_outputs.assert_called_once()
+        assert mock_output_file.read_text() == str(better_metric_value)
+        assert not outputs_handler.previous_validation_outputs_dir.exists()
+    else:
+        outputs_handler._save_outputs.assert_not_called()
     outputs_handler._save_outputs.reset_mock()
 
     # Call fourth time with best metric value, but saving fails: expected to keep previous as back-up
     best_metric_value = 0.9
     outputs_handler._save_outputs.side_effect = RuntimeError()
-    with pytest.raises(RuntimeError):
-        outputs_handler.save_validation_outputs(epoch_results=[],
-                                                metrics_dict=_get_mock_metrics_dict(best_metric_value),
-                                                epoch=3)
-    assert previous_mock_output_file.read_text() == str(better_metric_value)
+    if is_rank_zero:
+        with pytest.raises(RuntimeError):
+            save_validation_outputs(outputs_handler, best_metric_value, epoch=3)
+        assert previous_mock_output_file.read_text() == str(better_metric_value)
+    else:  # Error is thrown only on rank 0
+        save_validation_outputs(outputs_handler, best_metric_value, epoch=3)
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+def test_overwriting_val_outputs_distributed(tmp_path: Path) -> None:
+    run_distributed(test_overwriting_val_outputs, args=(tmp_path,), world_size=2)
+
+
+def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, rank: int,
+                          device: str) -> BatchResultsType:
+    bag_sizes = [(rank * num_batches + batch_idx) * batch_size + slide_idx + 1 for slide_idx in range(batch_size)]
+    print(rank, bag_sizes)
+    results: BatchResultsType = {
+        ResultsKey.SLIDE_ID: [[bag_size] * bag_size for bag_size in bag_sizes],
+        ResultsKey.TILE_ID: [[bag_size * bag_size + tile_idx for tile_idx in range(bag_size)]
+                             for bag_size in bag_sizes],
+        ResultsKey.BAG_ATTN: [torch.rand(1, bag_size, device=device) for bag_size in bag_sizes],
+        ResultsKey.LOSS: torch.randn(1, device=device),
+    }
+    for key, values in results.items():
+        if key is ResultsKey.LOSS:
+            continue  # loss is a scalar
+        assert len(values) == batch_size
+        for value, ref_value in zip(values, results[ResultsKey.SLIDE_ID]):
+            if isinstance(value, torch.Tensor):
+                assert value.numel() == len(ref_value)
+            else:
+                assert len(value) == len(ref_value)
+    return results
+
+
+def _create_epoch_results(batch_size: int, num_batches: int, rank: int, device: str) -> EpochResultsType:
+    epoch_results: EpochResultsType = []
+    for batch_idx in range(num_batches):
+        batch_results = _create_batch_results(batch_idx, batch_size, num_batches, rank, device)
+        epoch_results.append(batch_results)
+    return epoch_results
+
+
+def test_gather_results(rank: int = 0, world_size: int = 1, device: str = 'cpu') -> None:
+    num_batches = 5
+    batch_size = 3
+    epoch_results = _create_epoch_results(batch_size, num_batches, rank, device)
+    assert len(epoch_results) == num_batches
+
+    gathered_results = gather_results(epoch_results)
+    assert len(gathered_results) == world_size * num_batches
+
+    rank_offset = rank * num_batches
+    for batch_idx in range(num_batches):
+        assert_close(actual=gathered_results[batch_idx + rank_offset],
+                     expected=epoch_results[batch_idx])
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+def test_gather_results_distributed() -> None:
+    # These tests need to be called sequentially to prevent them to be run in parallel
+    run_distributed(test_gather_results, world_size=1)
+    run_distributed(test_gather_results, world_size=2)
+
+
+def test_collate_results() -> None:
+    epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0, device='cpu')
+
+    collated_results = collate_results(epoch_results)
+
+    for key, value in collated_results.items():
+        epoch_values = [batch_results[key] for batch_results in epoch_results]
+        if key == ResultsKey.LOSS:
+            assert value == epoch_values
+        else:
+            expected: List = sum(epoch_values, [])  # concatenated lists
+            assert_close(value, expected)
