@@ -1,10 +1,11 @@
+from async_timeout import Any
 import torch
 import numpy as np
 from torch.utils.data.dataloader import default_collate
 from typing import List
 
 
-def list_data_collate(batch: List):
+def list_data_collate(batch: List) -> Any:
     """
         Combine instances from a list of dicts into a single dict, by stacking them along first dim
         [{'image' : 3xHxW}, {'image' : 3xHxW}, {'image' : 3xHxW}...] - > {'image' : Nx3xHxW}
