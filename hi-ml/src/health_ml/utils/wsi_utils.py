@@ -1,10 +1,10 @@
 import torch
 import numpy as np
 from torch.utils.data.dataloader import default_collate
-from collections.abc import Sequence
+from typing import List
 
 
-def list_data_collate(batch: Sequence):
+def list_data_collate(batch: List):
     """
         Combine instances from a list of dicts into a single dict, by stacking them along first dim
         [{'image' : 3xHxW}, {'image' : 3xHxW}, {'image' : 3xHxW}...] - > {'image' : Nx3xHxW}
