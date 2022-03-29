@@ -33,8 +33,11 @@ def create_patchmnist_stitched_patches(
     for i, patch in enumerate(patches):
         patch = patches[0] if not different_tiles else patch
         _patch = (patch.numpy() * 255).astype(np.uint8)
-        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_patch, (2, 2)) 
-        np.save(os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), _patch)
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_patch, (2, 2))
+        if different_tiles:
+            np.save(os.path.join("pathmnist", f"_{sample_counter}", f"patch_{i}.npy"), _patch)
+        elif i == 0:
+            np.save(os.path.join("pathmnist", f"_{sample_counter}_patch.npy"), _patch)
     return np.transpose(mock_image, (1, 2, 0))
 
 
@@ -81,7 +84,7 @@ def create_fake_stitched_patches(
 ) -> np.ndarray:
     mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.uint8)
     for i in range(n_repeat):
-        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = fill_val * (i + 1)
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = fill_val * (i + 1)
     return np.transpose(mock_image, (1, 2, 0))
 
 

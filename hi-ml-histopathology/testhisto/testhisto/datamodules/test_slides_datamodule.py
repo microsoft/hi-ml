@@ -43,7 +43,7 @@ class MockSlidesDataModule(SlidesDataModule):
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
-# @pytest.mark.parametrize("level", [(0,), (1,), (2,)])
+@pytest.mark.gpu
 def test_tiling_on_the_fly() -> None:
     root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
     datamodule = MockSlidesDataModule(root_path=root_path, batch_size=1, tile_count=16, tile_size=28, level=0)
@@ -56,6 +56,9 @@ def test_tiling_on_the_fly() -> None:
     for i in range(0, 16, 4):
         assert (patches[i // 4] == tiles[0, i].numpy()).all()
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("level", [(0,), (1,), (2,)])
+def test_multi_resolution_tiling(level) -> None:
 
 def test_overlapping_tiling() -> None:
     pass
