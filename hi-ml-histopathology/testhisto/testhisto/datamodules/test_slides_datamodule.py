@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 import pytest
 import pandas as pd
 import numpy as np
@@ -43,22 +42,74 @@ class MockSlidesDataModule(SlidesDataModule):
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
-@pytest.mark.gpu
+# @pytest.mark.gpu
 def test_tiling_on_the_fly() -> None:
+    batch_size, tile_count, tile_size, level, channels = 1, 16, 28, 0, 3
     root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
-    datamodule = MockSlidesDataModule(root_path=root_path, batch_size=1, tile_count=16, tile_size=28, level=0)
+    datamodule = MockSlidesDataModule(
+        root_path=root_path, batch_size=batch_size, tile_count=tile_count, tile_size=tile_size, level=level
+    )
     dataloader = datamodule.train_dataloader()
-    sample = next(iter(dataloader))
-    tiles = sample["image"]
-    wsi_id = sample["slide_id"][0]
-    patches = np.array([np.load(os.path.join(root_path, wsi_id, f"patch_{i}.npy")) for i in range(4)])
-    assert tiles.shape == (1, 16, 3, 28, 28)
-    for i in range(0, 16, 4):
-        assert (patches[i // 4] == tiles[0, i].numpy()).all()
+    for sample in dataloader:
+        # sanity check for expected shape
+        tiles, wsi_id = sample["image"], sample["slide_id"][0]
+        assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
-@pytest.mark.gpu
-@pytest.mark.parametrize("level", [(0,), (1,), (2,)])
-def test_multi_resolution_tiling(level) -> None:
+        # check tiling on the fly
+        original_tile = np.load(root_path / f"{wsi_id}_tile.npy")
+        for i in range(0, 16, 4):
+            assert (original_tile == tiles[0, i].numpy()).all()
 
-def test_overlapping_tiling() -> None:
-    pass
+
+# @pytest.mark.gpu
+def test_tiling_without_fixed_tile_count():
+    batch_size, tile_count, tile_size, level = 1, None, 28, 0
+    min_expected_tile_count = 16
+    root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
+    datamodule = MockSlidesDataModule(
+        root_path=root_path, batch_size=batch_size, tile_count=tile_count, tile_size=tile_size, level=level
+    )
+    dataloader = datamodule.train_dataloader()
+    for sample in dataloader:
+        tiles = sample["image"]
+        assert tiles.shape[1] >= min_expected_tile_count
+
+
+# @pytest.mark.gpu
+@pytest.mark.parametrize("level", [0, 1, 2])
+def test_multi_resolution_tiling(level: int) -> None:
+    batch_size, tile_count, level, channels = 1, 16, 0, 3
+    tile_size = 28 // 2 ** level
+    root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
+    datamodule = MockSlidesDataModule(
+        root_path=root_path, batch_size=batch_size, tile_count=tile_count, tile_size=tile_size, level=level
+    )
+    dataloader = datamodule.train_dataloader()
+    for sample in dataloader:
+        # sanity check for expected shape
+        tiles, wsi_id = sample["image"], sample["slide_id"][0]
+        assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
+
+        # check tiling on the fly at different resolutions
+        original_tile = np.load(root_path / f"{wsi_id}_tile.npy")
+        for i in range(0, 16, 4):
+            assert (original_tile[:: 2 ** level, :: 2 ** level] == tiles[0, i].numpy()).all()
+
+# @pytest.mark.gpu
+def test_overlapping_tiles() -> None:
+    batch_size, level, tile_size, step = 1, 0, 28, 14
+    root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
+    min_expected_tile_count, expected_tile_matches = 32, 16
+    datamodule = MockSlidesDataModule(
+        root_path=root_path, batch_size=batch_size, tile_size=tile_size, step=step, level=level
+    )
+    dataloader = datamodule.train_dataloader()
+    for sample in dataloader:
+        tiles, wsi_id = sample["image"], sample["slide_id"][0]
+        assert tiles.shape[1] >= min_expected_tile_count
+
+        original_tile = np.load(root_path / f"{wsi_id}_tile.npy")
+        tile_matches = 0
+        for tile in tiles[0]:
+            tile_matches += int((tile.numpy() == original_tile).all())
+        assert tile_matches == expected_tile_matches
