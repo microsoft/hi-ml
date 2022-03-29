@@ -690,15 +690,16 @@ def render_and_run_test_script(path: Path,
             cwd=path,
             env=env)
         return code, stdout
-
+    print(f"Starting the script in {path}")
     if suppress_config_creation:
         code, stdout = spawn()
     else:
         with check_config_json(path):
             code, stdout = spawn()
+    captured = "\n".join(stdout)
+    print(f"Script console output:\n{captured}")
     assert code == 0 if expected_pass else 1, f"Expected the script to {'pass' if expected_pass else 'fail'}, but " \
                                               f"got a return code {code}"
-    captured = "\n".join(stdout)
 
     if run_target == RunTarget.LOCAL or not expected_pass:
         assert EXPECTED_QUEUED not in captured
@@ -944,13 +945,11 @@ class TestOutputDataset:
 
 
 @pytest.mark.parametrize(["run_target", "local_folder", "suppress_config_creation"],
-                         [(RunTarget.LOCAL, False, False),
-                          (RunTarget.LOCAL, True, False),
-                          (RunTarget.LOCAL, True, True),
-                          (RunTarget.AZUREML, False, False)])
+                         [(RunTarget.LOCAL, False),
+                          (RunTarget.LOCAL, True),
+                          (RunTarget.AZUREML, False)])
 def test_invoking_hello_world_datasets(run_target: RunTarget,
                                        local_folder: bool,
-                                       suppress_config_creation: bool,
                                        tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
@@ -958,7 +957,6 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
 
     :param run_target: Where to run the script.
     :param local_folder: True to use data in local folder when running locally, False to mount/download data.
-    :param suppress_config_creation: Do not create a config.json file if none exists
     :param tmp_path: PyTest test fixture for temporary path.
     """
     input_count = 5
@@ -1079,7 +1077,7 @@ import sys
         """
     }
     extra_args: List[str] = []
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True, suppress_config_creation)
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
 
     for input_dataset in input_datasets:
         for output_dataset in output_datasets:
