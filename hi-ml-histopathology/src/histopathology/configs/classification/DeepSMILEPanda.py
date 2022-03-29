@@ -186,8 +186,8 @@ class SubPandaImageNetMIL(PandaImageNetMIL):
         super().__init__(**kwargs)
         root = "~/workspace/repos/hi-ml/hi-ml-histopathology/src/histopathology/configs/classification"
         self.crossval_count = 1
-        self.train_csv = os.path.join(root, "custom_subset/panda/train_tiles_20.csv")
-        self.val_csv = os.path.join(root, "custom_subset/panda/val_tiles_5.csv")
+        self.train_csv = os.path.join(root, "custom_subset/panda/sub_train_tiles.csv")
+        self.val_csv = os.path.join(root, "custom_subset/panda/sub_val_tiles.csv")
 
     def get_data_module(self) -> SubPandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
