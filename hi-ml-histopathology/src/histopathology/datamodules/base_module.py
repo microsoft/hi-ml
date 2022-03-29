@@ -111,12 +111,6 @@ class HistoDataModule(LightningDataModule):
         """Create the training, validation, and test datasets"""
         raise NotImplementedError
 
-    def prepare_data(self) -> None:
-        if self.precache_location != CacheLocation.NONE:
-            self._load_dataset(self.train_dataset, stage="train", shuffle=True)
-            self._load_dataset(self.val_dataset, stage="val", shuffle=True)
-            self._load_dataset(self.test_dataset, stage="test", shuffle=True)
-
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
             return None
@@ -124,6 +118,9 @@ class HistoDataModule(LightningDataModule):
 
     def _load_dataset(self) -> Optional[Path]:
         """Load the tiles/slides dataset depending on the specified stage: train/val/test"""
+        raise NotImplementedError
+
+    def prepare_data(self) -> None:
         raise NotImplementedError
 
     def _get_transformed_dataset(
@@ -163,6 +160,12 @@ class TilesDataModule(HistoDataModule):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+
+    def prepare_data(self) -> None:
+        if self.precache_location != CacheLocation.NONE:
+            self._load_dataset(self.train_dataset, stage="train", shuffle=True)
+            self._load_dataset(self.val_dataset, stage="val", shuffle=True)
+            self._load_dataset(self.test_dataset, stage="test", shuffle=True)
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
@@ -267,6 +270,12 @@ class SlidesDataModule(HistoDataModule):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
+
+    def prepare_data(self) -> None:
+        if self.precache_location != CacheLocation.NONE:
+            self._load_dataset(self.train_dataset, stage="train")
+            self._load_dataset(self.val_dataset, stage="val")
+            self._load_dataset(self.test_dataset, stage="test")
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
