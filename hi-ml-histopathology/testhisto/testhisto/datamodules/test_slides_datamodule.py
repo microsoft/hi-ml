@@ -28,7 +28,7 @@ def test_tiling_on_the_fly() -> None:
 
         # check tiling on the fly
         original_tile = np.load(root_path / f"{wsi_id}_tile.npy")
-        for i in range(0, 16, 4):
+        for i in range(tile_count):
             assert (original_tile == tiles[0, i].numpy()).all()
 
 
@@ -65,7 +65,7 @@ def test_multi_resolution_tiling(level: int) -> None:
 
         # check tiling on the fly at different resolutions
         original_tile = np.load(root_path / f"{wsi_id}_tile.npy")
-        for i in range(0, 16, 4):
+        for i in range(tile_count):
             assert (original_tile[:: 2 ** level, :: 2 ** level] == tiles[0, i].numpy()).all()
 
 
