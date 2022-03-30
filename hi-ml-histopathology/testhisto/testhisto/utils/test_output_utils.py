@@ -31,7 +31,6 @@ def _create_outputs_handler(outputs_root: Path) -> DeepMILOutputsHandler:
         n_classes=1,
         tile_size=224,
         level=1,
-        slides_dataset=None,
         class_names=None,
         primary_val_metric=_PRIMARY_METRIC_KEY,
         maximise=True,
