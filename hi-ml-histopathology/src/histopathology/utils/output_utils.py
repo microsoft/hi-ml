@@ -351,7 +351,7 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / "test"
 
-    def set_slides_dataset(self, slides_dataset):
+    def set_slides_dataset(self, slides_dataset: SlidesDataset):
         self.slides_dataset = slides_dataset
 
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path) -> None:
