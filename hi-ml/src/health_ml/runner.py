@@ -147,6 +147,9 @@ class Runner:
         apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
 
+        # Allow overriding ExperimentConfig params from within the container
+        container.update_experiment_config(experiment_config)
+
         self.lightning_container = container
 
         return parser2_result
