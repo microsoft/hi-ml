@@ -128,8 +128,8 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer2.num_val_batches[0] == limit_val_batches_int
 
     # try to limit the number of batches with float number (i.e. proportion of full data)
-    limit_train_batches_float = random.random()
-    limit_val_batches_float = random.random()
+    limit_train_batches_float = random.uniform(0.1, 1.0)
+    limit_val_batches_float = random.uniform(0.1, 1.0)
     container.pl_limit_train_batches = limit_train_batches_float
     container.pl_limit_val_batches = limit_val_batches_float
     trainer3, _ = create_lightning_trainer(container)
