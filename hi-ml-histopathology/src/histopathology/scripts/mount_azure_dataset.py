@@ -19,7 +19,8 @@ def mount_dataset(dataset_id: str) -> str:
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_id', type=str,
+    # Run this script as "python mount_azure_dataset.py --dataset_id TCGA-CRCk"
+    parser.add_argument('--dataset_id', type=str,
                         help='Name of the Azure dataset e.g. PANDA or TCGA-CRCk')
     args = parser.parse_args()
     mount_dataset(args.dataset_id)

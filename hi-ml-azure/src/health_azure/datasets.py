@@ -27,10 +27,13 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
     datastores = workspace.datastores
     existing_stores = list(datastores.keys())
     if not datastore_name:
+        # First check if there is only one datastore, which is then obviously unique.
+        # Only then try to use the default datastore, because there may not be a default set.
         if len(existing_stores) == 1:
             return datastores[existing_stores[0]]
-        raise ValueError("No datastore name provided. This is only possible if the workspace has a single datastore. "
-                         f"However, the workspace has {len(existing_stores)} datastores: {existing_stores}")
+        datastore = workspace.get_default_datastore()
+        logging.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
+        return datastore
     if datastore_name in datastores:
         return datastores[datastore_name]
     raise ValueError(f"Datastore \"{datastore_name}\" was not found in the \"{workspace.name}\" workspace. "
@@ -115,7 +118,7 @@ class DatasetConfig:
             raise ValueError("Can't mount or download a dataset to the current working directory.")
         self.local_folder = Path(local_folder) if local_folder else None
 
-    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Optional[Path], Optional[MountContext]]:
+    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Path, Optional[MountContext]]:
         """
         Return a local path to the dataset when outside of an AzureML run.
         If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
@@ -123,9 +126,9 @@ class DatasetConfig:
         returned.
 
         :param workspace: The AzureML workspace to read from.
-        :return: Pair of optional path to dataset and optional mountcontext.
+        :return: Tuple of (path to dataset, optional mountcontext)
         """
-        status = f"Dataset {self.name} will be "
+        status = f"Dataset '{self.name}' will be "
 
         if self.local_folder is not None:
             status += f"obtained from local folder {str(self.local_folder)}"
@@ -133,9 +136,8 @@ class DatasetConfig:
             return self.local_folder, None
 
         if workspace is None:
-            status += "'None' - neither local_folder nor workspace available"
-            print(status)
-            return None, None
+            raise ValueError(f"Unable to make dataset '{self.name} available for a local run because no AzureML "
+                             "workspace has been provided. Provide a workspace, or set a folder for local execution.")
 
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
@@ -308,8 +310,8 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
         try:
             workspace = get_workspace(aml_workspace, workspace_config_path)
             logging.info(f"Found workspace for datasets: {workspace.name}")
-        except Exception:
-            logging.info("Could not find workspace for datasets.")
+        except Exception as ex:
+            logging.info(f"Could not find workspace for datasets. Exception: {ex}")
     return workspace
 
 
