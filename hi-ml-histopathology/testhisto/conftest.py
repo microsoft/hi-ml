@@ -12,12 +12,6 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-import pandas as pd
-
-from typing import Tuple, Union, Optional
-from histopathology.datamodules.base_module import SlidesDataModule
-from histopathology.datasets.base_dataset import SlidesDataset
-
 
 # temporary workaround until these hi-ml package release
 testhisto_root_dir = Path(__file__).parent
@@ -69,28 +63,3 @@ def make_output_dirs_for_test() -> Path:
     remove_and_create_folder(test_output_dir)
 
     return test_output_dir
-
-
-class MockSlidesDataset(SlidesDataset):
-    SLIDE_ID_COLUMN = "image_id"
-    IMAGE_COLUMN = "image"
-    LABEL_COLUMN = "isup_grade"
-
-    METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
-
-    def __init__(
-        self,
-        root: Path,
-        dataset_csv: Optional[Path] = None,
-        dataset_df: Optional[pd.DataFrame] = None,
-    ) -> None:
-        super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
-        slide_ids = self.dataset_df.index
-        self.dataset_df[self.IMAGE_COLUMN] = slide_ids + ".tiff"
-        self.validate_columns()
-
-
-class MockSlidesDataModule(SlidesDataModule):
-
-    def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
-        return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
