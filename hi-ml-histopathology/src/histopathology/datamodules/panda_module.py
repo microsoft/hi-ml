@@ -37,7 +37,7 @@ class PandaTilesDataModule(TilesDataModule):
 
 
 class SubPandaTilesDataModule(TilesDataModule):
-    """ subPandaTilesDataModule is the child class of PandaDataModule specific to PANDA dataset
+    """ subPandaTilesDataModule is a child class of TilesDataModule specific to PANDA dataset. The difference with `PandaTilesDataModule` is that
     Method get_splits() returns the train, val, test splits from a subset of the PANDA dataset specified by
     train/validation dataframes.
     """
