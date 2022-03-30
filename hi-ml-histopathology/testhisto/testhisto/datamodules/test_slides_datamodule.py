@@ -82,7 +82,7 @@ def test_tiling_without_fixed_tile_count() -> None:
 @pytest.mark.gpu
 @pytest.mark.parametrize("level", [0, 1, 2])
 def test_multi_resolution_tiling(level: int) -> None:
-    batch_size, tile_count, level, channels = 1, 16, 0, 3
+    batch_size, tile_count, channels = 1, 16, 3
     tile_size = 28 // 2 ** level
     root_path = full_ml_test_data_path("whole_slide_images/pathmnist")
     datamodule = MockSlidesDataModule(
