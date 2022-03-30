@@ -164,11 +164,7 @@ class BaseMIL(LightningContainer):
                                        class_names=self.class_names,
                                        outputs_handler=outputs_handler
                                        )
-        # WARNING: We set slides_dataset out of the constructor so that it's not saved as a hyperparameter.
-        # slides_datasets (if exists, e.g. in the PANDA cohort) has a dataframe attribute that is not saveable by
-        # pytorch lightning. It shouldn't be passed to the constructor to not include it in the hyperparameters of the
-        # LightningModule and therefore try to dump it by self.save_hyperparameters() in deepmil_module.
-        deepmil_module.outputs_handler.slides_dataset = self.get_slides_dataset()
+        deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
     def get_data_module(self) -> TilesDataModule:
