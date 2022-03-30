@@ -30,7 +30,6 @@ dependencies:
       # Histopathology requirements
       - cucim==22.2.0
       - medmnist==2.0.2
-      - imagecodecs==2021.11.20
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
