@@ -187,10 +187,10 @@ class PandaHistoSSLMIL(DeepSMILEPanda):
 class SubPandaImageNetMIL(PandaImageNetMIL):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+        root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
         self.crossval_count = 1
-        self.train_csv = os.path.join(
-            fixed_paths.repository_root_directory(), "custom_subset/panda/sub_train_tiles.csv")
-        self.val_csv = os.path.join(fixed_paths.repository_root_directory(), "custom_subset/panda/sub_val_tiles.csv")
+        self.train_csv = os.path.join(root_path, "configs/classification/custom_subset/panda/sub_train_tiles.csv")
+        self.val_csv = os.path.join(root_path, "configs/classification/custom_subset/panda/sub_val_tiles.csv")
 
     def get_data_module(self) -> SubPandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
