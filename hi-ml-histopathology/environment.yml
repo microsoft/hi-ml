@@ -28,6 +28,9 @@ dependencies:
       - ruamel.yaml==0.16.12
       - tensorboard==2.6.0
       # Histopathology requirements
+      - cucim==22.2.0
+      - medmnist==2.0.2
+      - imagecodecs==2021.11.20
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
@@ -52,11 +55,8 @@ dependencies:
       - six==1.15.0
       - stopit==1.1.2
       - tabulate==0.8.7
+      - tifffile==2021.11.2
       - torchmetrics==0.6.0
       - types-python-dateutil==2.8.9
       - umap-learn==0.5.2
       - yacs==0.1.8
-      - cucim==22.2.0
-      - medmnist==2.0.2
-      - tifffile==2021.11.2
-      - imagecodecs==2021.11.20
