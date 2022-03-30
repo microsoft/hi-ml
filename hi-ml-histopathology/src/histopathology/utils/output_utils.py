@@ -315,14 +315,14 @@ class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
-                 slides_dataset: Optional[SlidesDataset], class_names: Optional[Sequence[str]],
-                 primary_val_metric: MetricsKey, maximise: bool) -> None:
+                 class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
+                 maximise: bool, slides_dataset: Optional[SlidesDataset] = None) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param tile_size: The size of each tile.
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
-        :param slides_dataset: Optional slides dataset from which to plot thumbnails and heatmaps.
+        :param slides_dataset: Optional slides dataset from which to plot thumbnails and heatmaps (default=None).
         :param class_names: List of class names. For binary (`n_classes == 1`), expects `len(class_names) == 2`.
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
