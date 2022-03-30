@@ -105,7 +105,6 @@ def test_create_lightning_trainer_limit_batches() -> None:
 
     # first create a trainer and check what the default number of train batches is
     trainer, _ = create_lightning_trainer(container)
-    trainer.enable_progress_bar = False
     # We have to call the 'fit' method on the trainer before it updates the number of batches
     with patch.object(trainer, "logger", new=_mock_logger):
         trainer.fit(lightning_model, data_module)
@@ -119,7 +118,6 @@ def test_create_lightning_trainer_limit_batches() -> None:
     container.pl_limit_val_batches = limit_val_batches_int
 
     trainer2, _ = create_lightning_trainer(container)
-    trainer2.enable_progress_bar = False
     assert trainer2.limit_train_batches == limit_train_batches_int
     assert trainer2.limit_val_batches == limit_val_batches_int
     with patch.object(trainer2, "logger", new=_mock_logger):
@@ -133,7 +131,6 @@ def test_create_lightning_trainer_limit_batches() -> None:
     container.pl_limit_train_batches = limit_train_batches_float
     container.pl_limit_val_batches = limit_val_batches_float
     trainer3, _ = create_lightning_trainer(container)
-    trainer3.enable_progress_bar = False
     assert trainer3.limit_train_batches == limit_train_batches_float
     assert trainer3.limit_val_batches == limit_val_batches_float
     with patch.object(trainer3, "logger", new=_mock_logger):
