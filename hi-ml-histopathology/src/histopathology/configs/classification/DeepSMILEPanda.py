@@ -54,12 +54,10 @@ class DeepSMILEPanda(BaseMIL):
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
-            # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
-            # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
             # declared in WorkflowParams:
-            crossval_count=1,
+            crossval_count=5,
             crossval_index=0,
 
             # declared in OptimizerParams:
@@ -189,10 +187,10 @@ class PandaHistoSSLMIL(DeepSMILEPanda):
 class SubPandaImageNetMIL(PandaImageNetMIL):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        root = "~/workspace/repos/hi-ml/hi-ml-histopathology/src/histopathology/configs/classification"
         self.crossval_count = 1
-        self.train_csv = os.path.join(root, "custom_subset/panda/sub_train_tiles.csv")
-        self.val_csv = os.path.join(root, "custom_subset/panda/sub_val_tiles.csv")
+        self.train_csv = os.path.join(
+            fixed_paths.repository_root_directory(), "custom_subset/panda/sub_train_tiles.csv")
+        self.val_csv = os.path.join(fixed_paths.repository_root_directory(), "custom_subset/panda/sub_val_tiles.csv")
 
     def get_data_module(self) -> SubPandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
