@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 from unittest.mock import patch, MagicMock
 
+import param
 import pytest
 from _pytest.capture import SysCapture
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -14,6 +15,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from health_azure import AzureRunInfo, DatasetConfig
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
+from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 
@@ -64,6 +66,70 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
             assert isinstance(mock_runner.lightning_container, LightningContainer)
             assert mock_runner.lightning_container.initialized
             assert mock_runner.lightning_container.model_name == model_name
+
+
+_DEFAULT_CONTAINER_NUM_NODES = 1
+_CLI_NUM_NODES = 4
+
+
+class DummyContainerWithExperimentConfigOverrides(LightningContainer):
+    container_cluster: str = param.String("default-container-cluster")
+    tag: str = param.String("default-container-tag")
+    num_nodes: int = param.Integer(_DEFAULT_CONTAINER_NUM_NODES)
+
+    def update_experiment_config(self, experiment_config: ExperimentConfig) -> None:
+        # Override parameter with different name
+        experiment_config.cluster = self.container_cluster
+        # Override parameter with clashing name
+        experiment_config.tag = self.tag
+        # Override with hard-coded value
+        experiment_config.docker_shm_size = "hardcoded-docker-shm-size"
+
+
+def test_override_experiment_config_from_container(mock_runner: Runner) -> None:
+    # Arguments partly to be set in ExperimentConfig, and partly in container.
+    args = ["",
+            "--model", "testhiml." + DummyContainerWithExperimentConfigOverrides.__name__,
+            "--container_cluster", "cli-container-cluster",
+            "--cluster", "cli-cluster",
+            "--tag", "cli-tag",
+            "--docker_shm_size", "cli-docker-shm-size",
+            "--num_nodes", str(_CLI_NUM_NODES),
+            "--mount_in_azureml", "True"
+            # "--experiment_name", "cli-experiment-name",
+            # "--workspace_name", "cli-workspace-name",
+            ]
+    with patch.object(sys, "argv", new=args):
+        mock_runner.parse_and_load_model()
+    experiment_config = mock_runner.experiment_config
+    assert experiment_config is not None
+    container = mock_runner.lightning_container
+    assert container is not None
+    assert isinstance(container, DummyContainerWithExperimentConfigOverrides)
+
+    # Current ExperimentConfig parameter priority is as follows:
+    # 1. Container
+    # 2. CLI
+    # 3. ExperimentConfig defaults
+
+    # ==== Parameters declared in the container ====
+    # Unique container parameters can be set from CLI, then override ExperimentConfig
+    assert experiment_config.cluster == container.container_cluster == "cli-container-cluster"
+
+    # If the container declares a clashing parameter, the CLI value will be
+    # consumed by the original ExperimentConfig
+    assert experiment_config.num_nodes == _CLI_NUM_NODES
+    assert container.num_nodes == _DEFAULT_CONTAINER_NUM_NODES
+    # However, it may then be overriden by the container default; this should be
+    # avoided to prevent unexpected behaviour
+    assert experiment_config.tag == container.tag == "default-container-tag"
+
+    # ==== Parameters declared only in ExperimentConfig ====
+    # Hard-coded overrides ignore CLI value
+    assert experiment_config.docker_shm_size == "hardcoded-docker-shm-size"
+
+    # ExperimentConfig parameters not overriden in container can still be set from CLI
+    assert experiment_config.mount_in_azureml is True
 
 
 def test_run(mock_runner: Runner) -> None:
