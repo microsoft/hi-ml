@@ -72,5 +72,10 @@
     },
     "terminal.integrated.env.linux": {
         "PYTHONPATH":"${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src:${workspaceFolder}/hi-ml-histopathology/src"
+    },
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#135511",
+        "titleBar.activeBackground": "#135511",
+        "titleBar.activeForeground": "#FBFAF6"
     }
 }
