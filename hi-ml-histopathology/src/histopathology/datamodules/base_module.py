@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import torch
+import numpy as np
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
@@ -14,28 +15,33 @@ from torch.utils.data import DataLoader
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
+from health_ml.utils.wsi_utils import list_data_collate
 
-from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.transforms import LoadTilesBatchd
+
+from monai.transforms.compose import Compose
+from monai.transforms.io.dictionary import LoadImaged
+from monai.apps.pathology.transforms import TileOnGridd
+from monai.data.image_reader import WSIReader
 
 
 class CacheMode(Enum):
-    NONE = 'none'
-    MEMORY = 'memory'
-    DISK = 'disk'
+    NONE = "none"
+    MEMORY = "memory"
+    DISK = "disk"
 
 
 class CacheLocation(Enum):
-    NONE = 'none'
-    CPU = 'cpu'
-    SAME = 'same'
+    NONE = "none"
+    CPU = "cpu"
+    SAME = "same"
 
 
-class TilesDataModule(LightningDataModule):
-    """Base class to load the tiles of a dataset as train, val, test sets"""
+class HistoDataModule(LightningDataModule):
+    """Base class to load a histopathology dataset as train, val, test sets"""
 
-    def __init__(self, root_path: Path, max_bag_size: int = 0, batch_size: int = 1,
-                 max_bag_size_inf: int = 0,
+    def __init__(self, root_path: Path, batch_size: int = 1,
                  seed: Optional[int] = None, transform: Optional[Callable] = None,
                  cache_mode: CacheMode = CacheMode.NONE,
                  precache_location: CacheLocation = CacheLocation.NONE,
@@ -45,13 +51,7 @@ class TilesDataModule(LightningDataModule):
                  dataloader_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param root_path: Root directory of the source dataset.
-        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
-        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
-        random subsets of instances.
         :param batch_size: Number of slides to load per batch.
-        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
-        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A transform to apply to the source tiles dataset, or a composition of
@@ -85,8 +85,6 @@ class TilesDataModule(LightningDataModule):
         super().__init__()
 
         self.root_path = root_path
-        self.max_bag_size = max_bag_size
-        self.max_bag_size_inf = max_bag_size_inf
         self.transform = transform
         self.cache_mode = cache_mode
         self.precache_location = precache_location
@@ -103,43 +101,96 @@ class TilesDataModule(LightningDataModule):
         """Create the training, validation, and test datasets"""
         raise NotImplementedError
 
-    def prepare_data(self) -> None:
-        if self.precache_location != CacheLocation.NONE:
-            self._load_dataset(self.train_dataset, stage='train', shuffle=True)
-            self._load_dataset(self.val_dataset, stage='val', shuffle=True)
-            self._load_dataset(self.test_dataset, stage='test', shuffle=True)
-
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
+
+    def prepare_data(self) -> None:
+        raise NotImplementedError
+
+    def _get_transformed_dataset(
+        self, dataset: Dataset, transform: Union[Sequence[Callable], Callable]
+    ) -> Dataset:
+        if self.cache_mode is CacheMode.MEMORY:
+            dataset = CacheDataset(dataset, transform, num_workers=1)  # type: ignore
+        elif self.cache_mode is CacheMode.DISK:
+            dataset = PersistentDataset(dataset, transform, cache_dir=self.cache_dir)  # type: ignore
+            if self.precache_location != CacheLocation.NONE:
+                import tqdm  # TODO: Make optional
+
+                for i in tqdm.trange(len(dataset), desc="Loading dataset"):
+                    dataset[i]  # empty loop to pre-compute all transformed samples
+        else:
+            dataset = Dataset(dataset, transform)  # type: ignore
+        return dataset
+
+    def _get_dataloader(
+        self, dataset: Dataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
+        """Return the corresponding dataloader for a given histo_dataset at a given stage"""
+        raise NotImplementedError
+
+    def train_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.train_dataset, "train", shuffle=True, **self.dataloader_kwargs)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.val_dataset, "val", shuffle=True, **self.dataloader_kwargs)
+
+    def test_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.test_dataset, "test", shuffle=True, **self.dataloader_kwargs)
+
+
+class TilesDataModule(HistoDataModule):
+    """Base class to load the tiles of a dataset as train, val, test sets"""
+
+    def __init__(self, max_bag_size: int = 0, max_bag_size_inf: int = 0, **kwargs: Any) -> None:
+        """
+        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
+        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
+        random subsets of instances.
+        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
+        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
+        random subsets of instances.
+        """
+        self.max_bag_size = max_bag_size
+        self.max_bag_size_inf = max_bag_size_inf
+        super().__init__(**kwargs)
+
+    def prepare_data(self) -> None:
+        if self.precache_location != CacheLocation.NONE:
+            self._load_dataset(self.train_dataset, stage="train", shuffle=True)
+            self._load_dataset(self.val_dataset, stage="val", shuffle=True)
+            self._load_dataset(self.test_dataset, stage="test", shuffle=True)
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
             if self.precache_location == CacheLocation.CPU:
-                memory_location = torch.device('cpu')
+                memory_location = torch.device("cpu")
                 print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
             else:
                 # by default torch.load will reload on the same device it was saved from
                 memory_location = None  # type: ignore
 
-            with dataset_pickle_path.open('rb') as f:
+            with dataset_pickle_path.open("rb") as f:
                 return torch.load(f, map_location=memory_location)
 
         generator = _create_generator(self.seed)
 
-        if stage in ['val', 'test']:
+        if stage in ["val", "test"]:
             eff_max_bag_size = self.max_bag_size_inf
         else:
             eff_max_bag_size = self.max_bag_size
 
-        bag_dataset = BagDataset(tiles_dataset,  # type: ignore
-                                 bag_ids=tiles_dataset.slide_ids,
-                                 max_bag_size=eff_max_bag_size,
-                                 shuffle_samples=shuffle,
-                                 generator=generator)
+        bag_dataset = BagDataset(
+            tiles_dataset,  # type: ignore
+            bag_ids=tiles_dataset.slide_ids,
+            max_bag_size=eff_max_bag_size,
+            shuffle_samples=shuffle,
+            generator=generator,
+        )
         transform = self.transform or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
         # Save and restore PRNG state for consistency across (pre-)caching options
@@ -150,40 +201,139 @@ class TilesDataModule(LightningDataModule):
         # Dataset is saved if cache_dir is True, regardless of CacheMode
         if dataset_pickle_path:
             dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
-            with dataset_pickle_path.open('wb') as f:
+            with dataset_pickle_path.open("wb") as f:
                 torch.save(transformed_bag_dataset, f)
 
         return transformed_bag_dataset
 
-    def _get_transformed_dataset(self, base_dataset: BagDataset,
-                                 transform: Union[Sequence[Callable], Callable]) -> Dataset:
-        if self.cache_mode is CacheMode.MEMORY:
-            dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
-        elif self.cache_mode is CacheMode.DISK:
-            dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
-            if self.precache_location != CacheLocation.NONE:
-                import tqdm  # TODO: Make optional
-
-                for i in tqdm.trange(len(dataset), desc="Loading dataset"):
-                    dataset[i]  # empty loop to pre-compute all transformed samples
-        else:
-            dataset = Dataset(base_dataset, transform)  # type: ignore
-        return dataset
-
-    def _get_dataloader(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool,
-                        **dataloader_kwargs: Any) -> DataLoader:
-        transformed_bag_dataset = self._load_dataset(tiles_dataset, stage=stage, shuffle=shuffle)
+    def _get_dataloader(
+        self, dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
+        transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
-        return DataLoader(transformed_bag_dataset, batch_size=self.batch_size,
-                          collate_fn=multibag_collate, shuffle=shuffle, generator=generator,
-                          **dataloader_kwargs)
+        return DataLoader(
+            transformed_bag_dataset,
+            batch_size=self.batch_size,
+            collate_fn=multibag_collate,
+            shuffle=shuffle,
+            generator=generator,
+            pin_memory=False,  # disable pinning as loaded data may already be on GPU
+            **dataloader_kwargs,
+        )
 
-    def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, 'train', shuffle=True, **self.dataloader_kwargs)
 
-    def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, 'val', shuffle=True, **self.dataloader_kwargs)
+class SlidesDataModule(HistoDataModule):
+    """
+    Base class to load the slides of a dataset as train, val, test sets
+    Args:
+        level: the level number, or list of level numbers (default=0)
+        tile_count: number of tiles to extract, if None extracts all non-background tiles
+            Defaults to ``None``.
+        tile_size: size of the square tile
+            Defaults to ``224``.
+        step: step size to create overlapping tiles
+            Defaults to ``None`` (same as tile_size)
+        random_offset: Randomize position of the grid, instead of starting from the top-left corner
+            Defaults to ``False``.
+        pad_full: pad image to the size evenly divisible by tile_size
+            Defaults to ``False``.
+        background_val: the background constant (e.g. 255 for white background)
+            Defaults to ``255``.
+        filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
+            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset
+            Defaults to ``min`` (which assumes background is high value)
+    """
 
-    def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, 'test', shuffle=True, **self.dataloader_kwargs)
+    def __init__(
+        self,
+        level: Optional[int] = 0,
+        tile_count: Optional[int] = None,
+        tile_size: Optional[int] = 224,
+        step: Optional[int] = None,
+        random_offset: Optional[bool] = False,
+        pad_full: Optional[bool] = False,
+        background_val: Optional[int] = 255,
+        filter_mode: Optional[str] = "min",
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.level = level
+        self.tile_count = tile_count
+        self.tile_size = tile_size
+        self.step = step
+        self.random_offset = random_offset
+        self.pad_full = pad_full
+        self.background_val = background_val
+        self.filter_mode = filter_mode
+
+    def prepare_data(self) -> None:
+        if self.precache_location != CacheLocation.NONE:
+            self._load_dataset(self.train_dataset, stage="train")
+            self._load_dataset(self.val_dataset, stage="val")
+            self._load_dataset(self.test_dataset, stage="test")
+
+    def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
+        dataset_pickle_path = self._dataset_pickle_path(stage)
+
+        if dataset_pickle_path and dataset_pickle_path.is_file():
+            if self.precache_location == CacheLocation.CPU:
+                memory_location = torch.device("cpu")
+                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
+            else:
+                # by default torch.load will reload on the same device it was saved from
+                memory_location = None  # type: ignore
+
+            with dataset_pickle_path.open("rb") as f:
+                return torch.load(f, map_location=memory_location)
+
+        base_transform = Compose(
+            [
+                LoadImaged(
+                    keys=slides_dataset.IMAGE_COLUMN,
+                    reader=WSIReader,
+                    backend="cucim",
+                    dtype=np.uint8,
+                    level=self.level,
+                    image_only=True,
+                ),
+                TileOnGridd(
+                    keys=slides_dataset.IMAGE_COLUMN,
+                    tile_count=self.tile_count,
+                    tile_size=self.tile_size,
+                    step=self.step,
+                    random_offset=self.random_offset,
+                    pad_full=self.pad_full,
+                    background_val=self.background_val,
+                    filter_mode=self.filter_mode,
+                    return_list_of_dicts=True,
+                ),
+            ]
+        )
+        transform = self.transform or base_transform
+
+        # Save and restore PRNG state for consistency across (pre-)caching options
+        transformed_slides_dataset = self._get_transformed_dataset(slides_dataset, transform)  # type: ignore
+
+        # Dataset is saved if cache_dir is True, regardless of CacheMode
+        if dataset_pickle_path:
+            dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
+            with dataset_pickle_path.open("wb") as f:
+                torch.save(transformed_slides_dataset, f)
+
+        return transformed_slides_dataset
+
+    def _get_dataloader(
+        self, dataset: SlidesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
+        transformed_slides_dataset = self._load_dataset(dataset, stage)
+        generator = _create_generator(self.seed)
+        return DataLoader(
+            transformed_slides_dataset,
+            batch_size=self.batch_size,
+            collate_fn=list_data_collate,
+            shuffle=shuffle,
+            generator=generator,
+            pin_memory=False,  # disable pinning as loaded data may already be on GPU
+            **dataloader_kwargs,
+        )
