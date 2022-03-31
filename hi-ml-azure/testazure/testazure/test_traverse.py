@@ -2,16 +2,17 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import dataclasses
 import enum
 import logging
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, List, Optional
 
 import param
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from health_azure.traverse import (_object_to_dict, get_all_writable_attributes, object_to_dict, object_to_yaml,
+from health_azure.traverse import (_object_to_dict, get_all_writable_attributes, is_basic_type, object_to_dict, object_to_yaml,
                                    yaml_to_dict,
                                    write_dict_to_object,
                                    write_yaml_to_object, _write_dict_to_object)
@@ -40,6 +41,11 @@ class TripleNestedConfig:
     float1: float = 1.0
     int1: int = 1
     nested: FullConfig = FullConfig()
+
+
+@dataclass
+class ConfigWithList1:
+    list_field: List[Any] = field(default_factory=list)
 
 
 class ParamsConfig(param.Parameterized):
@@ -93,6 +99,44 @@ def test_traverse_params_readonly() -> None:
     config = ParamsConfigWithReadonly()
     d = get_all_writable_attributes(config)
     assert d == {"p3": 2.0}
+
+
+def test_traverse_list() -> None:
+    """Lists of basic datatypes should be serialized"""
+    list_config = ConfigWithList1(list_field=[1, 2.5, "foo"])
+    assert object_to_yaml(list_config) == """list_field:
+- 1
+- 2.5
+- foo
+"""
+    list_config.list_field = [1, dict()]
+    with pytest.raises(ValueError) as ex:
+        object_to_dict(list_config)
+    assert "only allowed to contain basic types" in str(ex)
+
+
+def test_is_basic() -> None:
+    assert is_basic_type(1)
+    assert is_basic_type(1.0)
+    assert is_basic_type("foo")
+    assert not is_basic_type(None)
+    assert not is_basic_type(dict())
+    assert not is_basic_type([])
+    
+
+def test_traverse_dict() -> None:
+    """Fields with dictionaries with basic datatypes should be serialized"""
+    list_config = ConfigWithList1(list_field={1: "foo", "bar": 2.0})
+    assert object_to_yaml(list_config) == """list_field:
+  1: foo
+  bar: 2.0
+"""
+    # Invalid dictionaries contain non-basic types either as keys or as values
+    for invalid in [{"foo": dict()}, {(1,2): "foo"}]:
+        list_config.list_field = invalid
+        with pytest.raises(ValueError) as ex:
+            object_to_dict(list_config)
+        assert "Dictionaries can only contain basic types" in str(ex)
 
 
 def test_traverse_enum() -> None:

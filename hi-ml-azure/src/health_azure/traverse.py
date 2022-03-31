@@ -5,13 +5,13 @@
 import enum
 import logging
 from io import StringIO
-from typing import Any, Dict, Union, List, Optional
+from typing import Any, Dict, Iterable, Union, List, Optional
 
 import param
 from ruamel import yaml
 
 
-def is_basic_field(o: Any) -> bool:
+def is_basic_type(o: Any) -> bool:
     """
     Returns True if the given object is an instance of a basic simple datatype: string, integer, float.
     """
@@ -36,6 +36,7 @@ def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
     :param o: The object to inspect.
     :return: A dictionary mapping from attribute name to its value.
     """
+
     def _is_private(s: str) -> bool:
         return s.startswith("_")
 
@@ -59,7 +60,19 @@ def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
                 result[name] = value
         return result
     except TypeError:
-        raise ValueError("This function cannot be used on objects that do not support the 'vars' operation")
+        raise ValueError("This function can only be used on objects that support the 'vars' operation")
+
+
+def all_basic_types(o: Iterable) -> bool:
+    """Checks if all entries of the iterable are of a basic datatype (int, str, float).
+
+    :param o: The iterable that should be checked.
+    :return: True if all entries of the iterable are of a basic datatype.
+    """
+    for item in o:
+        if not is_basic_type(item):
+            return False
+    return True
 
 
 def _object_to_dict(o: Any) -> Union[Optional[str], Dict[str, Any]]:
@@ -71,17 +84,27 @@ def _object_to_dict(o: Any) -> Union[Optional[str], Dict[str, Any]]:
     :return: Returns the argument if the object is a basic datatype, otherwise a dictionary mapping from attribute
     name to value.
     """
-    if is_basic_field(o):
+    if is_basic_type(o):
         return o
     if isinstance(o, enum.Enum):
         return o.name
+    if isinstance(o, list):
+        if not all_basic_types(o):
+            raise ValueError(f"Lists are only allowed to contain basic types (int, float, str), but got: {o}")
+        return o
+    if isinstance(o, dict):
+        if not all_basic_types(o.keys()):
+            raise ValueError(f"Dictionaries can only contain basic types (int, float, str) as keys, but got: {o}")
+        if not all_basic_types(o.values()):
+            raise ValueError(f"Dictionaries can only contain basic types (int, float, str) as values, but got: {o}")
+        return o
     if o is None:
         return o
     try:
         fields = get_all_writable_attributes(o)
         return {field: _object_to_dict(value) for field, value in fields.items()}
-    except ValueError:
-        return repr(o)
+    except ValueError as ex:
+        raise ValueError(f"Unable to traverse object {o}: {ex}")
 
 
 def object_to_dict(o: Any) -> Dict[str, Any]:
@@ -97,8 +120,8 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
     name to value.
     :raises ValueError: If the argument is a basic datatype (int, str, float)
     """
-    if is_basic_field(o):
-        raise ValueError("This function cannot be used on objects that are basic datatypes.")
+    if is_basic_type(o):
+        raise ValueError("This function can only be used on objects that are basic datatypes.")
     fields = get_all_writable_attributes(o)
     result = {}
     for field, value in fields.items():
@@ -130,8 +153,7 @@ def yaml_to_dict(s: str) -> Dict[str, Any]:
     return yaml.safe_load(stream=stream)
 
 
-def _write_dict_to_object(o: Any, d: Dict[str, Any],
-                          traversed_fields: Optional[List] = None) -> List[str]:
+def _write_dict_to_object(o: Any, d: Dict[str, Any], traversed_fields: Optional[List] = None) -> List[str]:
     """
     Writes a dictionary of values into an object, assuming that the attributes of the object and the dictionary keys
     are in sync. For example, to write a dictionary {"foo": 1, "bar": "baz"} to an object, the object needs to have
@@ -160,10 +182,13 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
             value_to_write = d[name]
             t_value = type(value)
             t_value_to_write = type(value_to_write)
-            if is_basic_field(value) and is_basic_field(value_to_write):
+            if is_basic_type(value) and is_basic_type(value_to_write):
                 if t_value != t_value_to_write:
-                    report_issue(name, f"Skipped. Current value has type {t_value.__name__}, but trying to "
-                                       f"write {t_value_to_write.__name__}")
+                    report_issue(
+                        name,
+                        f"Skipped. Current value has type {t_value.__name__}, but trying to "
+                        f"write {t_value_to_write.__name__}",
+                    )
                 try_set_field(name, value_to_write)
             elif isinstance(value, enum.Enum):
                 if isinstance(value_to_write, str):
@@ -174,28 +199,34 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any],
                     else:
                         try_set_field(name, enum_case)
                 else:
-                    report_issue(name, "Skipped. This is an Enum field. Can only write string values to that field "
-                                       f"(case name), but got value of type {t_value_to_write.__name__}")
+                    report_issue(
+                        name,
+                        "Skipped. This is an Enum field. Can only write string values to that field "
+                        f"(case name), but got value of type {t_value_to_write.__name__}",
+                    )
             elif value is None or value_to_write is None:
                 # We can't do much type checking if we get Nones. This is a potential source of errors.
                 try_set_field(name, value_to_write)
-            elif not is_basic_field(value) and isinstance(value_to_write, Dict):
+            elif not is_basic_type(value) and isinstance(value_to_write, Dict):
                 # For anything that is not a basic datatype, we expect that we get a dictionary of fields
                 # recursively.
-                new_issues = _write_dict_to_object(getattr(o, name), value_to_write,
-                                                   traversed_fields=traversed + [name])
+                new_issues = _write_dict_to_object(
+                    getattr(o, name), value_to_write, traversed_fields=traversed + [name]
+                )
                 issues.extend(new_issues)
             else:
-                report_issue(name, f"Skipped. Current value has type {t_value.__name__}, but trying to "
-                                   f"write {t_value_to_write.__name__}")
+                report_issue(
+                    name,
+                    f"Skipped. Current value has type {t_value.__name__}, but trying to "
+                    f"write {t_value_to_write.__name__}",
+                )
         else:
             report_issue(name, "Present in the object, but missing in the dictionary.")
 
     return issues
 
 
-def write_dict_to_object(o: Any, d: Dict[str, Any],
-                         strict: bool = True) -> None:
+def write_dict_to_object(o: Any, d: Dict[str, Any], strict: bool = True) -> None:
     """
     Writes a dictionary of values into an object, assuming that the attributes of the object and the dictionary keys
     are in sync. For example, to write a dictionary {"foo": 1, "bar": "baz"} to an object, the object needs to have
@@ -209,8 +240,7 @@ def write_dict_to_object(o: Any, d: Dict[str, Any],
     issues = _write_dict_to_object(o, d)
     if len(issues) == 0:
         return
-    message = f"Unable to complete writing to the object: Found {len(issues)} problems. Please inspect console log " \
-              "for details"
+    message = f"Unable to complete writing to the object: Found {len(issues)} problems. Please inspect console log."
     for issue in issues:
         logging.warning(issue)
     if strict:
@@ -219,8 +249,7 @@ def write_dict_to_object(o: Any, d: Dict[str, Any],
         logging.warning(message)
 
 
-def write_yaml_to_object(o: Any, yaml_string: str,
-                         strict: bool = False) -> None:
+def write_yaml_to_object(o: Any, yaml_string: str, strict: bool = False) -> None:
     """
     Writes a serialized object in YAML format back into an object, assuming that the attributes of the object and
     the YAML field names are in sync.
