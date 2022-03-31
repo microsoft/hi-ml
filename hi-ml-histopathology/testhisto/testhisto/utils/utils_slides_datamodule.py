@@ -3,29 +3,22 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
-from pathlib import Path
 import medmnist
-import pandas as pd
 import numpy as np
-
-import torch.utils.data as data
+import pandas as pd
 import torchvision.transforms as transforms
 
+from enum import Enum
 from torch import Tensor
+from pathlib import Path
 from medmnist import INFO
 from tifffile import TiffWriter
 
-from typing import Tuple, Optional, Iterable, List
+from torch.utils.data import DataLoader
+from typing import Tuple, Optional, List, Union
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from health_azure.utils import PathOrString
-
-METADATA_POSSIBLE_VALUES: dict = {
-    "data_provider": ["site_0", "site_1"],
-    "isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
-    "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
-}
-N_GLEASON_SCORES = 11
 
 
 class MockSlidesDataset(SlidesDataset):
@@ -39,7 +32,6 @@ class MockSlidesDataset(SlidesDataset):
 
     SLIDE_ID_COLUMN = "image_id"
     LABEL_COLUMN = "isup_grade"
-
     METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
 
     def __init__(
@@ -66,134 +58,175 @@ class MockSlidesDataModule(SlidesDataModule):
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
-def create_mock_metadata_dataframe(tmp_path: Path, n_samples: int = 4, seed: int = 42) -> None:
-    """Create a mock dataframe with random metadata.
+class WSIMockType(Enum):
+    PATHMNIST = "pathmnist"
+    FAKE = "fake"
 
-    :param tmp_path: A temporary directory to store the mock CSV file.
-    :param n_samples: Number of random samples to generate, defaults to 4.
-    :param seed: pseudorandom number generator seed to use for mocking random metadata, defaults to 42.
+
+class MockWSIGenerator:
+    """Generator class to create mock WSI on the fly. A mock WSI resembles to:
+                                [**      ]
+                                [  **    ]
+                                [    **  ]
+                                [      **]
+        where * reprents 2 tiles stitched along the Y axis.
+    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
+        The isup grades correspond to the gleason scores in the given order.
+    :param N_GLEASON_SCORES: The number of possible gleason_scores.
+    :param N_DATA_PROVIDERS: the number of possible data_providers.
+    :param IMAGE_COLUMN: CSV column name for relative path to image file.
+    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
+    :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset root directory.
     """
-    np.random.seed(seed)
-    mock_metadata: dict = {col: [] for col in [MockSlidesDataset.IMAGE_COLUMN, *MockSlidesDataset.METADATA_COLUMNS]}
-    for i in range(n_samples):
-        mock_metadata[MockSlidesDataset.IMAGE_COLUMN].append(f"_{i}")
-        rand_id = np.random.randint(0, N_GLEASON_SCORES)
-        for key, val in METADATA_POSSIBLE_VALUES:
-            i = rand_id if len(val) == N_GLEASON_SCORES else np.random.randint(2)
-            # We want to make sure we're picking the same random index (rand_id) for isup_grade and gleason_score.
-            # Otherewise chose either site_0 or site_1 as data_provider.
-            mock_metadata[key].append(val[i])
-    df = pd.DataFrame(data=mock_metadata)
-    df.to_csv(os.path.join(tmp_path, MockSlidesDataset.DEFAULT_CSV_FILENAME), index=False)
 
+    METADATA_POSSIBLE_VALUES: dict = {
+        "data_provider": ["site_0", "site_1"],
+        "isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
+        "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
+    }
+    N_GLEASON_SCORES = len(METADATA_POSSIBLE_VALUES["gleason_score"])
+    N_DATA_PROVIDERS = len(METADATA_POSSIBLE_VALUES["data_provider"])
 
-def get_pathmnist_data_loader(batch_size: int = 1) -> Iterable[Tensor]:
-    """Get a dataloader for pathmnist dataset. It returns tiles of shape (batch_size, 3, 28, 28).
+    IMAGE_COLUMN = MockSlidesDataset.IMAGE_COLUMN
+    METADATA_COLUMNS = MockSlidesDataset.METADATA_COLUMNS
+    DEFAULT_CSV_FILENAME = MockSlidesDataset.DEFAULT_CSV_FILENAME
 
-    :param batch_size: how many samples per batch to load, defaults to 1.
-    :return: A dataloader to sample pathmnist tiles.
-    """
-    info = INFO["pathmnist"]
-    DataClass = getattr(medmnist, info["python_class"])
-    data_transform = transforms.Compose([transforms.ToTensor()])
-    dataset = DataClass(split="train", transform=data_transform, download=True)
-    data_loader = data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
-    return data_loader
+    def __init__(
+        self,
+        tmp_path: Path,
+        mock_type: WSIMockType = WSIMockType.PATHMNIST,
+        seed: int = 42,
+        batch_size: int = 1,
+        n_samples: int = 4,
+        n_repeat_diag: int = 4,
+        n_repeat_tile: int = 2,
+        n_channels: int = 3,
+        n_levels: int = 3,
+        tile_size: int = 28,
+        background_val: Union[int, float] = 255,
+    ) -> None:
+        """
+        :param tmp_path: A temporary directory to store all generated data.
+        :param mock_type: The wsi generator mock type. Supported mock types are:
+            WSIMockType.PATHMNIST: for creating mock WSI by stitching tiles from pathmnist.
+            WSIMockType.FAKE: for creating mock WSI by stitching fake tiles.
+        :param batch_size: how many samples per batch to load, defaults to 1.
+            if batch_size > 1 WSIs are generated from different tiles.
+        :param seed: pseudorandom number generator seed to use for mocking random metadata, defaults to 42.
+        :param n_samples: Number of random samples to generate, defaults to 4.
+        :param n_repeat_diag: Number of repeat time along the diagonal axis, defaults to 4.
+        :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
+        :param n_channels: Number of channels, defaults to 3.
+        :param n_levels: Number of levels for multi resolution WSI.
+        :param tile_size: The tile size, defaults to 28.
+        :param background_val: A value to assign to the background, defaults to 255.
+        """
+        np.random.seed(seed)
+        self.tmp_path = tmp_path
+        self.mock_type = mock_type
+        self.batch_size = batch_size
+        self.n_samples = n_samples
+        self.n_repeat_diag = n_repeat_diag
+        self.n_repeat_tile = n_repeat_tile
+        self.n_channels = n_channels
+        self.n_levels = n_levels
+        self.tile_size = tile_size
+        self.background_val = background_val
 
+        self._dtype = np.uint8 if type(background_val) == int else np.float32
+        self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
-def save_mock_wsi_as_tiff_file(file_name: str, wsi_levels: List[np.ndarray]) -> None:
-    """Save a mock whole slide image as a tiff file of pyramidal resolution levels.
-    Warning: this function expects images to be in channels last format (H, W, 3).
+        self.dataloader = self.get_dataloader()
+        self.create_mock_metadata_dataframe()
 
-    :param file_name: The tiff file name.
-    :param wsi_levels: List of whole slide images of different resolution levels in channels last format.
-    """
-    with TiffWriter(file_name, bigtiff=True) as tif:
-        options = dict(photometric="rgb", compression="zlib")
-        for i, wsi_level in enumerate(wsi_levels):
-            # the subfiletype parameter is a bitfield that determines if the wsi_level is a reduced version of
-            # another image.
-            tif.write(wsi_level, **options, subfiletype=int(i > 0))
+    def get_dataloader(self) -> DataLoader:
+        if self.type == WSIMockType.PATHMNIST:
+            return self.get_pathmnist_dataloader()
+        elif self.type == WSIMockType.FAKE:
+            return self.get_fake_dataloader()
+        else:
+            raise NotImplementedError
 
+    def create_mock_metadata_dataframe(self) -> None:
+        """Create a mock dataframe with random metadata."""
+        mock_metadata: dict = {col: [] for col in [self.IMAGE_COLUMN, *self.METADATA_COLUMNS]}
+        for i in range(self.n_samples):
+            mock_metadata[MockSlidesDataset.IMAGE_COLUMN].append(f"_{i}")
+            rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
+            for key, val in self.METADATA_POSSIBLE_VALUES:
+                i = rand_id if len(val) == self.N_GLEASON_SCORES else np.random.randint(self.N_DATA_PROVIDERS)
+                # Make sure to pick the same random index (rand_id) for isup_grade and gleason_score, otherwise
+                # chose among possible data_providers.
+                mock_metadata[key].append(val[i])
+        df = pd.DataFrame(data=mock_metadata)
+        df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
 
-def create_pathmnist_stitched_tiles(
-    tiles: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int, different_tiles: bool = False
-) -> np.ndarray:
-    mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=255, dtype=np.uint8)
-    for i, tile in enumerate(tiles):
-        tile = tiles[0] if not different_tiles else tile
-        _tile = (tile.numpy() * 255).astype(np.uint8)
-        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_tile, (2, 2))
-        if different_tiles:
-            np.save(os.path.join("pathmnist", f"_{sample_counter}", f"tile_{i}.npy"), _tile)
-        elif i == 0:
-            np.save(os.path.join("pathmnist", f"_{sample_counter}_tile.npy"), _tile)
-    return np.transpose(mock_image, (1, 2, 0))
+    # def get_fake_dataloader(self) -> DataLoader:
+    #     # TODO create a fake dataloader
+    #     return NotImplementedError
 
+    def get_pathmnist_dataloader(self) -> DataLoader:
+        """Get a dataloader for pathmnist dataset. It returns tiles of shape (batch_size, 3, 28, 28).
+        :return: A dataloader to sample pathmnist tiles.
+        """
+        info = INFO["pathmnist"]
+        DataClass = getattr(medmnist, info["python_class"])
+        data_transform = transforms.Compose([transforms.ToTensor()])
+        dataset = DataClass(split="train", transform=data_transform, download=True)
+        dataloader = DataLoader(dataset=dataset, batch_size=self.batch_size, shuffle=True)
+        return dataloader
 
-def create_multi_resolution_wsi(mock_image: np.ndarray, n_levels: int) -> List[np.ndarray]:
-    """Create multi resolution versions of a mock image via 2 factor downsampling.
+    def create_wsi_from_stitched_tiles(self, tiles: Tensor) -> np.ndarray:
+        """Create a whole slide image by stitching tiles along the diagonal axis.
 
-    :param mock_image: A mock image in channels last format (H, W, 3).
-    :param n_levels: The number of levels to be generated.
-    :return: Returns a list of n_levels downsampled versions of the original mock image.
-    """
-    levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(n_levels)]
-    return levels
-
-
-def create_pathmnist_mock_wsis(
-    tile_size: int = 28,
-    n_tiles: int = 2,
-    n_repeat: int = 4,
-    n_channels: int = 3,
-    n_samples: int = 4,
-    n_levels: int = 3,
-    different_tiles: bool = False,
-) -> None:
-
-    data_loader = get_pathmnist_data_loader(n_repeat)
-    for sample_counter in range(n_samples):
-        if different_tiles:
-            os.makedirs(f"pathmnist/_{sample_counter}", exist_ok=True)
-        tiles, _ = next(iter(data_loader))
-        mock_image = create_pathmnist_stitched_tiles(
-            tiles,
-            sample_counter,
-            img_size=n_tiles * n_repeat * tile_size,
-            n_channels=n_channels,
-            step_size=n_tiles * tile_size,
-            different_tiles=different_tiles,
+        :param tiles: A tensor of tiles of shape (batch_size, channels, tile_size, tile_size).
+        :return: returns a wsi of shape (img_size, img_size, channels).
+        The image is  in channels_last format so that it can save by a TiffWriter.
+        """
+        mock_image = np.full(
+            shape=(self.n_channels, self.img_size, self.img_size), fill_value=self.background_val, dtype=self._dtype
         )
-        levels = create_multi_resolution_wsi(mock_image, n_levels)
-        save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"_{sample_counter}.tiff"), levels)
+        for i in range(self.n_repeat_diag):
+            tile_id = 0 if tiles.shape[0] == 1 else i  # if self.batch_size > 1 pick a different tile at each i.
+            tile = (
+                (tiles[tile_id].numpy() * 255).astype(self._dtype)
+                if self._dtype == np.uint8
+                else tiles[tile_id].numpy()
+            )
+            mock_image[
+                :, self.tile_size * i: self.tile_size * (i + 1), self.tile_size * i: self.tile_size * (i + 1)
+            ] = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
+        return np.transpose(mock_image, (1, 2, 0))  # switch to channels_last.
 
+    def save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
+        """Save a mock whole slide image as a tiff file of pyramidal levels.
+        Warning: this function expects images to be in channels_last format (H, W, C).
 
-def create_fake_stitched_tiles(
-    img_size: int, n_channels: int, step_size: int, n_repeat: int, fill_val: int
-) -> np.ndarray:
-    mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.uint8)
-    for i in range(n_repeat):
-        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = fill_val * (i + 1)
-    return np.transpose(mock_image, (1, 2, 0))
+        :param file_name: The tiff file name path.
+        :param wsi_levels: List of whole slide images of different resolution levels in channels_last format.
+        """
+        with TiffWriter(file_path, bigtiff=True) as tif:
+            options = dict(photometric="rgb", compression="zlib")
+            for i, wsi_level in enumerate(wsi_levels):
+                # the subfiletype parameter is a bitfield that determines if the wsi_level is a reduced version of
+                # another image.
+                tif.write(wsi_level, **options, subfiletype=int(i > 0))
 
+    def create_multi_resolution_wsi(self, mock_image: np.ndarray) -> List[np.ndarray]:
+        """Create multi resolution versions of a mock image via 2 factor downsampling.
 
-def create_fake_mock_wsis(
-    tile_size: int = 28,
-    n_tiles: int = 2,
-    n_repeat: int = 4,
-    n_channels: int = 3,
-    n_samples: int = 4,
-    n_levels: int = 3,
-) -> None:
+        :param mock_image: A mock image in channels_last format (H, W, 3).
+        :return: Returns a list of n_levels downsampled versions of the original mock image.
+        """
+        levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(self.n_levels)]
+        return levels
 
-    for sample_counter in range(n_samples):
-        mock_image = create_fake_stitched_tiles(
-            img_size=n_tiles * n_repeat * tile_size,
-            n_channels=n_channels,
-            step_size=n_tiles * tile_size,
-            n_repeat=n_repeat,
-            fill_val=np.random.randint(0, 60),
-        )
-        levels = create_multi_resolution_wsi(mock_image, n_levels)
-        save_mock_wsi_as_tiff_file(os.path.join("fake", f"_{sample_counter}.tiff"), levels)
+    def __call__(self) -> None:
+        """Create mock wsi and save them as tiff files"""
+        for sample_counter in range(self.n_samples):
+            tiles, _ = next(iter(self.data_loader))
+            mock_image = self.create_wsi_from_stitched_tiles(tiles)
+            wsi_levels = self.create_multi_resolution_wsi(mock_image)
+            self.save_mock_wsi_as_tiff_file(os.path.join(self.tmp_path, f"_{sample_counter}.tiff"), wsi_levels)
+            for i, tile in enumerate(tiles):
+                np.save(os.path.join(self.tmp_path, f"_{sample_counter}_tile_{i}.npy"), tile.numpy())
