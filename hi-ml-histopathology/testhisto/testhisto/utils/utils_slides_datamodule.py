@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
 import medmnist
 import pandas as pd
 import numpy as np
@@ -19,7 +20,7 @@ from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from health_azure.utils import PathOrString
 
-METADATA_POSSIBLE_VALUES = {
+METADATA_POSSIBLE_VALUES: dict = {
     "data_provider": ["site_0", "site_1"],
     "isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
     "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
@@ -29,7 +30,7 @@ N_GLEASON_SCORES = 11
 
 class MockSlidesDataset(SlidesDataset):
     """Mock and child class of SlidesDataset, to be used for testing purposes.
-    It overrides the following, according to the PANDA cohort setting:
+    It overrides the following, according to the PANDA cohort settings:
 
     :param SLIDE_ID_COLUMN: CSV column name for slide ID set to "image_id".
     :param LABEL_COLUMN: CSV column name for tile label set to "isup_grade".
@@ -59,14 +60,13 @@ class MockSlidesDataset(SlidesDataset):
 
 
 class MockSlidesDataModule(SlidesDataModule):
-    """Mock and child class of SlidesDataModule. It overrides get_splits so that it uses MockSlidesDataset.
-    """
+    """Mock and child class of SlidesDataModule, overrides get_splits so that it uses MockSlidesDataset."""
 
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
-def create_mock_metadata_dataframe(tmp_path: str, n_samples: int = 4, seed: int = 42) -> None:
+def create_mock_metadata_dataframe(tmp_path: Path, n_samples: int = 4, seed: int = 42) -> None:
     """Create a mock dataframe with random metadata.
 
     :param tmp_path: A temporary directory to store the mock CSV file.
@@ -81,17 +81,39 @@ def create_mock_metadata_dataframe(tmp_path: str, n_samples: int = 4, seed: int 
         for key, val in METADATA_POSSIBLE_VALUES:
             i = rand_id if len(val) == N_GLEASON_SCORES else np.random.randint(2)
             # We want to make sure we're picking the same random index (rand_id) for isup_grade and gleason_score.
-            # Otherewise chose either site_0 or site_1 data_provider.
+            # Otherewise chose either site_0 or site_1 as data_provider.
             mock_metadata[key].append(val[i])
     df = pd.DataFrame(data=mock_metadata)
     df.to_csv(os.path.join(tmp_path, MockSlidesDataset.DEFAULT_CSV_FILENAME), index=False)
 
 
-def save_mock_wsi_as_tiff_file(file_name: str, levels: List[np.ndarray]) -> None:
+def get_pathmnist_data_loader(batch_size: int = 1) -> Iterable[Tensor]:
+    """Get a dataloader for pathmnist dataset. It returns tiles of shape (batch_size, 3, 28, 28).
+
+    :param batch_size: how many samples per batch to load, defaults to 1.
+    :return: A dataloader to sample pathmnist tiles.
+    """
+    info = INFO["pathmnist"]
+    DataClass = getattr(medmnist, info["python_class"])
+    data_transform = transforms.Compose([transforms.ToTensor()])
+    dataset = DataClass(split="train", transform=data_transform, download=True)
+    data_loader = data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+    return data_loader
+
+
+def save_mock_wsi_as_tiff_file(file_name: str, wsi_levels: List[np.ndarray]) -> None:
+    """Save a mock whole slide image as a tiff file of pyramidal resolution levels.
+    Warning: this function expects images to be in channels last format (H, W, 3).
+
+    :param file_name: The tiff file name.
+    :param wsi_levels: List of whole slide images of different resolution levels in channels last format.
+    """
     with TiffWriter(file_name, bigtiff=True) as tif:
         options = dict(photometric="rgb", compression="zlib")
-        for i, serie in enumerate(levels):
-            tif.write(serie, **options, subfiletype=int(i > 0))
+        for i, wsi_level in enumerate(wsi_levels):
+            # the subfiletype parameter is a bitfield that determines if the wsi_level is a reduced version of
+            # another image.
+            tif.write(wsi_level, **options, subfiletype=int(i > 0))
 
 
 def create_pathmnist_stitched_tiles(
@@ -101,7 +123,7 @@ def create_pathmnist_stitched_tiles(
     for i, tile in enumerate(tiles):
         tile = tiles[0] if not different_tiles else tile
         _tile = (tile.numpy() * 255).astype(np.uint8)
-        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = np.tile(_tile, (2, 2))
+        mock_image[:, step_size * i: step_size * (i + 1), step_size * i: step_size * (i + 1)] = np.tile(_tile, (2, 2))
         if different_tiles:
             np.save(os.path.join("pathmnist", f"_{sample_counter}", f"tile_{i}.npy"), _tile)
         elif i == 0:
@@ -110,17 +132,14 @@ def create_pathmnist_stitched_tiles(
 
 
 def create_multi_resolution_wsi(mock_image: np.ndarray, n_levels: int) -> List[np.ndarray]:
+    """Create multi resolution versions of a mock image via 2 factor downsampling.
+
+    :param mock_image: A mock image in channels last format (H, W, 3).
+    :param n_levels: The number of levels to be generated.
+    :return: Returns a list of n_levels downsampled versions of the original mock image.
+    """
     levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(n_levels)]
     return levels
-
-
-def get_pathmnist_data_loader(batch_size: int = 4) -> Iterable[Tensor]:
-    info = INFO["pathmnist"]
-    DataClass = getattr(medmnist, info["python_class"])
-    data_transform = transforms.Compose([transforms.ToTensor()])
-    dataset = DataClass(split="train", transform=data_transform, download=True)
-    data_loader = data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
-    return data_loader
 
 
 def create_pathmnist_mock_wsis(
