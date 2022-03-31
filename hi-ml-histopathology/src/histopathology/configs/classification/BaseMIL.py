@@ -164,9 +164,7 @@ class BaseMIL(LightningContainer):
                                        class_names=self.class_names,
                                        outputs_handler=outputs_handler
                                        )
-        # WARNING: We set slides_dataset out of the constructor so that it's not saved as a hyperparameter as
-        # slides_datasets are not dumpable by yaml.
-        deepmil_module.outputs_handler.slides_dataset = self.get_slides_dataset()
+        deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
     def get_data_module(self) -> TilesDataModule:
