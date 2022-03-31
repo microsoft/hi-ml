@@ -3,16 +3,24 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import medmnist
 import pandas as pd
 import numpy as np
 
-from typing import Tuple, Optional
+import torch.utils.data as data
+import torchvision.transforms as transforms
+
+from torch import Tensor
+from medmnist import INFO
+from tifffile import TiffWriter
+
+from typing import Tuple, Optional, Iterable, List
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from health_azure.utils import PathOrString
 
 METADATA_POSSIBLE_VALUES = {
-    "data_provider": ["site_1", "site_2"],
+    "data_provider": ["site_0", "site_1"],
     "isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
     "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
 }
@@ -68,9 +76,105 @@ def create_mock_metadata_dataframe(tmp_path: str, n_samples: int = 4, seed: int 
     np.random.seed(seed)
     mock_metadata: dict = {col: [] for col in [MockSlidesDataset.IMAGE_COLUMN, *MockSlidesDataset.METADATA_COLUMNS]}
     for i in range(n_samples):
-        rand_id = np.random.randint(0, N_GLEASON_SCORES)
         mock_metadata[MockSlidesDataset.IMAGE_COLUMN].append(f"_{i}")
+        rand_id = np.random.randint(0, N_GLEASON_SCORES)
         for key, val in METADATA_POSSIBLE_VALUES:
-            mock_metadata[key].append(val[rand_id if len(val) == N_GLEASON_SCORES else np.random.randint(2)])
+            i = rand_id if len(val) == N_GLEASON_SCORES else np.random.randint(2)
+            # We want to make sure we're picking the same random index (rand_id) for isup_grade and gleason_score.
+            # Otherewise chose either site_0 or site_1 data_provider.
+            mock_metadata[key].append(val[i])
     df = pd.DataFrame(data=mock_metadata)
     df.to_csv(os.path.join(tmp_path, MockSlidesDataset.DEFAULT_CSV_FILENAME), index=False)
+
+
+def save_mock_wsi_as_tiff_file(file_name: str, levels: List[np.ndarray]) -> None:
+    with TiffWriter(file_name, bigtiff=True) as tif:
+        options = dict(photometric="rgb", compression="zlib")
+        for i, serie in enumerate(levels):
+            tif.write(serie, **options, subfiletype=int(i > 0))
+
+
+def create_pathmnist_stitched_tiles(
+    tiles: Tensor, sample_counter: int, img_size: int, n_channels: int, step_size: int, different_tiles: bool = False
+) -> np.ndarray:
+    mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=255, dtype=np.uint8)
+    for i, tile in enumerate(tiles):
+        tile = tiles[0] if not different_tiles else tile
+        _tile = (tile.numpy() * 255).astype(np.uint8)
+        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = np.tile(_tile, (2, 2))
+        if different_tiles:
+            np.save(os.path.join("pathmnist", f"_{sample_counter}", f"tile_{i}.npy"), _tile)
+        elif i == 0:
+            np.save(os.path.join("pathmnist", f"_{sample_counter}_tile.npy"), _tile)
+    return np.transpose(mock_image, (1, 2, 0))
+
+
+def create_multi_resolution_wsi(mock_image: np.ndarray, n_levels: int) -> List[np.ndarray]:
+    levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(n_levels)]
+    return levels
+
+
+def get_pathmnist_data_loader(batch_size: int = 4) -> Iterable[Tensor]:
+    info = INFO["pathmnist"]
+    DataClass = getattr(medmnist, info["python_class"])
+    data_transform = transforms.Compose([transforms.ToTensor()])
+    dataset = DataClass(split="train", transform=data_transform, download=True)
+    data_loader = data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+    return data_loader
+
+
+def create_pathmnist_mock_wsis(
+    tile_size: int = 28,
+    n_tiles: int = 2,
+    n_repeat: int = 4,
+    n_channels: int = 3,
+    n_samples: int = 4,
+    n_levels: int = 3,
+    different_tiles: bool = False,
+) -> None:
+
+    data_loader = get_pathmnist_data_loader(n_repeat)
+    for sample_counter in range(n_samples):
+        if different_tiles:
+            os.makedirs(f"pathmnist/_{sample_counter}", exist_ok=True)
+        tiles, _ = next(iter(data_loader))
+        mock_image = create_pathmnist_stitched_tiles(
+            tiles,
+            sample_counter,
+            img_size=n_tiles * n_repeat * tile_size,
+            n_channels=n_channels,
+            step_size=n_tiles * tile_size,
+            different_tiles=different_tiles,
+        )
+        levels = create_multi_resolution_wsi(mock_image, n_levels)
+        save_mock_wsi_as_tiff_file(os.path.join("pathmnist", f"_{sample_counter}.tiff"), levels)
+
+
+def create_fake_stitched_tiles(
+    img_size: int, n_channels: int, step_size: int, n_repeat: int, fill_val: int
+) -> np.ndarray:
+    mock_image = np.full(shape=(n_channels, img_size, img_size), fill_value=1, dtype=np.uint8)
+    for i in range(n_repeat):
+        mock_image[:, step_size * i : step_size * (i + 1), step_size * i : step_size * (i + 1)] = fill_val * (i + 1)
+    return np.transpose(mock_image, (1, 2, 0))
+
+
+def create_fake_mock_wsis(
+    tile_size: int = 28,
+    n_tiles: int = 2,
+    n_repeat: int = 4,
+    n_channels: int = 3,
+    n_samples: int = 4,
+    n_levels: int = 3,
+) -> None:
+
+    for sample_counter in range(n_samples):
+        mock_image = create_fake_stitched_tiles(
+            img_size=n_tiles * n_repeat * tile_size,
+            n_channels=n_channels,
+            step_size=n_tiles * tile_size,
+            n_repeat=n_repeat,
+            fill_val=np.random.randint(0, 60),
+        )
+        levels = create_multi_resolution_wsi(mock_image, n_levels)
+        save_mock_wsi_as_tiff_file(os.path.join("fake", f"_{sample_counter}.tiff"), levels)
