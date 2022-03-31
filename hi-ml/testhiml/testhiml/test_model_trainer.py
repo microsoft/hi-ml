@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Dict
 from unittest.mock import MagicMock, patch, Mock
 
+from numpy import floor, random
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
 
@@ -85,6 +86,58 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
     assert isinstance(storing_logger, StoringLogger)
+
+
+def test_create_lightning_trainer_limit_batches() -> None:
+    model_name = "HelloWorld"
+    model_config_loader = ModelConfigLoader()
+    container = model_config_loader.create_model_config_from_name(model_name)
+    container.monitor_gpu = False
+    container.monitor_loading = False
+    container.max_epochs = 1
+
+    container.create_lightning_module_and_store()
+    lightning_model = container.model
+    data_module = container.get_data_module()
+
+    _mock_logger = MagicMock()
+    _mock_logger.log.return_value = None
+
+    # first create a trainer and check what the default number of train batches is
+    trainer, _ = create_lightning_trainer(container)
+    # We have to call the 'fit' method on the trainer before it updates the number of batches
+    with patch.object(trainer, "logger", new=_mock_logger):
+        trainer.fit(lightning_model, data_module)
+    original_num_train_batches = trainer.num_training_batches
+    original_num_val_batches = trainer.num_val_batches[0]
+
+    # Now try to limit the number of batches to an integer number
+    limit_train_batches_int = random.randint(1, 10)
+    limit_val_batches_int = random.randint(1, 10)
+    container.pl_limit_train_batches = limit_train_batches_int
+    container.pl_limit_val_batches = limit_val_batches_int
+
+    trainer2, _ = create_lightning_trainer(container)
+    assert trainer2.limit_train_batches == limit_train_batches_int
+    assert trainer2.limit_val_batches == limit_val_batches_int
+    with patch.object(trainer2, "logger", new=_mock_logger):
+        trainer2.fit(lightning_model, data_module)
+    assert trainer2.num_training_batches == limit_train_batches_int
+    assert trainer2.num_val_batches[0] == limit_val_batches_int
+
+    # try to limit the number of batches with float number (i.e. proportion of full data)
+    limit_train_batches_float = random.uniform(0.1, 1.0)
+    limit_val_batches_float = random.uniform(0.1, 1.0)
+    container.pl_limit_train_batches = limit_train_batches_float
+    container.pl_limit_val_batches = limit_val_batches_float
+    trainer3, _ = create_lightning_trainer(container)
+    assert trainer3.limit_train_batches == limit_train_batches_float
+    assert trainer3.limit_val_batches == limit_val_batches_float
+    with patch.object(trainer3, "logger", new=_mock_logger):
+        trainer3.fit(lightning_model, data_module)
+    # The number of batches should be a proportion of the full available set
+    assert trainer3.num_training_batches == floor(limit_train_batches_float * original_num_train_batches)
+    assert trainer3.num_val_batches[0] == floor(limit_val_batches_float * original_num_val_batches)
 
 
 def test_model_train() -> None:
