@@ -140,9 +140,9 @@ class MockWSIGenerator:
         self.create_mock_metadata_dataframe()
 
     def get_dataloader(self) -> DataLoader:
-        if self.type == WSIMockType.PATHMNIST:
+        if self.mock_type == WSIMockType.PATHMNIST:
             return self.get_pathmnist_dataloader()
-        elif self.type == WSIMockType.FAKE:
+        elif self.mock_type == WSIMockType.FAKE:
             return self.get_fake_dataloader()
         else:
             raise NotImplementedError
