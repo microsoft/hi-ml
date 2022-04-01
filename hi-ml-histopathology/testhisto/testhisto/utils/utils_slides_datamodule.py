@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import py
 import medmnist
 import numpy as np
 import pandas as pd
@@ -10,7 +11,6 @@ import torchvision.transforms as transforms
 
 from enum import Enum
 from torch import Tensor
-from pathlib import Path
 from medmnist import INFO
 from tifffile import TiffWriter
 
@@ -93,7 +93,7 @@ class MockWSIGenerator:
 
     def __init__(
         self,
-        tmp_path: Path,
+        tmp_path: py.path.local,
         mock_type: MockWSIType = MockWSIType.PATHMNIST,
         seed: int = 42,
         batch_size: int = 1,
@@ -184,7 +184,7 @@ class MockWSIGenerator:
         dump_tiles = []
         for i in range(self.n_repeat_diag):
             if self.mock_type == MockWSIType.PATHMNIST:
-                tile_id = 0 if tiles.shape[0] == 1 else i  # if self.batch_size > 1 pick a different tile at each i.
+                tile_id = 0 if self.batch_size == 1 else i  # if self.batch_size > 1 pick a different tile at each i.
                 tile = (
                     (tiles[tile_id].numpy() * 255).astype(self._dtype)
                     if self._dtype == np.uint8
@@ -195,7 +195,7 @@ class MockWSIGenerator:
 
             elif self.mock_type == MockWSIType.FAKE:
                 # pick a random fake value to fill in the square diagonal. We use a np.random.choice over a linear
-                # space [0, self.background_val / (self.n_repeat_diag + 1)] so that it works for both float and int.
+                # space [0, self.background_val / (self.n_repeat_diag + 1)] so that it works for both float and uint.
                 fill_square = np.random.choice(np.linspace(0, self.background_val / (self.n_repeat_diag + 1), 10)) * (
                     i + 1
                 )
@@ -212,7 +212,7 @@ class MockWSIGenerator:
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
     @staticmethod
-    def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
+    def _save_mock_wsi_as_tiff_file(file_path: py.path.local, wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
         Warning: this function expects images to be in channels_last format (H, W, C).
 
@@ -241,5 +241,5 @@ class MockWSIGenerator:
             tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
             mock_image, dump_tiles = self.create_wsi_from_stitched_tiles(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
-            np.save(self.tmp_path / f"_{sample_counter}_tile.npy", dump_tiles)
+            self._save_mock_wsi_as_tiff_file(self.tmp_path.join(f"_{sample_counter}.tiff"), wsi_levels)
+            np.save(self.tmp_path.join(f"_{sample_counter}_tile.npy"), dump_tiles)
