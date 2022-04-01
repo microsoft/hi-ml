@@ -134,7 +134,7 @@ class MockWSIGenerator:
         self.tile_size = tile_size
         self.background_val = background_val
 
-        self.step_size = self.tile_size * self.n_repeat_tile  # the step size represents the diagonal square size.  
+        self.step_size = self.tile_size * self.n_repeat_tile  # the step size represents the diagonal square size.
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
