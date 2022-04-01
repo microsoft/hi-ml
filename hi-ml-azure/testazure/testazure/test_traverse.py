@@ -12,10 +12,17 @@ import param
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from health_azure.traverse import (_object_to_dict, get_all_writable_attributes, is_basic_type, object_to_dict, object_to_yaml,
-                                   yaml_to_dict,
-                                   write_dict_to_object,
-                                   write_yaml_to_object, _write_dict_to_object)
+from health_azure.traverse import (
+    _object_to_dict,
+    get_all_writable_attributes,
+    is_basic_type,
+    object_to_dict,
+    object_to_yaml,
+    yaml_to_dict,
+    write_dict_to_object,
+    write_yaml_to_object,
+    _write_dict_to_object,
+)
 
 
 @dataclass
@@ -44,7 +51,7 @@ class TripleNestedConfig:
 
 
 @dataclass
-class ConfigWithList1:
+class ConfigWithList:
     list_field: List[Any] = field(default_factory=list)
 
 
@@ -82,7 +89,7 @@ def test_traverse2() -> None:
     d = object_to_dict(config)
     assert d == {
         "optimizer": {"learning_rate": 1e-3, "optimizer": "Adam"},
-        "transforms": {"blur_sigma": 0.1, "blur_p": 0.2}
+        "transforms": {"blur_sigma": 0.1, "blur_p": 0.2},
     }
 
 
@@ -103,7 +110,7 @@ def test_traverse_params_readonly() -> None:
 
 def test_traverse_list() -> None:
     """Lists of basic datatypes should be serialized"""
-    list_config = ConfigWithList1(list_field=[1, 2.5, "foo"])
+    list_config = ConfigWithList(list_field=[1, 2.5, "foo"])
     assert object_to_yaml(list_config) == """list_field:
 - 1
 - 2.5
@@ -122,11 +129,11 @@ def test_is_basic() -> None:
     assert not is_basic_type(None)
     assert not is_basic_type(dict())
     assert not is_basic_type([])
-    
+
 
 def test_traverse_dict() -> None:
     """Fields with dictionaries with basic datatypes should be serialized"""
-    list_config = ConfigWithList1(list_field={1: "foo", "bar": 2.0})
+    list_config = ConfigWithList(list_field={1: "foo", "bar": 2.0})
     assert object_to_yaml(list_config) == """list_field:
   1: foo
   bar: 2.0
@@ -178,6 +185,19 @@ def test_params_roundtrip() -> None:
     print("\n" + yaml)
     dict = yaml_to_dict(yaml)
     assert dict == object_to_dict(config)
+
+
+@pytest.mark.parametrize("my_list", [[1, "foo"], [], {1: 2.0}, {}])
+def test_list_dict_roundtrip(my_list: Any) -> None:
+    """Test if configs with lists and dicts can be converted to YAML and back"""
+    my_list = [1, "foo"]
+    config = ConfigWithList(list_field=my_list)
+    yaml = object_to_yaml(config)
+    print("\n" + yaml)
+    # Initialize the new object with a non-empty list, to see if the empty gets correctly written
+    config2 = ConfigWithList(list_field=["not_in_args"])
+    write_yaml_to_object(config2, yaml)
+    assert config2.list_field == my_list
 
 
 def test_write_flat() -> None:

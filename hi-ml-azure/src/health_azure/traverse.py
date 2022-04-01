@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, Union, List, Optional
 
 import param
 from ruamel import yaml
+from torch import isin
 
 
 def is_basic_type(o: Any) -> bool:
@@ -206,6 +207,10 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any], traversed_fields: Optional[
                     )
             elif value is None or value_to_write is None:
                 # We can't do much type checking if we get Nones. This is a potential source of errors.
+                try_set_field(name, value_to_write)
+            elif isinstance(value, List) and isinstance(value_to_write, List):
+                try_set_field(name, value_to_write)
+            elif isinstance(value, Dict) and isinstance(value_to_write, Dict):
                 try_set_field(name, value_to_write)
             elif not is_basic_type(value) and isinstance(value_to_write, Dict):
                 # For anything that is not a basic datatype, we expect that we get a dictionary of fields
