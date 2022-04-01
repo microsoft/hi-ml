@@ -832,6 +832,7 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
 ) -> None:
+    # TODO
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
@@ -852,10 +853,6 @@ dependencies:
     assert list(env.python.conda_dependencies.conda_packages) == list(conda_dependencies.conda_packages)
     assert list(env.python.conda_dependencies.pip_options) == list(conda_dependencies.pip_options)
     assert list(env.python.conda_dependencies.pip_packages) == list(conda_dependencies.pip_packages)
-    assert "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC" in env.environment_variables
-    assert "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE" in env.environment_variables
     # Just check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
     assert env.name.startswith("HealthML")
 
@@ -864,11 +861,7 @@ dependencies:
     env = util.create_python_environment(
         conda_environment_file=conda_environment_file,
         pip_extra_index_url=pip_extra_index_url,
-        docker_base_image=docker_base_image,
-        environment_variables={"HELLO": "world"})
-    # Environment variables should be added to the default ones
-    assert "HELLO" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
+        docker_base_image=docker_base_image)
     assert env.docker.base_image == docker_base_image
 
     private_pip_wheel_url = "https://some.blob/private/wheel"
@@ -911,11 +904,6 @@ dependencies:
                                           pip_extra_index_url="foo")
     assert env3.name != env2.name
 
-    # Environment variables
-    env4 = util.create_python_environment(conda_environment_file=conda_environment_file,
-                                          environment_variables={"foo": "bar"})
-    assert env4.name != env2.name
-
     # Docker base image
     env5 = util.create_python_environment(conda_environment_file=conda_environment_file,
                                           docker_base_image="docker")
@@ -930,7 +918,7 @@ dependencies:
             private_pip_wheel_path=Path(__file__))
         assert env6.name != env2.name
 
-    all_names = [env1.name, env2.name, env3.name, env4.name, env5.name, env6.name]
+    all_names = [env1.name, env2.name, env3.name, env5.name, env6.name]
     all_names_set = {*all_names}
     assert len(all_names) == len(all_names_set), "Environment names are not unique"
 
