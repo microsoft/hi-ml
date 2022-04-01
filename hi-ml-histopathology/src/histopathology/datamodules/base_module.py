@@ -26,7 +26,6 @@ from monai.apps.pathology.transforms import TileOnGridd
 from monai.data.image_reader import WSIReader
 
 
-
 class CacheMode(Enum):
     NONE = "none"
     MEMORY = "memory"
