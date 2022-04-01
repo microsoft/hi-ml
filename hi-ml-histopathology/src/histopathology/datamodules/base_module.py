@@ -124,21 +124,6 @@ class HistoDataModule(LightningDataModule):
             dataset = Dataset(dataset, transform)  # type: ignore
         return dataset
 
-    def _get_dataloader(
-        self, dataset: Dataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
-    ) -> DataLoader:
-        """Return the corresponding dataloader for a given histo_dataset at a given stage"""
-        raise NotImplementedError
-
-    def train_dataloader(self) -> DataLoader:
-        raise NotImplementedError
-
-    def val_dataloader(self) -> DataLoader:
-        raise NotImplementedError
-
-    def test_dataloader(self) -> DataLoader:
-        raise NotImplementedError
-
 
 class TilesDataModule(HistoDataModule):
     """Base class to load the tiles of a dataset as train, val, test sets"""
