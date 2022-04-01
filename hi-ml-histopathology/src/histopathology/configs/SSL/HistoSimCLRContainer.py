@@ -1,3 +1,7 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 from typing import Any, Optional, Tuple, List
 from yacs.config import CfgNode
 from pytorch_lightning import Callback
@@ -41,8 +45,8 @@ class HistoSSLContainer(SSLContainer):
             val_transforms = self.get_transforms(apply_augmentations=is_ssl_encoder_module)
 
             if is_ssl_encoder_module:
-                train_transforms = DualViewTransformWrapper(train_transforms)
-                val_transforms = DualViewTransformWrapper(val_transforms)
+                train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
+                val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
         return train_transforms, val_transforms
 
     @staticmethod

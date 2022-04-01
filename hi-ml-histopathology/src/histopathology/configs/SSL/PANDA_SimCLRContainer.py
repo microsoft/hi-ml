@@ -1,3 +1,7 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -6,7 +10,7 @@ import sys
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
-from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
+from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 
 current_file = Path(__file__)
 print(f"Running container from {current_file}")
@@ -23,7 +27,7 @@ else:
     num_workers = 5
 
 
-class SSLDatasetNameRadiomicsNN(SSLDatasetName, Enum):
+class SSLDatasetNameHiml(SSLDatasetName, Enum):
     PANDA = "PandaTilesDataset"
 
 
@@ -34,11 +38,11 @@ class PANDA_SimCLR(HistoSSLContainer):
     in the _get_transforms method.
     It has been tested on a toy local dataset (2 slides) and on AML on (~25 slides).
     """
-    SSLContainer._SSLDataClassMappings.update({SSLDatasetNameRadiomicsNN.PANDA.value: PandaTilesDatasetWithReturnIndex})
+    SSLContainer._SSLDataClassMappings.update({SSLDatasetNameHiml.PANDA.value: PandaTilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetNameRadiomicsNN.PANDA,
-                         linear_head_dataset_name=SSLDatasetNameRadiomicsNN.PANDA,
+        super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
+                         linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
                          azure_datasets=['PANDA_tiles'],
                          random_seed=1,
                          num_workers=num_workers,
