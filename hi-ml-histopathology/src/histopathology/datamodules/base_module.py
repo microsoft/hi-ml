@@ -118,7 +118,6 @@ class HistoDataModule(LightningDataModule):
             dataset = PersistentDataset(dataset, transform, cache_dir=self.cache_dir)  # type: ignore
             if self.precache_location != CacheLocation.NONE:
                 import tqdm  # TODO: Make optional
-
                 for i in tqdm.trange(len(dataset), desc="Loading dataset"):
                     dataset[i]  # empty loop to pre-compute all transformed samples
         else:
@@ -132,13 +131,13 @@ class HistoDataModule(LightningDataModule):
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, "train", shuffle=True, **self.dataloader_kwargs)
+        raise NotImplementedError
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, "val", shuffle=True, **self.dataloader_kwargs)
+        raise NotImplementedError
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, "test", shuffle=True, **self.dataloader_kwargs)
+        raise NotImplementedError
 
 
 class TilesDataModule(HistoDataModule):
@@ -222,6 +221,15 @@ class TilesDataModule(HistoDataModule):
             **dataloader_kwargs,
         )
 
+    def train_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.train_dataset, "train", shuffle=True, **self.dataloader_kwargs)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.val_dataset, "val", shuffle=True, **self.dataloader_kwargs)
+
+    def test_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.test_dataset, "test", shuffle=True, **self.dataloader_kwargs)
+
 
 class SlidesDataModule(HistoDataModule):
     """
@@ -249,7 +257,8 @@ class SlidesDataModule(HistoDataModule):
         :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
         defaults to True
         :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
-        :param background_val: the background constant (e.g. 255 for white background), defaults to 255
+        :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
+        defaults to 255
         :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
         then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset,
         defaults to "min" (which assumes background is high value)
@@ -264,26 +273,7 @@ class SlidesDataModule(HistoDataModule):
         self.background_val = background_val
         self.filter_mode = filter_mode
 
-    def prepare_data(self) -> None:
-        if self.precache_location != CacheLocation.NONE:
-            self._load_dataset(self.train_dataset, stage="train")
-            self._load_dataset(self.val_dataset, stage="val")
-            self._load_dataset(self.test_dataset, stage="test")
-
-    def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
-        dataset_pickle_path = self._dataset_pickle_path(stage)
-
-        if dataset_pickle_path and dataset_pickle_path.is_file():
-            if self.precache_location == CacheLocation.CPU:
-                memory_location = torch.device("cpu")
-                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
-            else:
-                # by default torch.load will reload on the same device it was saved from
-                memory_location = None  # type: ignore
-
-            with dataset_pickle_path.open("rb") as f:
-                return torch.load(f, map_location=memory_location)
-
+    def _load_dataset(self, slides_dataset: SlidesDataset) -> Dataset:
         base_transform = Compose(
             [
                 LoadImaged(
@@ -307,23 +297,13 @@ class SlidesDataModule(HistoDataModule):
                 ),
             ]
         )
-        transform = self.transform or base_transform
-
-        # Save and restore PRNG state for consistency across (pre-)caching options
-        transformed_slides_dataset = self._get_transformed_dataset(slides_dataset, transform)  # type: ignore
-
-        # Dataset is saved if cache_dir is True, regardless of CacheMode
-        if dataset_pickle_path:
-            dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
-            with dataset_pickle_path.open("wb") as f:
-                torch.save(transformed_slides_dataset, f)
-
+        transformed_slides_dataset = Dataset(slides_dataset, self.transform or base_transform)
         return transformed_slides_dataset
 
     def _get_dataloader(
-        self, dataset: SlidesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
+        self, dataset: SlidesDataset, shuffle: bool, **dataloader_kwargs: Any
     ) -> DataLoader:
-        transformed_slides_dataset = self._load_dataset(dataset, stage)
+        transformed_slides_dataset = self._load_dataset(dataset)
         generator = _create_generator(self.seed)
         return DataLoader(
             transformed_slides_dataset,
@@ -334,3 +314,12 @@ class SlidesDataModule(HistoDataModule):
             pin_memory=True,
             **dataloader_kwargs,
         )
+
+    def train_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.train_dataset, shuffle=True, **self.dataloader_kwargs)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.val_dataset, shuffle=True, **self.dataloader_kwargs)
+
+    def test_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.test_dataset, shuffle=True, **self.dataloader_kwargs)
