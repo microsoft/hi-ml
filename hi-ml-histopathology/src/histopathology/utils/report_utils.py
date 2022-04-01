@@ -23,20 +23,21 @@ def run_has_val_and_test_outputs(run: Run) -> bool:
     :return: `True` if the run has validation and test outputs, `False` if it is a legacy run with
         only test outputs.
     """
-    outputs_filename = "test_output.csv"
-    val_outputs_filename = "val/" + outputs_filename
-    test_outputs_filename = "test/" + outputs_filename
-
     outputs_folder = "outputs/"
-    all_available_files: List[str] = run.get_file_names()
-    output_files = [filename[len(outputs_folder):] for filename in all_available_files
-                    if filename.startswith(outputs_folder)]
-    if val_outputs_filename in output_files and test_outputs_filename in output_files:
+    outputs_basename = "test_output.csv"
+    outputs_filename = outputs_folder + outputs_basename
+    val_outputs_filename = outputs_folder + "val/" + outputs_basename
+    test_outputs_filename = outputs_folder + "test/" + outputs_basename
+
+    available_files: List[str] = run.get_file_names()
+
+    if val_outputs_filename in available_files and test_outputs_filename in available_files:
         return True
-    elif outputs_filename in output_files:
+    elif outputs_filename in available_files:
         return False
     else:
-        raise ValueError(f"Run {run.display_name} ({run.id}) does not have the expected files: {output_files}")
+        raise ValueError(f"Run {run.display_name} ({run.id}) does not have the expected files ({outputs_filename} or "
+                         f"both {val_outputs_filename} and {test_outputs_filename}): {available_files}")
 
 
 def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
@@ -54,8 +55,8 @@ def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
     elif not any(have_val_and_test_outputs):
         return False
     else:
-        raise ValueError(f"Parent run {parent_run.display_name} ({parent_run.id}) has children with and without "
-                         "val and test outputs")
+        raise ValueError(f"Parent run {parent_run.display_name} ({parent_run.id}) has mixed children with legacy "
+                         "test-only outputs and with both validation and test outputs")
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
