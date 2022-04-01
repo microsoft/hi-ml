@@ -33,8 +33,8 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
     return tmp_root_dir
 
 
-@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
-@pytest.mark.gpu
+# @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+# @pytest.mark.gpu
 def test_tiling_on_the_fly(mock_wsi_root_dir: py.path.local) -> None:
     batch_size, tile_count, tile_size, level, channels = 1, 16, 28, 0, 3
     datamodule = MockSlidesDataModule(

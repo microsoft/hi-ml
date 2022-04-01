@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
 import py
 import medmnist
 import numpy as np
@@ -93,7 +94,7 @@ class MockWSIGenerator:
 
     def __init__(
         self,
-        tmp_path: py.path.local,
+        tmp_path: Union[py.path.local, Path],
         mock_type: MockWSIType = MockWSIType.PATHMNIST,
         seed: int = 42,
         batch_size: int = 1,
@@ -133,6 +134,7 @@ class MockWSIGenerator:
         self.tile_size = tile_size
         self.background_val = background_val
 
+        self.step_size = self.tile_size * self.n_repeat_tile  # the step size represents the diagonal square size.   
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
@@ -145,7 +147,7 @@ class MockWSIGenerator:
         for i in range(self.n_samples):
             mock_metadata[MockSlidesDataset.IMAGE_COLUMN].append(f"_{i}")
             rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
-            for key, val in self.METADATA_POSSIBLE_VALUES:
+            for key, val in self.METADATA_POSSIBLE_VALUES.items():
                 i = rand_id if len(val) == self.N_GLEASON_SCORES else np.random.randint(self.N_DATA_PROVIDERS)
                 # Make sure to pick the same random index (rand_id) for isup_grade and gleason_score, otherwise
                 # chose among possible data_providers.
@@ -208,12 +210,12 @@ class MockWSIGenerator:
             else:
                 raise NotImplementedError
             mock_image[
-                :, self.tile_size * i: self.tile_size * (i + 1), self.tile_size * i: self.tile_size * (i + 1)
+                :, self.step_size * i: self.step_size * (i + 1), self.step_size * i: self.step_size * (i + 1)
             ] = fill_square
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
     @staticmethod
-    def _save_mock_wsi_as_tiff_file(file_path: py.path.local, wsi_levels: List[np.ndarray]) -> None:
+    def _save_mock_wsi_as_tiff_file(file_path: Union[py.path.local, Path], wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
         Warning: this function expects images to be in channels_last format (H, W, C).
 
@@ -242,5 +244,7 @@ class MockWSIGenerator:
             tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
             mock_image, dump_tiles = self.create_wsi_from_stitched_tiles(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(self.tmp_path.join(f"_{sample_counter}.tiff"), wsi_levels)
-            np.save(self.tmp_path.join(f"_{sample_counter}_tile.npy"), dump_tiles)
+            # self._save_mock_wsi_as_tiff_file(self.tmp_path.join(f"_{sample_counter}.tiff"), wsi_levels)
+            # np.save(self.tmp_path.join(f"_{sample_counter}_tile.npy"), dump_tiles)
+            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
+            np.save(self.tmp_path / f"_{sample_counter}_tile.npy", dump_tiles)
