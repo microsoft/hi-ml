@@ -58,7 +58,7 @@ class MockSlidesDataModule(SlidesDataModule):
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
-class WSIMockType(Enum):
+class MockWSIType(Enum):
     PATHMNIST = "pathmnist"
     FAKE = "fake"
 
@@ -94,7 +94,7 @@ class MockWSIGenerator:
     def __init__(
         self,
         tmp_path: Path,
-        mock_type: WSIMockType = WSIMockType.PATHMNIST,
+        mock_type: MockWSIType = MockWSIType.PATHMNIST,
         seed: int = 42,
         batch_size: int = 1,
         n_samples: int = 4,
@@ -136,16 +136,8 @@ class MockWSIGenerator:
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
-        self.dataloader = self.get_dataloader()
         self.create_mock_metadata_dataframe()
-
-    def get_dataloader(self) -> DataLoader:
-        if self.mock_type == WSIMockType.PATHMNIST:
-            return self.get_pathmnist_dataloader()
-        elif self.mock_type == WSIMockType.FAKE:
-            return self.get_fake_dataloader()
-        else:
-            raise NotImplementedError
+        self.dataloader = self.get_dataloader()
 
     def create_mock_metadata_dataframe(self) -> None:
         """Create a mock dataframe with random metadata."""
@@ -161,11 +153,15 @@ class MockWSIGenerator:
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
 
-    # def get_fake_dataloader(self) -> DataLoader:
-    #     # TODO create a fake dataloader
-    #     return NotImplementedError
+    def get_dataloader(self) -> Optional[DataLoader]:
+        if self.mock_type == MockWSIType.PATHMNIST:
+            return self._get_pathmnist_dataloader()
+        elif self.mock_type == MockWSIType.FAKE:
+            return None
+        else:
+            raise NotImplementedError
 
-    def get_pathmnist_dataloader(self) -> DataLoader:
+    def _get_pathmnist_dataloader(self) -> DataLoader:
         """Get a dataloader for pathmnist dataset. It returns tiles of shape (batch_size, 3, 28, 28).
         :return: A dataloader to sample pathmnist tiles.
         """
@@ -173,32 +169,50 @@ class MockWSIGenerator:
         DataClass = getattr(medmnist, info["python_class"])
         data_transform = transforms.Compose([transforms.ToTensor()])
         dataset = DataClass(split="train", transform=data_transform, download=True)
-        dataloader = DataLoader(dataset=dataset, batch_size=self.batch_size, shuffle=True)
-        return dataloader
+        return DataLoader(dataset=dataset, batch_size=self.batch_size, shuffle=True)
 
-    def create_wsi_from_stitched_tiles(self, tiles: Tensor) -> np.ndarray:
+    def create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         """Create a whole slide image by stitching tiles along the diagonal axis.
 
-        :param tiles: A tensor of tiles of shape (batch_size, channels, tile_size, tile_size).
-        :return: returns a wsi of shape (img_size, img_size, channels).
+        :param tiles: A tensor of tiles of shape (batch_size, n_channels, tile_size, tile_size).
+        :return: returns a wsi of shape (img_size, img_size, n_channels) and the tiles used to create it.
         The image is  in channels_last format so that it can save by a TiffWriter.
         """
         mock_image = np.full(
             shape=(self.n_channels, self.img_size, self.img_size), fill_value=self.background_val, dtype=self._dtype
         )
+        dump_tiles = []
         for i in range(self.n_repeat_diag):
-            tile_id = 0 if tiles.shape[0] == 1 else i  # if self.batch_size > 1 pick a different tile at each i.
-            tile = (
-                (tiles[tile_id].numpy() * 255).astype(self._dtype)
-                if self._dtype == np.uint8
-                else tiles[tile_id].numpy()
-            )
+            if self.mock_type == MockWSIType.PATHMNIST:
+                tile_id = 0 if tiles.shape[0] == 1 else i  # if self.batch_size > 1 pick a different tile at each i.
+                tile = (
+                    (tiles[tile_id].numpy() * 255).astype(self._dtype)
+                    if self._dtype == np.uint8
+                    else tiles[tile_id].numpy()
+                )
+                fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
+                dump_tiles.append(tile)
+
+            elif self.mock_type == MockWSIType.FAKE:
+                # pick a random fake value to fill in the square diagonal. We use a np.random.choice over a linear
+                # space [0, self.background_val / (self.n_repeat_diag + 1)] so that it works for both float and int.
+                fill_square = np.random.choice(np.linspace(0, self.background_val / (self.n_repeat_diag + 1), 10)) * (
+                    i + 1
+                )
+                dump_tiles.append(
+                    np.full(
+                        shape=(self.n_channels, self.tile_size, self.tile_size),
+                        fill_value=fill_square,
+                        dtype=self._dtype,
+                    )
+                )
             mock_image[
                 :, self.tile_size * i: self.tile_size * (i + 1), self.tile_size * i: self.tile_size * (i + 1)
-            ] = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
-        return np.transpose(mock_image, (1, 2, 0))  # switch to channels_last.
+            ] = fill_square
+        return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
-    def save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
+    @staticmethod
+    def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
         Warning: this function expects images to be in channels_last format (H, W, C).
 
@@ -212,7 +226,7 @@ class MockWSIGenerator:
                 # another image.
                 tif.write(wsi_level, **options, subfiletype=int(i > 0))
 
-    def create_multi_resolution_wsi(self, mock_image: np.ndarray) -> List[np.ndarray]:
+    def _create_multi_resolution_wsi(self, mock_image: np.ndarray) -> List[np.ndarray]:
         """Create multi resolution versions of a mock image via 2 factor downsampling.
 
         :param mock_image: A mock image in channels_last format (H, W, 3).
@@ -221,12 +235,11 @@ class MockWSIGenerator:
         levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(self.n_levels)]
         return levels
 
-    def __call__(self) -> None:
+    def generate_mock_wsi(self) -> None:
         """Create mock wsi and save them as tiff files"""
         for sample_counter in range(self.n_samples):
-            tiles, _ = next(iter(self.data_loader))
-            mock_image = self.create_wsi_from_stitched_tiles(tiles)
-            wsi_levels = self.create_multi_resolution_wsi(mock_image)
-            self.save_mock_wsi_as_tiff_file(os.path.join(self.tmp_path, f"_{sample_counter}.tiff"), wsi_levels)
-            for i, tile in enumerate(tiles):
-                np.save(os.path.join(self.tmp_path, f"_{sample_counter}_tile_{i}.npy"), tile.numpy())
+            tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
+            mock_image, dump_tiles = self.create_wsi_from_stitched_tiles(tiles)
+            wsi_levels = self._create_multi_resolution_wsi(mock_image)
+            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
+            np.save(self.tmp_path / f"_{sample_counter}_tile.npy", dump_tiles)
