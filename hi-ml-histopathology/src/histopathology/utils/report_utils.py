@@ -16,6 +16,13 @@ from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_n
 
 
 def run_has_val_and_test_outputs(run: Run) -> bool:
+    """Checks whether the given run has both validation and test outputs files.
+
+    :param parent_run: The run whose outputs to check.
+    :raises ValueError: If the run does not have the expected output file(s).
+    :return: `True` if the run has validation and test outputs, `False` if it is a legacy run with
+        only test outputs.
+    """
     outputs_filename = "test_output.csv"
     val_outputs_filename = "val/" + outputs_filename
     test_outputs_filename = "test/" + outputs_filename
@@ -33,6 +40,14 @@ def run_has_val_and_test_outputs(run: Run) -> bool:
 
 
 def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
+    """Checks whether all child cross-validation runs have both validation and test outputs files.
+
+    :param parent_run: The parent Hyperdrive run.
+    :raises ValueError: If any of the child runs does not have the expected output files, or if
+        some of the child runs have both outputs and some have only test outputs.
+    :return: `True` if all children have validation and test outputs, `False` if all children are
+        legacy runs with only test outputs.
+    """
     have_val_and_test_outputs = [run_has_val_and_test_outputs(child_run) for child_run in parent_run.get_children()]
     if all(have_val_and_test_outputs):
         return True
