@@ -194,11 +194,8 @@ class MockWSIGenerator:
                 dump_tiles.append(tile)
 
             elif self.mock_type == MockWSIType.FAKE:
-                # pick a random fake value to fill in the square diagonal. We use a np.random.choice over a linear
-                # space [0, self.background_val / (self.n_repeat_diag + 1)] so that it works for both float and uint.
-                fill_square = np.random.choice(np.linspace(0, self.background_val / (self.n_repeat_diag + 1), 10)) * (
-                    i + 1
-                )
+                # pick a random fake value to fill in the square diagonal.
+                fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
                 dump_tiles.append(
                     np.full(
                         shape=(self.n_channels, self.tile_size, self.tile_size),
