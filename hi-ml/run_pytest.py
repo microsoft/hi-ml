@@ -22,7 +22,7 @@ from health_azure.utils import (  # noqa: E402
     is_running_in_azure_ml,
     parse_arguments,
 )
-from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR  # noqa: E402
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR, logging_to_stdout  # noqa: E402
 from health_ml.utils.fixed_paths import repository_root_directory  # noqa: E402
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
@@ -56,15 +56,6 @@ def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
         raise ValueError(f"PyTest did not find any tests to run, when restricting with this mark: {pytest_mark}")
     if status_code != ExitCode.OK:
         raise ValueError(f"PyTest failed with exit code: {status_code}")
-
-
-def logging_to_stdout() -> None:
-    """Redirects output from the logging module to stdout."""
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    root.addHandler(handler)
 
 
 if __name__ == "__main__":

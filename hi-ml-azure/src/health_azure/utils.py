@@ -2004,9 +2004,9 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
         if subscription_id and resource_group and workspace_name:
             with open(str(target_config_json), 'w', encoding="utf-8") as file:
                 config = {
-                    "subscription_id": os.getenv(ENV_SUBSCRIPTION_ID, ""),
-                    "resource_group": os.getenv(ENV_RESOURCE_GROUP, ""),
-                    "workspace_name": os.getenv(ENV_WORKSPACE_NAME, "")
+                    "subscription_id": subscription_id,
+                    "resource_group": resource_group,
+                    "workspace_name": workspace_name
                 }
                 json.dump(config, file)
         else:
