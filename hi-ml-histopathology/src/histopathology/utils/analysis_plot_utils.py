@@ -172,8 +172,15 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
     """
     for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
-        labels = slides_groupby[ResultsKey.TRUE_LABEL].first()
-        scores = slides_groupby[scores_column].first()
+
+        tile_labels = slides_groupby[ResultsKey.TRUE_LABEL]
+        assert len(tile_labels.unique()) == 1
+        labels = tile_labels.first()
+
+        tile_scores = slides_groupby[scores_column]
+        assert len(tile_scores.unique()) == 1
+        scores = tile_scores.first()
+
         plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
         plot_pr_curve(labels, scores, label=f"Fold {k}", ax=pr_ax)
     legend_kwargs = dict(edgecolor='none', fontsize='small')
