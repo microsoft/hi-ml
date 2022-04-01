@@ -186,7 +186,7 @@ def create_argparser(
     Creates an ArgumentParser with all fields of the given config that are overridable.
 
     :param config: The config whose parameters should be used to populate the argument parser
-    :param usage: Brief information about correct usage that is printed if the script started with "--help". If not 
+    :param usage: Brief information about correct usage that is printed if the script started with "--help". If not
     provided, this is auto-generated from the complete set of arguments.
     :param description: A description of the program that is printed if the script is started with "--help"
     :param epilog: A text that is printed after the argument details if the script is started with "--help"

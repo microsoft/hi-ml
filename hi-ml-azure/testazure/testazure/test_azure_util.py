@@ -22,7 +22,7 @@ import conda_merge
 import numpy as np
 import param
 import pytest
-from _pytest.capture import SysCapture
+from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
@@ -1005,7 +1005,7 @@ def test_register_environment(
 
 def test_set_environment_variables_for_multi_node(
         caplog: LogCaptureFixture,
-        capsys: SysCapture,
+        capsys: CaptureFixture,
 ) -> None:
     with caplog.at_level(logging.INFO):  # type: ignore
         util.set_environment_variables_for_multi_node()
@@ -1883,7 +1883,7 @@ def test_parsing_bools(parameterized_config_and_parser: Tuple[ParamClass, Argume
                            expected_value)
 
 
-def test_argparse_usage(capsys: SysCapture) -> None:
+def test_argparse_usage(capsys: CaptureFixture) -> None:
     """Test if the auto-generated argument parser prints out defaults and usage information.
     """
     class SimpleClass(param.Parameterized):
@@ -1904,7 +1904,7 @@ def test_argparse_usage(capsys: SysCapture) -> None:
     assert "my_epilog" in stdout
 
 
-def test_argparse_usage_empty(capsys: SysCapture) -> None:
+def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
     """Test if the auto-generated argument parser prints out defaults and auto-generated usage information.
     """
     class SimpleClass(param.Parameterized):
