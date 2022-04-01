@@ -107,7 +107,7 @@ class HistoDataModule(LightningDataModule):
         return self.cache_dir / f"{stage}_dataset.pt"
 
     def prepare_data(self) -> None:
-        raise NotImplementedError
+        pass
 
     def _get_transformed_dataset(
         self, dataset: Dataset, transform: Union[Sequence[Callable], Callable]
