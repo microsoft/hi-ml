@@ -15,15 +15,16 @@ from torch.utils.data import DataLoader
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
-from health_ml.utils.wsi_utils import list_data_collate
 
-from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
+from histopathology.utils.wsi_utils import list_data_collate
 from histopathology.models.transforms import LoadTilesBatchd
+from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
 from monai.apps.pathology.transforms import TileOnGridd
 from monai.data.image_reader import WSIReader
+
 
 
 class CacheMode(Enum):
