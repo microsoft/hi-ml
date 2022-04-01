@@ -176,15 +176,29 @@ def set_fields_and_validate(config: param.Parameterized, fields_to_set: Dict[str
         config.validate()
 
 
-def create_argparser(config: param.Parameterized) -> ArgumentParser:
+def create_argparser(
+    config: param.Parameterized,
+    usage: Optional[str] = None,
+    description: Optional[str] = None,
+    epilog: Optional[str] = None
+) -> ArgumentParser:
     """
     Creates an ArgumentParser with all fields of the given config that are overridable.
 
     :param config: The config whose parameters should be used to populate the argument parser
+    :param usage: Brief information about correct usage that is printed if the script started with "--help". If not 
+    provided, this is auto-generated from the complete set of arguments.
+    :param description: A description of the program that is printed if the script is started with "--help"
+    :param epilog: A text that is printed after the argument details if the script is started with "--help"
     :return: ArgumentParser
     """
     assert isinstance(config, param.Parameterized)
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(
+        formatter_class=ArgumentDefaultsHelpFormatter,
+        usage=usage,
+        description=description,
+        epilog=epilog
+    )
     _add_overrideable_config_args_to_parser(config, parser)
     return parser
 

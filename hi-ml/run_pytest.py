@@ -30,10 +30,18 @@ PYTEST_RESULTS_FILE = "pytest_results.xml"
 
 class RunPytestConfig(param.Parameterized):
     mark: str = param.String(default="", doc="The value to pass to pytest for the -m (mark) argument.")
-    folder: str = param.String(default="", doc="The folder of tests that should be run.")
+    folder: str = param.String(
+        default="",
+        doc="The file or folder of tests that should be run. This value is used as the first argument to start "
+        "pytest, so it can also be a specific test like 'my_test.py::any_test'",
+    )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
-    conda_env: str = param.String(default="", doc="The path to the Conda environment file that should be used.")
-    experiment: str = param.String(default="", doc="The name of the AzureML experiment where the run should live.")
+    conda_env: str = param.String(
+        default="", doc="The path to the Conda environment file that should be used when starting pytest in AzureML."
+    )
+    experiment: str = param.String(
+        default="run_pytest", doc="The name of the AzureML experiment where the run should start."
+    )
 
 
 def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
@@ -59,13 +67,16 @@ def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
 
 
 if __name__ == "__main__":
-    logging_to_stdout()
-
     config = RunPytestConfig()
 
-    parser = create_argparser(config)
+    parser = create_argparser(
+        config,
+        description="Invoke pytest either locally or inside of an AzureML run. The value of the '--folder' option is "
+        "becoming the first argument to pytest.To run on AzureML, provide the '--cluster' option.",
+    )
     parser_results = parse_arguments(parser, fail_on_unknown_args=True)
     config = RunPytestConfig(**parser_results.args)
+    logging_to_stdout()
     submit_to_azureml = config.cluster != ""
     if submit_to_azureml and not is_running_in_azure_ml():
         # For runs on the github agents: Create a workspace config file from environment variables.
