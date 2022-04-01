@@ -33,7 +33,14 @@ def run_has_val_and_test_outputs(run: Run) -> bool:
 
 
 def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
-    return all(run_has_val_and_test_outputs(child_run) for child_run in parent_run.get_children())
+    have_val_and_test_outputs = [run_has_val_and_test_outputs(child_run) for child_run in parent_run.get_children()]
+    if all(have_val_and_test_outputs):
+        return True
+    elif not any(have_val_and_test_outputs):
+        return False
+    else:
+        raise ValueError(f"Parent run {parent_run.display_name} ({parent_run.id}) has children with and without "
+                         "val and test outputs")
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
