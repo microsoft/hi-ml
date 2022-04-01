@@ -41,11 +41,11 @@ def test_get_datastore() -> None:
         get_datastore(workspace=workspace, datastore_name=does_not_exist)
     assert f"Datastore \"{does_not_exist}\" was not found" in str(ex)
 
-    # Trying to get a datastore without name should only work if there is a single datastore
+    # Trying to get a datastore when no name is specified should return the workspace default datastore
     assert len(workspace.datastores) > 1
-    with pytest.raises(ValueError) as ex:
-        get_datastore(workspace=workspace, datastore_name="")
-    assert "No datastore name provided" in str(ex)
+    default_datastore = get_datastore(workspace=workspace, datastore_name="")
+    assert default_datastore is not None
+    assert default_datastore.name == workspace.get_default_datastore().name
 
     # Retrieve a datastore by name
     name = DEFAULT_DATASTORE
