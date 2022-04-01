@@ -226,37 +226,33 @@ class TilesDataModule(HistoDataModule):
 class SlidesDataModule(HistoDataModule):
     """
     Base class to load the slides of a dataset as train, val, test sets
-    Args:
-        level: the level number, or list of level numbers (default=0)
-        tile_count: number of tiles to extract, if None extracts all non-background tiles
-            Defaults to ``None``.
-        tile_size: size of the square tile
-            Defaults to ``224``.
-        step: step size to create overlapping tiles
-            Defaults to ``None`` (same as tile_size)
-        random_offset: Randomize position of the grid, instead of starting from the top-left corner
-            Defaults to ``False``.
-        pad_full: pad image to the size evenly divisible by tile_size
-            Defaults to ``False``.
-        background_val: the background constant (e.g. 255 for white background)
-            Defaults to ``255``.
-        filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
-            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset
-            Defaults to ``min`` (which assumes background is high value)
     """
-
     def __init__(
         self,
         level: Optional[int] = 0,
         tile_count: Optional[int] = None,
         tile_size: Optional[int] = 224,
         step: Optional[int] = None,
-        random_offset: Optional[bool] = False,
+        random_offset: Optional[bool] = True,
         pad_full: Optional[bool] = False,
         background_val: Optional[int] = 255,
         filter_mode: Optional[str] = "min",
         **kwargs: Any,
     ) -> None:
+        """_summary_
+
+        :param level: the whole slide image level at which the image is extracted, defaults to 0
+        :param tile_count: number of tiles to extract, if None extracts all non-background tiles, defaults to None
+        :param tile_size: size of the square tile, defaults to 224
+        :param step: step size to create overlapping tiles, defaults to None
+        :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
+        defaults to True
+        :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
+        :param background_val: the background constant (e.g. 255 for white background), defaults to 255
+        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
+        then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset, 
+        defaults to "min" (which assumes background is high value)
+        """
         super().__init__(**kwargs)
         self.level = level
         self.tile_count = tile_count
