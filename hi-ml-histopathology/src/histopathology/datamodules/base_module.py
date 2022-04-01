@@ -225,7 +225,9 @@ class TilesDataModule(HistoDataModule):
 
 class SlidesDataModule(HistoDataModule):
     """
-    Base class to load the slides of a dataset as train, val, test sets
+    Base class to load the slides of a dataset as train, val, test sets. The slide data module performs tiling on the
+    fly by default. One can specify the tiling strategies (background removal, overlapping tiles, padding, ...) through
+    the class parameters.
     """
     def __init__(
         self,
@@ -239,8 +241,7 @@ class SlidesDataModule(HistoDataModule):
         filter_mode: Optional[str] = "min",
         **kwargs: Any,
     ) -> None:
-        """_summary_
-
+        """
         :param level: the whole slide image level at which the image is extracted, defaults to 0
         :param tile_count: number of tiles to extract, if None extracts all non-background tiles, defaults to None
         :param tile_size: size of the square tile, defaults to 224
@@ -250,7 +251,7 @@ class SlidesDataModule(HistoDataModule):
         :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
         :param background_val: the background constant (e.g. 255 for white background), defaults to 255
         :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
-        then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset, 
+        then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset,
         defaults to "min" (which assumes background is high value)
         """
         super().__init__(**kwargs)
