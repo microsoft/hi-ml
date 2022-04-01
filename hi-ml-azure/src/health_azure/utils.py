@@ -904,10 +904,10 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
     :param dep_str: A pip constraint string, like "package-name>=1.0.1"
     :return: A tuple of [package name, operator, version]
     """
-    parts: List[str] = re.split('(<=|==|=|>=|<|>)', dep_str)
+    parts: List[str] = re.split('(<=|==|=|>=|<|>|;)', dep_str)
     if len(parts) == 1:
         return (parts[0].strip(), "", "")
-    if len(parts) == 3:
+    if len(parts) >= 3:
         return tuple(p.strip() for p in parts)
     raise ValueError(f"Unable to split this package string: {dep_str}")
 
@@ -931,10 +931,11 @@ class PackageDependency:
         self.package_name = parts[0]
         self.operator = parts[1]
         self.version = parts[2]
+        self.suffix = ''.join(parts[3:]) if len(parts) > 3 else ""
 
     def name_operator_version_str(self) -> str:
         """Concatenate the stored package name, operator and version and return it"""
-        return f"{self.package_name}{self.operator}{self.version}"
+        return f"{self.package_name}{self.operator}{self.version}{self.suffix}"
 
 
 class PinnedOperator(Enum):

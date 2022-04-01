@@ -9,6 +9,7 @@ import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
+import torch
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
@@ -106,12 +107,15 @@ class DeepSMILEPanda(BaseMIL):
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
         if self.is_finetune:
-            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+            transform = LoadTilesBatchd(image_key, progress=True)
+            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             transform = Compose([
-                                LoadTilesBatchd(image_key, progress=True),
-                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
-                                ])
+                LoadTilesBatchd(image_key, progress=True),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+            ])
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
 
         return PandaTilesDataModule(
             root_path=self.local_datasets[0],
@@ -124,6 +128,7 @@ class DeepSMILEPanda(BaseMIL):
             cache_dir=self.cache_dir,
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
+            dataloader_kwargs=dataloader_kwargs,
         )
 
     def get_slides_dataset(self) -> PandaDataset:

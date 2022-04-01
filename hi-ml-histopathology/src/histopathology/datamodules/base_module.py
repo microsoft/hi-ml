@@ -6,7 +6,7 @@
 import torch
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
@@ -41,7 +41,8 @@ class TilesDataModule(LightningDataModule):
                  precache_location: CacheLocation = CacheLocation.NONE,
                  cache_dir: Optional[Path] = None,
                  crossval_count: int = 0,
-                 crossval_index: int = 0) -> None:
+                 crossval_index: int = 0,
+                 dataloader_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param root_path: Root directory of the source dataset.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
@@ -73,6 +74,7 @@ class TilesDataModule(LightningDataModule):
         :param cache_dir: The directory onto which to cache data if caching is enabled.
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
+        :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
         """
         if precache_location is not CacheLocation.NONE and cache_mode is CacheMode.NONE:
             raise ValueError("Can only pre-cache if caching is enabled")
@@ -95,6 +97,7 @@ class TilesDataModule(LightningDataModule):
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
+        self.dataloader_kwargs = dataloader_kwargs or {}
 
     def get_splits(self) -> Tuple[TilesDataset, TilesDataset, TilesDataset]:
         """Create the training, validation, and test datasets"""
@@ -174,14 +177,13 @@ class TilesDataModule(LightningDataModule):
         generator = bag_dataset.bag_sampler.generator
         return DataLoader(transformed_bag_dataset, batch_size=self.batch_size,
                           collate_fn=multibag_collate, shuffle=shuffle, generator=generator,
-                          pin_memory=False,  # disable pinning as loaded data may already be on GPU
                           **dataloader_kwargs)
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, 'train', shuffle=True)
+        return self._get_dataloader(self.train_dataset, 'train', shuffle=True, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, 'val', shuffle=True)
+        return self._get_dataloader(self.val_dataset, 'val', shuffle=True, **self.dataloader_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, 'test', shuffle=True)
+        return self._get_dataloader(self.test_dataset, 'test', shuffle=True, **self.dataloader_kwargs)
