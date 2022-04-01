@@ -2,11 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import dataclasses
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import param
 import pytest
@@ -52,7 +51,7 @@ class TripleNestedConfig:
 
 @dataclass
 class ConfigWithList:
-    list_field: List[Any] = field(default_factory=list)
+    list_field: Union[List, Dict] = field(default_factory=list)
 
 
 class ParamsConfig(param.Parameterized):
@@ -139,8 +138,8 @@ def test_traverse_dict() -> None:
   bar: 2.0
 """
     # Invalid dictionaries contain non-basic types either as keys or as values
-    for invalid in [{"foo": dict()}, {(1,2): "foo"}]:
-        list_config.list_field = invalid
+    for invalid in [{"foo": dict()}, {(1, 2): "foo"}]:
+        list_config.list_field = invalid  # type: ignore
         with pytest.raises(ValueError) as ex:
             object_to_dict(list_config)
         assert "Dictionaries can only contain basic types" in str(ex)

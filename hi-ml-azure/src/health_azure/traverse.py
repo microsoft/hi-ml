@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterable, Union, List, Optional
 
 import param
 from ruamel import yaml
-from torch import isin
 
 
 def is_basic_type(o: Any) -> bool:
@@ -76,10 +75,10 @@ def all_basic_types(o: Iterable) -> bool:
     return True
 
 
-def _object_to_dict(o: Any) -> Union[Optional[str], Dict[str, Any]]:
+def _object_to_dict(o: Any) -> Union[None, int, float, str, List, Dict]:
     """
     Converts an object to a dictionary mapping from attribute name to value. That value can be a dictionary recursively,
-    if the attribute is not a simple datatype.
+    if the attribute is not a simple datatype. Lists and dictionaries are returned as-is.
 
     :param o: The object to inspect.
     :return: Returns the argument if the object is a basic datatype, otherwise a dictionary mapping from attribute
@@ -139,7 +138,7 @@ def object_to_yaml(o: Any) -> str:
     :param o: The object to inspect.
     :return: A string in YAML format.
     """
-    return yaml.safe_dump(object_to_dict(o), default_flow_style=False)
+    return yaml.safe_dump(object_to_dict(o), default_flow_style=False)  # type: ignore
 
 
 def yaml_to_dict(s: str) -> Dict[str, Any]:
