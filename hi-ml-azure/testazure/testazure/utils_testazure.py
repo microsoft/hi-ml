@@ -81,8 +81,9 @@ def check_config_json(script_folder: Path) -> Generator:
     """
     shared_config_json = get_shared_config_json()
     target_config_json = script_folder / WORKSPACE_CONFIG_JSON
-    if shared_config_json.exists():
-        logging.info(f"Copying {WORKSPACE_CONFIG_JSON} from repository root to folder {script_folder}")
+    logging.info(f"Checking if configuration file {shared_config_json} exists")
+    if shared_config_json.is_file():
+        logging.info(f"Copying configuration file to folder {script_folder}")
         shutil.copy(shared_config_json, target_config_json)
     else:
         logging.info(f"Creating {str(target_config_json)} from environment variables.")

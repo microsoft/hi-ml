@@ -76,12 +76,13 @@ class MLRunner:
             # Set up the paths to the datasets. azure_run_info already has all necessary information, using either
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
-            if len(azure_run_info.input_datasets) > 0:
-                input_datasets = azure_run_info.input_datasets
-                assert len(input_datasets) > 0
-                local_datasets = [
-                    check_dataset_folder_exists(input_dataset) for input_dataset in input_datasets  # type: ignore
-                ]
+            input_datasets = azure_run_info.input_datasets
+            if len(input_datasets) > 0:
+                local_datasets: List[Path] = []
+                for i, dataset in enumerate(input_datasets):
+                    if dataset is None:
+                        raise ValueError(f"Invalid setup: The dataset at index {i} is None")
+                    local_datasets.append(check_dataset_folder_exists(dataset))
                 self.container.local_datasets = local_datasets  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
