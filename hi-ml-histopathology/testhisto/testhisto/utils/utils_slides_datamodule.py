@@ -184,25 +184,29 @@ class MockWSIGenerator:
         dump_tiles = []
         for i in range(self.n_repeat_diag):
             if self.mock_type == MockWSIType.PATHMNIST:
-                tile_id = 0 if self.batch_size == 1 else i  # if self.batch_size > 1 pick a different tile at each i.
-                tile = (
-                    (tiles[tile_id].numpy() * 255).astype(self._dtype)
-                    if self._dtype == np.uint8
-                    else tiles[tile_id].numpy()
-                )
-                fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
-                dump_tiles.append(tile)
+                if i == 0 or self.batch_size > 1:
+                    tile = (
+                        (tiles[i % self.batch_size].numpy() * 255).astype(self._dtype)
+                        if self._dtype == np.uint8
+                        else tiles[i % self.batch_size].numpy()
+                    )
+                    # fill the square diagonal with tile repeated n_repeat_tile times along X and Y axis.
+                    fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
+                    dump_tiles.append(tile)
 
             elif self.mock_type == MockWSIType.FAKE:
-                # pick a random fake value to fill in the square diagonal.
-                fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
-                dump_tiles.append(
-                    np.full(
-                        shape=(self.n_channels, self.tile_size, self.tile_size),
-                        fill_value=fill_square,
-                        dtype=self._dtype,
+                if i == 0 or self.batch_size > 1:
+                    # pick a random fake value to fill in the square diagonal.
+                    fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
+                    dump_tiles.append(
+                        np.full(
+                            shape=(self.n_channels, self.tile_size, self.tile_size),
+                            fill_value=fill_square,
+                            dtype=self._dtype,
+                        )
                     )
-                )
+            else:
+                raise NotImplementedError
             mock_image[
                 :, self.tile_size * i: self.tile_size * (i + 1), self.tile_size * i: self.tile_size * (i + 1)
             ] = fill_square
