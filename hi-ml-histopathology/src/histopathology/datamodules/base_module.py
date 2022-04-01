@@ -259,9 +259,9 @@ class SlidesDataModule(HistoDataModule):
         :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
         defaults to 255
-        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
-        then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset,
-        defaults to "min" (which assumes background is high value)
+        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
+        tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
+        random) subset, defaults to "min" (which assumes background is high value)
         """
         super().__init__(**kwargs)
         self.level = level
