@@ -832,7 +832,6 @@ def test_create_python_environment(
         mock_workspace: mock.MagicMock,
         random_folder: Path,
 ) -> None:
-    # TODO
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
