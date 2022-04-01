@@ -33,8 +33,8 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
     return tmp_root_dir
 
 
-# @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
-# @pytest.mark.gpu
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_tiling_on_the_fly(mock_wsi_root_dir: py.path.local) -> None:
     batch_size, tile_count, tile_size, level, channels = 1, 16, 28, 0, 3
     datamodule = MockSlidesDataModule(
@@ -47,7 +47,7 @@ def test_tiling_on_the_fly(mock_wsi_root_dir: py.path.local) -> None:
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly
-        original_tile = np.load(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy"))[0]
+        original_tile = np.load(str(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy")))[0]
         for i in range(tile_count):
             assert (original_tile == tiles[0, i].numpy()).all()
 
@@ -69,7 +69,7 @@ def test_tiling_without_fixed_tile_count(mock_wsi_root_dir: py.path.local) -> No
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("level", [0, 1, 2])
-def test_multi_resolution_tiling(mock_wsi_root_dir: py.path.local, level: int) -> None:
+def test_multi_resolution_tiling(level: int, mock_wsi_root_dir: py.path.local) -> None:
     batch_size, tile_count, channels = 1, 16, 3
     tile_size = 28 // 2 ** level
     datamodule = MockSlidesDataModule(
@@ -82,7 +82,7 @@ def test_multi_resolution_tiling(mock_wsi_root_dir: py.path.local, level: int) -
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly at different resolutions
-        original_tile = np.load(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy"))[0]
+        original_tile = np.load(str(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy")))[0]
         for i in range(tile_count):
             assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[0, i].numpy()).all()
 
@@ -100,8 +100,8 @@ def test_overlapping_tiles(mock_wsi_root_dir: py.path.local) -> None:
         tiles, wsi_id = sample["image"], sample["slide_id"][0]
         assert tiles.shape[1] >= min_expected_tile_count
 
-        original_tile = np.load(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy"))[0]
+        original_tile = np.load(str(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy")))[0]
         tile_matches = 0
-        for i, tile in tiles[0]:
+        for i, tile in enumerate(tiles[0]):
             tile_matches += int((tile.numpy() == original_tile).all())
         assert tile_matches == expected_tile_matches

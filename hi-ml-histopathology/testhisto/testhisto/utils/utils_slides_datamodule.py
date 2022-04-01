@@ -88,7 +88,7 @@ class MockWSIGenerator:
     N_GLEASON_SCORES = len(METADATA_POSSIBLE_VALUES["gleason_score"])
     N_DATA_PROVIDERS = len(METADATA_POSSIBLE_VALUES["data_provider"])
 
-    IMAGE_COLUMN = MockSlidesDataset.IMAGE_COLUMN
+    SLIDE_ID_COLUMN = MockSlidesDataset.SLIDE_ID_COLUMN
     METADATA_COLUMNS = MockSlidesDataset.METADATA_COLUMNS
     DEFAULT_CSV_FILENAME = MockSlidesDataset.DEFAULT_CSV_FILENAME
 
@@ -143,9 +143,9 @@ class MockWSIGenerator:
 
     def create_mock_metadata_dataframe(self) -> None:
         """Create a mock dataframe with random metadata."""
-        mock_metadata: dict = {col: [] for col in [self.IMAGE_COLUMN, *self.METADATA_COLUMNS]}
+        mock_metadata: dict = {col: [] for col in [self.SLIDE_ID_COLUMN, *self.METADATA_COLUMNS]}
         for i in range(self.n_samples):
-            mock_metadata[MockSlidesDataset.IMAGE_COLUMN].append(f"_{i}")
+            mock_metadata[MockSlidesDataset.SLIDE_ID_COLUMN].append(f"_{i}")
             rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
             for key, val in self.METADATA_POSSIBLE_VALUES.items():
                 i = rand_id if len(val) == self.N_GLEASON_SCORES else np.random.randint(self.N_DATA_PROVIDERS)
@@ -242,9 +242,7 @@ class MockWSIGenerator:
         """Create mock wsi and save them as tiff files"""
         for sample_counter in range(self.n_samples):
             tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
-            mock_image, dump_tiles = self.create_wsi_from_stitched_tiles(tiles)
+            mock_image, dump_tiles = self.create_wsi_from_stitched_tiles(tiles[0])
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            # self._save_mock_wsi_as_tiff_file(self.tmp_path.join(f"_{sample_counter}.tiff"), wsi_levels)
-            # np.save(self.tmp_path.join(f"_{sample_counter}_tile.npy"), dump_tiles)
             self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
-            np.save(self.tmp_path / f"_{sample_counter}_tile.npy", dump_tiles)
+            np.save(str(self.tmp_path / f"_{sample_counter}_tile.npy"), dump_tiles)
