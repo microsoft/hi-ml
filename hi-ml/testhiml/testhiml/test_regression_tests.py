@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import uuid
 from pathlib import Path
 from unittest import mock
@@ -201,7 +200,7 @@ def test_compare_folder_against_run_parent(tmp_path: Path) -> None:
     )
 
 
-def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, tmp_path: Path):
+def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, tmp_path: Path) -> None:
     """Creates a set of files in an AzureML run, and checks if the comparison tools accept/fail
     in the right way.
 
