@@ -96,19 +96,24 @@ def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
     return epoch_results
 
 
-def collate_results(epoch_results: EpochResultsType) -> ResultsType:
-    """Convert a list of results dictionaries into a dictionary of lists.
+def collate_results_on_cpu(epoch_results: EpochResultsType) -> ResultsType:
+    """Convert a list of results dictionaries into a dictionary of lists, with all tensors on CPU.
 
     :param epoch_results: Collected epoch results, whose elements are dictionaries of :py:class:`ResultsKey` to the
         outputs of the respective batch (i.e. indexed as `epoch_results[batch_index][results_key]`).
     :return: A dictionary mapping each :py:class:`ResultsKey` to a list containing the corresponding outputs for every
-        batch (i.e. indexed as `collated_results[results_key][batch_index]`).
+        batch (i.e. indexed as `collated_results[results_key][batch_index]`). All tensors will have been placed on CPU.
     """
     results: ResultsType = {}
     for key in epoch_results[0].keys():
         results[key] = []
         for batch_results in epoch_results:
-            results[key] += batch_results[key]
+            batch_elements = batch_results[key]
+            if not isinstance(batch_elements, Sequence):
+                batch_elements = [batch_elements]
+            batch_elements = [elem.cpu() if isinstance(elem, torch.Tensor) else elem
+                              for elem in batch_elements]
+            results[key].extend(batch_elements)
     return results
 
 
@@ -377,7 +382,7 @@ class DeepMILOutputsHandler:
         # outputs[batch_idx][batch_key][bag_idx][tile_idx]
         # contains the tile value
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
-        results = collate_results(epoch_results)
+        results = collate_results_on_cpu(epoch_results)
         figures_dir = outputs_dir / "fig"
 
         outputs_dir.mkdir(exist_ok=True, parents=True)
