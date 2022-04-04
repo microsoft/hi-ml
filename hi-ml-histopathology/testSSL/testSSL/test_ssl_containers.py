@@ -308,6 +308,7 @@ def test_simclr_lr_scheduler() -> None:
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """ This test checks if a SSLContainer correctly resumes training.
     First we run SSL using a Trainer for 20 epochs.
@@ -447,6 +448,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_online_evaluator_not_distributed() -> None:
     """
     Check if the online evaluator uses the DDP flag correctly when running not distributed

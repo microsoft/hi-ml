@@ -24,6 +24,16 @@ from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatm
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
+OUTPUTS_CSV_FILENAME = "test_output.csv"
+VAL_OUTPUTS_SUBDIR = "val"
+PREV_VAL_OUTPUTS_SUBDIR = "val_old"
+TEST_OUTPUTS_SUBDIR = "test"
+
+AML_OUTPUTS_DIR = "outputs"
+AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME])
+AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+
 BatchResultsType = Dict[ResultsKey, Any]
 EpochResultsType = List[BatchResultsType]
 ResultsType = Dict[ResultsKey, List[Any]]
@@ -114,7 +124,7 @@ def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
     print(f"Metrics results will be output to {outputs_dir}")
-    csv_filename = outputs_dir / 'test_output.csv'
+    csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME
 
     # Collect the list of dictionaries in a list of pandas dataframe and save
     df_list = []
@@ -341,15 +351,15 @@ class DeepMILOutputsHandler:
 
     @property
     def validation_outputs_dir(self) -> Path:
-        return self.outputs_root / "val"
+        return self.outputs_root / VAL_OUTPUTS_SUBDIR
 
     @property
     def previous_validation_outputs_dir(self) -> Path:
-        return self.validation_outputs_dir.with_name("val_old")
+        return self.validation_outputs_dir.with_name(PREV_VAL_OUTPUTS_SUBDIR)
 
     @property
     def test_outputs_dir(self) -> Path:
-        return self.outputs_root / "test"
+        return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
     def set_slides_dataset(self, slides_dataset: SlidesDataset) -> None:
         self.slides_dataset = slides_dataset

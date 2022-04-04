@@ -3,6 +3,8 @@
 /azure-pipelines
 /docs
 /.idea
+outputs/
+__pycache__/
 .pytest_cache
 .mypy_cache
 logs
@@ -14,3 +16,11 @@ temp_environment-*
 .config
 .vscode
 node_modules
+
+# Temp folders created from SSL tests
+cifar-10-python.tar.gz
+cifar-10-batches-py/
+None/
+hi-ml-histopathology/testSSL/test_outputs
+test_outputs/
+lightning_logs/
