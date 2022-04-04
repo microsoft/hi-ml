@@ -1148,14 +1148,12 @@ def create_python_environment(
     workspace: Optional[Workspace] = None,
     private_pip_wheel_path: Optional[Path] = None,
     docker_base_image: str = "",
-    environment_variables: Optional[Dict[str, str]] = None,
 ) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the arguments.
     The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
     Conda file, the docker base image, environment variables and private wheels.
 
-    :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
         the Docker image.
@@ -1171,8 +1169,6 @@ def create_python_environment(
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
-    # By default, define several environment variables that work around known issues in the software stack
-    environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
     # See if this package as a whl exists, and if so, register it with AzureML environment.
     if private_pip_wheel_path is not None:
         if not private_pip_wheel_path.is_file():
@@ -1193,7 +1189,6 @@ def create_python_environment(
             docker_base_image,
             # Changing the index URL can lead to differences in package version resolution
             pip_extra_index_url,
-            str(environment_variables),
             # Use the path of the private wheel as a proxy. This could lead to problems if
             # a new environment uses the same private wheel file name, but the wheel has different
             # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
@@ -1210,7 +1205,6 @@ def create_python_environment(
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
         env.docker.base_image = docker_base_image
-    env.environment_variables = environment_variables
     return env
 
 
