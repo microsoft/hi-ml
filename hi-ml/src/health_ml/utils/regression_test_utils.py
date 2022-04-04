@@ -154,8 +154,8 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_t
         if folder.is_dir():
             logging.info(f"Comparing results in {folder} against {message_prefix}:")
             if actual_folder is None and run_to_compare is None:
-                raise ValueError(f"The set of expected test results in {expected} contains a folder "
-                                 f"{subfolder}, but there is no (parent) run to compare against.")
+                logging.info("No AzureML run to compare against. Skipping.")
+                continue
             new_messages = compare_folder_contents(folder,
                                                    actual_folder=actual_folder,
                                                    run=run_to_compare,
