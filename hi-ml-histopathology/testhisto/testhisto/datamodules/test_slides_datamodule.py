@@ -7,7 +7,12 @@ import pytest
 import numpy as np
 
 from health_ml.utils.common_utils import is_gpu_available
-from testhisto.utils.utils_slides_datamodule import MockSlidesDataModule, MockWSIGenerator, MockWSIType
+from testhisto.utils.utils_slides_datamodule import (
+    MockSlidesDataModule,
+    MockWSIGenerator,
+    MockWSIType,
+    MockSlidesDataset,
+)
 
 
 no_gpu = not is_gpu_available()
@@ -27,7 +32,7 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
         n_channels=3,
         n_levels=3,
         tile_size=28,
-        background_val=255
+        background_val=255,
     )
     wsi_generator.generate_mock_wsi()
     return tmp_root_dir
@@ -47,7 +52,7 @@ def test_tiling_on_the_fly(mock_wsi_root_dir: py.path.local) -> None:
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
         # sanity check for expected shape
-        tiles, wsi_id = sample["image"], sample["slide_id"][0]
+        tiles, wsi_id = sample[MockSlidesDataset.IMAGE_COLUMN], sample[MockSlidesDataset.SLIDE_ID_COLUMN][0]
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly
@@ -69,7 +74,7 @@ def test_tiling_without_fixed_tile_count(mock_wsi_root_dir: py.path.local) -> No
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
-        tiles = sample["image"]
+        tiles = sample[MockSlidesDataset.IMAGE_COLUMN]
         assert tiles.shape[1] >= min_expected_tile_count
 
 
@@ -87,12 +92,13 @@ def test_multi_resolution_tiling(level: int, mock_wsi_root_dir: py.path.local) -
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
         # sanity check for expected shape
-        tiles, wsi_id = sample["image"], sample["slide_id"][0]
+        tiles, wsi_id = sample[MockSlidesDataset.IMAGE_COLUMN], sample[MockSlidesDataset.SLIDE_ID_COLUMN][0]
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly at different resolutions
         original_tile = np.load(str(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy")))[0]
         for i in range(tile_count):
+            # multi resolution mock data has been created via 2 factor downsampling
             assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[0, i].numpy()).all()
 
 
@@ -110,7 +116,7 @@ def test_overlapping_tiles(mock_wsi_root_dir: py.path.local) -> None:
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
-        tiles, wsi_id = sample["image"], sample["slide_id"][0]
+        tiles, wsi_id = sample[MockSlidesDataset.IMAGE_COLUMN], sample[MockSlidesDataset.SLIDE_ID_COLUMN][0]
         assert tiles.shape[1] >= min_expected_tile_count
 
         original_tile = np.load(str(mock_wsi_root_dir.join(f"{wsi_id}_tile.npy")))[0]

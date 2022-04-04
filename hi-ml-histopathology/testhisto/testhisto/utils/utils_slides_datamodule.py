@@ -26,12 +26,10 @@ class MockSlidesDataset(SlidesDataset):
     """Mock and child class of SlidesDataset, to be used for testing purposes.
     It overrides the following, according to the PANDA cohort settings:
 
-    :param SLIDE_ID_COLUMN: CSV column name for slide ID set to "image_id".
     :param LABEL_COLUMN: CSV column name for tile label set to "isup_grade".
     :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     """
-
-    SLIDE_ID_COLUMN = "image_id"
+    
     LABEL_COLUMN = "isup_grade"
     METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
 
