@@ -136,8 +136,7 @@ def create_run_configuration(workspace: Workspace,
             pip_extra_index_url=pip_extra_index_url,
             workspace=workspace,
             private_pip_wheel_path=private_pip_wheel_path,
-            docker_base_image=docker_base_image,
-            environment_variables=environment_variables)
+            docker_base_image=docker_base_image)
         conda_deps = new_environment.python.conda_dependencies
         if conda_deps.get_python_version() is None:
             raise ValueError("If specifying a conda environment file, you must specify the python version within it")
@@ -145,6 +144,9 @@ def create_run_configuration(workspace: Workspace,
         run_config.environment = registered_env
     else:
         raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
+
+    # By default, include several environment variables that work around known issues in the software stack
+    run_config.environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
 
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
