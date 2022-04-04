@@ -27,19 +27,18 @@ TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
 
 def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
     """
-    Compares two individual files for regression testing. It returns an empty string if the two files appear identical.
-    If the files are not identical, an error message with details is return. This handles known text file formats,
-    where it ignores differences in line breaks. All other files are treated as binary, and compared on a byte-by-byte
-    basis.
+    Compares two files for regression testing. Returns an empty string if they are identical.
+    Otherwise, an error message with details is returned. This handles known text file formats,
+    and differences in line breaks are ignored. All other files are treated as binary, and
+    compared on a byte-by-byte basis.
 
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
     based on the extension of this file.
-    :param actual: A file that contains the actual contents.
-    :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
+    :param actual: A file to be checked against the expected file.
+    :param csv_relative_tolerance: When comparing CSV files, maximum allowed relative discrepancy.
     If 0.0, do not allow any discrepancy.
-    :return: An empty string if the files appear identical, or otherwise an error message with details.
+    :return: An empty string if the files are identical, an error message with details otherwise.
     """
-
     def print_lines(prefix: str, lines: List[str]) -> None:
         num_lines = len(lines)
         count = min(5, num_lines)
