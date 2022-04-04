@@ -273,30 +273,31 @@ class SlidesDataModule(HistoDataModule):
         self.filter_mode = filter_mode
 
     def _load_dataset(self, slides_dataset: SlidesDataset) -> Dataset:
-        base_transform = [
-            LoadImaged(
-                keys=slides_dataset.IMAGE_COLUMN,
-                reader=WSIReader,
-                backend="cucim",
-                dtype=np.uint8,
-                level=self.level,
-                image_only=True,
-            ),
-            TileOnGridd(
-                keys=slides_dataset.IMAGE_COLUMN,
-                tile_count=self.tile_count,
-                tile_size=self.tile_size,
-                step=self.step,
-                random_offset=self.random_offset,
-                pad_full=self.pad_full,
-                background_val=self.background_val,
-                filter_mode=self.filter_mode,
-                return_list_of_dicts=True,
-            ),
-        ]
-
-        transforms = [*base_transform, self.transform] if self.transform else base_transform
-        transformed_slides_dataset = Dataset(slides_dataset, Compose(transforms))
+        base_transform = Compose(
+            [
+                LoadImaged(
+                    keys=slides_dataset.IMAGE_COLUMN,
+                    reader=WSIReader,
+                    backend="cucim",
+                    dtype=np.uint8,
+                    level=self.level,
+                    image_only=True,
+                ),
+                TileOnGridd(
+                    keys=slides_dataset.IMAGE_COLUMN,
+                    tile_count=self.tile_count,
+                    tile_size=self.tile_size,
+                    step=self.step,
+                    random_offset=self.random_offset,
+                    pad_full=self.pad_full,
+                    background_val=self.background_val,
+                    filter_mode=self.filter_mode,
+                    return_list_of_dicts=True,
+                ),
+            ]
+        )
+        transforms = Compose([base_transform, self.transform]).flatten() if self.transform else base_transform
+        transformed_slides_dataset = Dataset(slides_dataset, transforms)
         return transformed_slides_dataset
 
     def _get_dataloader(self, dataset: SlidesDataset, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
