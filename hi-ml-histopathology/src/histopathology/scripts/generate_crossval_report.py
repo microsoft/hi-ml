@@ -4,14 +4,17 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
+import pandas as pd
+from azureml.core import Workspace
 from matplotlib import pyplot as plt
 
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
 from histopathology.utils.analysis_plot_utils import (add_training_curves_legend, plot_crossval_roc_and_pr_curves,
                                                       plot_crossval_training_curves)
+from histopathology.utils.output_utils import AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV, AML_VAL_OUTPUTS_CSV
 from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
                                                crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                                get_best_epochs, get_crossval_metrics_table, get_formatted_run_info)
@@ -35,7 +38,47 @@ def generate_html_report(parent_run_id: str, output_dir: Path, workspace_config_
     best_epochs = get_best_epochs(metrics_df, 'val/auroc', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
-    report.add_heading("Training curves", level=3)
+    render_training_curves(report, heading="Training curves", level=3,
+                           metrics_df=metrics_df, best_epochs=best_epochs, report_dir=report_dir)
+
+    # Add tables with relevant metrics (val. and test)
+    base_metrics_list = ['accuracy', 'auroc', 'f1score', 'precision', 'recall', '0', '1']
+
+    render_metrics_table(report, heading="Validation metrics (best epoch)", level=3,
+                         metrics_df=metrics_df, best_epochs=best_epochs,
+                         base_metrics_list=base_metrics_list, metrics_prefix='val/')
+
+    if include_test:
+        render_metrics_table(report, heading="Test metrics", level=3,
+                             metrics_df=metrics_df, best_epochs=None,
+                             base_metrics_list=base_metrics_list, metrics_prefix='test/')
+
+    report.add_heading("Model outputs", level=2)
+
+    has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
+
+    if has_val_and_test_outputs:
+        # Add val. ROC and PR curves
+        render_roc_and_pr_curves(report, "Validation ROC and PR curves", level=3,
+                                 parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
+                                 output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
+
+    if include_test:
+        # Add test ROC and PR curves
+        test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
+        render_roc_and_pr_curves(report, "Test ROC and PR curves", level=3,
+                                 parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
+                                 output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
+
+    print(f"Rendering report to: {report.report_path_html.absolute()}")
+    report.render()
+
+
+def render_training_curves(report: HTMLReport, heading: str, level: int,
+                           metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
+                           report_dir: Path) -> None:
+
+    report.add_heading(heading, level=level)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
     plot_crossval_training_curves(metrics_df, train_metric='train/loss_epoch', val_metric='val/loss_epoch',
                                   ylabel="Loss", best_epochs=best_epochs, ax=ax1)
@@ -46,55 +89,30 @@ def generate_html_report(parent_run_id: str, output_dir: Path, workspace_config_
     fig.savefig(training_curves_fig_path, bbox_inches='tight')
     report.add_images([training_curves_fig_path], base64_encode=True)
 
-    # Add tables with relevant metrics (val. and test)
-    base_metrics_list = ['accuracy', 'auroc', 'f1score', 'precision', 'recall', '0', '1']
 
-    report.add_heading("Validation metrics (best epoch)", level=3)
-    val_metrics_list = ['val/' + metric for metric in base_metrics_list]
-    val_metrics_df = get_best_epoch_metrics(metrics_df, val_metrics_list, best_epochs)
-    val_metrics_table = get_crossval_metrics_table(val_metrics_df, val_metrics_list)
-    report.add_tables([val_metrics_table])
+def render_metrics_table(report: HTMLReport, heading: str, level: int,
+                         metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
+                         base_metrics_list: List[str], metrics_prefix: str) -> None:
 
-    if include_test:
-        report.add_heading("Test metrics", level=3)
-        test_metrics_list = ['test/' + metric for metric in base_metrics_list]
-        test_metrics_table = get_crossval_metrics_table(metrics_df, test_metrics_list)
-        report.add_tables([test_metrics_table])
+    report.add_heading(heading, level=level)
+    metrics_list = [metrics_prefix + metric for metric in base_metrics_list]
+    if best_epochs:
+        metrics_df = get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
+    metrics_table = get_crossval_metrics_table(metrics_df, metrics_list)
+    report.add_tables([metrics_table])
 
-    report.add_heading("Model outputs", level=2)
 
-    has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
+def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int,
+                             parent_run_id: str, aml_workspace: Workspace, report_dir: Path,
+                             output_filename: str, overwrite: bool, prefix: str = '') -> None:
 
-    if has_val_and_test_outputs:
-        # Add val. ROC and PR curves
-        val_outputs_filename = "val/test_output.csv"
-        val_outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace,
-                                                   output_filename=val_outputs_filename,
-                                                   overwrite=overwrite)
-
-        report.add_heading("Validation ROC and PR curves", level=3)
-        fig = plot_crossval_roc_and_pr_curves(val_outputs_dfs, scores_column='prob_class1')
-        val_roc_pr_curves_fig_path = report_dir / "val_roc_pr_curves.png"
-        fig.savefig(val_roc_pr_curves_fig_path, bbox_inches='tight')
-        report.add_images([val_roc_pr_curves_fig_path], base64_encode=True)
-
-    if include_test:
-        # Add test ROC and PR curves
-        test_outputs_filename = "test_output.csv"
-        if has_val_and_test_outputs:
-            test_outputs_filename = "test/" + test_outputs_filename
-        test_outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace,
-                                                    output_filename=test_outputs_filename,
-                                                    overwrite=overwrite)
-
-        report.add_heading("Test ROC and PR curves", level=3)
-        fig = plot_crossval_roc_and_pr_curves(test_outputs_dfs, scores_column='prob_class1')
-        test_roc_pr_curves_fig_path = report_dir / "test_roc_pr_curves.png"
-        fig.savefig(test_roc_pr_curves_fig_path, bbox_inches='tight')
-        report.add_images([test_roc_pr_curves_fig_path], base64_encode=True)
-
-    print(f"Rendering report to: {report.report_path_html.absolute()}")
-    report.render()
+    report.add_heading(heading, level=level)
+    outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace, output_filename=output_filename,
+                                           overwrite=overwrite)
+    fig = plot_crossval_roc_and_pr_curves(outputs_dfs, scores_column='prob_class1')
+    roc_pr_curves_fig_path = report_dir / f"{prefix}roc_pr_curves.png"
+    fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
+    report.add_images([roc_pr_curves_fig_path], base64_encode=True)
 
 
 if __name__ == "__main__":
