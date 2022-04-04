@@ -13,7 +13,7 @@ from torchmetrics.metric import Metric
 
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
-                                               collate_results, gather_results)
+                                               collate_results_on_cpu, gather_results)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
 _RANK_KEY = 'rank'
@@ -214,15 +214,27 @@ def test_gather_results_distributed() -> None:
     run_distributed(test_gather_results, world_size=2)
 
 
-def test_collate_results() -> None:
+def _test_collate_results(epoch_results: EpochResultsType) -> None:
+    collated_results = collate_results_on_cpu(epoch_results)
+
+    for key, epoch_elements in collated_results.items():
+        expected_elements = [batch_results[key] for batch_results in epoch_results]
+        if key != ResultsKey.LOSS:  # loss is a single tensor per batch
+            expected_elements = sum(expected_elements, [])  # concatenated lists
+
+        for elem in epoch_elements:
+            if isinstance(elem, torch.Tensor):
+                assert not elem.is_cuda, f"{key} tensor must be on CPU: {elem}"
+        assert_close(epoch_elements, expected_elements, check_device=False)
+
+
+def test_collate_results_cpu() -> None:
     epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0, device='cpu')
+    _test_collate_results(epoch_results)
 
-    collated_results = collate_results(epoch_results)
 
-    for key, value in collated_results.items():
-        epoch_values = [batch_results[key] for batch_results in epoch_results]
-        if key == ResultsKey.LOSS:
-            assert value == epoch_values
-        else:
-            expected: List = sum(epoch_values, [])  # concatenated lists
-            assert_close(value, expected)
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+def test_collate_results_multigpu() -> None:
+    epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0, device='cuda:0') \
+        + _create_epoch_results(batch_size=3, num_batches=5, rank=1, device='cuda:1')
+    _test_collate_results(epoch_results)
