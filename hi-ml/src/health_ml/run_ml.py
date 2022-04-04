@@ -169,7 +169,7 @@ class MLRunner:
 
     def is_normal_run_or_crossval_child_0(self) -> bool:
         """
-        Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
+        Returns True if the present run is a non-cross-validation run, or child run 0 of a cross-validation run.
         """
         if self.container.is_crossvalidation_enabled:
             return self.container.crossval_index == 0
