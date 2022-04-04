@@ -252,7 +252,7 @@ class SlidesDataModule(HistoDataModule):
         defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd 
+        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
         """
         super().__init__(**kwargs)
