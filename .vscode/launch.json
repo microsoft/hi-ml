@@ -47,6 +47,19 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Run pytest for GPU tests only",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hi-ml/run_pytest.py",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "--mark=gpu",
+                "--cluster=pr-gpu",
+                "--conda_env=${workspaceFolder}/hi-ml-histopathology/environment.yml",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Run DeepSMILECrck in AzureML",
             "type": "python",
             "request": "launch",

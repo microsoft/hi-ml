@@ -4,26 +4,12 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-from typing import Any, Callable, Collection, Mapping, Optional, Sequence
+from typing import Any, Callable, Collection, Mapping, Sequence
 
 import numpy as np
 import torch
 import torch.distributed
 from PIL import Image
-
-from health_azure.utils import PathOrString
-
-
-def tests_root_directory(path: Optional[PathOrString] = None) -> Path:
-    """
-    Gets the full path to the root directory that holds the tests.
-    If a relative path is provided then concatenate it with the absolute path
-    to the repository root.
-
-    :return: The full path to the repository's root directory, with symlinks resolved if any.
-    """
-    root = Path(os.path.realpath(__file__)).parent.parent.parent
-    return root / path if path else root
 
 
 def assert_dicts_equal(d1: Mapping, d2: Mapping, exclude_keys: Collection[Any] = (),
