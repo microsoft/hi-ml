@@ -295,8 +295,8 @@ class SlidesDataModule(HistoDataModule):
             ),
         ]
 
-        composed_transforms = Compose([*base_transform, *self.transform] if self.transform else base_transform)
-        transformed_slides_dataset = Dataset(slides_dataset, composed_transforms)
+        transforms = [*base_transform, self.transform] if self.transform else base_transform
+        transformed_slides_dataset = Dataset(slides_dataset, Compose(transforms))
         return transformed_slides_dataset
 
     def _get_dataloader(self, dataset: SlidesDataset, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:

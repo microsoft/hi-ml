@@ -29,7 +29,7 @@ class MockSlidesDataset(SlidesDataset):
     :param LABEL_COLUMN: CSV column name for tile label set to "isup_grade".
     :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     """
-    
+
     LABEL_COLUMN = "isup_grade"
     METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
 
