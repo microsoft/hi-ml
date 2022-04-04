@@ -4,11 +4,12 @@
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 import sys
 
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
+from health_azure.utils import is_running_in_azure_ml
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatasetWithReturnIndex
 from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 
@@ -16,19 +17,8 @@ current_file = Path(__file__)
 print(f"Running container from {current_file}")
 print(f"Sys path container level {sys.path}")
 
-local_mode = False
-path_local_data: Optional[Path]
-if local_mode:
-    is_debug_model = True
-    num_workers = 0
-    max_epochs = 2
-else:
-    is_debug_model = False
-    num_workers = 12
-    max_epochs = 200
 
-
-class SSLDatasetNameHiml(SSLDatasetName, Enum):
+class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
     TCGA_CRCK = "CRCKTilesDataset"
 
 
@@ -43,6 +33,11 @@ class CRCK_SimCLR(HistoSSLContainer):
                                                TcgaCrck_TilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
+        if not is_running_in_azure_ml():
+            is_debug_model = True
+            num_workers = 0
+            max_epochs = 2
+
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK,
                          linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK,
                          azure_datasets=["TCGA-CRCk"],
