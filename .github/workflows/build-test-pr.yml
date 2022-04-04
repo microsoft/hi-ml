@@ -24,6 +24,7 @@ env:
   HIML_COV_XML_ARTIFACT_SUFFIX: '-code_coverage_xml'
 
 jobs:
+
   flake8:
     runs-on: ubuntu-18.04
     steps:
@@ -257,6 +258,13 @@ jobs:
           cd ${{ matrix.folder }}
           make pip_local
           make pytest_and_coverage
+
+      - name: Run GPU tests
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
 
       - name: Upload coverage artifacts
         uses: ./.github/actions/upload_coverage_artifacts
