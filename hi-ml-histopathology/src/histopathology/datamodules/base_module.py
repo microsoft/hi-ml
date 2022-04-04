@@ -56,7 +56,7 @@ class HistoDataModule(LightningDataModule):
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A transform to apply to the source tiles dataset, or a composition of
-        transforms using `monai.transforms.Compose`. By default (`None`), applies `LoadTilesBatchd`.
+        transforms using `monai.transforms.Compose`. By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
