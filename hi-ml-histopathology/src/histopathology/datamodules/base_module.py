@@ -41,14 +41,16 @@ class CacheLocation(Enum):
 class HistoDataModule(LightningDataModule):
     """Base class to load a histopathology dataset as train, val, test sets"""
 
-    def __init__(self, root_path: Path, batch_size: int = 1,
-                 seed: Optional[int] = None, transform: Optional[Callable] = None,
-                 cache_mode: CacheMode = CacheMode.NONE,
-                 precache_location: CacheLocation = CacheLocation.NONE,
-                 cache_dir: Optional[Path] = None,
-                 crossval_count: int = 0,
-                 crossval_index: int = 0,
-                 dataloader_kwargs: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        root_path: Path,
+        batch_size: int = 1,
+        seed: Optional[int] = None,
+        transform: Optional[Callable] = None,
+        crossval_count: int = 0,
+        crossval_index: int = 0,
+        dataloader_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         :param root_path: Root directory of the source dataset.
         :param batch_size: Number of slides to load per batch.
@@ -56,6 +58,47 @@ class HistoDataModule(LightningDataModule):
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A transform to apply to the source tiles dataset, or a composition of
         transforms using `monai.transforms.Compose`. By default (`None`), applies `LoadTilesBatchd`.
+        :param crossval_count: Number of folds to perform.
+        :param crossval_index: Index of the cross validation split to be performed.
+        :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
+        """
+
+        super().__init__()
+
+        self.root_path = root_path
+        self.transform = transform
+        self.batch_size = batch_size
+        self.crossval_count = crossval_count
+        self.crossval_index = crossval_index
+        self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
+        self.class_weights = self.train_dataset.get_class_weights()
+        self.seed = seed
+        self.dataloader_kwargs = dataloader_kwargs or {}
+
+    def get_splits(self) -> Tuple[TilesDataset, TilesDataset, TilesDataset]:
+        """Create the training, validation, and test datasets"""
+        raise NotImplementedError
+
+
+class TilesDataModule(HistoDataModule):
+    """Base class to load the tiles of a dataset as train, val, test sets"""
+
+    def __init__(
+        self,
+        max_bag_size: int = 0,
+        max_bag_size_inf: int = 0,
+        cache_mode: CacheMode = CacheMode.NONE,
+        precache_location: CacheLocation = CacheLocation.NONE,
+        cache_dir: Optional[Path] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
+        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
+        random subsets of instances.
+        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
+        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
+        random subsets of instances.
         :param cache_mode: The type of caching to perform, i.e. whether the results of all
         transforms up to the first randomised one should be computed only once and reused in
         subsequent iterations:
@@ -72,9 +115,6 @@ class HistoDataModule(LightningDataModule):
           device it was saved from;
         If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
-        :param crossval_count: Number of folds to perform.
-        :param crossval_index: Index of the cross validation split to be performed.
-        :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
         """
         if precache_location is not CacheLocation.NONE and cache_mode is CacheMode.NONE:
             raise ValueError("Can only pre-cache if caching is enabled")
@@ -82,60 +122,13 @@ class HistoDataModule(LightningDataModule):
             raise ValueError("A cache directory is required for pre-caching")
         if cache_mode is CacheMode.DISK and cache_dir is None:
             raise ValueError("A cache directory is required for on-disk caching")
-        super().__init__()
 
-        self.root_path = root_path
-        self.transform = transform
+        self.max_bag_size = max_bag_size
+        self.max_bag_size_inf = max_bag_size_inf
         self.cache_mode = cache_mode
         self.precache_location = precache_location
         self.cache_dir = cache_dir
-        self.batch_size = batch_size
-        self.crossval_count = crossval_count
-        self.crossval_index = crossval_index
-        self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
-        self.class_weights = self.train_dataset.get_class_weights()
-        self.seed = seed
-        self.dataloader_kwargs = dataloader_kwargs or {}
 
-    def get_splits(self) -> Tuple[TilesDataset, TilesDataset, TilesDataset]:
-        """Create the training, validation, and test datasets"""
-        raise NotImplementedError
-
-    def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
-        if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
-            return None
-        return self.cache_dir / f"{stage}_dataset.pt"
-
-    def _get_transformed_dataset(
-        self, dataset: Dataset, transform: Union[Sequence[Callable], Callable]
-    ) -> Dataset:
-        if self.cache_mode is CacheMode.MEMORY:
-            dataset = CacheDataset(dataset, transform, num_workers=1)  # type: ignore
-        elif self.cache_mode is CacheMode.DISK:
-            dataset = PersistentDataset(dataset, transform, cache_dir=self.cache_dir)  # type: ignore
-            if self.precache_location != CacheLocation.NONE:
-                import tqdm  # TODO: Make optional
-                for i in tqdm.trange(len(dataset), desc="Loading dataset"):
-                    dataset[i]  # empty loop to pre-compute all transformed samples
-        else:
-            dataset = Dataset(dataset, transform)  # type: ignore
-        return dataset
-
-
-class TilesDataModule(HistoDataModule):
-    """Base class to load the tiles of a dataset as train, val, test sets"""
-
-    def __init__(self, max_bag_size: int = 0, max_bag_size_inf: int = 0, **kwargs: Any) -> None:
-        """
-        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
-        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
-        random subsets of instances.
-        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
-        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances.
-        """
-        self.max_bag_size = max_bag_size
-        self.max_bag_size_inf = max_bag_size_inf
         super().__init__(**kwargs)
 
     def prepare_data(self) -> None:
@@ -143,6 +136,25 @@ class TilesDataModule(HistoDataModule):
             self._load_dataset(self.train_dataset, stage="train", shuffle=True)
             self._load_dataset(self.val_dataset, stage="val", shuffle=True)
             self._load_dataset(self.test_dataset, stage="test", shuffle=True)
+
+    def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
+        if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
+            return None
+        return self.cache_dir / f"{stage}_dataset.pt"
+
+    def _get_transformed_dataset(self, dataset: Dataset, transform: Union[Sequence[Callable], Callable]) -> Dataset:
+        if self.cache_mode is CacheMode.MEMORY:
+            dataset = CacheDataset(dataset, transform, num_workers=1)  # type: ignore
+        elif self.cache_mode is CacheMode.DISK:
+            dataset = PersistentDataset(dataset, transform, cache_dir=self.cache_dir)  # type: ignore
+            if self.precache_location != CacheLocation.NONE:
+                import tqdm  # TODO: Make optional
+
+                for i in tqdm.trange(len(dataset), desc="Loading dataset"):
+                    dataset[i]  # empty loop to pre-compute all transformed samples
+        else:
+            dataset = Dataset(dataset, transform)  # type: ignore
+        return dataset
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
@@ -187,9 +199,7 @@ class TilesDataModule(HistoDataModule):
 
         return transformed_bag_dataset
 
-    def _get_dataloader(
-        self, dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any
-    ) -> DataLoader:
+    def _get_dataloader(self, dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
@@ -219,6 +229,7 @@ class SlidesDataModule(HistoDataModule):
     fly by default. One can specify the tiling strategies (background removal, overlapping tiles, padding, ...) through
     the class parameters.
     """
+
     def __init__(
         self,
         level: Optional[int] = 0,
@@ -289,9 +300,7 @@ class SlidesDataModule(HistoDataModule):
         transformed_slides_dataset = Dataset(slides_dataset, self.transform or base_transform)
         return transformed_slides_dataset
 
-    def _get_dataloader(
-        self, dataset: SlidesDataset, shuffle: bool, **dataloader_kwargs: Any
-    ) -> DataLoader:
+    def _get_dataloader(self, dataset: SlidesDataset, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset)
         generator = _create_generator(self.seed)
         return DataLoader(
