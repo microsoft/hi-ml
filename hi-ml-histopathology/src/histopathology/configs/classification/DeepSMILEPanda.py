@@ -38,7 +38,7 @@ from histopathology.datasets.panda_dataset import PandaDataset
 class DeepSMILEPanda(BaseMIL):
     """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
-    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, num_epochs=20, max_num_gpus=1 on PANDA.
+    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
     """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -67,7 +67,7 @@ class DeepSMILEPanda(BaseMIL):
         super().__init__(**default_kwargs)
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         if not is_running_in_azure_ml():
-            self.num_epochs = 1
+            self.max_epochs = 1
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = (
             self.best_checkpoint_filename + ".ckpt"
