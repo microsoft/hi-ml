@@ -236,17 +236,24 @@ class SlidesDataModule(HistoDataModule):
     ) -> None:
         """
         :param level: the whole slide image level at which the image is extracted, defaults to 0
+        this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend
         :param tile_count: number of tiles to extract, if None extracts all non-background tiles, defaults to None
+        this param is passed to TileOnGridd monai transform for tiling on the fly.
         :param tile_size: size of the square tile, defaults to 224
-        :param step: step size to create overlapping tiles, defaults to None
+        this param is passed to TileOnGridd monai transform for tiling on the fly.
+        :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
+        Use a step < tile_size to create overlapping tiles, analogousely a step > tile_size will skip some chunks in
+        the wsi. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
-        defaults to True
+        defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
+        This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
-        defaults to 255
+        defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value)
+        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd 
+        monai transform for tiling on the fly.
         """
         super().__init__(**kwargs)
         self.level = level

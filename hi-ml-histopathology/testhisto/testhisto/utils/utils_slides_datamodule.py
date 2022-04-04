@@ -70,7 +70,8 @@ class MockWSIGenerator:
                                 [  **    ]
                                 [    **  ]
                                 [      **]
-        where * reprents 2 tiles stitched along the Y axis.
+        where * represents 2 tiles stitched along the Y axis.
+
     :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
         The isup grades correspond to the gleason scores in the given order.
     :param N_GLEASON_SCORES: The number of possible gleason_scores.
