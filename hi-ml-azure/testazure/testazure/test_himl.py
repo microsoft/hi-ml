@@ -31,9 +31,9 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
 from health_azure.datasets import (
-    DatasetConfig, 
-    _input_dataset_key, 
-    _output_dataset_key, 
+    DatasetConfig,
+    _input_dataset_key,
+    _output_dataset_key,
     get_datastore
 )
 from health_azure.utils import (
