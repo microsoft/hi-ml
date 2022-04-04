@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import warnings
 from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
@@ -174,11 +175,18 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
 
         tile_labels = slides_groupby[ResultsKey.TRUE_LABEL]
-        assert len(tile_labels.unique()) == 1
+        # True slide label is guaranteed unique
+        assert all(len(unique_slide_label) == 1 for unique_slide_label in tile_labels.unique())
         labels = tile_labels.first()
 
         tile_scores = slides_groupby[scores_column]
-        assert len(tile_scores.unique()) == 1
+        non_unique_slides = [slide_id for slide_id, unique_slide_score in tile_scores.unique().items()
+                             if len(unique_slide_score) > 1]
+        if non_unique_slides:
+            warnings.warn(f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
+                          f"{sorted(non_unique_slides)}")
+        # TODO: Re-enable assertion once we can guarantee uniqueness of slides during validation
+        # assert len(non_unique_slides) == 0
         scores = tile_scores.first()
 
         plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
