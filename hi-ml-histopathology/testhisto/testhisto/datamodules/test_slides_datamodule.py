@@ -36,7 +36,11 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_on_the_fly(mock_wsi_root_dir: py.path.local) -> None:
-    batch_size, tile_count, tile_size, level, channels = 1, 16, 28, 0, 3
+    batch_size = 1
+    tile_count = 16
+    tile_size = 28
+    level = 0
+    channels = 3
     datamodule = MockSlidesDataModule(
         root_path=mock_wsi_root_dir, batch_size=batch_size, tile_count=tile_count, tile_size=tile_size, level=level
     )
@@ -55,7 +59,10 @@ def test_tiling_on_the_fly(mock_wsi_root_dir: py.path.local) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_without_fixed_tile_count(mock_wsi_root_dir: py.path.local) -> None:
-    batch_size, tile_count, tile_size, level = 1, None, 28, 0
+    batch_size = 1
+    tile_count = None
+    tile_size = 28
+    level = 0
     min_expected_tile_count = 16
     datamodule = MockSlidesDataModule(
         root_path=mock_wsi_root_dir, batch_size=batch_size, tile_count=tile_count, tile_size=tile_size, level=level
@@ -70,7 +77,9 @@ def test_tiling_without_fixed_tile_count(mock_wsi_root_dir: py.path.local) -> No
 @pytest.mark.gpu
 @pytest.mark.parametrize("level", [0, 1, 2])
 def test_multi_resolution_tiling(level: int, mock_wsi_root_dir: py.path.local) -> None:
-    batch_size, tile_count, channels = 1, 16, 3
+    batch_size = 1
+    tile_count = 16
+    channels = 3
     tile_size = 28 // 2 ** level
     datamodule = MockSlidesDataModule(
         root_path=mock_wsi_root_dir, batch_size=batch_size, tile_count=tile_count, tile_size=tile_size, level=level
@@ -90,8 +99,12 @@ def test_multi_resolution_tiling(level: int, mock_wsi_root_dir: py.path.local) -
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_overlapping_tiles(mock_wsi_root_dir: py.path.local) -> None:
-    batch_size, level, tile_size, step = 1, 0, 28, 14
-    min_expected_tile_count, expected_tile_matches = 32, 16
+    batch_size = 1
+    tile_size = 28
+    level = 0
+    step = 14
+    expected_tile_matches = 16
+    min_expected_tile_count = 32
     datamodule = MockSlidesDataModule(
         root_path=mock_wsi_root_dir, batch_size=batch_size, tile_size=tile_size, step=step, level=level
     )
