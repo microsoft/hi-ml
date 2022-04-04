@@ -13,7 +13,7 @@ from azureml.core import Experiment, Run, Workspace
 
 from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
-from histopathology.utils.output_utils import AML_LEGACY_TEST_OUTPUTS_CSV, AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV, AML_VAL_OUTPUTS_CSV
+from histopathology.utils.output_utils import AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV, AML_VAL_OUTPUTS_CSV
 
 
 def run_has_val_and_test_outputs(run: Run) -> bool:
@@ -81,8 +81,7 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
             raise ValueError(f"Child run expected to have the tag '{crossval_arg_name}'")
         child_dir = download_dir / str(child_run_index)
         try:
-            remote_filename = AML_OUTPUTS_DIR + "/" + output_filename
-            child_csv = download_file_if_necessary(child_run, remote_filename, child_dir / output_filename,
+            child_csv = download_file_if_necessary(child_run, output_filename, child_dir / output_filename,
                                                    overwrite=overwrite)
             all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
         except Exception as e:
