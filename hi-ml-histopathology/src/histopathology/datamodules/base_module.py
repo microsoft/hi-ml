@@ -2,8 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
-from monai.transforms.transform import Transform
 import torch
 import numpy as np
 from enum import Enum
