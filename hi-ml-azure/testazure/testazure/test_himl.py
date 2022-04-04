@@ -30,12 +30,29 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
-from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore)
-from health_azure.utils import (ENVIRONMENT_VERSION, EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON,
-                                check_config_json, get_most_recent_run, get_workspace, is_running_in_azure_ml)
+from health_azure.datasets import (
+    DatasetConfig, 
+    _input_dataset_key, 
+    _output_dataset_key, 
+    get_datastore
+)
+from health_azure.utils import (
+    DEFAULT_ENVIRONMENT_VARIABLES,
+    ENVIRONMENT_VERSION,
+    EXPERIMENT_RUN_SEPARATOR,
+    WORKSPACE_CONFIG_JSON,
+    check_config_json,
+    get_most_recent_run,
+    get_workspace,
+    is_running_in_azure_ml
+)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.utils_testazure import (DEFAULT_DATASTORE, change_working_directory, get_shared_config_json,
-                                       repository_root)
+from testazure.utils_testazure import (
+    DEFAULT_DATASTORE,
+    change_working_directory,
+    get_shared_config_json,
+    repository_root
+)
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -203,7 +220,8 @@ def test_create_run_configuration(
         max_run_duration="1h",
         input_datasets=[DatasetConfig(name="input1")],
         output_datasets=[DatasetConfig(name="output1")],
-        docker_shm_size="2g"
+        docker_shm_size="2g",
+        environment_variables={"foo": "bar"},
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -214,6 +232,14 @@ def test_create_run_configuration(
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
     mock_docker_configuration.assert_called_once()
+    assert run_config.environment_variables
+    # Environment variables should be added to the default ones
+    assert "foo" in run_config.environment_variables
+    any_default_variable = "RSLEX_DIRECT_VOLUME_MOUNT"
+    assert any_default_variable in DEFAULT_ENVIRONMENT_VARIABLES
+    assert any_default_variable in run_config.environment_variables
+
+    # Test run configuration default values
     run_config = himl.create_run_configuration(
         workspace=mock_workspace,
         compute_cluster_name=existing_compute_target,

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, TypeVar, Union
 
 T = TypeVar('T')
+IntOrFloat = Union[int, float]
 PathOrString = Union[Path, str]
 TupleFloat2 = Tuple[float, float]
 TupleInt3 = Tuple[int, int, int]
