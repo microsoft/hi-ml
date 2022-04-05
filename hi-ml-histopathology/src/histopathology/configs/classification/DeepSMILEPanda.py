@@ -14,8 +14,8 @@ from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
-from histopathology.datamodules.base_module import CacheMode, CacheLocation
-from histopathology.datamodules.panda_module import PandaTilesDataModule
+from histopathology.datamodules.base_module import CacheMode, CacheLocation, HistoDataModule
+from histopathology.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 
 from histopathology.models.encoders import (
@@ -29,15 +29,11 @@ from histopathology.models.transforms import (
     LoadTilesBatchd,
 )
 
-from histopathology.configs.classification.BaseMIL import TilesBaseMIL
+from histopathology.configs.classification.BaseMIL import SlidesBaseMIL, TilesBaseMIL, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 
 
-class DeepSMILEPanda(TilesBaseMIL):
-    """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
-    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
-    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
-    """
+class BaseDeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
@@ -46,12 +42,6 @@ class DeepSMILEPanda(TilesBaseMIL):
             num_transformer_pool_heads=4,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
-            is_finetune=False,
-            # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
-            azure_datasets=["PANDA_tiles", "PANDA"],
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
@@ -102,6 +92,27 @@ class DeepSMILEPanda(TilesBaseMIL):
         if not self.is_finetune:
             self.encoder.eval()
 
+    def get_data_module(self) -> HistoDataModule:
+        raise NotImplementedError                            # type: ignore
+
+
+class TilesDeepSMILEPanda(TilesBaseMIL, BaseDeepSMILEPanda):
+    """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
+    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
+    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
+    """
+    def __init__(self, **kwargs: Any) -> None:
+        default_kwargs = dict(
+            # declared in TilesBaseMIL:
+            cache_mode=CacheMode.MEMORY,
+            precache_location=CacheLocation.CPU,
+            is_finetune=False,
+            # declared in DatasetParams:
+            local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
+            azure_datasets=["PANDA_tiles", "PANDA"])
+        default_kwargs.update(kwargs)
+        super().__init__(**default_kwargs)
+
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
         if self.is_finetune:
@@ -133,21 +144,70 @@ class DeepSMILEPanda(TilesBaseMIL):
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
 
-class PandaImageNetMIL(DeepSMILEPanda):
+class TilesPandaImageNetMIL(TilesDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
 
 
-class PandaImageNetSimCLRMIL(DeepSMILEPanda):
+class TilesPandaImageNetSimCLRMIL(TilesDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=ImageNetSimCLREncoder.__name__, **kwargs)
 
 
-class PandaSSLMIL(DeepSMILEPanda):
+class TilesPandaSSLMIL(TilesDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 
 
-class PandaHistoSSLMIL(DeepSMILEPanda):
+class TilesPandaHistoSSLMIL(TilesDeepSMILEPanda):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
+
+
+class SlidesDeepSMILEPanda(SlidesBaseMIL, BaseDeepSMILEPanda):
+    def __init__(self, **kwargs: Any) -> None:
+        default_kwargs = dict(
+            # declared in SlidesBaseMIL: TODO check if there are other parameters to set for PANDA (MONAI pipe)
+            tile_count=60,
+            # declared in DatasetParams:
+            local_datasets=[Path("/tmp/datasets/PANDA")],
+            azure_datasets=["PANDA"])
+        default_kwargs.update(kwargs)
+        super().__init__(**default_kwargs)
+
+    def get_data_module(self) -> PandaSlidesDataModule:
+        # TODO define which transform to apply
+        workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+
+        return PandaSlidesDataModule(
+            root_path=self.local_datasets[0],
+            batch_size=self.batch_size,
+            tile_count=self.tile_count,
+            crossval_count=self.crossval_count,
+            crossval_index=self.crossval_index,
+            dataloader_kwargs=dataloader_kwargs,
+        )
+
+    def get_slides_dataset(self) -> PandaDataset:
+        return PandaDataset(root=self.local_datasets[0])                             # type: ignore
+
+
+class SlidesPandaImageNetMIL(SlidesDeepSMILEPanda):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
+
+
+class SlidesPandaImageNetSimCLRMIL(SlidesDeepSMILEPanda):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(encoder_type=ImageNetSimCLREncoder.__name__, **kwargs)
+
+
+class SlidesPandaSSLMIL(SlidesDeepSMILEPanda):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
+
+
+class SlidesPandaHistoSSLMIL(SlidesDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
