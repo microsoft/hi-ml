@@ -146,6 +146,18 @@ class WorkflowParams(param.Parameterized):
     hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
                                                 "LightningContainer to run hyperparameter tuning. If False, just "
                                                 "run a plain single training job.")
+    regression_test_folder: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="A path to a folder that contains a set of files. At the end of training and "
+                                "model evaluation, all files given in that folder must be present in the job's output "
+                                "folder, and their contents must match exactly. When running in AzureML, you need to "
+                                "ensure that this folder is part of the snapshot that gets uploaded. The path should "
+                                "be relative to the repository root directory.")
+    regression_test_csv_tolerance: float = \
+        param.Number(default=0.0, allow_None=False,
+                     doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
+                         "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
+
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 

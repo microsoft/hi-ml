@@ -4,6 +4,7 @@
 env:
 	conda env create --file environment.yml
 	pip install -r ../test_requirements.txt
+	pip install -r ../build_requirements.txt
 
 # call make for parent
 define call_parent
