@@ -97,13 +97,13 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
         mock_output_file.write_text(str(metric_value))
 
     outputs_handler = _create_outputs_handler(tmp_path)
-    outputs_handler._save_outputs = MagicMock(side_effect=mock_save_outputs)
+    outputs_handler._save_outputs = MagicMock(side_effect=mock_save_outputs)  # type: ignore
     mock_output_file = outputs_handler.validation_outputs_dir / mock_output_filename
     previous_mock_output_file = outputs_handler.previous_validation_outputs_dir / mock_output_filename
 
     def save_validation_outputs(handler: DeepMILOutputsHandler, metric_value: float, epoch: int) -> None:
-        handler.save_validation_outputs(epoch_results=[{_PRIMARY_METRIC_KEY: metric_value,
-                                                        _RANK_KEY: rank}],
+        handler.save_validation_outputs(epoch_results=[{_PRIMARY_METRIC_KEY: metric_value,  # type: ignore
+                                                        _RANK_KEY: rank}],  # type: ignore
                                         metrics_dict=_get_mock_metrics_dict(metric_value),
                                         epoch=epoch,
                                         is_global_rank_zero=is_rank_zero)

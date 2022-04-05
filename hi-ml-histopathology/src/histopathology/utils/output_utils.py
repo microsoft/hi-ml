@@ -63,7 +63,7 @@ def save_figure(fig: plt.figure, figpath: Path) -> None:
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
     # slide-level dictionaries are processed by making value dimensions uniform and converting to numpy arrays.
     # these steps are required to convert the dictionary to pandas dataframe.
-    dict_new = dict()
+    dict_new: Dict[str, Any] = dict()
     bag_size = len(dict_old[ResultsKey.SLIDE_ID])
     for key, value in dict_old.items():
         if key not in [ResultsKey.CLASS_PROBS, ResultsKey.PROB]:
@@ -92,7 +92,7 @@ def gather_results(epoch_results: EpochResultsType) -> EpochResultsType:
         if world_size > 1:
             object_list: EpochResultsType = [None] * world_size  # type: ignore
             torch.distributed.all_gather_object(object_list, epoch_results)
-            epoch_results = list(chain(*object_list))
+            epoch_results = list(chain(*object_list))  # type: ignore
     return epoch_results
 
 
@@ -120,7 +120,7 @@ def collate_results_on_cpu(epoch_results: EpochResultsType) -> ResultsType:
 def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
     print("Saving outputs ...")
     # collate at slide level
-    list_slide_dicts = []
+    list_slide_dicts: List[Dict[ResultsKey, Any]] = []
     # any column can be used here, the assumption is that the first dimension is the N of slides
     for slide_idx in range(len(results[ResultsKey.SLIDE_ID])):
         slide_dict = {key: results[key][slide_idx] for key in results
@@ -134,7 +134,7 @@ def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect the list of dictionaries in a list of pandas dataframe and save
     df_list = []
     for slide_dict in list_slide_dicts:
-        slide_dict = normalize_dict_for_df(slide_dict)
+        slide_dict = normalize_dict_for_df(slide_dict)  # type: ignore
         df_list.append(pd.DataFrame.from_dict(slide_dict))
     df = pd.concat(df_list, ignore_index=True)
     df.to_csv(csv_filename, mode='w+', header=True)
@@ -347,7 +347,7 @@ class DeepMILOutputsHandler:
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.slides_dataset = None
+        self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
@@ -366,7 +366,7 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
-    def set_slides_dataset(self, slides_dataset: SlidesDataset) -> None:
+    def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
         self.slides_dataset = slides_dataset
 
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path) -> None:
