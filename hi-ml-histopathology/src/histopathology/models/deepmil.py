@@ -321,3 +321,4 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         bag_labels = torch.stack(bag_labels_list).view(-1)
         return bag_logits, bag_labels, bag_attn_list
 
+
