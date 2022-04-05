@@ -165,11 +165,11 @@ class MLRunner:
                                                 actual=self.container.outputs_folder,
                                                 csv_relative_tolerance=self.container.regression_test_csv_tolerance)
             else:
-                logging.info("Skipping because this is not cross-validation child run 0.")
+                logging.info("Skipping as this is not cross-validation child run 0")
 
     def is_crossval_disabled_or_child_0(self) -> bool:
         """
-        Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
+        Returns True if the present run is a non-cross-validation run, or child run 0 of a cross-validation run.
         """
         if self.container.is_crossvalidation_enabled:
             return self.container.crossval_index == 0

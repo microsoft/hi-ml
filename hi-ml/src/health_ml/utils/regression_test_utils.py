@@ -35,13 +35,12 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
 
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
     based on the extension of this file.
-    :param actual: A file that contains the actual contents.
-    :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
+    :param actual: A file to be checked against the expected file.
+    :param csv_relative_tolerance: When comparing CSV files, maximum allowed relative discrepancy.
     If 0.0, do not allow any discrepancy.
-    :return: An empty string if the files appear identical, or otherwise a brief error message. If there is a 
+    :return: An empty string if the files appear identical, or otherwise a brief error message. If there is a
     mismatch, details about the mismatch are printed via logging.warning.
     """
-
     def print_lines(prefix: str, lines: List[str]) -> None:
         num_lines = len(lines)
         count = min(5, num_lines)
