@@ -3,10 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-"""BaseMIL is an abstract container defining basic functionality for running MIL experiments.
-It is responsible for instantiating the encoder and full DeepMIL model. Subclasses should define
-their datamodules and configure experiment-specific parameters.
-"""
+
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
@@ -17,7 +14,7 @@ from torchvision.models import resnet18
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
-from histopathology.datamodules.base_module import CacheLocation, CacheMode, TilesDataModule
+from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
@@ -27,6 +24,10 @@ from histopathology.utils.naming import MetricsKey
 
 
 class BaseMIL(LightningContainer):
+    """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
+    tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
+    full DeepMIL model depending on the type of dataset (tiles/slides based).
+    """
     # Model parameters:
     pool_type: str = param.String(doc="Name of the pooling layer class to use.")
     pool_hidden_dim: int = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the\
@@ -51,24 +52,6 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
-                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0, bags larger than `max_bag_size` will yield "
-                                          "random subsets of instances.")
-    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
-                                          doc="Upper bound on number of tiles in each loaded bag during "
-                                          "validation and test stages."
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
-                                          "random subsets of instances.")
-    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
-                                                doc="The type of caching to perform: "
-                                                    "'memory' (default), 'disk', or 'none'.")
-    precache_location: str = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
-                                                 doc="Whether to pre-cache the entire transformed dataset upfront "
-                                                 "and save it to disk and if re-load in cpu or gpu. Options:"
-                                                 "`none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
@@ -130,6 +113,41 @@ class BaseMIL(LightningContainer):
         return pooling_layer, num_features
 
     def create_model(self) -> DeepMILModule:
+        raise NotImplementedError
+
+    def get_data_module(self) -> HistoDataModule:
+        raise NotImplementedError
+
+    def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None
+
+
+class TileBaseMIL(BaseMIL):
+    """TileBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on tiles datasets. It is responsible
+    for instantiating the full DeepMIL model in tiles settings. Subclasses should define their datamodules and
+    configure experiment-specific parameters.
+    """
+    # Tiles Data module parameters:
+    max_bag_size: int = param.Integer(1000, bounds=(0, None),
+                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0, bags larger than `max_bag_size` will yield "
+                                          "random subsets of instances.")
+    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
+                                          doc="Upper bound on number of tiles in each loaded bag during "
+                                          "validation and test stages."
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
+                                          "random subsets of instances.")
+    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
+                                                doc="The type of caching to perform: "
+                                                    "'memory' (default), 'disk', or 'none'.")
+    precache_location: str = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
+                                                 doc="Whether to pre-cache the entire transformed dataset upfront "
+                                                 "and save it to disk and if re-load in cpu or gpu. Options:"
+                                                 "`none` (default),`cpu`, `gpu`")
+
+    def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
@@ -167,8 +185,36 @@ class BaseMIL(LightningContainer):
         deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
-    def get_data_module(self) -> TilesDataModule:
-        raise NotImplementedError
 
-    def get_slides_dataset(self) -> Optional[SlidesDataset]:
-        return None
+class SlideBaseMIL(BaseMIL):
+    """SlideBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is responsible
+    for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules and
+    configure experiment-specific parameters.
+    """
+    # Slides Data module parameters:
+    level: int = param.Integer(0, bounds=(0, 3),  # Not sure if we should set the upper bound to 3, to check
+                               doc="The whole slide image level at which the image is extracted."
+                                   "Whole slide images are represented in a pyramid structure consisting of "
+                                   "multiple images at different resolutions."
+                                   "If 0 (default), will extract baseline image at the highest resolution.")
+    tile_count: int = param.Integer(None, bounds=(0, None),
+                                    doc="Number of tiles to extract."
+                                    "If None (default), extracts all non-background tiles.")
+    tile_size: int = param.Integer(224, bounds=(0, None), doc="Size of the square tile, defaults to 224.")
+    step: int = param.Integer(None, bounds=(0, None),
+                              doc="Step size to define the offset between tiles."
+                              "If None (default), it takes the same value as tile_size."
+                              "If step < tile_size, it creates overlapping tiles."
+                              "If step > tile_size, it skips some chunks in the wsi.")
+    random_offset: bool = param.Boolean(False, doc="If True, randomize position of the grid, instead of starting at"
+                                                   "the top-left corner,")
+    pad_full: bool = param.Boolean(False, doc="If True, pad image to the size evenly divisible by tile_size")
+    background_val: int = param.Integer(255, bounds=(0, None),
+                                        doc="The background constant to ignore background tiles.")
+    filter_mode: str = param.String("min", doc="mode must be in ['min', 'max', 'random']. If total number of tiles is"
+                                               "greater than tile_count, then sort by intensity sum, and take the "
+                                               "smallest (for min), largest (for max) or random (for random) subset, "
+                                               "defaults to 'min' (which assumes background is high value).")
+
+    def create_model(self) -> DeepMILModule:
+        raise NotImplementedError
