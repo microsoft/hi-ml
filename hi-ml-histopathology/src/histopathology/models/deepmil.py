@@ -29,7 +29,7 @@ def _format_cuda_memory_stats() -> str:
             f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved")
 
 
-class DeepMILModule(LightningModule):
+class BaseDeepMILModule(LightningModule):
     """Base class for deep multiple-instance learning"""
 
     def __init__(self,
@@ -183,23 +183,15 @@ class DeepMILModule(LightningModule):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
+    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor]:
+        """Compute bag labels, logits and attention maps depending on the nature of batch.
+        Subclasses (TilesDeepMILModule and SlidesDeepMILModule) should specify how this is handled depending on if
+        the tiles are fixed or generated on the fly from whole slide images.
+        """
+        raise NotImplementedError
+
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
-        # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
-        # This means we can't stack them along a new axis without padding to the same length.
-        # We could alternatively concatenate them, but this would require other changes (e.g. in
-        # the attention layers) to correctly split the tensors by bag/slide ID.
-        bag_labels_list = []
-        bag_logits_list = []
-        bag_attn_list = []
-        for bag_idx in range(len(batch[self.label_column])):
-            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
-            labels = batch[self.label_column][bag_idx]
-            bag_labels_list.append(self.get_bag_label(labels))
-            logit, attn = self(images)
-            bag_logits_list.append(logit.view(-1))
-            bag_attn_list.append(attn)
-        bag_logits = torch.stack(bag_logits_list)
-        bag_labels = torch.stack(bag_labels_list).view(-1)
+        bag_logits, bag_labels, bag_attn_list = self._compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
             loss = self.loss_fn(bag_logits, bag_labels.long())
@@ -286,3 +278,47 @@ class DeepMILModule(LightningModule):
                 epoch_results=epoch_results,
                 is_global_rank_zero=self.global_rank == 0
             )
+
+
+class TilesDeepMILModule(BaseDeepMILModule):
+    """Base class for Tiles based deep multiple-instance learning."""
+
+    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
+        # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
+        # This means we can't stack them along a new axis without padding to the same length.
+        # We could alternatively concatenate them, but this would require other changes (e.g. in
+        # the attention layers) to correctly split the tensors by bag/slide ID.
+        bag_labels_list = []
+        bag_logits_list = []
+        bag_attn_list = []
+        for bag_idx in range(len(batch[self.label_column])):
+            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
+            labels = batch[self.label_column][bag_idx]
+            bag_labels_list.append(self.get_bag_label(labels))
+            logit, attn = self(images)
+            bag_logits_list.append(logit.view(-1))
+            bag_attn_list.append(attn)
+        bag_logits = torch.stack(bag_logits_list)
+        bag_labels = torch.stack(bag_labels_list).view(-1)
+        return bag_logits, bag_labels, bag_attn_list
+
+
+class SlidesDeepMILModule(BaseDeepMILModule):
+    """Base class for Slides based deep multiple-instance learning."""
+
+    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
+        bag_labels_list = []
+        bag_logits_list = []
+        bag_attn_list = []
+        for bag_idx in range(len(batch[self.label_column])):
+            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
+            label = batch[self.label_column][bag_idx]
+            bag_labels_list.append(label)
+            logit, attn = self(images)
+            bag_logits_list.append(logit.view(-1))
+            bag_attn_list.append(attn)
+        bag_logits = torch.stack(bag_logits_list)
+        bag_labels = torch.stack(bag_labels_list).view(-1)
+        return bag_logits, bag_labels, bag_attn_list
+
+

@@ -16,7 +16,7 @@ from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAtt
                                                         MeanPoolingLayer, TransformerPooling)
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.models.deepmil import DeepMILModule
+from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
 from histopathology.utils.output_utils import DeepMILOutputsHandler
@@ -112,7 +112,7 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    def create_model(self) -> DeepMILModule:
+    def create_model(self) -> BaseDeepMILModule:
         raise NotImplementedError
 
     def get_data_module(self) -> HistoDataModule:
@@ -147,7 +147,7 @@ class TileBaseMIL(BaseMIL):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
 
-    def create_model(self) -> DeepMILModule:
+    def create_model(self) -> TilesDeepMILModule:
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
@@ -168,20 +168,20 @@ class TileBaseMIL(BaseMIL):
                                                 class_names=self.class_names,
                                                 primary_val_metric=MetricsKey.AUROC,
                                                 maximise=True)
-        deepmil_module = DeepMILModule(encoder=self.model_encoder,
-                                       label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                                       n_classes=self.data_module.train_dataset.N_CLASSES,
-                                       pooling_layer=pooling_layer,
-                                       num_features=num_features,
-                                       dropout_rate=self.dropout_rate,
-                                       class_weights=self.data_module.class_weights,
-                                       l_rate=self.l_rate,
-                                       weight_decay=self.weight_decay,
-                                       adam_betas=self.adam_betas,
-                                       is_finetune=self.is_finetune,
-                                       class_names=self.class_names,
-                                       outputs_handler=outputs_handler
-                                       )
+        deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
+                                            label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                                            n_classes=self.data_module.train_dataset.N_CLASSES,
+                                            pooling_layer=pooling_layer,
+                                            num_features=num_features,
+                                            dropout_rate=self.dropout_rate,
+                                            class_weights=self.data_module.class_weights,
+                                            l_rate=self.l_rate,
+                                            weight_decay=self.weight_decay,
+                                            adam_betas=self.adam_betas,
+                                            is_finetune=self.is_finetune,
+                                            class_names=self.class_names,
+                                            outputs_handler=outputs_handler
+                                            )
         deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
@@ -216,5 +216,39 @@ class SlideBaseMIL(BaseMIL):
                                                "smallest (for min), largest (for max) or random (for random) subset, "
                                                "defaults to 'min' (which assumes background is high value).")
 
-    def create_model(self) -> DeepMILModule:
-        raise NotImplementedError
+    def create_model(self) -> SlidesDeepMILModule:
+        self.data_module = self.get_data_module()
+        # Encoding is done in the datamodule, so here we provide instead a dummy
+        # no-op IdentityEncoder to be used inside the model
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+
+        # Construct pooling layer
+        pooling_layer, num_features = self.get_pooling_layer()
+
+        outputs_handler = DeepMILOutputsHandler(outputs_root=self.outputs_folder,
+                                                n_classes=self.data_module.train_dataset.N_CLASSES,
+                                                tile_size=self.tile_size,
+                                                level=1,
+                                                class_names=self.class_names,
+                                                primary_val_metric=MetricsKey.AUROC,
+                                                maximise=True)
+        deepmil_module = SlidesDeepMILModule(encoder=self.model_encoder,
+                                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                                             pooling_layer=pooling_layer,
+                                             num_features=num_features,
+                                             dropout_rate=self.dropout_rate,
+                                             class_weights=self.data_module.class_weights,
+                                             l_rate=self.l_rate,
+                                             weight_decay=self.weight_decay,
+                                             adam_betas=self.adam_betas,
+                                             is_finetune=self.is_finetune,
+                                             class_names=self.class_names,
+                                             outputs_handler=outputs_handler)
+        deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        return deepmil_module
