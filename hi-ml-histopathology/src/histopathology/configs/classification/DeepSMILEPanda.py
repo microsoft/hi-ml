@@ -15,7 +15,7 @@ from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, HistoDataModule
-from histopathology.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
+from histopathology.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule, SubPandaSlidesDataModule, SubPandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 
 from histopathology.models.encoders import (
@@ -162,6 +162,39 @@ class TilesPandaSSLMIL(TilesDeepSMILEPanda):
 class TilesPandaHistoSSLMIL(TilesDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
+
+
+class SubPandaImageNetMIL(TilesPandaImageNetMIL):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
+        self.crossval_count = 1
+        self.train_csv = os.path.join(root_path, "configs/classification/panda/sub_train_tiles.csv")
+        self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_tiles.csv")
+
+    def get_data_module(self) -> SubPandaTilesDataModule:
+        image_key = PandaTilesDataset.IMAGE_COLUMN
+        if self.is_finetune:
+            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+        else:
+            transform = Compose(
+                [
+                    LoadTilesBatchd(image_key, progress=True),
+                    EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size),
+                ]
+            )
+
+        return SubPandaTilesDataModule(
+            train_csv=self.train_csv,
+            val_csv=self.val_csv,
+            root_path=self.local_datasets[0],
+            max_bag_size=self.max_bag_size,
+            batch_size=self.batch_size,
+            transform=transform,
+            cache_mode=self.cache_mode,
+            precache_location=self.precache_location,
+            cache_dir=self.cache_dir,
+        )
 
 
 class SlidesDeepSMILEPanda(SlidesBaseMIL, BaseDeepSMILEPanda):

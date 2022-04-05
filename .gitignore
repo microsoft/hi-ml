@@ -166,3 +166,5 @@ None/
 hi-ml-histopathology/testSSL/test_outputs
 test_outputs/
 lightning_logs/
+hi-ml-histopathology/src/histopathology/configs/classification/notebook.ipynb
+hi-ml-histopathology/src/histopathology/models/notebook.ipynb
