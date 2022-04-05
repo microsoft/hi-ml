@@ -195,7 +195,13 @@ class DeepMILModule(LightningModule):
             images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
             labels = batch[self.label_column][bag_idx]
             bag_labels_list.append(self.get_bag_label(labels))
-            logit, attn = self(images)
+            try:
+                logit, attn = self(images)
+            except RuntimeError as e:
+                slide_id = batch[TilesDataset.SLIDE_ID_COLUMN][bag_idx][0]
+                logging.error(f"Error in forward pass for slide '{slide_id}' ({len(images)} tiles) "
+                              f"on global rank {self.global_rank}", exc_info=False)
+                raise e from None
             bag_logits_list.append(logit.view(-1))
             bag_attn_list.append(attn)
         bag_logits = torch.stack(bag_logits_list)
