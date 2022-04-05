@@ -31,11 +31,11 @@ from histopathology.models.transforms import (
     LoadTilesBatchd,
 )
 
-from histopathology.configs.classification.BaseMIL import BaseMIL
+from histopathology.configs.classification.BaseMIL import TileBaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 
 
-class DeepSMILEPanda(BaseMIL):
+class DeepSMILEPanda(TileBaseMIL):
     """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
     Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
