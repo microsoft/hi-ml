@@ -5,15 +5,18 @@
 
 
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import param
 from torch import nn
 from torchvision.models import resnet18
+from pytorch_lightning.callbacks import Callback
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
+from health_ml.utils import fixed_paths
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
@@ -121,12 +124,43 @@ class BaseMIL(LightningContainer):
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
 
+    def get_callbacks(self) -> List[Callback]:
+        return super().get_callbacks() + [self.callbacks]
 
-class TileBaseMIL(BaseMIL):
+    def get_path_to_best_checkpoint(self) -> Path:
+        """
+        Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
+        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
+        folder.
+        """
+        # absolute path is required for registering the model.
+        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
+                                        self.checkpoint_folder_path,
+                                        self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path.is_file():
+            return absolute_checkpoint_path
+
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
+                                               self.checkpoint_folder_path,
+                                               self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path_parent.is_file():
+            return absolute_checkpoint_path_parent
+
+        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
+        raise ValueError("Path to best checkpoint not found")
+
+
+class TilesBaseMIL(BaseMIL):
     """TileBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on tiles datasets. It is responsible
     for instantiating the full DeepMIL model in tiles settings. Subclasses should define their datamodules and
     configure experiment-specific parameters.
     """
+    # Model parameters:
+    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
+                                                 "keep the encoder frozen.")
     # Tiles Data module parameters:
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
@@ -186,8 +220,8 @@ class TileBaseMIL(BaseMIL):
         return deepmil_module
 
 
-class SlideBaseMIL(BaseMIL):
-    """SlideBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is responsible
+class SlidesBaseMIL(BaseMIL):
+    """SlidesBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is responsible
     for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules and
     configure experiment-specific parameters.
     """

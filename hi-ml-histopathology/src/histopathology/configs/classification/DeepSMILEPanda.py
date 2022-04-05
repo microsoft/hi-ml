@@ -3,12 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, List
+from typing import Any
 from pathlib import Path
 import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.callbacks import Callback
 import torch
 
 from health_azure.utils import CheckpointDownloader
@@ -18,7 +17,6 @@ from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.panda_module import PandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
 from histopathology.models.encoders import (
     HistoSSLEncoder,
@@ -31,11 +29,11 @@ from histopathology.models.transforms import (
     LoadTilesBatchd,
 )
 
-from histopathology.configs.classification.BaseMIL import TileBaseMIL
+from histopathology.configs.classification.BaseMIL import TilesBaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 
 
-class DeepSMILEPanda(TileBaseMIL):
+class DeepSMILEPanda(TilesBaseMIL):
     """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
     Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
@@ -133,34 +131,6 @@ class DeepSMILEPanda(TileBaseMIL):
 
     def get_slides_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
-
-    def get_callbacks(self) -> List[Callback]:
-        return super().get_callbacks() + [self.callbacks]
-
-    def get_path_to_best_checkpoint(self) -> Path:
-        """
-        Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
-        folder.
-        """
-        # absolute path is required for registering the model.
-        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        self.checkpoint_folder_path,
-                                        self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path.is_file():
-            return absolute_checkpoint_path
-
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               self.checkpoint_folder_path,
-                                               self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path_parent.is_file():
-            return absolute_checkpoint_path_parent
-
-        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
-        if checkpoint_path.is_file():
-            return checkpoint_path
-
-        raise ValueError("Path to best checkpoint not found")
 
 
 class PandaImageNetMIL(DeepSMILEPanda):
