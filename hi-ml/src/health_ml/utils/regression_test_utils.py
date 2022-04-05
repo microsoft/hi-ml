@@ -28,29 +28,31 @@ TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
 def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
     """
     Compares two individual files for regression testing. It returns an empty string if the two files appear identical.
-    If the files are not identical, an error message with details is return. This handles known text file formats,
-    where it ignores differences in line breaks. All other files are treated as binary, and compared on a byte-by-byte
-    basis.
+    If the files are not identical, a brief error message is returned. Details about the mismatch are logged via
+    logging.warning. This method handles CSV files (which are treated and compared as dataframes) and text files (TXT,
+    JSON, HTML, MD, which are all compared while ignoring linebreaks. All other extensions are treated as binary,
+    and compared on a byte-by-byte basis.
 
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
     based on the extension of this file.
     :param actual: A file that contains the actual contents.
     :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
     If 0.0, do not allow any discrepancy.
-    :return: An empty string if the files appear identical, or otherwise an error message with details.
+    :return: An empty string if the files appear identical, or otherwise a brief error message. If there is a 
+    mismatch, details about the mismatch are printed via logging.warning.
     """
 
     def print_lines(prefix: str, lines: List[str]) -> None:
         num_lines = len(lines)
         count = min(5, num_lines)
-        logging.info(f"{prefix} {num_lines} lines, first {count} of those:")
-        logging.info(os.linesep.join(lines[:count]))
+        logging.warning(f"{prefix} {num_lines} lines, first {count} of those:")
+        logging.warning(os.linesep.join(lines[:count]))
 
     def try_read_csv(prefix: str, file: Path) -> Optional[pd.DataFrame]:
         try:
             return pd.read_csv(file)
         except Exception as ex:
-            logging.info(f"{prefix} file can't be read as CSV: {str(ex)}")
+            logging.warning(f"{prefix} file can't be read as CSV: {str(ex)}")
             return None
 
     if expected.suffix == CSV_SUFFIX:
@@ -61,7 +63,7 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         try:
             pd.testing.assert_frame_equal(actual_df, expected_df, rtol=csv_relative_tolerance)
         except Exception as ex:
-            logging.info(str(ex))
+            logging.warning(str(ex))
             return CONTENTS_MISMATCH
     elif expected.suffix in TEXT_FILE_SUFFIXES:
         # Compare line-by-line to avoid issues with line separators
@@ -75,21 +77,26 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         expected_binary = expected.read_bytes()
         actual_binary = actual.read_bytes()
         if expected_binary != actual_binary:
-            logging.info(f"Expected {len(expected_binary)} bytes, actual {len(actual_binary)} bytes")
+            logging.warning(f"Expected {len(expected_binary)} bytes, actual {len(actual_binary)} bytes")
             return CONTENTS_MISMATCH
     return ""
 
 
-def compare_folder_contents(expected_folder: Path,
-                            csv_relative_tolerance: float,
-                            actual_folder: Optional[Path] = None,
-                            run: Optional[Run] = None) -> List[str]:
+def compare_folder_contents(
+    expected_folder: Path,
+    actual_folder: Optional[Path] = None,
+    run: Optional[Run] = None,
+    csv_relative_tolerance: float = 0.0,
+) -> List[str]:
     """
     Compares a set of files in a folder, against files in either the other folder or files stored in the given
     AzureML run. Each file that is present in the "expected" folder must be also present in the "actual" folder
     (or the AzureML run), with exactly the same contents, in the same folder structure.
     For example, if there is a file "<expected>/foo/bar/contents.txt", then there must also be a file
-    "<actual>/foo/bar/contents.txt"
+    "<actual>/foo/bar/contents.txt". If `actual_folder` is provided, then this is used to compare files against the
+    set file files in `expected_folder`, irrespective of the value in `run`. If `run` is provided, the files
+    uploaded to the AzureML run are compared against files in `expected_folder`. If neither `run` nor `actual_folder`
+    are provided, a ValueError is raised.
 
     :param expected_folder: A folder with files that are expected to be present.
     :param actual_folder: The output folder with the actually produced files.
@@ -101,7 +108,7 @@ def compare_folder_contents(expected_folder: Path,
     """
     messages = []
     if run and not is_running_in_azure_ml(run):
-        logging.warning("Skipping file comparison because the given run context is an AzureML offline run.")
+        logging.warning("Skipping file comparison because the given run context is an AzureML offline run")
         return []
     files_in_run: List[str] = run.get_file_names() if run else []
     temp_folder = Path(tempfile.mkdtemp()) if run else None
@@ -118,18 +125,20 @@ def compare_folder_contents(expected_folder: Path,
             if file_relative in files_in_run:
                 run.download_file(name=str(file_relative), output_file_path=str(actual_file))
         else:
-            raise ValueError("One of the two arguments run, actual_folder must be provided.")
+            raise ValueError("Either of the two arguments 'run' or 'actual_folder' must be provided")
         message = compare_files(expected=file, actual=actual_file,
                                 csv_relative_tolerance=csv_relative_tolerance) if actual_file.exists() else MISSING_FILE
         if message:
             messages.append(f"{message}: {file_relative}")
-        logging.info(f"File {file_relative}: {message or 'OK'}")
+            logging.warning(f"File {file_relative}: {message}")
+        else:
+            logging.info(f"File {file_relative}: OK")
     if temp_folder:
         shutil.rmtree(temp_folder)
     return messages
 
 
-def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_tolerance: float) -> None:
+def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> None:
     """
     Compares the actual set of run outputs in the `actual` folder against an expected set of files in the `expected`
     folder. The `expected` folder can have two special subfolders AZUREML_OUTPUT and AZUREML_PARENT_OUTPUT, that
@@ -146,15 +155,17 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_t
         raise ValueError(f"Folder with expected files does not exist: {expected}")
     logging.debug(f"Current working directory: {Path.cwd()}")
     messages = []
-    for (subfolder, message_prefix, actual_folder, run_to_compare) in \
-            [(REGRESSION_TEST_OUTPUT_FOLDER, "run output files", actual, None),
-             (REGRESSION_TEST_AZUREML_FOLDER, "AzureML outputs in present run", None, RUN_CONTEXT),
-             (REGRESSION_TEST_AZUREML_PARENT_FOLDER, "AzureML outputs in parent run", None, PARENT_RUN_CONTEXT)]:
+    folders_to_check = [
+        (REGRESSION_TEST_OUTPUT_FOLDER, "run output files", actual, None),
+        (REGRESSION_TEST_AZUREML_FOLDER, "AzureML outputs in present run", None, RUN_CONTEXT),
+        (REGRESSION_TEST_AZUREML_PARENT_FOLDER, "AzureML outputs in parent run", None, PARENT_RUN_CONTEXT)
+    ]
+    for (subfolder, message_prefix, actual_folder, run_to_compare) in folders_to_check:
         folder = expected / subfolder
         if folder.is_dir():
             logging.info(f"Comparing results in {folder} against {message_prefix}:")
             if actual_folder is None and run_to_compare is None:
-                logging.info("No AzureML run to compare against. Skipping.")
+                logging.info("No AzureML run to compare against. Skipping")
                 continue
             new_messages = compare_folder_contents(folder,
                                                    actual_folder=actual_folder,
@@ -164,7 +175,7 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_t
                 messages.append(f"Issues in {message_prefix}:")
                 messages.extend(new_messages)
         else:
-            logging.info(f"Folder {subfolder} not found, skipping comparison against {message_prefix}.")
+            logging.info(f"Folder {subfolder} not found, skipping comparison against {message_prefix}")
     if messages:
         raise ValueError(f"Some expected files were missing or did not have the expected contents:{os.linesep}"
                          f"{os.linesep.join(messages)}")

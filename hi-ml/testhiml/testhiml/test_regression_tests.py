@@ -30,10 +30,10 @@ from testazure.utils_testazure import DEFAULT_WORKSPACE
 def create_folder_and_write_text(file: Path, text: str) -> None:
     """
     Writes the given text to a file. The folders in which the file lives are created too, unless they exist already.
-    Writing the text keeps the line separators as-is (no translation)
+    Writing the text keeps the line separators as-is (no translation).
     """
     file.parent.mkdir(exist_ok=True, parents=True)
-    with file.open(mode="wt", newline="") as f:
+    with file.open(mode="w", newline="") as f:
         f.write(text)
 
 
@@ -106,7 +106,7 @@ def test_compare_files_empty_csv(tmp_path: Path) -> None:
 def test_compare_files_binary(tmp_path: Path, file_extension: str) -> None:
     """
     Checks the comparison of files that are not recognized as text files, for example images.
-    :param test_output_dirs:
+    :param tmp_path: A folder for temporary files
     :param file_extension: The extension of the file to create.
     """
     expected = tmp_path / f"expected{file_extension}"
@@ -138,14 +138,16 @@ def test_compare_folder(tmp_path: Path) -> None:
     # apart from linebreaks
     create_folder_and_write_text(expected / subfolder / matching, "Line1\r\nLine2")
     create_folder_and_write_text(actual / subfolder / matching, "Line1\nLine2")
-    # This file only exists in the expected results, and should create an error
+    # This file only exists in the expected results, and should create an error saying that it is missing
+    # from the actual results
     (expected / subfolder / missing).write_text("missing")
+    # This file exists only in the actual results, and not the expected results, and so should not create an error.
     (actual / extra).write_text("extra")
     # This file exists in both actual and expected, but has different contents, hence should create an error
     (expected / subfolder / mismatch).write_text("contents1")
     (actual / subfolder / mismatch).write_text("contents2")
 
-    messages = compare_folder_contents(expected_folder=expected, actual_folder=actual, csv_relative_tolerance=0.0)
+    messages = compare_folder_contents(expected_folder=expected, actual_folder=actual)
     all_messages = " ".join(messages)
     # No issues expected
     assert matching not in all_messages
@@ -161,19 +163,20 @@ def test_compare_plain_outputs(tmp_path: Path) -> None:
     """
     Test if we can compare that a set of files from the job outputs.
     """
-    expected = tmp_path / REGRESSION_TEST_OUTPUT_FOLDER
+    expected_root = tmp_path / "expected"
+    expected = expected_root / REGRESSION_TEST_OUTPUT_FOLDER
     actual = tmp_path / "my_output"
     for folder in [expected, actual]:
         file1 = folder / "output.txt"
         create_folder_and_write_text(file1, "Something")
     # First comparison should pass
-    compare_folders_and_run_outputs(expected=expected, actual=actual, csv_relative_tolerance=0.0)
+    compare_folders_and_run_outputs(expected=expected_root, actual=actual)
     # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
     no_such_file = "no_such_file.txt"
     file2 = expected / no_such_file
     create_folder_and_write_text(file2, "foo")
     with pytest.raises(ValueError) as ex:
-        compare_folders_and_run_outputs(expected=tmp_path, actual=Path.cwd(), csv_relative_tolerance=0.0)
+        compare_folders_and_run_outputs(expected=expected_root, actual=actual)
     message = ex.value.args[0].splitlines()
     assert f"{MISSING_FILE}: {no_such_file}" in message
 
@@ -207,6 +210,7 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     :param regression_test_subfolder: The subfolder of the regression test results where the files
     should be created (either REGRESSION_TEST_AZUREML_FOLDER or REGRESSION_TEST_AZUREML_PARENT_FOLDER)
     :param run_to_mock: either RUN_CONTEXT or PARENT_RUN_CONTEXT
+    :param tmp_path: A temporary folder to use
     """
     file_contents = "some file contents"
     file_name = "contents.txt"
@@ -223,17 +227,15 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
 
     with mock.patch("health_ml.utils.regression_test_utils." + run_to_mock, run):
         # First comparison only on the single file should pass. Value passed for the 'actual' argument is irrelevant.
-        compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd(), csv_relative_tolerance=0.0)
+        compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())
         # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
         no_such_file = "no_such_file.txt"
         file2_expected = regression_test_folder / regression_test_subfolder / no_such_file
         create_folder_and_write_text(file2_expected, "foo")
         with pytest.raises(ValueError) as ex:
-            compare_folders_and_run_outputs(
-                expected=regression_test_folder, actual=Path.cwd(), csv_relative_tolerance=0.0
-            )
+            compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())
         message = ex.value.args[0].splitlines()
         assert f"{MISSING_FILE}: {no_such_file}" in message
     # Now run the same comparison that failed previously, without mocking. This should now
     # realize that the present run is an offline run, and skip the comparison
-    compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd(), csv_relative_tolerance=0.0)
+    compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())

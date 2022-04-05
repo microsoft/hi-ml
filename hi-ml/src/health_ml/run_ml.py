@@ -160,14 +160,14 @@ class MLRunner:
             # has usually already downloaded the results for the other runs, and uploaded files to the parent
             # run context.
             logging.info("Comparing the current results against stored results")
-            if self.is_normal_run_or_crossval_child_0():
+            if self.is_crossval_disabled_or_child_0():
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                 actual=self.container.outputs_folder,
                                                 csv_relative_tolerance=self.container.regression_test_csv_tolerance)
             else:
                 logging.info("Skipping because this is not cross-validation child run 0.")
 
-    def is_normal_run_or_crossval_child_0(self) -> bool:
+    def is_crossval_disabled_or_child_0(self) -> bool:
         """
         Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
         """
