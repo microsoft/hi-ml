@@ -89,13 +89,13 @@ def compare_folder_contents(
 ) -> List[str]:
     """
     Compares a set of files in a folder, against files in either the other folder or files stored in the given
-    AzureML run. Each file that is present in the "expected" folder must be also present in the "actual" folder
+    AzureML run. Each file that is present in the ``expected`` folder must be also present in the ``actual`` folder
     (or the AzureML run), with exactly the same contents, in the same folder structure.
-    For example, if there is a file "<expected>/foo/bar/contents.txt", then there must also be a file
-    "<actual>/foo/bar/contents.txt". If `actual_folder` is provided, then this is used to compare files against the
-    set file files in `expected_folder`, irrespective of the value in `run`. If `run` is provided, the files
-    uploaded to the AzureML run are compared against files in `expected_folder`. If neither `run` nor `actual_folder`
-    are provided, a ValueError is raised.
+    For example, if there is a file ``<expected>/foo/bar/contents.txt``, then there must also be a file
+    ``<actual>/foo/bar/contents.txt``. If ``actual_folder`` is provided, then this is used to compare files against the
+    set file files in ``expected_folder``, irrespective of the value in ``run``. If ``run`` is provided, the files
+    uploaded to the AzureML run are compared against files in ``expected_folder``. If neither ``run`` nor
+    ``actual_folder`` are provided, a :exc:`ValueError` is raised.
 
     :param expected_folder: A folder with files that are expected to be present.
     :param actual_folder: The output folder with the actually produced files.
@@ -139,8 +139,8 @@ def compare_folder_contents(
 
 def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> None:
     """
-    Compares the actual set of run outputs in the `actual` folder against an expected set of files in the `expected`
-    folder. The `expected` folder can have two special subfolders AZUREML_OUTPUT and AZUREML_PARENT_OUTPUT, that
+    Compares the actual set of run outputs in the ``actual`` folder against an expected set of files in the ``expected``
+    folder. The ``expected`` folder can have two special subfolders AZUREML_OUTPUT and AZUREML_PARENT_OUTPUT, that
     contain files that are expected to be present in the AzureML run context of the present run (AZUREML_OUTPUT)
     or the run context of the parent run (AZUREML_PARENT_OUTPUT).
     If a file is missing, or does not have the expected contents, an exception is raised.
