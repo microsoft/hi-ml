@@ -109,7 +109,7 @@ def collate_results_on_cpu(epoch_results: EpochResultsType) -> ResultsType:
         results[key] = []
         for batch_results in epoch_results:
             batch_elements = batch_results[key]
-            if not isinstance(batch_elements, Sequence):
+            if key == ResultsKey.LOSS:
                 batch_elements = [batch_elements]
             batch_elements = [elem.cpu() if isinstance(elem, torch.Tensor) else elem
                               for elem in batch_elements]
