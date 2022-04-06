@@ -5,7 +5,7 @@
 
 import sys
 from pathlib import Path
-from typing import Tuple, List, Any, Dict, Union
+from typing import Sequence, Tuple, List, Any, Dict, Union
 
 import torch
 import matplotlib.pyplot as plt
@@ -128,7 +128,7 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.Figure:
 
 def plot_heatmap_overlay(slide: str,
                          slide_image: np.ndarray,
-                         results: Dict[str, List[Any]],
+                         results: Dict[ResultsKey, List[Any]],
                          location_bbox: List[int],
                          tile_size: int = 224,
                          level: int = 1) -> plt.Figure:
@@ -176,7 +176,7 @@ def plot_heatmap_overlay(slide: str,
     return fig
 
 
-def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> plt.Figure:
+def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str]) -> plt.Figure:
     """Plots a normalized confusion matrix and returns the figure.
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.
