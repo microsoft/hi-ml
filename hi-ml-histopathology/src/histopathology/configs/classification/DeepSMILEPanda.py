@@ -6,7 +6,9 @@
 from typing import Any
 from pathlib import Path
 import os
+import numpy as np
 from monai.transforms import Compose
+from monai.transforms.intensity.dictionary import ScaleIntensityRanged
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 import torch
 
@@ -45,6 +47,7 @@ class BaseDeepSMILEPanda(BaseMIL):
             pool_type=AttentionLayer.__name__,
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
+            is_finetune=False,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             # declared in TrainerParams:
@@ -111,7 +114,6 @@ class TilesDeepSMILEPanda(TilesBaseMIL, BaseDeepSMILEPanda):
             # declared in TilesBaseMIL:
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
-            is_finetune=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"])
@@ -215,13 +217,23 @@ class SlidesDeepSMILEPanda(SlidesBaseMIL, BaseDeepSMILEPanda):
 
     def get_data_module(self) -> PandaSlidesDataModule:
         # TODO define which transform to apply
-        workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
-        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        image_key = PandaDataset.IMAGE_COLUMN
+        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0), 
+                                                   a_max=np.float(self.background_val))
+        if self.is_finetune:
+            transform = normalize_transform
+            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            transform = Compose([normalize_transform,
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)])
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
 
         return PandaSlidesDataModule(
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
             tile_count=self.tile_count,
+            transform=transform,
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=dataloader_kwargs,
@@ -261,12 +273,23 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
 
     def get_data_module(self) -> SubPandaSlidesDataModule:
         # TODO define which transform to apply
-        dataloader_kwargs = dict(num_workers=0)
+        image_key = PandaDataset.IMAGE_COLUMN
+        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0), 
+                                                   a_max=np.float(self.background_val))
+        if self.is_finetune:
+            transform = normalize_transform
+            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            transform = Compose([normalize_transform,
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)])
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
 
         return SubPandaSlidesDataModule(
             root_path=self.local_datasets[0],
             train_csv=self.train_csv,
             val_csv=self.val_csv,
+            transform=transform,
             batch_size=self.batch_size,
             tile_count=self.tile_count,
             crossval_count=self.crossval_count,

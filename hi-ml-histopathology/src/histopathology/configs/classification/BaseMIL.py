@@ -23,7 +23,7 @@ from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModul
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
 from histopathology.utils.output_utils import DeepMILOutputsHandler
-from histopathology.utils.naming import MetricsKey
+from histopathology.utils.naming import MetricsKey, SlideKey
 
 
 class BaseMIL(LightningContainer):
@@ -115,6 +115,26 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
+    def model_creation_setup(self) -> None:
+        self.data_module = self.get_data_module()
+        # Encoding is done in the datamodule, so here we provide instead a dummy
+        # no-op IdentityEncoder to be used inside the model
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+
+    def get_output_handler(self) -> DeepMILOutputsHandler:
+        return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
+                                     n_classes=self.data_module.train_dataset.N_CLASSES,
+                                     tile_size=self.tile_size,
+                                     level=1,
+                                     class_names=self.class_names,
+                                     primary_val_metric=MetricsKey.AUROC,
+                                     maximise=True)
+
     def create_model(self) -> BaseDeepMILModule:
         raise NotImplementedError
 
@@ -182,26 +202,9 @@ class TilesBaseMIL(BaseMIL):
                                                  "`none` (default),`cpu`, `gpu`")
 
     def create_model(self) -> TilesDeepMILModule:
-        self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        if self.is_finetune:
-            self.model_encoder = self.encoder
-            for params in self.model_encoder.parameters():
-                params.requires_grad = True
-        else:
-            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
-
-        # Construct pooling layer
+        self.model_creation_setup()
         pooling_layer, num_features = self.get_pooling_layer()
-
-        outputs_handler = DeepMILOutputsHandler(outputs_root=self.outputs_folder,
-                                                n_classes=self.data_module.train_dataset.N_CLASSES,
-                                                tile_size=self.tile_size,
-                                                level=1,
-                                                class_names=self.class_names,
-                                                primary_val_metric=MetricsKey.AUROC,
-                                                maximise=True)
+        outputs_handler = self.get_output_handler()
         deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
                                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
@@ -251,28 +254,11 @@ class SlidesBaseMIL(BaseMIL):
                                                "defaults to 'min' (which assumes background is high value).")
 
     def create_model(self) -> SlidesDeepMILModule:
-        self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        if self.is_finetune:
-            self.model_encoder = self.encoder
-            for params in self.model_encoder.parameters():
-                params.requires_grad = True
-        else:
-            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
-
-        # Construct pooling layer
+        self.model_creation_setup()
         pooling_layer, num_features = self.get_pooling_layer()
-
-        outputs_handler = DeepMILOutputsHandler(outputs_root=self.outputs_folder,
-                                                n_classes=self.data_module.train_dataset.N_CLASSES,
-                                                tile_size=self.tile_size,
-                                                level=1,
-                                                class_names=self.class_names,
-                                                primary_val_metric=MetricsKey.AUROC,
-                                                maximise=True)
+        outputs_handler = self.get_output_handler()
         deepmil_module = SlidesDeepMILModule(encoder=self.model_encoder,
-                                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                                             label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
                                              num_features=num_features,
