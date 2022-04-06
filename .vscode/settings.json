@@ -25,6 +25,7 @@
         "--config=${workspaceFolder}/.flake8",
     ],
     "python.linting.mypyEnabled": true,
+    "python.linting.mypyPath": "/anaconda/envs/himl/bin/mypy",
     "python.linting.mypyArgs": [
         "--config-file=${workspaceFolder}/mypy.ini"
     ],
@@ -77,5 +78,5 @@
         "activityBar.background": "#135511",
         "titleBar.activeBackground": "#135511",
         "titleBar.activeForeground": "#FBFAF6"
-    }
+    },
 }
