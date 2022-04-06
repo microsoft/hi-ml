@@ -218,7 +218,7 @@ class SlidesDeepSMILEPanda(SlidesBaseMIL, BaseDeepSMILEPanda):
     def get_data_module(self) -> PandaSlidesDataModule:
         # TODO define which transform to apply
         image_key = PandaDataset.IMAGE_COLUMN
-        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0), 
+        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
                                                    a_max=np.float(self.background_val))
         if self.is_finetune:
             transform = normalize_transform
@@ -274,7 +274,7 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
     def get_data_module(self) -> SubPandaSlidesDataModule:
         # TODO define which transform to apply
         image_key = PandaDataset.IMAGE_COLUMN
-        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0), 
+        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
                                                    a_max=np.float(self.background_val))
         if self.is_finetune:
             transform = normalize_transform
