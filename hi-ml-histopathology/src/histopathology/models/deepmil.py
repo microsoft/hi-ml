@@ -15,7 +15,7 @@ from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -189,7 +189,7 @@ class BaseDeepMILModule(LightningModule):
         the tiles are fixed or generated on the fly from whole slide images.
         """
         raise NotImplementedError
-   
+ 
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
@@ -331,4 +331,6 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         results.update({ResultsKey.SLIDE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],
+                        ResultsKey.TILE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],  # TODO check what to put here
+                        ResultsKey.IMAGE_PATH: batch[SlideKey.IMAGE_PATH],
                         ResultsKey.IMAGE: batch[SlidesDataset.IMAGE_COLUMN]})
