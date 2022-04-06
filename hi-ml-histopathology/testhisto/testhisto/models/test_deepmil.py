@@ -22,7 +22,7 @@ from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
-from histopathology.models.deepmil import DeepMILModule
+from histopathology.models.deepmil import TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
 
@@ -59,7 +59,7 @@ def _test_lightningmodule(
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=pool_out_dim)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=encoder,
         label_column="label",
         n_classes=n_classes,
@@ -165,7 +165,7 @@ def test_metrics(n_classes: int) -> None:
     pooling_layer, num_features = get_attention_pooling_layer(num_encoding=input_dim[0],
                                                               pool_out_dim=1)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=IdentityEncoder(input_dim=input_dim),
         label_column=TilesDataset.LABEL_COLUMN,
         n_classes=n_classes,
@@ -295,7 +295,7 @@ def test_class_weights_binary() -> None:
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=1)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=get_supervised_imagenet_encoder(),
         label_column="label",
         n_classes=n_classes,
@@ -323,7 +323,7 @@ def test_class_weights_multiclass() -> None:
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=1)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=get_supervised_imagenet_encoder(),
         label_column="label",
         n_classes=n_classes,

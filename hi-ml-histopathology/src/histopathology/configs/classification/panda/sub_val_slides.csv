@@ -1,15 +1,7 @@
 image_id,data_provider,isup_grade,gleason_score
 000920ad0b612851f8e01bcc880d9b3d,karolinska,0,0+0
 006f6aa35a78965c92fffd1fbd53a058,radboud,3,4+3
-007433133235efc27a39f11df6940829,radboud,0,negative
 008308f099f0c565fbc024ece6b8b08c,karolinska,1,3+3
-feee92608ee1caac1480fa63eb14e739,karolinska,1,3+3
-ff228af5af1389e09e293692ea479d98,radboud,4,4+4
-ff3667b139539475d4de2aa1b2325c82,radboud,1,3+3
-ff41de2d80bba4b7caf3e0694922601d,karolinska,1,3+3
 ff53524d64cae1675216bbda40ad7cac,radboud,4,4+4
-ff602bd9652640d4b534d7a78fc64b6a,karolinska,0,0+0
-ff79f700dc97b2fd05d92e56f4b4a815,karolinska,0,0+0
 ff80dfefc41b8863b476c5840f88fec0,radboud,5,5+4
 ff97fa212a451432b685bdad1c3c89df,karolinska,2,3+4
-ff9dd750be215c8ba38b5195de612253,radboud,5,4+5
