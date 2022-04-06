@@ -15,7 +15,12 @@ from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, HistoDataModule
-from histopathology.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule, SubPandaSlidesDataModule, SubPandaTilesDataModule
+from histopathology.datamodules.panda_module import (
+    PandaSlidesDataModule,
+    PandaTilesDataModule,
+    SubPandaSlidesDataModule,
+    SubPandaTilesDataModule,
+)
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 
 from histopathology.models.encoders import (
@@ -244,3 +249,27 @@ class SlidesPandaSSLMIL(SlidesDeepSMILEPanda):
 class SlidesPandaHistoSSLMIL(SlidesDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
+
+
+class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
+        self.crossval_count = 1
+        self.train_csv = os.path.join(root_path, "configs/classification/panda/sub_train_slides.csv")
+        self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_slides.csv")
+
+    def get_data_module(self) -> SubPandaSlidesDataModule:
+        # TODO define which transform to apply
+        dataloader_kwargs = dict(num_workers=0)
+
+        return SubPandaSlidesDataModule(
+            root_path=self.local_datasets[0],
+            train_csv=self.train_csv,
+            val_csv=self.val_csv,
+            batch_size=self.batch_size,
+            tile_count=self.tile_count,
+            crossval_count=self.crossval_count,
+            crossval_index=self.crossval_index,
+            dataloader_kwargs=dataloader_kwargs,
+        )

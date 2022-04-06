@@ -218,7 +218,7 @@ class BaseDeepMILModule(LightningModule):
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(predicted_probs, bag_labels.view(batch_size,))
+            metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
@@ -320,4 +320,3 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         bag_logits = torch.stack(bag_logits_list)
         bag_labels = torch.stack(bag_labels_list).view(-1)
         return bag_logits, bag_labels, bag_attn_list
-
