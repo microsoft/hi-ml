@@ -13,7 +13,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
-from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
@@ -189,6 +189,10 @@ class BaseDeepMILModule(LightningModule):
         the tiles are fixed or generated on the fly from whole slide images.
         """
         raise NotImplementedError
+   
+    def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        """Update training results with data specific info. This can be either tiles or slides related metadata."""
+        raise NotImplementedError
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
         bag_logits, bag_labels, bag_attn_list = self._compute_bag_labels_logits_and_attn_maps(batch)
@@ -219,25 +223,14 @@ class BaseDeepMILModule(LightningModule):
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
             metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
-        results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
-                        ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
-                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
-                        ResultsKey.LOSS: loss,
+        results.update({ResultsKey.LOSS: loss,
                         ResultsKey.PROB: predicted_probs,
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels,
                         ResultsKey.BAG_ATTN: bag_attn_list,
-                        ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
-
-        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
-            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
-                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
-                           )
-        else:
-            if is_global_rank_zero():
-                logging.warning("Coordinates not found in batch. If this is not expected check your"
-                                "input tiles dataset.")
+                        })
+        self._update_results_with_data_specific_info(batch=batch, results=results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -302,15 +295,30 @@ class TilesDeepMILModule(BaseDeepMILModule):
         bag_labels = torch.stack(bag_labels_list).view(-1)
         return bag_logits, bag_labels, bag_attn_list
 
+    def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
+                        ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
+                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
+                        ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
+
+        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
+                           )
+        else:
+            if is_global_rank_zero():
+                logging.warning("Coordinates not found in batch. If this is not expected check your"
+                                "input tiles dataset.")
+
 
 class SlidesDeepMILModule(BaseDeepMILModule):
-    """Base class for Slides based deep multiple-instance learning."""
+    """Base class for slides based deep multiple-instance learning."""
 
     def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         bag_labels_list = []
         bag_logits_list = []
         bag_attn_list = []
-        for bag_idx in range(batch.shape[0]):
+        for bag_idx in range(len(batch[self.label_column])):
             images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
             label = batch[self.label_column][bag_idx]
             bag_labels_list.append(label)
@@ -320,3 +328,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         bag_logits = torch.stack(bag_logits_list)
         bag_labels = torch.stack(bag_labels_list).view(-1)
         return bag_logits, bag_labels, bag_attn_list
+
+    def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        results.update({ResultsKey.SLIDE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],
+                        ResultsKey.IMAGE: batch[SlidesDataset.IMAGE_COLUMN]})

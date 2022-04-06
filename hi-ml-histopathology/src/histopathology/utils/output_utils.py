@@ -108,7 +108,7 @@ def collate_results(epoch_results: EpochResultsType) -> ResultsType:
     for key in epoch_results[0].keys():
         results[key] = []
         for batch_results in epoch_results:
-            results[key] += batch_results[key]
+                results[key] += batch_results[key]
     return results
 
 

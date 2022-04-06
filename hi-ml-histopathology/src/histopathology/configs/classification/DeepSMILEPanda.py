@@ -268,6 +268,8 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
         super().__init__(**kwargs)
         root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
         self.crossval_count = 1
+        self.is_finetune = True
+        self.batch_size = 2
         self.train_csv = os.path.join(root_path, "configs/classification/panda/sub_train_slides.csv")
         self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_slides.csv")
 

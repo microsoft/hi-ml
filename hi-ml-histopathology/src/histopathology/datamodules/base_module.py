@@ -308,7 +308,6 @@ class SlidesDataModule(HistoDataModule):
             collate_fn=image_collate,
             shuffle=shuffle,
             generator=generator,
-            pin_memory=True,
             **dataloader_kwargs,
         )
 
