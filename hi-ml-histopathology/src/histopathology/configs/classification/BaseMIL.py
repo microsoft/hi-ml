@@ -257,8 +257,9 @@ class SlidesBaseMIL(BaseMIL):
         self.model_creation_setup()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_output_handler()
-        deepmil_module = SlidesDeepMILModule(encoder=self.model_encoder,
-                                             label_column=SlideKey.LABEL,
+        deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
+                                             encoder=self.model_encoder,
+                                             label_column=SlideKey.LABEL,  # TODO add comment
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
                                              num_features=num_features,

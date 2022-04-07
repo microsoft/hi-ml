@@ -208,7 +208,6 @@ class TilesDataModule(HistoDataModule):
             collate_fn=multibag_collate,
             shuffle=shuffle,
             generator=generator,
-            pin_memory=True,
             **dataloader_kwargs,
         )
 

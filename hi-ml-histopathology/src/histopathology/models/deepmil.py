@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
@@ -195,6 +195,7 @@ class BaseDeepMILModule(LightningModule):
         raise NotImplementedError
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
+     
         bag_logits, bag_labels, bag_attn_list = self._compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
@@ -228,7 +229,7 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels,
-                        ResultsKey.BAG_ATTN: bag_attn_list,
+                        ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self._update_results_with_data_specific_info(batch=batch, results=results)
         return results
@@ -312,6 +313,9 @@ class TilesDeepMILModule(BaseDeepMILModule):
 
 class SlidesDeepMILModule(BaseDeepMILModule):
     """Base class for slides based deep multiple-instance learning."""
+    def __init__(self, tiles_count: int, **kwargs: Any) -> None:
+        self.tiles_count = tiles_count
+        super().__init__(**kwargs)
 
     def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         bag_labels_list = []
@@ -329,6 +333,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return bag_logits, bag_labels, bag_attn_list
 
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
-        results.update({ResultsKey.SLIDE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],
-                        ResultsKey.TILE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],  # TODO check what to put here
-                        ResultsKey.IMAGE_PATH: batch[SlideKey.IMAGE_PATH]})
+        results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
+                        ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
+                        # This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
+                        ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})
