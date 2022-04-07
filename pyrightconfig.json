@@ -5,8 +5,7 @@
     "hi-ml-azure"
   ],
   "exclude": [
-    "hi-ml/testhiml/testhiml/utils/image_loading",
-    "hi-ml/testhiml/testhiml/utils/slide_image_loading/src"
+    "hi-ml/other",
   ],
   "useLibraryCodeForTypes": false,
   "reportMissingImports": true,
