@@ -176,6 +176,13 @@ class SubPandaImageNetMIL(TilesPandaImageNetMIL):
         super().__init__(**kwargs)
         root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
         self.crossval_count = 1
+        self.pl_limit_train_batches = 2
+        self.pl_limit_val_batches = 1
+        self.batch_size = 1
+        self.max_bag_size = 3
+        self.max_bag_size_inf = 3
+        self.cache_mode = CacheMode.NONE
+        self.precache_location = CacheLocation.NONE
         self.train_csv = os.path.join(root_path, "configs/classification/panda/sub_train_tiles.csv")
         self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_tiles.csv")
 
@@ -267,9 +274,13 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
-        self.crossval_count = 1
         self.is_finetune = True
-        self.batch_size = 2
+        self.crossval_count = 1
+        self.pl_limit_train_batches = 2
+        self.pl_limit_val_batches = 1
+        self.batch_size = 1
+        self.max_bag_size = 3
+        self.max_bag_size_inf = 3
         self.train_csv = os.path.join(root_path, "configs/classification/panda/sub_train_slides.csv")
         self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_slides.csv")
 
