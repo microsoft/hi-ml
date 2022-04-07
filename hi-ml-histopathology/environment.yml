@@ -7,6 +7,7 @@ dependencies:
   - cudatoolkit=11.3.1
   - pip=20.1.1
   - python=3.7.3
+  - pytorch=1.10.0
   - python-blosc=1.7.0
   - pip:
       # Run requirements for hi-ml
