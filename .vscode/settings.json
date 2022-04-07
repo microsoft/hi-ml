@@ -25,7 +25,6 @@
         "--config=${workspaceFolder}/.flake8",
     ],
     "python.linting.mypyEnabled": true,
-    "python.linting.mypyPath": "/anaconda/envs/himl/bin/mypy",
     "python.linting.mypyArgs": [
         "--config-file=${workspaceFolder}/mypy.ini"
     ],
