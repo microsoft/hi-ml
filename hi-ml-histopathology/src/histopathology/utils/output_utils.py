@@ -112,14 +112,14 @@ def collate_results(epoch_results: EpochResultsType) -> ResultsType:
     return results
 
 
-def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
+def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
     print("Saving outputs ...")
     # collate at slide level
     list_slide_dicts = []
     # any column can be used here, the assumption is that the first dimension is the N of slides
     for slide_idx in range(len(results[ResultsKey.SLIDE_ID])):
         slide_dict = {key: results[key][slide_idx] for key in results
-                      if key not in [ResultsKey.IMAGE, ResultsKey.LOSS]}
+                      if key not in [ResultsKey.FEATURES, ResultsKey.LOSS]}
         list_slide_dicts.append(slide_dict)
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
@@ -137,7 +137,7 @@ def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
 
 def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
-    features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.IMAGE]]
+    features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.FEATURES]]
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
@@ -383,7 +383,7 @@ class DeepMILOutputsHandler:
         outputs_dir.mkdir(exist_ok=True, parents=True)
         figures_dir.mkdir(exist_ok=True, parents=True)
 
-        save_outputs_and_features(results, outputs_dir)
+        save_outputs_csv(results, outputs_dir)
 
         print("Selecting tiles ...")
         selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
