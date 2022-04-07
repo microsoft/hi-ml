@@ -154,6 +154,7 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
 def test_overwriting_val_outputs_distributed(tmp_path: Path) -> None:
     run_distributed(test_overwriting_val_outputs, args=(tmp_path,), world_size=2)
 
@@ -206,6 +207,7 @@ def test_gather_results(rank: int = 0, world_size: int = 1, device: str = 'cpu')
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
 def test_gather_results_distributed() -> None:
     # These tests need to be called sequentially to prevent them to be run in parallel
     run_distributed(test_gather_results, world_size=1)

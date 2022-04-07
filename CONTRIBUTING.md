@@ -103,7 +103,10 @@ class Foo:
 
     def method(self, arg: int) -> None:
         """
-        Method description, followed by an empty line.
+        Method description, followed by an empty line. Argument names like ``arg`` are rendered nicely
+        if enclosed in double backtick.
+
+        This method can raise a :exc:`ValueError`.
         
         :param arg: This is a description for the method argument.
             Long descriptions should be indented.

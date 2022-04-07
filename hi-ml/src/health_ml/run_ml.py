@@ -23,6 +23,7 @@ from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory, logging_section,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.regression_test_utils import compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
 
 
@@ -153,6 +154,26 @@ class MLRunner:
 
         with logging_section("Model inference"):
             self.run_inference(checkpoint_paths_for_testing)
+
+        if self.container.regression_test_folder:
+            # Comparison with stored results for cross-validation runs only operates on child run 0. This run
+            # has usually already downloaded the results for the other runs, and uploaded files to the parent
+            # run context.
+            logging.info("Comparing the current results against stored results")
+            if self.is_crossval_disabled_or_child_0():
+                compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
+                                                actual=self.container.outputs_folder,
+                                                csv_relative_tolerance=self.container.regression_test_csv_tolerance)
+            else:
+                logging.info("Skipping as this is not cross-validation child run 0")
+
+    def is_crossval_disabled_or_child_0(self) -> bool:
+        """
+        Returns True if the present run is a non-cross-validation run, or child run 0 of a cross-validation run.
+        """
+        if self.container.is_crossvalidation_enabled:
+            return self.container.crossval_index == 0
+        return True
 
     def run_inference(self, checkpoint_paths: List[Path]) -> None:
         """

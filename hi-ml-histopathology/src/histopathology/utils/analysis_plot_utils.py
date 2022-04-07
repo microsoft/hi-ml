@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import warnings
 from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
@@ -159,7 +160,8 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.grid(color='0.9')
 
 
-def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes) -> None:
+def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes,
+                                     scores_column: str = ResultsKey.PROB) -> None:
     """Plot ROC and precision-recall curves for multiple cross-validation runs onto provided axes.
 
     This is called by :py:func:`plot_crossval_roc_and_pr_curves()`, which additionally creates a figure and the axes.
@@ -171,8 +173,22 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
     """
     for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
-        labels = slides_groupby[ResultsKey.TRUE_LABEL].agg(pd.Series.mode)
-        scores = slides_groupby[ResultsKey.PROB].agg(pd.Series.mode)
+
+        tile_labels = slides_groupby[ResultsKey.TRUE_LABEL]
+        # True slide label is guaranteed unique
+        assert all(len(unique_slide_label) == 1 for unique_slide_label in tile_labels.unique())
+        labels = tile_labels.first()
+
+        tile_scores = slides_groupby[scores_column]
+        non_unique_slides = [slide_id for slide_id, unique_slide_score in tile_scores.unique().items()
+                             if len(unique_slide_score) > 1]
+        if non_unique_slides:
+            warnings.warn(f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
+                          f"{sorted(non_unique_slides)}")
+        # TODO: Re-enable assertion once we can guarantee uniqueness of slides during validation
+        # assert len(non_unique_slides) == 0
+        scores = tile_scores.first()
+
         plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
         plot_pr_curve(labels, scores, label=f"Fold {k}", ax=pr_ax)
     legend_kwargs = dict(edgecolor='none', fontsize='small')
@@ -182,7 +198,8 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
     format_pr_or_roc_axes('pr', pr_ax)
 
 
-def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame]) -> Figure:
+def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame],
+                                    scores_column: str = ResultsKey.PROB) -> Figure:
     """Plot ROC and precision-recall curves for multiple cross-validation runs.
 
     This will create a new figure with two subplots (left: ROC, right: PR).
@@ -192,7 +209,7 @@ def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame]) -> Fi
     :return: The created `Figure` object.
     """
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
-    _plot_crossval_roc_and_pr_curves(crossval_dfs, roc_ax=axs[0], pr_ax=axs[1])
+    _plot_crossval_roc_and_pr_curves(crossval_dfs, scores_column=scores_column, roc_ax=axs[0], pr_ax=axs[1])
     return fig
 
 

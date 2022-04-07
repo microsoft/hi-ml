@@ -32,7 +32,7 @@ from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from health_azure.utils import PackageDependency
+from health_azure.utils import PackageDependency, create_argparser
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        repository_root)
@@ -579,7 +579,7 @@ def test_merge_conda_with_pip_requirements(random_folder: Path) -> None:
 
 
 @pytest.mark.fast
-def test_merge_conda_failure_cases(random_folder: Path, caplog: CaptureFixture) -> None:
+def test_merge_conda_failure_cases(random_folder: Path, caplog: LogCaptureFixture) -> None:
     """Tests various failure cases of merging, such as empty conda files, no specified channels etc"""
     merged_file = random_folder / "merged.yml"
     env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
@@ -852,10 +852,6 @@ dependencies:
     assert list(env.python.conda_dependencies.conda_packages) == list(conda_dependencies.conda_packages)
     assert list(env.python.conda_dependencies.pip_options) == list(conda_dependencies.pip_options)
     assert list(env.python.conda_dependencies.pip_packages) == list(conda_dependencies.pip_packages)
-    assert "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC" in env.environment_variables
-    assert "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE" in env.environment_variables
     # Just check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
     assert env.name.startswith("HealthML")
 
@@ -864,11 +860,7 @@ dependencies:
     env = util.create_python_environment(
         conda_environment_file=conda_environment_file,
         pip_extra_index_url=pip_extra_index_url,
-        docker_base_image=docker_base_image,
-        environment_variables={"HELLO": "world"})
-    # Environment variables should be added to the default ones
-    assert "HELLO" in env.environment_variables
-    assert "RSLEX_DIRECT_VOLUME_MOUNT" in env.environment_variables
+        docker_base_image=docker_base_image)
     assert env.docker.base_image == docker_base_image
 
     private_pip_wheel_url = "https://some.blob/private/wheel"
@@ -911,11 +903,6 @@ dependencies:
                                           pip_extra_index_url="foo")
     assert env3.name != env2.name
 
-    # Environment variables
-    env4 = util.create_python_environment(conda_environment_file=conda_environment_file,
-                                          environment_variables={"foo": "bar"})
-    assert env4.name != env2.name
-
     # Docker base image
     env5 = util.create_python_environment(conda_environment_file=conda_environment_file,
                                           docker_base_image="docker")
@@ -930,7 +917,7 @@ dependencies:
             private_pip_wheel_path=Path(__file__))
         assert env6.name != env2.name
 
-    all_names = [env1.name, env2.name, env3.name, env4.name, env5.name, env6.name]
+    all_names = [env1.name, env2.name, env3.name, env5.name, env6.name]
     all_names_set = {*all_names}
     assert len(all_names) == len(all_names_set), "Environment names are not unique"
 
@@ -1004,7 +991,7 @@ def test_register_environment(
 
 
 def test_set_environment_variables_for_multi_node(
-        caplog: CaptureFixture,
+        caplog: LogCaptureFixture,
         capsys: CaptureFixture,
 ) -> None:
     with caplog.at_level(logging.INFO):  # type: ignore
@@ -1022,7 +1009,7 @@ def test_set_environment_variables_for_multi_node(
             },
             clear=True):
         util.set_environment_variables_for_multi_node()
-    out, _ = capsys.readouterr()
+    out = capsys.readouterr().out
     assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = there, NODE_RANK = everywhere" in out
 
     with mock.patch.dict(
@@ -1034,7 +1021,7 @@ def test_set_environment_variables_for_multi_node(
             },
             clear=True):
         util.set_environment_variables_for_multi_node()
-    out, _ = capsys.readouterr()
+    out = capsys.readouterr().out
     assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
 
 
@@ -1881,6 +1868,48 @@ def test_parsing_bools(parameterized_config_and_parser: Tuple[ParamClass, Argume
                            [f"--not_flag={flag.capitalize()}"],
                            "not_flag",
                            expected_value)
+
+
+def test_argparse_usage(capsys: CaptureFixture) -> None:
+    """Test if the auto-generated argument parser prints out defaults and usage information.
+    """
+    class SimpleClass(param.Parameterized):
+        name: str = param.String(default="name_default", doc="Name description")
+    config = SimpleClass()
+    parser = create_argparser(config, usage="my_usage", description="my_description", epilog="my_epilog")
+    arguments = ["", "--help"]
+    with pytest.raises(SystemExit):
+        with patch.object(sys, "argv", arguments):
+            parser.parse_args()
+    stdout: str = capsys.readouterr().out  # type: ignore
+    assert "Name description" in stdout
+    assert "default: " in stdout
+    assert "optional arguments:" in stdout
+    assert "--name NAME" in stdout
+    assert "usage: my_usage" in stdout
+    assert "my_description" in stdout
+    assert "my_epilog" in stdout
+
+
+def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
+    """Test if the auto-generated argument parser prints out defaults and auto-generated usage information.
+    """
+    class SimpleClass(param.Parameterized):
+        name: str = param.String(default="name_default", doc="Name description")
+    config = SimpleClass()
+    parser = create_argparser(config)
+    arguments = ["", "--help"]
+    with pytest.raises(SystemExit):
+        with patch.object(sys, "argv", arguments):
+            parser.parse_args()
+    stdout: str = capsys.readouterr().out  # type: ignore
+    assert "usage: " in stdout
+    # Check if the auto-generated usage text is present
+    assert "[-h] [--name NAME]" in stdout
+    assert "optional arguments:" in stdout
+    assert "--name NAME" in stdout
+    assert "Name description" in stdout
+    assert "default: " in stdout
 
 
 @pytest.mark.fast

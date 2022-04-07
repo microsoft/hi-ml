@@ -24,6 +24,16 @@ from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatm
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
+OUTPUTS_CSV_FILENAME = "test_output.csv"
+VAL_OUTPUTS_SUBDIR = "val"
+PREV_VAL_OUTPUTS_SUBDIR = "val_old"
+TEST_OUTPUTS_SUBDIR = "test"
+
+AML_OUTPUTS_DIR = "outputs"
+AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME])
+AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+
 BatchResultsType = Dict[ResultsKey, Any]
 EpochResultsType = List[BatchResultsType]
 ResultsType = Dict[ResultsKey, List[Any]]
@@ -102,19 +112,19 @@ def collate_results(epoch_results: EpochResultsType) -> ResultsType:
     return results
 
 
-def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
+def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
     print("Saving outputs ...")
     # collate at slide level
     list_slide_dicts = []
     # any column can be used here, the assumption is that the first dimension is the N of slides
     for slide_idx in range(len(results[ResultsKey.SLIDE_ID])):
         slide_dict = {key: results[key][slide_idx] for key in results
-                      if key not in [ResultsKey.IMAGE, ResultsKey.LOSS]}
+                      if key not in [ResultsKey.FEATURES, ResultsKey.LOSS]}
         list_slide_dicts.append(slide_dict)
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
     print(f"Metrics results will be output to {outputs_dir}")
-    csv_filename = outputs_dir / 'test_output.csv'
+    csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME
 
     # Collect the list of dictionaries in a list of pandas dataframe and save
     df_list = []
@@ -127,7 +137,7 @@ def save_outputs_and_features(results: ResultsType, outputs_dir: Path) -> None:
 
 def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
-    features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.IMAGE]]
+    features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.FEATURES]]
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
@@ -341,15 +351,15 @@ class DeepMILOutputsHandler:
 
     @property
     def validation_outputs_dir(self) -> Path:
-        return self.outputs_root / "val"
+        return self.outputs_root / VAL_OUTPUTS_SUBDIR
 
     @property
     def previous_validation_outputs_dir(self) -> Path:
-        return self.validation_outputs_dir.with_name("val_old")
+        return self.validation_outputs_dir.with_name(PREV_VAL_OUTPUTS_SUBDIR)
 
     @property
     def test_outputs_dir(self) -> Path:
-        return self.outputs_root / "test"
+        return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
     def set_slides_dataset(self, slides_dataset: SlidesDataset) -> None:
         self.slides_dataset = slides_dataset
@@ -373,7 +383,7 @@ class DeepMILOutputsHandler:
         outputs_dir.mkdir(exist_ok=True, parents=True)
         figures_dir.mkdir(exist_ok=True, parents=True)
 
-        save_outputs_and_features(results, outputs_dir)
+        save_outputs_csv(results, outputs_dir)
 
         print("Selecting tiles ...")
         selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)

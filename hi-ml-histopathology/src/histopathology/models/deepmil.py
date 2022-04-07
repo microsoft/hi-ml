@@ -235,8 +235,7 @@ class DeepMILModule(LightningModule):
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels,
-                        ResultsKey.BAG_ATTN: bag_attn_list,
-                        ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
+                        ResultsKey.BAG_ATTN: bag_attn_list})
 
         if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
             results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],

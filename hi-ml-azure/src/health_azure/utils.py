@@ -5,6 +5,7 @@
 """
 Utility functions for interacting with AzureML runs
 """
+from contextlib import contextmanager
 import hashlib
 import json
 import logging
@@ -27,7 +28,7 @@ from dataclasses import dataclass
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, DefaultDict, Dict, Generator, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import conda_merge
 import pandas as pd
@@ -175,15 +176,29 @@ def set_fields_and_validate(config: param.Parameterized, fields_to_set: Dict[str
         config.validate()
 
 
-def create_argparser(config: param.Parameterized) -> ArgumentParser:
+def create_argparser(
+    config: param.Parameterized,
+    usage: Optional[str] = None,
+    description: Optional[str] = None,
+    epilog: Optional[str] = None
+) -> ArgumentParser:
     """
     Creates an ArgumentParser with all fields of the given config that are overridable.
 
     :param config: The config whose parameters should be used to populate the argument parser
+    :param usage: Brief information about correct usage that is printed if the script started with "--help". If not
+    provided, this is auto-generated from the complete set of arguments.
+    :param description: A description of the program that is printed if the script is started with "--help"
+    :param epilog: A text that is printed after the argument details if the script is started with "--help"
     :return: ArgumentParser
     """
     assert isinstance(config, param.Parameterized)
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(
+        formatter_class=ArgumentDefaultsHelpFormatter,
+        usage=usage,
+        description=description,
+        epilog=epilog
+    )
     _add_overrideable_config_args_to_parser(config, parser)
     return parser
 
@@ -1148,14 +1163,12 @@ def create_python_environment(
     workspace: Optional[Workspace] = None,
     private_pip_wheel_path: Optional[Path] = None,
     docker_base_image: str = "",
-    environment_variables: Optional[Dict[str, str]] = None,
 ) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the arguments.
     The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
     Conda file, the docker base image, environment variables and private wheels.
 
-    :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
         the Docker image.
@@ -1171,8 +1184,6 @@ def create_python_environment(
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
-    # By default, define several environment variables that work around known issues in the software stack
-    environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
     # See if this package as a whl exists, and if so, register it with AzureML environment.
     if private_pip_wheel_path is not None:
         if not private_pip_wheel_path.is_file():
@@ -1193,7 +1204,6 @@ def create_python_environment(
             docker_base_image,
             # Changing the index URL can lead to differences in package version resolution
             pip_extra_index_url,
-            str(environment_variables),
             # Use the path of the private wheel as a proxy. This could lead to problems if
             # a new environment uses the same private wheel file name, but the wheel has different
             # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
@@ -1210,7 +1220,6 @@ def create_python_environment(
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
         env.docker.base_image = docker_base_image
-    env.environment_variables = environment_variables
     return env
 
 
@@ -1974,3 +1983,45 @@ class UnitTestWorkspaceWrapper:
         if self._workspace is None:
             self._workspace = aml_workspace_for_unittests()
         return self._workspace
+
+
+@contextmanager
+def check_config_json(script_folder: Path, shared_config_json: Path) -> Generator:
+    """
+    Create a workspace config.json file exists in the folder where we expect a test script. This is either copied
+    from the location given in shared_config_json (this should be the case when executing a test on a dev machine),
+    or created from environment variables (this should trigger in builds on the github agents).
+
+    :param script_folder: This is the folder in which the config.json file should be created
+    :param shared_config_json: Path to a shared config.json file
+    """
+    target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+    target_config_exists = target_config_json.is_file()
+    if target_config_exists:
+        pass
+    elif shared_config_json.exists():
+        # This will execute on local dev machines
+        logging.info(f"Copying {shared_config_json} to folder {script_folder}")
+        shutil.copy(shared_config_json, target_config_json)
+    else:
+        # This will execute on github agents
+        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
+        resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
+        workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
+        if subscription_id and resource_group and workspace_name:
+            with open(str(target_config_json), 'w', encoding="utf-8") as file:
+                config = {
+                    "subscription_id": subscription_id,
+                    "resource_group": resource_group,
+                    "workspace_name": workspace_name
+                }
+                json.dump(config, file)
+        else:
+            raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
+                             "workspace creation must exist.")
+    try:
+        yield
+    finally:
+        if not target_config_exists:
+            target_config_json.unlink()

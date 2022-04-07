@@ -136,8 +136,7 @@ def create_run_configuration(workspace: Workspace,
             pip_extra_index_url=pip_extra_index_url,
             workspace=workspace,
             private_pip_wheel_path=private_pip_wheel_path,
-            docker_base_image=docker_base_image,
-            environment_variables=environment_variables)
+            docker_base_image=docker_base_image)
         conda_deps = new_environment.python.conda_dependencies
         if conda_deps.get_python_version() is None:
             raise ValueError("If specifying a conda environment file, you must specify the python version within it")
@@ -145,6 +144,9 @@ def create_run_configuration(workspace: Workspace,
         run_config.environment = registered_env
     else:
         raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
+
+    # By default, include several environment variables that work around known issues in the software stack
+    run_config.environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
 
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
@@ -445,16 +447,17 @@ def submit_to_azure_if_needed(  # type: ignore
         )
 
     if snapshot_root_directory is None:
-        logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
+        print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
+    print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
+        print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
-    logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,

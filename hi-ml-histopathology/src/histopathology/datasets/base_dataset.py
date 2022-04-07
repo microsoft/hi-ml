@@ -218,3 +218,12 @@ class SlidesDataset(Dataset):
     @classmethod
     def has_mask(cls) -> bool:
         return cls.MASK_COLUMN is not None
+
+    def get_slide_labels(self) -> pd.Series:
+        return self.dataset_df[self.LABEL_COLUMN]
+
+    def get_class_weights(self) -> torch.Tensor:
+        slide_labels = self.get_slide_labels()
+        classes = np.unique(slide_labels)
+        class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=slide_labels)
+        return torch.as_tensor(class_weights)

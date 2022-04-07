@@ -30,11 +30,29 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
-from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key, get_datastore)
-from health_azure.utils import (ENVIRONMENT_VERSION, EXPERIMENT_RUN_SEPARATOR, WORKSPACE_CONFIG_JSON,
-                                get_most_recent_run, get_workspace, is_running_in_azure_ml)
+from health_azure.datasets import (
+    DatasetConfig,
+    _input_dataset_key,
+    _output_dataset_key,
+    get_datastore
+)
+from health_azure.utils import (
+    DEFAULT_ENVIRONMENT_VARIABLES,
+    ENVIRONMENT_VERSION,
+    EXPERIMENT_RUN_SEPARATOR,
+    WORKSPACE_CONFIG_JSON,
+    check_config_json,
+    get_most_recent_run,
+    get_workspace,
+    is_running_in_azure_ml
+)
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
-from testazure.utils_testazure import DEFAULT_DATASTORE, change_working_directory, check_config_json, repository_root
+from testazure.utils_testazure import (
+    DEFAULT_DATASTORE,
+    change_working_directory,
+    get_shared_config_json,
+    repository_root
+)
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
@@ -202,7 +220,8 @@ def test_create_run_configuration(
         max_run_duration="1h",
         input_datasets=[DatasetConfig(name="input1")],
         output_datasets=[DatasetConfig(name="output1")],
-        docker_shm_size="2g"
+        docker_shm_size="2g",
+        environment_variables={"foo": "bar"},
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -213,6 +232,14 @@ def test_create_run_configuration(
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
     mock_docker_configuration.assert_called_once()
+    assert run_config.environment_variables
+    # Environment variables should be added to the default ones
+    assert "foo" in run_config.environment_variables
+    any_default_variable = "RSLEX_DIRECT_VOLUME_MOUNT"
+    assert any_default_variable in DEFAULT_ENVIRONMENT_VARIABLES
+    assert any_default_variable in run_config.environment_variables
+
+    # Test run configuration default values
     run_config = himl.create_run_configuration(
         workspace=mock_workspace,
         compute_cluster_name=existing_compute_target,
@@ -694,7 +721,7 @@ def render_and_run_test_script(path: Path,
     if suppress_config_creation:
         code, stdout = spawn()
     else:
-        with check_config_json(path):
+        with check_config_json(path, shared_config_json=get_shared_config_json()):
             code, stdout = spawn()
     captured = "\n".join(stdout)
     print(f"Script console output:\n{captured}")
@@ -706,7 +733,7 @@ def render_and_run_test_script(path: Path,
         return captured
     else:
         assert EXPECTED_QUEUED in captured
-        with check_config_json(path):
+        with check_config_json(path, shared_config_json=get_shared_config_json()):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
         run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
@@ -848,7 +875,7 @@ import sys""",
 @pytest.mark.timeout(300)
 def test_mounting_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
-    with check_config_json(tmp_path):
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
@@ -873,7 +900,7 @@ def test_mounting_dataset(tmp_path: Path) -> None:
 @pytest.mark.timeout(60)
 def test_downloading_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
-    with check_config_json(tmp_path):
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
@@ -972,7 +999,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
         for i in range(0, output_count)]
 
     # Get default datastore
-    with check_config_json(tmp_path):
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
         datastore: AzureBlobDatastore = get_datastore(workspace=workspace,
