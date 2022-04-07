@@ -189,7 +189,7 @@ class BaseDeepMILModule(LightningModule):
         the tiles are fixed or generated on the fly from whole slide images.
         """
         raise NotImplementedError
- 
+
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
