@@ -298,8 +298,7 @@ class TilesDeepMILModule(BaseDeepMILModule):
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
-                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
-                        ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
+                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
 
         if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
             results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
@@ -332,5 +331,4 @@ class SlidesDeepMILModule(BaseDeepMILModule):
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         results.update({ResultsKey.SLIDE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[SlidesDataset.SLIDE_ID_COLUMN],  # TODO check what to put here
-                        ResultsKey.IMAGE_PATH: batch[SlideKey.IMAGE_PATH],
-                        ResultsKey.IMAGE: batch[SlidesDataset.IMAGE_COLUMN]})
+                        ResultsKey.IMAGE_PATH: batch[SlideKey.IMAGE_PATH]})
