@@ -14,6 +14,7 @@ from health_azure import RUN_CONTEXT, object_to_yaml, is_running_in_azure_ml
 def _dump_to_stream(o: Any) -> BytesIO:
     """
     Writes the given object to a byte stream in pickle format, and returns the stream.
+
     :param o: The object to pickle.
     :return: A byte stream, with the position set to 0.
     """
@@ -37,6 +38,8 @@ class ModelInfo:
     TEXT_TOKENIZER = "text_tokenizer"
     IMAGE_PRE_PROCESSING = "image_pre_processing"
     IMAGE_DIMENSIONS = "image_dimensions"
+    OTHER_INFO = "other_info"
+    OTHER_DESCRIPTION = "other_description"
 
     def __init__(self,
                  model: Optional[Union[torch.nn.Module, torch.jit.ScriptModule]] = None,
@@ -50,6 +53,8 @@ class ModelInfo:
                  text_tokenizer: Any = None,
                  image_pre_processing: Optional[Callable] = None,
                  image_dimensions: str = "",
+                 other_info: Any = None,
+                 other_description: str = "",
                  ):
         """
         :param model: The model that should be serialized, or the deserialized model, defaults to None
@@ -60,10 +65,14 @@ class ModelInfo:
         :param dataset_name: The name of the dataset that was used to train the model, defaults to ""
         :param azure_ml_workspace: The name of the AzureML workspace that contains the training run, defaults to ""
         :param azure_ml_run_id: The AzureML run that did the training, defaults to ""
-        :param text_tokenizer: A text tokenizer object to pre-process the model input, defaults to None
+        :param text_tokenizer: A text tokenizer object to pre-process the model input (default: None). The object given
+            here will be pickled before it is passed to ``torch.save``.
         :param image_pre_processing: An object that describes the processing for the image before it is input to the
-        model, defaults to None
+            model, defaults to None
         :param image_dimensions: The size of the pre-processed image that is accepted by the model, defaults to ""
+        :param other_info: An arbitray object that will also be written to the checkpoint. For example, this can be a
+            binary stream. The object provided here will be pickled before it is passed to ``torch.save``.
+        :param other_description: A human-readable description of what the ``other_info`` field contains.
         """
         self.model = model
         self.model_example_input = model_example_input
@@ -76,6 +85,8 @@ class ModelInfo:
         self.text_tokenizer = text_tokenizer
         self.image_pre_processing = image_pre_processing
         self.image_dimensions = image_dimensions
+        self.other_info = other_info
+        self.other_description = other_description
 
     def get_metadata_from_azureml(self) -> None:
         """Reads information about the git repository and AzureML-related info from the AzureML run context.
@@ -125,6 +136,8 @@ class ModelInfo:
             ModelInfo.TEXT_TOKENIZER: bytes_or_none(self.text_tokenizer),
             ModelInfo.IMAGE_PRE_PROCESSING: bytes_or_none(self.image_pre_processing),
             ModelInfo.IMAGE_DIMENSIONS: self.image_dimensions,
+            ModelInfo.OTHER_INFO: bytes_or_none(self.other_info),
+            ModelInfo.OTHER_DESCRIPTION: self.other_description
         }
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
@@ -156,3 +169,5 @@ class ModelInfo:
         self.text_tokenizer = unpickle_from_bytes(ModelInfo.TEXT_TOKENIZER)
         self.image_pre_processing = unpickle_from_bytes(ModelInfo.IMAGE_PRE_PROCESSING)
         self.image_dimensions = state_dict[ModelInfo.IMAGE_DIMENSIONS]
+        self.other_info = unpickle_from_bytes(ModelInfo.OTHER_INFO)
+        self.other_description = state_dict[ModelInfo.OTHER_DESCRIPTION]

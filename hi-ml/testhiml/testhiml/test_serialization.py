@@ -58,6 +58,8 @@ def test_serialization_roundtrip() -> None:
     image_preprocessing = Compose([Resize(size=20), CenterCrop(size=10)])
     example_image = torch.randn((3, 30, 30))
     image_output = image_preprocessing(example_image)
+    other_info = b'\x01\x02'
+    other_description = "a byte array"
     info1 = ModelInfo(
         model=model,
         model_example_input=example_inputs,
@@ -70,6 +72,8 @@ def test_serialization_roundtrip() -> None:
         azure_ml_run_id="run_id",
         image_dimensions="dimensions",
         image_pre_processing=image_preprocessing,
+        other_info=other_info,
+        other_description=other_description,
     )
 
     state_dict = torch_save_and_load(info1.state_dict())
@@ -92,6 +96,8 @@ def test_serialization_roundtrip() -> None:
     assert info2.azure_ml_workspace == "workspace"
     assert info2.azure_ml_run_id == "run_id"
     assert info2.image_dimensions == "dimensions"
+    assert info2.other_info == other_info
+    assert info2.other_description == other_description
     # Test if the deserialized preprocessing gives the same as the original object
     assert info2.image_pre_processing is not None
     image_output2 = info2.image_pre_processing(example_image)
