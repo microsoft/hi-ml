@@ -195,7 +195,7 @@ class BaseDeepMILModule(LightningModule):
         raise NotImplementedError
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
-     
+    
         bag_logits, bag_labels, bag_attn_list = self._compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
