@@ -14,7 +14,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
-from testhisto.utils.utils_tiles_datamodule import MockTilesDataModule, MockTilesDataset
+from histopathology.datasets.base_dataset import TilesDataset
 
 
 def noop_transform(x: Any) -> Any:
@@ -42,6 +42,13 @@ def compare_dataloaders(dl1: DataLoader, dl2: DataLoader) -> None:
                     assert item1 == item2
 
 
+class MockTilesDataset(TilesDataset):
+    TILE_X_COLUMN = TILE_Y_COLUMN = None
+    TRAIN_SPLIT_LABEL = 'train'
+    VAL_SPLIT_LABEL = 'val'
+    TEST_SPLIT_LABEL = 'test'
+
+
 def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.DataFrame:
     np.random.seed(1234)
     slide_ids = np.random.randint(n_slides, size=n_tiles)
@@ -61,6 +68,17 @@ def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.
     df[MockTilesDataset.IMAGE_COLUMN] = [f"{tile_splits[i]}/{i:06d}.png" for i in range(n_tiles)]
 
     return df
+
+
+class MockTilesDataModule(TilesDataModule):
+    def get_splits(self) -> Tuple[MockTilesDataset, MockTilesDataset, MockTilesDataset]:
+        df = MockTilesDataset(self.root_path).dataset_df
+        df = df.reset_index()
+        split_dfs = (df[df[MockTilesDataset.SPLIT_COLUMN] == MockTilesDataset.TRAIN_SPLIT_LABEL],
+                     df[df[MockTilesDataset.SPLIT_COLUMN] == MockTilesDataset.VAL_SPLIT_LABEL],
+                     df[df[MockTilesDataset.SPLIT_COLUMN] == MockTilesDataset.TEST_SPLIT_LABEL])
+        return tuple(MockTilesDataset(self.root_path, dataset_df=split_df)  # type: ignore
+                     for split_df in split_dfs)
 
 
 @pytest.fixture
