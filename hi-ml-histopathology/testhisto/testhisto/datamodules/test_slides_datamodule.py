@@ -10,7 +10,7 @@ from health_ml.utils.common_utils import is_gpu_available
 from testhisto.utils.utils_slides_datamodule import (
     MockSlidesDataModule,
     MockWSIGenerator,
-    MockWSIType,
+    MockHistoDataType,
     MockSlidesDataset,
 )
 
@@ -24,7 +24,7 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
     tmp_root_dir = tmpdir_factory.mktemp("mock_wsi")
     wsi_generator = MockWSIGenerator(
         tmp_path=tmp_root_dir,
-        mock_type=MockWSIType.PATHMNIST,
+        mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=1,
         n_slides=4,
         n_repeat_diag=N_REPEAT_DIAG,

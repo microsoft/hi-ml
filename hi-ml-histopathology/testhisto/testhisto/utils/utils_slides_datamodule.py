@@ -50,7 +50,7 @@ class MockSlidesDataModule(SlidesDataModule):
     """Mock and child class of SlidesDataModule, overrides get_splits so that it uses MockSlidesDataset."""
 
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
-        return Tuple(MockSlidesDataset(self.root_path) for _ in range(3))
+        return tuple(MockSlidesDataset(self.root_path) for _ in range(3))
 
 
 class MockWSIGenerator(MockHistoDataGenerator):
