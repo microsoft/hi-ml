@@ -50,6 +50,7 @@ class MockHistoDataGenerator:
         seed: int = 42,
         n_tiles: int = 1,
         n_slides: int = 4,
+        n_channels: int = 3,
         tile_size: int = 28,
     ) -> None:
         """
@@ -61,6 +62,7 @@ class MockHistoDataGenerator:
         :param n_tiles: how many tiles per batch to load from pathmnist dataloader, defaults to 1.
             if n_tiles > 1 WSIs are generated from different tiles in the subclass MockWSIGenerator.
         :param n_slides: Number of random slides to generate, defaults to 4.
+        :param n_channels: Number of channels, defaults to 3.
         :param tile_size: The tile size, defaults to 28.
         """
         np.random.seed(seed)
@@ -68,6 +70,7 @@ class MockHistoDataGenerator:
         self.mock_type = mock_type
         self.n_tiles = n_tiles
         self.n_slides = n_slides
+        self.n_channels = n_channels
         self.tile_size = tile_size
 
         self.dataframe = self.create_mock_metadata_dataframe()

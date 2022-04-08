@@ -71,7 +71,6 @@ class MockWSIGenerator(MockHistoDataGenerator):
     def __init__(
         self,
         n_levels: int = 3,
-        n_channels: int = 3,
         n_repeat_diag: int = 4,
         n_repeat_tile: int = 2,
         background_val: Union[int, float] = 255,
@@ -79,7 +78,6 @@ class MockWSIGenerator(MockHistoDataGenerator):
     ) -> None:
         """
         :param n_levels: Number of levels for multi resolution WSI.
-        :param n_channels: Number of channels, defaults to 3.
         :param n_repeat_diag: Number of repeat time along the diagonal axis, defaults to 4.
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
         :param background_val: A value to assign to the background, defaults to 255.
@@ -87,7 +85,6 @@ class MockWSIGenerator(MockHistoDataGenerator):
         super().__init__(**kwargs)
 
         self.n_levels = n_levels
-        self.n_channels = n_channels
         self.n_repeat_diag = n_repeat_diag
         self.n_repeat_tile = n_repeat_tile
         self.background_val = background_val
@@ -148,7 +145,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
             else:
                 raise NotImplementedError
             mock_image[
-                :, self.step_size * i: self.step_size * (i + 1), self.step_size * i: self.step_size * (i + 1)
+                :, self.step_size * i : self.step_size * (i + 1), self.step_size * i : self.step_size * (i + 1)
             ] = fill_square
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 

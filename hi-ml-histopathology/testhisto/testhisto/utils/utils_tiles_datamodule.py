@@ -61,6 +61,9 @@ class MockTilesGenerator(MockHistoDataGenerator):
     :param TILE_X_COLUMN: CSV column name for horizontal tile coordinate (optional).
     :param TILE_Y_COLUMN: CSV column name for vertical tile coordinate (optional).
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
+    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
+        The isup grades correspond to the gleason scores in the given order.
+    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     """
 
     SLIDE_ID_COLUMN = MockTilesDataset.SLIDE_ID_COLUMN
@@ -71,6 +74,13 @@ class MockTilesGenerator(MockHistoDataGenerator):
     TILE_Y_COLUMN = MockTilesDataset.TILE_Y_COLUMN
     OCCUPANCY = "occupancy"
     DEFAULT_CSV_FILENAME = MockTilesDataset.DEFAULT_CSV_FILENAME
+
+    METADATA_POSSIBLE_VALUES: dict = {
+        "data_provider": ["site_0", "site_1"],
+        "slide_isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
+        "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
+    }
+    METADATA_COLUMNS = tuple(METADATA_POSSIBLE_VALUES.keys())
 
     def __init__(self, img_size: int = 224, **kwargs: Any) -> None:
         self.img_size = img_size
@@ -105,8 +115,8 @@ class MockTilesGenerator(MockHistoDataGenerator):
                 df.loc[(slide_id + 1) * tile_id] = [
                     f"_{slide_id}",
                     f"_{slide_id}.{tile_x}x_{tile_y}y",
-                    f"{slide_id}/train_images/{tile_x}x_{tile_y}y.png",
-                    f"{slide_id}/train_images/{tile_x}x_{tile_y}y_mask.png",
+                    f"_{slide_id}/train_images/{tile_x}x_{tile_y}y.png",
+                    f"_{slide_id}/train_images/{tile_x}x_{tile_y}y_mask.png",
                     tile_x,
                     tile_y,
                     1.0,
@@ -119,10 +129,10 @@ class MockTilesGenerator(MockHistoDataGenerator):
 
     def generate_mock_histo_data(self) -> None:
         for _, row in self.dataframe.iterrows():
-            slide_dir = self.tmp_path / f"_{row[self.SLIDE_ID_COLUMN]}/train_images"
-            os.makedirs(slide_dir)
+            slide_dir = self.tmp_path / f"{row[self.SLIDE_ID_COLUMN]}/train_images"
+            os.makedirs(slide_dir, exist_ok=True)
             tiles, _ = next(iter(self.dataloader))
             for tile in tiles:
-                save_image(tile, row[self.IMAGE_COLUMN])
-                random_mask = torch.randint(0, 1, size=(self.n_channels, self.tile_size, self.tile_size))
-                save_image(random_mask, row[self.MASK_COLUMN])
+                save_image(tile * 255, self.tmp_path / row[self.IMAGE_COLUMN])
+                random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
+                save_image(random_mask.float(), self.tmp_path / row[self.MASK_COLUMN])
