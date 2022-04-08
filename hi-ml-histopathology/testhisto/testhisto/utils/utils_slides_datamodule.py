@@ -145,7 +145,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
             else:
                 raise NotImplementedError
             mock_image[
-                :, self.step_size * i : self.step_size * (i + 1), self.step_size * i : self.step_size * (i + 1)
+                :, self.step_size * i: self.step_size * (i + 1), self.step_size * i: self.step_size * (i + 1)
             ] = fill_square
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
