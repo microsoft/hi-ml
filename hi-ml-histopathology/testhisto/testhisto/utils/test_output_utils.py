@@ -224,7 +224,7 @@ def _test_collate_results(epoch_results: EpochResultsType, total_num_samples: in
         expected_elements = [batch_results[key] for batch_results in epoch_results]
         if key != ResultsKey.LOSS:  # loss is a single tensor per batch
             assert len(epoch_elements) == total_num_samples
-            # expected_elements = sum(expected_elements, [])  # concatenated lists
+            # Concatenated lists:
             expected_elements = [elem for batch_elements in expected_elements for elem in batch_elements]
 
         for elem in epoch_elements:
@@ -241,6 +241,7 @@ def test_collate_results_cpu() -> None:
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
 def test_collate_results_multigpu() -> None:
     num_batches = 5
     batch_size = 3
