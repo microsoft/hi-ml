@@ -34,7 +34,7 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
         tile_size=28,
         background_val=255,
     )
-    wsi_generator.generate_mock_wsi()
+    wsi_generator.generate_mock_histo_data()
     return tmp_root_dir
 
 

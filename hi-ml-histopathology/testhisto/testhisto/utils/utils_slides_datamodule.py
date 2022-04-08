@@ -62,12 +62,10 @@ class MockWSIGenerator(MockHistoDataGenerator):
         where * represents 2 tiles stitched along the Y axis.
 
     :param SLIDE_ID_COLUMN: CSV column name for slide id.
-    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset root directory.
     """
 
     SLIDE_ID_COLUMN = MockSlidesDataset.SLIDE_ID_COLUMN
-    METADATA_COLUMNS = MockSlidesDataset.METADATA_COLUMNS
     DEFAULT_CSV_FILENAME = MockSlidesDataset.DEFAULT_CSV_FILENAME
 
     def __init__(
@@ -98,7 +96,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
-    def create_mock_metadata_dataframe(self) -> None:
+    def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
         mock_metadata: dict = {col: [] for col in [self.SLIDE_ID_COLUMN, *self.METADATA_COLUMNS]}
         for i in range(self.n_slides):
@@ -111,6 +109,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
                 mock_metadata[key].append(val[i])
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
+        return df
 
     def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         """Create a whole slide image by stitching tiles along the diagonal axis.
@@ -177,7 +176,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(self.n_levels)]
         return levels
 
-    def generate_mock_wsi(self) -> None:
+    def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
         for sample_counter in range(self.n_slides):
             tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None

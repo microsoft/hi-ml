@@ -5,14 +5,13 @@
 import py
 import medmnist
 import numpy as np
+import pandas as pd
 import torchvision.transforms as transforms
-
 
 from enum import Enum
 from pathlib import Path
 from medmnist import INFO
 from typing import Optional, Union
-
 from torch.utils.data import DataLoader
 
 
@@ -24,18 +23,22 @@ class MockHistoDataType(Enum):
 class MockHistoDataGenerator:
     """Base class for mock histo data generation.
 
+    :param SLIDE_ID_COLUMN: CSV column name for slide id.
     :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
         The isup grades correspond to the gleason scores in the given order.
+    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     :param N_GLEASON_SCORES: The number of possible gleason_scores.
     :param N_DATA_PROVIDERS: The number of possible data_providers.
     :param N_CLASSES: The number of possible isup_grades.
     """
 
+    SLIDE_ID_COLUMN = "slide_id"
     METADATA_POSSIBLE_VALUES: dict = {
         "data_provider": ["site_0", "site_1"],
         "isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
         "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
     }
+    METADATA_COLUMNS = tuple(METADATA_POSSIBLE_VALUES.keys())
     N_GLEASON_SCORES = len(METADATA_POSSIBLE_VALUES["gleason_score"])
     N_DATA_PROVIDERS = len(METADATA_POSSIBLE_VALUES["data_provider"])
     N_CLASSES = 6
@@ -67,10 +70,10 @@ class MockHistoDataGenerator:
         self.n_slides = n_slides
         self.tile_size = tile_size
 
-        self.create_mock_metadata_dataframe()
+        self.dataframe = self.create_mock_metadata_dataframe()
         self.dataloader = self.get_dataloader()
 
-    def create_mock_metadata_dataframe(self) -> None:
+    def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
         raise NotImplementedError
 
@@ -91,3 +94,7 @@ class MockHistoDataGenerator:
         data_transform = transforms.Compose([transforms.ToTensor()])
         dataset = DataClass(split="train", transform=data_transform, download=True)
         return DataLoader(dataset=dataset, batch_size=self.n_tiles, shuffle=True)
+
+    def generate_mock_histo_data(self) -> None:
+        """Create mock histo data and save it in the corresponding format: tiff for wsi and png for tiles"""
+        raise NotImplementedError
