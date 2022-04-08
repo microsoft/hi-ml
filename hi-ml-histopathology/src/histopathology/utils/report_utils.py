@@ -86,7 +86,7 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
             all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
         except Exception as e:
             print(f"Failed to download {output_filename} for run {child_run.id}: {e}")
-    return dict(sorted(all_outputs_dfs.items()))
+    return dict(sorted(all_outputs_dfs.items()))  # type: ignore
 
 
 def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,

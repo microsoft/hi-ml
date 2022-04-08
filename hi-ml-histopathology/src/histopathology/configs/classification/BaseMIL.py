@@ -65,10 +65,10 @@ class BaseMIL(LightningContainer):
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
-    precache_location: str = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
-                                                 doc="Whether to pre-cache the entire transformed dataset upfront "
-                                                 "and save it to disk and if re-load in cpu or gpu. Options:"
-                                                 "`none` (default),`cpu`, `gpu`")
+    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
+                                                           doc="Whether to pre-cache the entire transformed dataset "
+                                                               "upfront and save it to disk and if re-load in cpu or "
+                                                               "gpu. Options: `none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
@@ -106,6 +106,7 @@ class BaseMIL(LightningContainer):
     def get_pooling_layer(self) -> Tuple[nn.Module, int]:
         num_encoding = self.encoder.num_encoding
 
+        pooling_layer: nn.Module
         if self.pool_type == AttentionLayer.__name__:
             pooling_layer = AttentionLayer(num_encoding,
                                            self.pool_hidden_dim,
@@ -164,7 +165,7 @@ class BaseMIL(LightningContainer):
                                        class_names=self.class_names,
                                        outputs_handler=outputs_handler
                                        )
-        deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
     def get_data_module(self) -> TilesDataModule:
