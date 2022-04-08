@@ -19,7 +19,7 @@ from testhisto.utils.utils_base_datamodule import MockHistoDataGenerator
 class MockTilesDataset(TilesDataset):
     """Mock and child class of SlidesDataset, to be used for testing purposes.
     It overrides the following, according to the PANDA cohort settings:
-   
+  
     :param LABEL_COLUMN: CSV column name for tile label set to "slide_isup_grade".
     :param SPLIT_COLUMN: CSV column name for train/test split (None for MockTiles data).
     :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
