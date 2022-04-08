@@ -15,7 +15,7 @@ from typing import Any, Tuple, Optional, List, Union
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from health_azure.utils import PathOrString
-from testhisto.utils.utils_datamodule import MockHistoGenerator, MockWSIType
+from testhisto.utils.utils_base_datamodule import MockHistoGenerator, MockWSIType
 
 
 class MockSlidesDataset(SlidesDataset):
@@ -72,35 +72,31 @@ class MockWSIGenerator(MockHistoGenerator):
 
     def __init__(
         self,
-        
+        n_levels: int = 3,
+        n_channels: int = 3,
         n_repeat_diag: int = 4,
         n_repeat_tile: int = 2,
-        n_channels: int = 3,
-        n_levels: int = 3,
-        tile_size: int = 28,
         background_val: Union[int, float] = 255,
         **kwargs: Any,
     ) -> None:
         """
+        :param n_levels: Number of levels for multi resolution WSI.
+        :param n_channels: Number of channels, defaults to 3.
         :param n_repeat_diag: Number of repeat time along the diagonal axis, defaults to 4.
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
-        :param n_channels: Number of channels, defaults to 3.
-        :param n_levels: Number of levels for multi resolution WSI.
-        :param tile_size: The tile size, defaults to 28.
         :param background_val: A value to assign to the background, defaults to 255.
         """
+        super().__init__(**kwargs)
+
+        self.n_levels = n_levels
+        self.n_channels = n_channels
         self.n_repeat_diag = n_repeat_diag
         self.n_repeat_tile = n_repeat_tile
-        self.n_channels = n_channels
-        self.n_levels = n_levels
-        self.tile_size = tile_size
         self.background_val = background_val
 
-        self.step_size = self.tile_size * self.n_repeat_tile  # the step size represents the diagonal square size.
+        self.step_size = self.tile_size * self.n_repeat_tile  # the step_size represents the diagonal square size.
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
-
-        super().__init__(**kwargs)
 
     def create_mock_metadata_dataframe(self) -> None:
         """Create a mock dataframe with random metadata."""
@@ -116,10 +112,10 @@ class MockWSIGenerator(MockHistoGenerator):
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
 
-    def create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
+    def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         """Create a whole slide image by stitching tiles along the diagonal axis.
 
-        :param tiles: A tensor of tiles of shape (batch_size, n_channels, tile_size, tile_size).
+        :param tiles: A tensor of tiles of shape (n_tiles, n_channels, tile_size, tile_size).
         :return: returns a wsi of shape (img_size, img_size, n_channels) and the tiles used to create it.
         The image is  in channels_last format so that it can save by a TiffWriter.
         """
@@ -129,18 +125,18 @@ class MockWSIGenerator(MockHistoGenerator):
         dump_tiles = []
         for i in range(self.n_repeat_diag):
             if self.mock_type == MockWSIType.PATHMNIST:
-                if i == 0 or self.batch_size > 1:
+                if i == 0 or self.n_tiles > 1:
                     tile = (
-                        (tiles[i % self.batch_size].numpy() * 255).astype(self._dtype)
+                        (tiles[i % self.n_tiles].numpy() * 255).astype(self._dtype)
                         if self._dtype == np.uint8
-                        else tiles[i % self.batch_size].numpy()
+                        else tiles[i % self.n_tiles].numpy()
                     )
                     # fill the square diagonal with tile repeated n_repeat_tile times along X and Y axis.
                     fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
                     dump_tiles.append(tile)
 
             elif self.mock_type == MockWSIType.FAKE:
-                if i == 0 or self.batch_size > 1:
+                if i == 0 or self.n_tiles > 1:
                     # pick a random fake value to fill in the square diagonal.
                     fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
                     dump_tiles.append(
@@ -185,7 +181,7 @@ class MockWSIGenerator(MockHistoGenerator):
         """Create mock wsi and save them as tiff files"""
         for sample_counter in range(self.n_samples):
             tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
-            mock_image, dump_tiles = self.create_wsi_from_stitched_tiles(tiles[0])
+            mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles[0])
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
             self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
             np.save(str(self.tmp_path / f"_{sample_counter}_tile.npy"), dump_tiles)

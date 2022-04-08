@@ -23,7 +23,7 @@ class MockWSIType(Enum):
 
 class MockHistoGenerator:
     """Base class for mock histo data generation.
-   
+
     :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
         The isup grades correspond to the gleason scores in the given order.
     :param N_GLEASON_SCORES: The number of possible gleason_scores.
@@ -43,24 +43,28 @@ class MockHistoGenerator:
         tmp_path: Union[py.path.local, Path],
         mock_type: MockWSIType = MockWSIType.PATHMNIST,
         seed: int = 42,
-        batch_size: int = 1,
+        n_tiles: int = 1,
         n_samples: int = 4,
+        tile_size: int = 28,
     ) -> None:
         """
-        :param batch_size: how many samples per batch to load, defaults to 1.
-            if batch_size > 1 WSIs are generated from different tiles.
         :param tmp_path: A temporary directory to store all generated data.
         :param mock_type: The wsi generator mock type. Supported mock types are:
             WSIMockType.PATHMNIST: for creating mock WSI by stitching tiles from pathmnist.
             WSIMockType.FAKE: for creating mock WSI by stitching fake tiles.
         :param seed: pseudorandom number generator seed to use for mocking random metadata, defaults to 42.
+        :param n_tiles: how many tiles per batch to load from pathmnist dataloader, defaults to 1.
+            if n_tiles > 1 WSIs are generated from different tiles in the subclass MockWSIGenerator.
         :param n_samples: Number of random samples to generate, defaults to 4.
+        :param tile_size: The tile size, defaults to 28.
         """
         np.random.seed(seed)
         self.tmp_path = tmp_path
         self.mock_type = mock_type
-        self.batch_size = batch_size
+        self.n_tiles = n_tiles
         self.n_samples = n_samples
+        self.tile_size = tile_size
+
         self.create_mock_metadata_dataframe()
         self.dataloader = self.get_dataloader()
 
@@ -84,4 +88,4 @@ class MockHistoGenerator:
         DataClass = getattr(medmnist, info["python_class"])
         data_transform = transforms.Compose([transforms.ToTensor()])
         dataset = DataClass(split="train", transform=data_transform, download=True)
-        return DataLoader(dataset=dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(dataset=dataset, batch_size=self.n_tiles, shuffle=True)
