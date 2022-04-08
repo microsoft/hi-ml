@@ -213,7 +213,6 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             collate_fn=multibag_collate,
             shuffle=shuffle,
             generator=generator,
-            pin_memory=True,
             **dataloader_kwargs,
         )
 
@@ -313,7 +312,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             collate_fn=image_collate,
             shuffle=shuffle,
             generator=generator,
-            pin_memory=True,
             **dataloader_kwargs,
         )
 

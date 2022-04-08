@@ -15,7 +15,7 @@ def get_imagenet_preprocessing() -> nn.Module:
 
 
 def setup_feature_extractor(pretrained_model: nn.Module,
-                            input_dim: Tuple[int, int, int]) -> Tuple[nn.Module, int]:
+                            input_dim: Tuple[int, ...]) -> Tuple[nn.Module, int]:
     try:
         # Attempt to auto-detect final classification layer:
         num_features: int = pretrained_model.fc.in_features  # type: ignore
