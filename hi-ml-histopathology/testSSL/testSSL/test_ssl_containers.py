@@ -256,6 +256,7 @@ def test_ssl_container_rsna() -> None:
     assert loaded_config2 is not None
     assert isinstance(loaded_config2, CXRImageClassifier)
     assert loaded_config2.model.freeze_encoder
+    assert isinstance(loaded_config2.model.class_weights, torch.Tensor)  # for mypy
     assert torch.isclose(loaded_config2.model.class_weights,
                          torch.tensor([0.21, 0.79]),
                          atol=1e-6).all()  # type: ignore

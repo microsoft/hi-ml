@@ -108,7 +108,9 @@ class DeepSMILEPanda(BaseMIL):
         image_key = PandaTilesDataset.IMAGE_COLUMN
         if self.is_finetune:
             transform = LoadTilesBatchd(image_key, progress=True)
-            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
+            num_cpus = os.cpu_count()
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // torch.cuda.device_count()
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             transform = Compose([

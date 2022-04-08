@@ -58,7 +58,8 @@ flake8: pip_test call_flake8
 
 # run mypy, assuming test requirements already installed
 call_mypy:
-	mypy --config=../mypy.ini --install-types --non-interactive -p src
+	mypy --config=../mypy.ini --install-types --non-interactive -p histopathology
+	mypy --config=../mypy.ini --install-types --non-interactive -p SSL
 	mypy --config=../mypy.ini --install-types --non-interactive -p testhisto
 	mypy --config=../mypy.ini --install-types --non-interactive -p testSSL
 
