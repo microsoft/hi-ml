@@ -15,7 +15,7 @@ from typing import Any, Tuple, Optional, List, Union
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from health_azure.utils import PathOrString
-from testhisto.utils.utils_base_datamodule import MockHistoGenerator, MockWSIType
+from testhisto.utils.utils_base_datamodule import MockHistoDataGenerator, MockHistoDataType
 
 
 class MockSlidesDataset(SlidesDataset):
@@ -50,10 +50,10 @@ class MockSlidesDataModule(SlidesDataModule):
     """Mock and child class of SlidesDataModule, overrides get_splits so that it uses MockSlidesDataset."""
 
     def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
-        return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
+        return Tuple(MockSlidesDataset(self.root_path) for _ in range(3))
 
 
-class MockWSIGenerator(MockHistoGenerator):
+class MockWSIGenerator(MockHistoDataGenerator):
     """Generator class to create mock WSI on the fly. A mock WSI resembles to:
                                 [**      ]
                                 [  **    ]
@@ -101,7 +101,7 @@ class MockWSIGenerator(MockHistoGenerator):
     def create_mock_metadata_dataframe(self) -> None:
         """Create a mock dataframe with random metadata."""
         mock_metadata: dict = {col: [] for col in [self.SLIDE_ID_COLUMN, *self.METADATA_COLUMNS]}
-        for i in range(self.n_samples):
+        for i in range(self.n_slides):
             mock_metadata[MockSlidesDataset.SLIDE_ID_COLUMN].append(f"_{i}")
             rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
             for key, val in self.METADATA_POSSIBLE_VALUES.items():
@@ -124,7 +124,7 @@ class MockWSIGenerator(MockHistoGenerator):
         )
         dump_tiles = []
         for i in range(self.n_repeat_diag):
-            if self.mock_type == MockWSIType.PATHMNIST:
+            if self.mock_type == MockHistoDataType.PATHMNIST:
                 if i == 0 or self.n_tiles > 1:
                     tile = (
                         (tiles[i % self.n_tiles].numpy() * 255).astype(self._dtype)
@@ -135,7 +135,7 @@ class MockWSIGenerator(MockHistoGenerator):
                     fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
                     dump_tiles.append(tile)
 
-            elif self.mock_type == MockWSIType.FAKE:
+            elif self.mock_type == MockHistoDataType.FAKE:
                 if i == 0 or self.n_tiles > 1:
                     # pick a random fake value to fill in the square diagonal.
                     fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
@@ -179,7 +179,7 @@ class MockWSIGenerator(MockHistoGenerator):
 
     def generate_mock_wsi(self) -> None:
         """Create mock wsi and save them as tiff files"""
-        for sample_counter in range(self.n_samples):
+        for sample_counter in range(self.n_slides):
             tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
             mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles[0])
             wsi_levels = self._create_multi_resolution_wsi(mock_image)

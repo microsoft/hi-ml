@@ -26,7 +26,7 @@ def mock_wsi_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
         tmp_path=tmp_root_dir,
         mock_type=MockWSIType.PATHMNIST,
         n_tiles=1,
-        n_samples=4,
+        n_slides=4,
         n_repeat_diag=N_REPEAT_DIAG,
         n_repeat_tile=2,
         n_channels=3,

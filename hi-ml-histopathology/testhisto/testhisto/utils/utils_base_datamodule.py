@@ -16,18 +16,19 @@ from typing import Optional, Union
 from torch.utils.data import DataLoader
 
 
-class MockWSIType(Enum):
+class MockHistoDataType(Enum):
     PATHMNIST = "pathmnist"
     FAKE = "fake"
 
 
-class MockHistoGenerator:
+class MockHistoDataGenerator:
     """Base class for mock histo data generation.
 
     :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
         The isup grades correspond to the gleason scores in the given order.
     :param N_GLEASON_SCORES: The number of possible gleason_scores.
-    :param N_DATA_PROVIDERS: the number of possible data_providers.
+    :param N_DATA_PROVIDERS: The number of possible data_providers.
+    :param N_CLASSES: The number of possible isup_grades.
     """
 
     METADATA_POSSIBLE_VALUES: dict = {
@@ -37,14 +38,15 @@ class MockHistoGenerator:
     }
     N_GLEASON_SCORES = len(METADATA_POSSIBLE_VALUES["gleason_score"])
     N_DATA_PROVIDERS = len(METADATA_POSSIBLE_VALUES["data_provider"])
+    N_CLASSES = 6
 
     def __init__(
         self,
         tmp_path: Union[py.path.local, Path],
-        mock_type: MockWSIType = MockWSIType.PATHMNIST,
+        mock_type: MockHistoDataType = MockHistoDataType.PATHMNIST,
         seed: int = 42,
         n_tiles: int = 1,
-        n_samples: int = 4,
+        n_slides: int = 4,
         tile_size: int = 28,
     ) -> None:
         """
@@ -55,14 +57,14 @@ class MockHistoGenerator:
         :param seed: pseudorandom number generator seed to use for mocking random metadata, defaults to 42.
         :param n_tiles: how many tiles per batch to load from pathmnist dataloader, defaults to 1.
             if n_tiles > 1 WSIs are generated from different tiles in the subclass MockWSIGenerator.
-        :param n_samples: Number of random samples to generate, defaults to 4.
+        :param n_slides: Number of random slides to generate, defaults to 4.
         :param tile_size: The tile size, defaults to 28.
         """
         np.random.seed(seed)
         self.tmp_path = tmp_path
         self.mock_type = mock_type
         self.n_tiles = n_tiles
-        self.n_samples = n_samples
+        self.n_slides = n_slides
         self.tile_size = tile_size
 
         self.create_mock_metadata_dataframe()
@@ -73,9 +75,9 @@ class MockHistoGenerator:
         raise NotImplementedError
 
     def get_dataloader(self) -> Optional[DataLoader]:
-        if self.mock_type == MockWSIType.PATHMNIST:
+        if self.mock_type == MockHistoDataType.PATHMNIST:
             return self._get_pathmnist_dataloader()
-        elif self.mock_type == MockWSIType.FAKE:
+        elif self.mock_type == MockHistoDataType.FAKE:
             return None
         else:
             raise NotImplementedError
