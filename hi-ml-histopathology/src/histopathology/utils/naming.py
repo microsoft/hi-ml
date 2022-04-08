@@ -44,7 +44,7 @@ class TileKey(str, Enum):
 class ResultsKey(str, Enum):
     SLIDE_ID = 'slide_id'
     TILE_ID = 'tile_id'
-    IMAGE = 'image'
+    FEATURES = 'features'
     IMAGE_PATH = 'image_path'
     LOSS = 'loss'
     PROB = 'prob'

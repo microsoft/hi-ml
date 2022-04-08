@@ -321,7 +321,7 @@ class DummySimCLRHimlData(DataClassBaseWithReturnIndex, DummySimCLRData):
         return 2
 
 
-class DummySimCLRSSLDatasetName(SSLDatasetName, Enum):
+class DummySimCLRSSLDatasetName(SSLDatasetName, Enum):  # type: ignore
     DUMMY = "DUMMY"
 
 

@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, Optional, Sequence, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
@@ -44,7 +44,7 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
-                 class_names: Optional[List[str]] = None,
+                 class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
         """
@@ -235,8 +235,7 @@ class DeepMILModule(LightningModule):
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels,
-                        ResultsKey.BAG_ATTN: bag_attn_list,
-                        ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
+                        ResultsKey.BAG_ATTN: bag_attn_list})
 
         if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
             results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
@@ -264,23 +263,23 @@ class DeepMILModule(LightningModule):
         self.log_metrics('val')
         return val_result
 
-    def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:   # type: ignore
+    def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         test_result = self._shared_step(batch, batch_idx, 'test')
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         self.log_metrics('test')
         return test_result
 
-    def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:
+    def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
-                metrics_dict=self.get_metrics_dict('val'),
+                metrics_dict=self.get_metrics_dict('val'),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0
             )
 
-    def test_epoch_end(self, epoch_results: EpochResultsType) -> None:
+    def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_test_outputs(
                 epoch_results=epoch_results,
