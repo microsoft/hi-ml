@@ -97,7 +97,7 @@ This will build all your documentation in `docs/build/html`.
 * In the browser, navigate to the AzureML workspace that you want to use for running your tests.
 * In the top right section, there will be a dropdown menu showing the name of your AzureML workspace. Expand that.
 * In the panel, there is a link "Download config file". Click that.
-* This will download a file `config.json`. Move that file to both of the folders `hi-ml/testhiml` and `hi-ml/testazure` 
+* This will download a file `config.json`. Move that file to both of the folders `hi-ml/testhiml` and `hi-ml/testazure`.
   The file `config.json` is already present in `.gitignore`, and will hence not be checked in.
 
 ## Creating and Deleting Docker Environments in AzureML
