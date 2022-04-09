@@ -24,6 +24,8 @@
         "hi-ml-azure/src",
         "hi-ml-azure/testazure",
         "hi-ml/src",
+        "hi-ml-azure/src",
+        "hi-ml-azure/testazure",
       ]
     },
     {
