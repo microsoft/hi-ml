@@ -1,10 +1,10 @@
-# Contribution and Coding Guidelines for HI-ML
+# Coding Guidelines
 
 ## Design Phase
 
 For non-trivial changes, please communicate your plans early on to reach maximum impact and to avoid duplicate work:
 
-* What are planning you working on?
+* What are you planning to working on?
 * Why is it needed for the project?
 * Why is it needed in the repository?
 * Ask the rest of the team if they have already worked on it or thought about it. This helps to get to know about existing code fragments that can simplify your task, and integrate better with existing code.
@@ -42,7 +42,7 @@ We highly recommend to run all those tools _before_ pushing the latest changes t
 
 End sentences in docstrings with a period:
 
-```pythong
+```python
 def method(self, arg: int) -> None:
     """
     Method description, followed by an period.
