@@ -1,6 +1,7 @@
 # Contributing to this toolbox
 
 We welcome all contributions that help us achieve our aim of speeding up ML/AI research in health and life sciences.
+
 Examples of contributions are
 
 * Data loaders for specific health & life sciences data
@@ -15,6 +16,10 @@ Please look through the existing folder structure to find a good home for your c
 ## Setting up your dev environment
 
 Please see the detailed instructions [here](developers.md).
+
+## Design phase
+
+
 
 ## Submitting a Pull Request
 
