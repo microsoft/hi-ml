@@ -1,4 +1,4 @@
-# Coding Guidelines
+# Design and Coding Guidelines
 
 ## Design Phase
 
