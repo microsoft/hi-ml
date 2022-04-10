@@ -121,6 +121,20 @@ In particular, please do write unit tests for anything that affects training/res
 * DO NOT rely only on the test builds in the cloud (i.e., run test locally before submitting). Cloud builds trigger AzureML runs on GPU machines that have a far higher CO2 footprint than your dev machine.
 * When fixing a bug, the suggested workflow is to first write a unit test that shows the invalid behaviour, and only then start to code up the fix.
 
+### Testing Scripts
+
+Depending on the project needs, we may write scripts for doing one-off operations (as an example, have a look at [himl_download.py](https://github.com/microsoft/hi-ml/blob/main/hi-ml-azure/src/health_azure/himl_download.py). How carefully should we test those?
+
+* Any scripts that perform operations that we anticipate others to need as well should be designed for re-usability and be tested. “Designed for re-use” here would mean, for example: The script should not contain any hard-coded setup that is specific to my machine or user account. If that’s not achievable, document carefully what others need to prepare so that they can run this script.
+* Scripts are inherently difficult to test. Testing becomes a lot easier if the script is mainly a front-end to functions that live somewhere else in the codebase. If the script is written as a thin wrapper around library functions, these library functions can be tested in isolation as part of the normal unit test suite.
+
+Writing arguments parser is particularly error prone. Consider using automatically generated parsers, like we use in the HI-ML toolbox [hi-ml/utils.py](https://github.com/microsoft/hi-ml/blob/b742223102d6c9092b13b20eafa263cc91f99670/hi-ml-azure/src/health_azure/utils.py#L157-L167): Starting point is a class that describes inputs to a function. A parser can be generated automatically from these classes.
+
+Lastly, if you are considering adding a script to your project, also consider the following: If the script should be called, for example, after an AzureML run to collect results, can this be automated further, and make the script obsolete? Reasons for this approach:
+
+* People tend to forget that there is a script to do X already, and may re-do the task in question manually.
+* Any script that requires input from the user also has a chance to be provided with the wrong input, leading to friction or incorrect results. In a programmatic scenario, where the script is called automatically, this chance of errors is greatly minimized.
+
 ## What not to check in
 
 * DO NOT check in files taken from or derived from private datasets.
