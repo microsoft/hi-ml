@@ -19,7 +19,7 @@ from testhisto.utils.utils_base_datamodule import MockHistoDataGenerator
 class MockTilesDataset(TilesDataset):
     """Mock and child class of SlidesDataset, to be used for testing purposes.
     It overrides the following, according to the PANDA cohort settings:
-  
+
     :param LABEL_COLUMN: CSV column name for tile label set to "slide_isup_grade".
     :param SPLIT_COLUMN: CSV column name for train/test split (None for MockTiles data).
     :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
@@ -101,7 +101,6 @@ class MockTilesGenerator(MockHistoDataGenerator):
                 *self.METADATA_COLUMNS,
             ]
         )
-        rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
         grid = [
             f"{i}_{j}" for i in range(self.img_size // self.tile_size) for j in range(self.img_size // self.tile_size)
         ]
@@ -109,6 +108,7 @@ class MockTilesGenerator(MockHistoDataGenerator):
             map(lambda x: list(map(int, x.split("_"))), np.random.choice(grid, size=self.n_tiles, replace=False))
         )
         for slide_id in range(self.n_slides):
+            rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
             for tile_id in range(self.n_tiles):
                 tile_x = coords[tile_id][0] * self.tile_size
                 tile_y = coords[tile_id][1] * self.tile_size
