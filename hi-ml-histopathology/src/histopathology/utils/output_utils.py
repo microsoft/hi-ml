@@ -108,7 +108,12 @@ def collate_results(epoch_results: EpochResultsType) -> ResultsType:
     for key in epoch_results[0].keys():
         results[key] = []
         for batch_results in epoch_results:
-            results[key] += batch_results[key]
+            batch_elements = batch_results[key]
+            if key == ResultsKey.LOSS:
+                batch_elements = [batch_elements]
+            batch_elements = [elem.cpu() if isinstance(elem, torch.Tensor) else elem
+                              for elem in batch_elements]
+            results[key].extend(batch_elements)
     return results
 
 
