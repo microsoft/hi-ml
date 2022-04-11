@@ -315,7 +315,7 @@ def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> No
     container.setup()
     data_module: MockTilesDataModule = container.get_data_module()  # type: ignore
     module = container.create_model()
- 
+
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
     if use_gpu:
