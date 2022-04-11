@@ -4,13 +4,12 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
+import py
+import torch
+import pytest
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 from unittest.mock import MagicMock
-from _pytest.compat import num_mock_patch_args
-import py
 
-import pytest
-import torch
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
 from torchvision.models import resnet18

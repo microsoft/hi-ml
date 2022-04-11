@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 import py
 import os
 import torch
@@ -75,7 +74,7 @@ class MockDeepSMILE(BaseMIL):
     @property
     def cache_dir(self) -> Path:
         return Path(self.tmp_path / f"innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/")
-    
+
     def get_data_module(self) -> MockTilesDataModule:
         image_key = MockTilesDataset.IMAGE_COLUMN
         if self.is_finetune:
