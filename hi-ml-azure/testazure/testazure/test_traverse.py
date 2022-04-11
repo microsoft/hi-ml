@@ -150,8 +150,8 @@ def test_traverse_enum() -> None:
     Enum objects have not non-private fields, and should return an empty value dictionary.
     """
     config = MyEnum.foo
-    d = get_all_writable_attributes(config)
-    assert len(d) == 0
+    attributes = get_all_writable_attributes(config)
+    assert len(attributes) == 0
     # Enum objects should be printed out by their case name
     d = _object_to_dict(config)
     assert d == "foo"
