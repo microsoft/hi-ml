@@ -58,12 +58,12 @@ class MockTilesGenerator(MockHistoDataGenerator):
     :param IMAGE_COLUMN: CSV column name for relative path to image file.
     :param MASK_COLUMN: CSV column name for relative path to mask file.
     :param LABEL_COLUMN: CSV column name for tile label.
-    :param TILE_X_COLUMN: CSV column name for horizontal tile coordinate (optional).
-    :param TILE_Y_COLUMN: CSV column name for vertical tile coordinate (optional).
+    :param TILE_X_COLUMN: CSV column name for horizontal tile coordinate.
+    :param TILE_Y_COLUMN: CSV column name for vertical tile coordinate.
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
-    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
-        The isup grades correspond to the gleason scores in the given order.
-    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
+    :param DATA_PROVIDER: CSV column name for data provider .
+    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata. The values mapped to
+    isup_grade are the possible gleason_scores.
     """
 
     SLIDE_ID_COLUMN = MockTilesDataset.SLIDE_ID_COLUMN
