@@ -99,7 +99,11 @@ class MockTilesGenerator(MockHistoDataGenerator):
         super().__init__(**kwargs)
         assert (
             self.n_slides >= self.N_CLASSES
-        ), f"The number of slides should be >= self.N_CLASSES(i.e., {self.N_CLASSES})"
+        ), f"The number of slides should be >= self.N_CLASSES (i.e., {self.N_CLASSES})"
+        assert (self.img_size // self.tile_size) ** 2 <= self.n_tiles, (
+            f"The image of size {self.img_size} can't contain more than {(self.img_size // self.tile_size)**2} tiles."
+            "Choose a number of tiles n_tiles <= (img_size // tile_size)**2 "
+        )
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
