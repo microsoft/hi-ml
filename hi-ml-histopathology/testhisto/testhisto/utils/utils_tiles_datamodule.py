@@ -74,18 +74,32 @@ class MockTilesGenerator(MockHistoDataGenerator):
     TILE_Y_COLUMN = MockTilesDataset.TILE_Y_COLUMN
     OCCUPANCY = "occupancy"
     DEFAULT_CSV_FILENAME = MockTilesDataset.DEFAULT_CSV_FILENAME
+    DATA_PROVIDER = "data_provider"
+    ISUP_GRADE = "slide_isup_grade"
+    GLEASON_SCORE = "gleason_score"
+
+    N_CLASSES = MockTilesDataset.N_CLASSES
 
     METADATA_POSSIBLE_VALUES: dict = {
-        "data_provider": ["site_0", "site_1"],
-        "slide_isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
-        "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
+        DATA_PROVIDER: ["site_0", "site_1"],
+        ISUP_GRADE: {
+            0: ["0+0", "negative"],
+            4: ["4+4", "5+3", "3+5"],
+            1: ["3+3"],
+            3: ["4+3"],
+            2: ["3+4"],
+            5: ["4+5", "5+4", "5+5"],
+        },
     }
+
     METADATA_COLUMNS = tuple(METADATA_POSSIBLE_VALUES.keys())
 
     def __init__(self, img_size: int = 224, **kwargs: Any) -> None:
         self.img_size = img_size
-        self.dataframe = None
         super().__init__(**kwargs)
+        assert (
+            self.n_slides >= self.N_CLASSES
+        ), f"The number of slides should be >= self.N_CLASSES(i.e., {self.N_CLASSES})"
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
@@ -98,7 +112,9 @@ class MockTilesGenerator(MockHistoDataGenerator):
                 self.TILE_X_COLUMN,
                 self.TILE_Y_COLUMN,
                 self.OCCUPANCY,
-                *self.METADATA_COLUMNS,
+                self.DATA_PROVIDER,
+                self.ISUP_GRADE,
+                self.GLEASON_SCORE,
             ]
         )
         grid = [
@@ -107,8 +123,15 @@ class MockTilesGenerator(MockHistoDataGenerator):
         coords = list(
             map(lambda x: list(map(int, x.split("_"))), np.random.choice(grid, size=self.n_tiles, replace=False))
         )
+
+        isup_grades = np.tile(
+            list(self.METADATA_POSSIBLE_VALUES[self.ISUP_GRADE].keys()), self.n_slides // self.N_CLASSES + 1
+        )
+
         for slide_id in range(self.n_slides):
-            rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
+            data_provider = np.random.choice(self.METADATA_POSSIBLE_VALUES[self.DATA_PROVIDER])
+            isup_grade = isup_grades[slide_id]
+            gleason_score = np.random.choice(self.METADATA_POSSIBLE_VALUES[self.ISUP_GRADE][isup_grade])
             for tile_id in range(self.n_tiles):
                 tile_x = coords[tile_id][0] * self.tile_size
                 tile_y = coords[tile_id][1] * self.tile_size
@@ -120,9 +143,9 @@ class MockTilesGenerator(MockHistoDataGenerator):
                     tile_x,
                     tile_y,
                     1.0,
-                ] + [
-                    val[rand_id if len(val) == self.N_GLEASON_SCORES else np.random.randint(self.N_DATA_PROVIDERS)]
-                    for _, val in self.METADATA_POSSIBLE_VALUES.items()
+                    data_provider,
+                    isup_grade,
+                    gleason_score,
                 ]
         df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
         return df
