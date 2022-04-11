@@ -13,7 +13,7 @@ from torchvision.utils import save_image
 from health_ml.utils.split_dataset import DatasetSplits
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
-from testhisto.utils.utils_base_datamodule import MockHistoDataGenerator
+from testhisto.mocks.base_datamodule import MockHistoDataGenerator
 
 
 class MockTilesDataset(TilesDataset):
@@ -156,6 +156,6 @@ class MockTilesGenerator(MockHistoDataGenerator):
             os.makedirs(slide_dir, exist_ok=True)
             tiles, _ = next(iter(self.dataloader))
             for tile in tiles:
-                save_image(tile * 255, self.tmp_path / row[self.IMAGE_COLUMN])
+                save_image(tile * 255, str(self.tmp_path / row[self.IMAGE_COLUMN]))
                 random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
-                save_image(random_mask.float(), self.tmp_path / row[self.MASK_COLUMN])
+                save_image(random_mask.float(), str(self.tmp_path / row[self.MASK_COLUMN]))

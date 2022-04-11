@@ -21,7 +21,7 @@ from histopathology.models.encoders import ImageNetEncoder
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 
 from histopathology.configs.classification.BaseMIL import BaseMIL
-from testhisto.utils.utils_tiles_datamodule import MockTilesDataModule, MockTilesDataset
+from testhisto.mocks.tiles_datamodule import MockTilesDataModule, MockTilesDataset
 
 
 class MockDeepSMILE(BaseMIL):

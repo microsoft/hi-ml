@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 from health_ml.utils.common_utils import is_gpu_available
-from testhisto.utils.utils_slides_datamodule import (
+from testhisto.mocks.slides_datamodule import (
     MockSlidesDataModule,
     MockWSIGenerator,
     MockHistoDataType,
