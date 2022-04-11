@@ -6,6 +6,7 @@
 import os
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 from unittest.mock import MagicMock
+from _pytest.compat import num_mock_patch_args
 import py
 
 import pytest
@@ -29,6 +30,9 @@ from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_datamodule import MockHistoDataType
 from testhisto.mocks.tiles_datamodule import MockTilesGenerator, MockTilesDataModule
 from testhisto.mocks.deepmil import MockDeepSMILE
+from health_ml.utils.common_utils import is_gpu_available
+
+no_gpu = not is_gpu_available()
 
 
 def get_supervised_imagenet_encoder() -> TileEncoder:
@@ -248,6 +252,41 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
     }
 
 
+def _assert_train_step(module, data_module, use_gpu):
+    train_data_loader = data_module.train_dataloader()
+    for batch_idx, batch in enumerate(train_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu)
+        loss = module.training_step(batch, batch_idx)
+        loss.retain_grad()
+        loss.backward()
+        assert loss.grad is not None
+        assert loss.shape == (1, 1)
+        assert isinstance(loss, Tensor)
+        break
+
+
+def _assert_validation_step(module, data_module, use_gpu):
+    val_data_loader = data_module.val_dataloader()
+    for batch_idx, batch in enumerate(val_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu)
+        outputs_dict = module.validation_step(batch, batch_idx)
+        loss = outputs_dict[ResultsKey.LOSS]  # noqa
+        assert loss.shape == (1, 1)  # noqa
+        assert isinstance(loss, Tensor)
+        break
+
+
+def _assert_test_step(module, data_module, use_gpu):
+    test_data_loader = data_module.test_dataloader()
+    for batch_idx, batch in enumerate(test_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu)
+        outputs_dict = module.test_step(batch, batch_idx)
+        loss = outputs_dict[ResultsKey.LOSS]  # noqa
+        assert loss.shape == (1, 1) # noqa
+        assert isinstance(loss, Tensor)
+        break
+
+
 CONTAINER_DATASET_DIR = {
     DeepSMILEPanda: PANDA_TILES_DATASET_DIR,
     DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
@@ -275,45 +314,27 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 
     data_module: TilesDataModule = container.get_data_module()  # type: ignore
     data_module.max_bag_size = 10
+
     module = container.create_model()
+    module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.log = MagicMock()  # type: ignore
     if use_gpu:
         module.cuda()
 
-    train_data_loader = data_module.train_dataloader()
-    for batch_idx, batch in enumerate(train_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.training_step(batch, batch_idx)
-        loss.retain_grad()
-        loss.backward()
-        assert loss.grad is not None
-        assert loss.shape == ()
-        assert isinstance(loss, Tensor)
-        break
-
-    val_data_loader = data_module.val_dataloader()
-    for batch_idx, batch in enumerate(val_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        outputs_dict = module.validation_step(batch, batch_idx)
-        loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        assert loss.shape == ()  # noqa
-        assert isinstance(loss, Tensor)
-        break
-
-    test_data_loader = data_module.test_dataloader()
-    for batch_idx, batch in enumerate(test_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        outputs_dict = module.test_step(batch, batch_idx)
-        loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        assert loss.shape == ()
-        assert isinstance(loss, Tensor)
-        break
+    _assert_train_step(module, data_module, use_gpu)
+    _assert_validation_step(module, data_module, use_gpu)
+    _assert_test_step(module, data_module, use_gpu)
 
 
 @pytest.mark.parametrize("use_gpu", [True, False])
 def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> None:
+    if use_gpu and no_gpu:
+        pytest.skip(
+            f"test_mock_container with  use_gpu = {use_gpu} will be skipped because no gpu is available."
+        )
     container = MockDeepSMILE(tmp_path=mock_tiles_root_dir)
     container.setup()
-    data_module: MockTilesDataModule = container.get_data_module()  # type: ignore
+    data_module: MockTilesDataModule = container.get_data_module()
     module = container.create_model()
 
     module.trainer = MagicMock(world_size=1)  # type: ignore
@@ -321,34 +342,9 @@ def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> No
     if use_gpu:
         module.cuda()
 
-    train_data_loader = data_module.train_dataloader()
-    for batch_idx, batch in enumerate(train_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.training_step(batch, batch_idx)
-        loss.retain_grad()
-        loss.backward()
-        assert loss.grad is not None
-        # assert loss.shape == ()
-        assert isinstance(loss, Tensor)
-        break
-
-    val_data_loader = data_module.val_dataloader()
-    for batch_idx, batch in enumerate(val_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        outputs_dict = module.validation_step(batch, batch_idx)
-        loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        # assert loss.shape == ()  # noqa
-        assert isinstance(loss, Tensor)
-        break
-
-    test_data_loader = data_module.test_dataloader()
-    for batch_idx, batch in enumerate(test_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        outputs_dict = module.test_step(batch, batch_idx)
-        loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        # assert loss.shape == ()
-        assert isinstance(loss, Tensor)
-        break
+    _assert_train_step(module, data_module, use_gpu)
+    _assert_validation_step(module, data_module, use_gpu)
+    _assert_test_step(module, data_module, use_gpu)
 
 
 def test_class_weights_binary() -> None:
