@@ -330,7 +330,7 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> None:
     if use_gpu and no_gpu:
         pytest.skip(
-            f"test_mock_container with  use_gpu = {use_gpu} will be skipped because no gpu is available."
+            f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
         )
     container = MockDeepSMILE(tmp_path=mock_tiles_root_dir)
     container.setup()
