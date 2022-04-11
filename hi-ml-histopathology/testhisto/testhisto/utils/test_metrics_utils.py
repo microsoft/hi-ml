@@ -222,16 +222,16 @@ def test_location_selected_tiles(level: int) -> None:
     location_bbox = [100, 100]
     slide_image = np.random.rand(3, 1000, 2000)
 
-    coords = []
+    coords_list = []
     slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
     slide_idx = slide_ids.index(slide)
     for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):  # type: ignore
         tile_coords = np.transpose(
             np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),  # type: ignore
                       test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))  # type: ignore
-        coords.append(tile_coords)
+        coords_list.append(tile_coords)
 
-    coords = np.array(coords)  # type: ignore
+    coords = np.array(coords_list)
     tile_coords_transformed = location_selected_tiles(tile_coords=coords,
                                                       location_bbox=location_bbox,
                                                       level=level)

@@ -11,6 +11,7 @@ from health_azure.utils import (RUN_CONTEXT, aggregate_hyperdrive_metrics, creat
                                 fetch_run, get_most_recent_run, is_running_in_azure_ml,
                                 set_environment_variables_for_multi_node, split_recovery_id, torch_barrier,
                                 upload_to_datastore)
+from health_azure.traverse import object_to_yaml, write_yaml_to_object
 
 __all__ = [
     "AzureRunInfo",
@@ -33,5 +34,7 @@ __all__ = [
     "torch_barrier",
     "upload_to_datastore",
     "create_crossval_hyperdrive_config",
-    "aggregate_hyperdrive_metrics"
+    "aggregate_hyperdrive_metrics",
+    "object_to_yaml",
+    "write_yaml_to_object"
 ]

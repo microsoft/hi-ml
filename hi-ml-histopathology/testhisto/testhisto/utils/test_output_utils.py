@@ -13,7 +13,7 @@ from torchmetrics.metric import Metric
 
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
-                                               collate_results, gather_results)
+                                               collate_results_on_cpu, gather_results)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
 _RANK_KEY = 'rank'
@@ -97,13 +97,13 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
         mock_output_file.write_text(str(metric_value))
 
     outputs_handler = _create_outputs_handler(tmp_path)
-    outputs_handler._save_outputs = MagicMock(side_effect=mock_save_outputs)
+    outputs_handler._save_outputs = MagicMock(side_effect=mock_save_outputs)  # type: ignore
     mock_output_file = outputs_handler.validation_outputs_dir / mock_output_filename
     previous_mock_output_file = outputs_handler.previous_validation_outputs_dir / mock_output_filename
 
     def save_validation_outputs(handler: DeepMILOutputsHandler, metric_value: float, epoch: int) -> None:
-        handler.save_validation_outputs(epoch_results=[{_PRIMARY_METRIC_KEY: metric_value,
-                                                        _RANK_KEY: rank}],
+        handler.save_validation_outputs(epoch_results=[{_PRIMARY_METRIC_KEY: metric_value,  # type: ignore
+                                                        _RANK_KEY: rank}],  # type: ignore
                                         metrics_dict=_get_mock_metrics_dict(metric_value),
                                         epoch=epoch,
                                         is_global_rank_zero=is_rank_zero)
@@ -168,12 +168,15 @@ def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, ran
         ResultsKey.TILE_ID: [[bag_size * bag_size + tile_idx for tile_idx in range(bag_size)]
                              for bag_size in bag_sizes],
         ResultsKey.BAG_ATTN: [torch.rand(1, bag_size, device=device) for bag_size in bag_sizes],
+        ResultsKey.TRUE_LABEL: torch.randint(2, size=(batch_size,), device=device),
         ResultsKey.LOSS: torch.randn(1, device=device),
     }
     for key, values in results.items():
         if key is ResultsKey.LOSS:
             continue  # loss is a scalar
         assert len(values) == batch_size
+        if key is ResultsKey.TRUE_LABEL:
+            continue  # label is slide-level
         for value, ref_value in zip(values, results[ResultsKey.SLIDE_ID]):
             if isinstance(value, torch.Tensor):
                 assert value.numel() == len(ref_value)
@@ -214,15 +217,34 @@ def test_gather_results_distributed() -> None:
     run_distributed(test_gather_results, world_size=2)
 
 
-def test_collate_results() -> None:
-    epoch_results = _create_epoch_results(batch_size=3, num_batches=5, rank=0, device='cpu')
+def _test_collate_results(epoch_results: EpochResultsType, total_num_samples: int) -> None:
+    collated_results = collate_results_on_cpu(epoch_results)
 
-    collated_results = collate_results(epoch_results)
+    for key, epoch_elements in collated_results.items():
+        expected_elements = [batch_results[key] for batch_results in epoch_results]
+        if key != ResultsKey.LOSS:  # loss is a single tensor per batch
+            assert len(epoch_elements) == total_num_samples
+            # Concatenated lists:
+            expected_elements = [elem for batch_elements in expected_elements for elem in batch_elements]
 
-    for key, value in collated_results.items():
-        epoch_values = [batch_results[key] for batch_results in epoch_results]
-        if key == ResultsKey.LOSS:
-            assert value == epoch_values
-        else:
-            expected: List = sum(epoch_values, [])  # concatenated lists
-            assert_close(value, expected)
+        for elem in epoch_elements:
+            if isinstance(elem, torch.Tensor):
+                assert not elem.is_cuda, f"{key} tensor must be on CPU: {elem}"
+        assert_close(epoch_elements, expected_elements, check_device=False)
+
+
+def test_collate_results_cpu() -> None:
+    num_batches = 5
+    batch_size = 3
+    epoch_results = _create_epoch_results(batch_size, num_batches, rank=0, device='cpu')
+    _test_collate_results(epoch_results, total_num_samples=num_batches * batch_size)
+
+
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_collate_results_multigpu() -> None:
+    num_batches = 5
+    batch_size = 3
+    epoch_results = _create_epoch_results(batch_size, num_batches, rank=0, device='cuda:0') \
+        + _create_epoch_results(batch_size, num_batches, rank=1, device='cuda:1')
+    _test_collate_results(epoch_results, total_num_samples=2 * num_batches * batch_size)

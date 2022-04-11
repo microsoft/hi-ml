@@ -5,7 +5,7 @@
 
 import sys
 from pathlib import Path
-from typing import Tuple, List, Any, Dict, Union
+from typing import Sequence, Tuple, List, Any, Dict, Union
 
 import torch
 import matplotlib.pyplot as plt
@@ -128,7 +128,7 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.Figure:
 
 def plot_heatmap_overlay(slide: str,
                          slide_image: np.ndarray,
-                         results: Dict[str, List[Any]],
+                         results: Dict[ResultsKey, List[Any]],
                          location_bbox: List[int],
                          tile_size: int = 224,
                          level: int = 1) -> plt.Figure:
@@ -148,7 +148,7 @@ def plot_heatmap_overlay(slide: str,
     ax.set_xlim(0, slide_image.shape[1])
     ax.set_ylim(slide_image.shape[0], 0)
 
-    coords = []
+    coords_list = []
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
@@ -156,10 +156,10 @@ def plot_heatmap_overlay(slide: str,
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
         tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
-                                   results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
-        coords.append(tile_coords)
+                                             results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
+        coords_list.append(tile_coords)
 
-    coords = np.array(coords)  # type: ignore
+    coords = np.array(coords_list)
     attentions = np.array(attentions.cpu()).reshape(-1)
 
     sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
@@ -176,7 +176,7 @@ def plot_heatmap_overlay(slide: str,
     return fig
 
 
-def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> plt.Figure:
+def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str]) -> plt.Figure:
     """Plots a normalized confusion matrix and returns the figure.
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.
