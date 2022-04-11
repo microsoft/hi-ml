@@ -124,11 +124,11 @@ def _test_lightningmodule(
         assert torch.all(score >= 0)
         assert torch.all(score <= 1)
 
-    
+
 @pytest.fixture(scope="session")
 def mock_tiles_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
     tmp_root_dir = tmpdir_factory.mktemp("mock_tiles")
-    wsi_generator = MockTilesGenerator(
+    tiles_generator = MockTilesGenerator(
         tmp_path=tmp_root_dir,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=4,
@@ -137,7 +137,7 @@ def mock_tiles_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
         tile_size=28,
         img_size=224,
     )
-    wsi_generator.generate_mock_histo_data()
+    tiles_generator.generate_mock_histo_data()
     return tmp_root_dir
 
 
@@ -315,7 +315,7 @@ def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> No
     container.setup()
     data_module: MockTilesDataModule = container.get_data_module()  # type: ignore
     module = container.create_model()
-  
+ 
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
     if use_gpu:

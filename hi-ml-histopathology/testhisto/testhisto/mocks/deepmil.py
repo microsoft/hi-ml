@@ -45,7 +45,7 @@ class MockDeepSMILE(BaseMIL):
             cache_mode=CacheMode.NONE,
             precache_location=CacheLocation.NONE,
             # declared in DatasetParams:
-            local_datasets=[Path(tmp_path / "mock_tiles"), Path(tmp_path / "mock_slides")],
+            local_datasets=[Path(tmp_path)],
             # declared in TrainerParams:
             max_epochs=2,
             crossval_count=1,
