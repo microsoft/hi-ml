@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from enum import Enum
 import os
 from pathlib import Path
 import py
@@ -53,13 +54,19 @@ class MockSlidesDataModule(SlidesDataModule):
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
+class TilesPositioningType(Enum):
+    DIAGONAL = 0
+    RANDOM = 1
+
+
 class MockWSIGenerator(MockHistoDataGenerator):
-    """Generator class to create mock WSI on the fly. A mock WSI resembles to:
+    """Generator class to create mock WSI on the fly. A mock WSI can resembles to:
                                 [**      ]
                                 [  **    ]
                                 [    **  ]
                                 [      **]
-        where * represents 2 tiles stitched along the Y axis.
+        where * represents 2 tiles stitched along the Y axis, if tiles positioning is diagonal.
+        Tiles are positioned randomly on the WSI grid whem tiles positioning type is random.
 
     :param SLIDE_ID_COLUMN: CSV column name for slide id.
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset root directory.
@@ -74,6 +81,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         n_repeat_diag: int = 4,
         n_repeat_tile: int = 2,
         background_val: Union[int, float] = 255,
+        tiles_pos_type: TilesPositioningType = TilesPositioningType.DIAGONAL,
         **kwargs: Any,
     ) -> None:
         """
@@ -81,6 +89,8 @@ class MockWSIGenerator(MockHistoDataGenerator):
         :param n_repeat_diag: Number of repeat time along the diagonal axis, defaults to 4.
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
         :param background_val: A value to assign to the background, defaults to 255.
+        :param tiles_pos_type: The tiles positioning type to define how tiles should be positioned within the WSI grid,
+        defaults to TilesPositioningType.DIAGONAL.
         """
         super().__init__(**kwargs)
 
@@ -88,10 +98,19 @@ class MockWSIGenerator(MockHistoDataGenerator):
         self.n_repeat_diag = n_repeat_diag
         self.n_repeat_tile = n_repeat_tile
         self.background_val = background_val
+        self.tiles_pos_type = tiles_pos_type
 
-        self.step_size = self.tile_size * self.n_repeat_tile  # the step_size represents the diagonal square size.
+        self.step_size = self.get_step_size()
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
+
+    def get_step_size(self) -> int:
+        if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
+            return self.tile_size * self.n_repeat_tile  # the step_size is the tiles diagonal square size.
+        elif self.tiles_pos_type == TilesPositioningType.RANDOM:
+            return self.tile_size
+        else:
+            raise NotImplementedError
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
@@ -107,6 +126,17 @@ class MockWSIGenerator(MockHistoDataGenerator):
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
         return df
+
+    def create_mock_wsi(self) -> Tuple[np.ndarray, np.ndarray]:
+        if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
+            return self._create_wsi_from_stitched_tiles()
+        elif self.tiles_pos_type == TilesPositioningType.RANDOM:
+            return self._create_wsi_from_randomly_positioned_tiles()
+        else:
+            raise NotImplementedError
+
+    def _create_wsi_from_randomly_positioned_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
+        pass
 
     def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         """Create a whole slide image by stitching tiles along the diagonal axis.
