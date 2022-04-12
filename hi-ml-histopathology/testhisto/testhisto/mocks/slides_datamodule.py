@@ -174,9 +174,10 @@ class MockWSIGenerator(MockHistoDataGenerator):
 
     def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
-        for sample_counter in range(self.n_slides):
-            tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
-            mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles[0])
+        iterator = iter(self.dataloader) if self.dataloader else None
+        for slide_counter in range(self.n_slides):
+            tiles, _ = next(iterator) if iterator else (None, None)
+            mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
-            np.save(self.tmp_path / f"_{sample_counter}_tile.npy", dump_tiles)
+            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{slide_counter}.tiff", wsi_levels)
+            np.save(self.tmp_path / f"_{slide_counter}_tile.npy", dump_tiles)

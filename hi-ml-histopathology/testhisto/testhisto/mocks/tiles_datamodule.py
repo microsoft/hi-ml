@@ -161,10 +161,11 @@ class MockTilesGenerator(MockHistoDataGenerator):
         return df
 
     def generate_mock_histo_data(self) -> None:
+        iterator = iter(self.dataloader) if self.dataloader else None
         for _, row in self.dataframe.iterrows():
             slide_dir = self.tmp_path / f"{row[self.SLIDE_ID_COLUMN]}/train_images"
             os.makedirs(slide_dir, exist_ok=True)
-            tiles, _ = next(iter(self.dataloader))
+            tiles, _ = next(iterator) if iterator else (None, None)
             for tile in tiles:
                 save_image(tile * 255, str(self.tmp_path / row[self.IMAGE_COLUMN]))
                 random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
