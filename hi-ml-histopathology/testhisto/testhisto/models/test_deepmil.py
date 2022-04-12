@@ -91,14 +91,14 @@ def _test_lightningmodule(
     assert bag_labels.shape[0] == (batch_size)
 
     if module.n_classes > 1:
-        loss = module.loss_fn(bag_logits, bag_labels)
+        loss = module.classifier.loss_fn(bag_logits, bag_labels)
     else:
-        loss = module.loss_fn(bag_logits.squeeze(1), bag_labels.float())
+        loss = module.classifier.loss_fn(bag_logits.squeeze(1), bag_labels.float())
 
     assert loss > 0
     assert loss.shape == ()
 
-    probs = module.activation_fn(bag_logits)
+    probs = module.classifier.activation_fn(bag_logits)
     assert ((probs >= 0) & (probs <= 1)).all()
 
     if n_classes > 1:
@@ -113,7 +113,7 @@ def _test_lightningmodule(
     bag_labels = bag_labels.view(-1, 1)
     if n_classes == 1:
         probs = probs.squeeze(dim=1)
-    for metric_name, metric_object in module.train_metrics.items():
+    for metric_name, metric_object in module.classifier.train_metrics.items():
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
         score = metric_object(probs, bag_labels.view(batch_size,))
@@ -200,8 +200,8 @@ def test_metrics(n_classes: int) -> None:
 
     # ================
     # Test that the module metrics match manually computed metrics with the correct inputs
-    module_metrics_dict = module.test_metrics
-    independent_metrics_dict = module.get_metrics()
+    module_metrics_dict = module.classifier.test_metrics
+    independent_metrics_dict = module.classifier.get_metrics()
 
     # Patch the metrics to check that the inputs are valid. In particular, test that the scores
     # do not have integral values, which would suggest that hard labels were passed instead.
@@ -307,7 +307,7 @@ def test_class_weights_binary() -> None:
     bag_label = randint(n_classes + 1, size=(1,))
 
     pos_weight = Tensor([class_weights[1] / (class_weights[0] + 1e-5)])
-    loss_weighted = module.loss_fn(logits.squeeze(1), bag_label.float())
+    loss_weighted = module.classifier.loss_fn(logits.squeeze(1), bag_label.float())
     criterion_unweighted = nn.BCEWithLogitsLoss()
     loss_unweighted = criterion_unweighted(logits.squeeze(1), bag_label.float())
     if bag_label.item() == 1:
@@ -334,7 +334,7 @@ def test_class_weights_multiclass() -> None:
     logits = Tensor(randn(1, n_classes))
     bag_label = randint(n_classes, size=(1,))
 
-    loss_weighted = module.loss_fn(logits, bag_label)
+    loss_weighted = module.classifier.loss_fn(logits, bag_label)
     criterion_unweighted = nn.CrossEntropyLoss()
     loss_unweighted = criterion_unweighted(logits, bag_label)
     # The weighted and unweighted loss functions give the same loss values for batch_size = 1.
