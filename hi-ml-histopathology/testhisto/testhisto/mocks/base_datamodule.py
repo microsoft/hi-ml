@@ -83,6 +83,7 @@ class MockHistoDataGenerator:
         if self.mock_type == MockHistoDataType.PATHMNIST:
             return self._get_pathmnist_dataloader()
         elif self.mock_type == MockHistoDataType.FAKE:
+            # we don't need a dataloader for MockHistoDataType.FAKE, a random fake value is picked (l.137 in MockWSI)
             return None
         else:
             raise NotImplementedError
