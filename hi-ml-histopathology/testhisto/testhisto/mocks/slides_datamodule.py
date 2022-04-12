@@ -79,6 +79,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         :param n_repeat_diag: Number of repeat time along the diagonal axis, defaults to 4.
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
         :param background_val: A value to assign to the background, defaults to 255.
+        :param kwargs: Same params passed to MockHistoDataGenerator.
         """
         super().__init__(**kwargs)
 

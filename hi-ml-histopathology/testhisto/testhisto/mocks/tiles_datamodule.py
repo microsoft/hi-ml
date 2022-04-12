@@ -64,6 +64,7 @@ class MockTilesGenerator(MockHistoDataGenerator):
     :param DATA_PROVIDER: CSV column name for data provider .
     :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata. The values mapped to
     isup_grade are the possible gleason_scores.
+    :param kwargs: Same params passed to MockHistoDataGenerator.
     """
 
     SLIDE_ID_COLUMN = MockTilesDataset.SLIDE_ID_COLUMN
