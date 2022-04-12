@@ -21,25 +21,20 @@ class MockHistoDataType(Enum):
 class MockHistoDataGenerator:
     """Base class for mock histo data generation.
 
-    :param SLIDE_ID_COLUMN: CSV column name for slide id.
-    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata.
-        The isup grades correspond to the gleason scores in the given order.
-    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
-    :param N_GLEASON_SCORES: The number of possible gleason_scores.
-    :param N_DATA_PROVIDERS: The number of possible data_providers.
-    :param N_CLASSES: The number of possible isup_grades.
+    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata. The values mapped to
+    isup_grade are the possible gleason_scores.
     """
-
-    SLIDE_ID_COLUMN = "slide_id"
     METADATA_POSSIBLE_VALUES: dict = {
         "data_provider": ["site_0", "site_1"],
-        "isup_grade": [0, 4, 1, 3, 0, 5, 2, 5, 5, 4, 4],
-        "gleason_score": ["0+0", "4+4", "3+3", "4+3", "negative", "4+5", "3+4", "5+4", "5+5", "5+3", "3+5"],
+        "isup_grade": {
+            0: ["0+0", "negative"],
+            4: ["4+4", "5+3", "3+5"],
+            1: ["3+3"],
+            3: ["4+3"],
+            2: ["3+4"],
+            5: ["4+5", "5+4", "5+5"],
+        },
     }
-    METADATA_COLUMNS = tuple(METADATA_POSSIBLE_VALUES.keys())
-    N_GLEASON_SCORES = len(METADATA_POSSIBLE_VALUES["gleason_score"])
-    N_DATA_PROVIDERS = len(METADATA_POSSIBLE_VALUES["data_provider"])
-    N_CLASSES = 6
 
     def __init__(
         self,

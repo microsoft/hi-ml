@@ -21,11 +21,18 @@ class MockSlidesDataset(SlidesDataset):
     It overrides the following, according to the PANDA cohort settings:
 
     :param LABEL_COLUMN: CSV column name for tile label set to "isup_grade".
+    :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
+    :param DATA_PROVIDER: CSV column name for data provider.
+    :param ISUP_GRADE: CSV column name for isup grade.
+    :param GLEASON_SCORE: CSV column name for gleason score.
     :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     """
-
     LABEL_COLUMN = "isup_grade"
-    METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
+    N_CLASSES = 6
+    DATA_PROVIDER = "data_provider"
+    ISUP_GRADE = "isup_grade"
+    GLEASON_SCORE = "gleason_score"
+    METADATA_COLUMNS = (DATA_PROVIDER, ISUP_GRADE, GLEASON_SCORE)
 
     def __init__(
         self, root: PathOrString, dataset_csv: Optional[PathOrString] = None, dataset_df: Optional[pd.DataFrame] = None
@@ -59,13 +66,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
                                 [      **]
         where * represents 2 tiles stitched along the Y axis.
 
-    :param SLIDE_ID_COLUMN: CSV column name for slide id.
-    :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset root directory.
     """
-
-    SLIDE_ID_COLUMN = MockSlidesDataset.SLIDE_ID_COLUMN
-    DEFAULT_CSV_FILENAME = MockSlidesDataset.DEFAULT_CSV_FILENAME
-
     def __init__(
         self,
         n_levels: int = 3,
@@ -94,17 +95,24 @@ class MockWSIGenerator(MockHistoDataGenerator):
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
-        mock_metadata: dict = {col: [] for col in [self.SLIDE_ID_COLUMN, *self.METADATA_COLUMNS]}
-        for i in range(self.n_slides):
-            mock_metadata[MockSlidesDataset.SLIDE_ID_COLUMN].append(f"_{i}")
-            rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
-            for key, val in self.METADATA_POSSIBLE_VALUES.items():
-                i = rand_id if len(val) == self.N_GLEASON_SCORES else np.random.randint(self.N_DATA_PROVIDERS)
-                # Make sure to pick the same random index (rand_id) for isup_grade and gleason_score, otherwise
-                # chose among possible data_providers.
-                mock_metadata[key].append(val[i])
+        isup_grades = np.tile(
+            list(self.METADATA_POSSIBLE_VALUES[MockSlidesDataset.ISUP_GRADE].keys()),
+            self.n_slides // MockSlidesDataset.N_CLASSES + 1,
+        )
+        mock_metadata: dict = {
+            col: [] for col in [MockSlidesDataset.SLIDE_ID_COLUMN, *MockSlidesDataset.METADATA_COLUMNS]
+        }
+        for slide_id in range(self.n_slides):
+            mock_metadata[MockSlidesDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
+            mock_metadata[MockSlidesDataset.DATA_PROVIDER].append(
+                np.random.choice(self.METADATA_POSSIBLE_VALUES[MockSlidesDataset.DATA_PROVIDER])
+            )
+            mock_metadata[MockSlidesDataset.ISUP_GRADE].append(isup_grades[slide_id])
+            mock_metadata[MockSlidesDataset.GLEASON_SCORE].append(
+                np.random.choice(self.METADATA_POSSIBLE_VALUES[MockSlidesDataset.ISUP_GRADE][isup_grades[slide_id]])
+            )
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(self.tmp_path / self.DEFAULT_CSV_FILENAME, index=False)
+        df.to_csv(self.tmp_path / MockSlidesDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
     def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
