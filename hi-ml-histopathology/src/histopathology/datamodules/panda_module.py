@@ -46,8 +46,7 @@ class PandaSlidesDataModule(SlidesDataModule):
                                                 proportion_train=.8,
                                                 proportion_test=.1,
                                                 proportion_val=.1,
-                                                subject_column=dataset.TILE_ID_COLUMN,
-                                                group_column=dataset.SLIDE_ID_COLUMN)
+                                                subject_column=dataset.SLIDE_ID_COLUMN)
 
         if self.crossval_count > 1:
             # Function get_k_fold_cross_validation_splits() will concatenate train and val splits

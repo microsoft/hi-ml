@@ -4,17 +4,19 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
+import py
+import torch
+import pytest
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 from unittest.mock import MagicMock
 
-import pytest
-import torch
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
 from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
+from histopathology.configs.classification.BaseMIL import BaseMIL
 
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
@@ -25,6 +27,12 @@ from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_
 from histopathology.models.deepmil import TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
+from testhisto.mocks.base_datamodule import MockHistoDataType
+from testhisto.mocks.tiles_datamodule import MockTilesGenerator, MockTilesDataModule
+from testhisto.mocks.deepmil import MockDeepSMILE
+from health_ml.utils.common_utils import is_gpu_available
+
+no_gpu = not is_gpu_available()
 
 
 def get_supervised_imagenet_encoder() -> TileEncoder:
@@ -32,7 +40,7 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
 
 
 def get_attention_pooling_layer(num_encoding: int = 512,
-                                pool_out_dim: int = 1) -> Tuple[Type[nn.Module], int]:
+                                pool_out_dim: int = 1) -> Tuple[nn.Module, int]:
 
     pool_hidden_dim = 5  # different dimensions get tested in test_attentionlayers.py
     pooling_layer = AttentionLayer(num_encoding,
@@ -119,6 +127,22 @@ def _test_lightningmodule(
         score = metric_object(probs, bag_labels.view(batch_size,))
         assert torch.all(score >= 0)
         assert torch.all(score <= 1)
+
+
+@pytest.fixture(scope="session")
+def mock_tiles_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
+    tmp_root_dir = tmpdir_factory.mktemp("mock_tiles")
+    tiles_generator = MockTilesGenerator(
+        tmp_path=tmp_root_dir,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=4,
+        n_slides=20,
+        n_channels=3,
+        tile_size=28,
+        img_size=224,
+    )
+    tiles_generator.generate_mock_histo_data()
+    return tmp_root_dir
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])
@@ -228,6 +252,41 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
     }
 
 
+def assert_train_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+    train_data_loader = data_module.train_dataloader()
+    for batch_idx, batch in enumerate(train_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu)
+        loss = module.training_step(batch, batch_idx)
+        loss.retain_grad()
+        loss.backward()
+        assert loss.grad is not None
+        assert loss.shape == (1, 1)
+        assert isinstance(loss, Tensor)
+        break
+
+
+def assert_validation_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+    val_data_loader = data_module.val_dataloader()
+    for batch_idx, batch in enumerate(val_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu)
+        outputs_dict = module.validation_step(batch, batch_idx)
+        loss = outputs_dict[ResultsKey.LOSS]  # noqa
+        assert loss.shape == (1, 1)  # noqa
+        assert isinstance(loss, Tensor)
+        break
+
+
+def assert_test_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+    test_data_loader = data_module.test_dataloader()
+    for batch_idx, batch in enumerate(test_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu)
+        outputs_dict = module.test_step(batch, batch_idx)
+        loss = outputs_dict[ResultsKey.LOSS]  # noqa
+        assert loss.shape == (1, 1) # noqa
+        assert isinstance(loss, Tensor)
+        break
+
+
 CONTAINER_DATASET_DIR = {
     DeepSMILEPanda: PANDA_TILES_DATASET_DIR,
     DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
@@ -255,37 +314,37 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 
     data_module: TilesDataModule = container.get_data_module()  # type: ignore
     data_module.max_bag_size = 10
+
     module = container.create_model()
+    module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.log = MagicMock()  # type: ignore
     if use_gpu:
         module.cuda()
 
-    train_data_loader = data_module.train_dataloader()
-    for batch_idx, batch in enumerate(train_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.training_step(batch, batch_idx)
-        loss.retain_grad()
-        loss.backward()
-        assert loss.grad is not None
-        assert loss.shape == ()
-        assert isinstance(loss, Tensor)
-        break
+    assert_train_step(module, data_module, use_gpu)
+    assert_validation_step(module, data_module, use_gpu)
+    assert_test_step(module, data_module, use_gpu)
 
-    val_data_loader = data_module.val_dataloader()
-    for batch_idx, batch in enumerate(val_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.validation_step(batch, batch_idx)
-        assert loss.shape == ()  # noqa
-        assert isinstance(loss, Tensor)
-        break
 
-    test_data_loader = data_module.test_dataloader()
-    for batch_idx, batch in enumerate(test_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu)
-        outputs_dict = module.test_step(batch, batch_idx)
-        loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        assert loss.shape == ()
-        assert isinstance(loss, Tensor)
-        break
+@pytest.mark.parametrize("use_gpu", [True, False])
+def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> None:
+    if use_gpu and no_gpu:
+        pytest.skip(
+            f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
+        )
+    container = MockDeepSMILE(tmp_path=mock_tiles_root_dir)
+    container.setup()
+    data_module: MockTilesDataModule = container.get_data_module()
+    module = container.create_model()
+
+    module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.log = MagicMock()  # type: ignore
+    if use_gpu:
+        module.cuda()
+
+    assert_train_step(module, data_module, use_gpu)
+    assert_validation_step(module, data_module, use_gpu)
+    assert_test_step(module, data_module, use_gpu)
 
 
 def test_class_weights_binary() -> None:

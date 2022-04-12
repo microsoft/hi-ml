@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import logging
 import os
 import sys
@@ -15,7 +20,6 @@ from health_azure import paths
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
-
 
 MAX_PATH_LENGTH = 260
 

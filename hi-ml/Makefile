@@ -54,7 +54,7 @@ flake8: pip_test call_flake8
 # run mypy, assuming test requirements already installed
 call_mypy:
 	mypy --config=../mypy.ini --install-types --non-interactive setup.py
-	mypy --config=../mypy.ini --install-types --non-interactive -p src
+	mypy --config=../mypy.ini --install-types --non-interactive -p health_ml
 	mypy --config=../mypy.ini --install-types --non-interactive -p testhiml
 
 # pip install test requirements and run mypy

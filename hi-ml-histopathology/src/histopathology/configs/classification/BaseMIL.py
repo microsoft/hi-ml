@@ -92,6 +92,7 @@ class BaseMIL(LightningContainer):
     def get_pooling_layer(self) -> Tuple[nn.Module, int]:
         num_encoding = self.encoder.num_encoding
 
+        pooling_layer: nn.Module
         if self.pool_type == AttentionLayer.__name__:
             pooling_layer = AttentionLayer(num_encoding,
                                            self.pool_hidden_dim,

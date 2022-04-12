@@ -161,12 +161,5 @@
             ],
             "console": "integratedTerminal"
         },
-        {
-            "name": "Python: Profile Image Loading",
-            "type": "python",
-            "request": "launch",
-            "module": "testhiml.utils.image_loading.profile_image_loading",
-            "cwd": "${workspaceFolder}/hi-ml/testhiml/",
-        },
     ]
 }
