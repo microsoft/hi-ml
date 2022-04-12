@@ -9,7 +9,6 @@ import torchvision.transforms as transforms
 
 from enum import Enum
 from pathlib import Path
-from medmnist import INFO
 from typing import Optional
 from torch.utils.data import DataLoader
 
@@ -89,13 +88,12 @@ class MockHistoDataGenerator:
             raise NotImplementedError
 
     def _get_pathmnist_dataloader(self) -> DataLoader:
-        """Get a dataloader for pathmnist dataset. It returns tiles of shape (batch_size, 3, 28, 28).
+        """Get a dataloader for pathmnist dataset. It returns tiles of shape (self.n_tiles, 3, 28, 28).
         :return: A dataloader to sample pathmnist tiles.
         """
-        info = INFO["pathmnist"]
-        DataClass = getattr(medmnist, info["python_class"])
-        data_transform = transforms.Compose([transforms.ToTensor()])
-        dataset = DataClass(split="train", transform=data_transform, download=True)
+        info = medmnist.INFO["pathmnist"]
+        PathMNISTDataset = getattr(medmnist, info["python_class"])
+        dataset = PathMNISTDataset(split="train", transform=transforms.ToTensor(), download=True)
         return DataLoader(dataset=dataset, batch_size=self.n_tiles, shuffle=True)
 
     def generate_mock_histo_data(self) -> None:
