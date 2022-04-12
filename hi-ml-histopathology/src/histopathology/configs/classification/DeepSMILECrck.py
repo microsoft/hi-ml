@@ -37,11 +37,11 @@ from histopathology.models.encoders import (
     SSLEncoder,
 )
 
-from histopathology.configs.classification.BaseMIL import TilesBaseMIL
+from histopathology.configs.classification.BaseMIL import BaseMILTiles
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 
 
-class DeepSMILECrck(TilesBaseMIL):
+class DeepSMILECrck(BaseMILTiles):
     def __init__(self, **kwargs: Any) -> None:
         # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(

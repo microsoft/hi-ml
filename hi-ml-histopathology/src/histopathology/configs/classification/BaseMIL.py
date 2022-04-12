@@ -174,8 +174,8 @@ class BaseMIL(LightningContainer):
         raise ValueError("Path to best checkpoint not found")
 
 
-class TilesBaseMIL(BaseMIL):
-    """TileBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on tiles datasets. It is responsible
+class BaseMILTiles(BaseMIL):
+    """BaseMILTiles is an abstract subclass of BaseMIL for running MIL experiments on tiles datasets. It is responsible
     for instantiating the full DeepMIL model in tiles settings. Subclasses should define their datamodules and
     configure experiment-specific parameters.
     """
@@ -224,10 +224,10 @@ class TilesBaseMIL(BaseMIL):
         return deepmil_module
 
 
-class SlidesBaseMIL(BaseMIL):
-    """SlidesBaseMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is responsible
-    for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules and
-    configure experiment-specific parameters.
+class BaseMILSlides(BaseMIL):
+    """BaseSlidesMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is
+    responsible for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules
+    and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
     level: int = param.Integer(0, bounds=(0, 3),  # Not sure if we should set the upper bound to 3, to check
