@@ -59,7 +59,7 @@ class MockHistoDataGenerator:
             WSIMockType.PATHMNIST: for creating mock WSI by stitching tiles from pathmnist.
             WSIMockType.FAKE: for creating mock WSI by stitching fake tiles.
         :param seed: pseudorandom number generator seed to use for mocking random metadata, defaults to 42.
-        :param n_tiles: how many tiles per batch to load from pathmnist dataloader, defaults to 1.
+        :param n_tiles: how many tiles per slide to load from pathmnist dataloader, defaults to 1.
             if n_tiles > 1 WSIs are generated from different tiles in the subclass MockWSIGenerator.
         :param n_slides: Number of random slides to generate, defaults to 4.
         :param n_channels: Number of channels, defaults to 3.
