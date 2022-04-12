@@ -28,7 +28,7 @@ from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, Til
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_datamodule import MockHistoDataType
 from testhisto.mocks.tiles_datamodule import MockTilesGenerator, MockTilesDataModule
-from testhisto.mocks.deepmil import MockDeepSMILE
+from testhisto.mocks.container import MockDeepSMILE
 from health_ml.utils.common_utils import is_gpu_available
 
 no_gpu = not is_gpu_available()
