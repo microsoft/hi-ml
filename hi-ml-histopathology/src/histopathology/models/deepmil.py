@@ -333,7 +333,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return bag_logits, bag_labels, bag_attn_list
 
     def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
         results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
                         ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        # This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
                         ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})

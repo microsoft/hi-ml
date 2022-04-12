@@ -17,7 +17,7 @@ from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.networks.layers.attention_layers import AttentionLayer
 
-from histopathology.configs.classification.BaseMIL import BaseMIL
+from histopathology.configs.classification.BaseMIL import BaseMILTiles
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
@@ -25,7 +25,7 @@ from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from testhisto.mocks.tiles_datamodule import MockTilesDataModule, MockTilesDataset
 
 
-class MockDeepSMILE(BaseMIL):
+class MockDeepSMILE(BaseMILTiles):
     def __init__(self, tmp_path: Union[py.path.local, Path], **kwargs: Any) -> None:
         default_kwargs = dict(
             # Model parameters:
