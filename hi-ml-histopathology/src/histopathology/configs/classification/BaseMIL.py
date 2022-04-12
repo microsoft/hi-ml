@@ -7,21 +7,30 @@
 It is responsible for instantiating the encoder and full DeepMIL model. Subclasses should define
 their datamodules and configure experiment-specific parameters.
 """
-from pathlib import Path
-from typing import Optional, Sequence, Tuple
-
+import os
+from pytorch_lightning.callbacks.base import Callback
+import torch
 import param
+
 from torch import nn
+from pathlib import Path
+from typing import List, Optional, Sequence, Tuple
+
 from torchvision.models import resnet18
+from monai.transforms.compose import Compose
+from monai.transforms.transform import Transform
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
+from health_ml.utils import fixed_paths
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, TilesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import DeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
+from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey
 
@@ -173,3 +182,51 @@ class BaseMIL(LightningContainer):
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
+
+    def get_transform(self, image_key):
+        if self.is_finetune:
+            return LoadTilesBatchd(image_key, progress=True)
+
+        else:
+            return Compose([
+                LoadTilesBatchd(image_key, progress=True),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+            ])
+
+    def get_dataloader_kwargs(self) -> Tuple[Transform, dict]:
+        if self.is_finetune:
+            num_cpus = os.cpu_count()
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        return dataloader_kwargs
+
+    def get_callbacks(self) -> List[Callback]:
+        return super().get_callbacks() + [self.callbacks]
+
+    def get_path_to_best_checkpoint(self) -> Path:
+        """
+        Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
+        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
+        folder.
+        """
+        # absolute path is required for registering the model.
+        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
+                                        self.checkpoint_folder_path,
+                                        self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path.is_file():
+            return absolute_checkpoint_path
+
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
+                                               self.checkpoint_folder_path,
+                                               self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path_parent.is_file():
+            return absolute_checkpoint_path_parent
+
+        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
+        raise ValueError("Path to best checkpoint not found")
