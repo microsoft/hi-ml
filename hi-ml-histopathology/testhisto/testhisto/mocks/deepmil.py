@@ -2,12 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import py
 import os
 import torch
 
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List
 
 from monai.transforms import Compose
 from pytorch_lightning.callbacks import Callback
@@ -26,7 +25,7 @@ from testhisto.mocks.tiles_datamodule import MockTilesDataModule, MockTilesDatas
 
 
 class MockDeepSMILE(BaseMIL):
-    def __init__(self, tmp_path: Union[py.path.local, Path], **kwargs: Any) -> None:
+    def __init__(self, tmp_path: Path, **kwargs: Any) -> None:
         default_kwargs = dict(
             # Model parameters:
             pool_type=AttentionLayer.__name__,

@@ -121,9 +121,12 @@ class MockTilesGenerator(MockHistoDataGenerator):
                 self.GLEASON_SCORE,
             ]
         )
-        n_tiles_side = self.image_size // self.tile_size
+        n_tiles_side = self.img_size // self.tile_size
         total_n_tiles = n_tiles_side ** 2
-        coords = [(k // n_tiles_side, k % n_tiles_side) for k in np.random.choice(total_n_tiles, size=self.n_tiles, replace=False)]
+        coords = [
+            (k // n_tiles_side, k % n_tiles_side)
+            for k in np.random.choice(total_n_tiles, size=self.n_tiles, replace=False)
+        ]
 
         isup_grades = np.tile(
             list(self.METADATA_POSSIBLE_VALUES[self.ISUP_GRADE].keys()), self.n_slides // self.N_CLASSES + 1

@@ -4,11 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-import py
 import torch
 import pytest
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
+from pathlib import Path
 from unittest.mock import MagicMock
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
@@ -17,7 +17,6 @@ from torchvision.models import resnet18
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.BaseMIL import BaseMIL
-
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
@@ -130,8 +129,8 @@ def _test_lightningmodule(
 
 
 @pytest.fixture(scope="session")
-def mock_tiles_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
-    tmp_root_dir = tmpdir_factory.mktemp("mock_tiles")
+def mock_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
     tiles_generator = MockTilesGenerator(
         tmp_path=tmp_root_dir,
         mock_type=MockHistoDataType.PATHMNIST,
@@ -327,7 +326,7 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 
 
 @pytest.mark.parametrize("use_gpu", [True, False])
-def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> None:
+def test_mock_container(use_gpu: bool, mock_tiles_root_dir: Path) -> None:
     if use_gpu and no_gpu:
         pytest.skip(
             f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."

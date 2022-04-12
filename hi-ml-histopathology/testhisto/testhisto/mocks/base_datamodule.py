@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import py
 import medmnist
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ import torchvision.transforms as transforms
 from enum import Enum
 from pathlib import Path
 from medmnist import INFO
-from typing import Optional, Union
+from typing import Optional
 from torch.utils.data import DataLoader
 
 
@@ -45,7 +44,7 @@ class MockHistoDataGenerator:
 
     def __init__(
         self,
-        tmp_path: Union[py.path.local, Path],
+        tmp_path: Path,
         mock_type: MockHistoDataType = MockHistoDataType.PATHMNIST,
         seed: int = 42,
         n_tiles: int = 1,

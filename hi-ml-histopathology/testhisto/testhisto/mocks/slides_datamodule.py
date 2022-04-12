@@ -2,9 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 from pathlib import Path
-import py
 import numpy as np
 import pandas as pd
 
@@ -105,7 +103,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
                 # chose among possible data_providers.
                 mock_metadata[key].append(val[i])
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
+        df.to_csv(self.tmp_path / self.DEFAULT_CSV_FILENAME, index=False)
         return df
 
     def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
@@ -150,7 +148,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
     @staticmethod
-    def _save_mock_wsi_as_tiff_file(file_path: Union[py.path.local, Path], wsi_levels: List[np.ndarray]) -> None:
+    def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
         Warning: this function expects images to be in channels_last format (H, W, C).
 
@@ -180,4 +178,4 @@ class MockWSIGenerator(MockHistoDataGenerator):
             mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles[0])
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
             self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
-            np.save(str(self.tmp_path / f"_{sample_counter}_tile.npy"), dump_tiles)
+            np.save(self.tmp_path / f"_{sample_counter}_tile.npy", dump_tiles)
