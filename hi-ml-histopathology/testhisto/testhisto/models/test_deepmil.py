@@ -27,8 +27,9 @@ from histopathology.models.deepmil import TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
-from testhisto.mocks.container import MockDeepSMILEPanda
+from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
 
 no_gpu = not is_gpu_available()
@@ -134,13 +135,31 @@ def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     tiles_generator = MockPandaTilesGenerator(
         tmp_path=tmp_root_dir,
         mock_type=MockHistoDataType.PATHMNIST,
-        n_tiles=8,
+        n_tiles=10,
         n_slides=20,
         n_channels=3,
         tile_size=28,
         img_size=224,
     )
     tiles_generator.generate_mock_histo_data()
+    return tmp_root_dir
+
+
+@pytest.fixture(scope="session")
+def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
+    wsi_generator = MockPandaSlidesGenerator(
+        tmp_path=tmp_root_dir,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=10,
+        n_slides=20,
+        n_channels=3,
+        n_levels=3,
+        tile_size=28,
+        background_val=255,
+        tiles_pos_type=TilesPositioningType.RANDOM
+    )
+    wsi_generator.generate_mock_histo_data()
     return tmp_root_dir
 
 
@@ -326,12 +345,33 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 
 
 @pytest.mark.parametrize("use_gpu", [True, False])
-def test_mock_panda_container(use_gpu: bool, mock_panda_tiles_root_dir: Path) -> None:
+def test_mock_tiles_panda_container(use_gpu: bool, mock_panda_tiles_root_dir: Path) -> None:
     if use_gpu and no_gpu:
         pytest.skip(
             f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
         )
-    container = MockDeepSMILEPanda(tmp_path=mock_panda_tiles_root_dir)
+    container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
+    container.setup()
+    data_module = container.get_data_module()
+    module = container.create_model()
+
+    module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.log = MagicMock()  # type: ignore
+    if use_gpu:
+        module.cuda()
+
+    assert_train_step(module, data_module, use_gpu)
+    assert_validation_step(module, data_module, use_gpu)
+    assert_test_step(module, data_module, use_gpu)
+
+
+@pytest.mark.parametrize("use_gpu", [True, False])
+def test_mock_slides_panda_container(use_gpu: bool, mock_panda_slides_root_dir: Path) -> None:
+    if use_gpu and no_gpu:
+        pytest.skip(
+            f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
+        )
+    container = MockDeepSMILESlidesPanda(tmp_path=mock_panda_slides_root_dir)
     container.setup()
     data_module = container.get_data_module()
     module = container.create_model()
