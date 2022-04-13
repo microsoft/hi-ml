@@ -4,11 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-import py
 import torch
 import pytest
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
+from pathlib import Path
 from unittest.mock import MagicMock
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
@@ -18,7 +18,6 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.BaseMIL import BaseMIL
 
-
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
 from histopathology.datamodules.base_module import TilesDataModule
@@ -27,9 +26,9 @@ from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_
 from histopathology.models.deepmil import TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
-from testhisto.mocks.base_datamodule import MockHistoDataType
-from testhisto.mocks.tiles_datamodule import MockTilesGenerator, MockTilesDataModule
-from testhisto.mocks.deepmil import MockDeepSMILE
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
+from testhisto.mocks.container import MockDeepSMILEPanda
 from health_ml.utils.common_utils import is_gpu_available
 
 no_gpu = not is_gpu_available()
@@ -130,12 +129,12 @@ def _test_lightningmodule(
 
 
 @pytest.fixture(scope="session")
-def mock_tiles_root_dir(tmpdir_factory: pytest.TempdirFactory) -> py.path.local:
-    tmp_root_dir = tmpdir_factory.mktemp("mock_tiles")
-    tiles_generator = MockTilesGenerator(
+def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
+    tiles_generator = MockPandaTilesGenerator(
         tmp_path=tmp_root_dir,
         mock_type=MockHistoDataType.PATHMNIST,
-        n_tiles=4,
+        n_tiles=8,
         n_slides=20,
         n_channels=3,
         tile_size=28,
@@ -327,14 +326,14 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 
 
 @pytest.mark.parametrize("use_gpu", [True, False])
-def test_mock_container(use_gpu: bool, mock_tiles_root_dir: py.path.local) -> None:
+def test_mock_panda_container(use_gpu: bool, mock_panda_tiles_root_dir: Path) -> None:
     if use_gpu and no_gpu:
         pytest.skip(
             f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
         )
-    container = MockDeepSMILE(tmp_path=mock_tiles_root_dir)
+    container = MockDeepSMILEPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
-    data_module: MockTilesDataModule = container.get_data_module()
+    data_module = container.get_data_module()
     module = container.create_model()
 
     module.trainer = MagicMock(world_size=1)  # type: ignore

@@ -4,24 +4,29 @@
 #  ------------------------------------------------------------------------------------------
 
 
-from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
-
+import os
+import torch
 import param
+
 from torch import nn
+from pathlib import Path
+from monai.transforms import Compose
 from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
+
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
                                             SSLEncoder, TileEncoder)
+from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, SlideKey
 
@@ -144,6 +149,26 @@ class BaseMIL(LightningContainer):
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
+
+    def get_transform(self, image_key: str) -> Callable:
+        if self.is_finetune:
+            return LoadTilesBatchd(image_key, progress=True)
+
+        else:
+            return Compose([
+                LoadTilesBatchd(image_key, progress=True),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+            ])
+
+    def get_dataloader_kwargs(self) -> dict:
+        if self.is_finetune:
+            num_cpus = os.cpu_count()
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        return dataloader_kwargs
 
     def get_callbacks(self) -> List[Callback]:
         return super().get_callbacks() + [self.callbacks]

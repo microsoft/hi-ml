@@ -5,53 +5,15 @@
 from enum import Enum
 import os
 from pathlib import Path
-import py
 import numpy as np
 import pandas as pd
 
 from torch import Tensor
 from tifffile import TiffWriter
 
-from typing import Any, Tuple, Optional, List, Union
-from histopathology.datamodules.base_module import SlidesDataModule
-from histopathology.datasets.base_dataset import SlidesDataset
-from health_azure.utils import PathOrString
-from testhisto.mocks.base_datamodule import MockHistoDataGenerator, MockHistoDataType
-
-
-class MockSlidesDataset(SlidesDataset):
-    """Mock and child class of SlidesDataset, to be used for testing purposes.
-    It overrides the following, according to the PANDA cohort settings:
-
-    :param LABEL_COLUMN: CSV column name for tile label set to "isup_grade".
-    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
-    """
-
-    LABEL_COLUMN = "isup_grade"
-    METADATA_COLUMNS = ("data_provider", "isup_grade", "gleason_score")
-
-    def __init__(
-        self, root: PathOrString, dataset_csv: Optional[PathOrString] = None, dataset_df: Optional[pd.DataFrame] = None
-    ) -> None:
-        """
-        :param root: Root directory of the dataset.
-        :param dataset_csv: Full path to a dataset CSV file, containing at least
-        `TILE_ID_COLUMN`, `SLIDE_ID_COLUMN`, and `IMAGE_COLUMN`. If omitted, the CSV will be read
-        from `"{root}/{DEFAULT_CSV_FILENAME}"`.
-        :param dataset_df: A potentially pre-processed dataframe in the same format as would be read
-        from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
-        """
-        super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
-        slide_ids = self.dataset_df.index
-        self.dataset_df[self.IMAGE_COLUMN] = slide_ids + ".tiff"
-        self.validate_columns()
-
-
-class MockSlidesDataModule(SlidesDataModule):
-    """Mock and child class of SlidesDataModule, overrides get_splits so that it uses MockSlidesDataset."""
-
-    def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
-        return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
+from typing import Any, Tuple, List, Union
+from histopathology.datasets.panda_dataset import PandaDataset
+from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 
 class TilesPositioningType(Enum):
@@ -59,21 +21,15 @@ class TilesPositioningType(Enum):
     RANDOM = 1
 
 
-class MockWSIGenerator(MockHistoDataGenerator):
-    """Generator class to create mock WSI on the fly. A mock WSI can resembles to:
+class MockPandaSlidesGenerator(MockHistoDataGenerator):
+    """Generator class to create mock WSI on the fly. A mock WSI resembles to:
                                 [**      ]
                                 [  **    ]
                                 [    **  ]
                                 [      **]
-        where * represents 2 tiles stitched along the Y axis, if tiles positioning is diagonal.
-        Tiles are positioned randomly on the WSI grid whem tiles positioning type is random.
-
-    :param SLIDE_ID_COLUMN: CSV column name for slide id.
-    :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset root directory.
+        where * represents 2 tiles stitched along the Y axis.
     """
-
-    SLIDE_ID_COLUMN = MockSlidesDataset.SLIDE_ID_COLUMN
-    DEFAULT_CSV_FILENAME = MockSlidesDataset.DEFAULT_CSV_FILENAME
+    ISUP_GRADE = "isup_grade"
 
     def __init__(
         self,
@@ -91,6 +47,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         :param background_val: A value to assign to the background, defaults to 255.
         :param tiles_pos_type: The tiles positioning type to define how tiles should be positioned within the WSI grid,
         defaults to TilesPositioningType.DIAGONAL.
+        :param kwargs: Same params passed to MockHistoDataGenerator.
         """
         super().__init__(**kwargs)
 
@@ -114,17 +71,22 @@ class MockWSIGenerator(MockHistoDataGenerator):
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
-        mock_metadata: dict = {col: [] for col in [self.SLIDE_ID_COLUMN, *self.METADATA_COLUMNS]}
-        for i in range(self.n_slides):
-            mock_metadata[MockSlidesDataset.SLIDE_ID_COLUMN].append(f"_{i}")
-            rand_id = np.random.randint(0, self.N_GLEASON_SCORES)
-            for key, val in self.METADATA_POSSIBLE_VALUES.items():
-                i = rand_id if len(val) == self.N_GLEASON_SCORES else np.random.randint(self.N_DATA_PROVIDERS)
-                # Make sure to pick the same random index (rand_id) for isup_grade and gleason_score, otherwise
-                # chose among possible data_providers.
-                mock_metadata[key].append(val[i])
+        isup_grades = np.tile(
+            list(self.ISUP_GRADE_MAPPING.keys()),
+            self.n_slides // PandaDataset.N_CLASSES + 1,
+        )
+        mock_metadata: dict = {col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, *PandaDataset.METADATA_COLUMNS]}
+        for slide_id in range(self.n_slides):
+            mock_metadata[PandaDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
+            mock_metadata[self.DATA_PROVIDER].append(
+                np.random.choice(self.DATA_PROVIDERS_VALUES)
+            )
+            mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
+            mock_metadata[self.GLEASON_SCORE].append(
+                np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]])
+            )
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(os.path.join(self.tmp_path, self.DEFAULT_CSV_FILENAME), index=False)
+        df.to_csv(self.tmp_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
     def create_mock_wsi(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -180,7 +142,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
     @staticmethod
-    def _save_mock_wsi_as_tiff_file(file_path: Union[py.path.local, Path], wsi_levels: List[np.ndarray]) -> None:
+    def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
         Warning: this function expects images to be in channels_last format (H, W, C).
 
@@ -205,9 +167,12 @@ class MockWSIGenerator(MockHistoDataGenerator):
 
     def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
-        for sample_counter in range(self.n_slides):
-            tiles, _ = next(iter(self.dataloader)) if self.dataloader else None, None
-            mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles[0])
+        iterator = iter(self.dataloader) if self.dataloader else None
+        os.makedirs(self.tmp_path / "train_images", exist_ok=True)
+        os.makedirs(self.tmp_path / "dump_tiles", exist_ok=True)
+        for slide_counter in range(self.n_slides):
+            tiles, _ = next(iterator) if iterator else (None, None)
+            mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{sample_counter}.tiff", wsi_levels)
-            np.save(str(self.tmp_path / f"_{sample_counter}_tile.npy"), dump_tiles)
+            self._save_mock_wsi_as_tiff_file(self.tmp_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels)
+            np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
