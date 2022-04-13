@@ -13,7 +13,7 @@ from typing import Any, Tuple, Optional, List, Union
 from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from health_azure.utils import PathOrString
-from testhisto.mocks.base_datamodule import MockHistoDataGenerator, MockHistoDataType
+from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 
 class MockSlidesDataset(SlidesDataset):
@@ -27,6 +27,7 @@ class MockSlidesDataset(SlidesDataset):
     :param GLEASON_SCORE: CSV column name for gleason score.
     :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
     """
+
     LABEL_COLUMN = "isup_grade"
     N_CLASSES = 6
     DATA_PROVIDER = "data_provider"
@@ -58,7 +59,7 @@ class MockSlidesDataModule(SlidesDataModule):
         return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
 
 
-class MockWSIGenerator(MockHistoDataGenerator):
+class MockPandaWSIGenerator(MockHistoDataGenerator):
     """Generator class to create mock WSI on the fly. A mock WSI resembles to:
                                 [**      ]
                                 [  **    ]
@@ -67,6 +68,7 @@ class MockWSIGenerator(MockHistoDataGenerator):
         where * represents 2 tiles stitched along the Y axis.
 
     """
+
     def __init__(
         self,
         n_levels: int = 3,

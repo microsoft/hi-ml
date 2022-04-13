@@ -3,16 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.configs.classification.BaseMIL import BaseMIL
+from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
+from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
-from testhisto.mocks.tiles_datamodule import MockTilesDataModule, MockTilesDataset
 
 
-class MockDeepSMILE(BaseMIL):
+class MockDeepSMILEPanda(DeepSMILEPanda):
     def __init__(self, tmp_path: Path, **kwargs: Any) -> None:
         default_kwargs = dict(
             # Model parameters:
@@ -46,17 +46,5 @@ class MockDeepSMILE(BaseMIL):
     def cache_dir(self) -> Path:
         return Path(self.tmp_path / f"innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/")
 
-    def get_data_module(self) -> MockTilesDataModule:
-        return MockTilesDataModule(
-            root_path=self.local_datasets[0],
-            max_bag_size=self.max_bag_size,
-            batch_size=self.batch_size,
-            max_bag_size_inf=self.max_bag_size_inf,
-            transform=self.get_transform(MockTilesDataset.IMAGE_COLUMN),
-            cache_mode=self.cache_mode,
-            precache_location=self.precache_location,
-            cache_dir=self.cache_dir,
-            crossval_count=self.crossval_count,
-            crossval_index=self.crossval_index,
-            dataloader_kwargs=self.get_dataloader_kwargs(),
-        )
+    def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None

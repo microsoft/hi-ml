@@ -7,9 +7,9 @@ import pytest
 import numpy as np
 
 from health_ml.utils.common_utils import is_gpu_available
-from testhisto.mocks.slides_datamodule import (
+from testhisto.mocks.slides_generator import (
     MockSlidesDataModule,
-    MockWSIGenerator,
+    MockPandaWSIGenerator,
     MockHistoDataType,
     MockSlidesDataset,
 )
@@ -21,7 +21,7 @@ no_gpu = not is_gpu_available()
 @pytest.fixture(scope="session")
 def mock_wsi_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     tmp_root_dir = tmp_path_factory.mktemp("mock_wsi")
-    wsi_generator = MockWSIGenerator(
+    wsi_generator = MockPandaWSIGenerator(
         tmp_path=tmp_root_dir,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=1,

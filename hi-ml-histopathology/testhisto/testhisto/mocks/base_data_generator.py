@@ -21,12 +21,23 @@ class MockHistoDataType(Enum):
 class MockHistoDataGenerator:
     """Base class for mock histo data generation.
 
+    :param MASK_COLUMN: CSV column name for relative path to mask file.
+    :param DATA_PROVIDER: CSV column name for data provider.
+    :param ISUP_GRADE: CSV column name for isup grade.
+    :param GLEASON_SCORE: CSV column name for gleason score.
     :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata. The values mapped to
     isup_grade are the possible gleason_scores.
     """
+
+    MASK_COLUMN = "mask"
+    OCCUPANCY = "occupancy"
+    DATA_PROVIDER = "data_provider"
+    ISUP_GRADE = "slide_isup_grade"
+    GLEASON_SCORE = "gleason_score"
+
     METADATA_POSSIBLE_VALUES: dict = {
-        "data_provider": ["site_0", "site_1"],
-        "isup_grade": {
+        DATA_PROVIDER: ["site_0", "site_1"],
+        ISUP_GRADE: {
             0: ["0+0", "negative"],
             4: ["4+4", "5+3", "3+5"],
             1: ["3+3"],
@@ -35,6 +46,8 @@ class MockHistoDataGenerator:
             5: ["4+5", "5+4", "5+5"],
         },
     }
+
+    _RELATIVE_ROOT_FOLDER = ""
 
     def __init__(
         self,
@@ -66,8 +79,12 @@ class MockHistoDataGenerator:
         self.n_channels = n_channels
         self.tile_size = tile_size
 
+        self.set_tmp_path()
         self.dataframe = self.create_mock_metadata_dataframe()
         self.dataloader = self.get_dataloader()
+
+    def set_tmp_path(self) -> None:
+        pass
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
