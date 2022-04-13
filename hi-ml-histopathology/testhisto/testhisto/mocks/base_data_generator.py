@@ -25,8 +25,9 @@ class MockHistoDataGenerator:
     :param DATA_PROVIDER: CSV column name for data provider.
     :param ISUP_GRADE: CSV column name for isup grade.
     :param GLEASON_SCORE: CSV column name for gleason score.
-    :param METADATA_POSSIBLE_VALUES: Possible values to be assigned to the dataset metadata. The values mapped to
-    isup_grade are the possible gleason_scores.
+    :param DATA_PROVIDERS_VALUES: Possible values to be assigned to data provider column. The values mapped to
+    :param ISUP_GRADE_MAPPING: Possible values to be assigned to isup grade column. The values mapped to
+    isup_grades are the possible gleason_scores.
     """
 
     MASK_COLUMN = "mask"
@@ -35,16 +36,14 @@ class MockHistoDataGenerator:
     ISUP_GRADE = "slide_isup_grade"
     GLEASON_SCORE = "gleason_score"
 
-    METADATA_POSSIBLE_VALUES: dict = {
-        DATA_PROVIDER: ["site_0", "site_1"],
-        ISUP_GRADE: {
-            0: ["0+0", "negative"],
-            4: ["4+4", "5+3", "3+5"],
-            1: ["3+3"],
-            3: ["4+3"],
-            2: ["3+4"],
-            5: ["4+5", "5+4", "5+5"],
-        },
+    DATA_PROVIDERS_VALUES = ["site_0", "site_1"]
+    ISUP_GRADE_MAPPING = {
+        0: ["0+0", "negative"],
+        4: ["4+4", "5+3", "3+5"],
+        1: ["3+3"],
+        3: ["4+3"],
+        2: ["3+4"],
+        5: ["4+5", "5+4", "5+5"],
     }
 
     _RELATIVE_ROOT_FOLDER = ""

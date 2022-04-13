@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -9,65 +10,20 @@ import pandas as pd
 from torch import Tensor
 from tifffile import TiffWriter
 
-from typing import Any, Tuple, Optional, List, Union
-from histopathology.datamodules.base_module import SlidesDataModule
-from histopathology.datasets.base_dataset import SlidesDataset
-from health_azure.utils import PathOrString
+from typing import Any, Tuple, List, Union
+from histopathology.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 
-class MockSlidesDataset(SlidesDataset):
-    """Mock and child class of SlidesDataset, to be used for testing purposes.
-    It overrides the following, according to the PANDA cohort settings:
-
-    :param LABEL_COLUMN: CSV column name for tile label set to "isup_grade".
-    :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
-    :param DATA_PROVIDER: CSV column name for data provider.
-    :param ISUP_GRADE: CSV column name for isup grade.
-    :param GLEASON_SCORE: CSV column name for gleason score.
-    :param METADATA_COLUMNS: Column names for all the metadata available on the CSV dataset file.
-    """
-
-    LABEL_COLUMN = "isup_grade"
-    N_CLASSES = 6
-    DATA_PROVIDER = "data_provider"
-    ISUP_GRADE = "isup_grade"
-    GLEASON_SCORE = "gleason_score"
-    METADATA_COLUMNS = (DATA_PROVIDER, ISUP_GRADE, GLEASON_SCORE)
-
-    def __init__(
-        self, root: PathOrString, dataset_csv: Optional[PathOrString] = None, dataset_df: Optional[pd.DataFrame] = None
-    ) -> None:
-        """
-        :param root: Root directory of the dataset.
-        :param dataset_csv: Full path to a dataset CSV file, containing at least
-        `TILE_ID_COLUMN`, `SLIDE_ID_COLUMN`, and `IMAGE_COLUMN`. If omitted, the CSV will be read
-        from `"{root}/{DEFAULT_CSV_FILENAME}"`.
-        :param dataset_df: A potentially pre-processed dataframe in the same format as would be read
-        from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
-        """
-        super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
-        slide_ids = self.dataset_df.index
-        self.dataset_df[self.IMAGE_COLUMN] = slide_ids + ".tiff"
-        self.validate_columns()
-
-
-class MockSlidesDataModule(SlidesDataModule):
-    """Mock and child class of SlidesDataModule, overrides get_splits so that it uses MockSlidesDataset."""
-
-    def get_splits(self) -> Tuple[MockSlidesDataset, MockSlidesDataset, MockSlidesDataset]:
-        return (MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path), MockSlidesDataset(self.root_path))
-
-
-class MockPandaWSIGenerator(MockHistoDataGenerator):
+class MockPandaSlidesGenerator(MockHistoDataGenerator):
     """Generator class to create mock WSI on the fly. A mock WSI resembles to:
                                 [**      ]
                                 [  **    ]
                                 [    **  ]
                                 [      **]
         where * represents 2 tiles stitched along the Y axis.
-
     """
+    ISUP_GRADE = "isup_grade"
 
     def __init__(
         self,
@@ -98,23 +54,21 @@ class MockPandaWSIGenerator(MockHistoDataGenerator):
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
         isup_grades = np.tile(
-            list(self.METADATA_POSSIBLE_VALUES[MockSlidesDataset.ISUP_GRADE].keys()),
-            self.n_slides // MockSlidesDataset.N_CLASSES + 1,
+            list(self.ISUP_GRADE_MAPPING.keys()),
+            self.n_slides // PandaDataset.N_CLASSES + 1,
         )
-        mock_metadata: dict = {
-            col: [] for col in [MockSlidesDataset.SLIDE_ID_COLUMN, *MockSlidesDataset.METADATA_COLUMNS]
-        }
+        mock_metadata: dict = {col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, *PandaDataset.METADATA_COLUMNS]}
         for slide_id in range(self.n_slides):
-            mock_metadata[MockSlidesDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
-            mock_metadata[MockSlidesDataset.DATA_PROVIDER].append(
-                np.random.choice(self.METADATA_POSSIBLE_VALUES[MockSlidesDataset.DATA_PROVIDER])
+            mock_metadata[PandaDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
+            mock_metadata[self.DATA_PROVIDER].append(
+                np.random.choice(self.DATA_PROVIDERS_VALUES)
             )
-            mock_metadata[MockSlidesDataset.ISUP_GRADE].append(isup_grades[slide_id])
-            mock_metadata[MockSlidesDataset.GLEASON_SCORE].append(
-                np.random.choice(self.METADATA_POSSIBLE_VALUES[MockSlidesDataset.ISUP_GRADE][isup_grades[slide_id]])
+            mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
+            mock_metadata[self.GLEASON_SCORE].append(
+                np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]])
             )
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(self.tmp_path / MockSlidesDataset.DEFAULT_CSV_FILENAME, index=False)
+        df.to_csv(self.tmp_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
     def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
@@ -185,9 +139,11 @@ class MockPandaWSIGenerator(MockHistoDataGenerator):
     def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
         iterator = iter(self.dataloader) if self.dataloader else None
+        os.makedirs(self.tmp_path / "train_images", exist_ok=True)
+        os.makedirs(self.tmp_path / "dump_tiles", exist_ok=True)
         for slide_counter in range(self.n_slides):
             tiles, _ = next(iterator) if iterator else (None, None)
             mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(self.tmp_path / f"_{slide_counter}.tiff", wsi_levels)
-            np.save(self.tmp_path / f"_{slide_counter}_tile.npy", dump_tiles)
+            self._save_mock_wsi_as_tiff_file(self.tmp_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels)
+            np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
