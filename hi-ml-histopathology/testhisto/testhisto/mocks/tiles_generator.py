@@ -16,7 +16,7 @@ from testhisto.mocks.base_data_generator import MockHistoDataGenerator
 
 
 class MockPandaTilesGenerator(MockHistoDataGenerator):
-    """Generator class to create mock tiles dataset on the fly. The tiles lay randomly on a wsi."""
+    """Generator class to create mock tiles dataset on the fly. The tiles are positioned randomly on a wsi grid."""
 
     def __init__(self, img_size: int = 224, **kwargs: Any) -> None:
         """
