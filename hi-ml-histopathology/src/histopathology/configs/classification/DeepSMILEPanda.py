@@ -102,6 +102,9 @@ class DeepSMILEPanda(BaseMIL):
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
+        if self.is_finetune:
+            self.caching = False
         if self.is_caching:
             self.cache_mode = CacheMode.MEMORY
             self.precache_location = CacheLocation.CPU
@@ -111,9 +114,6 @@ class DeepSMILEPanda(BaseMIL):
 
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
-        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled.
-        if self.is_finetune:
-            self.caching = False
         if not self.is_caching:
             transform = LoadTilesBatchd(image_key, progress=True)
             num_cpus = os.cpu_count()

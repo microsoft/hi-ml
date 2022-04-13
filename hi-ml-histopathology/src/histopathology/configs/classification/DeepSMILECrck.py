@@ -104,8 +104,11 @@ class DeepSMILECrck(BaseMIL):
             self.downloader.download_checkpoint_if_necessary()
 
         self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        if not self.is_finetune:
+            self.encoder.eval()
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
+        if self.is_finetune:
+            self.caching = False
         if self.is_caching:
             self.cache_mode = CacheMode.MEMORY
             self.precache_location = CacheLocation.CPU
@@ -115,9 +118,6 @@ class DeepSMILECrck(BaseMIL):
 
     def get_data_module(self) -> TilesDataModule:
         image_key = TcgaCrck_TilesDataset.IMAGE_COLUMN
-        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled.
-        if self.is_finetune:
-            self.caching = False
         if not self.is_caching:
             transform = LoadTilesBatchd(image_key, progress=True)
             num_cpus = os.cpu_count()
