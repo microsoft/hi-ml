@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
@@ -33,7 +34,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         )
 
     def set_tmp_path(self) -> None:
-        self.tmp_path = self.tmp_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
+        self.tmp_path: Path = self.tmp_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
         os.makedirs(self.tmp_path, exist_ok=True)
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:

@@ -5,7 +5,7 @@
 
 import os
 
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
@@ -111,7 +111,7 @@ class DeepSMILEPanda(BaseMIL):
             dataloader_kwargs=self.get_dataloader_kwargs(),
         )
 
-    def get_slides_dataset(self) -> PandaDataset:
+    def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
 

@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
-from histopathology.datasets.base_dataset import SlidesDataset
+from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 
@@ -46,5 +46,5 @@ class MockDeepSMILEPanda(DeepSMILEPanda):
     def cache_dir(self) -> Path:
         return Path(self.tmp_path / f"innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/")
 
-    def get_slides_dataset(self) -> Optional[SlidesDataset]:
+    def get_slides_dataset(self) -> Optional[PandaDataset]:
         return None
