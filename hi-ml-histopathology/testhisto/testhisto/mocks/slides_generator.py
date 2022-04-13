@@ -129,7 +129,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         """Create a whole slide image by positioning tiles randomly in the whole slide image grid.
 
         :param tiles: A tensor of tiles of shape (n_tiles, n_channels, tile_size, tile_size).
-        :return: returns a wsi of shape (img_size, img_size, n_channels) in channels_last format so that it can save by 
+        :return: returns a wsi of shape (img_size, img_size, n_channels) in channels_last format so that it can save by
         TiffWriter.
         """
         mock_image = np.full(
@@ -144,10 +144,15 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         coords = [
             (k // n_tiles_side, k % n_tiles_side) for k in np.random.choice(total_n_tiles, size=n_tiles, replace=False)
         ]
-        for i, tile in enumerate(tiles):
+        for i in range(n_tiles):
             x, y = coords[i][0], coords[i][1]
-            mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = tile
-            
+            if self.mock_type == MockHistoDataType.PATHMNIST:
+                mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = tiles[i]
+            elif self.mock_type == MockHistoDataType.FAKE:
+                mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = np.random.uniform(
+                    0, self.background_val / (self.n_repeat_diag + 1) * (i + 1)
+                )
+        return np.transpose(mock_image, (1, 2, 0))
 
     @staticmethod
     def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
@@ -183,4 +188,5 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             mock_image, dump_tiles = self.create_mock_wsi(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
             self._save_mock_wsi_as_tiff_file(self.tmp_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels)
-            np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
+            if dump_tiles:
+                np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
