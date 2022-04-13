@@ -11,34 +11,25 @@ Reference:
 - Schirris (2021). DeepSMILE: Self-supervised heterogeneity-aware multiple instance learning for DNA
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
-from typing import Any, List
-from pathlib import Path
 import os
-from monai.transforms import Compose
+from typing import Any
+from pathlib import Path
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.callbacks import Callback
-import torch
 
 from health_azure.utils import CheckpointDownloader
 from health_azure import get_workspace
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
+
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
-
-from histopathology.models.transforms import (
-    EncodeTilesBatchd,
-    LoadTilesBatchd,
-)
 from histopathology.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
 )
-
 from histopathology.configs.classification.BaseMIL import BaseMIL
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 
@@ -108,61 +99,19 @@ class DeepSMILECrck(BaseMIL):
         self.encoder.eval()
 
     def get_data_module(self) -> TilesDataModule:
-        image_key = TcgaCrck_TilesDataset.IMAGE_COLUMN
-        if self.is_finetune:
-            transform = LoadTilesBatchd(image_key, progress=True)
-            num_cpus = os.cpu_count()
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
-            transform = Compose([
-                LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
-            ])
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-
         return TcgaCrckTilesDataModule(
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            transform=transform,
+            transform=self.get_transform(TcgaCrck_TilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
-            dataloader_kwargs=dataloader_kwargs,
+            dataloader_kwargs=self.get_dataloader_kwargs(),
         )
-
-    def get_callbacks(self) -> List[Callback]:
-        return super().get_callbacks() + [self.callbacks]
-
-    def get_path_to_best_checkpoint(self) -> Path:
-        """
-        Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
-        folder.
-        """
-        # absolute path is required for registering the model.
-        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        self.checkpoint_folder_path,
-                                        self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path.is_file():
-            return absolute_checkpoint_path
-
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               self.checkpoint_folder_path,
-                                               self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path_parent.is_file():
-            return absolute_checkpoint_path_parent
-
-        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
-        if checkpoint_path.is_file():
-            return checkpoint_path
-
-        raise ValueError("Path to best checkpoint not found")
 
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):
