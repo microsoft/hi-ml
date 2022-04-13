@@ -22,7 +22,7 @@ def get_cross_validation_metrics_df(run_id: str) -> pd.DataFrame:
     aml_workspace = get_workspace()
     os.chdir(fixed_paths.repository_root_directory())
     df = aggregate_hyperdrive_metrics(run_id=run_id,
-                                      child_run_arg_name="cross_validation_split_index",
+                                      child_run_arg_name="crossval_index",
                                       aml_workspace=aml_workspace)
     return df
 

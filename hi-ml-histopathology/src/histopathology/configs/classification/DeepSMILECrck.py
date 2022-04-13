@@ -52,8 +52,8 @@ class DeepSMILECrck(BaseMIL):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
+            is_finetune=False,
+            is_caching=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
@@ -106,10 +106,19 @@ class DeepSMILECrck(BaseMIL):
         self.encoder = self.get_encoder()
         self.encoder.cuda()
         self.encoder.eval()
+        if self.is_caching:
+            self.cache_mode = CacheMode.MEMORY
+            self.precache_location = CacheLocation.CPU
+        else:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
 
     def get_data_module(self) -> TilesDataModule:
         image_key = TcgaCrck_TilesDataset.IMAGE_COLUMN
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled.
         if self.is_finetune:
+            self.caching = False
+        if not self.is_caching:
             transform = LoadTilesBatchd(image_key, progress=True)
             num_cpus = os.cpu_count()
             assert num_cpus is not None  # for mypy
@@ -117,9 +126,9 @@ class DeepSMILECrck(BaseMIL):
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             transform = Compose([
-                LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
-            ])
+                                LoadTilesBatchd(image_key, progress=True),
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                                ])
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
 
         return TcgaCrckTilesDataModule(

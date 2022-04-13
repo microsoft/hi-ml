@@ -71,6 +71,8 @@ class BaseMIL(LightningContainer):
                                                                "gpu. Options: `none` (default),`cpu`, `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
+    is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features (disable random subsampling of tiles). "
+                                                 "If False (default), use the tiles without caching (enable random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
@@ -84,6 +86,13 @@ class BaseMIL(LightningContainer):
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
+
+        if self.is_caching:
+            self.cache_mode = CacheMode.MEMORY
+            self.precache_location = CacheLocation.CPU
+        else:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
@@ -134,10 +143,11 @@ class BaseMIL(LightningContainer):
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
-        if self.is_finetune:
+        if not self.is_caching: 
             self.model_encoder = self.encoder
-            for params in self.model_encoder.parameters():
-                params.requires_grad = True
+            if self.is_finetune:
+                for params in self.model_encoder.parameters():
+                    params.requires_grad = True
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
 

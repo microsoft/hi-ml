@@ -48,9 +48,8 @@ class DeepSMILEPanda(BaseMIL):
             num_transformer_pool_heads=4,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
             is_finetune=False,
+            is_caching=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
@@ -103,10 +102,19 @@ class DeepSMILEPanda(BaseMIL):
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
+        if self.is_caching:
+            self.cache_mode = CacheMode.MEMORY
+            self.precache_location = CacheLocation.CPU
+        else:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
 
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled.
         if self.is_finetune:
+            self.caching = False
+        if not self.is_caching:
             transform = LoadTilesBatchd(image_key, progress=True)
             num_cpus = os.cpu_count()
             assert num_cpus is not None  # for mypy
@@ -114,9 +122,9 @@ class DeepSMILEPanda(BaseMIL):
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             transform = Compose([
-                LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
-            ])
+                                LoadTilesBatchd(image_key, progress=True),
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                                ])
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
 
         return PandaTilesDataModule(
