@@ -38,7 +38,7 @@ from histopathology.datasets.panda_dataset import PandaDataset
 class DeepSMILEPanda(BaseMIL):
     """`is_finetune` sets the fine-tuning mode. For fine-tuning,
     max_bag_size_inf=max_bag_size and batch_size = 2 runs on multiple GPUs with
-    ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation). 
+    ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
