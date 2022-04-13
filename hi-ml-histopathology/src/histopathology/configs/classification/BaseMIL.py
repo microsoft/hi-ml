@@ -282,7 +282,7 @@ class BaseMILSlides(BaseMIL):
                                                "greater than tile_count, then sort by intensity sum, and take the "
                                                "smallest (for min), largest (for max) or random (for random) subset, "
                                                "defaults to 'min' (which assumes background is high value).")
-   
+  
     def get_transform(self, image_key: str) -> Callable:
         normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
                                                    a_max=np.float(self.background_val))

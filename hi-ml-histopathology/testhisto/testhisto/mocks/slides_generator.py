@@ -76,11 +76,11 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         df.to_csv(self.tmp_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
-    def create_mock_wsi(self) -> Tuple[np.ndarray, np.ndarray]:
+    def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
-            return self._create_wsi_from_stitched_tiles()
+            return self._create_wsi_from_stitched_tiles(tiles)
         elif self.tiles_pos_type == TilesPositioningType.RANDOM:
-            return self._create_wsi_from_randomly_positioned_tiles(), None
+            return self._create_wsi_from_randomly_positioned_tiles(tiles), None
         else:
             raise NotImplementedError
 
@@ -188,5 +188,5 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             mock_image, dump_tiles = self.create_mock_wsi(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
             self._save_mock_wsi_as_tiff_file(self.tmp_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels)
-            if dump_tiles:
+            if dump_tiles is not None:
                 np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
