@@ -5,6 +5,7 @@
 import os
 import torch
 import param
+import numpy as np
 
 from torch import nn
 from pathlib import Path
@@ -13,11 +14,13 @@ from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
 from typing import Callable, List, Optional, Sequence, Tuple
 
+from monai.transforms.intensity.dictionary import ScaleIntensityRanged
+
+from health_ml.utils import fixed_paths
 from health_ml.lightning_container import LightningContainer
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
-from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
@@ -149,14 +152,7 @@ class BaseMIL(LightningContainer):
         return None
 
     def get_transform(self, image_key: str) -> Callable:
-        if self.is_finetune:
-            return LoadTilesBatchd(image_key, progress=True)
-
-        else:
-            return Compose([
-                LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
-            ])
+        raise NotImplementedError
 
     def get_dataloader_kwargs(self) -> dict:
         if self.is_finetune:
@@ -225,6 +221,16 @@ class BaseMILTiles(BaseMIL):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
 
+    def get_transform(self, image_key: str) -> Callable:
+        if self.is_finetune:
+            return LoadTilesBatchd(image_key, progress=True)
+
+        else:
+            return Compose([
+                LoadTilesBatchd(image_key, progress=True),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+            ])
+ 
     def create_model(self) -> TilesDeepMILModule:
         self.model_creation_setup()
         pooling_layer, num_features = self.get_pooling_layer()
@@ -276,6 +282,16 @@ class BaseMILSlides(BaseMIL):
                                                "greater than tile_count, then sort by intensity sum, and take the "
                                                "smallest (for min), largest (for max) or random (for random) subset, "
                                                "defaults to 'min' (which assumes background is high value).")
+   
+    def get_transform(self, image_key: str) -> Callable:
+        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
+                                                   a_max=np.float(self.background_val))
+        if self.is_finetune:
+            transform = normalize_transform
+        else:
+            transform = Compose([normalize_transform,
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)])
+        return transform
 
     def create_model(self) -> SlidesDeepMILModule:
         self.model_creation_setup()

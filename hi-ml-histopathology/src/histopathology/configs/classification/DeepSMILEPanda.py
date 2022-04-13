@@ -3,14 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Optional
-from pathlib import Path
 import os
-import numpy as np
-from monai.transforms import Compose
-from monai.transforms.intensity.dictionary import ScaleIntensityRanged
+
+from pathlib import Path
+from typing import Any, Optional
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-import torch
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
@@ -30,10 +27,6 @@ from histopathology.models.encoders import (
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
-)
-from histopathology.models.transforms import (
-    EncodeTilesBatchd,
-    LoadTilesBatchd,
 )
 
 from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
@@ -175,24 +168,13 @@ class SubPandaImageNetMIL(TilesPandaImageNetMIL):
         self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_tiles.csv")
 
     def get_data_module(self) -> SubPandaTilesDataModule:
-        image_key = PandaTilesDataset.IMAGE_COLUMN
-        if self.is_finetune:
-            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
-        else:
-            transform = Compose(
-                [
-                    LoadTilesBatchd(image_key, progress=True),
-                    EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size),
-                ]
-            )
-
         return SubPandaTilesDataModule(
             train_csv=self.train_csv,
             val_csv=self.val_csv,
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
-            transform=transform,
+            transform=self.get_transform(),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
@@ -211,27 +193,14 @@ class DeepSMILESlidesPanda(BaseMILSlides, DeepSMILEPanda):
         super().__init__(**default_kwargs)
 
     def get_data_module(self) -> PandaSlidesDataModule:
-        # TODO define which transform to apply
-        image_key = PandaDataset.IMAGE_COLUMN
-        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
-                                                   a_max=np.float(self.background_val))
-        if self.is_finetune:
-            transform = normalize_transform
-            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
-            transform = Compose([normalize_transform,
-                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)])
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-
         return PandaSlidesDataModule(
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
             tile_count=self.tile_count,
-            transform=transform,
+            transform=self.get_transform(),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
-            dataloader_kwargs=dataloader_kwargs,
+            dataloader_kwargs=self.get_dataloader_kwargs(),
         )
 
     def get_slides_dataset(self) -> PandaDataset:
@@ -273,27 +242,13 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
         self.val_csv = os.path.join(root_path, "configs/classification/panda/sub_val_slides.csv")
 
     def get_data_module(self) -> SubPandaSlidesDataModule:
-        # TODO define which transform to apply
-        image_key = PandaDataset.IMAGE_COLUMN
-        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
-                                                   a_max=np.float(self.background_val))
-        if self.is_finetune:
-            transform = normalize_transform
-            workers_per_gpu = os.cpu_count() // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
-            transform = Compose([normalize_transform,
-                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)])
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-
         return SubPandaSlidesDataModule(
             root_path=self.local_datasets[0],
             train_csv=self.train_csv,
             val_csv=self.val_csv,
-            transform=transform,
+            transform=self.get_transform(),
             batch_size=self.batch_size,
             tile_count=self.tile_count,
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
-            dataloader_kwargs=dataloader_kwargs,
         )
