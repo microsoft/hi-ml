@@ -14,11 +14,10 @@ import param
 
 from torch import nn
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from torchvision.models import resnet18
 from monai.transforms.compose import Compose
-from monai.transforms.transform import Transform
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
@@ -183,7 +182,7 @@ class BaseMIL(LightningContainer):
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
 
-    def get_transform(self, image_key):
+    def get_transform(self, image_key: str) -> Callable:
         if self.is_finetune:
             return LoadTilesBatchd(image_key, progress=True)
 
@@ -193,7 +192,7 @@ class BaseMIL(LightningContainer):
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
 
-    def get_dataloader_kwargs(self) -> Tuple[Transform, dict]:
+    def get_dataloader_kwargs(self) -> dict:
         if self.is_finetune:
             num_cpus = os.cpu_count()
             assert num_cpus is not None  # for mypy
