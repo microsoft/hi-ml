@@ -267,7 +267,6 @@ class BaseMILTiles(BaseMIL):
     def create_model(self) -> TilesDeepMILModule:
         self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
-        outputs_handler = self.get_output_handler()
         deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
                                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
@@ -280,8 +279,7 @@ class BaseMILTiles(BaseMIL):
                                             adam_betas=self.adam_betas,
                                             is_finetune=self.is_finetune,
                                             class_names=self.class_names,
-                                            outputs_handler=outputs_handler
-                                            )
+                                            outputs_handler=self.get_output_handler())
         deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
@@ -331,7 +329,6 @@ class BaseMILSlides(BaseMIL):
     def create_model(self) -> SlidesDeepMILModule:
         self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
-        outputs_handler = self.get_output_handler()
         deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
                                              encoder=self.model_encoder,
                                              # Here we can't use self.data_module.train_dataset.LABEL_COLUMN as labels.
@@ -350,6 +347,6 @@ class BaseMILSlides(BaseMIL):
                                              adam_betas=self.adam_betas,
                                              is_finetune=self.is_finetune,
                                              class_names=self.class_names,
-                                             outputs_handler=outputs_handler)
+                                             outputs_handler=self.get_output_handler())
         deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
