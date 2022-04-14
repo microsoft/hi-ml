@@ -346,7 +346,8 @@ class BaseMILSlides(BaseMIL):
                                              weight_decay=self.weight_decay,
                                              adam_betas=self.adam_betas,
                                              is_finetune=self.is_finetune,
-                                             class_names=self.class_names,
-                                             outputs_handler=self.get_output_handler())
-        deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
+                                             class_names=self.class_names)
+        # TODO uncomment this when outputs_handler is fixed for wsi pipeline.
+        #                                    outputs_handler=self.get_output_handler())
+        # deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
