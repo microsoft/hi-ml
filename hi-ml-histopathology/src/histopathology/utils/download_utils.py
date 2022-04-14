@@ -25,7 +25,7 @@ def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path
     if local_path.exists():
         print("File already exists at", local_path)
     else:
-        local_dir = local_path.parent.parent.parent
+        local_dir = local_path.parent.parent
         local_dir.mkdir(exist_ok=True, parents=True)
         download_files_from_run_id(run_id=run_id,
                                    output_folder=local_dir,

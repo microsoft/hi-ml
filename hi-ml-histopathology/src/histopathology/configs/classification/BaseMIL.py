@@ -147,15 +147,15 @@ class BaseMIL(LightningContainer):
 
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        if not self.is_caching:
+        if self.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        else:
             self.model_encoder = self.encoder
             if self.is_finetune:
                 for params in self.model_encoder.parameters():
                     params.requires_grad = True
-        else:
-            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
 
         # Construct pooling layer
         pooling_layer, num_features = self.get_pooling_layer()
@@ -204,7 +204,9 @@ class BaseMIL(LightningContainer):
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
         else:
             num_cpus = os.cpu_count()
-            num_devices = max(torch.cuda.device_count(), 1)  # To ensure num_devices is 1 for non-GPU machines
+            # We ensure num_devices is not 0 for non-GPU machines
+            # to avoid division by zero error when computing `workers_per_gpu`
+            num_devices = max(torch.cuda.device_count(), 1)
             assert num_cpus is not None  # for mypy
             workers_per_gpu = num_cpus // num_devices
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
