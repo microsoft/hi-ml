@@ -14,7 +14,7 @@ import param
 
 from torch import nn
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from torchvision.models import resnet18
 from monai.transforms.compose import Compose
@@ -85,7 +85,7 @@ class BaseMIL(LightningContainer):
                                      "(enables random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
         if self.is_finetune:
