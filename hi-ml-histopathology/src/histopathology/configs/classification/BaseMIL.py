@@ -85,6 +85,15 @@ class BaseMIL(LightningContainer):
                                      "(enables random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
+        if self.is_finetune:
+            self.is_caching = False
+        if not self.is_caching:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
+
     @property
     def cache_dir(self) -> Path:
         raise NotImplementedError
@@ -93,12 +102,6 @@ class BaseMIL(LightningContainer):
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
-        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
-        if self.is_finetune:
-            self.is_caching = False
-        if not self.is_caching:
-            self.cache_mode = CacheMode.NONE
-            self.precache_location = CacheLocation.NONE
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
