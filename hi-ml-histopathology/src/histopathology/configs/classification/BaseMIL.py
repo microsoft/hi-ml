@@ -249,10 +249,10 @@ class BaseMILTiles(BaseMIL):
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
-    precache_location: str = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
-                                                 doc="Whether to pre-cache the entire transformed dataset upfront "
-                                                 "and save it to disk and if re-load in cpu or gpu. Options:"
-                                                 "`none` (default),`cpu`, `gpu`")
+    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
+                                                           doc="Whether to pre-cache the entire transformed dataset"
+                                                           "upfront and save it to disk and if re-load in cpu or gpu"
+                                                           "Options:`none` (default),`cpu`, `gpu`")
 
     def get_transform(self, image_key: str) -> Callable:
         if self.is_finetune:
