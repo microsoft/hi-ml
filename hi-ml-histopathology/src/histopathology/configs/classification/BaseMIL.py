@@ -333,8 +333,8 @@ class BaseMILSlides(BaseMIL):
         if self.is_finetune:
             transform = normalize_transform
         else:
-            transform = Compose([normalize_transform,
-                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)])
+            # TODO think about how to handle this for slides in next PR.
+            raise NotImplementedError
         return transform
 
     def create_model(self) -> SlidesDeepMILModule:
