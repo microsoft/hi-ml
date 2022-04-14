@@ -75,7 +75,7 @@ class BaseDeepSMILEPanda(BaseMIL):
 class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeeppSMILEPanda to inherits common behaviors from both
     tiles basemil and panda specific configuration.
-  
+
     `is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
     Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
