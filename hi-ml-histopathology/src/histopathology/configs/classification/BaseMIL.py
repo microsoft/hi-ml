@@ -256,7 +256,7 @@ class BaseMILTiles(BaseMIL):
         else:
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
         return dataloader_kwargs
-  
+
     def get_transform(self, image_key: str) -> Callable:
         if self.is_finetune:
             return LoadTilesBatchd(image_key, progress=True)
