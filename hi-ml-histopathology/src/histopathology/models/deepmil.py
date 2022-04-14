@@ -183,7 +183,7 @@ class BaseDeepMILModule(LightningModule):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
-    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor]:
+    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         """Compute bag labels, logits and attention maps depending on the nature of batch.
         Subclasses (TilesDeepMILModule and SlidesDeepMILModule) should specify how this is handled depending on if
         the tiles are fixed or generated on the fly from whole slide images.
