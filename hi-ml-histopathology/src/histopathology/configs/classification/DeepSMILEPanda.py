@@ -140,6 +140,7 @@ class SubTilesPandaImageNetMIL(TilesPandaImageNetMIL):
         self.batch_size = 1
         self.max_bag_size = 3
         self.max_bag_size_inf = 3
+        self.max_epochs = 2,
         self.cache_mode = CacheMode.NONE
         self.precache_location = CacheLocation.NONE
         self.train_csv = os.path.join(root_path, "configs/classification/panda/sub_train_tiles.csv")
@@ -152,7 +153,7 @@ class SubTilesPandaImageNetMIL(TilesPandaImageNetMIL):
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
-            transform=self.get_transform(),
+            transform=self.get_transform(PandaTilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
@@ -181,7 +182,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
             tile_count=self.tile_count,
-            transform=self.get_transform(),
+            transform=self.get_transform(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
@@ -216,9 +217,11 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
         super().__init__(**kwargs)
         root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
         self.is_finetune = True
+        self.tile_count = 3
         self.crossval_count = 1
         self.pl_limit_train_batches = 2
         self.pl_limit_val_batches = 1
+        self.max_epochs = 2
         self.batch_size = 1
         self.max_bag_size = 3
         self.max_bag_size_inf = 3
@@ -230,7 +233,7 @@ class SubSlidesPandaImageNetMIL(SlidesPandaImageNetMIL):
             root_path=self.local_datasets[0],
             train_csv=self.train_csv,
             val_csv=self.val_csv,
-            transform=self.get_transform(),
+            transform=self.get_transform(PandaDataset.IMAGE_COLUMN),
             batch_size=self.batch_size,
             tile_count=self.tile_count,
             crossval_count=self.crossval_count,

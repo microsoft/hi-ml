@@ -204,14 +204,7 @@ class BaseMIL(LightningContainer):
         raise ValueError("Path to best checkpoint not found")
 
     def get_dataloader_kwargs(self) -> dict:
-        if self.is_finetune:
-            num_cpus = os.cpu_count()
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-        return dataloader_kwargs
+        raise NotImplementedError
 
     def get_transform(self, image_key: str) -> Callable:
         raise NotImplementedError
@@ -254,6 +247,16 @@ class BaseMILTiles(BaseMIL):
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
 
+    def get_dataloader_kwargs(self) -> dict:
+        if self.is_finetune:
+            num_cpus = os.cpu_count()
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        return dataloader_kwargs
+  
     def get_transform(self, image_key: str) -> Callable:
         if self.is_finetune:
             return LoadTilesBatchd(image_key, progress=True)
@@ -315,6 +318,14 @@ class BaseMILSlides(BaseMIL):
                                                "greater than tile_count, then sort by intensity sum, and take the "
                                                "smallest (for min), largest (for max) or random (for random) subset, "
                                                "defaults to 'min' (which assumes background is high value).")
+
+    def get_dataloader_kwargs(self) -> dict:
+        # TODO double check workers_per_gpu, ask why it's 0 in tiles case when not is_finetune
+        num_cpus = os.cpu_count()
+        assert num_cpus is not None  # for mypy
+        workers_per_gpu = num_cpus // torch.cuda.device_count()
+        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=self.is_finetune)
+        return dataloader_kwargs
 
     def get_transform(self, image_key: str) -> Callable:
         normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
