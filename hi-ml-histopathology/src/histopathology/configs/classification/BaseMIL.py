@@ -12,9 +12,12 @@ from pathlib import Path
 from monai.transforms import Compose
 from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from monai.transforms.intensity.dictionary import ScaleIntensityRanged
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from health_azure.utils import CheckpointDownloader, get_workspace
+
 
 from health_ml.utils import fixed_paths
 from health_ml.lightning_container import LightningContainer
@@ -65,9 +68,18 @@ class BaseMIL(LightningContainer):
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.best_checkpoint_filename = "checkpoint_max_val_auroc"
+        self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
+        self.checkpoint_folder_path = "outputs/checkpoints/"
+        self.callbacks = self.get_monitoring_callbacks(monitor="val/auroc", mode="max")
+
     @property
     def cache_dir(self) -> Path:
-        raise NotImplementedError
+        return Path(
+            f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
+        )
 
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
@@ -76,6 +88,27 @@ class BaseMIL(LightningContainer):
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
+
+    def download_ssl_checkpoint(self, run_id: str) -> CheckpointDownloader:
+        downloader = CheckpointDownloader(
+            aml_workspace=get_workspace(),
+            run_id=run_id,
+            checkpoint_filename="last.ckpt",
+            download_dir="outputs/",
+            remote_checkpoint_dir=Path(self.checkpoint_folder_path)
+        )
+        os.chdir(fixed_paths.repository_root_directory().parent)
+        downloader.download_checkpoint_if_necessary()
+        return downloader
+
+    def get_monitoring_callbacks(self, monitor: str = "val/auroc", mode: str = "max") -> List[Callback]:
+        """Return ModelCheckpoint callback. One can override this method to add extra monitoring callbacks."""
+        return [ModelCheckpoint(dirpath=self.checkpoint_folder_path,
+                                monitor=monitor,
+                                filename=self.best_checkpoint_filename,
+                                auto_insert_metric_name=False,
+                                mode=mode)
+                ]
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
@@ -122,7 +155,16 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    def model_creation_setup(self) -> None:
+    def get_output_handler(self) -> DeepMILOutputsHandler:
+        return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
+                                     n_classes=self.data_module.train_dataset.N_CLASSES,
+                                     tile_size=self.tile_size,
+                                     level=1,
+                                     class_names=self.class_names,
+                                     primary_val_metric=MetricsKey.AUROC,
+                                     maximise=True)
+
+    def setup_model_creation(self) -> None:
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
@@ -133,39 +175,8 @@ class BaseMIL(LightningContainer):
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
 
-    def get_output_handler(self) -> DeepMILOutputsHandler:
-        return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
-                                     n_classes=self.data_module.train_dataset.N_CLASSES,
-                                     tile_size=self.tile_size,
-                                     level=1,
-                                     class_names=self.class_names,
-                                     primary_val_metric=MetricsKey.AUROC,
-                                     maximise=True)
-
-    def create_model(self) -> BaseDeepMILModule:
-        raise NotImplementedError
-
-    def get_data_module(self) -> HistoDataModule:
-        raise NotImplementedError
-
-    def get_slides_dataset(self) -> Optional[SlidesDataset]:
-        return None
-
-    def get_transform(self, image_key: str) -> Callable:
-        raise NotImplementedError
-
-    def get_dataloader_kwargs(self) -> dict:
-        if self.is_finetune:
-            num_cpus = os.cpu_count()
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-        return dataloader_kwargs
-
     def get_callbacks(self) -> List[Callback]:
-        return super().get_callbacks() + [self.callbacks]
+        return super().get_callbacks() + self.callbacks
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
@@ -191,6 +202,28 @@ class BaseMIL(LightningContainer):
             return checkpoint_path
 
         raise ValueError("Path to best checkpoint not found")
+
+    def get_dataloader_kwargs(self) -> dict:
+        if self.is_finetune:
+            num_cpus = os.cpu_count()
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        return dataloader_kwargs
+
+    def get_transform(self, image_key: str) -> Callable:
+        raise NotImplementedError
+
+    def create_model(self) -> BaseDeepMILModule:
+        raise NotImplementedError
+
+    def get_data_module(self) -> HistoDataModule:
+        raise NotImplementedError
+
+    def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None
 
 
 class BaseMILTiles(BaseMIL):
@@ -230,9 +263,9 @@ class BaseMILTiles(BaseMIL):
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
- 
+
     def create_model(self) -> TilesDeepMILModule:
-        self.model_creation_setup()
+        self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_output_handler()
         deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
@@ -294,12 +327,17 @@ class BaseMILSlides(BaseMIL):
         return transform
 
     def create_model(self) -> SlidesDeepMILModule:
-        self.model_creation_setup()
+        self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_output_handler()
         deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
                                              encoder=self.model_encoder,
-                                             label_column=SlideKey.LABEL,  # TODO add comment
+                                             # Here we can't use self.data_module.train_dataset.LABEL_COLUMN as labels.
+                                             # because label_column in (PANDA)SlidesDataset is "isup_grade" which is a
+                                             # string "ISUP_i" i={0,..,5}. However the model needs an integer label
+                                             # SlideKey.LABEL is used as an alternative but we should maybe cast
+                                             # LABEL_COLUMN in the dataset to stay constitent.
+                                             label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
                                              num_features=num_features,

@@ -7,10 +7,8 @@ import os
 
 from pathlib import Path
 from typing import Any, Optional
-from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
-from health_azure.utils import CheckpointDownloader
-from health_azure.utils import get_workspace, is_running_in_azure_ml
+from health_azure.utils import is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, HistoDataModule
@@ -33,7 +31,8 @@ from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 
 
-class DeepSMILEPanda(BaseMIL):
+class BaseDeepSMILEPanda(BaseMIL):
+    """Base class for DeepSMILEPanda common configs between tiles and slides piplines."""
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
@@ -57,38 +56,14 @@ class DeepSMILEPanda(BaseMIL):
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         if not is_running_in_azure_ml():
             self.max_epochs = 1
-        self.best_checkpoint_filename = "checkpoint_max_val_auroc"
-        self.best_checkpoint_filename_with_suffix = (
-            self.best_checkpoint_filename + ".ckpt"
-        )
-        self.checkpoint_folder_path = "outputs/checkpoints/"
-        best_checkpoint_callback = ModelCheckpoint(
-            dirpath=self.checkpoint_folder_path,
-            monitor="val/accuracy",
-            filename=self.best_checkpoint_filename,
-            auto_insert_metric_name=False,
-            mode="max",
-        )
-        self.callbacks = best_checkpoint_callback
-
-    @property
-    def cache_dir(self) -> Path:
-        return Path(
-            f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
-        )
 
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
+            # TODO check if the run_id is common to both tiles and slides pipeline?
+            # We might need to retrain with the new dataloader / different tiles.
+            # and check if downloader has to be a class attribute
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_binary
-            self.downloader = CheckpointDownloader(
-                aml_workspace=get_workspace(),
-                run_id=innereye_ssl_checkpoint_binary,  # innereye_ssl_checkpoint
-                checkpoint_filename="best_checkpoint.ckpt",  # "last.ckpt",
-                download_dir="outputs/",
-                remote_checkpoint_dir=Path("outputs/checkpoints")
-            )
-            os.chdir(fixed_paths.repository_root_directory().parent)
-            self.downloader.download_checkpoint_if_necessary()
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
@@ -97,8 +72,11 @@ class DeepSMILEPanda(BaseMIL):
         raise NotImplementedError                            # type: ignore
 
 
-class DeepSMILETilesPanda(BaseMILTiles, DeepSMILEPanda):
-    """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
+class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
+    """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeeppSMILEPanda to inherits common behaviors from both
+    tiles basemil and panda specific configuration.
+  
+    `is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
     Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
     """
@@ -152,7 +130,7 @@ class TilesPandaHistoSSLMIL(DeepSMILETilesPanda):
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
 
 
-class SubPandaImageNetMIL(TilesPandaImageNetMIL):
+class SubTilesPandaImageNetMIL(TilesPandaImageNetMIL):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         root_path = os.path.join(fixed_paths.repository_root_directory(), "hi-ml-histopathology/src/histopathology")
@@ -181,10 +159,16 @@ class SubPandaImageNetMIL(TilesPandaImageNetMIL):
         )
 
 
-class DeepSMILESlidesPanda(BaseMILSlides, DeepSMILEPanda):
+class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
+    """DeepSMILESlidesPanda is derived from BaseMILSlides and BaseDeeppSMILEPanda to inherits common behaviors from both
+    slides basemil and panda specific configuration.
+    """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
-            # declared in BaseMILSlides: TODO check if there are other parameters to set for PANDA (MONAI pipe)
+            # declared in BaseMILSlides:
+            # TODO check if there are other parameters to set for PANDA (MONAI pipe)
+            # N.B: For the moment we only support running the pipeline with a fixed tile_count.
+            # Padding to the same shape or collating to a List of Tensors  will be adressed in another PR.
             tile_count=60,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA")],
