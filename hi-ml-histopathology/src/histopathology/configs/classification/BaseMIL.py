@@ -85,7 +85,7 @@ class BaseMIL(LightningContainer):
                                      "(enables random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
         if self.is_finetune:
