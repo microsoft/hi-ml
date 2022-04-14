@@ -275,7 +275,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-    
         assert self.tile_count, "tiles_count=None is not supported for now."
 
     def _load_dataset(self, slides_dataset: SlidesDataset) -> Dataset:

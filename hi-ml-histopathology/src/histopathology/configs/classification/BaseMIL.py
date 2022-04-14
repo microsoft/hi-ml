@@ -204,7 +204,15 @@ class BaseMIL(LightningContainer):
         raise ValueError("Path to best checkpoint not found")
 
     def get_dataloader_kwargs(self) -> dict:
-        raise NotImplementedError
+        # TODO clarify why num_workers = 0 if not self.is_finetune
+        if self.is_finetune:
+            num_cpus = os.cpu_count()
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        else:
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        return dataloader_kwargs
 
     def get_transform(self, image_key: str) -> Callable:
         raise NotImplementedError
@@ -246,16 +254,6 @@ class BaseMILTiles(BaseMIL):
                                                  doc="Whether to pre-cache the entire transformed dataset upfront "
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
-
-    def get_dataloader_kwargs(self) -> dict:
-        if self.is_finetune:
-            num_cpus = os.cpu_count()
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-        return dataloader_kwargs
 
     def get_transform(self, image_key: str) -> Callable:
         if self.is_finetune:
@@ -319,21 +317,16 @@ class BaseMILSlides(BaseMIL):
                                                "smallest (for min), largest (for max) or random (for random) subset, "
                                                "defaults to 'min' (which assumes background is high value).")
 
-    def get_dataloader_kwargs(self) -> dict:
-        # TODO double check workers_per_gpu, ask why it's 0 in tiles case when not is_finetune
-        num_cpus = os.cpu_count()
-        assert num_cpus is not None  # for mypy
-        workers_per_gpu = num_cpus // torch.cuda.device_count()
-        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=self.is_finetune)
-        return dataloader_kwargs
-
     def get_transform(self, image_key: str) -> Callable:
+        # TODO how to deal with intensity scaling: I added this transform because I was getting this error
+        # TypeError: Input tensor should be a float tensor. Got torch.uint8.
         normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
                                                    a_max=np.float(self.background_val))
         if self.is_finetune:
             transform = normalize_transform
         else:
             # TODO think about how to handle this for slides in next PR.
+            # potentionally add extra transforms
             raise NotImplementedError
         return transform
 

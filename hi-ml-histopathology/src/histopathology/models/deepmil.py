@@ -324,7 +324,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         for bag_idx in range(len(batch[self.label_column])):
             images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
             label = batch[self.label_column][bag_idx]
-            bag_labels_list.append(label)
+            bag_labels_list.append(label)  # no need to do majority voting to get the bag_label
             logit, attn = self(images)
             bag_logits_list.append(logit.view(-1))
             bag_attn_list.append(attn)
