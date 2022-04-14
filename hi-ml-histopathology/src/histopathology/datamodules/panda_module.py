@@ -2,8 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
-from typing import Any, Tuple
+from typing import Tuple
 
 from health_ml.utils.split_dataset import DatasetSplits
 
@@ -55,40 +54,3 @@ class PandaSlidesDataModule(SlidesDataModule):
         return (PandaDataset(self.root_path, dataset_df=splits.train),
                 PandaDataset(self.root_path, dataset_df=splits.val),
                 PandaDataset(self.root_path, dataset_df=splits.test))
-
-
-class SubPandaTilesDataModule(TilesDataModule):
-    """ subPandaTilesDataModule is a child class of TilesDataModule specific to PANDA dataset.
-    The method get_splits() returns the train, val, test splits from a subset of the PANDA dataset specified by
-    train/validation dataframes.
-    """
-
-    def __init__(self, train_csv: Path, val_csv: Path, **kwargs: Any) -> None:
-        self.train_csv = train_csv
-        self.val_csv = val_csv
-        super().__init__(**kwargs)
-
-    def get_splits(self) -> Tuple[PandaTilesDataset, PandaTilesDataset, PandaTilesDataset]:
-        return (
-            PandaTilesDataset(self.root_path, self.train_csv),
-            PandaTilesDataset(self.root_path, self.val_csv),
-            PandaTilesDataset(self.root_path, self.val_csv),
-        )
-
-
-class SubPandaSlidesDataModule(PandaSlidesDataModule):
-    """ PandaSlidesDataModule is the child class of SlidesDataModule specific to PANDA dataset
-    Method get_splits() returns the train, val, test splits from the PANDA dataset
-    """
-
-    def __init__(self, train_csv: Path, val_csv: Path, **kwargs: Any) -> None:
-        self.train_csv = train_csv
-        self.val_csv = val_csv
-        super().__init__(**kwargs)
-
-    def get_splits(self) -> Tuple[PandaDataset, PandaDataset, PandaDataset]:
-        return (
-            PandaDataset(self.root_path, self.train_csv),
-            PandaDataset(self.root_path, self.val_csv),
-            PandaDataset(self.root_path, self.val_csv),
-        )
