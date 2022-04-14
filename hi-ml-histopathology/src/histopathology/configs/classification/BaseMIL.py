@@ -208,8 +208,9 @@ class BaseMIL(LightningContainer):
     def get_dataloader_kwargs(self) -> dict:
         if not self.is_caching:
             num_cpus = os.cpu_count()
+            num_devices = max(torch.cuda.device_count(), 1)
             assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            workers_per_gpu = num_cpus // num_devices 
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
