@@ -58,7 +58,7 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             pool_hidden_dim=16,
             num_transformer_pool_layers=1,
             num_transformer_pool_heads=1,
-            is_finetune=False,
+            is_finetune=True,
             class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
             encoder_type=ImageNetEncoder.__name__,
@@ -68,6 +68,8 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             max_bag_size=4,
             max_bag_size_inf=4,
             encoding_chunk_size=4,
+            level=0,
+            tile_count=4,
             # declared in DatasetParams:
             local_datasets=[tmp_path],
             # declared in TrainerParams:

@@ -138,14 +138,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
         n_tiles_side = self.img_size // self.tile_size
         total_n_tiles = n_tiles_side ** 2
-
-        # pick a random n_tiles for each slide
-        n_tiles = np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2)
         coords = [
-            (k // n_tiles_side, k % n_tiles_side) for k in np.random.choice(total_n_tiles, size=n_tiles, replace=False)
+            (k // n_tiles_side, k % n_tiles_side)
+            for k in np.random.choice(total_n_tiles, size=self.n_tiles, replace=False)
         ]
-        for i in range(n_tiles):
-            x, y = coords[i][0], coords[i][1]
+        for i in range(self.n_tiles):
+            x, y = self.tile_size * np.array(coords[i])
             if self.mock_type == MockHistoDataType.PATHMNIST:
                 mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = tiles[i]
             elif self.mock_type == MockHistoDataType.FAKE:

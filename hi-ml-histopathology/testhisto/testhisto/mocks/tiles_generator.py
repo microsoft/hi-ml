@@ -57,10 +57,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         total_n_tiles = n_tiles_side ** 2
 
         # This is to make sure that the dataset contains at least one sample from each isup grade class.
-        isup_grades = np.tile(
-            list(self.ISUP_GRADE_MAPPING.keys()),
-            self.n_slides // PandaTilesDataset.N_CLASSES + 1,
-        )
+        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaTilesDataset.N_CLASSES + 1,)
 
         for slide_id in range(self.n_slides):
 
@@ -68,8 +65,10 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             isup_grade = isup_grades[slide_id]
             gleason_score = np.random.choice(self.ISUP_GRADE_MAPPING[isup_grade])
 
-            # pick a random n_tiles for each slide
-            n_tiles = np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2)
+            # pick a random n_tiles for each slide without exceeding the max n_tiles allowed
+            n_tiles = min(
+                np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), (self.img_size // self.tile_size) ** 2
+            )
 
             coords = [
                 (k // n_tiles_side, k % n_tiles_side)
