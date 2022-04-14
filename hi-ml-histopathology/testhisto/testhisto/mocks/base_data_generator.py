@@ -78,9 +78,14 @@ class MockHistoDataGenerator:
         self.n_channels = n_channels
         self.tile_size = tile_size
 
+        self.sanity_checks()
         self.set_tmp_path()
+
         self.dataframe = self.create_mock_metadata_dataframe()
         self.dataloader = self.get_dataloader()
+
+    def sanity_checks(self) -> None:
+        pass
 
     def set_tmp_path(self) -> None:
         pass

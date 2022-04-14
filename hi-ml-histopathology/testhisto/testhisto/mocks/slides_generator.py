@@ -63,6 +63,13 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
+        self.sanity_checks()
+
+    def sanity_checks(self):
+        assert (
+            self.n_slides >= PandaDataset.N_CLASSES
+        ), f"The number of slides should be >= N_CLASSES (i.e., {PandaDataset.N_CLASSES})"
+
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
         isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaDataset.N_CLASSES + 1,)

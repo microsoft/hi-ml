@@ -275,7 +275,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        assert self.tile_count, "tiles_count=None is not supported for now."
+        if self.tile_count is None:
+            assert self.batch_size == 1, "batch_size > 1 not supported if tiles_count=None 'for now'"
 
     def _load_dataset(self, slides_dataset: SlidesDataset) -> Dataset:
         base_transform = Compose(

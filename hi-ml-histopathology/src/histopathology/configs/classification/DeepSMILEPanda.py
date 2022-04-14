@@ -172,4 +172,3 @@ class SlidesPandaSSLMIL(DeepSMILESlidesPanda):
 class SlidesPandaHistoSSLMIL(DeepSMILESlidesPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=HistoSSLEncoder.__name__, **kwargs)
-
