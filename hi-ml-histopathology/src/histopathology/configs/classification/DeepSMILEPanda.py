@@ -14,7 +14,6 @@ from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 
-from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.panda_module import PandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 from histopathology.models.encoders import (
@@ -91,18 +90,7 @@ class DeepSMILEPanda(BaseMIL):
             )
             os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
-        self.encoder = self.get_encoder()
-        if not self.is_finetune:
-            self.encoder.eval()
-        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
-        if self.is_finetune:
-            self.is_caching = False
-        if self.is_caching:
-            self.cache_mode = CacheMode.MEMORY
-            self.precache_location = CacheLocation.CPU
-        else:
-            self.cache_mode = CacheMode.NONE
-            self.precache_location = CacheLocation.NONE
+        super().setup()
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
