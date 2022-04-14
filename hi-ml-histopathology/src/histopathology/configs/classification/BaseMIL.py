@@ -5,7 +5,6 @@
 import os
 import torch
 import param
-import numpy as np
 
 from torch import nn
 from pathlib import Path
@@ -320,8 +319,7 @@ class BaseMILSlides(BaseMIL):
     def get_transform(self, image_key: str) -> Callable:
         # TODO how to deal with intensity scaling: I added this transform because I was getting this error
         # TypeError: Input tensor should be a float tensor. Got torch.uint8.
-        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=np.float(0),
-                                                   a_max=np.float(self.background_val))
+        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=float(self.background_val))
         if self.is_finetune:
             transform = normalize_transform
         else:
