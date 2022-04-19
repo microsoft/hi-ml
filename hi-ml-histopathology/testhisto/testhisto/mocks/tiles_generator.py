@@ -97,7 +97,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
 
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(os.path.join(self.tmp_path, PandaTilesDataset.DEFAULT_CSV_FILENAME), index=False)
-        self.n_tiles = tiles_count
+        self.n_tiles: int = tiles_count
         return df
 
     def generate_mock_histo_data(self) -> None:
