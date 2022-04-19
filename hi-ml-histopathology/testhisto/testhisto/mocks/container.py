@@ -65,8 +65,6 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             tile_size=28,
             # Data Module parameters
             batch_size=2,
-            max_bag_size=4,
-            max_bag_size_inf=4,
             encoding_chunk_size=4,
             level=0,
             tile_count=4,
