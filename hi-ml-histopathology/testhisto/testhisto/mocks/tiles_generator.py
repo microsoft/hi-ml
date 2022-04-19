@@ -26,7 +26,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         self.img_size = img_size
         super().__init__(**kwargs)
 
-    def sanity_checks(self):
+    def sanity_checks(self) -> None:
         assert (
             self.n_slides >= PandaTilesDataset.N_CLASSES
         ), f"The number of slides should be >= N_CLASSES (i.e., {PandaTilesDataset.N_CLASSES})"
@@ -69,7 +69,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             gleason_score = np.random.choice(self.ISUP_GRADE_MAPPING[isup_grade])
 
             # pick a random n_tiles for each slide without exceeding the max n_tiles allowed
-            n_tiles = min(
+            n_tiles: int = min(
                 np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), (self.img_size // self.tile_size) ** 2
             )
 

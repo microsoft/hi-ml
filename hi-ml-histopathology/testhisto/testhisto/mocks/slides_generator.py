@@ -11,7 +11,7 @@ import pandas as pd
 from torch import Tensor
 from tifffile import TiffWriter
 
-from typing import Any, Tuple, List, Union
+from typing import Any, Optional, Tuple, List, Union
 from histopathology.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
@@ -65,7 +65,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
         self.sanity_checks()
 
-    def sanity_checks(self):
+    def sanity_checks(self) -> None:
         assert (
             self.n_slides >= PandaDataset.N_CLASSES
         ), f"The number of slides should be >= N_CLASSES (i.e., {PandaDataset.N_CLASSES})"
@@ -83,7 +83,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         df.to_csv(self.tmp_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
-    def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
+    def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
             return self._create_wsi_from_stitched_tiles(tiles)
         elif self.tiles_pos_type == TilesPositioningType.RANDOM:

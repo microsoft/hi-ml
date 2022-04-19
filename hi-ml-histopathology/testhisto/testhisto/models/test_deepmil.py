@@ -16,14 +16,13 @@ from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.configs.classification.BaseMIL import BaseMIL
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
-from histopathology.datamodules.base_module import TilesDataModule
+from histopathology.datamodules.base_module import HistoDataModule, TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
-from histopathology.models.deepmil import TilesDeepMILModule
+from histopathology.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
@@ -270,7 +269,7 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
     }
 
 
-def assert_train_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     train_data_loader = data_module.train_dataloader()
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -283,7 +282,7 @@ def assert_train_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bo
         break
 
 
-def assert_validation_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+def assert_validation_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     val_data_loader = data_module.val_dataloader()
     for batch_idx, batch in enumerate(val_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -294,7 +293,7 @@ def assert_validation_step(module: BaseMIL, data_module: TilesDataModule, use_gp
         break
 
 
-def assert_test_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     test_data_loader = data_module.test_dataloader()
     for batch_idx, batch in enumerate(test_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -344,18 +343,12 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
     assert_test_step(module, data_module, use_gpu)
 
 
-@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
-                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
-@pytest.mark.parametrize("use_gpu", [True, False])
-def test_mock_container(use_gpu: bool,
-                        mock_container: BaseDeepSMILEPanda,
-                        tmp_path: Path,
-                        request: pytest.FixtureRequest) -> None:
+def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
     if use_gpu and no_gpu:
         pytest.skip(
             f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
         )
-    container = mock_container(tmp_path=request.getfixturevalue(tmp_path))
+    container = mock_container(tmp_path=tmp_path)
     container.setup()
     data_module = container.get_data_module()
     module = container.create_model()
@@ -368,6 +361,26 @@ def test_mock_container(use_gpu: bool,
     assert_train_step(module, data_module, use_gpu)
     assert_validation_step(module, data_module, use_gpu)
     assert_test_step(module, data_module, use_gpu)
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
+                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
+def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
+                                  tmp_path: Path,
+                                  request: pytest.FixtureRequest) -> None:
+    tmp_path = request.getfixturevalue(str(tmp_path))
+    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
+                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
+def test_mock_panda_container_cpu(mock_container: BaseDeepSMILEPanda,
+                                  tmp_path: Path,
+                                  request: pytest.FixtureRequest) -> None:
+    tmp_path = request.getfixturevalue(str(tmp_path))
+    _test_mock_panda_container(use_gpu=False, mock_container=mock_container, tmp_path=tmp_path)
 
 
 def test_class_weights_binary() -> None:
