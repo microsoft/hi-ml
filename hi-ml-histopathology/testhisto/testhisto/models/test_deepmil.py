@@ -344,10 +344,6 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
 
 
 def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
-    if use_gpu and no_gpu:
-        pytest.skip(
-            f"test_mock_container with use_gpu = {use_gpu} will be skipped because no gpu is available."
-        )
     container = mock_container(tmp_path=tmp_path)
     container.setup()
     data_module = container.get_data_module()
@@ -368,19 +364,17 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
 def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
-                                  tmp_path: Path,
+                                  tmp_path: str,
                                   request: pytest.FixtureRequest) -> None:
-    tmp_path = request.getfixturevalue(str(tmp_path))
-    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=tmp_path)
+    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
 def test_mock_panda_container_cpu(mock_container: BaseDeepSMILEPanda,
-                                  tmp_path: Path,
+                                  tmp_path: str,
                                   request: pytest.FixtureRequest) -> None:
-    tmp_path = request.getfixturevalue(str(tmp_path))
-    _test_mock_panda_container(use_gpu=False, mock_container=mock_container, tmp_path=tmp_path)
+    _test_mock_panda_container(use_gpu=False, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 def test_class_weights_binary() -> None:
