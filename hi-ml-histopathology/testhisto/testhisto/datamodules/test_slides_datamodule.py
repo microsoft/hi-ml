@@ -38,7 +38,7 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
     return tmp_root_dir
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1
@@ -65,7 +65,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
             assert (original_tile == tiles[0, i].numpy()).all()
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1
@@ -86,7 +86,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> No
         assert tiles.shape[1] >= min_expected_tile_count
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("level", [0, 1, 2])
 def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -> None:
@@ -114,7 +114,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
             assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[0, i].numpy()).all()
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1

@@ -2,19 +2,22 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import medmnist
 import numpy as np
 import pandas as pd
-import torchvision.transforms as transforms
+import torch
+from torch.utils.data.dataset import TensorDataset
 
 from enum import Enum
 from pathlib import Path
 from typing import Optional
 from torch.utils.data import DataLoader
+from health_azure.datasets import DatasetConfig
+
+from health_azure.utils import get_workspace
 
 
 class MockHistoDataType(Enum):
-    PATHMNIST = "pathmnist"
+    PATHMNIST = "PathMNIST"
     FAKE = "fake"
 
 
@@ -80,6 +83,10 @@ class MockHistoDataGenerator:
 
         self.set_tmp_path()
         self.dataframe = self.create_mock_metadata_dataframe()
+
+        if self.mock_type == MockHistoDataType.PATHMNIST:
+            self.mount_pathmnist_dataset()
+
         self.dataloader = self.get_dataloader()
 
     def set_tmp_path(self) -> None:
@@ -98,15 +105,33 @@ class MockHistoDataGenerator:
         else:
             raise NotImplementedError
 
+    def generate_mock_histo_data(self) -> None:
+        """Create mock histo data and save it in the corresponding format: tiff for wsi and png for tiles"""
+        raise NotImplementedError
+
+    def mount_pathmnist_dataset(self) -> None:
+        dataset = DatasetConfig(name=self.mock_type.value, target_folder=self.tmp_path, use_mounting=True)
+        dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(get_workspace())
+        assert mount_ctx is not None  # for mypy
+        mount_ctx.start()
+        print(f"Dataset mounted in {dataset_mount_folder}")  # TODO remove this print
+
+    def _create_pathmnist_dataset(self, split: str) -> TensorDataset:
+        """Create pathmnist torch dataset from mounted dataset.
+
+        :param split: The split subset. It takes values in ["train", "val", "test"]
+        :return: A TensorDataset for pathmnist.
+        """
+        assert split in ["train", "val", "test"], "Please choose a split string among [train, val, test]"
+        npz_file = np.load(self.tmp_path / f"{self.mock_type}.npz")
+
+        imgs = torch.Tensor(npz_file[f"{split}_images"])
+        labels = torch.Tensor(npz_file[f"{split}_labels"])
+
+        return TensorDataset(imgs, labels)
+
     def _get_pathmnist_dataloader(self) -> DataLoader:
         """Get a dataloader for pathmnist dataset. It returns tiles of shape (self.n_tiles, 3, 28, 28).
         :return: A dataloader to sample pathmnist tiles.
         """
-        info = medmnist.INFO["pathmnist"]
-        PathMNISTDataset = getattr(medmnist, info["python_class"])
-        dataset = PathMNISTDataset(split="train", transform=transforms.ToTensor(), download=True)
-        return DataLoader(dataset=dataset, batch_size=self.n_tiles, shuffle=True)
-
-    def generate_mock_histo_data(self) -> None:
-        """Create mock histo data and save it in the corresponding format: tiff for wsi and png for tiles"""
-        raise NotImplementedError
+        return DataLoader(dataset=self._create_pathmnist_dataset(split="train"), batch_size=self.n_tiles, shuffle=True)
