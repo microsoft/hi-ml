@@ -207,7 +207,8 @@ class BaseMIL(LightningContainer):
         if self.is_finetune:
             num_cpus = os.cpu_count()
             assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
+            workers_per_gpu = num_cpus // torch.cuda.device_count() if torch.cuda.device_count() else num_cpus
+            # tests run on cpu have torch.cuda.device_count() = 0
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         else:
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
