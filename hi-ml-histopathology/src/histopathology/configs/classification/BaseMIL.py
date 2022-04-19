@@ -73,12 +73,16 @@ class BaseMIL(LightningContainer):
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
-    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
+    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.CPU, class_=CacheLocation,
                                                            doc="Whether to pre-cache the entire transformed dataset "
                                                                "upfront and save it to disk and if re-load in cpu or "
-                                                               "gpu. Options: `none` (default),`cpu`, `gpu`")
+                                                               "gpu. Options: `none`,`cpu` (default), `gpu`")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
+    is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features "
+                                     "(disables random subsampling of tiles). "
+                                     "If False (default), load the tiles without caching "
+                                     "(enables random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property
@@ -86,12 +90,16 @@ class BaseMIL(LightningContainer):
         raise NotImplementedError
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            raise NotImplementedError("SSLEncoder requires a pre-trained checkpoint.")
-
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
+        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
+        if self.is_finetune:
+            self.is_caching = False
+        if not self.is_caching:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
@@ -140,14 +148,15 @@ class BaseMIL(LightningContainer):
 
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        if self.is_finetune:
-            self.model_encoder = self.encoder
-            for params in self.model_encoder.parameters():
-                params.requires_grad = True
-        else:
+        if self.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        else:
+            self.model_encoder = self.encoder
+            if self.is_finetune:
+                for params in self.model_encoder.parameters():
+                    params.requires_grad = True
 
         # Construct pooling layer
         pooling_layer, num_features = self.get_pooling_layer()
@@ -183,23 +192,25 @@ class BaseMIL(LightningContainer):
         return None
 
     def get_transform(self, image_key: str) -> Callable:
-        if self.is_finetune:
-            return LoadTilesBatchd(image_key, progress=True)
-
-        else:
+        if self.is_caching:
             return Compose([
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
+        else:
+            return LoadTilesBatchd(image_key, progress=True)
 
     def get_dataloader_kwargs(self) -> dict:
-        if self.is_finetune:
-            num_cpus = os.cpu_count()
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count()
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
+        if self.is_caching:
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        else:
+            num_cpus = os.cpu_count()
+            # We ensure num_devices is not 0 for non-GPU machines
+            # to avoid division by zero error when computing `workers_per_gpu`
+            num_devices = max(torch.cuda.device_count(), 1)
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // num_devices
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
     def get_callbacks(self) -> List[Callback]:

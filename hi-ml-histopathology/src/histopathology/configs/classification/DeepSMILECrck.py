@@ -21,7 +21,6 @@ from health_azure import get_workspace
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 
-from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
 from histopathology.models.encoders import (
@@ -43,8 +42,8 @@ class DeepSMILECrck(BaseMIL):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
+            is_finetune=False,
+            is_caching=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
@@ -93,10 +92,7 @@ class DeepSMILECrck(BaseMIL):
             )
             os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
-
-        self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        super().setup()
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(

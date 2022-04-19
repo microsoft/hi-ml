@@ -14,7 +14,6 @@ from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils import fixed_paths
 
-from histopathology.datamodules.base_module import CacheMode, CacheLocation
 from histopathology.datamodules.panda_module import PandaTilesDataModule
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 from histopathology.models.encoders import (
@@ -28,9 +27,9 @@ from histopathology.datasets.panda_dataset import PandaDataset
 
 
 class DeepSMILEPanda(BaseMIL):
-    """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
-    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch.
-    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, max_epochs=20, max_num_gpus=1 on PANDA.
+    """`is_finetune` sets the fine-tuning mode. For fine-tuning,
+    max_bag_size_inf=max_bag_size and batch_size = 2 runs on multiple GPUs with
+    ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -40,9 +39,8 @@ class DeepSMILEPanda(BaseMIL):
             num_transformer_pool_heads=4,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
             is_finetune=False,
+            is_caching=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"],
@@ -92,9 +90,7 @@ class DeepSMILEPanda(BaseMIL):
             )
             os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
-        self.encoder = self.get_encoder()
-        if not self.is_finetune:
-            self.encoder.eval()
+        super().setup()
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
