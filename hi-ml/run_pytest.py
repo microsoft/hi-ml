@@ -42,6 +42,10 @@ class RunPytestConfig(param.Parameterized):
     experiment: str = param.String(
         default="run_pytest", doc="The name of the AzureML experiment where the run should start."
     )
+    max_run_duration: str = param.String(
+        defauly="30min", doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
+        "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'"
+    )
 
 
 def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
@@ -90,5 +94,6 @@ if __name__ == "__main__":
                 snapshot_root_directory=repository_root_directory(),
                 conda_environment_file=config.conda_env,
                 experiment_name=config.experiment,
+                max_run_duration=config.max_run_duration
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark)
