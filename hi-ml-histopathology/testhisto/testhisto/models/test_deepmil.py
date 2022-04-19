@@ -338,9 +338,9 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
     if use_gpu:
         module.cuda()
 
-    assert_train_step(module, data_module, use_gpu)
-    assert_validation_step(module, data_module, use_gpu)
-    assert_test_step(module, data_module, use_gpu)
+    assert_train_step(module, data_module, use_gpu)  # type: ignore
+    assert_validation_step(module, data_module, use_gpu)  # type: ignore
+    assert_test_step(module, data_module, use_gpu)  # type: ignore
 
 
 def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
