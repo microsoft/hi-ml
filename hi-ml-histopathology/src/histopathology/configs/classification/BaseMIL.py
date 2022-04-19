@@ -154,7 +154,7 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    def get_output_handler(self) -> DeepMILOutputsHandler:
+    def get_outputs_handler(self) -> DeepMILOutputsHandler:
         return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
                                      n_classes=self.data_module.train_dataset.N_CLASSES,
                                      tile_size=self.tile_size,
@@ -279,7 +279,8 @@ class BaseMILTiles(BaseMIL):
                                             adam_betas=self.adam_betas,
                                             is_finetune=self.is_finetune,
                                             class_names=self.class_names,
-                                            outputs_handler=self.get_output_handler())
+                                            outputs_handler=self.get_outputs_handler())
+        assert deepmil_module.outputs_handler is not None
         deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
