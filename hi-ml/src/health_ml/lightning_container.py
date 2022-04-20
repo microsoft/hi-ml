@@ -135,7 +135,7 @@ class LightningContainer(WorkflowParams,
         before_training_on_all_ranks.
         """
         pass
-    
+
     def get_checkpoint_to_test(self) -> Path:
         return get_recovery_checkpoint_path(self.checkpoint_folder)
 

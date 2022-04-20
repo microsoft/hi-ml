@@ -216,7 +216,7 @@ class BaseMIL(LightningContainer):
     def get_callbacks(self) -> List[Callback]:
         return super().get_callbacks() + [self.callbacks]
 
-    def get_path_to_best_checkpoint(self) -> Path:
+    def get_checkpoint_to_test(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
         was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
