@@ -29,7 +29,7 @@ def _format_cuda_memory_stats() -> str:
             f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved")
 
 
-class Classifier(nn.Module):
+class DeepMILClassifier(nn.Module):
     """Classifier intended to be used with the DeepMILModule. Handles all logging."""
 
     def __init__(self,
@@ -40,7 +40,7 @@ class Classifier(nn.Module):
                  class_weights: Optional[Tensor] = None) -> None:
         """
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
-         set to 1.
+            set to 1.
         :param num_features: Dimensions of the input encoding features * attention dim outputs
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param class_names: The names of the classes if available (default=None).
@@ -74,7 +74,7 @@ class Classifier(nn.Module):
         else:
             raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
-    def get_loss(self) -> Callable:  # TODO: MAKE LIST
+    def get_loss(self) -> Callable:
         if self.n_classes > 1:
             if self.class_weights is None:
                 return nn.CrossEntropyLoss()
@@ -87,7 +87,7 @@ class Classifier(nn.Module):
                 pos_weight = Tensor([self.class_weights[1] / (self.class_weights[0] + 1e-5)])
             return nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-    def get_activation(self) -> Callable:  # TODO: MAKE LIST
+    def get_activation(self) -> Callable:
         if self.n_classes > 1:
             return nn.Softmax()
         else:
@@ -96,7 +96,7 @@ class Classifier(nn.Module):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
-    def get_metrics(self) -> nn.ModuleDict:  # TODO: MAKE LIST
+    def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
             return nn.ModuleDict({MetricsKey.ACC: Accuracy(num_classes=self.n_classes),
                                   MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
@@ -114,7 +114,7 @@ class Classifier(nn.Module):
 
     def log_metrics(self,
                     stage: str,
-                    pl_module) -> None:
+                    main_pl_module) -> None:
         valid_stages = ['train', 'test', 'val']
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
@@ -123,9 +123,9 @@ class Classifier(nn.Module):
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    log_on_epoch(pl_module, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
+                    log_on_epoch(main_pl_module, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
-                log_on_epoch(pl_module, f'{stage}/{metric_name}', metric_object)
+                log_on_epoch(main_pl_module, f'{stage}/{metric_name}', metric_object)
 
     def update_result_dict(self, bag_logits, bag_labels, results, stage):
         if self.n_classes > 1:
@@ -186,9 +186,9 @@ class DeepMILModule(LightningModule):
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
-         set to 1.
+            set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
-        you should use `IdentityEncoder`.
+            you should use `IdentityEncoder`.
         :param pooling_layer: A pooling layer nn.module
         :param num_features: Dimensions of the input encoding features * attention dim outputs
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
@@ -225,7 +225,7 @@ class DeepMILModule(LightningModule):
         self.is_finetune = is_finetune
 
         # Create classifier
-        self.classifier = Classifier(n_classes,
+        self.classifier = DeepMILClassifier(n_classes,
                                      num_features,
                                      dropout_rate,
                                      class_names,
@@ -238,7 +238,7 @@ class DeepMILModule(LightningModule):
                           betas=self.adam_betas)
 
     @staticmethod
-    def get_bag_label(labels: Tensor) -> Tensor:  # TODO: MAKE LIST
+    def get_bag_label(labels: Tensor) -> Tensor:
         # Get bag (batch) labels as majority vote
         bag_label = mode(labels).values
         return bag_label.view(1)
