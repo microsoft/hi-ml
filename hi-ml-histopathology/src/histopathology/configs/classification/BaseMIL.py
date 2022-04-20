@@ -75,7 +75,7 @@ class BaseMIL(LightningContainer):
         super().__init__(**kwargs)
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
-        self.checkpoint_folder_path = "outputs/checkpoints/"
+        self.checkpoint_folder_path = f"{self.outputs_folder}/checkpoints/"
         self.callbacks = self.get_callbacks()
 
     @property
@@ -101,10 +101,9 @@ class BaseMIL(LightningContainer):
             aml_workspace=get_workspace(),
             run_id=run_id,
             checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-            download_dir="outputs/",
+            download_dir=self.outputs_folder,
             remote_checkpoint_dir=Path(self.checkpoint_folder_path)
         )
-        os.chdir(fixed_paths.repository_root_directory().parent)
         downloader.download_checkpoint_if_necessary()
         return downloader
 
