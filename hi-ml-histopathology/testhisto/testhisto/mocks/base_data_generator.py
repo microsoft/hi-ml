@@ -110,8 +110,9 @@ class MockHistoDataGenerator:
         raise NotImplementedError
 
     def mount_pathmnist_dataset(self) -> None:
+        ws = get_workspace()
         dataset = DatasetConfig(name=self.mock_type.value, target_folder=self.tmp_path, use_mounting=True)
-        dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(get_workspace())
+        dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
         assert mount_ctx is not None  # for mypy
         mount_ctx.start()
         print(f"Dataset mounted in {dataset_mount_folder}")  # TODO remove this print
