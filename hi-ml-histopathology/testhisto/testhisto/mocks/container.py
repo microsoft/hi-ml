@@ -80,4 +80,4 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
 
     @property
     def cache_dir(self) -> Path:
-        return Path(self.tmp_path / f"innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/")
+        return Path(self.tmp_path / f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
