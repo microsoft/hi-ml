@@ -173,7 +173,7 @@ class MLRunner:
         """
         Run inference on the test set for all models.
 
-        :param checkpoint_paths: The path to the checkpoint that should be used for inference.
+        :param checkpoint_path: The path to the checkpoint that should be used for inference.
         """
         lightning_model = self.container.model
         if type(lightning_model).test_step != LightningModule.test_step:
