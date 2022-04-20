@@ -16,6 +16,8 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
+from health_ml.utils.checkpoint_handler import CheckpointHandler
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
 @pytest.fixture
@@ -257,3 +259,31 @@ def test_invalid_args(mock_runner: Runner) -> None:
             mock_runner.run()
         assert "Unknown arguments" in str(ex)
         assert invalid_arg in str(ex)
+
+
+def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
+    """Test if the logic to choose a checkpoint for inference works.
+    """
+    # Default behaviour: checkpoint handler returns the default inference checkpoint specified by the container.
+    container = HelloWorld()
+    container.set_output_to(tmp_path)
+    container.checkpoint_folder.mkdir(parents=True)
+    last_checkpoint = container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last_checkpoint.touch()
+    checkpoint_handler = CheckpointHandler(container=container,
+                                           project_root=tmp_path)
+    checkpoint_handler.additional_training_done()
+    assert container.get_checkpoint_to_test() == last_checkpoint
+    # Now mock a container that has the get_checkpoint_to_test method overridden. If the checkpoint exists,
+    # the checkpoint handler should return it.
+    mock_checkpoint = tmp_path / "mock.txt"
+    mock_checkpoint.touch()
+    checkpoint_handler.container.get_checkpoint_to_test = MagicMock(return_value=mock_checkpoint)
+    assert checkpoint_handler.get_checkpoint_to_test() == mock_checkpoint
+    # If the get_checkpoint_to_test method is overridden, and the checkpoint file does not exist, an error should
+    # be raised.
+    does_not_exist = Path("does_not_exist")
+    container.get_checkpoint_to_test = MagicMock(return_value=does_not_exist)
+    with pytest.raises(FileNotFoundError) as ex:
+        checkpoint_handler.get_checkpoint_to_test()
+    assert str(does_not_exist) in str(ex)

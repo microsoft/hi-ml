@@ -20,8 +20,7 @@ from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME,
-                                          parse_model_id_and_version)
+                                          DEFAULT_LOGS_DIR_NAME)
 from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2
 
 
@@ -134,9 +133,6 @@ class WorkflowParams(param.Parameterized):
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
                                                 doc="A list of checkpoints paths to use for inference, "
                                                     "when the job is running outside Azure.")
-    model_id: str = param.String(default="",
-                                 doc="A model id string in the form 'model name:version' "
-                                     "to use a registered model for inference.")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -162,11 +158,8 @@ class WorkflowParams(param.Parameterized):
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
-            raise ValueError("Cannot specify more than one of local_weights_path, weights_url or model_id.")
-
-        if self.model_id:
-            parse_model_id_and_version(self.model_id)
+        if sum([bool(param) for param in [self.weights_url, self.local_weights_path]]) > 1:
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url.")
 
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
