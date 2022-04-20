@@ -15,7 +15,7 @@ from typing import Any
 from pathlib import Path
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.datamodules.base_module import CacheMode, CacheLocation
+
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
 from histopathology.models.encoders import (
@@ -37,8 +37,8 @@ class DeepSMILECrck(BaseMILTiles):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
+            is_finetune=False,
+            is_caching=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],

@@ -65,6 +65,10 @@ class BaseMIL(LightningContainer):
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
+    is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features "
+                                     "(disables random subsampling of tiles). "
+                                     "If False (default), load the tiles without caching "
+                                     "(enables random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     def __init__(self, **kwargs: Any) -> None:
@@ -81,12 +85,16 @@ class BaseMIL(LightningContainer):
         )
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            raise NotImplementedError("SSLEncoder requires a pre-trained checkpoint.")
-
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
+        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
+        if self.is_finetune:
+            self.is_caching = False
+        if not self.is_caching:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
 
     def download_ssl_checkpoint(self, run_id: str) -> CheckpointDownloader:
         downloader = CheckpointDownloader(
@@ -165,14 +173,15 @@ class BaseMIL(LightningContainer):
 
     def setup_model_creation(self) -> None:
         self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        if self.is_finetune:
-            self.model_encoder = self.encoder
-            for params in self.model_encoder.parameters():
-                params.requires_grad = True
-        else:
+        if self.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        else:
+            self.model_encoder = self.encoder
+            if self.is_finetune:
+                for params in self.model_encoder.parameters():
+                    params.requires_grad = True
 
     def get_callbacks(self) -> List[Callback]:
         return super().get_callbacks() + self.callbacks
