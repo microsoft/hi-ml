@@ -76,7 +76,7 @@ class BaseMIL(LightningContainer):
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
         self.checkpoint_folder_path = "outputs/checkpoints/"
-        self.callbacks = self.get_monitoring_callbacks(monitor="val/auroc", mode="max")
+        self.callbacks = self.get_callbacks()
 
     @property
     def cache_dir(self) -> Path:
@@ -107,15 +107,6 @@ class BaseMIL(LightningContainer):
         os.chdir(fixed_paths.repository_root_directory().parent)
         downloader.download_checkpoint_if_necessary()
         return downloader
-
-    def get_monitoring_callbacks(self, monitor: str = "val/auroc", mode: str = "max") -> List[Callback]:
-        """Return ModelCheckpoint callback. One can override this method to add extra monitoring callbacks."""
-        return [ModelCheckpoint(dirpath=self.checkpoint_folder_path,
-                                monitor=monitor,
-                                filename=self.best_checkpoint_filename,
-                                auto_insert_metric_name=False,
-                                mode=mode)
-                ]
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
@@ -184,7 +175,12 @@ class BaseMIL(LightningContainer):
                     params.requires_grad = True
 
     def get_callbacks(self) -> List[Callback]:
-        return super().get_callbacks() + self.callbacks
+        return [*super().get_callbacks(),
+                ModelCheckpoint(dirpath=self.checkpoint_folder_path,
+                                monitor="val/auroc",
+                                filename=self.best_checkpoint_filename,
+                                auto_insert_metric_name=False,
+                                mode="max")]
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
