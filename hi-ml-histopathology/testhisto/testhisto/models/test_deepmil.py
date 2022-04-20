@@ -14,7 +14,6 @@ from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclo
 from torch.utils.data._utils.collate import default_collate
 from torchvision.models import resnet18
 
-from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.BaseMIL import BaseMILTiles
 
