@@ -122,7 +122,7 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path == expected_ckpt_path
 
-    actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoints_to_test()
+    actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoint_to_test()
     assert actual_test_ckpt_path == [expected_ckpt_path]
     assert actual_test_ckpt_path[0].exists()
     # After training, the outputs directory should now exist and contain the 2 error files

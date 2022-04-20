@@ -74,13 +74,6 @@ class CheckpointHandler:
         self.trained_weights_paths: List[Path] = []
         self.has_continued_training = False
 
-    @property
-    def output_params(self) -> OutputParams:
-        """
-        Gets the part of the configuration that is responsible for output paths.
-        """
-        return self.container
-
     def download_recovery_checkpoints_or_weights(self) -> None:
         """
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
@@ -116,7 +109,7 @@ class CheckpointHandler:
                 logging.info(f)
         return find_recovery_checkpoint_on_disk_or_cloud(self.container.checkpoint_folder)
 
-    def get_best_checkpoints(self) -> List[Path]:
+    def get_best_checkpoint(self) -> List[Path]:
         """
         Get a list of checkpoints per epoch for testing/registration from the current training run.
         This function also checks that the checkpoint at the returned checkpoint path exists.
@@ -155,26 +148,21 @@ class CheckpointHandler:
 
         return checkpoint_paths
 
-    def get_checkpoints_to_test(self) -> List[Path]:
+    def get_checkpoint_to_test(self) -> Path:
         """
-        Find the checkpoints to test. If a run recovery is provided, or if the model has been training, look for
-        checkpoints corresponding to the epochs in get_test_epochs(). If there is no run recovery and the model was
-        not trained in this run, then return the checkpoint from the local_weights_path.
+        Find the model checkpoint that should be used for inference. If a run recovery is provided, or if the model
+        has been training, get the best checkpoint as defined by the container.
+        If there is no run recovery and the model was
+        not trained in this run, then return the checkpoint from the trained_weights_paths.
         """
-
-        checkpoints = []
-
         # If model was trained, look for the best checkpoint
         if self.run_recovery or self.has_continued_training:
-            checkpoints = self.get_best_checkpoints()
+            return self.get_best_checkpoint()
         elif self.trained_weights_paths:
             # Model was not trained, check if there is a local weight path.
             logging.info(f"Using model weights from {self.trained_weights_paths} to initialize model")
-            checkpoints = self.trained_weights_paths
-        else:
-            logging.warning("Could not find any local_weights_path, model_weights or model_id to get checkpoints from")
-
-        return checkpoints
+            return self.trained_weights_paths
+        raise ValueError("Could not find any local_weights_path, model_weights or model_id to get checkpoints from")
 
     @staticmethod
     def download_weights(urls: List[str], download_folder: Path) -> List[Path]:
@@ -214,7 +202,7 @@ class CheckpointHandler:
         if self.container.local_weights_path:
             checkpoint_paths = self.container.local_weights_path
         else:
-            download_folder = self.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
+            download_folder = self.container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
 
             if self.container.model_id:
