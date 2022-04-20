@@ -187,16 +187,13 @@ class BaseMIL(LightningContainer):
         raise ValueError("Path to best checkpoint not found")
 
     def get_dataloader_kwargs(self) -> dict:
-        if self.is_caching:
-            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
-        else:
-            num_cpus = os.cpu_count()
-            # We ensure num_devices is not 0 for non-GPU machines
-            # to avoid division by zero error when computing `workers_per_gpu`
-            num_devices = max(torch.cuda.device_count(), 1)
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // num_devices
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        num_cpus = os.cpu_count()
+        # We ensure num_devices is not 0 for non-GPU machines
+        # to avoid division by zero error when computing `workers_per_gpu`
+        num_devices = max(torch.cuda.device_count(), 1)
+        assert num_cpus is not None  # for mypy
+        workers_per_gpu = num_cpus // num_devices
+        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
     def get_transform(self, image_key: str) -> Optional[Callable]:
@@ -253,6 +250,13 @@ class BaseMILTiles(BaseMIL):
         if not self.is_caching:
             self.cache_mode = CacheMode.NONE
             self.precache_location = CacheLocation.NONE
+           
+    def get_dataloader_kwargs(self) -> dict:
+        if self.is_caching:
+            dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        else:
+            dataloader_kwargs = super().get_dataloader_kwargs()
+        return dataloader_kwargs
 
     def get_transform(self, image_key: str) -> Callable:
         if self.is_caching:
@@ -277,7 +281,7 @@ class BaseMILTiles(BaseMIL):
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
         deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
-                                            label_column=SlideKey.LABEL,
+                                            label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
                                             pooling_layer=pooling_layer,
                                             num_features=num_features,

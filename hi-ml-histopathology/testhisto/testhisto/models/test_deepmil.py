@@ -16,6 +16,7 @@ from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
+from histopathology.configs.classification.BaseMIL import BaseMILTiles
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
@@ -313,7 +314,7 @@ CONTAINER_DATASET_DIR = {
 @pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
                                             DeepSMILECrck])
 @pytest.mark.parametrize("use_gpu", [True, False])
-def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> None:
+def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     dataset_dir = CONTAINER_DATASET_DIR[container_type]
     if not os.path.isdir(dataset_dir):
         pytest.skip(
@@ -338,9 +339,9 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
     if use_gpu:
         module.cuda()
 
-    assert_train_step(module, data_module, use_gpu)  # type: ignore
-    assert_validation_step(module, data_module, use_gpu)  # type: ignore
-    assert_test_step(module, data_module, use_gpu)  # type: ignore
+    assert_train_step(module, data_module, use_gpu)
+    assert_validation_step(module, data_module, use_gpu)
+    assert_test_step(module, data_module, use_gpu)
 
 
 def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
@@ -359,7 +360,7 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     assert_test_step(module, data_module, use_gpu)
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+# @pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
 @pytest.mark.gpu
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
@@ -369,7 +370,7 @@ def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
     _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
-@pytest.mark.skipif(True, reason="hot-fix: pathmnist link is down")
+# @pytest.mark.skipif(True, reason="hot-fix: pathmnist link is down")
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
 def test_mock_panda_container_cpu(mock_container: BaseDeepSMILEPanda,
