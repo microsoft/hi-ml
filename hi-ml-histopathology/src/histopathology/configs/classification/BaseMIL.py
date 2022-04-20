@@ -166,7 +166,7 @@ class BaseMIL(LightningContainer):
         if self.is_caching:
             # Encoding is done in the datamodule, so here we provide instead a dummy
             # no-op IdentityEncoder to be used inside the model
-            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+            self.model_encoder: TileEncoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
         else:
             self.model_encoder = self.encoder
             if self.is_finetune:
