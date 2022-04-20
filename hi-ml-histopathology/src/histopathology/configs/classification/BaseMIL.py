@@ -232,10 +232,10 @@ class BaseMILTiles(BaseMIL):
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
-    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
-                                                           doc="Whether to pre-cache the entire transformed dataset"
-                                                           "upfront and save it to disk and if re-load in cpu or gpu"
-                                                           "Options:`none` (default),`cpu`, `gpu`")
+    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.CPU, class_=CacheLocation,
+                                                           doc="Whether to pre-cache the entire transformed dataset "
+                                                               "upfront and save it to disk and if re-load in cpu or "
+                                                               "gpu. Options: `none`,`cpu` (default), `gpu`")
     is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features "
                                      "(disables random subsampling of tiles). "
                                      "If False (default), load the tiles without caching "
