@@ -65,10 +65,6 @@ class BaseMIL(LightningContainer):
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
-    is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features "
-                                     "(disables random subsampling of tiles). "
-                                     "If False (default), load the tiles without caching "
-                                     "(enables random subsampling of tiles).")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     def __init__(self, **kwargs: Any) -> None:
@@ -80,21 +76,12 @@ class BaseMIL(LightningContainer):
 
     @property
     def cache_dir(self) -> Path:
-        return Path(
-            f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/"
-        )
+        return Path(f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def setup(self) -> None:
         self.encoder = self.get_encoder()
         if not self.is_finetune:
             self.encoder.eval()
-        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
-        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
-        if self.is_finetune:
-            self.is_caching = False
-        if not self.is_caching:
-            self.cache_mode = CacheMode.NONE
-            self.precache_location = CacheLocation.NONE
 
     def download_ssl_checkpoint(self, run_id: str) -> CheckpointDownloader:
         downloader = CheckpointDownloader(
@@ -162,16 +149,10 @@ class BaseMIL(LightningContainer):
                                      maximise=True)
 
     def setup_model_creation(self) -> None:
-        self.data_module = self.get_data_module()
-        if self.is_caching:
-            # Encoding is done in the datamodule, so here we provide instead a dummy
-            # no-op IdentityEncoder to be used inside the model
-            self.model_encoder: TileEncoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
-        else:
-            self.model_encoder = self.encoder
-            if self.is_finetune:
-                for params in self.model_encoder.parameters():
-                    params.requires_grad = True
+        self.model_encoder = self.encoder
+        if self.is_finetune:
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
 
     def get_callbacks(self) -> List[Callback]:
         return [*super().get_callbacks(),
@@ -207,15 +188,16 @@ class BaseMIL(LightningContainer):
         raise ValueError("Path to best checkpoint not found")
 
     def get_dataloader_kwargs(self) -> dict:
-        # TODO clarify why num_workers = 0 if not self.is_finetune
-        if self.is_finetune:
-            num_cpus = os.cpu_count()
-            assert num_cpus is not None  # for mypy
-            workers_per_gpu = num_cpus // torch.cuda.device_count() if torch.cuda.device_count() else num_cpus
-            # tests run on cpu have torch.cuda.device_count() = 0
-            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
-        else:
+        if self.is_caching:
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
+        else:
+            num_cpus = os.cpu_count()
+            # We ensure num_devices is not 0 for non-GPU machines
+            # to avoid division by zero error when computing `workers_per_gpu`
+            num_devices = max(torch.cuda.device_count(), 1)
+            assert num_cpus is not None  # for mypy
+            workers_per_gpu = num_cpus // num_devices
+            dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
     def get_transform(self, image_key: str) -> Callable:
@@ -258,18 +240,40 @@ class BaseMILTiles(BaseMIL):
                                                            doc="Whether to pre-cache the entire transformed dataset"
                                                            "upfront and save it to disk and if re-load in cpu or gpu"
                                                            "Options:`none` (default),`cpu`, `gpu`")
+    is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features "
+                                     "(disables random subsampling of tiles). "
+                                     "If False (default), load the tiles without caching "
+                                     "(enables random subsampling of tiles).")
+    
+    def setup(self) -> None:
+        super().setup()
+        # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
+        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
+        if self.is_finetune:
+            self.is_caching = False
+        if not self.is_caching:
+            self.cache_mode = CacheMode.NONE
+            self.precache_location = CacheLocation.NONE
 
     def get_transform(self, image_key: str) -> Callable:
-        if self.is_finetune:
-            return LoadTilesBatchd(image_key, progress=True)
-
-        else:
+        if self.is_caching:
             return Compose([
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
+        else:
+            return LoadTilesBatchd(image_key, progress=True)
+        
+    def setup_model_creation(self) -> None:
+        if self.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
+            self.model_encoder: TileEncoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        else:
+            super().setup_model_creation()
 
     def create_model(self) -> TilesDeepMILModule:
+        self.data_module = self.get_data_module()
         self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
         deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
@@ -333,6 +337,7 @@ class BaseMILSlides(BaseMIL):
         return transform
 
     def create_model(self) -> SlidesDeepMILModule:
+        self.data_module = self.get_data_module()
         self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
         deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
