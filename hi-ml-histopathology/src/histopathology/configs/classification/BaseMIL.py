@@ -250,7 +250,7 @@ class BaseMILTiles(BaseMIL):
         if not self.is_caching:
             self.cache_mode = CacheMode.NONE
             self.precache_location = CacheLocation.NONE
-          
+
     def get_dataloader_kwargs(self) -> dict:
         if self.is_caching:
             dataloader_kwargs = dict(num_workers=0, pin_memory=False)
