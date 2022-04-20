@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, Optional, List, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
@@ -307,14 +307,14 @@ class DeepMILModule(LightningModule):
         self.classifier.log_metrics('val', self)
         return val_result
 
-    def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:   # type: ignore
+    def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         test_result = self._shared_step(batch, batch_idx, 'test')
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         self.classifier.log_metrics('test', self)
         return test_result
 
-    def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:
+    def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
@@ -323,7 +323,7 @@ class DeepMILModule(LightningModule):
                 is_global_rank_zero=self.global_rank == 0
             )
 
-    def test_epoch_end(self, epoch_results: EpochResultsType) -> None:
+    def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_test_outputs(
                 epoch_results=epoch_results,

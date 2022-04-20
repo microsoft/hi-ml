@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, TypeVar, Union
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
@@ -24,6 +24,8 @@ from monai.transforms.io.dictionary import LoadImaged
 from monai.apps.pathology.transforms import TileOnGridd
 from monai.data.image_reader import WSIReader
 
+_SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
+
 
 class CacheMode(Enum):
     NONE = "none"
@@ -37,7 +39,7 @@ class CacheLocation(Enum):
     SAME = "same"
 
 
-class HistoDataModule(LightningDataModule):
+class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     """Base class to load a histopathology dataset as train, val, test sets"""
 
     def __init__(
@@ -69,17 +71,20 @@ class HistoDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
+        self.train_dataset: _SlidesOrTilesDataset
+        self.val_dataset: _SlidesOrTilesDataset
+        self.test_dataset: _SlidesOrTilesDataset
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
         self.dataloader_kwargs = dataloader_kwargs or {}
 
-    def get_splits(self) -> Tuple[TilesDataset, TilesDataset, TilesDataset]:
+    def get_splits(self) -> Tuple[_SlidesOrTilesDataset, _SlidesOrTilesDataset, _SlidesOrTilesDataset]:
         """Create the training, validation, and test datasets"""
         raise NotImplementedError
 
 
-class TilesDataModule(HistoDataModule):
+class TilesDataModule(HistoDataModule[TilesDataset]):
     """Base class to load the tiles of a dataset as train, val, test sets"""
 
     def __init__(
@@ -208,7 +213,6 @@ class TilesDataModule(HistoDataModule):
             collate_fn=multibag_collate,
             shuffle=shuffle,
             generator=generator,
-            pin_memory=True,
             **dataloader_kwargs,
         )
 
@@ -222,7 +226,7 @@ class TilesDataModule(HistoDataModule):
         return self._get_dataloader(self.test_dataset, "test", shuffle=True, **self.dataloader_kwargs)
 
 
-class SlidesDataModule(HistoDataModule):
+class SlidesDataModule(HistoDataModule[SlidesDataset]):
     """
     Base class to load the slides of a dataset as train, val, test sets. The slide data module performs tiling on the
     fly by default. One can specify the tiling strategies (background removal, overlapping tiles, padding, ...) through
@@ -308,7 +312,6 @@ class SlidesDataModule(HistoDataModule):
             collate_fn=image_collate,
             shuffle=shuffle,
             generator=generator,
-            pin_memory=True,
             **dataloader_kwargs,
         )
 

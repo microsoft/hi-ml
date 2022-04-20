@@ -32,7 +32,7 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
 
 
 def get_attention_pooling_layer(num_encoding: int = 512,
-                                pool_out_dim: int = 1) -> Tuple[Type[nn.Module], int]:
+                                pool_out_dim: int = 1) -> Tuple[nn.Module, int]:
 
     pool_hidden_dim = 5  # different dimensions get tested in test_attentionlayers.py
     pooling_layer = AttentionLayer(num_encoding,
@@ -273,7 +273,8 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
     val_data_loader = data_module.val_dataloader()
     for batch_idx, batch in enumerate(val_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.validation_step(batch, batch_idx)
+        outputs_dict = module.validation_step(batch, batch_idx)
+        loss = outputs_dict[ResultsKey.LOSS]  # noqa
         assert loss.shape == ()  # noqa
         assert isinstance(loss, Tensor)
         break
