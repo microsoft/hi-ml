@@ -3,15 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
-from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
@@ -181,7 +180,7 @@ class BaseDeepMILModule(LightningModule):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
-    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
+    def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
         # This means we can't stack them along a new axis without padding to the same length.
         # We could alternatively concatenate them, but this would require other changes (e.g. in
@@ -206,7 +205,7 @@ class BaseDeepMILModule(LightningModule):
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
 
-        bag_logits, bag_labels, bag_attn_list = self._compute_bag_labels_logits_and_attn_maps(batch)
+        bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
             loss = self.loss_fn(bag_logits, bag_labels.long())
@@ -286,7 +285,7 @@ class BaseDeepMILModule(LightningModule):
 
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
-   
+
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
         # Get bag (batch) labels as majority vote
@@ -303,9 +302,8 @@ class TilesDeepMILModule(BaseDeepMILModule):
                            ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
                            )
         else:
-            if is_global_rank_zero():
-                logging.warning("Coordinates not found in batch. If this is not expected check your"
-                                "input tiles dataset.")
+            rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
+                           "input tiles dataset.")
 
 
 class SlidesDeepMILModule(BaseDeepMILModule):
