@@ -140,7 +140,7 @@ class LightningContainer(WorkflowParams,
         """Returns the path of the model checkpoint that should be used for testing/inference. By default, this will
         return the checkpoint that is written in the last training epoch. Override this method if you implement a
         custom checkpointing logic, for example if you added a model checkpoint callback that looks at validation
-        accuracuy.
+        accuracy.
 
         :return: The path of the checkpoint file that should be used for inference.
         """
