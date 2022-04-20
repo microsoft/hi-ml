@@ -26,7 +26,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         self.img_size = img_size
         super().__init__(**kwargs)
 
-    def sanity_checks(self) -> None:
+    def validate(self) -> None:
         assert (
             self.n_slides >= PandaTilesDataset.N_CLASSES
         ), f"The number of slides should be >= N_CLASSES (i.e., {PandaTilesDataset.N_CLASSES})"
@@ -69,9 +69,8 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             gleason_score = np.random.choice(self.ISUP_GRADE_MAPPING[isup_grade])
 
             # pick a random n_tiles for each slide without exceeding the max n_tiles allowed
-            n_tiles: int = min(
-                np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), (self.img_size // self.tile_size) ** 2
-            )
+            max_n_tiles = (self.img_size // self.tile_size) ** 2
+            n_tiles: int = min(np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), max_n_tiles)
 
             tiles_count += n_tiles
             coords = [
@@ -97,7 +96,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
 
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(os.path.join(self.tmp_path, PandaTilesDataset.DEFAULT_CSV_FILENAME), index=False)
-        self.n_tiles: int = tiles_count
+        self.total_tiles: int = tiles_count
         return df
 
     def generate_mock_histo_data(self) -> None:
@@ -114,7 +113,8 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
                 tile = tiles[i] * 255
             elif self.mock_type == MockHistoDataType.FAKE:
                 tile = torch.full(
-                    fill_value=np.random.uniform(0, 255), size=(self.n_channels, self.tile_size, self.tile_size))
+                    fill_value=np.random.uniform(0, 255), size=(self.n_channels, self.tile_size, self.tile_size)
+                )
             else:
                 raise NotImplementedError
 

@@ -22,13 +22,14 @@ class TilesPositioningType(Enum):
 
 
 class MockPandaSlidesGenerator(MockHistoDataGenerator):
-    """Generator class to create mock WSI on the fly. A mock WSI resembles to:
+    """Generator class to create mock WSI on the fly.
+        If tiles positioning is diagonal, a mock WSI resembles to:
                                 [**      ]
                                 [  **    ]
                                 [    **  ]
                                 [      **]
-        where * represents 2 tiles stitched along the Y axis, if tiles positioning is diagonal.
-        Tiles are positioned randomly on the WSI grid whem tiles positioning type is random.
+        where * represents 2 tiles stitched along the Y axis.
+        If tiles positioning is random, tiles are positioned randomly on the WSI grid.
     """
 
     ISUP_GRADE = "isup_grade"
@@ -63,9 +64,9 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
-        self.sanity_checks()
+        self.validate()
 
-    def sanity_checks(self) -> None:
+    def validate(self) -> None:
         assert (
             self.n_slides >= PandaDataset.N_CLASSES
         ), f"The number of slides should be >= N_CLASSES (i.e., {PandaDataset.N_CLASSES})"
@@ -85,13 +86,13 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
     def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
-            return self._create_wsi_from_stitched_tiles(tiles)
+            return self._create_wsi_from_stitched_tiles_along_diagonal_axis(tiles)
         elif self.tiles_pos_type == TilesPositioningType.RANDOM:
             return self._create_wsi_from_randomly_positioned_tiles(tiles), None
         else:
             raise NotImplementedError
 
-    def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
+    def _create_wsi_from_stitched_tiles_along_diagonal_axis(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         """Create a whole slide image by stitching tiles along the diagonal axis.
 
         :param tiles: A tensor of tiles of shape (n_tiles, n_channels, tile_size, tile_size).
@@ -152,11 +153,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         for i in range(self.n_tiles):
             x, y = self.tile_size * np.array(coords[i])
             if self.mock_type == MockHistoDataType.PATHMNIST:
-                mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = tiles[i]
+                new_tile = tiles[i].numpy()
             elif self.mock_type == MockHistoDataType.FAKE:
-                mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = np.random.uniform(
-                    0, self.background_val / (self.n_repeat_diag + 1) * (i + 1)
-                )
+                new_tile = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
+            else:
+                raise NotImplementedError
+            mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = new_tile
         return np.transpose(mock_image, (1, 2, 0))
 
     @staticmethod
