@@ -135,11 +135,4 @@ def get_bounding_box(mask: np.ndarray) -> Box:
         raise RuntimeError("The input mask is empty")
     assert len(slices) == 1
 
-    slice_y, slice_x = slices[0]
-    box = Box(
-        x=slice_x.start,
-        y=slice_y.start,
-        w=slice_x.stop - slice_x.start,
-        h=slice_y.stop - slice_y.start,
-    )
-    return box
+    return Box.from_slices(slices[0])
