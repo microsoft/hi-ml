@@ -251,7 +251,7 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
     }
 
 
-def assert_train_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+def assert_train_step(module: DeepMILModule, data_module: TilesDataModule, use_gpu: bool) -> None:
     train_data_loader = data_module.train_dataloader()
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -264,7 +264,7 @@ def assert_train_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bo
         break
 
 
-def assert_validation_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+def assert_validation_step(module: DeepMILModule, data_module: TilesDataModule, use_gpu: bool) -> None:
     val_data_loader = data_module.val_dataloader()
     for batch_idx, batch in enumerate(val_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -275,7 +275,7 @@ def assert_validation_step(module: BaseMIL, data_module: TilesDataModule, use_gp
         break
 
 
-def assert_test_step(module: BaseMIL, data_module: TilesDataModule, use_gpu: bool) -> None:
+def assert_test_step(module: DeepMILModule, data_module: TilesDataModule, use_gpu: bool) -> None:
     test_data_loader = data_module.test_dataloader()
     for batch_idx, batch in enumerate(test_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)

@@ -5,6 +5,7 @@
 import sys
 from pathlib import Path
 from typing import List, Optional
+from unittest import mock
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -278,12 +279,17 @@ def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
     # the checkpoint handler should return it.
     mock_checkpoint = tmp_path / "mock.txt"
     mock_checkpoint.touch()
-    checkpoint_handler.container.get_checkpoint_to_test = MagicMock(return_value=mock_checkpoint)
-    assert checkpoint_handler.get_checkpoint_to_test() == mock_checkpoint
+    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock1:
+        mock1.return_value = mock_checkpoint
+        assert checkpoint_handler.get_checkpoint_to_test() == mock_checkpoint
+        mock1.assert_called_once()
+
     # If the get_checkpoint_to_test method is overridden, and the checkpoint file does not exist, an error should
     # be raised.
     does_not_exist = Path("does_not_exist")
-    container.get_checkpoint_to_test = MagicMock(return_value=does_not_exist)
-    with pytest.raises(FileNotFoundError) as ex:
-        checkpoint_handler.get_checkpoint_to_test()
-    assert str(does_not_exist) in str(ex)
+    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock2:
+        mock2.return_value = does_not_exist
+        with pytest.raises(FileNotFoundError) as ex:
+            checkpoint_handler.get_checkpoint_to_test()
+        assert str(does_not_exist) in str(ex)
+        mock2.assert_called_once()
