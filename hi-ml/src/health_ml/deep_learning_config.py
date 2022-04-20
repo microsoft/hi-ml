@@ -127,12 +127,11 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    weights_url: List[str] = param.List(default=[], class_=str,
-                                        doc="If provided, a set of urls from which checkpoints will be downloaded"
-                                            "and used for inference.")
-    local_weights_path: List[Path] = param.List(default=[], class_=Path,
-                                                doc="A list of checkpoints paths to use for inference, "
-                                                    "when the job is running outside Azure.")
+    weights_url: str = param.String(default="",
+                                    doc="If provided, use this URL to download checkpoints for inference.")
+    local_weights_path: Optional[Path] = \
+        param.ClassSelector(class_=Path, allow_None=True, default=None,
+                            doc="Checkpoint paths to use for inference, when the job is running outside Azure.")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -158,7 +157,7 @@ class WorkflowParams(param.Parameterized):
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if sum([bool(param) for param in [self.weights_url, self.local_weights_path]]) > 1:
+        if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify more than one of local_weights_path, weights_url.")
 
         if self.crossval_count > 1:
