@@ -15,8 +15,8 @@ def test_no_zeros() -> None:
     mask = np.random.randint(1, 10, size=(length_y, length_x))
     bbox = get_bounding_box(mask)
     assert isinstance(bbox, Box)
-    assert bbox.w == length_x
-    assert bbox.h == length_y
+    expected = Box(x=0, y=0, w=length_x, h=length_y)
+    assert bbox == expected
 
 
 def test_bounding_box_3d() -> None:
@@ -31,11 +31,9 @@ def test_identity_matrix() -> None:
     # and xmin and ymin will both be zero
     length = 5
     mask_eye = np.eye(length)
-    bbox_eye = get_bounding_box(mask_eye)
-    assert isinstance(bbox_eye, Box)
-    assert bbox_eye.w == length
-    assert bbox_eye.h == length
-    assert bbox_eye.x == bbox_eye.y == 0
+    bbox = get_bounding_box(mask_eye)
+    expected = Box(x=0, y=0, w=length, h=length)
+    assert bbox == expected
 
 
 def test_all_zeros() -> None:
@@ -57,10 +55,8 @@ def test_small_rectangle() -> None:
     #        [0, 0, 0, 0, 0],
     #        [0, 0, 0, 0, 0]])
     bbox = get_bounding_box(mask)
-    assert bbox.x == col
-    assert bbox.y == row
-    assert bbox.w == width
-    assert bbox.h == height
+    expected = Box(x=col, y=row, w=width, h=height)
+    assert bbox == expected
 
 
 def test_tiny_mask() -> None:
@@ -77,3 +73,13 @@ def test_tiny_box() -> None:
     ))
     bbox = get_bounding_box(mask)
     assert bbox.x == bbox.y == bbox.w == bbox.h == 1
+
+
+def test_multiple_components() -> None:
+    length = 3
+    mask = np.zeros((length, length), int)
+    mask[0, 0] = 1
+    mask[length - 1, length - 1] = 1
+    bbox = get_bounding_box(mask)
+    expected = Box(x=0, y=0, w=length, h=length)
+    assert bbox == expected
