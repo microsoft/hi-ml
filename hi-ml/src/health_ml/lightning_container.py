@@ -16,6 +16,7 @@ from health_azure.utils import create_from_matching_params
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
+from health_ml.utils.checkpoint_utils import get_recovery_checkpoint_path
 from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
 from health_ml.utils.model_util import create_optimizer
 
@@ -134,6 +135,9 @@ class LightningContainer(WorkflowParams,
         before_training_on_all_ranks.
         """
         pass
+    
+    def get_checkpoint_to_test(self) -> Path:
+        return get_recovery_checkpoint_path(self.checkpoint_folder)
 
     # The code from here on does not need to be modified.
 

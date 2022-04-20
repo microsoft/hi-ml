@@ -136,10 +136,9 @@ class CheckpointHandler:
         if self.has_continued_training:
             # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
             # training, so we look for it there.
-            # checkpoint_from_current_run = self.output_params.get_path_to_best_checkpoint()
-            checkpoint_from_current_run = get_recovery_checkpoint_path(Path(self.container.checkpoint_folder))
+            checkpoint_from_current_run = self.container.get_checkpoint_to_test()
             if checkpoint_from_current_run.is_file():
-                logging.info("Using checkpoints from current run.")
+                logging.info(f"Using checkpoint from current run: {checkpoint_from_current_run}")
                 checkpoint_paths = [checkpoint_from_current_run]
             else:
                 logging.info("Training has continued, but not yet written a checkpoint. Using recovery checkpoints.")
