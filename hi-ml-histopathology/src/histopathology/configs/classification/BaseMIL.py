@@ -13,7 +13,6 @@ from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
 from typing import Any, Callable, List, Optional, Sequence, Tuple
 
-from monai.transforms.intensity.dictionary import ScaleIntensityRanged
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from health_azure.utils import CheckpointDownloader, get_workspace
 
@@ -200,8 +199,8 @@ class BaseMIL(LightningContainer):
             dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
-    def get_transform(self, image_key: str) -> Callable:
-        raise NotImplementedError
+    def get_transform(self, image_key: str) -> Optional[Callable]:
+        return None
 
     def create_model(self) -> BaseDeepMILModule:
         raise NotImplementedError
@@ -244,7 +243,7 @@ class BaseMILTiles(BaseMIL):
                                      "(disables random subsampling of tiles). "
                                      "If False (default), load the tiles without caching "
                                      "(enables random subsampling of tiles).")
-    
+
     def setup(self) -> None:
         super().setup()
         # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
@@ -263,7 +262,7 @@ class BaseMILTiles(BaseMIL):
             ])
         else:
             return LoadTilesBatchd(image_key, progress=True)
-        
+
     def setup_model_creation(self) -> None:
         if self.is_caching:
             # Encoding is done in the datamodule, so here we provide instead a dummy
@@ -276,8 +275,9 @@ class BaseMILTiles(BaseMIL):
         self.data_module = self.get_data_module()
         self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
+        outputs_handler = self.get_outputs_handler()
         deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
-                                            label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                                            label_column=SlideKey.LABEL,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
                                             pooling_layer=pooling_layer,
                                             num_features=num_features,
@@ -288,9 +288,8 @@ class BaseMILTiles(BaseMIL):
                                             adam_betas=self.adam_betas,
                                             is_finetune=self.is_finetune,
                                             class_names=self.class_names,
-                                            outputs_handler=self.get_outputs_handler())
-        assert deepmil_module.outputs_handler is not None
-        deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
+                                            outputs_handler=outputs_handler)
+        outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
 
@@ -300,7 +299,7 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    level: int = param.Integer(0, bounds=(0, 3),  # Not sure if we should set the upper bound to 3, to check
+    level: int = param.Integer(0, bounds=(0, None),
                                doc="The whole slide image level at which the image is extracted."
                                    "Whole slide images are represented in a pyramid structure consisting of "
                                    "multiple images at different resolutions."
@@ -318,35 +317,19 @@ class BaseMILSlides(BaseMIL):
                                                    "the top-left corner,")
     pad_full: bool = param.Boolean(False, doc="If True, pad image to the size evenly divisible by tile_size")
     background_val: int = param.Integer(255, bounds=(0, None),
-                                        doc="The background constant to ignore background tiles.")
+                                        doc="Threshold to estimate the foreground in a whole slide image.")
     filter_mode: str = param.String("min", doc="mode must be in ['min', 'max', 'random']. If total number of tiles is"
                                                "greater than tile_count, then sort by intensity sum, and take the "
                                                "smallest (for min), largest (for max) or random (for random) subset, "
                                                "defaults to 'min' (which assumes background is high value).")
 
-    def get_transform(self, image_key: str) -> Callable:
-        # TODO how to deal with intensity scaling: I added this transform because I was getting this error
-        # TypeError: Input tensor should be a float tensor. Got torch.uint8.
-        normalize_transform = ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=float(self.background_val))
-        if self.is_finetune:
-            transform = normalize_transform
-        else:
-            # TODO think about how to handle this for slides in next PR.
-            # potentionally add extra transforms
-            raise NotImplementedError
-        return transform
-
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
         self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
+        # We leave the outputs handler out for now (wsi datamodule doesn't support tiles coordinates YET)
         deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
                                              encoder=self.model_encoder,
-                                             # Here we can't use self.data_module.train_dataset.LABEL_COLUMN as labels.
-                                             # because label_column in (PANDA)SlidesDataset is "isup_grade" which is a
-                                             # string "ISUP_i" i={0,..,5}. However the model needs an integer label
-                                             # SlideKey.LABEL is used as an alternative but we should maybe cast
-                                             # LABEL_COLUMN in the dataset to stay constitent.
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
@@ -358,7 +341,4 @@ class BaseMILSlides(BaseMIL):
                                              adam_betas=self.adam_betas,
                                              is_finetune=self.is_finetune,
                                              class_names=self.class_names)
-        # TODO uncomment this when outputs_handler is fixed for wsi pipeline.
-        #                                    outputs_handler=self.get_output_handler())
-        # deepmil_module.outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module

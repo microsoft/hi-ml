@@ -7,8 +7,7 @@ from typing import Any, Optional
 
 from health_azure.utils import is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
-
-from histopathology.datamodules.base_module import CacheMode, CacheLocation, HistoDataModule
+from histopathology.configs.run_ids import innereye_ssl_checkpoint_binary
 from histopathology.datamodules.panda_module import (
     PandaSlidesDataModule,
     PandaTilesDataModule)
@@ -17,8 +16,7 @@ from histopathology.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
     ImageNetSimCLREncoder,
-    SSLEncoder,
-)
+    SSLEncoder)
 from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 
@@ -49,20 +47,6 @@ class BaseDeepSMILEPanda(BaseMIL):
         if not is_running_in_azure_ml():
             self.max_epochs = 1
 
-    def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            # TODO check if the run_id is common to both tiles and slides pipeline?
-            # We might need to retrain with the new dataloader / different tiles.
-            # and check if downloader has to be a class attribute
-            from histopathology.configs.run_ids import innereye_ssl_checkpoint_binary
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
-        self.encoder = self.get_encoder()
-        if not self.is_finetune:
-            self.encoder.eval()
-
-    def get_data_module(self) -> HistoDataModule:
-        raise NotImplementedError                            # type: ignore
-
 
 class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeeppSMILEPanda to inherits common behaviors from both
@@ -75,13 +59,17 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMILTiles:
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
+            is_caching=False,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA_tiles", "PANDA"])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
+
+    def setup(self) -> None:
+        if self.encoder_type == SSLEncoder.__name__:
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
+        BaseMILTiles.setup(self)
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
@@ -129,7 +117,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMILSlides:
-            # TODO check if there are other parameters to set for PANDA (MONAI pipe)
             # N.B: For the moment we only support running the pipeline with a fixed tile_count.
             # Padding to the same shape or collating to a List of Tensors  will be adressed in another PR.
             tile_count=60,
@@ -138,6 +125,11 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             azure_datasets=["PANDA"])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
+
+    def setup(self) -> None:
+        if self.encoder_type == SSLEncoder.__name__:
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
+        BaseMILSlides.setup(self)
 
     def get_data_module(self) -> PandaSlidesDataModule:
         return PandaSlidesDataModule(

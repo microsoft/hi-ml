@@ -57,12 +57,8 @@ class DeepSMILECrck(BaseMILTiles):
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
-            # TODO check if downloader has to be a class attribute
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_crck_4ws)
-
-        self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        super().setup()
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(

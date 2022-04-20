@@ -134,9 +134,7 @@ class BaseDeepMILModule(LightningModule):
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
-        # Get bag (batch) labels as majority vote
-        bag_label = mode(labels).values
-        return bag_label.view(1)
+        raise NotImplementedError
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
@@ -184,13 +182,25 @@ class BaseDeepMILModule(LightningModule):
         return getattr(self, f'{stage}_metrics')
 
     def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
-        """Compute bag labels, logits and attention maps depending on the nature of batch.
-        Subclasses (TilesDeepMILModule and SlidesDeepMILModule) should specify how this is handled depending on if
-        the tiles are fixed or generated on the fly from whole slide images.
-        """
-        raise NotImplementedError
+        # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
+        # This means we can't stack them along a new axis without padding to the same length.
+        # We could alternatively concatenate them, but this would require other changes (e.g. in
+        # the attention layers) to correctly split the tensors by bag/slide ID.
+        bag_labels_list = []
+        bag_logits_list = []
+        bag_attn_list = []
+        for bag_idx in range(len(batch[self.label_column])):
+            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
+            labels = batch[self.label_column][bag_idx]
+            bag_labels_list.append(self.get_bag_label(labels))
+            logit, attn = self(images)
+            bag_logits_list.append(logit.view(-1))
+            bag_attn_list.append(attn)
+        bag_logits = torch.stack(bag_logits_list)
+        bag_labels = torch.stack(bag_labels_list).view(-1)
+        return bag_logits, bag_labels, bag_attn_list
 
-    def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
 
@@ -231,7 +241,7 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.TRUE_LABEL: bag_labels,
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
-        self._update_results_with_data_specific_info(batch=batch, results=results)
+        self.update_results_with_data_specific_info(batch=batch, results=results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -276,27 +286,14 @@ class BaseDeepMILModule(LightningModule):
 
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
+   
+    @staticmethod
+    def get_bag_label(labels: Tensor) -> Tensor:
+        # Get bag (batch) labels as majority vote
+        bag_label = mode(labels).values
+        return bag_label.view(1)
 
-    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
-        # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
-        # This means we can't stack them along a new axis without padding to the same length.
-        # We could alternatively concatenate them, but this would require other changes (e.g. in
-        # the attention layers) to correctly split the tensors by bag/slide ID.
-        bag_labels_list = []
-        bag_logits_list = []
-        bag_attn_list = []
-        for bag_idx in range(len(batch[self.label_column])):
-            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
-            labels = batch[self.label_column][bag_idx]
-            bag_labels_list.append(self.get_bag_label(labels))
-            logit, attn = self(images)
-            bag_logits_list.append(logit.view(-1))
-            bag_attn_list.append(attn)
-        bag_logits = torch.stack(bag_logits_list)
-        bag_labels = torch.stack(bag_labels_list).view(-1)
-        return bag_logits, bag_labels, bag_attn_list
-
-    def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
@@ -317,22 +314,11 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         self.tiles_count = tiles_count
         super().__init__(**kwargs)
 
-    def _compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
-        bag_labels_list = []
-        bag_logits_list = []
-        bag_attn_list = []
-        for bag_idx in range(len(batch[self.label_column])):
-            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
-            label = batch[self.label_column][bag_idx]
-            bag_labels_list.append(label)  # no need to do majority voting to get the bag_label
-            logit, attn = self(images)
-            bag_logits_list.append(logit.view(-1))
-            bag_attn_list.append(attn)
-        bag_logits = torch.stack(bag_logits_list)
-        bag_labels = torch.stack(bag_labels_list).view(-1)
-        return bag_logits, bag_labels, bag_attn_list
+    @staticmethod
+    def get_bag_label(labels: Tensor) -> Tensor:
+        return labels
 
-    def _update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
         results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
                         ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
