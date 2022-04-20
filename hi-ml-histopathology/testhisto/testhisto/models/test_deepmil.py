@@ -16,7 +16,6 @@ from torchvision.models import resnet18
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.configs.classification.BaseMIL import BaseMIL
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
