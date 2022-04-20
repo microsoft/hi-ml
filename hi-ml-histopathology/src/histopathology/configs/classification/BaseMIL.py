@@ -20,7 +20,7 @@ from health_azure.utils import CheckpointDownloader, get_workspace
 
 from health_ml.utils import fixed_paths
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
 
@@ -100,7 +100,7 @@ class BaseMIL(LightningContainer):
         downloader = CheckpointDownloader(
             aml_workspace=get_workspace(),
             run_id=run_id,
-            checkpoint_filename="last.ckpt",
+            checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
             download_dir="outputs/",
             remote_checkpoint_dir=Path(self.checkpoint_folder_path)
         )
