@@ -62,6 +62,9 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
+        self.checkpoint_handler = CheckpointHandler(container=self.container,
+                                                    project_root=self.project_root,
+                                                    run_context=RUN_CONTEXT)
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
@@ -93,9 +96,6 @@ class MLRunner:
         self.container.create_filesystem(self.project_root)
 
         # configure recovery container if provided
-        self.checkpoint_handler = CheckpointHandler(container=self.container,
-                                                    project_root=self.project_root,
-                                                    run_context=RUN_CONTEXT)
         self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
 
         self.container.setup()
@@ -136,24 +136,18 @@ class MLRunner:
 
         # do training
         with logging_section("Model training"):
-            if self.checkpoint_handler is not None:
-                checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            else:
-                checkpoint_path = None
+            checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
             _, storing_logger = model_train(checkpoint_path,
                                             container=self.container)
             self.storing_logger = storing_logger
 
         # Since we have trained the model, let the checkpoint_handler object know so it can handle
         # checkpoints correctly.
-        if self.checkpoint_handler is not None:
-            self.checkpoint_handler.additional_training_done()
-            checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
-        else:
-            checkpoint_paths_for_testing = []
+        self.checkpoint_handler.additional_training_done()
+        checkpoint_path_for_testing = self.checkpoint_handler.get_checkpoint_to_test()
 
         with logging_section("Model inference"):
-            self.run_inference(checkpoint_paths_for_testing)
+            self.run_inference(checkpoint_path_for_testing)
 
         if self.container.regression_test_folder:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
