@@ -81,7 +81,7 @@ class BaseMIL(LightningContainer):
     @property
     def cache_dir(self) -> Path:
         return Path(
-            f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
+            f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/"
         )
 
     def setup(self) -> None:
