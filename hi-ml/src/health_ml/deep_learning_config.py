@@ -401,6 +401,10 @@ class TrainerParams(param.Parameterized):
         param.Number(default=None,
                      doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
                          "given number of batches if integer, or proportion of validation dataset if float.")
+    pl_limit_test_batches: Optional[IntOrFloat] = \
+        param.Number(default=None,
+                     doc="PyTorch Lightning trainer flag 'limit_test_batches': Limit the test dataset to the "
+                         "given number of batches if integer, or proportion of test dataset if float.")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "

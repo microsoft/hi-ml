@@ -1,7 +1,13 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from dataclasses import dataclass
 from typing import Optional, Sequence, Tuple
 
 import numpy as np
+from scipy import ndimage
 
 
 @dataclass(frozen=True)
@@ -123,14 +129,15 @@ def get_bounding_box(mask: np.ndarray) -> Box:
 
     :param mask: A 2D array with 0 (or `False`) as background and >0 (or `True`) as foreground.
     :return: The smallest box covering all non-zero elements of `mask`.
+    :raises TypeError: When the input mask has more than two dimensions.
+    :raises RuntimeError: When all elements in the mask are zero.
     """
     if mask.ndim != 2:
-        raise TypeError(f"Expected a 2D array but got {mask.ndim} dimensions")
+        raise TypeError(f"Expected a 2D array but got an array with shape {mask.shape}")
 
-    xs = np.sum(mask, 1).nonzero()[0]
-    ys = np.sum(mask, 0).nonzero()[0]
-    x_min, x_max = xs.min(), xs.max()
-    y_min, y_max = ys.min(), ys.max()
-    width = x_max - x_min + 1
-    height = y_max - y_min + 1
-    return Box(x_min, y_min, width, height)
+    slices = ndimage.find_objects(mask > 0)
+    if not slices:
+        raise RuntimeError("The input mask is empty")
+    assert len(slices) == 1
+
+    return Box.from_slices(slices[0])

@@ -145,10 +145,12 @@ def create_lightning_trainer(container: LightningContainer,
                       accelerator=accelerator,
                       strategy=strategy,
                       max_epochs=container.max_epochs,
-                      # Both these arguments can be integers or floats. If integers, it is the number of batches.
+                      # All of the following limit_batches  arguments can be integers or floats.
+                      # If integers, it is the number of batches.
                       # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
+                      limit_test_batches=container.pl_limit_test_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
