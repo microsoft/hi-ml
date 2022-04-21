@@ -314,6 +314,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
+        # SlidesDataModule attributes a single label to a bag of tiles already no need to do majority voting
         return labels
 
     def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
