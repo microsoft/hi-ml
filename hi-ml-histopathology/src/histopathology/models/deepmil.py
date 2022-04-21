@@ -3,19 +3,18 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
-from typing import Callable, Dict, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
-from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
-from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -29,7 +28,7 @@ def _format_cuda_memory_stats() -> str:
             f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved")
 
 
-class DeepMILModule(LightningModule):
+class BaseDeepMILModule(LightningModule):
     """Base class for deep multiple-instance learning"""
 
     def __init__(self,
@@ -134,9 +133,7 @@ class DeepMILModule(LightningModule):
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
-        # Get bag (batch) labels as majority vote
-        bag_label = mode(labels).values
-        return bag_label.view(1)
+        raise NotImplementedError
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
@@ -183,7 +180,7 @@ class DeepMILModule(LightningModule):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
-    def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
+    def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
         # This means we can't stack them along a new axis without padding to the same length.
         # We could alternatively concatenate them, but this would require other changes (e.g. in
@@ -200,6 +197,15 @@ class DeepMILModule(LightningModule):
             bag_attn_list.append(attn)
         bag_logits = torch.stack(bag_logits_list)
         bag_labels = torch.stack(bag_labels_list).view(-1)
+        return bag_logits, bag_labels, bag_attn_list
+
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        """Update training results with data specific info. This can be either tiles or slides related metadata."""
+        raise NotImplementedError
+
+    def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
+
+        bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
             loss = self.loss_fn(bag_logits, bag_labels.long())
@@ -226,25 +232,15 @@ class DeepMILModule(LightningModule):
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(predicted_probs, bag_labels.view(batch_size,))
-        results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
-                        ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
-                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
-                        ResultsKey.LOSS: loss,
+            metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
+        results.update({ResultsKey.LOSS: loss,
                         ResultsKey.PROB: predicted_probs,
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels,
-                        ResultsKey.BAG_ATTN: bag_attn_list})
-
-        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
-            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
-                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
-                           )
-        else:
-            if is_global_rank_zero():
-                logging.warning("Coordinates not found in batch. If this is not expected check your"
-                                "input tiles dataset.")
+                        ResultsKey.BAG_ATTN: bag_attn_list
+                        })
+        self.update_results_with_data_specific_info(batch=batch, results=results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -285,3 +281,44 @@ class DeepMILModule(LightningModule):
                 epoch_results=epoch_results,
                 is_global_rank_zero=self.global_rank == 0
             )
+
+
+class TilesDeepMILModule(BaseDeepMILModule):
+    """Base class for Tiles based deep multiple-instance learning."""
+
+    @staticmethod
+    def get_bag_label(labels: Tensor) -> Tensor:
+        # Get bag (batch) labels as majority vote
+        bag_label = mode(labels).values
+        return bag_label.view(1)
+
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
+                        ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
+                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
+
+        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
+                           )
+        else:
+            rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
+                           "input tiles dataset.")
+
+
+class SlidesDeepMILModule(BaseDeepMILModule):
+    """Base class for slides based deep multiple-instance learning."""
+    def __init__(self, tiles_count: int, **kwargs: Any) -> None:
+        self.tiles_count = tiles_count
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def get_bag_label(labels: Tensor) -> Tensor:
+        # SlidesDataModule attributes a single label to a bag of tiles already no need to do majority voting
+        return labels
+
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
+        results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
+                        ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
+                        ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})

@@ -5,7 +5,6 @@
 import numpy as np
 import pandas as pd
 import torch
-from torch._C import dtype
 from torch.utils.data.dataset import TensorDataset
 
 from enum import Enum
@@ -78,17 +77,23 @@ class MockHistoDataGenerator:
         self.tmp_path = tmp_path
         self.mock_type = mock_type
         self.n_tiles = n_tiles
+        self.total_tiles = n_tiles
         self.n_slides = n_slides
         self.n_channels = n_channels
         self.tile_size = tile_size
 
+        self.validate()
         self.set_tmp_path()
+
         self.dataframe = self.create_mock_metadata_dataframe()
 
         if self.mock_type == MockHistoDataType.PATHMNIST:
             self.mount_pathmnist_dataset()
 
         self.dataloader = self.get_dataloader()
+
+    def validate(self) -> None:
+        pass
 
     def set_tmp_path(self) -> None:
         pass
