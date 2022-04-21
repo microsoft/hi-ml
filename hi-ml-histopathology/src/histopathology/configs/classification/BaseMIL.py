@@ -71,7 +71,6 @@ class BaseMIL(LightningContainer):
         super().__init__(**kwargs)
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
-        self.checkpoint_folder_path = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"
 
     @property
     def cache_dir(self) -> Path:
@@ -87,8 +86,8 @@ class BaseMIL(LightningContainer):
             aml_workspace=get_workspace(),
             run_id=run_id,
             checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-            download_dir=f"{DEFAULT_AML_UPLOAD_DIR}/",
-            remote_checkpoint_dir=Path(self.checkpoint_folder_path)
+            download_dir=self.outputs_folder,
+            remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
         )
         downloader.download_checkpoint_if_necessary()
         return downloader
@@ -170,18 +169,18 @@ class BaseMIL(LightningContainer):
         """
         # absolute path is required for registering the model.
         absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        self.checkpoint_folder_path,
+                                        f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/",
                                         self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path.is_file():
             return absolute_checkpoint_path
 
         absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               self.checkpoint_folder_path,
+                                               f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/",
                                                self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
-        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
+        checkpoint_path = get_best_checkpoint_path(Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"))
         if checkpoint_path.is_file():
             return checkpoint_path
 
