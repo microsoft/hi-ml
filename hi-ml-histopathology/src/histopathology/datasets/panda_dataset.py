@@ -37,6 +37,7 @@ class PandaDataset(SlidesDataset):
     METADATA_COLUMNS = ('data_provider', 'isup_grade', 'gleason_score')
 
     DEFAULT_CSV_FILENAME = "train.csv"
+    N_CLASSES = 6
 
     def __init__(self,
                  root: Union[str, Path],

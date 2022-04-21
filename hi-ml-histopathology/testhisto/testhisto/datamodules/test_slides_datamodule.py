@@ -13,6 +13,7 @@ from histopathology.datamodules.panda_module import PandaSlidesDataModule
 from testhisto.mocks.slides_generator import (
     MockPandaSlidesGenerator,
     MockHistoDataType,
+    TilesPositioningType,
 )
 
 
@@ -33,6 +34,7 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
         n_levels=3,
         tile_size=28,
         background_val=255,
+        tiles_pos_type=TilesPositioningType.DIAGONAL
     )
     wsi_generator.generate_mock_histo_data()
     return tmp_root_dir

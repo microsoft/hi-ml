@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from enum import Enum
 import os
 from pathlib import Path
 import numpy as np
@@ -10,19 +11,27 @@ import pandas as pd
 from torch import Tensor
 from tifffile import TiffWriter
 
-from typing import Any, Tuple, List, Union
+from typing import Any, Optional, Tuple, List, Union
 from histopathology.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 
+class TilesPositioningType(Enum):
+    DIAGONAL = 0
+    RANDOM = 1
+
+
 class MockPandaSlidesGenerator(MockHistoDataGenerator):
-    """Generator class to create mock WSI on the fly. A mock WSI resembles to:
+    """Generator class to create mock WSI on the fly.
+        If tiles positioning is diagonal, a mock WSI resembles to:
                                 [**      ]
                                 [  **    ]
                                 [    **  ]
                                 [      **]
         where * represents 2 tiles stitched along the Y axis.
+        If tiles positioning is random, tiles are positioned randomly on the WSI grid.
     """
+
     ISUP_GRADE = "isup_grade"
 
     def __init__(
@@ -31,6 +40,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         n_repeat_diag: int = 4,
         n_repeat_tile: int = 2,
         background_val: Union[int, float] = 255,
+        tiles_pos_type: TilesPositioningType = TilesPositioningType.DIAGONAL,
         **kwargs: Any,
     ) -> None:
         """
@@ -38,6 +48,8 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param n_repeat_diag: Number of repeat time along the diagonal axis, defaults to 4.
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
         :param background_val: A value to assign to the background, defaults to 255.
+        :param tiles_pos_type: The tiles positioning type to define how tiles should be positioned within the WSI grid,
+        defaults to TilesPositioningType.DIAGONAL.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
         super().__init__(**kwargs)
@@ -46,37 +58,46 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         self.n_repeat_diag = n_repeat_diag
         self.n_repeat_tile = n_repeat_tile
         self.background_val = background_val
+        self.tiles_pos_type = tiles_pos_type
 
-        self.step_size = self.tile_size * self.n_repeat_tile  # the step_size represents the diagonal square size.
+        self.step_size = self.tile_size * self.n_repeat_tile
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
+        self.validate()
+
+    def validate(self) -> None:
+        assert (
+            self.n_slides >= PandaDataset.N_CLASSES
+        ), f"The number of slides should be >= N_CLASSES (i.e., {PandaDataset.N_CLASSES})"
+
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
-        isup_grades = np.tile(
-            list(self.ISUP_GRADE_MAPPING.keys()),
-            self.n_slides // PandaDataset.N_CLASSES + 1,
-        )
+        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaDataset.N_CLASSES + 1,)
         mock_metadata: dict = {col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, *PandaDataset.METADATA_COLUMNS]}
         for slide_id in range(self.n_slides):
             mock_metadata[PandaDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
-            mock_metadata[self.DATA_PROVIDER].append(
-                np.random.choice(self.DATA_PROVIDERS_VALUES)
-            )
+            mock_metadata[self.DATA_PROVIDER].append(np.random.choice(self.DATA_PROVIDERS_VALUES))
             mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
-            mock_metadata[self.GLEASON_SCORE].append(
-                np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]])
-            )
+            mock_metadata[self.GLEASON_SCORE].append(np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]]))
         df = pd.DataFrame(data=mock_metadata)
         df.to_csv(self.tmp_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
-    def _create_wsi_from_stitched_tiles(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
+    def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
+            return self._create_wsi_from_stitched_tiles_along_diagonal_axis(tiles)
+        elif self.tiles_pos_type == TilesPositioningType.RANDOM:
+            return self._create_wsi_from_randomly_positioned_tiles(tiles), None
+        else:
+            raise NotImplementedError
+
+    def _create_wsi_from_stitched_tiles_along_diagonal_axis(self, tiles: Tensor) -> Tuple[np.ndarray, np.ndarray]:
         """Create a whole slide image by stitching tiles along the diagonal axis.
 
         :param tiles: A tensor of tiles of shape (n_tiles, n_channels, tile_size, tile_size).
         :return: returns a wsi of shape (img_size, img_size, n_channels) and the tiles used to create it.
-        The image is  in channels_last format so that it can save by a TiffWriter.
+        The image is  in channels_last format so that it can save by TiffWriter.
         """
         mock_image = np.full(
             shape=(self.n_channels, self.img_size, self.img_size), fill_value=self.background_val, dtype=self._dtype
@@ -112,6 +133,34 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             ] = fill_square
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
+    def _create_wsi_from_randomly_positioned_tiles(self, tiles: Tensor) -> np.ndarray:
+        """Create a whole slide image by positioning tiles randomly in the whole slide image grid.
+
+        :param tiles: A tensor of tiles of shape (n_tiles, n_channels, tile_size, tile_size).
+        :return: returns a wsi of shape (img_size, img_size, n_channels) in channels_last format so that it can save by
+        TiffWriter.
+        """
+        mock_image = np.full(
+            shape=(self.n_channels, self.img_size, self.img_size), fill_value=self.background_val, dtype=self._dtype
+        )
+
+        n_tiles_side = self.img_size // self.tile_size
+        total_n_tiles = n_tiles_side ** 2
+        coords = [
+            (k // n_tiles_side, k % n_tiles_side)
+            for k in np.random.choice(total_n_tiles, size=self.n_tiles, replace=False)
+        ]
+        for i in range(self.n_tiles):
+            x, y = self.tile_size * np.array(coords[i])
+            if self.mock_type == MockHistoDataType.PATHMNIST:
+                new_tile = tiles[i].numpy()
+            elif self.mock_type == MockHistoDataType.FAKE:
+                new_tile = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
+            else:
+                raise NotImplementedError
+            mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = new_tile
+        return np.transpose(mock_image, (1, 2, 0))
+
     @staticmethod
     def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
@@ -143,7 +192,8 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         os.makedirs(self.tmp_path / "dump_tiles", exist_ok=True)
         for slide_counter in range(self.n_slides):
             tiles, _ = next(iterator) if iterator else (None, None)
-            mock_image, dump_tiles = self._create_wsi_from_stitched_tiles(tiles)
+            mock_image, dump_tiles = self.create_mock_wsi(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
             self._save_mock_wsi_as_tiff_file(self.tmp_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels)
-            np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
+            if dump_tiles is not None:
+                np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)

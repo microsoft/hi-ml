@@ -275,6 +275,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
+        if self.tile_count is None:
+            assert self.batch_size == 1, "batch_size > 1 not supported if tiles_count=None 'for now'"
 
     def _load_dataset(self, slides_dataset: SlidesDataset) -> Dataset:
         base_transform = Compose(
@@ -283,7 +285,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     keys=slides_dataset.IMAGE_COLUMN,
                     reader=WSIReader,
                     backend="cucim",
-                    dtype=np.uint8,
+                    dtype=np.float32,
                     level=self.level,
                     image_only=True,
                 ),
