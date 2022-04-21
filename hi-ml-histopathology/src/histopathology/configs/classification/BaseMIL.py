@@ -147,11 +147,12 @@ class BaseMIL(LightningContainer):
                                      primary_val_metric=MetricsKey.AUROC,
                                      maximise=True)
 
-    def setup_model_creation(self) -> None:
-        self.model_encoder = self.encoder
+    def get_model_encoder(self) -> TileEncoder:
+        model_encoder = self.encoder
         if self.is_finetune:
-            for params in self.model_encoder.parameters():
+            for params in model_encoder.parameters():
                 params.requires_grad = True
+        return model_encoder
 
     def get_callbacks(self) -> List[Callback]:
         return [*super().get_callbacks(),
@@ -264,20 +265,19 @@ class BaseMILTiles(BaseMIL):
         else:
             return LoadTilesBatchd(image_key, progress=True)
 
-    def setup_model_creation(self) -> None:
+    def get_model_encoder(self) -> TileEncoder:
         if self.is_caching:
             # Encoding is done in the datamodule, so here we provide instead a dummy
             # no-op IdentityEncoder to be used inside the model
-            self.model_encoder: TileEncoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+            return IdentityEncoder(input_dim=(self.encoder.num_encoding,))
         else:
-            super().setup_model_creation()
+            return super().get_model_encoder()
 
     def create_model(self) -> TilesDeepMILModule:
         self.data_module = self.get_data_module()
-        self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = TilesDeepMILModule(encoder=self.model_encoder,
+        deepmil_module = TilesDeepMILModule(encoder=self.get_model_encoder(),
                                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
                                             pooling_layer=pooling_layer,
@@ -326,11 +326,10 @@ class BaseMILSlides(BaseMIL):
 
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
-        self.setup_model_creation()
         pooling_layer, num_features = self.get_pooling_layer()
         # We leave the outputs handler out for now (wsi datamodule doesn't support tiles coordinates YET)
         deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
-                                             encoder=self.model_encoder,
+                                             encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
