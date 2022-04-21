@@ -20,7 +20,7 @@ from testhisto.mocks.slides_generator import (
 no_gpu = not is_gpu_available()
 
 
-# @pytest.fixture(scope="session")
+@pytest.fixture(scope="session")
 def mock_panda_slides_root_dir() -> Path:
     tmp_root_dir = Path("/tmp/pathmnist")
     os.makedirs(tmp_root_dir, exist_ok=True)
@@ -42,15 +42,14 @@ def mock_panda_slides_root_dir() -> Path:
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-def test_tiling_on_the_fly() -> None:
+def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1
     tile_count = 16
     tile_size = 28
     level = 0
     channels = 3
-    root_dir: Path = mock_panda_slides_root_dir()
     datamodule = PandaSlidesDataModule(
-        root_path=root_dir,
+        root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
         tile_count=tile_count,
         tile_size=tile_size,
@@ -63,7 +62,7 @@ def test_tiling_on_the_fly() -> None:
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly
-        original_tile = np.load(root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
         for i in range(tile_count):
             assert (original_tile == tiles[0, i].numpy()).all()
 
