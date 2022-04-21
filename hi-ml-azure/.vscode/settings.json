@@ -1,0 +1,17 @@
+{
+    "python.linting.mypyArgs": [
+        "--config-file=${workspaceFolder}/mypy.ini"
+    ],
+    "python.sortImports.args": [
+        "-l=120",
+        "--src=${workspaceFolder}/hi-ml-azure/src",
+    ],
+    "python.testing.pytestArgs": [
+        "${workspaceFolder}/hi-ml-azure/testazure/testazure",
+    ],
+    "python.analysis.extraPaths": [
+        "./hi-ml-azure/src",
+        "./hi-ml-azure/testazure",
+    ],
+ }
+ 

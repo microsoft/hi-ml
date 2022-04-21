@@ -1,13 +1,93 @@
 {
-    "folders": [
-      {
-        "path": "hi-ml"
-      },
-      {
-        "path": "hi-ml-azure"
-      },
-      {
-        "path": "hi-ml-histopathology"
-      }
+  "folders": [
+    {
+      "path": "hi-ml"
+    },
+    {
+      "path": "hi-ml-azure"
+    },
+    {
+      "path": "hi-ml-histopathology"
+    },
+    {
+      "path": "azure-pipelines"
+    },
+    {
+      "path": "docs"
+    },
+    {
+      "path": ".github"
+    },
+  ],
+  "extensions": {
+    "recommendations": [
+      "njpwerner.autodocstring",
+      "doi.fileheadercomment",
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "davidanson.vscode-markdownlint",
+      "stkb.rewrap"
     ]
+  },
+  "settings": {
+    "autoDocstring.docstringFormat": "sphinx-notypes",
+    "fileHeaderComment.parameter": {
+      "*": {
+        "line": "-------------------------------------------------------------------------------------------",
+        "commentprefix": "#",
+        "company": "Microsoft Corporation"
+      }
+    },
+    "fileHeaderComment.template": {
+      "*": [
+        "${commentprefix}  ${line}",
+        "${commentprefix}  Copyright (c) ${company}. All rights reserved.",
+        "${commentprefix}  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.",
+        "${commentprefix}  ${line}"
+      ]
+    },
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+      "--max-line-length=120",
+      "--rcfile=${workspaceFolder}/.vscode/.pylintrc"
+    ],
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+      "--config=${workspaceFolder}/.flake8",
+    ],
+    "python.linting.mypyEnabled": true,
+    "python.linting.mypyArgs": [
+      "--config-file=${workspaceFolder}/mypy.ini"
+    ],
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.pycodestyleArgs": [
+      "--max-line-length=120",
+      "--show-source",
+      "--show-pep8"
+    ],
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+      "--line-length=120"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "rewrap.autoWrap.enabled": true,
+    "[python]": {
+      "editor.rulers": [
+        120
+      ],
+    },
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
+    "terminal.integrated.env.windows": {
+      "PYTHONPATH": "${workspaceFolder}/hi-ml/src;${workspaceFolder}/hi-ml-azure/src;${workspaceFolder}/hi-ml-histopathology/src"
+    },
+    "terminal.integrated.env.linux": {
+      "PYTHONPATH": "${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src:${workspaceFolder}/hi-ml-histopathology/src"
+    },
+    "workbench.colorCustomizations": {
+      "activityBar.background": "#135511",
+      "titleBar.activeBackground": "#135511",
+      "titleBar.activeForeground": "#FBFAF6"
+    },
   }
+}

@@ -1,0 +1,27 @@
+{
+    "python.linting.mypyArgs": [
+        "--config-file=${workspaceFolder}/mypy.ini"
+    ],
+    "python.sortImports.args": [
+        "-l=120",
+        "--src=${workspaceFolder}/hi-ml/src",
+        "--src=${workspaceFolder}/hi-ml-azure/src",
+        "--src=${workspaceFolder}/hi-ml-histopathology/src"
+    ],
+    "python.testing.pytestArgs": [
+        "${workspaceFolder}/hi-ml/testhiml/testhiml",
+        "${workspaceFolder}/hi-ml-azure/testazure/testazure",
+        "${workspaceFolder}/hi-ml-histopathology/testhisto",
+        "${workspaceFolder}/hi-ml-histopathology/testSSL",
+    ],
+    "python.analysis.extraPaths": [
+        "./hi-ml-azure/src",
+        "./hi-ml-azure/testazure",
+        "./hi-ml/src",
+        "./hi-ml/testhiml",
+        "./hi-ml-histopathology/src",
+        "./hi-ml-histopathology/testhisto",
+        "./hi-ml-histopathology/testSSL",
+    ],
+ }
+ 
