@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 import pytest
 import numpy as np
 from pathlib import Path
@@ -20,8 +21,9 @@ no_gpu = not is_gpu_available()
 
 
 @pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    tmp_root_dir = tmp_path_factory.mktemp("mock_wsi")
+def mock_panda_slides_root_dir() -> Path:
+    tmp_root_dir = Path("/tmp/pathmnist")
+    os.makedirs(tmp_root_dir, exist_ok=True)
     wsi_generator = MockPandaSlidesGenerator(
         tmp_path=tmp_root_dir,
         mock_type=MockHistoDataType.PATHMNIST,
