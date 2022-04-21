@@ -71,7 +71,6 @@ class BaseMIL(LightningContainer):
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
         self.checkpoint_folder_path = f"{self.outputs_folder}/checkpoints/"
-        self.callbacks = self.get_callbacks()
 
     @property
     def cache_dir(self) -> Path:
