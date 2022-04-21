@@ -22,6 +22,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling)
+from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
@@ -70,7 +71,7 @@ class BaseMIL(LightningContainer):
         super().__init__(**kwargs)
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
-        self.checkpoint_folder_path = "outputs/checkpoints/"
+        self.checkpoint_folder_path = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"
 
     @property
     def cache_dir(self) -> Path:
@@ -86,7 +87,7 @@ class BaseMIL(LightningContainer):
             aml_workspace=get_workspace(),
             run_id=run_id,
             checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-            download_dir=self.outputs_folder,
+            download_dir=f"{DEFAULT_AML_UPLOAD_DIR}/",
             remote_checkpoint_dir=Path(self.checkpoint_folder_path)
         )
         downloader.download_checkpoint_if_necessary()
