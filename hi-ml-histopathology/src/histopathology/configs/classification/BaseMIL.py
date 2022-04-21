@@ -214,9 +214,6 @@ class BaseMILTiles(BaseMIL):
     for instantiating the full DeepMIL model in tiles settings. Subclasses should define their datamodules and
     configure experiment-specific parameters.
     """
-    # Model parameters:
-    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
-                                                 "keep the encoder frozen.")
     # Tiles Data module parameters:
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
