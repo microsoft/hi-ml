@@ -108,6 +108,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
+@pytest.mark.flaky(reruns=3)
 def test_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -173,6 +174,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     shutil.rmtree(loaded_config2.outputs_folder)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_load_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     """
     Tests that the parameters feed into the BYOL model and online evaluator are
@@ -266,6 +268,7 @@ def test_ssl_container_rsna() -> None:
     shutil.rmtree(loaded_config2.outputs_folder)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_simclr_lr_scheduler() -> None:
     """
     Test if the LR scheduler has the expected warmup behaviour.
@@ -513,6 +516,7 @@ def test_online_evaluator_distributed() -> None:
             assert callback.evaluator == mock_ddp_result
 
 
+@pytest.mark.flaky(reruns=3)
 def test_simclr_num_nodes() -> None:
     """
     Test if the number of nodes is correctly passed through to the SIMCLR model. After an update of the semantics of
@@ -536,6 +540,7 @@ def test_simclr_num_nodes() -> None:
             assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes  # type:ignore
 
 
+@pytest.mark.flaky(reruns=3)
 def test_simclr_num_gpus() -> None:
     """
     Test if the number of GPUs is correctly passed through to the SIMCLR model.
