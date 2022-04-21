@@ -75,7 +75,7 @@ class BaseMIL(LightningContainer):
 
     @property
     def cache_dir(self) -> Path:
-        return Path(f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
+        return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def setup(self) -> None:
         self.encoder = self.get_encoder()
