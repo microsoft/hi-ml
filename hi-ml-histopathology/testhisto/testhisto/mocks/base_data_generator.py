@@ -5,6 +5,7 @@
 import numpy as np
 import pandas as pd
 import torch
+from torch._C import dtype
 from torch.utils.data.dataset import TensorDataset
 
 from enum import Enum
@@ -111,7 +112,9 @@ class MockHistoDataGenerator:
 
     def mount_pathmnist_dataset(self) -> None:
         ws = get_workspace()
-        dataset = DatasetConfig(name=self.mock_type.value, target_folder=self.tmp_path, use_mounting=True)
+        dataset = DatasetConfig(
+            name=self.mock_type.value, target_folder=self.tmp_path / self.mock_type.value, use_mounting=True
+        )
         dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
         assert mount_ctx is not None  # for mypy
         mount_ctx.start()
@@ -124,9 +127,9 @@ class MockHistoDataGenerator:
         :return: A TensorDataset for pathmnist tiles.
         """
         assert split in ["train", "val", "test"], "Please choose a split string among [train, val, test]"
-        npz_file = np.load(self.tmp_path / f"{self.mock_type.value.lower()}.npz")
+        npz_file = np.load(self.tmp_path / self.mock_type.value / f"{self.mock_type.value.lower()}.npz")
 
-        imgs = torch.Tensor(npz_file[f"{split}_images"])
+        imgs = torch.Tensor(npz_file[f"{split}_images"]).permute(0, 3, 1, 2).int()
         labels = torch.Tensor(npz_file[f"{split}_labels"])
 
         return TensorDataset(imgs, labels)
