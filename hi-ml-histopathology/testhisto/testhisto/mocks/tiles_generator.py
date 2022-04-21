@@ -110,7 +110,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             os.makedirs(mask_dir, exist_ok=True)
 
             if self.mock_type == MockHistoDataType.PATHMNIST:
-                tile = tiles[i] * 255
+                tile = tiles[i]
             elif self.mock_type == MockHistoDataType.FAKE:
                 tile = torch.full(
                     fill_value=np.random.uniform(0, 255), size=(self.n_channels, self.tile_size, self.tile_size)
@@ -118,6 +118,6 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             else:
                 raise NotImplementedError
 
-            save_image(tile, str(self.tmp_path / row[PandaTilesDataset.IMAGE_COLUMN]))
+            save_image(tile.float(), str(self.tmp_path / row[PandaTilesDataset.IMAGE_COLUMN]))
             random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
             save_image(random_mask.float(), str(self.tmp_path / row[self.MASK_COLUMN]))

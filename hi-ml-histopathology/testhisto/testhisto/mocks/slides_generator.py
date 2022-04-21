@@ -107,7 +107,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             if self.mock_type == MockHistoDataType.PATHMNIST:
                 if i == 0 or self.n_tiles > 1:
                     tile = (
-                        (tiles[i % self.n_tiles].numpy() * 255).astype(self._dtype)
+                        (tiles[i % self.n_tiles].numpy()).astype(self._dtype)
                         if self._dtype == np.uint8
                         else tiles[i % self.n_tiles].numpy()
                     )

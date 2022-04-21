@@ -143,4 +143,6 @@ class MockHistoDataGenerator:
         """Get a dataloader for pathmnist dataset. It returns tiles of shape (self.n_tiles, 3, 28, 28).
         :return: A dataloader to sample pathmnist tiles.
         """
-        return DataLoader(dataset=self._create_pathmnist_dataset(split="train"), batch_size=self.n_tiles, shuffle=True)
+        return DataLoader(
+            dataset=self._create_pathmnist_dataset(split="train"), batch_size=self.total_tiles, shuffle=True
+        )
