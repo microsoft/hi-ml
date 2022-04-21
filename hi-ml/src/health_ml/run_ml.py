@@ -169,15 +169,12 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def run_inference(self, checkpoint_paths: List[Path]) -> None:
+    def run_inference(self, checkpoint_path: Path) -> None:
         """
         Run inference on the test set for all models.
 
-        :param checkpoint_paths: The path to the checkpoint that should be used for inference.
+        :param checkpoint_path: The path to the checkpoint that should be used for inference.
         """
-        if len(checkpoint_paths) != 1:
-            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-
         lightning_model = self.container.model
         if type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
@@ -196,7 +193,7 @@ class MLRunner:
 
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
-            self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_path)
             data_module = self.container.get_data_module()
 
             # Change to the outputs folder so that the model can write to current working directory, and still

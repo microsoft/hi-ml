@@ -16,7 +16,7 @@ from health_azure.utils import create_from_matching_params
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
-from health_ml.utils.checkpoint_utils import get_recovery_checkpoint_path
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
 from health_ml.utils.model_util import create_optimizer
 
@@ -140,11 +140,11 @@ class LightningContainer(WorkflowParams,
         """Returns the path of the model checkpoint that should be used for testing/inference. By default, this will
         return the checkpoint that is written in the last training epoch. Override this method if you implement a
         custom checkpointing logic, for example if you added a model checkpoint callback that looks at validation
-        accuracuy.
+        accuracy.
 
         :return: The path of the checkpoint file that should be used for inference.
         """
-        return get_recovery_checkpoint_path(self.checkpoint_folder)
+        return get_best_checkpoint_path(self.checkpoint_folder)
 
     # The code from here on does not need to be modified.
 
