@@ -30,6 +30,7 @@ dependencies:
       - tensorboard==2.6.0
       # Histopathology requirements
       - cucim==22.2.0
+      - coloredlogs==15.0.1
       - medmnist==2.0.2
       - joblib==0.16.0
       - jupyter==1.0.0
