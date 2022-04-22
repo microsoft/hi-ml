@@ -17,8 +17,8 @@ from histopathology.datasets.base_dataset import SlidesDataset
 
 try:
     from cucim import CuImage
-except:  # noqa: E722
-    logging.warning("cucim library not available, code may fail.")
+except ImportError:  # noqa: E722
+    logging.warning("cucim library not available, code may fail")
 
 
 class PandaDataset(SlidesDataset):
@@ -102,8 +102,11 @@ class LoadPandaROId(MapTransform):
         mask, _ = self.reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
 
         foreground_mask = mask[0] > 0  # PANDA segmentation mask is in 'R' channel
-        bbox = scale * box_utils.get_bounding_box(foreground_mask).add_margin(self.margin)
-        return bbox
+
+        bbox = box_utils.get_bounding_box(foreground_mask)
+        padded_bbox = bbox.add_margin(self.margin)
+        scaled_bbox = scale * padded_bbox
+        return scaled_bbox
 
     def __call__(self, data: Dict) -> Dict:
         mask_obj: CuImage = self.reader.read(data[self.mask_key])
@@ -115,9 +118,11 @@ class LoadPandaROId(MapTransform):
         # but relative region size in pixels at the chosen level
         scale = mask_obj.resolutions['level_downsamples'][self.level]
         scaled_bbox = level0_bbox / scale
-        get_data_kwargs = dict(location=(level0_bbox.x, level0_bbox.y),
-                               size=(scaled_bbox.w, scaled_bbox.h),
-                               level=self.level)
+        get_data_kwargs = dict(
+            location=(level0_bbox.y, level0_bbox.x),
+            size=(scaled_bbox.h, scaled_bbox.w),
+            level=self.level,
+        )
         mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
         data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
         data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore

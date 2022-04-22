@@ -99,12 +99,12 @@ class LoadROId(MapTransform):
 
         # cuCIM/OpenSlide takes absolute location coordinates in the level 0 reference frame,
         # but relative region size in pixels at the chosen level
-        origin = (level0_bbox.x, level0_bbox.y)
+        origin = (level0_bbox.y, level0_bbox.x)
         scale = image_obj.resolutions['level_downsamples'][self.level]
         scaled_bbox = level0_bbox / scale
 
         data[self.image_key], _ = self.reader.get_data(image_obj, location=origin, level=self.level,
-                                                       size=(scaled_bbox.w, scaled_bbox.h))
+                                                       size=(scaled_bbox.h, scaled_bbox.w))
         data[SlideKey.ORIGIN] = origin
         data[SlideKey.SCALE] = scale
         data[SlideKey.FOREGROUND_THRESHOLD] = threshold
