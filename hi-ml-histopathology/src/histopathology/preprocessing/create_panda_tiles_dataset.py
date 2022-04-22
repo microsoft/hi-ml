@@ -226,7 +226,7 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
     coloredlogs.install(level=logging.DEBUG, stream=logfile)
     logging.info(f"Command: \"{' '.join(sys.argv)}\"")
     logging.info(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
-    
+
     func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
                              occupancy_threshold=occupancy_threshold, output_dir=output_dir,
                              tile_progress=not parallel, filter_slide=filter_slide)
