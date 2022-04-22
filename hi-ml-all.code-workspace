@@ -10,13 +10,8 @@
       "path": "hi-ml-histopathology"
     },
     {
-      "path": "azure-pipelines"
-    },
-    {
-      "path": "docs"
-    },
-    {
-      "path": ".github"
+      "path": ".",
+      "name": "ROOT",
     },
   ],
   "extensions": {
@@ -42,6 +37,12 @@
     "compounds": []
   },
   "settings": {
+    // Exclude all folders from the ROOT view that are displayed as top-level folders
+    "files.exclude": {
+      "hi-ml/": true,
+      "hi-ml-azure/": true,
+      "hi-ml-histopathology/": true,
+    },
     "autoDocstring.docstringFormat": "sphinx-notypes",
     "fileHeaderComment.parameter": {
       "*": {
