@@ -1,5 +1,15 @@
 # Notes for developers
 
+## Issues
+
+* Need 3 copies of .flake8
+
+## TODO
+
+* Update here to speak of the three folders
+* Split pyright configuration
+* Enable pyright for histo folder
+
 ## Development environment
 
 We suggest using Visual Studio Code (VSCode), available for multiple platforms [here](https://code.visualstudio.com/).
