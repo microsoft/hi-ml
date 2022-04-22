@@ -93,11 +93,11 @@ class ConfusionMatrix:
 
     @property
     def sensitivity(self) -> np.ndarray:
-        return self.pred_positives / self.num_positives
+        return self.true_positives / self.num_positives
 
     @property
     def specificity(self) -> np.ndarray:
-        return self.pred_negatives / self.num_negatives
+        return self.true_negatives / self.num_negatives
 
     @property
     def pos_pred_value(self) -> np.ndarray:
