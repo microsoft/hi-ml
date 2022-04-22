@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import pytest
 import numpy as np
 from pathlib import Path
@@ -36,6 +37,7 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
         background_val=255,
         tiles_pos_type=TilesPositioningType.DIAGONAL
     )
+    logging.info("Generating mock whole slide images")
     wsi_generator.generate_mock_histo_data()
     return tmp_root_dir
 

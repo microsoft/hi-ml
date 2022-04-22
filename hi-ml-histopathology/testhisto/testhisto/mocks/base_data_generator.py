@@ -123,9 +123,8 @@ class MockHistoDataGenerator:
             ws = get_workspace()
         except ValueError:
             # For github agents: config.json dumped from environement variables
-            ws_config_path = self.tmp_path / WORKSPACE_CONFIG_JSON
-            create_config_json(script_folder=ws_config_path, shared_config_json=get_shared_config_json())
-            ws = get_workspace(workspace_config_path=ws_config_path)
+            create_config_json(script_folder=self.tmp_path, shared_config_json=get_shared_config_json())
+            ws = get_workspace(workspace_config_path=self.tmp_path / WORKSPACE_CONFIG_JSON)
         dataset = DatasetConfig(
             name=self.mock_type.value, target_folder=self.tmp_path / self.mock_type.value, use_mounting=True
         )
