@@ -1985,8 +1985,7 @@ class UnitTestWorkspaceWrapper:
         return self._workspace
 
 
-@contextmanager
-def check_config_json(script_folder: Path, shared_config_json: Path) -> Generator:
+def create_config_json(script_folder: Path, shared_config_json: Path) -> None:
     """
     Create a workspace config.json file exists in the folder where we expect a test script. This is either copied
     from the location given in shared_config_json (this should be the case when executing a test on a dev machine),
@@ -2020,8 +2019,14 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
         else:
             raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
                              "workspace creation must exist.")
+ 
+
+@contextmanager
+def check_config_json(script_folder: Path, shared_config_json: Path) -> Generator:
+    create_config_json(script_folder, shared_config_json)
     try:
         yield
     finally:
-        if not target_config_exists:
+        target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+        if not target_config_json.is_file():
             target_config_json.unlink()
