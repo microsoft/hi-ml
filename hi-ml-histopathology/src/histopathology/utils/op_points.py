@@ -36,12 +36,12 @@ class ConfusionMatrix:
         if np.any(self.false_positives > self.num_negatives):
             raise ValueError("false_positives must be <= num_negatives")
 
-        if not _is_sorted(self.thresholds, ascending=True):
-            raise ValueError("thresholds must be in ascending order")
+        if not _is_sorted(self.thresholds, ascending=False):
+            raise ValueError("thresholds must be in descending order")
         if not _is_sorted(self.true_positives, ascending=True):
             raise ValueError("true_positives must be in ascending order")
-        if not _is_sorted(self.false_positives, ascending=False):
-            raise ValueError("false_positives must be in descending order")
+        if not _is_sorted(self.false_positives, ascending=True):
+            raise ValueError("false_positives must be in ascending order")
 
     @staticmethod
     def from_labels_and_scores(true_labels: np.ndarray, pred_scores: np.ndarray) -> 'ConfusionMatrix':
@@ -102,9 +102,9 @@ class ConfusionMatrix:
     def __getitem__(self, index_or_slice: Union[int, slice]) -> 'ConfusionMatrix':
         return ConfusionMatrix(num_total=self.num_total,
                                num_positives=self.num_positives,
-                               true_positives=self.true_positives[index_or_slice],
-                               false_positives=self.false_positives[index_or_slice],
-                               thresholds=self.thresholds[index_or_slice])
+                               true_positives=np.atleast_1d(self.true_positives[index_or_slice]),
+                               false_positives=np.atleast_1d(self.false_positives[index_or_slice]),
+                               thresholds=np.atleast_1d(self.thresholds[index_or_slice]))
 
     def at_threshold(self, threshold: float) -> 'ConfusionMatrix':
         thr_index = _searchsorted(self.thresholds, threshold, ascending=True)
