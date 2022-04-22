@@ -2019,7 +2019,7 @@ def create_config_json(script_folder: Path, shared_config_json: Path) -> None:
         else:
             raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
                              "workspace creation must exist.")
- 
+
 
 @contextmanager
 def check_config_json(script_folder: Path, shared_config_json: Path) -> Generator:
