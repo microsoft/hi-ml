@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 import os
 import torch
 import pytest
@@ -140,6 +141,7 @@ def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
         tile_size=28,
         img_size=224,
     )
+    logging.info("Generating mock tiles")
     tiles_generator.generate_mock_histo_data()
     return tmp_root_dir
 
