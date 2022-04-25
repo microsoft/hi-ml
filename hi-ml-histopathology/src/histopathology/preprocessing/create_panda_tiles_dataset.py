@@ -150,6 +150,12 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
         logging.info(f">>> Skipping {slide_dir} - already processed")
         return
     else:
+        mask_key = SlideKey.MASK  # it should be read from the dataset attribute instead, but we assume it's the same
+        mask_path = Path(sample[mask_key])
+        if not mask_path.is_file():
+            logging.error(f'Mask for slide {slide_id} not found')
+            return
+
         slide_dir.mkdir(parents=True)
 
         dataset_csv_path = slide_dir / "dataset.csv"
@@ -161,11 +167,17 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
         loader = LoadPandaROId(reader, level=level, margin=margin)
         try:
             sample = loader(sample)  # load 'image' and 'mask' from disk
-        except (ValueError, RuntimeError) as e:
-            logging.error(f'Error loading slide {slide_id}:\n{e}')
+            failed = False
+        except RuntimeError as e:  # happens when masks are empty
+            logging.error(f'Error loading slide {slide_id}, maybe due to an empty mask:\n{e}')
+            failed = True
+
+        if failed:
+            logging.error(f'Error loading slide {slide_id}')
             dataset_csv_file.close()
             shutil.rmtree(slide_dir)
             return
+
         logging.info(f"Tiling slide {slide_id} ...")
         image_tiles, mask_tiles, tile_boxes, occupancies, num_discarded = \
             generate_tiles(sample, tile_size, occupancy_threshold)
