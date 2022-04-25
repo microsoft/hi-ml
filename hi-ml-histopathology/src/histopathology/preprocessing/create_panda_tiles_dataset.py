@@ -123,7 +123,7 @@ def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
     save_image(image_tile, output_dir / image_tile_filename)
     save_image(mask_tile, output_dir / mask_tile_filename)
 
-    slide_metadata = sample['metadata']
+    slide_metadata = sample[SlideKey.METADATA]
     tile_metadata = {
         TileKey.SLIDE_ID.value: slide_id,
         TileKey.TILE_ID.value: tile_id,
