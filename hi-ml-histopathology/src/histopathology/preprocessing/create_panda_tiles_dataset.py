@@ -51,12 +51,12 @@ logger.setLevel(logging.DEBUG)
 
 def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
         -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
-    if occupancy_threshold < 0. or occupancy_threshold > 1.:
+    if occupancy_threshold < 0 or occupancy_threshold > 1:
         raise ValueError("Tile occupancy threshold must be between 0 and 1")
     # mask_tile has shape (N, C, H, W)
     foreground_mask = mask_tile > 0
     occupancy = foreground_mask.mean(axis=(-2, -1))
-    selected = occupancy > occupancy_threshold
+    selected = occupancy >= occupancy_threshold  # if the threshold is 0, all tiles should be selected
     # selected has shape (N, 1)
     return selected[:, 0], occupancy[:, 0]
 
