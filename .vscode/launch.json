@@ -70,41 +70,18 @@
                 "--azureml",
                 "--cluster=lite-testing-ds2",
             ],
-            "console": "integratedTerminal",
+            "console": "integratedTerminal"
         },
         {
-            "name": "Python: Run TcgaCrckImageNetMIL locally",
+            "name": "Python: Run DeepSMILECrck locally",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
             "cwd": "${workspaceFolder}/hi-ml-histopathology",
             "args": [
-                "--model=histopathology.TcgaCrckImageNetMIL",
-                "--max_bag_size=3",
-                "--max_bag_size_inf=3",
-                "--max_epochs=2",
-                "--pl_limit_train_batches=2",
-                "--pl_limit_val_batches=2",
-                "--pl_limit_test_batches=2",
-                "--crossval_count=1"
+                "--model=histopathology.DeepSMILECrck",
             ],
-            "console": "integratedTerminal",
-        },
-        {
-            "name": "Python: Run SlidesPandaImageNetMIL locally",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/hi-ml/src/health_ml/runner.py",
-            "cwd": "${workspaceFolder}/hi-ml-histopathology",
-            "args": [
-                "--model=histopathology.SlidesPandaImageNetMIL",
-                "--max_epochs=2",
-                "--pl_limit_train_batches=2",
-                "--pl_limit_val_batches=2",
-                "--pl_limit_test_batches=2",
-                "--crossval_count=1"
-            ],
-            "console": "integratedTerminal",
+            "console": "integratedTerminal"
         },
         {
             "name": "Elevate: HI-ML-AZURE Local",
