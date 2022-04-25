@@ -337,7 +337,7 @@ def mount_and_convert_source_files(
     :param bin_libs: List of subfolder names, file suffix, and write/read functions for tensor/array options.
     :return: None.
     """
-    with dataset.mount("/tmp/datasets/panda_tiles") as mount_context:
+    with dataset.mount("/tmp/datasets/panda_tiles_small") as mount_context:
         input_folder = Path(mount_context.mount_point)
 
         for option, greyscale, crop in source_options:
@@ -458,7 +458,7 @@ def wrap_run_profiling(
 
 def main() -> None:
     """
-    Mount a dataset called 'panda_tiles', assumed to contain image files, with file extension png. Load each png file,
+    Mount a dataset called 'panda_tiles_small', assumed to contain image files, with file extension png. Load each png file,
     convert to greyscale, and save to a separate folder.
 
     :return: None.
@@ -497,7 +497,7 @@ def main() -> None:
 
     dataset = get_or_create_dataset(workspace=workspace,
                                     datastore_name='himldatasets',
-                                    dataset_name='panda_tiles')
+                                    dataset_name='panda_tiles_small')
 
     output_folder = Path("outputs")
     output_folder.mkdir(exist_ok=True)
