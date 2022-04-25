@@ -2,8 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
+import shutil
+from typing import Generator
 import pytest
+import logging
 import numpy as np
 from pathlib import Path
 
@@ -17,15 +19,17 @@ from testhisto.mocks.slides_generator import (
     TilesPositioningType,
 )
 
-
 no_gpu = not is_gpu_available()
 
 
 @pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def mock_panda_slides_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
     tmp_root_dir = tmp_path_factory.mktemp("mock_wsi")
     wsi_generator = MockPandaSlidesGenerator(
         tmp_path=tmp_root_dir,
+        tmp_path_ds=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=1,
         n_slides=10,
@@ -35,11 +39,12 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
         n_levels=3,
         tile_size=28,
         background_val=255,
-        tiles_pos_type=TilesPositioningType.DIAGONAL
+        tiles_pos_type=TilesPositioningType.DIAGONAL,
     )
     logging.info("Generating mock whole slide images")
     wsi_generator.generate_mock_histo_data()
-    return tmp_root_dir
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")

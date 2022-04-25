@@ -66,3 +66,12 @@ def make_output_dirs_for_test() -> Path:
     remove_and_create_folder(test_output_dir)
 
     return test_output_dir
+
+
+@pytest.fixture(scope="session")
+def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    from testhisto.mocks.utils import download_azure_dataset
+    from testhisto.mocks.base_data_generator import MockHistoDataType
+    tmp_dir = tmp_path_factory.mktemp(MockHistoDataType.PATHMNIST.value)
+    download_azure_dataset(tmp_dir, dataset_id=MockHistoDataType.PATHMNIST.value)
+    return tmp_dir

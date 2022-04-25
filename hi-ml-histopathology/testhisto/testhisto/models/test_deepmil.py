@@ -130,10 +130,11 @@ def _test_lightningmodule(
 
 
 @pytest.fixture(scope="session")
-def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path) -> Path:
     tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
     tiles_generator = MockPandaTilesGenerator(
         tmp_path=tmp_root_dir,
+        tmp_path_ds=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=4,
         n_slides=10,
@@ -147,10 +148,11 @@ def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path) -> Path:
     tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
     wsi_generator = MockPandaSlidesGenerator(
         tmp_path=tmp_root_dir,
+        tmp_path_ds=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=4,
         n_slides=10,
