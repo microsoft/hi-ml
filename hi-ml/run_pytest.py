@@ -43,7 +43,7 @@ class RunPytestConfig(param.Parameterized):
         default="run_pytest", doc="The name of the AzureML experiment where the run should start."
     )
     max_run_duration: str = param.String(
-        default="30min", doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
+        default="30m", doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
         "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'"
     )
 
