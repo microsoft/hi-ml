@@ -5,11 +5,12 @@
 
 import logging
 import os
+import shutil
 import torch
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type, Tuple
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
@@ -130,7 +131,9 @@ def _test_lightningmodule(
 
 
 @pytest.fixture(scope="session")
-def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path) -> Path:
+def mock_panda_tiles_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
     tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
     tiles_generator = MockPandaTilesGenerator(
         tmp_path=tmp_root_dir,
@@ -144,11 +147,14 @@ def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory, tmp_path
     )
     logging.info("Generating mock tiles")
     tiles_generator.generate_mock_histo_data()
-    return tmp_root_dir
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path) -> Path:
+def mock_panda_slides_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
     tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
     wsi_generator = MockPandaSlidesGenerator(
         tmp_path=tmp_root_dir,
@@ -163,7 +169,8 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory, tmp_pat
         tiles_pos_type=TilesPositioningType.RANDOM
     )
     wsi_generator.generate_mock_histo_data()
-    return tmp_root_dir
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])
