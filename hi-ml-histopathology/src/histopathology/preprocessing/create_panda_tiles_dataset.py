@@ -7,7 +7,6 @@
 `create_tiles_dataset.py` is the new supported way to process slide datasets.
 """
 import functools
-import os
 import sys
 import logging
 import shutil
@@ -179,10 +178,11 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
                 tile_boxes[i],
                 slide_dir,
             )
-            tile_metadata['occupancy'] = occupancies[i]
-            tile_metadata['image'] = os.path.join(slide_dir.name, tile_metadata['image'])
-            tile_metadata['mask'] = os.path.join(slide_dir.name, tile_metadata['mask'])
-            tile_metadata['num_discarded'] = num_discarded
+            relative_slide_dir = Path(slide_dir.name)
+            tile_metadata[TileKey.OCCUPANCY] = occupancies[i]
+            tile_metadata[TileKey.IMAGE] = relative_slide_dir / tile_metadata[TileKey.IMAGE]
+            tile_metadata[TileKey.MASK] = relative_slide_dir / tile_metadata[TileKey.MASK]
+            tile_metadata[TileKey.NUM_DISCARDED] = num_discarded
             dataset_row = ','.join(str(tile_metadata[column]) for column in CSV_COLUMNS)
             dataset_csv_file.write(dataset_row + '\n')
 
