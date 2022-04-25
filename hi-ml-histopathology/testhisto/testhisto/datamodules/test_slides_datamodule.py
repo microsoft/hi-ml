@@ -29,7 +29,7 @@ def mock_panda_slides_root_dir(
     tmp_root_dir = tmp_path_factory.mktemp("mock_wsi")
     wsi_generator = MockPandaSlidesGenerator(
         tmp_path=tmp_root_dir,
-        tmp_path_ds=tmp_path_to_pathmnist_dataset,
+        src_dataset_path=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=1,
         n_slides=10,

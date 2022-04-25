@@ -51,7 +51,7 @@ class MockHistoDataGenerator:
     def __init__(
         self,
         tmp_path: Path,
-        tmp_path_ds: Optional[Path] = None,
+        src_dataset_path: Optional[Path] = None,
         mock_type: MockHistoDataType = MockHistoDataType.PATHMNIST,
         seed: int = 42,
         n_tiles: int = 1,
@@ -64,7 +64,7 @@ class MockHistoDataGenerator:
         :param tmp_path: A temporary directory to store all generated data.
             WSIMockType.PATHMNIST: for creating mock WSI by stitching tiles from pathmnist.
             WSIMockType.FAKE: for creating mock WSI by stitching fake tiles.
-        :param tmp_path_ds: An optional temporary directory where pathmnist dataset is stored.
+        :param src_dataset_path: An optional path directory where the source dataset is stored.
         :param seed: pseudorandom number generator seed to use for mocking random metadata, defaults to 42.
         :param n_tiles: how many tiles per slide to load from pathmnist dataloader, defaults to 1.
             if n_tiles > 1 WSIs are generated from different tiles in the subclass MockWSIGenerator.
@@ -74,7 +74,7 @@ class MockHistoDataGenerator:
         """
         np.random.seed(seed)
         self.tmp_path = tmp_path
-        self.tmp_path_ds = tmp_path_ds
+        self.src_dataset_path = src_dataset_path
         self.mock_type = mock_type
         self.n_tiles = n_tiles
         self.total_tiles = n_tiles
@@ -118,8 +118,8 @@ class MockHistoDataGenerator:
         :return: A TensorDataset for pathmnist tiles.
         """
         assert split in ["train", "val", "test"], "Please choose a split string among [train, val, test]"
-        assert self.tmp_path_ds is not None  # for mypy
-        npz_file = np.load(self.tmp_path_ds / f"{self.mock_type.value.lower()}.npz")
+        assert self.src_dataset_path is not None  # for mypy
+        npz_file = np.load(self.src_dataset_path / f"{self.mock_type.value.lower()}.npz")
 
         imgs = torch.Tensor(npz_file[f"{split}_images"]).permute(0, 3, 1, 2).int()
         labels = torch.Tensor(npz_file[f"{split}_labels"])
