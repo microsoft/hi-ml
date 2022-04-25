@@ -55,6 +55,7 @@ class MockHistoDataGenerator:
     def __init__(
         self,
         tmp_path: Path,
+        tmp_path_ds: Optional[Path] = None,
         mock_type: MockHistoDataType = MockHistoDataType.PATHMNIST,
         seed: int = 42,
         n_tiles: int = 1,
@@ -129,6 +130,7 @@ class MockHistoDataGenerator:
             name=self.mock_type.value, target_folder=self.tmp_path / self.mock_type.value, use_mounting=False
         )
         dataset_mount_folder = dataset.to_input_dataset_local(ws)
+        # dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
         # assert mount_ctx is not None  # for mypy
         # mount_ctx.start()
         logging.info(f"Dataset saved in {dataset_mount_folder}")
