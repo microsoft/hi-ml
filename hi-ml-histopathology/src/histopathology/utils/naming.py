@@ -30,7 +30,7 @@ class TileKey(str, Enum):
     MASK_PATH = 'mask_path'
     LABEL = 'label'
     SPLIT = 'split'
-    TILE_X = 'tile_x'
+    TILE_X = 'tile_x'  # TODO: deprecate ambiguous x and y names
     TILE_Y = 'tile_y'
     TILE_LEFT = 'left'
     TILE_TOP = 'top'
@@ -39,6 +39,7 @@ class TileKey(str, Enum):
     OCCUPANCY = 'occupancy'
     FOREGROUND_THRESHOLD = 'foreground_threshold'
     SLIDE_METADATA = 'slide_metadata'
+    NUM_DISCARDED = 'num_discarded'
 
     @staticmethod
     def from_slide_metadata_key(slide_metadata_key: str) -> str:
@@ -56,7 +57,7 @@ class ResultsKey(str, Enum):
     PRED_LABEL = 'pred_label'
     TRUE_LABEL = 'true_label'
     BAG_ATTN = 'bag_attn'
-    TILE_X = "x"
+    TILE_X = "x"  # TODO: deprecate ambiguous x and y names
     TILE_Y = "y"
 
 
