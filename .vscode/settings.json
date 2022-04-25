@@ -78,4 +78,5 @@
         "titleBar.activeBackground": "#135511",
         "titleBar.activeForeground": "#FBFAF6"
     },
+    "python.linting.mypyPath": "/home/t-kbouzid/miniconda3/envs/himl/bin/mypy",
 }
