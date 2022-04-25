@@ -294,9 +294,10 @@ if __name__ == '__main__':
         default=False,
     )
     parser.add_argument(
-        "--filter-slide",  # process only this slide
+        "--filter-slide",
         type=str,
         default="",
+        help="Process only slides whose ID contain this substring. Useful for debugging"
     )
     args = parser.parse_args()
 
