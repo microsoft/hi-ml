@@ -361,6 +361,11 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     assert_test_step(module, data_module, use_gpu)
 
 
+def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
+    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,
+                               tmp_path=mock_panda_tiles_root_dir)
+
+
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
@@ -369,14 +374,6 @@ def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tmp_path: str,
                                   request: pytest.FixtureRequest) -> None:
     _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
-
-
-@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
-                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
-def test_mock_panda_container_cpu(mock_container: BaseDeepSMILEPanda,
-                                  tmp_path: str,
-                                  request: pytest.FixtureRequest) -> None:
-    _test_mock_panda_container(use_gpu=False, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 def test_class_weights_binary() -> None:
