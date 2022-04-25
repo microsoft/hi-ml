@@ -126,12 +126,12 @@ class MockHistoDataGenerator:
             create_config_json(script_folder=self.tmp_path, shared_config_json=get_shared_config_json())
             ws = get_workspace(workspace_config_path=self.tmp_path / WORKSPACE_CONFIG_JSON)
         dataset = DatasetConfig(
-            name=self.mock_type.value, target_folder=self.tmp_path / self.mock_type.value, use_mounting=True
+            name=self.mock_type.value, target_folder=self.tmp_path / self.mock_type.value, use_mounting=False
         )
-        dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
-        assert mount_ctx is not None  # for mypy
-        mount_ctx.start()
-        logging.info(f"Dataset mounted in {dataset_mount_folder}")
+        dataset_mount_folder = dataset.to_input_dataset_local(ws)
+        # assert mount_ctx is not None  # for mypy
+        # mount_ctx.start()
+        logging.info(f"Dataset saved in {dataset_mount_folder}")
 
     def _create_pathmnist_dataset(self, split: str) -> TensorDataset:
         """Create pathmnist torch dataset from mounted dataset.
