@@ -133,7 +133,8 @@ def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
         TileKey.TILE_RIGHT.value: tile_box.x + tile_box.w,
         TileKey.TILE_BOTTOM.value: tile_box.y + tile_box.h,
     }
-    pandas_metadata = {key: slide_metadata[key] for key in PandaDataset.METADATA_COLUMNS}
+    # We add "slide_" for backward compatibility
+    pandas_metadata = {f"slide_{key}": slide_metadata[key] for key in PandaDataset.METADATA_COLUMNS}
     tile_metadata.update(pandas_metadata)
     return tile_metadata
 
