@@ -268,7 +268,7 @@ if __name__ == '__main__':
         default=1,
     )
     parser.add_argument(
-        "--size",
+        "--tile-size",
         type=int,
         default=224,
     )
@@ -278,7 +278,7 @@ if __name__ == '__main__':
         default=64,
     )
     parser.add_argument(
-        "--occupancy",
+        "--min-occupancy",
         type=float,
         default=0.05,
     )
@@ -306,9 +306,9 @@ if __name__ == '__main__':
         panda_dir=panda_dir,
         root_output_dir=args.output_dir,
         level=args.level,
-        tile_size=args.size,
+        tile_size=args.tile_size,
         margin=args.margin,
-        occupancy_threshold=args.occupancy,
+        occupancy_threshold=args.min_occupancy,
         parallel=args.parallel,
         overwrite=args.overwrite,
         filter_slide=args.filter_slide,
