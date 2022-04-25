@@ -252,10 +252,10 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument(
-        "--container-dir",
+        "--panda-dir",
         type=str,
         required=True,
-        help="Folder with the 'datasets' container",
+        help="Folder with the PANDA dataset. For example, \"/mnt/innereyedatasets/datasets/panda\"",
     )
     parser.add_argument(
         "--output-dir",
@@ -301,9 +301,8 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    panda_dir = Path(args.container_dir) / "panda"
     main(
-        panda_dir=panda_dir,
+        panda_dir=args.panda_dir,
         root_output_dir=args.output_dir,
         level=args.level,
         tile_size=args.tile_size,
