@@ -12,7 +12,7 @@ from testazure.utils_testazure import get_shared_config_json
 
 
 def download_azure_dataset(tmp_path: Path, dataset_id: str) -> None:
-    logging.info("get_workspace")
+    logging.info("Trying retrieve AML workspace via get_workspace")
     try:
         # For local dev machines: when config.json is specified at the root of repository
         ws = get_workspace()

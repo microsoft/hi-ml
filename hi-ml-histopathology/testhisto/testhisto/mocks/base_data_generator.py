@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import numpy as np
 import pandas as pd
 import torch
@@ -12,9 +11,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 from torch.utils.data import DataLoader
-from health_azure.datasets import DatasetConfig
-from health_azure.utils import WORKSPACE_CONFIG_JSON, create_config_json, get_workspace
-from testazure.utils_testazure import get_shared_config_json
 
 
 class MockHistoDataType(Enum):
@@ -114,24 +110,6 @@ class MockHistoDataGenerator:
     def generate_mock_histo_data(self) -> None:
         """Create mock histo data and save it in the corresponding format: tiff for wsi and png for tiles"""
         raise NotImplementedError
-
-    def mount_pathmnist_dataset(self) -> None:
-        logging.info("get_workspace")
-        try:
-            # For local dev machines: when config.json is specified at the root of repository
-            ws = get_workspace()
-        except ValueError:
-            # For github agents: config.json dumped from environement variables
-            create_config_json(script_folder=self.tmp_path, shared_config_json=get_shared_config_json())
-            ws = get_workspace(workspace_config_path=self.tmp_path / WORKSPACE_CONFIG_JSON)
-        dataset = DatasetConfig(
-            name=self.mock_type.value, target_folder=self.tmp_path / self.mock_type.value, use_mounting=False
-        )
-        dataset_mount_folder = dataset.to_input_dataset_local(ws)
-        # dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
-        # assert mount_ctx is not None  # for mypy
-        # mount_ctx.start()
-        logging.info(f"Dataset saved in {dataset_mount_folder}")
 
     def _create_pathmnist_dataset(self, split: str) -> TensorDataset:
         """Create pathmnist torch dataset from mounted dataset.
