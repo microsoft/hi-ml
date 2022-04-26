@@ -47,8 +47,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         root_path: Path,
         batch_size: int = 1,
         seed: Optional[int] = None,
-        train_transform: Optional[Callable] = None,
-        val_transform: Optional[Callable] = None,
+        transform: Optional[Dict[str: Callable, str: Callable, str: Callable]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
@@ -58,10 +57,9 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param batch_size: Number of slides to load per batch.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
-        :param train_transform: A transform to apply to the source tiles dataset at training time, or a composition of
-        transforms using `monai.transforms.Compose`. By default (`None`).
-        :param val_transform: A transform to apply to the source tiles dataset at validation/testing time, or a 
-        composition of transforms using `monai.transforms.Compose`. By default (`None`).
+        :param transform: A dictionary that contains transform, or a composition of transforms using
+        `monai.transforms.Compose`, to apply to the source tiles dataset at training, validation and testing time. 
+        By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
@@ -70,7 +68,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         super().__init__()
 
         self.root_path = root_path
-        self.transform = {'train': train_transform, 'val': val_transform, 'test': val_transform}
+        self.transform = transform
         self.batch_size = batch_size
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index

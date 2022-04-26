@@ -257,12 +257,14 @@ class BaseMILTiles(BaseMIL):
 
     def get_transform(self, image_key: str) -> Callable:
         if self.is_caching:
-            return Compose([
+            transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
         else:
-            return LoadTilesBatchd(image_key, progress=True)
+            transform = LoadTilesBatchd(image_key, progress=True)
+        # in case the transformations for training contain augmentations, val and test transform will be different
+        return {'train': transform, 'val': transform, 'test': transform}
 
     def get_model_encoder(self) -> TileEncoder:
         if self.is_caching:

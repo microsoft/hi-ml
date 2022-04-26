@@ -49,7 +49,7 @@ class BaseDeepSMILEPanda(BaseMIL):
 
 
 class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
-    """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeeppSMILEPanda to inherits common behaviors from both
+    """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeepSMILEPanda to inherits common behaviors from both
     tiles basemil and panda specific configuration.
 
     `is_finetune` sets the fine-tuning mode. `is_finetune` sets the fine-tuning mode. For fine-tuning,
