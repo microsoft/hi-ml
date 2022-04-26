@@ -63,7 +63,7 @@ def test_generate_slide_tiles() -> None:
         'scale': 2,
     }
 
-    min_occupancy = 0
+    min_occupancy: float = 0
     image_tiles, mask_tiles, tile_boxes, occupancies, num_discarded = generate_tiles(sample, tile_size, min_occupancy)
     assert len(image_tiles) == len(mask_tiles) == 4
     assert Box(x=0, y=4, w=4, h=4) in tile_boxes
