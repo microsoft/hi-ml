@@ -14,7 +14,13 @@ class ConfusionMatrix:
     false_positives: np.ndarray
     thresholds: np.ndarray
 
+    _validate_args: bool = True
+
     def __post_init__(self) -> None:
+        if self._validate_args:
+            self.validate()
+
+    def validate(self) -> None:
         if self.num_total < 0:
             raise ValueError(f"num_total must be > 0, got {self.num_total}")
         if self.num_positives < 0:
