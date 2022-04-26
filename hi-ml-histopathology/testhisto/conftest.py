@@ -28,6 +28,9 @@ sys.path.insert(0, str(himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
 logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
+test_himl_azure_package_root = himl_root / "hi-ml-azure" / "testazure"
+logging.info(f"Adding {str(test_himl_azure_package_root)} to path")
+sys.path.insert(0, str(test_himl_azure_package_root))
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 
 
@@ -63,3 +66,13 @@ def make_output_dirs_for_test() -> Path:
     remove_and_create_folder(test_output_dir)
 
     return test_output_dir
+
+
+@pytest.fixture(scope="session")
+def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    from testhisto.mocks.utils import download_azure_dataset
+    from testhisto.mocks.base_data_generator import MockHistoDataType
+    tmp_dir = tmp_path_factory.mktemp(MockHistoDataType.PATHMNIST.value)
+    download_azure_dataset(tmp_dir, dataset_id=MockHistoDataType.PATHMNIST.value)
+    yield tmp_dir
+    shutil.rmtree(tmp_dir)
