@@ -112,7 +112,7 @@ class MockHistoDataGenerator:
         raise NotImplementedError
 
     def _create_pathmnist_dataset(self, split: str) -> TensorDataset:
-        """Create pathmnist torch dataset from mounted dataset.
+        """Create pathmnist torch dataset from local copy of a dataset.
 
         :param split: The split subset. It takes values in ["train", "val", "test"]
         :return: A TensorDataset for pathmnist tiles.
