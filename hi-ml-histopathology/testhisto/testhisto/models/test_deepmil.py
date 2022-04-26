@@ -144,7 +144,7 @@ def mock_panda_tiles_root_dir(
         tile_size=28,
         img_size=224,
     )
-    logging.info("Generating temporary mock tiles that will be deleted at the end if the session.")
+    logging.info("Generating temporary mock tiles that will be deleted at the end of the session.")
     tiles_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
@@ -167,7 +167,7 @@ def mock_panda_slides_root_dir(
         background_val=255,
         tiles_pos_type=TilesPositioningType.RANDOM
     )
-    logging.info("Generating temporary mock slides that will be deleted at the end if the session.")
+    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
