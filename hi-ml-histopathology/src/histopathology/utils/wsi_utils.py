@@ -38,7 +38,7 @@ def GridTiling(Transform):
     def __call__(self, image: NdarrayOrTensor) -> Dict(NdarrayOrTensor, NdarrayOrTensor):
         img_np: np.ndarray
         img_np, *_ = convert_data_type(image, np.ndarray)  # type: ignore
-        generate_tiles(image_np, tile_size=self.tile_size, 
+        generate_tiles(img_np, tile_size=self.tile_size, 
         foreground_threshold=self.background_val, occupancy_threshold: self.occupancy_threshols)
         tiles, coords = tile_array_2d(img_np, self.tile_size, constant_value=self.background_val)
         array, offset = assemble_tiles_2d(tiles, coords)
