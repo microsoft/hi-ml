@@ -458,8 +458,8 @@ def wrap_run_profiling(
 
 def main() -> None:
     """
-    Mount a dataset called 'panda_tiles_small', assumed to contain image files, with file extension png. Load each png file,
-    convert to greyscale, and save to a separate folder.
+    Mount a dataset called 'panda_tiles_small', assumed to contain image files, with file extension png.
+    Load each png file, convert to greyscale, and save to a separate folder.
 
     :return: None.
     """
