@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
-import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -79,8 +78,8 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
             mock_metadata[self.GLEASON_SCORE].append(np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]]))
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(self.dest_data_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
-        return df
+        csv_filename = self.dest_data_path / PandaDataset.DEFAULT_CSV_FILENAME
+        df.to_csv(csv_filename, index=False)
 
     def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         if self.tiles_pos_type == TilesPositioningType.DIAGONAL:
@@ -186,8 +185,8 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
     def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
         iterator = iter(self.dataloader) if self.dataloader else None
-        os.makedirs(self.dest_data_path / "train_images", exist_ok=True)
-        os.makedirs(self.dest_data_path / "dump_tiles", exist_ok=True)
+        (self.dest_data_path / "train_images").mkdir(parents=True, exist_ok=True)
+        (self.dest_data_path / "dump_tiles").mkdir(parents=True, exist_ok=True)
         for slide_counter in range(self.n_slides):
             tiles, _ = next(iterator) if iterator else (None, None)
             mock_image, dump_tiles = self.create_mock_wsi(tiles)
