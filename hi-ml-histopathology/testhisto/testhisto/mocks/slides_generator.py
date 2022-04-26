@@ -185,14 +185,21 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
     def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
         iterator = iter(self.dataloader) if self.dataloader else None
-        (self.dest_data_path / "train_images").mkdir(parents=True, exist_ok=True)
-        (self.dest_data_path / "dump_tiles").mkdir(parents=True, exist_ok=True)
+
+        slide_dir = self.dest_data_path / "train_images"
+        slide_dir.mkdir(parents=True, exist_ok=True)
+        tile_dir = self.dest_data_path / "dump_tiles"
+        tile_dir.mkdir(parents=True, exist_ok=True)
+
         for slide_counter in range(self.n_slides):
+
             tiles, _ = next(iterator) if iterator else (None, None)
             mock_image, dump_tiles = self.create_mock_wsi(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(
-                self.dest_data_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels
-            )
+
+            slide_tiff_filename = self.dest_data_path / "train_images" / f"_{slide_counter}.tiff"
+            self._save_mock_wsi_as_tiff_file(slide_tiff_filename, wsi_levels)
+
             if dump_tiles is not None:
-                np.save(self.dest_data_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
+                dump_tiles_filename = self.dest_data_path / "dump_tiles" / f"_{slide_counter}.npy"
+                np.save(dump_tiles_filename, dump_tiles)
