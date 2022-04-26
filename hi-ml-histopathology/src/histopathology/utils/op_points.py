@@ -4,6 +4,8 @@ from typing import Union
 import numpy as np
 from sklearn.metrics._ranking import _binary_clf_curve
 
+from histopathology.utils.array_utils import is_sorted_1d, search_1d
+
 
 @dataclass(frozen=True)
 class ConfusionMatrix:
@@ -50,11 +52,11 @@ class ConfusionMatrix:
         if self.false_positives.shape != expected_shape:
             raise ValueError(f"Expected false_positives with shape {expected_shape}, got {self.false_positives.shape}")
 
-        if not _is_sorted(self.thresholds, ascending=False):
+        if not is_sorted_1d(self.thresholds, ascending=False):
             raise ValueError("thresholds must be in descending order")
-        if not _is_sorted(self.true_positives, ascending=True):
+        if not is_sorted_1d(self.true_positives, ascending=True):
             raise ValueError("true_positives must be in ascending order")
-        if not _is_sorted(self.false_positives, ascending=True):
+        if not is_sorted_1d(self.false_positives, ascending=True):
             raise ValueError("false_positives must be in ascending order")
 
     @staticmethod
@@ -121,27 +123,13 @@ class ConfusionMatrix:
                                thresholds=self.thresholds[index_or_slice])
 
     def at_threshold(self, threshold: float) -> 'ConfusionMatrix':
-        thr_index = _searchsorted(self.thresholds, threshold, ascending=True)
+        thr_index = search_1d(self.thresholds, threshold, ascending=True, first=True)
         return self[thr_index]
 
     def at_sensitivity(self, sens_level: float) -> 'ConfusionMatrix':
-        sens_index = _searchsorted(self.sensitivity, sens_level, ascending=True)
+        sens_index = search_1d(self.sensitivity, sens_level, ascending=True, first=True)
         return self[sens_index]
 
     def at_specificity(self, spec_level: float) -> 'ConfusionMatrix':
-        spec_index = _searchsorted(self.specificity, spec_level, ascending=False)
+        spec_index = search_1d(self.specificity, spec_level, ascending=False, first=True)
         return self[spec_index]
-
-
-def _searchsorted(array: np.ndarray, value: float, ascending: bool) -> int:
-    if ascending:
-        return np.searchsorted(array, value, side='left')  # type: ignore
-    else:
-        return len(array) - np.searchsorted(array[::-1], value, side='right')  # type: ignore
-
-
-def _is_sorted(array: np.ndarray, ascending: bool) -> bool:
-    if ascending:
-        return np.all(array[:-1] <= array[1:])  # type: ignore
-    else:
-        return np.all(array[:-1] >= array[1:])  # type: ignore
