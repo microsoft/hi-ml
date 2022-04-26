@@ -35,9 +35,9 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             f"Choose a number of tiles 0 < n_tiles <= {(self.img_size // self.tile_size)**2} "
         )
 
-    def set_tmp_path(self) -> None:
-        self.tmp_path: Path = self.tmp_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
-        os.makedirs(self.tmp_path, exist_ok=True)
+    def update_dest_data_path(self) -> None:
+        self.dest_data_path: Path = self.dest_data_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
+        os.makedirs(self.dest_data_path, exist_ok=True)
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
@@ -95,7 +95,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
                 mock_metadata[self.GLEASON_SCORE].append(gleason_score)
 
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(os.path.join(self.tmp_path, PandaTilesDataset.DEFAULT_CSV_FILENAME), index=False)
+        df.to_csv(os.path.join(self.dest_data_path, PandaTilesDataset.DEFAULT_CSV_FILENAME), index=False)
         self.total_tiles: int = tiles_count
         return df
 
@@ -104,8 +104,8 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         # to be able to create slide with different number of tiles.
         tiles, _ = next(iter(self.dataloader)) if self.dataloader else (None, None)
         for i, row in self.dataframe.iterrows():
-            slide_dir = self.tmp_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_images"
-            mask_dir = self.tmp_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_label_masks"
+            slide_dir = self.dest_data_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_images"
+            mask_dir = self.dest_data_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_label_masks"
             os.makedirs(slide_dir, exist_ok=True)
             os.makedirs(mask_dir, exist_ok=True)
 
@@ -118,6 +118,6 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             else:
                 raise NotImplementedError
 
-            save_image(tile.float(), str(self.tmp_path / row[PandaTilesDataset.IMAGE_COLUMN]))
+            save_image(tile.float(), str(self.dest_data_path / row[PandaTilesDataset.IMAGE_COLUMN]))
             random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
-            save_image(random_mask.float(), str(self.tmp_path / row[self.MASK_COLUMN]))
+            save_image(random_mask.float(), str(self.dest_data_path / row[self.MASK_COLUMN]))

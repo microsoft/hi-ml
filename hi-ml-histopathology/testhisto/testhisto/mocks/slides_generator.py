@@ -64,8 +64,6 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
 
-        self.validate()
-
     def validate(self) -> None:
         assert (
             self.n_slides >= PandaDataset.N_CLASSES
@@ -81,7 +79,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
             mock_metadata[self.GLEASON_SCORE].append(np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]]))
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(self.tmp_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
+        df.to_csv(self.dest_data_path / PandaDataset.DEFAULT_CSV_FILENAME, index=False)
         return df
 
     def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
@@ -188,12 +186,14 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
     def generate_mock_histo_data(self) -> None:
         """Create mock wsi and save them as tiff files"""
         iterator = iter(self.dataloader) if self.dataloader else None
-        os.makedirs(self.tmp_path / "train_images", exist_ok=True)
-        os.makedirs(self.tmp_path / "dump_tiles", exist_ok=True)
+        os.makedirs(self.dest_data_path / "train_images", exist_ok=True)
+        os.makedirs(self.dest_data_path / "dump_tiles", exist_ok=True)
         for slide_counter in range(self.n_slides):
             tiles, _ = next(iterator) if iterator else (None, None)
             mock_image, dump_tiles = self.create_mock_wsi(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
-            self._save_mock_wsi_as_tiff_file(self.tmp_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels)
+            self._save_mock_wsi_as_tiff_file(
+                self.dest_data_path / "train_images" / f"_{slide_counter}.tiff", wsi_levels
+            )
             if dump_tiles is not None:
-                np.save(self.tmp_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
+                np.save(self.dest_data_path / "dump_tiles" / f"_{slide_counter}.npy", dump_tiles)
