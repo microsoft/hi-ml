@@ -9,17 +9,7 @@ from health_ml.utils.box_utils import Box
 from histopathology.preprocessing.create_panda_tiles_dataset import generate_tiles
 
 
-def get_image(size):
-    shape = 3, size, size
-    return np.random.randint(0, 256, shape, np.uint8)
-
-
-def get_mask(size):
-    shape = 1, size, size
-    return np.random.randint(0, 2, shape, np.bool)
-
-
-def test_generate_slide_tiles():
+def test_generate_slide_tiles() -> None:
     image_size = 12
     bg_value = 255
     fg_value = 128
