@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 from histopathology.utils.array_utils import interp_index_1d, sliced_search_2d
-from histopathology.utils.op_points import ConfusionMatrix
+from histopathology.utils.conf_matrix import ConfusionMatrix
 
 
 def create_grid_confusion_matrix(num_total: int, num_positives: int, grid_size: int) -> ConfusionMatrix:

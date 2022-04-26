@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from histopathology.utils.op_points import ConfusionMatrix
+from histopathology.utils.conf_matrix import ConfusionMatrix
 
 
 @pytest.fixture
