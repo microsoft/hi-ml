@@ -47,7 +47,8 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         root_path: Path,
         batch_size: int = 1,
         seed: Optional[int] = None,
-        transform: Optional[Callable] = None,
+        train_transform: Optional[Callable] = None,
+        val_transform: Optional[Callable] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
@@ -57,8 +58,10 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param batch_size: Number of slides to load per batch.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
-        :param transform: A transform to apply to the source tiles dataset, or a composition of
+        :param train_transform: A transform to apply to the source tiles dataset at training time, or a composition of
         transforms using `monai.transforms.Compose`. By default (`None`).
+        :param val_transform: A transform to apply to the source tiles dataset at validation/testing time, or a 
+        composition of transforms using `monai.transforms.Compose`. By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
@@ -67,7 +70,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         super().__init__()
 
         self.root_path = root_path
-        self.transform = transform
+        self.transform = {'train': train_transform, 'val': val_transform, 'test': val_transform}
         self.batch_size = batch_size
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
@@ -188,7 +191,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             shuffle_samples=shuffle,
             generator=generator,
         )
-        transform = self.transform or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
+        transform = self.transform[stage] or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
         # Save and restore PRNG state for consistency across (pre-)caching options
         generator_state = generator.get_state()
@@ -278,7 +281,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         if self.tile_count is None:
             assert self.batch_size == 1, "batch_size > 1 not supported if tiles_count=None 'for now'"
 
-    def _load_dataset(self, slides_dataset: SlidesDataset) -> Dataset:
+    def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
         base_transform = Compose(
             [
                 LoadImaged(
@@ -302,11 +305,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 ),
             ]
         )
-        transforms = Compose([base_transform, self.transform]).flatten() if self.transform else base_transform
+        transforms = Compose([base_transform, self.transform[stage]]).flatten() if self.transform[stage] \
+            else base_transform
         return Dataset(slides_dataset, transforms)
 
-    def _get_dataloader(self, dataset: SlidesDataset, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
-        transformed_slides_dataset = self._load_dataset(dataset)
+    def _get_dataloader(self, dataset: SlidesDataset, stage: str, shuffle: bool, 
+                        **dataloader_kwargs: Any) -> DataLoader:
+        transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
         return DataLoader(
             transformed_slides_dataset,
@@ -318,10 +323,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         )
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.train_dataset, shuffle=True, stage='train', **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.val_dataset, shuffle=True, stage='val', **self.dataloader_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.test_dataset, shuffle=True, stage='test', **self.dataloader_kwargs)
