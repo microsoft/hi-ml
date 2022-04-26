@@ -1991,6 +1991,7 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
     Create a workspace config.json file exists in the folder where we expect a test script. This is either copied
     from the location given in shared_config_json (this should be the case when executing a test on a dev machine),
     or created from environment variables (this should trigger in builds on the github agents).
+    
     :param script_folder: This is the folder in which the config.json file should be created
     :param shared_config_json: Path to a shared config.json file
     """
