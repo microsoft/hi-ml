@@ -47,7 +47,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         root_path: Path,
         batch_size: int = 1,
         seed: Optional[int] = None,
-        transform: Optional[Dict[str: Callable, str: Callable, str: Callable]] = None,
+        transform: Optional[Dict[str, Callable]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
@@ -189,6 +189,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             shuffle_samples=shuffle,
             generator=generator,
         )
+        
         transform = self.transform[stage] or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
         # Save and restore PRNG state for consistency across (pre-)caching options

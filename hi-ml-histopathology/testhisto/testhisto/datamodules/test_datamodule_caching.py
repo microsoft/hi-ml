@@ -108,7 +108,7 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
         shutil.rmtree(cache_dir)
 
     return MockTilesDataModule(root_path=data_dir,
-                               transform=noop_transform,
+                               transform={'train': noop_transform, 'val': noop_transform, 'test': noop_transform},
                                seed=0,
                                batch_size=2,
                                cache_mode=cache_mode,
