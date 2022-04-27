@@ -45,7 +45,8 @@ class BaseDeepMILModule(LightningModule):
                  verbose: bool = False,
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
+                 chunk_size: int = 0) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -65,6 +66,7 @@ class BaseDeepMILModule(LightningModule):
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
+        :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
         """
         super().__init__()
 
@@ -92,6 +94,7 @@ class BaseDeepMILModule(LightningModule):
         self.is_finetune = is_finetune
 
         self.outputs_handler = outputs_handler
+        self.chunk_size = chunk_size
 
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
@@ -167,7 +170,16 @@ class BaseDeepMILModule(LightningModule):
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with set_grad_enabled(self.is_finetune):
-            instance_features = self.encoder(instances)                    # N X L x 1 x 1
+            device = next(self.encoder.parameters()).device
+            if (self.chunk_size > 0) and (instances.shape[0] > self.chunk_size):
+                embeddings = []
+                chunks = torch.split(instances, self.chunk_size)
+                for chunk in chunks:
+                    chunk_embeddings = self._encode_images(chunk, device)
+                    embeddings.append(chunk_embeddings)
+                instance_features = torch.cat(embeddings)
+            else:
+                instance_features = self.encoder(instances)                # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)
@@ -179,6 +191,13 @@ class BaseDeepMILModule(LightningModule):
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
+
+    def _encode_images(self, images: torch.Tensor, device: torch.device) -> torch.Tensor:
+        images = images.to(device)
+        embeddings = self.encoder(images)
+        del images
+        torch.cuda.empty_cache()
+        return embeddings
 
     def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
