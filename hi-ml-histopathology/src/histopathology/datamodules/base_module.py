@@ -189,8 +189,10 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             shuffle_samples=shuffle,
             generator=generator,
         )
-
-        transform = self.transform[stage] or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
+        if self.transform:
+            transform = self.transform[stage]
+        else:
+            transform = LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
         # Save and restore PRNG state for consistency across (pre-)caching options
         generator_state = generator.get_state()

@@ -11,7 +11,7 @@ from pathlib import Path
 from monai.transforms import Compose
 from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
-from typing import Any, Callable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from health_azure.utils import CheckpointDownloader, get_workspace
@@ -196,7 +196,7 @@ class BaseMIL(LightningContainer):
         dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
-    def get_transform(self, image_key: str) -> Optional[Callable]:
+    def get_transform(self, image_key: str) -> Optional[Dict[str, Callable]]:
         return None
 
     def create_model(self) -> BaseDeepMILModule:
