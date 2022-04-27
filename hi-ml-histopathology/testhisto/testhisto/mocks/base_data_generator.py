@@ -2,10 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import medmnist
 import numpy as np
 import pandas as pd
-import torchvision.transforms as transforms
+import torch
+from torch.utils.data.dataset import TensorDataset
 
 from enum import Enum
 from pathlib import Path
@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 
 
 class MockHistoDataType(Enum):
-    PATHMNIST = "pathmnist"
+    PATHMNIST = "PathMNIST"
     FAKE = "fake"
 
 
@@ -50,7 +50,8 @@ class MockHistoDataGenerator:
 
     def __init__(
         self,
-        tmp_path: Path,
+        dest_data_path: Path,
+        src_data_path: Optional[Path] = None,
         mock_type: MockHistoDataType = MockHistoDataType.PATHMNIST,
         seed: int = 42,
         n_tiles: int = 1,
@@ -59,7 +60,8 @@ class MockHistoDataGenerator:
         tile_size: int = 28,
     ) -> None:
         """
-        :param tmp_path: A temporary directory to store all generated data.
+        :param dest_data_path: A temporary directory to store all generated data.
+        :param src_data_path: An optional path directory where the source dataset is stored (e.g., pathmnist dataset).
         :param mock_type: The wsi generator mock type. Supported mock types are:
             WSIMockType.PATHMNIST: for creating mock WSI by stitching tiles from pathmnist.
             WSIMockType.FAKE: for creating mock WSI by stitching fake tiles.
@@ -71,7 +73,8 @@ class MockHistoDataGenerator:
         :param tile_size: The tile size, defaults to 28.
         """
         np.random.seed(seed)
-        self.tmp_path = tmp_path
+        self.dest_data_path = dest_data_path
+        self.src_data_path = src_data_path
         self.mock_type = mock_type
         self.n_tiles = n_tiles
         self.total_tiles = n_tiles
@@ -80,7 +83,7 @@ class MockHistoDataGenerator:
         self.tile_size = tile_size
 
         self.validate()
-        self.set_tmp_path()
+        self.update_dest_data_path()
 
         self.dataframe = self.create_mock_metadata_dataframe()
         self.dataloader = self.get_dataloader()
@@ -88,7 +91,7 @@ class MockHistoDataGenerator:
     def validate(self) -> None:
         pass
 
-    def set_tmp_path(self) -> None:
+    def update_dest_data_path(self) -> None:
         pass
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
@@ -104,15 +107,29 @@ class MockHistoDataGenerator:
         else:
             raise NotImplementedError
 
+    def generate_mock_histo_data(self) -> None:
+        """Create mock histo data and save it in the corresponding format: tiff for wsi and png for tiles"""
+        raise NotImplementedError
+
+    def _create_pathmnist_dataset(self, split: str) -> TensorDataset:
+        """Create pathmnist torch dataset from local copy of a dataset.
+
+        :param split: The split subset. It takes values in ["train", "val", "test"]
+        :return: A TensorDataset for pathmnist tiles.
+        """
+        assert split in ["train", "val", "test"], "Please choose a split string among [train, val, test]"
+        assert self.src_data_path is not None  # for mypy
+        npz_file = np.load(self.src_data_path / f"{self.mock_type.value.lower()}.npz")
+
+        imgs = torch.Tensor(npz_file[f"{split}_images"]).permute(0, 3, 1, 2).int()
+        labels = torch.Tensor(npz_file[f"{split}_labels"])
+
+        return TensorDataset(imgs, labels)
+
     def _get_pathmnist_dataloader(self) -> DataLoader:
         """Get a dataloader for pathmnist dataset. It returns tiles of shape (self.n_tiles, 3, 28, 28).
         :return: A dataloader to sample pathmnist tiles.
         """
-        info = medmnist.INFO["pathmnist"]
-        PathMNISTDataset = getattr(medmnist, info["python_class"])
-        dataset = PathMNISTDataset(split="train", transform=transforms.ToTensor(), download=True)
-        return DataLoader(dataset=dataset, batch_size=self.total_tiles, shuffle=True)
-
-    def generate_mock_histo_data(self) -> None:
-        """Create mock histo data and save it in the corresponding format: tiff for wsi and png for tiles"""
-        raise NotImplementedError
+        return DataLoader(
+            dataset=self._create_pathmnist_dataset(split="train"), batch_size=self.total_tiles, shuffle=True
+        )

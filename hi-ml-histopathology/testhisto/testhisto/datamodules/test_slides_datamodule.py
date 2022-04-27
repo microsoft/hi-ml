@@ -2,7 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import shutil
+from typing import Generator
 import pytest
+import logging
 import numpy as np
 from pathlib import Path
 
@@ -16,15 +19,17 @@ from testhisto.mocks.slides_generator import (
     TilesPositioningType,
 )
 
-
 no_gpu = not is_gpu_available()
 
 
 @pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def mock_panda_slides_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
     tmp_root_dir = tmp_path_factory.mktemp("mock_wsi")
     wsi_generator = MockPandaSlidesGenerator(
-        tmp_path=tmp_root_dir,
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=1,
         n_slides=10,
@@ -34,13 +39,15 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
         n_levels=3,
         tile_size=28,
         background_val=255,
-        tiles_pos_type=TilesPositioningType.DIAGONAL
+        tiles_pos_type=TilesPositioningType.DIAGONAL,
     )
+    logging.info("Generating mock whole slide images")
     wsi_generator.generate_mock_histo_data()
-    return tmp_root_dir
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1
@@ -67,7 +74,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
             assert (original_tile == tiles[0, i].numpy()).all()
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1
@@ -88,7 +95,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> No
         assert tiles.shape[1] >= min_expected_tile_count
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("level", [0, 1, 2])
 def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -> None:
@@ -116,7 +123,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
             assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[0, i].numpy()).all()
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
     batch_size = 1
