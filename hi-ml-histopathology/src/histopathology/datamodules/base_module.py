@@ -286,7 +286,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 LoadImaged(
                     keys=slides_dataset.IMAGE_COLUMN,
                     reader=WSIReader,
-                    backend="cucim",
+                    backend="cuCIM",
                     dtype=np.float32,
                     level=self.level,
                     image_only=True,

@@ -78,4 +78,7 @@
         "titleBar.activeBackground": "#135511",
         "titleBar.activeForeground": "#FBFAF6"
     },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
 }
