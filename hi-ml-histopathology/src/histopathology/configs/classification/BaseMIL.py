@@ -288,7 +288,8 @@ class BaseMILTiles(BaseMIL):
                                             adam_betas=self.adam_betas,
                                             is_finetune=self.is_finetune,
                                             class_names=self.class_names,
-                                            outputs_handler=outputs_handler)
+                                            outputs_handler=outputs_handler,
+                                            chunk_size=self.encoding_chunk_size)
         outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 
