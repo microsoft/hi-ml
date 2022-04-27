@@ -58,7 +58,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A dictionary that contains transform, or a composition of transforms using
-        `monai.transforms.Compose`, to apply to the source tiles dataset at training, validation and testing time. 
+        `monai.transforms.Compose`, to apply to the source tiles dataset at training, validation and testing time.
         By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
@@ -189,7 +189,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             shuffle_samples=shuffle,
             generator=generator,
         )
-        
+
         transform = self.transform[stage] or LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
         # Save and restore PRNG state for consistency across (pre-)caching options
@@ -304,11 +304,11 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 ),
             ]
         )
-        transforms = Compose([base_transform, self.transform[stage]]).flatten() if self.transform[stage] \
+        transforms = Compose([base_transform, self.transform[stage]]).flatten() if self.transform \
             else base_transform
         return Dataset(slides_dataset, transforms)
 
-    def _get_dataloader(self, dataset: SlidesDataset, stage: str, shuffle: bool, 
+    def _get_dataloader(self, dataset: SlidesDataset, stage: str, shuffle: bool,
                         **dataloader_kwargs: Any) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
