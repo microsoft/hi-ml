@@ -255,7 +255,7 @@ class BaseMILTiles(BaseMIL):
             dataloader_kwargs = super().get_dataloader_kwargs()
         return dataloader_kwargs
 
-    def get_transform(self, image_key: str) -> Callable:
+    def get_transform(self, image_key: str) -> Dict[str, Callable]:
         if self.is_caching:
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
