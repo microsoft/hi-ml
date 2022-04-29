@@ -31,7 +31,7 @@ from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, Im
                                             SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
-from histopathology.utils.naming import MetricsKey, SlideKey
+from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
 
 
 class BaseMIL(LightningContainer):
@@ -264,7 +264,7 @@ class BaseMILTiles(BaseMIL):
         else:
             transform = LoadTilesBatchd(image_key, progress=True)
         # in case the transformations for training contain augmentations, val and test transform will be different
-        return {'train': transform, 'val': transform, 'test': transform}
+        return {ModelKey.TRAIN: transform, ModelKey.VAL: transform, ModelKey.TEST: transform}
 
     def get_model_encoder(self) -> TileEncoder:
         if self.is_caching:

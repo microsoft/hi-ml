@@ -18,6 +18,7 @@ from health_ml.utils.common_utils import _create_generator
 from histopathology.utils.wsi_utils import image_collate
 from histopathology.models.transforms import LoadTilesBatchd
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
+from histopathology.utils.naming import ModelKey
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
@@ -177,7 +178,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         generator = _create_generator(self.seed)
 
-        if stage in ["val", "test"]:
+        if stage in [ModelKey.VAL, ModelKey.TEST]:
             eff_max_bag_size = self.max_bag_size_inf
         else:
             eff_max_bag_size = self.max_bag_size
@@ -221,13 +222,13 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         )
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, "train", shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.train_dataset, ModelKey.TRAIN, shuffle=True, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, "val", shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.val_dataset, ModelKey.VAL, shuffle=True, **self.dataloader_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, "test", shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.test_dataset, ModelKey.TEST, shuffle=True, **self.dataloader_kwargs)
 
 
 class SlidesDataModule(HistoDataModule[SlidesDataset]):
@@ -324,10 +325,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         )
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, shuffle=True, stage='train', **self.dataloader_kwargs)
+        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, shuffle=True, stage='val', **self.dataloader_kwargs)
+        return self._get_dataloader(self.val_dataset, shuffle=True, stage=ModelKey.VAL, **self.dataloader_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, shuffle=True, stage='test', **self.dataloader_kwargs)
+        return self._get_dataloader(self.test_dataset, shuffle=True, stage=ModelKey.TEST, **self.dataloader_kwargs)
