@@ -307,8 +307,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 ),
             ]
         )
-        transforms = Compose([base_transform, self.transform[stage]]).flatten() if self.transform \
-            else base_transform
+        if self.transform and self.transform[stage]:
+            transforms = Compose([base_transform, self.transform[stage]]).flatten()
+        else:
+            transforms = base_transform
         return Dataset(slides_dataset, transforms)
 
     def _get_dataloader(self, dataset: SlidesDataset, stage: str, shuffle: bool,

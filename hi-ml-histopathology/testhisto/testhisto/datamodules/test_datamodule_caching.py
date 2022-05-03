@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 
 from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.utils.naming import ModelKey
 
 
 def noop_transform(x: Any) -> Any:
@@ -108,7 +109,8 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
         shutil.rmtree(cache_dir)
 
     return MockTilesDataModule(root_path=data_dir,
-                               transform={'train': noop_transform, 'val': noop_transform, 'test': noop_transform},
+                               transform={ModelKey.TRAIN: noop_transform, ModelKey.VAL: noop_transform,
+                                         ModelKey.TEST: noop_transform},
                                seed=0,
                                batch_size=2,
                                cache_mode=cache_mode,
