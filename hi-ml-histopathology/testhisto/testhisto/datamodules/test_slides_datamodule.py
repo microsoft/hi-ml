@@ -165,7 +165,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
         return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}
 
-    def retrieve_tiles(dataloader) -> Dict[str: torch.Tensor]:
+    def retrieve_tiles(dataloader) -> Dict[str, torch.Tensor]:
         tiles_dict = {}
         assert_batch_index = 0
         for sample in dataloader:
