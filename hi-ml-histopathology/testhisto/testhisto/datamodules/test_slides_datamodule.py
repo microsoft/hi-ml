@@ -24,6 +24,9 @@ from testhisto.mocks.slides_generator import (
 
 no_gpu = not is_gpu_available()
 
+def get_original_tile(wsi_id):
+    return np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+
 
 @pytest.fixture(scope="session")
 def mock_panda_slides_root_dir(
@@ -73,7 +76,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly
-        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = get_original_tile(wsi_id)
         for i in range(tile_count):
             assert (original_tile == tiles[assert_batch_index, i].numpy()).all()
 
@@ -122,7 +125,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
         assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly at different resolutions
-        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = get_original_tile(wsi_id)
         for i in range(tile_count):
             # multi resolution mock data has been created via 2 factor downsampling
             assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[assert_batch_index, i].numpy()).all()
@@ -146,13 +149,15 @@ def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
         tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
         assert tiles.shape[1] >= min_expected_tile_count
 
-        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = get_original_tile(wsi_id)
         tile_matches = 0
         for _, tile in enumerate(tiles[assert_batch_index]):
             tile_matches += int((tile.numpy() == original_tile).all())
         assert tile_matches == expected_tile_matches
 
 
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
     def get_transform():
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
@@ -183,20 +188,20 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
     flip_test_tiles = retrieve_tiles(flipdatamodule.test_dataloader())
 
     for wsi_id in flip_train_tiles.keys():
-        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = get_original_tile(wsi_id)
         # the first dimension is the channel, flipping happened on the horizontal axis of the image
         transformed_original_tile = np.flip(original_tile, axis=1)
         for tile in flip_train_tiles[wsi_id]:
             assert (tile.numpy() == transformed_original_tile).all()
 
     for wsi_id in flip_val_tiles.keys():
-        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = get_original_tile(wsi_id)
         for tile in flip_val_tiles[wsi_id]:
             # no transformation has been applied to val tiles
             assert (tile.numpy() == original_tile).all()
 
     for wsi_id in flip_test_tiles.keys():
-        original_tile = np.load(mock_panda_slides_root_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
+        original_tile = get_original_tile(wsi_id)
         for tile in flip_test_tiles[wsi_id]:
             # no transformation has been applied to test tiles
             assert (tile.numpy() == original_tile).all()
