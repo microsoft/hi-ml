@@ -161,9 +161,9 @@ def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
-    def get_transform() -> Dict[str, Optional[Callable]]:
+    def get_transform() -> Dict[str, Callable]:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
-        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}
+        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}  # noqa
 
     def retrieve_tiles(dataloader) -> Dict[str, torch.Tensor]:
         tiles_dict = {}
