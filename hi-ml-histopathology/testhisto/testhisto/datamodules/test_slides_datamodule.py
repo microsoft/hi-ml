@@ -5,7 +5,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from typing import Generator, Dict, Callable
+from typing import Generator, Dict, Callable, Optional
 import pytest
 import logging
 import numpy as np
@@ -51,7 +51,7 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-def get_original_tile(mock_dir, wsi_id) -> np.ndarray:
+def get_original_tile(mock_dir: str, wsi_id: str) -> np.ndarray:
     return np.load(mock_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
 
 
@@ -161,9 +161,9 @@ def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
-    def get_transform() -> Dict[str, Callable]:
+    def get_transform() -> Dict[str, Optional[Callable]]:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
-        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}
+        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}  # noqa
 
     def retrieve_tiles(dataloader) -> Dict[str, torch.Tensor]:
         tiles_dict = {}
