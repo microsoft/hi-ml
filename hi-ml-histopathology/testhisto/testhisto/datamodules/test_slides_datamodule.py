@@ -5,10 +5,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from typing import Generator, Dict
+from typing import Generator, Dict, Callable
 import pytest
 import logging
 import numpy as np
+import torch
 from pathlib import Path
 from monai.transforms import RandFlipd
 
@@ -50,7 +51,7 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-def get_original_tile(mock_dir, wsi_id) -> np.array:
+def get_original_tile(mock_dir, wsi_id) -> np.ndarray:
     return np.load(mock_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
 
 
@@ -160,11 +161,11 @@ def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
-    def get_transform() -> Dict:
+    def get_transform() -> Dict[str, Callable]:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
         return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}
 
-    def retrieve_tiles(dataloader) -> Dict:
+    def retrieve_tiles(dataloader) -> Dict[str: torch.Tensor]:
         tiles_dict = {}
         assert_batch_index = 0
         for sample in dataloader:
