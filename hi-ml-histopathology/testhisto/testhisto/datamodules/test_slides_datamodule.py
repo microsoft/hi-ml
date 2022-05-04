@@ -5,7 +5,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from typing import Generator, Dict, Callable, Optional
+from typing import Generator, Dict, Callable
 import pytest
 import logging
 import numpy as np
@@ -51,7 +51,7 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-def get_original_tile(mock_dir: str, wsi_id: str) -> np.ndarray:
+def get_original_tile(mock_dir: Path, wsi_id: str) -> np.ndarray:
     return np.load(mock_dir / "dump_tiles" / f"{wsi_id}.npy")[0]
 
 
@@ -161,7 +161,7 @@ def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
-    def get_transform() -> Dict[str, Callable]:
+    def get_transforms_dict() -> Dict[ModelKey, Callable]:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
         return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}  # noqa
 
@@ -183,7 +183,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         tile_count=tile_count,
         tile_size=tile_size,
         level=level,
-        transform=get_transform(),
+        transforms_dict=get_transforms_dict(),
     )
     flip_train_tiles = retrieve_tiles(flipdatamodule.train_dataloader())
     flip_val_tiles = retrieve_tiles(flipdatamodule.val_dataloader())

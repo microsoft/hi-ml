@@ -48,7 +48,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         root_path: Path,
         batch_size: int = 1,
         seed: Optional[int] = None,
-        transform: Optional[Dict[str, Callable]] = None,
+        transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
@@ -58,8 +58,8 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param batch_size: Number of slides to load per batch.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
-        :param transform: A dictionary that contains transform, or a composition of transforms using
-        `monai.transforms.Compose`, to apply to the source tiles dataset at training, validation and testing time.
+        :param transforms_dict: A dictionary that contains transform, or a composition of transforms using
+        `monai.transforms.Compose`, to apply to the source dataset at training, validation and testing time.
         By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
@@ -69,7 +69,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         super().__init__()
 
         self.root_path = root_path
-        self.transform = transform
+        self.transforms_dict = transforms_dict
         self.batch_size = batch_size
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
@@ -190,8 +190,8 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             shuffle_samples=shuffle,
             generator=generator,
         )
-        if self.transform:
-            transform = self.transform[stage]
+        if self.transforms_dict and self.transforms_dict[stage]:
+            transform = self.transforms_dict[stage]
         else:
             transform = LoadTilesBatchd(tiles_dataset.IMAGE_COLUMN)
 
@@ -307,7 +307,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 ),
             ]
         )
-        if self.transform and self.transform[stage]:
+        if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transform[stage]]).flatten()
         else:
             transforms = base_transform

@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -151,9 +151,8 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.F1: F1(threshold=threshold),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
 
-    def log_metrics(self,
-                    stage: str) -> None:
-        valid_stages = ['train', 'test', 'val']
+    def log_metrics(self, stage: str) -> None:
+        valid_stages = [stage for stage in ModelKey]
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
@@ -244,33 +243,33 @@ class BaseDeepMILModule(LightningModule):
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
-        train_result = self._shared_step(batch, batch_idx, 'train')
+        train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
         self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        self.log_metrics('train')
+        self.log_metrics(ModelKey.TRAIN)
         return train_result[ResultsKey.LOSS]
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        val_result = self._shared_step(batch, batch_idx, 'val')
+        val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics('val')
+        self.log_metrics(ModelKey.VAL)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        test_result = self._shared_step(batch, batch_idx, 'test')
+        test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics('test')
+        self.log_metrics(ModelKey.TEST)
         return test_result
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
-                metrics_dict=self.get_metrics_dict('val'),  # type: ignore
+                metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0
             )
