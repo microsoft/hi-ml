@@ -43,6 +43,9 @@
       "hi-ml-azure/": true,
       "hi-ml-histopathology/": true,
     },
+    // The settings below are shared across all projects.
+    // When making changes here, please ensure they are kept in sync
+    // across all projects and the workspace configuration.
     "autoDocstring.docstringFormat": "sphinx-notypes",
     "fileHeaderComment.parameter": {
       "*": {
@@ -62,7 +65,6 @@
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
       "--max-line-length=120",
-      "--rcfile=${workspaceFolder}/.vscode/.pylintrc"
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [

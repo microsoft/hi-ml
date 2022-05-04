@@ -1,4 +1,7 @@
 {
+    // The settings below are shared across all projects.
+    // When making changes here, please ensure they are kept in sync
+    // across all projects and the workspace configuration.
     "autoDocstring.docstringFormat": "sphinx-notypes",
     "fileHeaderComment.parameter": {
       "*": {
@@ -17,8 +20,7 @@
     },
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
-      "--max-line-length=80",
-      "--rcfile=${workspaceFolder}/../.vscode/.pylintrc"
+      "--max-line-length=120",
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
@@ -42,6 +44,8 @@
         120
       ],
     },
+    // The settings below are specific to this project,
+    // and may override settings in the workspace configuration.
     "python.linting.mypyEnabled": true,
     "python.linting.mypyArgs": [
         "--config-file=${workspaceFolder}/../.config/mypy.ini"
