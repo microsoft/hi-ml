@@ -139,9 +139,9 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
     def prepare_data(self) -> None:
         if self.precache_location != CacheLocation.NONE:
-            self._load_dataset(self.train_dataset, stage="train", shuffle=True)
-            self._load_dataset(self.val_dataset, stage="val", shuffle=True)
-            self._load_dataset(self.test_dataset, stage="test", shuffle=True)
+            self._load_dataset(self.train_dataset, stage=ModelKey.TRAIN, shuffle=True)
+            self._load_dataset(self.val_dataset, stage=ModelKey.VAL, shuffle=True)
+            self._load_dataset(self.test_dataset, stage=ModelKey.TEST, shuffle=True)
 
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
@@ -162,7 +162,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             dataset = Dataset(dataset, transform)  # type: ignore
         return dataset
 
-    def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
+    def _load_dataset(self, tiles_dataset: TilesDataset, stage: ModelKey, shuffle: bool) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
@@ -208,7 +208,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         return transformed_bag_dataset
 
-    def _get_dataloader(self, dataset: TilesDataset, stage: str, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
+    def _get_dataloader(self, dataset: TilesDataset, stage: ModelKey, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
@@ -283,7 +283,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         if self.tile_count is None:
             assert self.batch_size == 1, "batch_size > 1 not supported if tiles_count=None 'for now'"
 
-    def _load_dataset(self, slides_dataset: SlidesDataset, stage: str) -> Dataset:
+    def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
             [
                 LoadImaged(
