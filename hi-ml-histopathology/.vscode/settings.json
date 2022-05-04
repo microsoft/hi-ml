@@ -1,6 +1,7 @@
 {
+    "python.linting.mypyEnabled": true,
     "python.linting.mypyArgs": [
-        "--config-file=${workspaceFolder}/mypy.ini"
+        "--config-file=${workspaceFolder}/../.config/mypy.ini"
     ],
     "python.sortImports.args": [
         "-l=120",

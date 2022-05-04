@@ -1,6 +1,50 @@
 {
+    "autoDocstring.docstringFormat": "sphinx-notypes",
+    "fileHeaderComment.parameter": {
+      "*": {
+        "line": "-------------------------------------------------------------------------------------------",
+        "commentprefix": "#",
+        "company": "Microsoft Corporation"
+      }
+    },
+    "fileHeaderComment.template": {
+      "*": [
+        "${commentprefix}  ${line}",
+        "${commentprefix}  Copyright (c) ${company}. All rights reserved.",
+        "${commentprefix}  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.",
+        "${commentprefix}  ${line}"
+      ]
+    },
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+      "--max-line-length=80",
+      "--rcfile=${workspaceFolder}/../.vscode/.pylintrc"
+    ],
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+      "--config=${workspaceFolder}/../.config/flake8.ini",
+    ],
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.pycodestyleArgs": [
+      "--max-line-length=120",
+      "--show-source",
+      "--show-pep8"
+    ],
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+      "--line-length=120"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "rewrap.autoWrap.enabled": true,
+    "[python]": {
+      "editor.rulers": [
+        120
+      ],
+    },
+    "python.linting.mypyEnabled": true,
     "python.linting.mypyArgs": [
-        "--config-file=${workspaceFolder}/mypy.ini"
+        "--config-file=${workspaceFolder}/../.config/mypy.ini"
     ],
     "python.sortImports.args": [
         "-l=120",

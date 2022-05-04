@@ -46,7 +46,7 @@ build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
 call_flake8:
-	flake8 --count --statistics --config=../.flake8 .
+	flake8 --count --statistics --config=../.config/flake8.ini .
 
 # pip install test requirements and run flake8
 flake8: pip_test call_flake8
