@@ -208,7 +208,8 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         return transformed_bag_dataset
 
-    def _get_dataloader(self, dataset: TilesDataset, stage: ModelKey, shuffle: bool, **dataloader_kwargs: Any) -> DataLoader:
+    def _get_dataloader(self, dataset: TilesDataset, stage: ModelKey, shuffle: bool,
+                        **dataloader_kwargs: Any) -> DataLoader:
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
@@ -313,7 +314,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             transforms = base_transform
         return Dataset(slides_dataset, transforms)
 
-    def _get_dataloader(self, dataset: SlidesDataset, stage: str, shuffle: bool,
+    def _get_dataloader(self, dataset: SlidesDataset, stage: ModelKey, shuffle: bool,
                         **dataloader_kwargs: Any) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
