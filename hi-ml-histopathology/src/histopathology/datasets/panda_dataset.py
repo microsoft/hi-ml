@@ -2,17 +2,30 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
+import shutil
 import logging
+import tempfile
+import functools
+import multiprocessing
 from pathlib import Path
 from typing import Any, Dict, Union, Optional
 
+import torch
+import torchvision
+import numpy as np
 import pandas as pd
+from PIL import Image
+from tqdm import tqdm
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
 from monai.transforms import MapTransform
 
 from health_ml.utils import box_utils
+from health_ml.utils.type_annotations import TupleInt3
 
+from histopathology.utils.naming import SlideKey
+from histopathology.utils.viz_utils import add_text
 from histopathology.datasets.base_dataset import SlidesDataset
 
 try:
@@ -48,6 +61,125 @@ class PandaDataset(SlidesDataset):
         self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + slide_ids + ".tiff"
         self.dataset_df[self.MASK_COLUMN] = "train_label_masks/" + slide_ids + "_mask.tiff"
         self.validate_columns()
+
+    def _make_thumbnail(
+            self,
+            sample: dict,
+            reader: WSIReader,
+            level: int,
+            slide_size: int,
+            images_dir: Path,
+            masks_dir: Optional[Path] = None,
+            image_suffix: str = '.png',
+            default_mask_color: TupleInt3 = (119, 161, 120),
+            ) -> None:  # noqa: E123
+        slide_id = sample[SlideKey.SLIDE_ID]
+        image_pil = self.load_slide_as_pil(reader, sample, SlideKey.IMAGE, level=level)
+        image_pil = image_pil.resize(slide_size)
+        add_text(image_pil, slide_id)
+        if masks_dir is not None:
+            try:
+                mask_pil = self.load_slide_as_pil(reader, sample, SlideKey.MASK, level=level)
+                mask_pil = mask_pil.resize(slide_size, Image.NEAREST)
+                mask_pil = Image.fromarray(np.asarray(mask_pil) * 255)  # for visualization
+            except ValueError:
+                mask_pil = Image.new("RGB", slide_size, default_mask_color)
+            finally:
+                mask_path = masks_dir / f"{slide_id}.png"
+                mask_pil.save(mask_path)
+        image_path = images_dir / f"{slide_id}{image_suffix}"
+        image_pil.save(image_path)
+
+    def make_thumbnails(
+            self,
+            slide_size: int,
+            images_dir: Path,
+            level: int,
+            masks_dir: Optional[Path] = None,
+            parallel: bool = True,
+            image_suffix: str = '.png',
+            ) -> None:  # noqa: E123
+        images_dir.mkdir(exist_ok=True, parents=True)
+        if masks_dir is not None:
+            masks_dir.mkdir(exist_ok=True)
+        reader = WSIReader(backend="cucim")
+        func = functools.partial(
+            self._make_thumbnail,
+            reader=reader,
+            level=level,
+            slide_size=slide_size,
+            images_dir=images_dir,
+            masks_dir=masks_dir,
+            image_suffix=image_suffix,
+        )
+        if parallel:
+            pool = multiprocessing.Pool()
+            map_func = pool.imap_unordered  # type: ignore
+        else:
+            map_func = map  # type: ignore
+        progress = tqdm(map_func(func, self), total=len(self))
+        list(progress)  # type: ignore
+
+        if parallel:
+            pool.close()
+
+    @staticmethod
+    def make_montage_from_dir(
+            images_dir: Path,
+            num_cols: int,
+            masks_dir: Optional[Path] = None,
+            image_suffix: str = '.png',
+            ) -> Image:  # noqa: E123
+        image_paths = sorted(images_dir.glob(f'*{image_suffix}'))
+        images_arrays = []
+        for image_path in tqdm(image_paths):
+            image_pil = Image.open(image_path)
+            images_arrays.append(np.asarray(image_pil))
+        images_array = np.asarray(images_arrays)
+        if masks_dir is not None:
+            mask_paths = sorted(masks_dir.glob('*.png'))
+            masks_arrays = []
+            for mask_path in tqdm(mask_paths):
+                mask_pil = Image.open(mask_path)
+                masks_arrays.append(np.asarray(mask_pil))
+            masks_array = np.asarray(masks_arrays)
+            images_array = np.concatenate((images_array, masks_array), axis=-2)
+        images_tensor = torch.from_numpy(images_array).permute(0, 3, 1, 2)
+        grid_tensor = torchvision.utils.make_grid(images_tensor, nrow=num_cols)
+        grid_pil = torchvision.transforms.ToPILImage()(grid_tensor)
+        return grid_pil
+
+    def make_montage(
+            self,
+            out_path: Path,
+            width: int = 60_000,
+            level: int = 2,
+            image_suffix: str = '.png',
+            masks: bool = True,
+            temp_dir: Optional[Path] = None,
+            cleanup: bool = False,
+            ) -> None:  # noqa: E123
+        # There might be some blanks at the bottom right
+        # rows * cols <= N
+        # We are going to stack the slides and their masks slide by side, so we need 2 * cols
+        # 2 * cols / rows = 16 / 9; rows = 2 * cols * 9 / 16
+        # cols * 2 * cols * 9 / 16 <= N; cols <= (N / 2 * 16 / 9)**(1 / 2)
+        num_slides = len(self)
+        multiplier = 2 if masks else 1
+        num_cols = int(np.sqrt(num_slides / multiplier * 16 / 9))
+        slide_width = (width // num_cols) // multiplier
+        slide_size = slide_width, slide_width
+        temp_dir = tempfile.mkdtemp() if temp_dir is None else temp_dir
+        print("Temporary directory:", str(temp_dir))
+        temp_dir = Path(temp_dir)
+        images_dir = temp_dir / "images"
+        masks_dir = temp_dir / "masks" if masks else None
+        if not temp_dir.is_dir():
+            self.make_thumbnails(slide_size, images_dir, level, masks_dir=masks_dir, image_suffix=image_suffix)
+        montage_pil = self.make_montage_from_dir(images_dir, num_cols, masks_dir=masks_dir, image_suffix=image_suffix)
+        montage_pil.save(out_path)
+        if cleanup:
+            shutil.rmtree(temp_dir)
 
 
 # MONAI's convention is that dictionary transforms have a 'd' suffix in the class name
