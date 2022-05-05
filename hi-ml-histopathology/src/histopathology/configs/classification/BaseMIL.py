@@ -55,6 +55,11 @@ class BaseMIL(LightningContainer):
 
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
+    primary_val_metric: MetricsKey = param.ClassSelector(default=MetricsKey.AUROC, class_=MetricsKey,
+                                                         doc="Primary validation metric to track for checkpointing and "
+                                                             "generating outputs.")
+    maximise_primary_metric: bool = param.ClassSelector(True, doc="Whether the primary validation metric should be "
+                                                                  "maximised (otherwise minimised).")
 
     # Encoder parameters:
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
@@ -143,8 +148,8 @@ class BaseMIL(LightningContainer):
                                      tile_size=self.tile_size,
                                      level=1,
                                      class_names=self.class_names,
-                                     primary_val_metric=MetricsKey.AUROC,
-                                     maximise=True)
+                                     primary_val_metric=self.primary_val_metric,
+                                     maximise=self.maximise_primary_metric)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder
@@ -156,10 +161,10 @@ class BaseMIL(LightningContainer):
     def get_callbacks(self) -> List[Callback]:
         return [*super().get_callbacks(),
                 ModelCheckpoint(dirpath=self.checkpoint_folder,
-                                monitor="val/auroc",
+                                monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
                                 filename=self.best_checkpoint_filename,
                                 auto_insert_metric_name=False,
-                                mode="max")]
+                                mode="max" if self.maximise_primary_metric else "min")]
 
     def get_checkpoint_to_test(self) -> Path:
         """
