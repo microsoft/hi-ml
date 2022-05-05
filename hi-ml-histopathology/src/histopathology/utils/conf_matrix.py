@@ -48,6 +48,7 @@ class ConfusionMatrix:
             return
 
         # Additional checks for array-valued fields
+        # TODO: Enable more dimensions?
         num_thresholds = len(self.thresholds)
         expected_shape = (num_thresholds,)
         if self.thresholds.shape != expected_shape:
@@ -69,11 +70,7 @@ class ConfusionMatrix:
         num_total: int = true_labels.shape[0]
         num_positives: int = true_labels.sum()
 
-        fps, tps, thr = _binary_clf_curve(true_labels, pred_scores)
-        # Append endpoints to complete the curves
-        true_positives: np.ndarray = np.r_[0, tps]
-        false_positives: np.ndarray = np.r_[0, fps]
-        thresholds: np.ndarray = np.r_[thr[0], thr]
+        false_positives, true_positives, thresholds = _binary_clf_curve(true_labels, pred_scores)
         return ConfusionMatrix(num_total=num_total,
                                num_positives=num_positives,
                                true_positives=true_positives,
