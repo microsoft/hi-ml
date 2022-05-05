@@ -70,3 +70,9 @@ class MetricsKey(str, Enum):
     PRECISION = 'precision'
     RECALL = 'recall'
     F1 = 'f1score'
+
+
+class ModelKey(str, Enum):
+    TRAIN = 'train'
+    VAL = 'val'
+    TEST = 'test'
