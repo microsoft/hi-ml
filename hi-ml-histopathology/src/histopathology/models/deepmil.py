@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -45,7 +45,8 @@ class BaseDeepMILModule(LightningModule):
                  verbose: bool = False,
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
+                 chunk_size: int = 0) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -65,6 +66,7 @@ class BaseDeepMILModule(LightningModule):
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
+        :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
         """
         super().__init__()
 
@@ -92,6 +94,7 @@ class BaseDeepMILModule(LightningModule):
         self.is_finetune = is_finetune
 
         self.outputs_handler = outputs_handler
+        self.chunk_size = chunk_size
 
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
@@ -151,9 +154,8 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.F1: F1(threshold=threshold),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
 
-    def log_metrics(self,
-                    stage: str) -> None:
-        valid_stages = ['train', 'test', 'val']
+    def log_metrics(self, stage: str) -> None:
+        valid_stages = [stage for stage in ModelKey]
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
@@ -166,8 +168,17 @@ class BaseDeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        with set_grad_enabled(self.is_finetune):
-            instance_features = self.encoder(instances)                    # N X L x 1 x 1
+        should_enable_encoder_grad = torch.is_grad_enabled() and self.is_finetune
+        with set_grad_enabled(should_enable_encoder_grad):
+            if self.chunk_size > 0:
+                embeddings = []
+                chunks = torch.split(instances, self.chunk_size)
+                for chunk in chunks:
+                    chunk_embeddings = self.encoder(chunk)
+                    embeddings.append(chunk_embeddings)
+                instance_features = torch.cat(embeddings)
+            else:
+                instance_features = self.encoder(instances)                # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)
@@ -244,33 +255,33 @@ class BaseDeepMILModule(LightningModule):
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
-        train_result = self._shared_step(batch, batch_idx, 'train')
+        train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
         self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        self.log_metrics('train')
+        self.log_metrics(ModelKey.TRAIN)
         return train_result[ResultsKey.LOSS]
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        val_result = self._shared_step(batch, batch_idx, 'val')
+        val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics('val')
+        self.log_metrics(ModelKey.VAL)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        test_result = self._shared_step(batch, batch_idx, 'test')
+        test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics('test')
+        self.log_metrics(ModelKey.TEST)
         return test_result
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
-                metrics_dict=self.get_metrics_dict('val'),  # type: ignore
+                metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0
             )

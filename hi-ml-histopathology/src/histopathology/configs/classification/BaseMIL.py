@@ -11,7 +11,7 @@ from pathlib import Path
 from monai.transforms import Compose
 from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
-from typing import Any, Callable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from health_azure.utils import CheckpointDownloader, get_workspace
@@ -31,7 +31,7 @@ from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, Im
                                             SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
-from histopathology.utils.naming import MetricsKey, SlideKey
+from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
 
 
 class BaseMIL(LightningContainer):
@@ -196,7 +196,7 @@ class BaseMIL(LightningContainer):
         dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
-    def get_transform(self, image_key: str) -> Optional[Callable]:
+    def get_transforms_dict(self, image_key: str) -> Optional[Dict[ModelKey, Union[Callable, None]]]:
         return None
 
     def create_model(self) -> BaseDeepMILModule:
@@ -255,14 +255,16 @@ class BaseMILTiles(BaseMIL):
             dataloader_kwargs = super().get_dataloader_kwargs()
         return dataloader_kwargs
 
-    def get_transform(self, image_key: str) -> Callable:
+    def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
-            return Compose([
+            transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
             ])
         else:
-            return LoadTilesBatchd(image_key, progress=True)
+            transform = LoadTilesBatchd(image_key, progress=True)
+        # in case the transformations for training contain augmentations, val and test transform will be different
+        return {ModelKey.TRAIN: transform, ModelKey.VAL: transform, ModelKey.TEST: transform}
 
     def get_model_encoder(self) -> TileEncoder:
         if self.is_caching:
@@ -288,7 +290,8 @@ class BaseMILTiles(BaseMIL):
                                             adam_betas=self.adam_betas,
                                             is_finetune=self.is_finetune,
                                             class_names=self.class_names,
-                                            outputs_handler=outputs_handler)
+                                            outputs_handler=outputs_handler,
+                                            chunk_size=self.encoding_chunk_size)
         outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 

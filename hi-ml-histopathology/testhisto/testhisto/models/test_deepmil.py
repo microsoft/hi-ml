@@ -2,13 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import logging
 import os
+import shutil
 import torch
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type, Tuple
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
@@ -129,10 +130,13 @@ def _test_lightningmodule(
 
 
 @pytest.fixture(scope="session")
-def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def mock_panda_tiles_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
     tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
     tiles_generator = MockPandaTilesGenerator(
-        tmp_path=tmp_root_dir,
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=4,
         n_slides=10,
@@ -140,15 +144,20 @@ def mock_panda_tiles_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
         tile_size=28,
         img_size=224,
     )
+    logging.info("Generating temporary mock tiles that will be deleted at the end of the session.")
     tiles_generator.generate_mock_histo_data()
-    return tmp_root_dir
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def mock_panda_slides_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
     tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
     wsi_generator = MockPandaSlidesGenerator(
-        tmp_path=tmp_root_dir,
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=4,
         n_slides=10,
@@ -158,8 +167,10 @@ def mock_panda_slides_root_dir(tmp_path_factory: pytest.TempPathFactory) -> Path
         background_val=255,
         tiles_pos_type=TilesPositioningType.RANDOM
     )
+    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()
-    return tmp_root_dir
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])
@@ -359,7 +370,12 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     assert_test_step(module, data_module, use_gpu)
 
 
-@pytest.mark.skipif(no_gpu or True, reason="Test requires GPU | hot-fix: pathmnist link is down")
+def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
+    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,
+                               tmp_path=mock_panda_tiles_root_dir)
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
@@ -367,15 +383,6 @@ def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tmp_path: str,
                                   request: pytest.FixtureRequest) -> None:
     _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
-
-
-@pytest.mark.skipif(True, reason="hot-fix: pathmnist link is down")
-@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
-                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
-def test_mock_panda_container_cpu(mock_container: BaseDeepSMILEPanda,
-                                  tmp_path: str,
-                                  request: pytest.FixtureRequest) -> None:
-    _test_mock_panda_container(use_gpu=False, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 def test_class_weights_binary() -> None:

@@ -62,6 +62,9 @@
         "${commentprefix}  ${line}"
       ]
     },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
       "--max-line-length=120",
