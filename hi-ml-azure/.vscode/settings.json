@@ -26,6 +26,7 @@
       "--max-line-length=120"
     ],
     "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": true,
     "python.linting.pycodestyleEnabled": false,
     "python.linting.pycodestyleArgs": [
       "--max-line-length=120",
@@ -47,7 +48,6 @@
     },
     // The settings below are specific to this project,
     // and may override settings in the workspace configuration.
-    "python.linting.mypyEnabled": true,
     "python.sortImports.args": [
         "-l=120",
         "--src=${workspaceFolder}/src"
