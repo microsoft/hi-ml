@@ -244,7 +244,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         elif isinstance(_p, param.String):
             p_type = str
         elif isinstance(_p, param.List):
-            p_type = lambda x: [_p.class_(item) for item in x.split(",")]
+            p_type = lambda x: [_p.class_(item) for item in x.split(",") if item]
         elif isinstance(_p, param.NumericTuple):
             float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
             p_type = lambda x: tuple([float_or_int(item) for item in x.split(",")])
