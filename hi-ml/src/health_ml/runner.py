@@ -278,7 +278,7 @@ class Runner:
                     experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
                     input_datasets=input_datasets,  # type: ignore
                     num_nodes=self.experiment_config.num_nodes,
-                    wait_for_completion=False,
+                    wait_for_completion=self.experiment_config.wait_for_completion,
                     ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
