@@ -70,13 +70,7 @@
       "--max-line-length=120",
     ],
     "python.linting.flake8Enabled": true,
-    "python.linting.flake8Args": [
-      "--config=${workspaceFolder}/../.config/flake8.ini",
-    ],
     "python.linting.mypyEnabled": true,
-    "python.linting.mypyArgs": [
-      "--config-file=${workspaceFolder}/../.config/mypy.ini"
-    ],
     "python.linting.pycodestyleEnabled": false,
     "python.linting.pycodestyleArgs": [
       "--max-line-length=120",
