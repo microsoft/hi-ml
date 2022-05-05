@@ -717,7 +717,7 @@ def test_merge_conda_pip_include2(random_folder: Path) -> None:
     Tests the logic to exclude PIP include statements from Conda environments, on the root level environment file.
     """
     if paths.is_himl_used_from_git_repo():
-        root_yaml = paths.git_repo_root_folder() / paths.ENVIRONMENT_YAML_FILE_NAME
+        root_yaml = paths.shared_himl_conda_env_file()
         requirements = paths.git_repo_root_folder() / "hi-ml-azure" / "run_requirements.txt"
         merged_file2 = random_folder / "merged2.yml"
         util.merge_conda_files([root_yaml], merged_file2, pip_files=[requirements])
@@ -737,7 +737,7 @@ def test_pip_include_1() -> None:
     file in the repository.
     """
     if paths.is_himl_used_from_git_repo():
-        yaml = paths.git_repo_root_folder() / "hi-ml" / paths.ENVIRONMENT_YAML_FILE_NAME
+        yaml = paths.shared_himl_conda_env_file()
         assert yaml.is_file()
         original_yaml = conda_merge.read_file(yaml)
         # At the time of writing, the top-level environment file only had 4 include statements in the pip
