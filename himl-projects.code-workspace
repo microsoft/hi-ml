@@ -87,6 +87,7 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "rewrap.autoWrap.enabled": true,
+    "rewrap.wrappingColumn": 120,
     "[python]": {
       "editor.rulers": [
         120
