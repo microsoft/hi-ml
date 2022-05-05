@@ -57,9 +57,9 @@
     "${workspaceFolder}/testhiml/testhiml"
   ],
   "python.analysis.extraPaths": [
-    "./hi-ml-azure/src",
-    "./hi-ml-azure/testazure",
-    "./hi-ml/src",
-    "./hi-ml/testhiml"
+    "${workspaceFolder}/../hi-ml-azure/src",
+    "${workspaceFolder}/../hi-ml-azure/testazure",
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/testhiml"
   ]
 }

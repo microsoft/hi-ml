@@ -39,5 +39,16 @@
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "Setup hi-ml package",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup.py",
+            "args": [
+                "sdist",
+                "bdist_wheel"
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

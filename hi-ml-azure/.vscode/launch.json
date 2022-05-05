@@ -29,18 +29,6 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Setup hi-ml package",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/hi-ml/setup.py",
-            "cwd": "${workspaceFolder}/hi-ml/",
-            "args": [
-                "sdist",
-                "bdist_wheel"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
             "name": "HI-ML-AZURE Make Tests",
             "type": "python",
             "request": "launch",
@@ -52,8 +40,8 @@
             "name": "Example Hyperdrive run in AzureML",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/docs/source/examples/8/sample.py",
-            "cwd": "${workspaceFolder}/docs/source/examples/8/",
+            "program": "${workspaceFolder}/../docs/source/examples/8/sample.py",
+            "cwd": "${workspaceFolder}/../docs/source/examples/8/",
             "args": [
                 "--azureml"
             ],

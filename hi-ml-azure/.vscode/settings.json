@@ -56,12 +56,7 @@
         "${workspaceFolder}/testazure/testazure"
     ],
     "python.analysis.extraPaths": [
-        "./hi-ml-azure/src",
-        "./hi-ml-azure/testazure"
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/testazure"
     ],
-    "workbench.colorCustomizations": {
-      "activityBar.background": "#5D091F",
-      "titleBar.activeBackground": "#830D2B",
-      "titleBar.activeForeground": "#FFFCFC"
-    }
  }
