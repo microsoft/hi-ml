@@ -11,15 +11,10 @@ Reference:
 - Schirris (2021). DeepSMILE: Self-supervised heterogeneity-aware multiple instance learning for DNA
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
-import os
 from typing import Any
 from pathlib import Path
-from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
-from health_azure.utils import CheckpointDownloader
-from health_azure import get_workspace
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from health_ml.utils import fixed_paths
 
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
@@ -29,11 +24,11 @@ from histopathology.models.encoders import (
     ImageNetSimCLREncoder,
     SSLEncoder,
 )
-from histopathology.configs.classification.BaseMIL import BaseMIL
+from histopathology.configs.classification.BaseMIL import BaseMILTiles
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 
 
-class DeepSMILECrck(BaseMIL):
+class DeepSMILECrck(BaseMILTiles):
     def __init__(self, **kwargs: Any) -> None:
         # Define dictionary with default params that can be overridden from subclasses or CLI
         default_kwargs = dict(
@@ -59,39 +54,10 @@ class DeepSMILECrck(BaseMIL):
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
-        self.best_checkpoint_filename = "checkpoint_max_val_auroc"
-        self.best_checkpoint_filename_with_suffix = (
-            self.best_checkpoint_filename + ".ckpt"
-        )
-        self.checkpoint_folder_path = "outputs/checkpoints/"
-
-        best_checkpoint_callback = ModelCheckpoint(
-            dirpath=self.checkpoint_folder_path,
-            monitor="val/auroc",
-            filename=self.best_checkpoint_filename,
-            auto_insert_metric_name=False,
-            mode="max",
-        )
-        self.callbacks = best_checkpoint_callback
-
-    @property
-    def cache_dir(self) -> Path:
-        return Path(
-            f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
-        )
-
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
-            self.downloader = CheckpointDownloader(
-                aml_workspace=get_workspace(),
-                run_id=innereye_ssl_checkpoint_crck_4ws,
-                checkpoint_filename="last.ckpt",
-                download_dir="outputs/",
-                remote_checkpoint_dir=Path("outputs/checkpoints")
-            )
-            os.chdir(fixed_paths.repository_root_directory().parent)
-            self.downloader.download_checkpoint_if_necessary()
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_crck_4ws)
         super().setup()
 
     def get_data_module(self) -> TilesDataModule:
@@ -100,7 +66,7 @@ class DeepSMILECrck(BaseMIL):
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            transform=self.get_transform(TcgaCrck_TilesDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(TcgaCrck_TilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,

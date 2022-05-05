@@ -122,15 +122,8 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path == expected_ckpt_path
 
-    actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoints_to_test()
-    assert actual_test_ckpt_path == [expected_ckpt_path]
-    assert actual_test_ckpt_path[0].exists()
+    actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoint_to_test()
+    assert actual_test_ckpt_path == expected_ckpt_path
+    assert actual_test_ckpt_path.is_file()
     # After training, the outputs directory should now exist and contain the 2 error files
     assert _expected_files_exist()
-
-    # if no checkpoint handler, no checkpoint paths will be saved and these are required for
-    # inference so ValueError will be raised
-    with pytest.raises(ValueError) as e:
-        ml_runner_with_container.checkpoint_handler = None  # type: ignore
-        ml_runner_with_container.run()
-        assert "expects exactly 1 checkpoint for inference, but got 0" in str(e)

@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -12,7 +11,7 @@ import torch
 from torchvision.utils import save_image
 
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
-from testhisto.mocks.base_data_generator import MockHistoDataGenerator
+from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 
 class MockPandaTilesGenerator(MockHistoDataGenerator):
@@ -25,6 +24,8 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         """
         self.img_size = img_size
         super().__init__(**kwargs)
+
+    def validate(self) -> None:
         assert (
             self.n_slides >= PandaTilesDataset.N_CLASSES
         ), f"The number of slides should be >= N_CLASSES (i.e., {PandaTilesDataset.N_CLASSES})"
@@ -33,9 +34,9 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             f"Choose a number of tiles 0 < n_tiles <= {(self.img_size // self.tile_size)**2} "
         )
 
-    def set_tmp_path(self) -> None:
-        self.tmp_path: Path = self.tmp_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
-        os.makedirs(self.tmp_path, exist_ok=True)
+    def update_dest_data_path(self) -> None:
+        self.dest_data_path: Path = self.dest_data_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
+        self.dest_data_path.mkdir(parents=True, exist_ok=True)
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
@@ -55,12 +56,10 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
 
         n_tiles_side = self.img_size // self.tile_size
         total_n_tiles = n_tiles_side ** 2
+        tiles_count = 0
 
         # This is to make sure that the dataset contains at least one sample from each isup grade class.
-        isup_grades = np.tile(
-            list(self.ISUP_GRADE_MAPPING.keys()),
-            self.n_slides // PandaTilesDataset.N_CLASSES + 1,
-        )
+        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaTilesDataset.N_CLASSES + 1,)
 
         for slide_id in range(self.n_slides):
 
@@ -68,9 +67,11 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             isup_grade = isup_grades[slide_id]
             gleason_score = np.random.choice(self.ISUP_GRADE_MAPPING[isup_grade])
 
-            # pick a random n_tiles for each slide
-            n_tiles = np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2)
+            # pick a random n_tiles for each slide without exceeding the max n_tiles allowed
+            max_n_tiles = (self.img_size // self.tile_size) ** 2
+            n_tiles: int = min(np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), max_n_tiles)
 
+            tiles_count += n_tiles
             coords = [
                 (k // n_tiles_side, k % n_tiles_side)
                 for k in np.random.choice(total_n_tiles, size=n_tiles, replace=False)
@@ -93,18 +94,32 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
                 mock_metadata[self.GLEASON_SCORE].append(gleason_score)
 
         df = pd.DataFrame(data=mock_metadata)
-        df.to_csv(os.path.join(self.tmp_path, PandaTilesDataset.DEFAULT_CSV_FILENAME), index=False)
+        csv_filename = self.dest_data_path / PandaTilesDataset.DEFAULT_CSV_FILENAME
+        df.to_csv(csv_filename, index=False)
+        self.total_tiles: int = tiles_count
         return df
 
     def generate_mock_histo_data(self) -> None:
-        iterator = iter(self.dataloader) if self.dataloader else None
-        for _, row in self.dataframe.iterrows():
-            slide_dir = self.tmp_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_images"
-            mask_dir = self.tmp_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_label_masks"
-            os.makedirs(slide_dir, exist_ok=True)
-            os.makedirs(mask_dir, exist_ok=True)
-            tiles, _ = next(iterator) if iterator else (None, None)
-            for tile in tiles:
-                save_image(tile * 255, str(self.tmp_path / row[PandaTilesDataset.IMAGE_COLUMN]))
-                random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
-                save_image(random_mask.float(), str(self.tmp_path / row[self.MASK_COLUMN]))
+        # we retrieve all tiles at once, n_tiles updated l.100 to be used as a global batch_size for the dataloader
+        # to be able to create slide with different number of tiles.
+        tiles, _ = next(iter(self.dataloader)) if self.dataloader else (None, None)
+        for i, row in self.dataframe.iterrows():
+            slide_dir = self.dest_data_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_images"
+            mask_dir = self.dest_data_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_label_masks"
+            slide_dir.mkdir(parents=True, exist_ok=True)
+            mask_dir.mkdir(parents=True, exist_ok=True)
+
+            if self.mock_type == MockHistoDataType.PATHMNIST:
+                tile = tiles[i]
+            elif self.mock_type == MockHistoDataType.FAKE:
+                tile = torch.full(
+                    fill_value=np.random.uniform(0, 255), size=(self.n_channels, self.tile_size, self.tile_size)
+                )
+            else:
+                raise NotImplementedError
+
+            tile_filename = self.dest_data_path / row[PandaTilesDataset.IMAGE_COLUMN]
+            save_image(tile.float(), tile_filename)
+            random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
+            mask_filename = self.dest_data_path / row[self.MASK_COLUMN]
+            save_image(random_mask.float(), mask_filename)
