@@ -66,7 +66,7 @@ class DeepSMILECrck(BaseMILTiles):
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            transform=self.get_transform(TcgaCrck_TilesDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(TcgaCrck_TilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
