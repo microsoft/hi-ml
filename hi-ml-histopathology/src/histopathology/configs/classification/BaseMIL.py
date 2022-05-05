@@ -58,8 +58,8 @@ class BaseMIL(LightningContainer):
     primary_val_metric: MetricsKey = param.ClassSelector(default=MetricsKey.AUROC, class_=MetricsKey,
                                                          doc="Primary validation metric to track for checkpointing and "
                                                              "generating outputs.")
-    maximise_primary_metric: bool = param.ClassSelector(True, doc="Whether the primary validation metric should be "
-                                                                  "maximised (otherwise minimised).")
+    maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
+                                                            "maximised (otherwise minimised).")
 
     # Encoder parameters:
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
