@@ -20,11 +20,11 @@
     },
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
-      "--max-line-length=120",
+      "--max-line-length=120"
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
-      "--config=${workspaceFolder}/../.config/flake8.ini",
+      "--config=${workspaceFolder}/../.config/flake8.ini"
     ],
     "python.linting.pycodestyleEnabled": false,
     "python.linting.pycodestyleArgs": [
@@ -42,7 +42,7 @@
     "[python]": {
       "editor.rulers": [
         120
-      ],
+      ]
     },
     // The settings below are specific to this project,
     // and may override settings in the workspace configuration.
@@ -52,19 +52,19 @@
     ],
     "python.sortImports.args": [
         "-l=120",
-        "--src=${workspaceFolder}/hi-ml-azure/src",
+        "--src=${workspaceFolder}/src"
     ],
     "python.testing.pytestArgs": [
-        "${workspaceFolder}/hi-ml-azure/testazure/testazure",
+        "${workspaceFolder}/testazure/testazure"
     ],
     "python.analysis.extraPaths": [
         "./hi-ml-azure/src",
-        "./hi-ml-azure/testazure",
+        "./hi-ml-azure/testazure"
     ],
     "workbench.colorCustomizations": {
       "activityBar.background": "#5D091F",
       "titleBar.activeBackground": "#830D2B",
       "titleBar.activeForeground": "#FFFCFC"
-    },
+    }
  }
  
