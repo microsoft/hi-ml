@@ -1894,24 +1894,21 @@ def test_argparse_usage(capsys: CaptureFixture) -> None:
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("args, expected_key, expected_value, expected_pass", [
-    (["--strings=[]"], "strings", ['[]'], True),
-    (["--strings=['']"], "strings", ["['']"], True),
-    (["--strings=None"], "strings", ['None'], True),
-    (["--strings='None'"], "strings", ["'None'"], True),
-    (["--strings=','"], "strings", ["'", "'"], True),
-    (["--strings=''"], "strings", ["''"], True),
-    (["--strings=,"], "strings", [], True),
-    (["--strings="], "strings", [], True),
-    (["--integers="], "integers", [], True),
-    (["--floats="], "floats", [], True)])
+@pytest.mark.parametrize("args, expected_key, expected_value", [
+    (["--strings=[]"], "strings", ['[]']),
+    (["--strings=['']"], "strings", ["['']"]),
+    (["--strings=None"], "strings", ['None']),
+    (["--strings='None'"], "strings", ["'None'"]),
+    (["--strings=','"], "strings", ["'", "'"]),
+    (["--strings=''"], "strings", ["''"]),
+    (["--strings=,"], "strings", []),
+    (["--strings="], "strings", []),
+    (["--integers="], "integers", []),
+    (["--floats="], "floats", [])])
 def test_override_list(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                       args: List[str], expected_key: str, expected_value: Any, expected_pass: bool) -> None:
+                       args: List[str], expected_key: str, expected_value: Any) -> None:
     """Test different options of overriding a non-empty list parameter to get an empty list"""
-    if expected_pass:
-        check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
-    else:
-        check_parsing_fails(parameterized_config_and_parser, args)
+    check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
 
 
 def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
