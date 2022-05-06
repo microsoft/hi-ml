@@ -1704,6 +1704,7 @@ class ParamClass(param.Parameterized):
     readonly: str = param.String("Nope", readonly=True)
     _non_override: str = param.String("Nope")
     constant: str = param.String("Nope", constant=True)
+    strings: List[str] = param.List(default=['some_string'], class_=str)
     other_args = util.ListOrDictParam(None, doc="List or dictionary of other args")
 
     def validate(self) -> None:
@@ -1755,7 +1756,7 @@ def test_get_overridable_parameter(parameterized_config_and_parser: Tuple[ParamC
     assert "int_tuple" in param_dict
     assert "enum" in param_dict
     assert "other_args" in param_dict
-
+    assert "strings" in param_dict
     assert "readonly" not in param_dict
     assert "_non_override" not in param_dict
     assert "constant" not in param_dict
@@ -1775,6 +1776,7 @@ def test_parser_defaults(parameterized_config_and_parser: Tuple[ParamClass, Argu
     assert defaults["enum"] == ParamEnum.EnumValue1
     assert not defaults["flag"]
     assert defaults["not_flag"]
+    assert defaults["strings"] == ['some_string']
     assert "readonly" not in defaults
     assert "constant" not in defaults
     assert "_non_override" not in defaults
@@ -1889,6 +1891,24 @@ def test_argparse_usage(capsys: CaptureFixture) -> None:
     assert "usage: my_usage" in stdout
     assert "my_description" in stdout
     assert "my_epilog" in stdout
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("args, expected_key, expected_value", [
+    (["--strings=[]"], "strings", ['[]']),
+    (["--strings=['']"], "strings", ["['']"]),
+    (["--strings=None"], "strings", ['None']),
+    (["--strings='None'"], "strings", ["'None'"]),
+    (["--strings=','"], "strings", ["'", "'"]),
+    (["--strings=''"], "strings", ["''"]),
+    (["--strings=,"], "strings", []),
+    (["--strings="], "strings", []),
+    (["--integers="], "integers", []),
+    (["--floats="], "floats", [])])
+def test_override_list(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                       args: List[str], expected_key: str, expected_value: Any) -> None:
+    """Test different options of overriding a non-empty list parameter to get an empty list"""
+    check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
 
 
 def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
