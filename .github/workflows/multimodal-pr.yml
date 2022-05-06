@@ -1,0 +1,199 @@
+name: Multimodal PR Workflow
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "multimodal/**"
+
+env:
+  pythonVersion: 3.7
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  HIML_DIST_ARTIFACT_SUFFIX: '-dist'
+  HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
+  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  HIML_COV_DOT_ARTIFACT_SUFFIX: '-code_coverage_report_dot'
+  HIML_COV_HTML_ARTIFACT_SUFFIX: '-code_coverage_report_html'
+  HIML_COV_TXT_ARTIFACT_SUFFIX: '-code_coverage_txt'
+  HIML_COV_XML_ARTIFACT_SUFFIX: '-code_coverage_xml'
+
+jobs:
+
+  flake8:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: flake8
+        run: make flake8
+
+  mypy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: mypy
+        run: make mypy
+
+  pyright:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: conda-incubator/setup-miniconda@v2
+      - name: pyright
+        shell: bash -l {0}
+        run: |
+          conda info
+          make pyright
+
+  pytest:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install hi-ml-azure in editable mode
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Install hi-ml in editable mode
+        run: |
+          cd hi-ml
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Test with pytest
+        run: |
+          cd multimodal
+
+          # Install local package in editable mode
+          make pip_local
+
+          # Run fast tests
+          make pytest
+
+      - name: Run GPU tests
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=multimodal/environment.yml --folder=multimodal --experiment="$branch_name_without_prefix"
+
+  build-python:
+    runs-on: ubuntu-18.04
+    needs: [ pytest ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Build Distribution
+        run: |
+          cd multimodal
+          make build
+
+      - name: Upload package artifacts
+        uses: ./.github/actions/upload_package_artifacts
+        with:
+          folder: multimodal
+
+  publish-testpypi-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ build-python ]
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: multimodal
+
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_TOKEN_MULTIMODAL }}
+          packages_dir: multimodal/dist/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+
+      - name: Show published TestPyPI package version
+        run: |
+          echo "Install this package version via:"
+          echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
+
+  publish-pypi-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ build-python ]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: multimodal
+
+      - name: Set envs
+        run: |
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "PYPI_TOKEN=${{ secrets.PYPI_TOKEN }}" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "PYPI_TOKEN=${{ secrets.PYPI_AZURE_TOKEN }}" >> $GITHUB_ENV
+          fi
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN_MULTIMODAL }}
+          packages_dir: multimodal/dist/

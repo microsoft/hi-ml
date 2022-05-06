@@ -1,0 +1,9 @@
+.config
+.git
+.github
+.idea
+.mypy_cache
+.pytest_cache
+.vscode
+docs
+node_modules
