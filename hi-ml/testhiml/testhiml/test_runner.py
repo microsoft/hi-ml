@@ -2,9 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from contextlib import contextmanager
+import shutil
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Generator, List, Optional
 from unittest import mock
 from unittest.mock import patch, MagicMock
 
@@ -13,18 +15,33 @@ from _pytest.capture import SysCapture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
+from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from health_ml.utils.common_utils import change_working_directory
+from health_ml.utils.fixed_paths import repository_root_directory
 
 
 @pytest.fixture
 def mock_runner(tmp_path: Path) -> Runner:
+    """A test fixture that creates a Runner object in a temporary folder.
+    """
 
     return Runner(project_root=tmp_path)
+
+
+@contextmanager
+def change_working_folder_and_add_environment(tmp_path: Path) -> Generator:
+    # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
+    # start in that temp folder.
+    env_file = repository_root_directory() / "hi-ml" / "testhiml" / ENVIRONMENT_YAML_FILE_NAME
+    shutil.copy(env_file, tmp_path)
+    with change_working_directory(tmp_path):
+        yield
 
 
 @pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
@@ -182,22 +199,25 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     crossval_count = 2
     arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
-    with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-        with patch("health_ml.runner.get_workspace"):
-            with patch.object(sys, "argv", arguments):
-                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                    mock_runner.run()
-        mock_run_in_situ.assert_called_once()
-        mock_submit_to_aml.assert_called_once()
-        # call_args is a tuple of (args, kwargs)
-        call_kwargs = mock_submit_to_aml.call_args[1]
-        # Submission to AzureML should have been turned on because a cluster name was supplied
-        assert mock_runner.experiment_config.azureml
-        assert call_kwargs["submit_to_azureml"]
-        # Check details of the Hyperdrive config
-        hyperdrive_config = call_kwargs["hyperdrive_config"]
-        parameter_space = hyperdrive_config._generator_config["parameter_space"]
-        assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+    # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
+    # start in that temp folder.
+    with change_working_folder_and_add_environment(mock_runner.project_root):
+        with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
+            with patch("health_ml.runner.get_workspace"):
+                with patch.object(sys, "argv", arguments):
+                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                        mock_runner.run()
+            mock_run_in_situ.assert_called_once()
+            mock_submit_to_aml.assert_called_once()
+            # call_args is a tuple of (args, kwargs)
+            call_kwargs = mock_submit_to_aml.call_args[1]
+            # Submission to AzureML should have been turned on because a cluster name was supplied
+            assert mock_runner.experiment_config.azureml
+            assert call_kwargs["submit_to_azureml"]
+            # Check details of the Hyperdrive config
+            hyperdrive_config = call_kwargs["hyperdrive_config"]
+            parameter_space = hyperdrive_config._generator_config["parameter_space"]
+            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
 
 
 def test_submit_to_azure_docker(mock_runner: Runner) -> None:
@@ -207,18 +227,21 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     docker_shm_size = "100k"
     arguments = ["", f"--model={model_name}", "--cluster=foo", f"--docker_shm_size={docker_shm_size}"]
-    with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-        with patch("health_ml.runner.get_workspace"):
-            with patch.object(sys, "argv", arguments):
-                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                    mock_runner.run()
-        mock_run_in_situ.assert_called_once()
-        mock_submit_to_aml.assert_called_once()
-        # call_args is a tuple of (args, kwargs)
-        call_kwargs = mock_submit_to_aml.call_args[1]
-        # Submission to AzureML should have been turned on because a cluster name was supplied
-        assert mock_runner.experiment_config.docker_shm_size == docker_shm_size
-        assert call_kwargs["docker_shm_size"] == docker_shm_size
+    # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
+    # start in that temp folder.
+    with change_working_folder_and_add_environment(mock_runner.project_root):
+        with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
+            with patch("health_ml.runner.get_workspace"):
+                with patch.object(sys, "argv", arguments):
+                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                        mock_runner.run()
+            mock_run_in_situ.assert_called_once()
+            mock_submit_to_aml.assert_called_once()
+            # call_args is a tuple of (args, kwargs)
+            call_kwargs = mock_submit_to_aml.call_args[1]
+            # Submission to AzureML should have been turned on because a cluster name was supplied
+            assert mock_runner.experiment_config.docker_shm_size == docker_shm_size
+            assert call_kwargs["docker_shm_size"] == docker_shm_size
 
 
 def test_runner_help(mock_runner: Runner, capsys: SysCapture) -> None:

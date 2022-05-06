@@ -46,3 +46,12 @@ def git_repo_root_folder() -> Path:
         raise ValueError("This function can only be used if the HI-ML package is used directly from the git repo.")
     current_file = Path(__file__).resolve()
     return current_file.parent.parent.parent.parent
+
+
+def shared_himl_conda_env_file() -> Path:
+    """
+    Returns the path to the Conda environment file in the hi-ml project folder.
+
+    :return: Path to the Conda environment file in the hi-ml project folder
+    """
+    return git_repo_root_folder() / "hi-ml" / ENVIRONMENT_YAML_FILE_NAME

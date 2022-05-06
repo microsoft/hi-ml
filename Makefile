@@ -2,7 +2,7 @@
 
 # Create a Conda environment for use with both the hi-ml and hi-ml-azure folder
 env:
-	conda env create --file environment.yml
+	conda env create --file hi-ml/environment.yml
 
 # Make commands that are used in the build pipeline
 
@@ -40,7 +40,7 @@ pip: pip_build pip_test call_pip_local
 
 # update current conda environment
 conda_update:
-	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml
+	conda env update -n $(CONDA_DEFAULT_ENV) --file hi-ml/environment.yml
 
 # Set the conda environment for local development work, that contains all packages need for hi-ml, hi-ml-azure
 # and hi-ml-histopathology with hi-ml and hi-ml-azure installed in editable mode

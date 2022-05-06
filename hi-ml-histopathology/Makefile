@@ -51,17 +51,17 @@ clean:
 
 # run flake8, assuming test requirements already installed
 call_flake8:
-	flake8 --count --statistics --config=../.flake8 .
+	flake8 --count --statistics .
 
 # pip install test requirements and run flake8
 flake8: pip_test call_flake8
 
 # run mypy, assuming test requirements already installed
 call_mypy:
-	mypy --config=../mypy.ini --install-types --non-interactive -p histopathology
-	mypy --config=../mypy.ini --install-types --non-interactive -p SSL
-	mypy --config=../mypy.ini --install-types --non-interactive -p testhisto
-	mypy --config=../mypy.ini --install-types --non-interactive -p testSSL
+	mypy --install-types --non-interactive -p histopathology
+	mypy --install-types --non-interactive -p SSL
+	mypy --install-types --non-interactive -p testhisto
+	mypy --install-types --non-interactive -p testSSL
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
