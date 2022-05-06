@@ -1,28 +1,23 @@
-# call make for parent
-define call_parent
-	cd .. && $(MAKE) $(1)
-endef
-
 ## Package management
 
 # pip upgrade
 pip_upgrade:
-	$(call call_parent,pip_upgrade)
+	python -m pip install --upgrade pip
 
 # pip upgrade and install build requirements
-pip_build:
-	$(call call_parent,pip_build)
+pip_build: pip_upgrade
+	pip install -r requirements_build.txt
 
 # pip upgrade and install test requirements
-pip_test:
-	$(call call_parent,pip_test)
+pip_test: pip_upgrade
+	pip install -r requirements_test.txt
 
 # pip install local package in editable mode for development and testing
 pip_local:
 	pip install -e .
 
 # pip install everything for local development and testing
-pip: pip_upgrade pip_build pip_test pip_local
+pip: pip_build pip_test pip_local
 
 ## Actions
 
@@ -50,9 +45,6 @@ mypy:
 
 # run basic checks
 check: flake8 mypy
-
-# install test requirements and run basic checks
-check: call_check
 
 # run pytest on package, assuming test requirements already installed
 pytest:
