@@ -43,9 +43,6 @@ mypy:
 	mypy --install-types --non-interactive -p health_multimodal
 	mypy --install-types --non-interactive -p test_multimodal
 
-# run basic checks
-check: flake8 mypy
-
 # run pytest on package, assuming test requirements already installed
 pytest:
 	pytest test_multimodal
@@ -57,3 +54,6 @@ pyright_install:
 # conda install test requirements and run pyright
 pyright:
 	pyright
+
+# run basic checks
+check: flake8 mypy pyright

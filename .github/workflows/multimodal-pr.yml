@@ -121,6 +121,7 @@ jobs:
           make pip_local
 
           # Run tests
+          make pip_test
           make pytest
 
       - name: Run GPU tests

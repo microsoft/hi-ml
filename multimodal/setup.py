@@ -13,7 +13,7 @@ import os
 from math import floor
 import pathlib
 from random import random
-from setuptools import find_namespace_packages, setup, find_packages  # type: ignore
+from setuptools import find_namespace_packages, setup  # type: ignore
 
 
 here = pathlib.Path(__file__).parent.resolve()
