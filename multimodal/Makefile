@@ -49,3 +49,11 @@ check: flake8 mypy
 # run pytest on package, assuming test requirements already installed
 pytest:
 	pytest test_multimodal
+
+# Install pyright
+pyright_install:
+	npm install -g pyright
+
+# conda install test requirements and run pyright
+pyright:
+	pyright

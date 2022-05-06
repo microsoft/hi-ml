@@ -84,6 +84,7 @@ jobs:
         run: |
           conda info
           cd ${{ env.folder }}
+          make pyright_install
           make pyright
 
   pytest:
