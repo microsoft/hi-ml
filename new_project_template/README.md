@@ -8,6 +8,7 @@ To use it:
 * In the new location, rename the folders `health_multimodal` and `test_multimodal` to be the desired Python namespaces
 * Search for all occurences of `multimodal` and replace with the desired project name. Don't use a simple query/replace
   strategy but do check the context!
+* Copy the workflow definition `new-project-pr.yml` to `.github/workflows` and give it a name that matches the project.
 
 ## Developer setup
 
