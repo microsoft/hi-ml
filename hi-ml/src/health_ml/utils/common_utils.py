@@ -259,7 +259,7 @@ def check_conda_environments(env_files: List[Path]) -> None:
     if paths.is_himl_used_from_git_repo():
         repo_root_yaml: Path = paths.shared_himl_conda_env_file()
     else:
-        repo_root_yaml = None
+        repo_root_yaml = None  # type: ignore
     for file in env_files:
         has_pip_include, _ = is_conda_file_with_pip_include(file)
         # PIP include statements are only valid when reading from the repository root YAML file, because we

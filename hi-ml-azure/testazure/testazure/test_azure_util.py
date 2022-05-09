@@ -62,7 +62,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         found_file_path = util.find_file_in_parent_folders(
             file_name=current_file_path.name,
             stop_at_path=[himl_az_root]
-         )
+        )
         last_caplog_msg = caplog.messages[-1]
         assert found_file_path == current_file_path
         assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
@@ -70,28 +70,27 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         # Now try to search for a nonexistent path in the same folder. This should return None
         nonexistent_path = himl_az_root / "idontexist.py"
         assert not nonexistent_path.is_file()
-        assert  util.find_file_in_parent_folders(
+        assert util.find_file_in_parent_folders(
             file_name=nonexistent_path.name,
             stop_at_path=[himl_az_root]
-         ) is None
+        ) is None
 
         # Try to find the first path (i.e. current file name) when starting in a different folder.
         # This should not work
-        assert  util.find_file_in_parent_folders(
+        assert util.find_file_in_parent_folders(
             file_name=current_file_path.name,
             stop_at_path=[himl_az_root],
             start_at_path=himl_az_root
-         ) is None
-
+        ) is None
 
     # Try to find the first path (i.e. current file name) when current working directory is not the testazure
     # folder. This should not work
     with patch("health_azure.utils.Path.cwd", return_value=himl_az_root):
         assert not (himl_az_root / current_file_path.name).is_file()
-        assert  util.find_file_in_parent_folders(
+        assert util.find_file_in_parent_folders(
             file_name=current_file_path.name,
             stop_at_path=[himl_az_root.parent]
-         ) is None
+        ) is None
 
 
 @pytest.mark.fast

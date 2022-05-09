@@ -102,29 +102,29 @@ def test_check_conda_environments(temp_env_path: Path) -> None:
             # Pass a non-empty list and mock the rturn value of is_conda_file_with_pip_include
             with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(True, None)):
                 with pytest.raises(ValueError) as e:
-                    check_conda_environments(['some_path'])
+                    check_conda_environments([Path('some_path')])
                     assert "uses '-r' to reference pip requirements" in str(e)
 
         # If the file that we pass is the same as the return value of shared_himl_conda_env_file
         # an error will not be raised
-        with patch("health_azure.paths.shared_himl_conda_env_file", return_value='some_path'):
+        with patch("health_azure.paths.shared_himl_conda_env_file", return_value=Path('some_path')):
             with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(True, None)):
-                check_conda_environments(['some_path'])
+                check_conda_environments([Path('some_path')])
 
         # If not is_conda_is_conda_file_with_pip_include, excpect nothing to happen
         with patch("health_azure.paths.shared_himl_conda_env_file", return_value=temp_env_path):
             with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(False, None)):
-                check_conda_environments(['some_path'])
+                check_conda_environments([Path('some_path')])
 
     # Now check cases where is_himl_used_from_git_repo is False:
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=False):
         # If not is_conda_is_conda_file_with_pip_include, excpect nothing to happen
         with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(False, None)):
             check_conda_environments([])
-            check_conda_environments(['some_path'])
+            check_conda_environments([Path('some_path')])
 
         # If is_conda_is_conda_file_with_pip_include=True, expect a ValueError to be raised
         with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(True, None)):
             with pytest.raises(ValueError) as e:
-                check_conda_environments(['some_path'])
+                check_conda_environments([Path('some_path')])
                 assert "uses '-r' to reference pip requirements" in str(e)
