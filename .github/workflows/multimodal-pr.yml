@@ -124,12 +124,12 @@ jobs:
           make pip_test
           make pytest
 
-      - name: Run GPU tests
-        run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=multimodal/environment.yml --folder=${{ env.folder }} --experiment="$branch_name_without_prefix"
+      #- name: Run GPU tests
+      #  run: |
+      #    branch_prefix="refs/heads/"
+      #    full_branch_name=$GITHUB_REF
+      #    branch_name_without_prefix=${full_branch_name#$branch_prefix}
+      #    python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=multimodal/environment.yml --folder=${{ env.folder }} --experiment="$branch_name_without_prefix"
 
   build-python:
     runs-on: ubuntu-18.04
