@@ -53,18 +53,19 @@ if not version:
         default_random_version_number = floor(random() * 10_000_000_000)
         version = f'99.99.post{str(default_random_version_number)}'
 
-(here / 'package_name.txt').write_text('hi-ml-multimodal')
+package_name = 'hi-ml-multimodal'
+(here / 'package_name.txt').write_text(package_name)
 (here / 'latest_version.txt').write_text(version)
 
 # Read run_requirements.txt to get install_requires
-install_requires = (here / 'run_requirements.txt').read_text().split("\n")
+install_requires = (here / 'requirements_run.txt').read_text().split("\n")
 # Remove any whitespace and blank lines
 install_requires = [line.strip() for line in install_requires if line.strip()]
 
 description = 'Microsoft Health Intelligence package to work with multi-modal health data'
 
 setup(
-    name='hi-ml-multimodal',
+    name=package_name,
     version=version,
     description=description,
     long_description=long_description,
