@@ -15,9 +15,7 @@ from typing import Any, Generator, Iterable, List, Optional, Union
 
 import torch
 from torch.nn import Module
-from health_azure import utils
 from health_azure import paths
-from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
 
@@ -213,31 +211,33 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
 
 def get_all_environment_files(project_root: Path, additional_files: Optional[List[Path]] = None) -> List[Path]:
     """
-    Returns a list of all Conda environment files that should be used. This is just an
-    environment.yml file that lives at the project root folder, plus any additional files provided in the model.
+    Returns a list of all Conda environment files that should be used, comprised of the default conda environment
+    definition file, plus any additional files specified in the input. If hi-ml has been downloaded from the
+    git repo or installed as a git submodule, the default environment definition file exists in hi-ml/hi-ml.
+    Otherwise, looks for a default environment file in project root folder.
 
     :param project_root: The root folder of the code that starts the present training run.
     :param additional_files: Optional list of additional environment files to merge
     :return: A list of Conda environment files to use.
     """
     env_files = []
-    project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
     if paths.is_himl_used_from_git_repo():
-        logging.info("Searching for Conda files in the parent folders")
-        git_repo_root = paths.git_repo_root_folder()
-        env_file = utils.find_file_in_parent_folders(
-            file_name=paths.ENVIRONMENT_YAML_FILE_NAME, stop_at_path=[git_repo_root]
-        )
-        if env_file is None:
+        env_file = paths.shared_himl_conda_env_file()
+        if env_file is None or not env_file.exists():
             # Searching for Conda file starts at current working directory, meaning it might not find
             # the file if cwd is outside the git repo
-            env_file = git_repo_root / paths.ENVIRONMENT_YAML_FILE_NAME
-            assert env_file.is_file(), "Expected to find at least the environment definition file at repo root"
+            env_file = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
+            assert env_file.is_file(), f"Didn't find an environment file at {env_file}"
+
         logging.info(f"Using Conda environment in {env_file}")
         env_files.append(env_file)
-    elif project_yaml.exists():
-        logging.info(f"Using Conda environment in current folder: {project_yaml}")
-        env_files.append(project_yaml)
+
+    else:
+        project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
+        print(f"Looking for project yaml: {project_yaml}")
+        if project_yaml.exists():
+            logging.info(f"Using Conda environment in current folder: {project_yaml}")
+            env_files.append(project_yaml)
 
     if not env_files and not additional_files:
         raise ValueError(
@@ -256,8 +256,8 @@ def check_conda_environments(env_files: List[Path]) -> None:
 
     :param env_files: The list of Conda environment YAML files to check.
     """
-    if is_himl_used_from_git_repo():
-        repo_root_yaml: Optional[Path] = git_repo_root_folder() / ENVIRONMENT_YAML_FILE_NAME
+    if paths.is_himl_used_from_git_repo():
+        repo_root_yaml: Path = paths.shared_himl_conda_env_file()
     else:
         repo_root_yaml = None
     for file in env_files:
