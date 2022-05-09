@@ -40,12 +40,9 @@ class DeepSMILECrck(BaseMILTiles):
             is_finetune=False,
             is_caching=False,
             # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
             # declared in TrainerParams:
             max_epochs=50,
-            # declared in WorkflowParams:
-            crossval_count=5,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,

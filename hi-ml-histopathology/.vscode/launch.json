@@ -17,24 +17,24 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Train DeepSMILECrck in AzureML",
+            "name": "Train TcgaCrckImageNetMIL  in AzureML",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=histopathology.configs.classification.DeepSMILECrck",
+                "--model=histopathology.TcgaCrckImageNetMIL",
                 "--azureml",
                 "--cluster=lite-testing-ds2",
             ],
             "console": "integratedTerminal"
         },
         {
-            "name": "Train DeepSMILECrck locally",
+            "name": "Train TcgaCrckImageNetMIL  locally",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=histopathology.DeepSMILECrck",
+                "--model=histopathology.TcgaCrckImageNetMIL",
             ],
             "console": "integratedTerminal"
         },
