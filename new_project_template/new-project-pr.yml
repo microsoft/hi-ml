@@ -147,6 +147,7 @@ jobs:
       - name: Build Distribution
         run: |
           cd ${{ env.folder }}
+          make pip_build
           make build
 
       - name: Upload package artifacts
