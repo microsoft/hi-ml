@@ -1,0 +1,54 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Train HelloWorld model locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Train HelloWorld model in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld",
+                "--azureml",
+                "--cluster=lite-testing-ds2",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Train HelloWorld model with cross-validation",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld",
+                "--azureml",
+                "--cluster=lite-testing-ds2",
+                "--crossval_count=2"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Setup hi-ml package",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup.py",
+            "args": [
+                "sdist",
+                "bdist_wheel"
+            ],
+            "console": "integratedTerminal"
+        },
+    ]
+}

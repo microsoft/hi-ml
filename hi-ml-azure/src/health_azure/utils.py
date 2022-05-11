@@ -244,7 +244,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         elif isinstance(_p, param.String):
             p_type = str
         elif isinstance(_p, param.List):
-            p_type = lambda x: [_p.class_(item) for item in x.split(",")]
+            p_type = lambda x: [_p.class_(item) for item in x.split(",") if item]
         elif isinstance(_p, param.NumericTuple):
             float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
             p_type = lambda x: tuple([float_or_int(item) for item in x.split(",")])
@@ -693,15 +693,19 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
     return run_or_recovery_id
 
 
-def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Optional[Path]:
+def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path],
+                                start_at_path: Optional[Path] = None) -> Optional[Path]:
     """Searches for a file of the given name in the current working directory, or any of its parent folders.
     Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
     of the given folders in stop_at_path.
 
     :param file_name: The name of the file to find.
     :param stop_at_path: A list of folders. If any of them is reached, search stops.
+    :param start_at_path: An optional path to the directory in which to start searching. If not supplied,
+        will use the current working directory.
     :return: The absolute path of the file if found, or None if it was not found.
     """
+    start_at_path = start_at_path or Path.cwd()
 
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
         logging.debug(f"Searching for file {file_name} in {start_at}")
@@ -712,7 +716,7 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
             return None
         return return_file_or_parent(start_at.parent)
 
-    return return_file_or_parent(start_at=Path.cwd())
+    return return_file_or_parent(start_at=start_at_path)
 
 
 def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:

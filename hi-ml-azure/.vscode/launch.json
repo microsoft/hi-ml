@@ -1,0 +1,51 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run example script in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health_azure/examples/elevate_this.py",
+            "cwd": "${workspaceFolder}/src/health_azure/examples/",
+            "args": [
+                "--message='Hello World :-)'",
+                "--azureml"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Setup hi-ml-azure package",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup.py",
+            "cwd": "${workspaceFolder}/",
+            "args": [
+                "sdist",
+                "bdist_wheel"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "HI-ML-AZURE Make Tests",
+            "type": "python",
+            "request": "launch",
+            "module": "testazure.test_data.make_tests",
+            "cwd": "${workspaceFolder}/testazure/",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Example Hyperdrive run in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../docs/source/examples/8/sample.py",
+            "cwd": "${workspaceFolder}/../docs/source/examples/8/",
+            "args": [
+                "--azureml"
+            ],
+            "console": "integratedTerminal"
+        },
+    ]
+}
