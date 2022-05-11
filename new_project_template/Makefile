@@ -40,12 +40,12 @@ flake8:
 # run mypy, assuming test requirements already installed
 mypy:
 	mypy --install-types --non-interactive setup.py
-	mypy --install-types --non-interactive -p health_multimodal
-	mypy --install-types --non-interactive -p test_multimodal
+	mypy --install-types --non-interactive -p health_newproject
+	mypy --install-types --non-interactive -p test_newproject
 
 # run pytest on package, assuming test requirements already installed
 pytest:
-	pytest test_multimodal
+	pytest test_newproject
 
 # Install pyright
 pyright_install:

@@ -1,4 +1,4 @@
-name: Multimodal PR Workflow
+name: Newproject PR Workflow
 on:
   push:
     branches: [ main ]
@@ -7,11 +7,11 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - "multimodal/**"
+      - "hi-ml-newproject/**"
 
 env:
   pythonVersion: 3.7
-  folder: multimodal
+  folder: newproject
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -124,12 +124,12 @@ jobs:
           make pip_test
           make pytest
 
-      #- name: Run GPU tests
-      #  run: |
-      #    branch_prefix="refs/heads/"
-      #    full_branch_name=$GITHUB_REF
-      #    branch_name_without_prefix=${full_branch_name#$branch_prefix}
-      #    python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=multimodal/environment.yml --folder=${{ env.folder }} --experiment="$branch_name_without_prefix"
+      - name: Run GPU tests
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=newproject/environment.yml --folder=${{ env.folder }} --experiment="$branch_name_without_prefix"
 
   build-python:
     runs-on: ubuntu-18.04
@@ -174,5 +174,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ secrets.PYPI_TOKEN_MULTIMODAL }}
+          password: ${{ secrets.PYPI_TOKEN_NEWPROJECT }}
           packages_dir: ${{ env.folder }}/dist/

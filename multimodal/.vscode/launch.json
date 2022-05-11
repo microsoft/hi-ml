@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Setup hi-ml-multimodal package",
+            "name": "Setup package",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/setup.py",

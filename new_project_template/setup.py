@@ -45,15 +45,15 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 if not version:
     build_number = os.getenv('GITHUB_RUN_NUMBER')
     if build_number:
-        # In github workflows, we may pull in hi-ml-multimodal as a dependency. Usually, we have a condition like
-        # hi-ml-multimodal>=0.1.5. This means that a package version from PyPi would trump the local wheels. For this
+        # In github workflows, we may pull in the package as a dependency. Usually, we have a condition like
+        # >=0.1.5. This means that a package version from PyPi would trump the local wheels. For this
         # reason, use an extremely large version number to give the local wheel priority.
         version = '99.99.post' + build_number
     else:
         default_random_version_number = floor(random() * 10_000_000_000)
         version = f'99.99.post{str(default_random_version_number)}'
 
-package_name = 'hi-ml-multimodal'
+package_name = 'hi-ml-newproject'
 (here / 'package_name.txt').write_text(package_name)
 (here / 'latest_version.txt').write_text(version)
 
@@ -82,7 +82,7 @@ setup(
     ],
     keywords='HealthIntelligence',
     license='MIT License',
-    packages=find_namespace_packages(include=['health_multimodal', 'health_multimodal.*']),
+    packages=find_namespace_packages(include=['health_newproject', 'health_newproject.*']),
     include_package_data=True,
     install_requires=install_requires,
 )

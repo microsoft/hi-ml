@@ -53,6 +53,6 @@
         "--src=${workspaceFolder}"
     ],
     "python.testing.pytestArgs": [
-        "${workspaceFolder}/test_multimodal"
+        "${workspaceFolder}/test_newproject"
     ],
  }

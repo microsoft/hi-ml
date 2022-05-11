@@ -1,4 +1,4 @@
-# Microsoft Health Intelligence Multimodal Toolbox
+# Microsoft Health Intelligence Newproject Toolbox
 
 ## Overview
 
@@ -9,7 +9,7 @@ This toolbox provides models for working with multi-modal health data.
 You can install the latest version from `pypi` via
 
 ```shell
-pip install hi-ml-multimodal
+pip install hi-ml-newproject
 ```
 
 ## Documentation

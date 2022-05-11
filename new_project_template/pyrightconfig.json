@@ -1,7 +1,7 @@
 {
   "include": [
-    "health_multimodal",
-    "test_multimodal",
+    "health_newproject",
+    "test_newproject",
   ],
   "useLibraryCodeForTypes": false,
   "reportMissingImports": true,

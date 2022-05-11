@@ -5,8 +5,8 @@ This is a folder with a template set of files to create a new project in hi-ml.
 To use it:
 
 * Copy the template folder to the desired project folder
-* In the new location, rename the folders `health_multimodal` and `test_multimodal` to be the desired Python namespaces
-* Search for all occurences of `multimodal` and replace with the desired project name. Don't use a simple query/replace
+* In the new location, rename the folders `health_newproject` and `test_newproject` to be the desired Python namespaces
+* Search for all occurences of `newproject` and replace with the desired project name. Don't use a simple query/replace
   strategy but do check the context!
 * Move the workflow definition `new-project-pr.yml` to `.github/workflows` and give it a name that matches the project.
 
@@ -14,7 +14,7 @@ To use it:
 
 Make file commands:
 
-* `make pip_local` to install multimodal package in editable mode. This must happen before running tests.
+* `make pip_local` to install the package in editable mode. This must happen before running tests.
 * `make build` to build the package
 * `make mypy` to run `mypy`
 * `make check` to run `flake8`, `mypy` and `pyright`
