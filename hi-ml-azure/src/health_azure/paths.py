@@ -51,7 +51,7 @@ def git_repo_root_folder() -> Path:
 def shared_himl_conda_env_file() -> Path:
     """
     Attempts to return the path to the Conda environment file in the hi-ml project folder. If hi-ml has been
-    installed as a package (instead of as a git submodule or  directly downloadeing the repo) it's not possible
+    installed as a package (instead of as a git submodule or directly downloading the repo) it's not possible
     to find this shared conda file, and so a ValueError will be raised.
 
     :return: Path to the Conda environment file in the hi-ml project folder
