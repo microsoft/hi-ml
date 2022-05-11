@@ -52,7 +52,4 @@
         "-l=120",
         "--src=${workspaceFolder}"
     ],
-    "python.testing.pytestArgs": [
-        "${workspaceFolder}/test_newproject"
-    ],
  }
