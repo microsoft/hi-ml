@@ -10,6 +10,7 @@ dependencies:
     - azureml-sdk==1.36.0
     - azureml-tensorboard==1.36.0
     - conda-merge==0.1.5
+    - pandas==1.3.4
     - param==1.12
     - pysocks==1.6.0
     - ruamel.yaml==0.16.12
