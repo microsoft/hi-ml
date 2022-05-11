@@ -15,6 +15,9 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from health_azure import submit_to_azure_if_needed  # noqa: E402
+from health_azure.himl import OUTPUT_FOLDER  # noqa: E402
+from health_azure.logging import logging_to_stdout  # noqa: E402
+from health_azure.paths import git_repo_root_folder  # noqa: E402
 from health_azure.utils import (  # noqa: E402
     WORKSPACE_CONFIG_JSON,
     check_config_json,
@@ -22,8 +25,6 @@ from health_azure.utils import (  # noqa: E402
     is_running_in_azure_ml,
     parse_arguments,
 )
-from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR, logging_to_stdout  # noqa: E402
-from health_ml.utils.fixed_paths import repository_root_directory  # noqa: E402
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
 
@@ -57,7 +58,7 @@ def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
     :param pytest_mark: The PyTest mark to use for filtering out the tests to run.
     :param folder_to_test: The folder with tests that should be run.
     """
-    results_file = Path(DEFAULT_AML_UPLOAD_DIR) / PYTEST_RESULTS_FILE
+    results_file = Path(OUTPUT_FOLDER) / PYTEST_RESULTS_FILE
     pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
 
     if pytest_mark:
@@ -91,7 +92,7 @@ if __name__ == "__main__":
                 compute_cluster_name=config.cluster,
                 submit_to_azureml=submit_to_azureml,
                 wait_for_completion=True,
-                snapshot_root_directory=repository_root_directory(),
+                snapshot_root_directory=git_repo_root_folder(),
                 conda_environment_file=config.conda_env,
                 experiment_name=config.experiment,
                 max_run_duration=config.max_run_duration

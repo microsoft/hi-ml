@@ -11,6 +11,7 @@ import torch.multiprocessing
 from pytorch_lightning import LightningModule, seed_everything
 
 from health_azure import AzureRunInfo
+from health_azure.logging import logging_section
 from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
                                 is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT)
 
@@ -20,7 +21,7 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory, logging_section,
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.regression_test_utils import compare_folders_and_run_outputs
