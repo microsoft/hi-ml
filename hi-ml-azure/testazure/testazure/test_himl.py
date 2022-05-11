@@ -14,6 +14,7 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
+from random import randint
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 from typing import Any, Dict, List, Optional, Tuple
@@ -117,6 +118,103 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id != recovery_file_text
+
+
+@pytest.fixture(scope="module")
+def dummy_max_num_nodes_available() -> int:
+    return randint(2, 10)
+
+
+@pytest.fixture(scope="module")
+def dummy_compute_cluster_name() -> str:
+    return 'dummy_cluster'
+
+
+@pytest.fixture(scope="module")
+def mock_scale_settings(dummy_max_num_nodes_available: int) -> MagicMock:
+    return MagicMock(maximum_node_count=dummy_max_num_nodes_available)
+
+
+@pytest.fixture(scope="module")
+def mock_compute_cluster(mock_scale_settings: MagicMock) -> MagicMock:
+    return MagicMock(scale_settings=mock_scale_settings)
+
+
+@pytest.fixture(scope="module")
+def mock_workspace(mock_compute_cluster: MagicMock, dummy_compute_cluster_name: str) -> MagicMock:
+    return MagicMock(compute_targets={dummy_compute_cluster_name: mock_compute_cluster})
+
+
+@pytest.mark.fast
+def test_validate_num_nodes(dummy_max_num_nodes_available: int, dummy_compute_cluster_name: str,
+                            mock_workspace: MagicMock) -> None:
+    # If number of requested nodes <= max available nodes, nothing should happen
+    num_nodes_requested = dummy_max_num_nodes_available // 2
+    existing_compute_clusters = mock_workspace.compute_targets
+    print(f"Existing compute cluster scale settings: {existing_compute_clusters['dummy_cluster'].scale_settings}")
+    himl.validate_num_nodes(existing_compute_clusters, dummy_compute_cluster_name, num_nodes_requested)
+    num_nodes_requested = dummy_max_num_nodes_available
+    himl.validate_num_nodes(existing_compute_clusters, dummy_compute_cluster_name, num_nodes_requested)
+
+    # But if number of nodes requested > max available, a ValueError should be raised
+    num_nodes_requested = randint(dummy_max_num_nodes_available, 5000)
+    with pytest.raises(ValueError) as e:
+        himl.validate_num_nodes(existing_compute_clusters, dummy_compute_cluster_name, num_nodes_requested)
+    expected_error_msg = f"You have requested {num_nodes_requested} nodes, which is more than your compute cluster's"
+    f"maximum of {dummy_max_num_nodes_available} nodes"
+    assert expected_error_msg in str(e)
+
+
+@pytest.mark.fast
+def test_validate_compute_name(mock_workspace: MagicMock, dummy_compute_cluster_name: str) -> None:
+    # existing_compute clusters is a list than has already been check
+    existing_compute_clusters = mock_workspace.compute_targets
+    existent_compute_name = dummy_compute_cluster_name
+    himl.validate_compute_name(existing_compute_clusters, existent_compute_name)
+
+    nonexistent_compute_name = 'idontexist'
+    assert nonexistent_compute_name not in existing_compute_clusters
+    with pytest.raises(ValueError) as e:
+        himl.validate_compute_name(existing_compute_clusters, nonexistent_compute_name)
+    assert f"Could not find the compute target {nonexistent_compute_name} in the AzureML workspace." in str(e)
+
+
+@pytest.mark.fast
+@patch("health_azure.himl.validate_compute_name")
+@patch("health_azure.himl.validate_num_nodes")
+def test_validate_compute(mock_validate_num_nodes: MagicMock, mock_validate_compute_name: MagicMock,
+                          mock_workspace: MagicMock) -> None:
+    def _raise_value_error(*args: Any) -> None:
+        raise ValueError("A ValueError has been raised")
+
+    def _raise_assertion_error(*args: Any) -> None:
+        raise AssertionError("An AssertionError has been raised")
+
+    # first mock the case where validate_num_nodes and validate_compute_name both return None
+    mock_validate_compute_name.return_value = None
+    mock_validate_num_nodes.return_value = None
+    mock_computer_cluster_name = 'irrelevant'
+    mock_num_available_nodes = 0
+    himl.validate_compute_cluster(mock_workspace, mock_computer_cluster_name, mock_num_available_nodes)
+    assert mock_validate_num_nodes.call_count == 1
+    assert mock_validate_compute_name.call_count == 1
+
+    # now have validate_num_nodes raise an Assertionerror and check that calling validate_compute_cluster
+    # raises the error
+    mock_validate_num_nodes.side_effect = _raise_assertion_error
+    with pytest.raises(AssertionError) as e1:
+        himl.validate_compute_cluster(mock_workspace, mock_computer_cluster_name, mock_num_available_nodes)
+    assert "An AssertionError has been raised" in str(e1)
+    assert mock_validate_num_nodes.call_count == 2
+    assert mock_validate_compute_name.call_count == 2
+
+    # now have validate_compute_name raise a ValueError and check that calling validate_compute_cluster raises the error
+    mock_validate_compute_name.side_effect = _raise_value_error
+    with pytest.raises(ValueError) as e2:
+        himl.validate_compute_cluster(mock_workspace, mock_computer_cluster_name, mock_num_available_nodes)
+    assert "A ValueError has been raised" in str(e2.value)
+    assert mock_validate_num_nodes.call_count == 2
+    assert mock_validate_compute_name.call_count == 3
 
 
 @pytest.mark.fast
