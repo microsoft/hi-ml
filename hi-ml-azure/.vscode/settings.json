@@ -52,9 +52,6 @@
         "-l=120",
         "--src=${workspaceFolder}/src"
     ],
-    "python.testing.pytestArgs": [
-        "${workspaceFolder}/testazure/testazure"
-    ],
     "python.analysis.extraPaths": [
         "${workspaceFolder}/src",
         "${workspaceFolder}/testazure"
