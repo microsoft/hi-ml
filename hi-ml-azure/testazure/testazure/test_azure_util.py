@@ -1329,17 +1329,17 @@ from health_azure.utils import replace_directory
 """,
 
         "body": """
-output_dir = Path("outputs/test_outputs")
-output_dir.mkdir(parents=True, exist_ok=True)
-file_name = "hello.txt"
-(output_dir / file_name).write_text("Hello World!")
-assert (output_dir / file_name).exists()
-new_output_dir = output_dir.parent / "more_test_outputs"
+    output_dir = Path("outputs/test_outputs")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    file_name = "hello.txt"
+    (output_dir / file_name).write_text("Hello World!")
+    assert (output_dir / file_name).exists()
+    new_output_dir = output_dir.parent / "more_test_outputs"
 
-replace_directory(output_dir, new_output_dir)
+    replace_directory(output_dir, new_output_dir)
 
-assert not output_dir.exists()
-assert (new_output_dir / file_name).exists()
+    assert not output_dir.exists()
+    assert (new_output_dir / file_name).exists()
 """
     }
 

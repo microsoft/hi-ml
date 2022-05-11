@@ -7,3 +7,4 @@
 .vscode
 docs
 node_modules
+outputs
