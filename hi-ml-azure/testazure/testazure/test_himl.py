@@ -294,16 +294,18 @@ def test_create_run_configuration_fails(
 @patch("health_azure.himl.Environment.get")
 @patch("health_azure.himl.Workspace")
 def test_create_run_configuration(
-        mock_workspace: mock.MagicMock,
-        mock_environment_get: mock.MagicMock,
-        mock_to_input_dataset: mock.MagicMock,
-        mock_to_output_dataset: mock.MagicMock,
-        mock_docker_configuration: mock.MagicMock,
+        mock_workspace: MagicMock,
+        mock_environment_get: MagicMock,
+        mock_to_input_dataset: MagicMock,
+        mock_to_output_dataset: MagicMock,
+        mock_docker_configuration: MagicMock,
+        dummy_max_num_nodes_available: MagicMock,
+        mock_compute_cluster: MagicMock
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_env_name = "Mock Env"
     mock_environment_get.return_value = mock_env_name
-    mock_workspace.compute_targets = {existing_compute_target: 123}
+    mock_workspace.compute_targets = {existing_compute_target: mock_compute_cluster}
     aml_input_dataset = MagicMock()
     aml_input_dataset.name = "dataset_in"
     aml_output_dataset = MagicMock()
@@ -314,7 +316,7 @@ def test_create_run_configuration(
         workspace=mock_workspace,
         compute_cluster_name=existing_compute_target,
         aml_environment_name="foo",
-        num_nodes=10,
+        num_nodes=dummy_max_num_nodes_available - 1,
         max_run_duration="1h",
         input_datasets=[DatasetConfig(name="input1")],
         output_datasets=[DatasetConfig(name="output1")],
@@ -324,8 +326,8 @@ def test_create_run_configuration(
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
     assert run_config.environment == mock_env_name
-    assert run_config.node_count == 10
-    assert run_config.mpi.node_count == 10
+    assert run_config.node_count == dummy_max_num_nodes_available - 1
+    assert run_config.mpi.node_count == dummy_max_num_nodes_available - 1
     assert run_config.max_run_duration_seconds == 60 * 60
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
@@ -354,8 +356,9 @@ def test_create_run_configuration(
 @patch("health_azure.himl.create_python_environment")
 def test_create_run_configuration_correct_env(mock_create_environment: MagicMock,
                                               mock_workspace: MagicMock,
+                                              mock_compute_cluster: MagicMock,
                                               tmp_path: Path) -> None:
-    mock_workspace.compute_targets = {"dummy_compute_cluster": ""}
+    mock_workspace.compute_targets = {"dummy_compute_cluster": mock_compute_cluster}
 
     # First ensure if environment.get returns None, that register_environment gets called
     mock_environment = MagicMock()
@@ -378,8 +381,8 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
         with patch("azureml.core.Environment.get") as mock_environment_get:  # type: ignore
             mock_environment_get.side_effect = Exception()
-            run_config = himl.create_run_configuration(mock_workspace,
-                                                       "dummy_compute_cluster",
+            run_config = himl.create_run_configuration(workspace=mock_workspace,
+                                                       compute_cluster_name="dummy_compute_cluster",
                                                        conda_environment_file=conda_env_path)
 
             # check that mock_register has been called once with the expected args
@@ -551,6 +554,7 @@ def test_generate_azure_datasets(
     for i in range(4):
         mock_run_context.input_datasets[_input_dataset_key(i)] = f"input_{i}"
         mock_run_context.output_datasets[_output_dataset_key(i)] = f"output_{i}"
+
     run_info = himl._generate_azure_datasets(
         cleaned_input_datasets=[mock_dataset_config] * 2,
         cleaned_output_datasets=[mock_dataset_config] * 3)
@@ -1257,6 +1261,7 @@ def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: in
 @patch("sys.argv")
 @patch("health_azure.himl.exit")
 def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, mock_exit: MagicMock,
+                                                   mock_compute_cluster: MagicMock,
                                                    cross_validation_metric_name: Optional[str]) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
@@ -1265,7 +1270,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
     mock_sys_args.return_value = ["", "--azureml"]
     with patch.object(Environment, "get", return_value="dummy_env"):
         with patch("azureml.core.Workspace") as mock_workspace:
-            mock_workspace.compute_targets = ["foo", "bar"]
+            mock_workspace.compute_targets = {"foo": mock_compute_cluster}
             with patch("health_azure.himl.submit_run") as mock_submit_run:
                 with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
                     crossval_config = himl.create_crossval_hyperdrive_config(
