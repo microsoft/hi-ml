@@ -8,7 +8,7 @@
             "name": "Run GPU tests in AzureML",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/../hi-ml/run_pytest.py",
+            "program": "${workspaceFolder}/../hi-ml-azure/run_pytest.py",
             "args": [
                 "--mark=gpu",
                 "--cluster=pr-gpu",
