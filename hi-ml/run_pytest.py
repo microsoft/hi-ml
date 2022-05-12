@@ -9,10 +9,12 @@ from _pytest.main import ExitCode
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent
 
+
 def add_to_sys_path(folder: Path) -> None:
     folder_str = str(folder)
     if folder.is_dir() and folder_str not in sys.path:
         sys.path.insert(0, str(folder))
+
 
 folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src"]
 for folder in folders_to_add:
