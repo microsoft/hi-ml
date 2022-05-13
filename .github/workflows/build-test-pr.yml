@@ -249,7 +249,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd hi-ml-azure
-          pip install ${{ steps.download_himlazure.outputs.package_filename }} 
+          pip install ${{ steps.download_himlazure.outputs.package_filename }}
           cd ../hi-ml
           pip install ${{ steps.download_himl.outputs.package_filename }}
 
@@ -266,84 +266,12 @@ jobs:
           branch_name_without_prefix=${full_branch_name#$branch_prefix}
           python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
 
-      - name: Upload coverage artifacts
-        uses: ./.github/actions/upload_coverage_artifacts
+      - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
-        with:
-          folder: ${{ matrix.folder }}
-
-
-  build-coverage:
-    runs-on: ubuntu-18.04
-    needs: [ test-artifact-pkg ]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: Download dependent package artifacts
-        id: download_dep
-        uses: ./.github/actions/download_package_artifacts
-        with:
-          folder: hi-ml-azure
-
-      - name: Install dependencies
-        run: |
-          cd hi-ml-azure
-
-          make pip_upgrade
-
-          # Install package
-          pip install ${{ steps.download_dep.outputs.package_filename }}
-
-      - name: Download package artifacts
-        id: download
-        uses: ./.github/actions/download_package_artifacts
-        with:
-          folder: hi-ml
-
-      - name: Install artifact and test
-        run: |
-          cd hi-ml
-
-          make pip_upgrade
-
-          # Install package
-          pip install ${{ steps.download.outputs.package_filename }}
-
-      - name: Download coverage artifacts
-        uses: ./.github/actions/download_coverage_artifacts
-        with:
-          folder: hi-ml
-
-      - name: Download coverage artifacts
-        uses: ./.github/actions/download_coverage_artifacts
-        with:
-          folder: hi-ml-azure
-
-      - name: Download coverage artifacts
-        uses: ./.github/actions/download_coverage_artifacts
-        with:
-          folder: hi-ml-histopathology
-
-      - name: Combine coverage artifacts
-        run: make combine
-
-      - name: Upload combined coverage artifacts
-        uses: ./.github/actions/upload_coverage_artifacts
-        with:
-          folder: coverage
-
-      - name: Add coverage as a commit comment
-        uses: ./.github/actions/format_coverage
-        with:
-          file: coverage/coverage.txt
-          token: ${{ secrets.GITHUB_TOKEN }}
+        run:
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ./codecov
 
   publish-testpypi-pkg:
     runs-on: ubuntu-18.04
