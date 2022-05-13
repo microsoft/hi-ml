@@ -86,7 +86,7 @@ def validate_num_nodes(compute_cluster: ComputeTarget, num_nodes: int) -> None:
     Check that the user hasn't requested more nodes than the maximum number of nodes allowed by
     their compute cluster
 
-    :param compute_cluster_name: An AML ComputeTarget representing the cluster whose upper node limit
+    :param compute_cluster: An AML ComputeTarget representing the cluster whose upper node limit
         should be checked
     :param num_nodes: The number of nodes that the user has requested
     """

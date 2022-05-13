@@ -25,7 +25,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import ComputeTarget, Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -226,6 +226,27 @@ def test_validate_compute(mock_validate_num_nodes: MagicMock, mock_validate_comp
         himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
     assert mock_validate_num_nodes.call_count == 2
     assert mock_validate_compute_name.call_count == 3
+
+
+def test_validate_compute_real(tmp_path: Path) -> None:
+    """
+    Get a real Workspace object and attempt to validate a compute cluster from it, if any exist.
+    This checks that the properties/ methods in the Azure ML SDK are consistent with those used in our
+    codebase
+    """
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+    existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
+    if len(existing_compute_targets) == 0:
+        return
+    compute_target_name: str = list(existing_compute_targets)[0]
+    compute_target: ComputeTarget = existing_compute_targets[compute_target_name]
+    max_num_nodes = compute_target.scale_settings.maximum_node_count
+    request_num_nodes = max_num_nodes - 1
+    assert isinstance(compute_target_name, str)
+    assert isinstance(compute_target, ComputeTarget)
+    himl.validate_compute_cluster(workspace, compute_target_name, request_num_nodes)
 
 
 @pytest.mark.fast
