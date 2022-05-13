@@ -99,20 +99,6 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Install hi-ml-azure in editable mode
-        run: |
-          cd hi-ml-azure
-
-          # Install local package in editable mode
-          make pip_local
-
-      - name: Install hi-ml in editable mode
-        run: |
-          cd hi-ml
-
-          # Install local package in editable mode
-          make pip_local
-
       - name: Test with pytest
         run: |
           cd ${{ env.folder }}
