@@ -1362,7 +1362,6 @@ from health_azure.utils import download_files_from_run_id""",
     render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
-@pytest.mark.skip(reason="We have an open PR with a fix for this already")
 def test_replace_directory(tmp_path: Path) -> None:
     extra_options = {
         "imports": """
