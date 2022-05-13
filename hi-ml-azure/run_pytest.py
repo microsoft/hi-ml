@@ -53,7 +53,7 @@ class RunPytestConfig(param.Parameterized):
         default="30m", doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
         "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'"
     )
-    sys_path: str = param.String(
+    add_to_sys_path: str = param.String(
         default="",
         doc="A folder name that should be added to sys.path. The folder name should be relative to repository root."
     )
@@ -91,8 +91,8 @@ if __name__ == "__main__":
     )
     parser_results = parse_arguments(parser, fail_on_unknown_args=True)
     config = RunPytestConfig(**parser_results.args)
-    if config.sys_path:
-        add_to_sys_path(himl_root / config.sys_path)
+    if config.add_to_sys_path:
+        add_to_sys_path(himl_root / config.add_to_sys_path)
     logging_to_stdout()
     submit_to_azureml = config.cluster != ""
     if submit_to_azureml and not is_running_in_azure_ml():
