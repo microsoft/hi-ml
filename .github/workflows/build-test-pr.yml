@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
-        run:
+        run: |
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
           ./codecov
@@ -269,7 +269,7 @@ jobs:
 
       - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
-        run:
+        run: |
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
           ./codecov
