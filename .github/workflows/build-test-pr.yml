@@ -260,19 +260,19 @@ jobs:
           make pip_local
           make pytest_and_coverage
 
-      - name: Run GPU tests
-        run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
-
       - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
         run: |
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
           ./codecov
+
+      - name: Run GPU tests
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
 
   publish-testpypi-pkg:
     runs-on: ubuntu-18.04
