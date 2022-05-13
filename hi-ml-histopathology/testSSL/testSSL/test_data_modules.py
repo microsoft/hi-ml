@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import PIL
 import numpy as np
+import pytest
 import torch
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
@@ -49,6 +50,7 @@ def test_weights_module() -> None:
     assert images_v1.shape == images_v2.shape == torch.Size([1, 3, 224, 224])
 
 
+@pytest.mark.flaky(reruns=3)
 def test_vision_module() -> None:
     """
     Test properties of loaded CIFAR datasets via VisionDataModule.
@@ -84,6 +86,7 @@ def test_vision_module() -> None:
     assert labels.tolist() == [7, 9, 1, 5, 7]
 
 
+@pytest.mark.flaky(reruns=3)
 def test_vision_datamodule_with_return_index() -> None:
     """
     Tests that the return index flag, modifies __getitem__ as expected i.e.
@@ -138,6 +141,7 @@ def test_get_transforms_in_ssl_container_for_cxr_data() -> None:
     assert v1.shape == torch.Size([3, 224, 224])
 
 
+@pytest.mark.flaky(reruns=3)
 def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     """
     Tests that the internal _get_transforms function returns data of the expected type of CXR.

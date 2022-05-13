@@ -46,16 +46,16 @@ build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
 call_flake8:
-	flake8 --count --statistics --config=../.flake8 .
+	flake8 --count --statistics
 
 # pip install test requirements and run flake8
 flake8: pip_test call_flake8
 
 # run mypy, assuming test requirements already installed
 call_mypy:
-	mypy --config=../mypy.ini --install-types --non-interactive setup.py
-	mypy --config=../mypy.ini --install-types --non-interactive -p health_ml
-	mypy --config=../mypy.ini --install-types --non-interactive -p testhiml
+	mypy --install-types --non-interactive setup.py
+	mypy --install-types --non-interactive -p health_ml
+	mypy --install-types --non-interactive -p testhiml
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy

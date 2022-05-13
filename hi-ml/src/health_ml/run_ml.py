@@ -18,7 +18,7 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_utils import CheckpointHandler
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory, logging_section,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
@@ -62,6 +62,9 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
+        self.checkpoint_handler = CheckpointHandler(container=self.container,
+                                                    project_root=self.project_root,
+                                                    run_context=RUN_CONTEXT)
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
@@ -93,9 +96,6 @@ class MLRunner:
         self.container.create_filesystem(self.project_root)
 
         # configure recovery container if provided
-        self.checkpoint_handler = CheckpointHandler(container=self.container,
-                                                    project_root=self.project_root,
-                                                    run_context=RUN_CONTEXT)
         self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
 
         self.container.setup()
@@ -136,24 +136,18 @@ class MLRunner:
 
         # do training
         with logging_section("Model training"):
-            if self.checkpoint_handler is not None:
-                checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            else:
-                checkpoint_path = None
+            checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
             _, storing_logger = model_train(checkpoint_path,
                                             container=self.container)
             self.storing_logger = storing_logger
 
         # Since we have trained the model, let the checkpoint_handler object know so it can handle
         # checkpoints correctly.
-        if self.checkpoint_handler is not None:
-            self.checkpoint_handler.additional_training_done()
-            checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
-        else:
-            checkpoint_paths_for_testing = []
+        self.checkpoint_handler.additional_training_done()
+        checkpoint_path_for_testing = self.checkpoint_handler.get_checkpoint_to_test()
 
         with logging_section("Model inference"):
-            self.run_inference(checkpoint_paths_for_testing)
+            self.run_inference(checkpoint_path_for_testing)
 
         if self.container.regression_test_folder:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
@@ -175,15 +169,12 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def run_inference(self, checkpoint_paths: List[Path]) -> None:
+    def run_inference(self, checkpoint_path: Path) -> None:
         """
         Run inference on the test set for all models.
 
-        :param checkpoint_paths: The path to the checkpoint that should be used for inference.
+        :param checkpoint_path: The path to the checkpoint that should be used for inference.
         """
-        if len(checkpoint_paths) != 1:
-            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-
         lightning_model = self.container.model
         if type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
@@ -202,7 +193,7 @@ class MLRunner:
 
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
-            self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_path)
             data_module = self.container.get_data_module()
 
             # Change to the outputs folder so that the model can write to current working directory, and still

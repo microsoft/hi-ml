@@ -3,19 +3,18 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
-from typing import Callable, Dict, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
-from health_azure.utils import is_global_rank_zero
 from health_ml.utils import log_on_epoch
-from histopathology.datasets.base_dataset import TilesDataset
+from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -29,7 +28,7 @@ def _format_cuda_memory_stats() -> str:
             f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved")
 
 
-class DeepMILModule(LightningModule):
+class BaseDeepMILModule(LightningModule):
     """Base class for deep multiple-instance learning"""
 
     def __init__(self,
@@ -46,7 +45,8 @@ class DeepMILModule(LightningModule):
                  verbose: bool = False,
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
+                 chunk_size: int = 0) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -66,6 +66,7 @@ class DeepMILModule(LightningModule):
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
+        :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
         """
         super().__init__()
 
@@ -93,6 +94,7 @@ class DeepMILModule(LightningModule):
         self.is_finetune = is_finetune
 
         self.outputs_handler = outputs_handler
+        self.chunk_size = chunk_size
 
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
@@ -134,9 +136,7 @@ class DeepMILModule(LightningModule):
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
-        # Get bag (batch) labels as majority vote
-        bag_label = mode(labels).values
-        return bag_label.view(1)
+        raise NotImplementedError
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
@@ -154,9 +154,8 @@ class DeepMILModule(LightningModule):
                                   MetricsKey.F1: F1(threshold=threshold),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
 
-    def log_metrics(self,
-                    stage: str) -> None:
-        valid_stages = ['train', 'test', 'val']
+    def log_metrics(self, stage: str) -> None:
+        valid_stages = [stage for stage in ModelKey]
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
@@ -169,8 +168,17 @@ class DeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        with set_grad_enabled(self.is_finetune):
-            instance_features = self.encoder(instances)                    # N X L x 1 x 1
+        should_enable_encoder_grad = torch.is_grad_enabled() and self.is_finetune
+        with set_grad_enabled(should_enable_encoder_grad):
+            if self.chunk_size > 0:
+                embeddings = []
+                chunks = torch.split(instances, self.chunk_size)
+                for chunk in chunks:
+                    chunk_embeddings = self.encoder(chunk)
+                    embeddings.append(chunk_embeddings)
+                instance_features = torch.cat(embeddings)
+            else:
+                instance_features = self.encoder(instances)                # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)
@@ -183,7 +191,7 @@ class DeepMILModule(LightningModule):
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
 
-    def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
+    def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
         # This means we can't stack them along a new axis without padding to the same length.
         # We could alternatively concatenate them, but this would require other changes (e.g. in
@@ -200,6 +208,15 @@ class DeepMILModule(LightningModule):
             bag_attn_list.append(attn)
         bag_logits = torch.stack(bag_logits_list)
         bag_labels = torch.stack(bag_labels_list).view(-1)
+        return bag_logits, bag_labels, bag_attn_list
+
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        """Update training results with data specific info. This can be either tiles or slides related metadata."""
+        raise NotImplementedError
+
+    def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
+
+        bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
             loss = self.loss_fn(bag_logits, bag_labels.long())
@@ -226,55 +243,45 @@ class DeepMILModule(LightningModule):
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(predicted_probs, bag_labels.view(batch_size,))
-        results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
-                        ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
-                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN],
-                        ResultsKey.LOSS: loss,
+            metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
+        results.update({ResultsKey.LOSS: loss,
                         ResultsKey.PROB: predicted_probs,
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels,
-                        ResultsKey.BAG_ATTN: bag_attn_list})
-
-        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
-            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
-                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
-                           )
-        else:
-            if is_global_rank_zero():
-                logging.warning("Coordinates not found in batch. If this is not expected check your"
-                                "input tiles dataset.")
+                        ResultsKey.BAG_ATTN: bag_attn_list
+                        })
+        self.update_results_with_data_specific_info(batch=batch, results=results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
-        train_result = self._shared_step(batch, batch_idx, 'train')
+        train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
         self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        self.log_metrics('train')
+        self.log_metrics(ModelKey.TRAIN)
         return train_result[ResultsKey.LOSS]
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        val_result = self._shared_step(batch, batch_idx, 'val')
+        val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics('val')
+        self.log_metrics(ModelKey.VAL)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        test_result = self._shared_step(batch, batch_idx, 'test')
+        test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics('test')
+        self.log_metrics(ModelKey.TEST)
         return test_result
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
-                metrics_dict=self.get_metrics_dict('val'),  # type: ignore
+                metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0
             )
@@ -285,3 +292,44 @@ class DeepMILModule(LightningModule):
                 epoch_results=epoch_results,
                 is_global_rank_zero=self.global_rank == 0
             )
+
+
+class TilesDeepMILModule(BaseDeepMILModule):
+    """Base class for Tiles based deep multiple-instance learning."""
+
+    @staticmethod
+    def get_bag_label(labels: Tensor) -> Tensor:
+        # Get bag (batch) labels as majority vote
+        bag_label = mode(labels).values
+        return bag_label.view(1)
+
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
+                        ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
+                        ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
+
+        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
+                           )
+        else:
+            rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
+                           "input tiles dataset.")
+
+
+class SlidesDeepMILModule(BaseDeepMILModule):
+    """Base class for slides based deep multiple-instance learning."""
+    def __init__(self, tiles_count: int, **kwargs: Any) -> None:
+        self.tiles_count = tiles_count
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def get_bag_label(labels: Tensor) -> Tensor:
+        # SlidesDataModule attributes a single label to a bag of tiles already no need to do majority voting
+        return labels
+
+    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+        # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
+        results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
+                        ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
+                        ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})

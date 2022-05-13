@@ -35,7 +35,7 @@ from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from health_azure.utils import PackageDependency, create_argparser
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                                       repository_root)
+                                       himl_azure_root, repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -50,8 +50,51 @@ def oh_no() -> None:
     raise ValueError("Throwing an exception")
 
 
+@pytest.mark.fast()
+def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
+    current_file_path = Path(__file__)
+    # If no start_at arg is provided, will start looking for file at current working directory.
+    # First mock this to be the hi-ml-azure root
+    himl_az_root = himl_azure_root()
+    himl_azure_test_root = himl_az_root / "testazure" / "testazure"
+    with patch("health_azure.utils.Path.cwd", return_value=himl_azure_test_root):
+        # current_working_directory = Path.cwd()
+        found_file_path = util.find_file_in_parent_folders(
+            file_name=current_file_path.name,
+            stop_at_path=[himl_az_root]
+        )
+        last_caplog_msg = caplog.messages[-1]
+        assert found_file_path == current_file_path
+        assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
+
+        # Now try to search for a nonexistent path in the same folder. This should return None
+        nonexistent_path = himl_az_root / "idontexist.py"
+        assert not nonexistent_path.is_file()
+        assert util.find_file_in_parent_folders(
+            file_name=nonexistent_path.name,
+            stop_at_path=[himl_az_root]
+        ) is None
+
+        # Try to find the first path (i.e. current file name) when starting in a different folder.
+        # This should not work
+        assert util.find_file_in_parent_folders(
+            file_name=current_file_path.name,
+            stop_at_path=[himl_az_root],
+            start_at_path=himl_az_root
+        ) is None
+
+    # Try to find the first path (i.e. current file name) when current working directory is not the testazure
+    # folder. This should not work
+    with patch("health_azure.utils.Path.cwd", return_value=himl_az_root):
+        assert not (himl_az_root / current_file_path.name).is_file()
+        assert util.find_file_in_parent_folders(
+            file_name=current_file_path.name,
+            stop_at_path=[himl_az_root.parent]
+        ) is None
+
+
 @pytest.mark.fast
-def test_find_file(tmp_path: Path) -> None:
+def test_find_file_in_parent_to_pythonpath(tmp_path: Path) -> None:
     file_name = "some_file.json"
     file = tmp_path / file_name
     file.touch()
@@ -717,7 +760,7 @@ def test_merge_conda_pip_include2(random_folder: Path) -> None:
     Tests the logic to exclude PIP include statements from Conda environments, on the root level environment file.
     """
     if paths.is_himl_used_from_git_repo():
-        root_yaml = paths.git_repo_root_folder() / paths.ENVIRONMENT_YAML_FILE_NAME
+        root_yaml = paths.shared_himl_conda_env_file()
         requirements = paths.git_repo_root_folder() / "hi-ml-azure" / "run_requirements.txt"
         merged_file2 = random_folder / "merged2.yml"
         util.merge_conda_files([root_yaml], merged_file2, pip_files=[requirements])
@@ -737,13 +780,13 @@ def test_pip_include_1() -> None:
     file in the repository.
     """
     if paths.is_himl_used_from_git_repo():
-        root_yaml = paths.git_repo_root_folder() / paths.ENVIRONMENT_YAML_FILE_NAME
-        assert root_yaml.is_file()
-        original_yaml = conda_merge.read_file(root_yaml)
+        env_file_path = paths.shared_himl_conda_env_file()
+        assert env_file_path.is_file()
+        original_yaml = conda_merge.read_file(env_file_path)
         # At the time of writing, the top-level environment file only had 4 include statements in the pip
         # section, they should all be filtered out.
         assert_pip_length(original_yaml, 4)
-        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(root_yaml)
+        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(env_file_path)
         assert uses_pip_include
         pip = util._get_pip_dependencies(modified_yaml)
         # The pip section of the top-level yaml has nothing but include statements, so after filtering the
@@ -1704,6 +1747,7 @@ class ParamClass(param.Parameterized):
     readonly: str = param.String("Nope", readonly=True)
     _non_override: str = param.String("Nope")
     constant: str = param.String("Nope", constant=True)
+    strings: List[str] = param.List(default=['some_string'], class_=str)
     other_args = util.ListOrDictParam(None, doc="List or dictionary of other args")
 
     def validate(self) -> None:
@@ -1755,7 +1799,7 @@ def test_get_overridable_parameter(parameterized_config_and_parser: Tuple[ParamC
     assert "int_tuple" in param_dict
     assert "enum" in param_dict
     assert "other_args" in param_dict
-
+    assert "strings" in param_dict
     assert "readonly" not in param_dict
     assert "_non_override" not in param_dict
     assert "constant" not in param_dict
@@ -1775,6 +1819,7 @@ def test_parser_defaults(parameterized_config_and_parser: Tuple[ParamClass, Argu
     assert defaults["enum"] == ParamEnum.EnumValue1
     assert not defaults["flag"]
     assert defaults["not_flag"]
+    assert defaults["strings"] == ['some_string']
     assert "readonly" not in defaults
     assert "constant" not in defaults
     assert "_non_override" not in defaults
@@ -1889,6 +1934,24 @@ def test_argparse_usage(capsys: CaptureFixture) -> None:
     assert "usage: my_usage" in stdout
     assert "my_description" in stdout
     assert "my_epilog" in stdout
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("args, expected_key, expected_value", [
+    (["--strings=[]"], "strings", ['[]']),
+    (["--strings=['']"], "strings", ["['']"]),
+    (["--strings=None"], "strings", ['None']),
+    (["--strings='None'"], "strings", ["'None'"]),
+    (["--strings=','"], "strings", ["'", "'"]),
+    (["--strings=''"], "strings", ["''"]),
+    (["--strings=,"], "strings", []),
+    (["--strings="], "strings", []),
+    (["--integers="], "integers", []),
+    (["--floats="], "floats", [])])
+def test_override_list(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+                       args: List[str], expected_key: str, expected_value: Any) -> None:
+    """Test different options of overriding a non-empty list parameter to get an empty list"""
+    check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
 
 
 def test_argparse_usage_empty(capsys: CaptureFixture) -> None:

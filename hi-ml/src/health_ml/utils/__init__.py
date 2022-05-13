@@ -5,6 +5,7 @@
 
 from health_ml.utils.logging import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
 from health_ml.utils.diagnostics import BatchTimeCallback
+from health_ml.utils.common_utils import set_model_to_eval_mode
 
 __all__ = [
     "AzureMLLogger",
@@ -12,4 +13,5 @@ __all__ = [
     "BatchTimeCallback",
     "log_learning_rate",
     "log_on_epoch",
+    "set_model_to_eval_mode"
 ]

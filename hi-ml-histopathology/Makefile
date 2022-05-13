@@ -51,17 +51,17 @@ clean:
 
 # run flake8, assuming test requirements already installed
 call_flake8:
-	flake8 --count --statistics --config=../.flake8 .
+	flake8 --count --statistics .
 
 # pip install test requirements and run flake8
 flake8: pip_test call_flake8
 
 # run mypy, assuming test requirements already installed
 call_mypy:
-	mypy --config=../mypy.ini --install-types --non-interactive -p histopathology
-	mypy --config=../mypy.ini --install-types --non-interactive -p SSL
-	mypy --config=../mypy.ini --install-types --non-interactive -p testhisto
-	mypy --config=../mypy.ini --install-types --non-interactive -p testSSL
+	mypy --install-types --non-interactive -p histopathology
+	mypy --install-types --non-interactive -p SSL
+	mypy --install-types --non-interactive -p testhisto
+	mypy --install-types --non-interactive -p testSSL
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
@@ -89,7 +89,6 @@ pytest_fast: pip_test call_pytest_fast
 # run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
 call_pytest_and_coverage:
 	pytest --cov=histopathology  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhisto
-	pytest --cov=SSL  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testSSL
 	pycobertura show --format text --output coverage.txt coverage.xml
 
 # install test requirements and run pytest coverage
