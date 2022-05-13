@@ -179,11 +179,14 @@ obsolete? Reasons for this approach:
 
 ### Jupyter Notebooks
 
-Notebooks can easily become obsolete over time and may not work with code changes. Also, testing them is generally difficult.
+Notebooks can easily become obsolete over time and may not work with code changes. Also, testing them is generally
+difficult. Please follow these guidelines for notebooks:
 
-* If you are planning to use a notebook, please avoid checking them into the repository unless it is part of a project demo.
-* If the notebook is used to document results, then please render it and place screenshots in a OneNote page.
-* Notebooks are also an easy way of leaking sensitive data: They can for example contain images derived from private datasets.
+* If you are planning to use a notebook, avoid checking them into the repository unless it is part of a project demo.
+* If the notebook is used to document results, then please render the notebook and place the results in a separate
+  document outside the repository.
+* Bear in mind that notebooks are also an easy way of leaking sensitive data: They can for example contain images
+  derived from private datasets. You should clear the notebook outputs before checking it in.
 
 ## Review / Pull Requests
 
