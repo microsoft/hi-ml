@@ -204,11 +204,12 @@ jobs:
             make pytest_fast
           fi
 
-      - name: Upload coverage artifacts
-        uses: ./.github/actions/upload_coverage_artifacts
+      - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
-        with:
-          folder: ${{ matrix.folder }}
+        run:
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ./codecov
 
   test-project-folders:
     runs-on: ubuntu-18.04
