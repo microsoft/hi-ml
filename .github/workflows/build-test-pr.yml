@@ -206,10 +206,9 @@ jobs:
 
       - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
-        run: |
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov
+        uses: codecov/codecov-action@v2
+        with:
+            name: ${{ matrix.folder }}
 
   test-project-folders:
     runs-on: ubuntu-18.04
@@ -262,10 +261,9 @@ jobs:
 
       - name: Upload coverage report to Codecov
         if: ${{ matrix.packageName == '*.whl' }}
-        run: |
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov
+        uses: codecov/codecov-action@v2
+        with:
+            name: ${{ matrix.folder }}
 
       - name: Run GPU tests
         run: |
