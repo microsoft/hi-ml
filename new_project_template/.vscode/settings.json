@@ -50,10 +50,6 @@
     // and may override settings in the workspace configuration.
     "python.sortImports.args": [
         "-l=120",
-        "--src=${workspaceFolder}/src"
-    ],
-    "python.analysis.extraPaths": [
-        "${workspaceFolder}/src",
-        "${workspaceFolder}/testazure"
+        "--src=${workspaceFolder}"
     ],
  }

@@ -54,10 +54,6 @@
         "--src=${workspaceFolder}/../hi-ml-azure/src",
         "--src=${workspaceFolder}/src"
     ],
-    "python.testing.pytestArgs": [
-        "${workspaceFolder}/testhisto",
-        "${workspaceFolder}/testSSL"
-    ],
     "python.analysis.extraPaths": [
         "${workspaceFolder}/../hi-ml-azure/src",
         "${workspaceFolder}/../hi-ml-azure/testazure",
