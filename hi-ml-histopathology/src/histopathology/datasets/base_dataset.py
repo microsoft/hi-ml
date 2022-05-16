@@ -96,7 +96,7 @@ class TilesDataset(Dataset):
         for column in columns:
             if column is not None and column not in self.dataset_df.columns:
                 raise ValueError(f"Expected column '{column}' not found in the dataframe")
-    
+
     def __len__(self) -> int:
         return self.dataset_df.shape[0]
 
