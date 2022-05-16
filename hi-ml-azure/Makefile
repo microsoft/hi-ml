@@ -81,10 +81,9 @@ call_pytest_fast:
 # install test requirements and run pytest fast subset
 pytest_fast: pip_test call_pytest_fast
 
-# run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
+# run pytest with coverage on package
 call_pytest_and_coverage:
 	pytest --cov=health_azure  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testazure
-	pycobertura show --format text --output coverage.txt coverage.xml
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage
