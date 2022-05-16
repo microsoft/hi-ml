@@ -61,8 +61,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
-            azure_datasets=["PANDA_tiles", "PANDA"])
+            local_datasets=[Path("/tmp/datasets/PANDA_tiles_20220427"), Path("/tmp/datasets/PANDA")],
+            azure_datasets=["PANDA_tiles_20220427", "PANDA"])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 

@@ -51,7 +51,8 @@ class TilesDataset(Dataset):
                  root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
-                 train: Optional[bool] = None) -> None:
+                 train: Optional[bool] = None,
+                 validate_columns: bool = True) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -61,6 +62,7 @@ class TilesDataset(Dataset):
         from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         :param train: If `True`, loads only the training split (resp. `False` for test split). By
         default (`None`), loads the entire dataset as-is.
+        :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         """
         if self.SPLIT_COLUMN is None and train is not None:
             raise ValueError("Train/test split was specified but dataset has no split column")
@@ -73,11 +75,8 @@ class TilesDataset(Dataset):
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
             dataset_df = pd.read_csv(self.dataset_csv)
 
-        columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.LABEL_COLUMN,
-                   self.SPLIT_COLUMN, self.TILE_X_COLUMN, self.TILE_Y_COLUMN]
-        for column in columns:
-            if column is not None and column not in dataset_df.columns:
-                raise ValueError(f"Expected column '{column}' not found in the dataframe")
+        if validate_columns:
+            self.validate_columns()
 
         dataset_df = dataset_df.set_index(self.TILE_ID_COLUMN)
         if train is None:
@@ -86,6 +85,18 @@ class TilesDataset(Dataset):
             split = self.TRAIN_SPLIT_LABEL if train else self.TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
 
+    def validate_columns(self) -> None:
+        """Check that loaded dataframe contains expected columns, raises `ValueError` otherwise.
+
+        If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
+        call `validate_columns()` after creating derived columns, for example.
+        """
+        columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.LABEL_COLUMN,
+                   self.SPLIT_COLUMN, self.TILE_X_COLUMN, self.TILE_Y_COLUMN]
+        for column in columns:
+            if column is not None and column not in self.dataset_df.columns:
+                raise ValueError(f"Expected column '{column}' not found in the dataframe")
+    
     def __len__(self) -> int:
         return self.dataset_df.shape[0]
 

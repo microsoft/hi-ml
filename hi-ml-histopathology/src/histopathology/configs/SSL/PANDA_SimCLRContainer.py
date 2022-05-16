@@ -39,7 +39,7 @@ class PANDA_SimCLR(HistoSSLContainer):
 
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
                          linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
-                         azure_datasets=['PANDA_tiles'],
+                         azure_datasets=['PANDA_tiles_20220427'],
                          random_seed=1,
                          num_workers=num_workers,
                          is_debug_model=is_debug_model,
