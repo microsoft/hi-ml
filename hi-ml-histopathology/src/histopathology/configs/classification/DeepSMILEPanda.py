@@ -19,7 +19,11 @@ from histopathology.models.encoders import (
     SSLEncoder)
 from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
-from histopathology.datasets.default_paths import PANDA_DATASET_DIR, PANDA_DATASET_ID, PANDA_TILES_DATASET_DIR, PANDA_TILES_DATASET_ID
+from histopathology.datasets.default_paths import (
+    PANDA_DATASET_DIR,
+    PANDA_DATASET_ID,
+    PANDA_TILES_DATASET_DIR,
+    PANDA_TILES_DATASET_ID)
 
 
 class BaseDeepSMILEPanda(BaseMIL):
