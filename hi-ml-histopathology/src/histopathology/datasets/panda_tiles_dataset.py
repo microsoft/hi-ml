@@ -52,7 +52,8 @@ class PandaTilesDataset(TilesDataset):
 
         # Change "left" --> "tile_x" and "top" --> "tile_y"
         # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
-        self.dataset_df.rename(columns={"left": "tile_x", "top": "tile_y"}, inplace=True)
+        self.dataset_df.rename(columns={"left": TilesDataset.TILE_X_COLUMN, "top": TilesDataset.TILE_Y_COLUMN},
+                               inplace=True)
         self.validate_columns()
 
 
