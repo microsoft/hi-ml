@@ -10,22 +10,19 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
-from argparse import (
-    ArgumentDefaultsHelpFormatter,
-    ArgumentError,
-    ArgumentParser,
-    Namespace,
-    OPTIONAL,
-    SUPPRESS,
-    _UNRECOGNIZED_ARGS_ATTR,
-)
+from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
+                      ArgumentParser, Namespace)
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar,
+                    Union)
 
 import conda_merge
 import pandas as pd
@@ -69,7 +66,7 @@ ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
 MODEL_ID_KEY_NAME = "model_id"
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
-RUN_CONTEXT = Run.get_context()
+RUN_CONTEXT: Run = Run.get_context()
 PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 WORKSPACE_CONFIG_JSON = "config.json"
 
@@ -173,15 +170,29 @@ def set_fields_and_validate(config: param.Parameterized, fields_to_set: Dict[str
         config.validate()
 
 
-def create_argparser(config: param.Parameterized) -> ArgumentParser:
+def create_argparser(
+    config: param.Parameterized,
+    usage: Optional[str] = None,
+    description: Optional[str] = None,
+    epilog: Optional[str] = None
+) -> ArgumentParser:
     """
     Creates an ArgumentParser with all fields of the given config that are overridable.
 
     :param config: The config whose parameters should be used to populate the argument parser
+    :param usage: Brief information about correct usage that is printed if the script started with "--help". If not
+    provided, this is auto-generated from the complete set of arguments.
+    :param description: A description of the program that is printed if the script is started with "--help"
+    :param epilog: A text that is printed after the argument details if the script is started with "--help"
     :return: ArgumentParser
     """
     assert isinstance(config, param.Parameterized)
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(
+        formatter_class=ArgumentDefaultsHelpFormatter,
+        usage=usage,
+        description=description,
+        epilog=epilog
+    )
     _add_overrideable_config_args_to_parser(config, parser)
     return parser
 
@@ -227,7 +238,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         elif isinstance(_p, param.String):
             p_type = str
         elif isinstance(_p, param.List):
-            p_type = lambda x: [_p.class_(item) for item in x.split(",")]
+            p_type = lambda x: [_p.class_(item) for item in x.split(",") if item]
         elif isinstance(_p, param.NumericTuple):
             float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
             p_type = lambda x: tuple([float_or_int(item) for item in x.split(",")])
@@ -676,15 +687,19 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
     return run_or_recovery_id
 
 
-def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Optional[Path]:
+def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path],
+                                start_at_path: Optional[Path] = None) -> Optional[Path]:
     """Searches for a file of the given name in the current working directory, or any of its parent folders.
     Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
     of the given folders in stop_at_path.
 
     :param file_name: The name of the file to find.
     :param stop_at_path: A list of folders. If any of them is reached, search stops.
+    :param start_at_path: An optional path to the directory in which to start searching. If not supplied,
+        will use the current working directory.
     :return: The absolute path of the file if found, or None if it was not found.
     """
+    start_at_path = start_at_path or Path.cwd()
 
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
         logging.debug(f"Searching for file {file_name} in {start_at}")
@@ -695,7 +710,7 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
             return None
         return return_file_or_parent(start_at.parent)
 
-    return return_file_or_parent(start_at=Path.cwd())
+    return return_file_or_parent(start_at=start_at_path)
 
 
 def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
@@ -895,54 +910,136 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def _retrieve_unique_deps(dependencies: List[str], keep_method: str = "first") -> List[str]:
+def _split_dependency(dep_str: str) -> Tuple[str, ...]:
+    """Splits a string like those coming from PIP constraints into 3 parts: package name, operator, version.
+    The operator and version fields can be empty if no constraint is found at all
+
+    :param dep_str: A pip constraint string, like "package-name>=1.0.1"
+    :return: A tuple of [package name, operator, version]
+    """
+    parts: List[str] = re.split('(<=|==|=|>=|<|>|;)', dep_str)
+    if len(parts) == 1:
+        return (parts[0].strip(), "", "")
+    if len(parts) >= 3:
+        return tuple(p.strip() for p in parts)
+    raise ValueError(f"Unable to split this package string: {dep_str}")
+
+
+class PackageDependency:
+    """Class to hold information from a single line of a conda/pip environment file  (i.e. a single package spec)"""
+    def __init__(self, dependency_str: str) -> None:
+        self.package_name = ""
+        self.operator = ""
+        self.version = ""
+        self._split_dependency_str(dependency_str)
+
+    def _split_dependency_str(self, dependency_str: str) -> None:
+        """
+        Split the requirement string into package name, and optionally operator (e.g. ==, > etc) and version
+        if available, and store these values
+
+        :param dependency_str: A conda/pip constraint string, like "package-name>=1.0.1"
+        """
+        parts = _split_dependency(dependency_str)
+        self.package_name = parts[0]
+        self.operator = parts[1]
+        self.version = parts[2]
+        self.suffix = ''.join(parts[3:]) if len(parts) > 3 else ""
+
+    def name_operator_version_str(self) -> str:
+        """Concatenate the stored package name, operator and version and return it"""
+        return f"{self.package_name}{self.operator}{self.version}{self.suffix}"
+
+
+class PinnedOperator(Enum):
+    CONDA = "="
+    PIP = "=="
+
+
+def _resolve_package_clash(duplicate_dependencies: List[PackageDependency], pinned_operator: PinnedOperator
+                           ) -> PackageDependency:
+    """Given a list of duplicate package names with conflicting versions, if exactly one of these
+    is pinned, return that, otherwise raise a ValueError
+
+    :param duplicate_dependencies: a list of PackageDependency objects with the same package name
+    :raises ValueError: if none of the depencencies specify a pinned version
+    :return: A single PackageDependency object specifying a pinned version (e.g. 'pkg==0.1')
+    """
+    found_pinned_dependecy = None
+    for dependency in duplicate_dependencies:
+        if dependency.operator == pinned_operator.value:
+            if not found_pinned_dependecy:
+                found_pinned_dependecy = dependency
+            else:
+                raise ValueError(f"Found more than one pinned dependency for package: {dependency.package_name}")
+    if found_pinned_dependecy:
+        return found_pinned_dependecy
+    else:
+        num_clashes = len(duplicate_dependencies)
+        pkg_name = duplicate_dependencies[0].package_name
+        raise ValueError(
+            f"Encountered {num_clashes} requirements for package {pkg_name}, none of which specify"
+            " a pinned version.")
+
+
+def _resolve_dependencies(all_dependencies: Dict[str, List[PackageDependency]], pinned_operator: PinnedOperator
+                          ) -> List[PackageDependency]:
+    """Apply conflict resolution for pip package versions. Given a dictionary of package name: PackageDependency
+    objects, applies the following logic:
+        - if the package only appears once in all definitions, keep that package version
+        - if the package appears in multiple definitions, and is pinned only once, keep that package version
+        - otherwise, raise a ValueError
+
+    :param all_dependencies: a dictionary of package name: list of PackageDependency objects including description of
+        the specified names and versions for that package
+    :return: a list of unique PackageDependency objects
+    """
+    unique_dependencies = []
+    for dep_name, dep_list in all_dependencies.items():
+        if len(dep_list) == 1:
+            keep_dependency = dep_list[0]
+            unique_dependencies.append(keep_dependency)
+        else:
+            keep_dependency = _resolve_package_clash(dep_list, pinned_operator)
+            unique_dependencies.append(keep_dependency)
+    return unique_dependencies
+
+
+def _retrieve_unique_deps(dependencies: List[str], pinned_operator: PinnedOperator) -> List[str]:
     """
     Given a list of conda dependencies, which may contain duplicate versions
     of the same package name with the same or different versions, returns a
     list of them where each package name occurs only once. If a
-    package name appears more than once, only the first value will be retained.
+    package name appears more than once, a simple resolution strategy will be applied:
+    If any of the versions is listed with an equality constraint, that will be kept, irrespective
+    of the other constraints, even if they clash with the equality constraint. Multiple equality
+    constraints raise an error.
 
-    :param dependencies: The original list of package names to deduplicate
-    :param keep_method: The strategy for choosing which package version to keep
-    :return: a list in which each package name occurs only once
+    :param dependencies: the original list of package names to deduplicate
+    :return: a list of package specifications in which each package name occurs only once
     """
-    unique_deps: Dict[str, Tuple[str, str]] = {}
+    all_deps: DefaultDict[str, List[PackageDependency]] = defaultdict()
     for dep in dependencies:
-        dep_parts: List[str] = re.split("(=<|==|=|>=|<|>)", dep)
-        len_parts = len(dep_parts)
-        dep_name = dep_parts[0]
-        if len_parts > 1:
-            dep_join = "".join(dep_parts[1:-1])
-            dep_version = dep_parts[-1]
+        dependency = PackageDependency(dep)
+
+        dependency_name = dependency.package_name
+        if dependency_name in all_deps:
+            all_deps[dependency_name].append(dependency)
         else:
-            dep_join = ""
-            dep_version = ""
+            all_deps[dependency_name] = [dependency]
 
-        if dep_name in unique_deps:
-            if keep_method == "first":
-                keep_version, _ = unique_deps[dep_name]
-            elif keep_method == "last":
-                keep_version = dep_version
-                unique_deps[dep_name] = (keep_version, dep_join)
-            else:
-                raise ValueError(
-                    f"Unrecognised value of 'keep_method: {keep_method}'. Accepted values"
-                    f" include: ['first', 'last']"
-                )
-            logging.warning(
-                f"Found duplicate requirements: {dep}. Keeping the {keep_method} " f"version: {keep_version}"
-            )
+    unique_deps: List[PackageDependency] = _resolve_dependencies(all_deps, pinned_operator)
 
-        else:
-            unique_deps[dep_name] = (dep_version, dep_join)
-
-    unique_deps_list = [f"{pkg}{joiner}{vrsn}" for pkg, (vrsn, joiner) in unique_deps.items()]
+    unique_deps_list = [dep.name_operator_version_str() for dep in unique_deps]
     return unique_deps_list
 
 
 def _get_pip_dependencies(parsed_yaml: Any) -> Optional[Tuple[int, List[Any]]]:
     """Gets the first pip dependencies section of a Conda yaml file. Returns the index at which the pip section
     was found, and the pip section itself. If no pip section was found, returns None
+
+    :param parsed_yaml: the conda yaml file to get the pip requirements from
+    :return: the index at which the pip section was found, and the pip section itself
     """
     if CONDA_DEPENDENCIES in parsed_yaml:
         for i, dep in enumerate(parsed_yaml.get(CONDA_DEPENDENCIES)):
@@ -990,7 +1087,6 @@ def merge_conda_files(
     conda_files: List[Path],
     result_file: Path,
     pip_files: Optional[List[Path]] = None,
-    pip_clash_keep_method: str = "first",
 ) -> None:
     """
     Merges the given Conda environment files using the conda_merge package, optionally adds any
@@ -999,8 +1095,6 @@ def merge_conda_files(
     :param conda_files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
-    :param pip_clash_keep_method: If two or more pip packages are specified with the same name, this determines
-        which one should be kept. Current options: ['first', 'last']
     """
     env_definitions: List[Any] = []
     for file in conda_files:
@@ -1031,8 +1125,7 @@ def merge_conda_files(
             deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
-        # Remove duplicated pip packages from merged dependencies sections. Note that for a package that is
-        # duplicated, the first value encountered will be retained.
+        # Get conda dependencies and pip dependencies from specification
         pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
         if len(pip_deps_entries) == 0:
             raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
@@ -1042,9 +1135,9 @@ def merge_conda_files(
         deps.remove(pip_deps_entry)
 
         # remove all non-pip duplicates from the list of dependencies
-        unique_deps = _retrieve_unique_deps(deps, keep_method=pip_clash_keep_method)
+        unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
 
-        unique_pip_deps = _retrieve_unique_deps(pip_deps, keep_method=pip_clash_keep_method)
+        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
 
         # finally add back the deduplicated list of dependencies
         unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
@@ -1068,14 +1161,12 @@ def create_python_environment(
     workspace: Optional[Workspace] = None,
     private_pip_wheel_path: Optional[Path] = None,
     docker_base_image: str = "",
-    environment_variables: Optional[Dict[str, str]] = None,
 ) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the arguments.
     The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
     Conda file, the docker base image, environment variables and private wheels.
 
-    :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
         the Docker image.
@@ -1091,8 +1182,6 @@ def create_python_environment(
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
-    # By default, define several environment variables that work around known issues in the software stack
-    environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
     # See if this package as a whl exists, and if so, register it with AzureML environment.
     if private_pip_wheel_path is not None:
         if not private_pip_wheel_path.is_file():
@@ -1113,7 +1202,6 @@ def create_python_environment(
             docker_base_image,
             # Changing the index URL can lead to differences in package version resolution
             pip_extra_index_url,
-            str(environment_variables),
             # Use the path of the private wheel as a proxy. This could lead to problems if
             # a new environment uses the same private wheel file name, but the wheel has different
             # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
@@ -1130,7 +1218,6 @@ def create_python_environment(
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
         env.docker.base_image = docker_base_image
-    env.environment_variables = environment_variables
     return env
 
 
@@ -1788,6 +1875,36 @@ def download_files_from_hyperdrive_children(
     return downloaded_file_paths
 
 
+def replace_directory(source: Path, target: Path) -> None:
+    """
+    Safely move the contents of a source directory, deleting any files at the target location.
+
+    Because of how Azure ML mounts output folders, it is impossible to move or rename existing files. Therefore, if
+    running in Azure ML, this function creates a copy of the contents of `source`, then deletes the original files.
+
+    :param source: Source directory whose contents should be moved.
+    :param target: Target directory into which the contents should be moved. If not empty, all of its contents will be
+        deleted first.
+    """
+    if not source.is_dir():
+        raise ValueError(f"Source must be a directory, but got {source}")
+
+    if is_running_in_azure_ml():
+        if target.exists():
+            shutil.rmtree(target)
+        assert not target.exists()
+
+        shutil.copytree(source, target)
+        shutil.rmtree(source)
+    else:
+        # Outside of Azure ML, it should be much faster to rename the directory
+        # than to copy all contents then delete, especially for large dirs.
+        source.replace(target)
+
+    assert target.exists()
+    assert not source.exists()
+
+
 def create_aml_run_object(
     experiment_name: str,
     run_name: Optional[str] = None,
@@ -1864,3 +1981,58 @@ class UnitTestWorkspaceWrapper:
         if self._workspace is None:
             self._workspace = aml_workspace_for_unittests()
         return self._workspace
+
+
+@contextmanager
+def check_config_json(script_folder: Path, shared_config_json: Path) -> Generator:
+    """
+    Create a workspace config.json file exists in the folder where we expect a test script. This is either copied
+    from the location given in shared_config_json (this should be the case when executing a test on a dev machine),
+    or created from environment variables (this should trigger in builds on the github agents).
+
+    :param script_folder: This is the folder in which the config.json file should be created
+    :param shared_config_json: Path to a shared config.json file
+    """
+    target_config_json = script_folder / WORKSPACE_CONFIG_JSON
+    target_config_exists = target_config_json.is_file()
+    if target_config_exists:
+        pass
+    elif shared_config_json.exists():
+        # This will execute on local dev machines
+        logging.info(f"Copying {shared_config_json} to folder {script_folder}")
+        shutil.copy(shared_config_json, target_config_json)
+    else:
+        # This will execute on github agents
+        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
+        resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
+        workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
+        if subscription_id and resource_group and workspace_name:
+            with open(str(target_config_json), 'w', encoding="utf-8") as file:
+                config = {
+                    "subscription_id": subscription_id,
+                    "resource_group": resource_group,
+                    "workspace_name": workspace_name
+                }
+                json.dump(config, file)
+        else:
+            raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
+                             "workspace creation must exist.")
+    try:
+        yield
+    finally:
+        if not target_config_exists:
+            target_config_json.unlink()
+
+
+def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
+    """
+    Raises an exception if 'actual' is not any of the given valid values.
+    :param message: The prefix for the error message.
+    :param actual: The actual value.
+    :param valid: The set of valid strings that 'actual' is allowed to take on.
+    :return:
+    """
+    if actual not in valid:
+        all_valid = ", ".join(["<None>" if v is None else v for v in valid])
+        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))

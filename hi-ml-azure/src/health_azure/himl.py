@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml._base_sdk_common import user_agent
-from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
@@ -81,6 +81,50 @@ class AzureRunInfo:
     folder will be uploaded to blob storage regularly during the script run."""
 
 
+def validate_num_nodes(compute_cluster: ComputeTarget, num_nodes: int) -> None:
+    """
+    Check that the user hasn't requested more nodes than the maximum number of nodes allowed by
+    their compute cluster
+
+    :param compute_cluster: An AML ComputeTarget representing the cluster whose upper node limit
+        should be checked
+    :param num_nodes: The number of nodes that the user has requested
+    """
+    max_cluster_nodes: int = compute_cluster.scale_settings.maximum_node_count
+    if num_nodes > max_cluster_nodes:
+        raise ValueError(
+            f"You have requested {num_nodes} nodes, which is more than your compute cluster "
+            f"({compute_cluster.name})'s maximum of {max_cluster_nodes} nodes.")
+
+
+def validate_compute_name(existing_compute_targets: Dict[str, ComputeTarget], compute_target_name: str) -> None:
+    """
+    Check that a specified compute target is one of the available existing compute targets in a Workspace
+
+    :param existing_compute_targets: A list of AML ComputeTarget objects available to a given AML Workspace
+    :param compute_cluster_name: The name of the specific compute target whose name to look up in existing
+        compute targets
+    """
+    if compute_target_name not in existing_compute_targets:
+        raise ValueError(f"Could not find the compute target {compute_target_name} in the AzureML workspace. ",
+                         f"Existing compute targets: {list(existing_compute_targets)}")
+
+
+def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, num_nodes: int) -> None:
+    """
+    Check that both the specified compute cluster exists in the given Workspace, and that it has enough
+    nodes to spin up the requested number of nodes
+
+    :param existing_compute_clusters: A list of AML ComputeTarget objects in a given AML Workspace
+    :param compute_cluster_name: The name of the specific compute cluster whose properties should be checked
+    :param num_nodes: The number of nodes that the user has requested
+    """
+    existing_compute_clusters: Dict[str, ComputeTarget] = workspace.compute_targets
+    validate_compute_name(existing_compute_clusters, compute_cluster_name)
+    compute_cluster = existing_compute_clusters[compute_cluster_name]
+    validate_num_nodes(compute_cluster, num_nodes)
+
+
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
                              conda_environment_file: Optional[Path] = None,
@@ -136,8 +180,7 @@ def create_run_configuration(workspace: Workspace,
             pip_extra_index_url=pip_extra_index_url,
             workspace=workspace,
             private_pip_wheel_path=private_pip_wheel_path,
-            docker_base_image=docker_base_image,
-            environment_variables=environment_variables)
+            docker_base_image=docker_base_image)
         conda_deps = new_environment.python.conda_dependencies
         if conda_deps.get_python_version() is None:
             raise ValueError("If specifying a conda environment file, you must specify the python version within it")
@@ -146,13 +189,14 @@ def create_run_configuration(workspace: Workspace,
     else:
         raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
 
+    # By default, include several environment variables that work around known issues in the software stack
+    run_config.environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
+
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
 
-    existing_compute_clusters = workspace.compute_targets
-    if compute_cluster_name not in existing_compute_clusters:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
+    validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
+
     run_config.target = compute_cluster_name
 
     if max_run_duration:
@@ -445,16 +489,17 @@ def submit_to_azure_if_needed(  # type: ignore
         )
 
     if snapshot_root_directory is None:
-        logging.info(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
+        print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
+    print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
+        print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
-    logging.info(f"Loaded AzureML workspace {workspace.name}")
     run_config = create_run_configuration(
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,

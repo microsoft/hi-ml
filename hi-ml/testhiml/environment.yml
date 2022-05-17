@@ -1,0 +1,12 @@
+# This environment definition only specifies python and pytorch itself. It will be used for AzureML jobs that are
+# started from the testhiml folder. The submission logic will automatically add the
+# pip packages required by health_azure and health_ml
+name: himl-basic
+channels:
+  - defaults
+  - pytorch
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pytorch=1.10.0
+  - cudatoolkit=11.3.1

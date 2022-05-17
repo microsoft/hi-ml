@@ -1,21 +1,21 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import logging
 import os
-import sys
-import time
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Generator, Iterable, List, Optional, Union
+from typing import Any, Generator, List, Optional
 
 import torch
 from torch.nn import Module
-from health_azure import utils
 from health_azure import paths
-from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
-
 
 MAX_PATH_LENGTH = 260
 
@@ -52,104 +52,6 @@ class ModelExecutionMode(Enum):
     TRAIN = "Train"
     TEST = "Test"
     VAL = "Val"
-
-
-def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
-    """
-    Raises an exception if 'actual' is not any of the given valid values.
-    :param message: The prefix for the error message.
-    :param actual: The actual value.
-    :param valid: The set of valid strings that 'actual' is allowed to take on.
-    :return:
-    """
-    if actual not in valid:
-        all_valid = ", ".join(["<None>" if v is None else v for v in valid])
-        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
-
-
-logging_stdout_handler: Optional[logging.StreamHandler] = None
-logging_to_file_handler: Optional[logging.StreamHandler] = None
-
-
-def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
-    """
-    Instructs the Python logging libraries to start writing logs to stdout up to the given logging level.
-    Logging will use a timestamp as the prefix, using UTC.
-
-    :param log_level: The logging level. All logging message with a level at or above this level will be written to
-    stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
-    """
-    log_level = standardize_log_level(log_level)
-    logger = logging.getLogger()
-    # This function can be called multiple times, in particular in AzureML when we first run a training job and
-    # then a couple of tests, which also often enable logging. This would then add multiple handlers, and repeated
-    # logging lines.
-    global logging_stdout_handler
-    if not logging_stdout_handler:
-        print("Setting up logging to stdout.")
-        # At startup, logging has one handler set, that writes to stderr, with a log level of 0 (logging.NOTSET)
-        if len(logger.handlers) == 1:
-            logger.removeHandler(logger.handlers[0])
-        logging_stdout_handler = logging.StreamHandler(stream=sys.stdout)
-        _add_formatter(logging_stdout_handler)
-        logger.addHandler(logging_stdout_handler)
-    print(f"Setting logging level to {log_level}")
-    logging_stdout_handler.setLevel(log_level)
-    logger.setLevel(log_level)
-
-
-def standardize_log_level(log_level: Union[int, str]) -> int:
-    """
-
-    :param log_level: integer or string (any casing) version of a log level, e.g. 20 or "INFO".
-    :return: integer version of the level; throws if the string does not name a level.
-    """
-    if isinstance(log_level, str):
-        log_level = log_level.upper()
-        check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
-        return logging._nameToLevel[log_level]
-    return log_level
-
-
-def _add_formatter(handler: logging.StreamHandler) -> None:
-    """
-    Adds a logging formatter that includes the timestamp and the logging level.
-    """
-    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ")
-    # noinspection PyTypeHints
-    formatter.converter = time.gmtime  # type: ignore
-    handler.setFormatter(formatter)
-
-
-@contextmanager
-def logging_section(gerund: str) -> Generator:
-    """
-    Context manager to print "**** STARTING: ..." and "**** FINISHED: ..." lines around sections of the log,
-    to help people locate particular sections. Usage:
-    with logging_section("doing this and that"):
-       do_this_and_that()
-
-    :param gerund: string expressing what happens in this section of the log.
-    """
-    from time import time
-
-    logging.info("")
-    msg = f"**** STARTING: {gerund} "
-    logging.info(msg + (100 - len(msg)) * "*")
-    logging.info("")
-    start_time = time()
-    yield
-    elapsed = time() - start_time
-    logging.info("")
-    if elapsed >= 3600:
-        time_expr = f"{elapsed / 3600:0.2f} hours"
-    elif elapsed >= 60:
-        time_expr = f"{elapsed / 60:0.2f} minutes"
-    else:
-        time_expr = f"{elapsed:0.2f} seconds"
-    msg = f"**** FINISHED: {gerund} after {time_expr} "
-    logging.info(msg + (100 - len(msg)) * "*")
-    logging.info("")
 
 
 def is_windows() -> bool:
@@ -209,31 +111,33 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
 
 def get_all_environment_files(project_root: Path, additional_files: Optional[List[Path]] = None) -> List[Path]:
     """
-    Returns a list of all Conda environment files that should be used. This is just an
-    environment.yml file that lives at the project root folder, plus any additional files provided in the model.
+    Returns a list of all Conda environment files that should be used, comprised of the default conda environment
+    definition file, plus any additional files specified in the input. If hi-ml has been downloaded from the
+    git repo or installed as a git submodule, the default environment definition file exists in hi-ml/hi-ml.
+    Otherwise, looks for a default environment file in project root folder.
 
     :param project_root: The root folder of the code that starts the present training run.
     :param additional_files: Optional list of additional environment files to merge
     :return: A list of Conda environment files to use.
     """
     env_files = []
-    project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
     if paths.is_himl_used_from_git_repo():
-        logging.info("Searching for Conda files in the parent folders")
-        git_repo_root = paths.git_repo_root_folder()
-        env_file = utils.find_file_in_parent_folders(
-            file_name=paths.ENVIRONMENT_YAML_FILE_NAME, stop_at_path=[git_repo_root]
-        )
-        if env_file is None:
+        env_file = paths.shared_himl_conda_env_file()
+        if not env_file.exists():
             # Searching for Conda file starts at current working directory, meaning it might not find
             # the file if cwd is outside the git repo
-            env_file = git_repo_root / paths.ENVIRONMENT_YAML_FILE_NAME
-            assert env_file.is_file(), "Expected to find at least the environment definition file at repo root"
+            env_file = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
+            assert env_file.is_file(), f"Didn't find an environment file at {env_file}"
+
         logging.info(f"Using Conda environment in {env_file}")
         env_files.append(env_file)
-    elif project_yaml.exists():
-        logging.info(f"Using Conda environment in current folder: {project_yaml}")
-        env_files.append(project_yaml)
+
+    else:
+        project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
+        print(f"Looking for project yaml: {project_yaml}")
+        if project_yaml.exists():
+            logging.info(f"Using Conda environment in current folder: {project_yaml}")
+            env_files.append(project_yaml)
 
     if not env_files and not additional_files:
         raise ValueError(
@@ -252,8 +156,8 @@ def check_conda_environments(env_files: List[Path]) -> None:
 
     :param env_files: The list of Conda environment YAML files to check.
     """
-    if is_himl_used_from_git_repo():
-        repo_root_yaml: Optional[Path] = git_repo_root_folder() / ENVIRONMENT_YAML_FILE_NAME
+    if paths.is_himl_used_from_git_repo():
+        repo_root_yaml: Optional[Path] = paths.shared_himl_conda_env_file()
     else:
         repo_root_yaml = None
     for file in env_files:
@@ -302,16 +206,6 @@ def is_gpu_available() -> bool:
     :return: True if a GPU with at least 1 device is available.
     """
     return torch.cuda.is_available() and torch.cuda.device_count() > 0  # type: ignore
-
-
-def parse_model_id_and_version(model_id_and_version: str) -> None:
-    """
-    When using registered models, the model id must have both the id and version present, in the format
-    model_name:version. This function checks the input model id and raises a ValueError if it is not of the
-    expected format
-    """
-    if len(model_id_and_version.split(":")) != 2:
-        raise ValueError(f"model id should be in the form 'model_name:version', got {model_id_and_version}")
 
 
 @contextmanager

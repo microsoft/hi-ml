@@ -11,6 +11,7 @@ import torch.multiprocessing
 from pytorch_lightning import LightningModule, seed_everything
 
 from health_azure import AzureRunInfo
+from health_azure.logging import logging_section
 from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
                                 is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT)
 
@@ -18,11 +19,12 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_utils import CheckpointHandler
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory, logging_section,
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.regression_test_utils import compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
 
 
@@ -61,6 +63,9 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
+        self.checkpoint_handler = CheckpointHandler(container=self.container,
+                                                    project_root=self.project_root,
+                                                    run_context=RUN_CONTEXT)
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
@@ -76,12 +81,13 @@ class MLRunner:
             # Set up the paths to the datasets. azure_run_info already has all necessary information, using either
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
-            if len(azure_run_info.input_datasets) > 0:
-                input_datasets = azure_run_info.input_datasets
-                assert len(input_datasets) > 0
-                local_datasets = [
-                    check_dataset_folder_exists(input_dataset) for input_dataset in input_datasets  # type: ignore
-                ]
+            input_datasets = azure_run_info.input_datasets
+            if len(input_datasets) > 0:
+                local_datasets: List[Path] = []
+                for i, dataset in enumerate(input_datasets):
+                    if dataset is None:
+                        raise ValueError(f"Invalid setup: The dataset at index {i} is None")
+                    local_datasets.append(check_dataset_folder_exists(dataset))
                 self.container.local_datasets = local_datasets  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
@@ -91,9 +97,6 @@ class MLRunner:
         self.container.create_filesystem(self.project_root)
 
         # configure recovery container if provided
-        self.checkpoint_handler = CheckpointHandler(container=self.container,
-                                                    project_root=self.project_root,
-                                                    run_context=RUN_CONTEXT)
         self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
 
         self.container.setup()
@@ -134,34 +137,45 @@ class MLRunner:
 
         # do training
         with logging_section("Model training"):
-            if self.checkpoint_handler is not None:
-                checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            else:
-                checkpoint_path = None
+            checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
             _, storing_logger = model_train(checkpoint_path,
                                             container=self.container)
             self.storing_logger = storing_logger
 
         # Since we have trained the model, let the checkpoint_handler object know so it can handle
         # checkpoints correctly.
-        if self.checkpoint_handler is not None:
-            self.checkpoint_handler.additional_training_done()
-            checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
-        else:
-            checkpoint_paths_for_testing = []
+        self.checkpoint_handler.additional_training_done()
+        checkpoint_path_for_testing = self.checkpoint_handler.get_checkpoint_to_test()
 
         with logging_section("Model inference"):
-            self.run_inference(checkpoint_paths_for_testing)
+            self.run_inference(checkpoint_path_for_testing)
 
-    def run_inference(self, checkpoint_paths: List[Path]) -> None:
+        if self.container.regression_test_folder:
+            # Comparison with stored results for cross-validation runs only operates on child run 0. This run
+            # has usually already downloaded the results for the other runs, and uploaded files to the parent
+            # run context.
+            logging.info("Comparing the current results against stored results")
+            if self.is_crossval_disabled_or_child_0():
+                compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
+                                                actual=self.container.outputs_folder,
+                                                csv_relative_tolerance=self.container.regression_test_csv_tolerance)
+            else:
+                logging.info("Skipping as this is not cross-validation child run 0")
+
+    def is_crossval_disabled_or_child_0(self) -> bool:
+        """
+        Returns True if the present run is a non-cross-validation run, or child run 0 of a cross-validation run.
+        """
+        if self.container.is_crossvalidation_enabled:
+            return self.container.crossval_index == 0
+        return True
+
+    def run_inference(self, checkpoint_path: Path) -> None:
         """
         Run inference on the test set for all models.
 
-        :param checkpoint_paths: The path to the checkpoint that should be used for inference.
+        :param checkpoint_path: The path to the checkpoint that should be used for inference.
         """
-        if len(checkpoint_paths) != 1:
-            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-
         lightning_model = self.container.model
         if type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
@@ -180,7 +194,7 @@ class MLRunner:
 
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
-            self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_path)
             data_module = self.container.get_data_module()
 
             # Change to the outputs folder so that the model can write to current working directory, and still

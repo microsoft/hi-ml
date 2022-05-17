@@ -77,9 +77,9 @@ class ImageNetEncoder(TileEncoder):
     def _get_preprocessing(self) -> Callable:
         return get_imagenet_preprocessing()
 
-    def _get_encoder(self) -> Tuple[Callable, int]:
+    def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True)
-        return setup_feature_extractor(pretrained_model, self.input_dim)  # type: ignore
+        return setup_feature_extractor(pretrained_model, self.input_dim)
 
 
 class ImageNetSimCLREncoder(TileEncoder):
@@ -116,14 +116,7 @@ class SSLEncoder(TileEncoder):
             freeze_encoder=True,
             pl_checkpoint_path=str(self.pl_checkpoint_path)
         )
-        encoder = model.encoder  # type: ignore
-        for param in encoder.parameters():
-            param.requires_grad = False  # freeze_encoder does not disable gradients
-
-        classifier_head = model.classifier_head
-        embedding_dim = classifier_head.n_input  # type: ignore
-
-        return encoder, embedding_dim
+        return setup_feature_extractor(model.encoder, self.input_dim)
 
 
 class HistoSSLEncoder(TileEncoder):
@@ -137,7 +130,7 @@ class HistoSSLEncoder(TileEncoder):
     WEIGHTS_URL = ("https://github.com/ozanciga/self-supervised-histopathology/releases/"
                    "download/tenpercent/tenpercent_resnet18.ckpt")
 
-    def _get_encoder(self) -> Tuple[Callable, int]:
+    def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         resnet18_model = resnet18(pretrained=False)
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
-        return setup_feature_extractor(histossl_encoder, self.input_dim)  # type: ignore
+        return setup_feature_extractor(histossl_encoder, self.input_dim)

@@ -4,7 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, List, Sequence
 
 import dateutil.parser
 import numpy as np
@@ -13,10 +13,50 @@ from azureml.core import Experiment, Run, Workspace
 
 from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
+from histopathology.utils.output_utils import AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV, AML_VAL_OUTPUTS_CSV
+
+
+def run_has_val_and_test_outputs(run: Run) -> bool:
+    """Checks whether the given run has both validation and test outputs files.
+
+    :param parent_run: The run whose outputs to check.
+    :raises ValueError: If the run does not have the expected output file(s).
+    :return: `True` if the run has validation and test outputs, `False` if it is a legacy run with
+        only test outputs.
+    """
+    available_files: List[str] = run.get_file_names()
+
+    if AML_VAL_OUTPUTS_CSV in available_files and AML_TEST_OUTPUTS_CSV in available_files:
+        return True
+    elif AML_LEGACY_TEST_OUTPUTS_CSV in available_files:
+        return False
+    else:
+        raise ValueError(f"Run {run.display_name} ({run.id}) does not have the expected files "
+                         f"({AML_LEGACY_TEST_OUTPUTS_CSV} or both {AML_VAL_OUTPUTS_CSV} and "
+                         f"{AML_TEST_OUTPUTS_CSV}): {available_files}")
+
+
+def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
+    """Checks whether all child cross-validation runs have both validation and test outputs files.
+
+    :param parent_run: The parent Hyperdrive run.
+    :raises ValueError: If any of the child runs does not have the expected output files, or if
+        some of the child runs have both outputs and some have only test outputs.
+    :return: `True` if all children have validation and test outputs, `False` if all children are
+        legacy runs with only test outputs.
+    """
+    have_val_and_test_outputs = [run_has_val_and_test_outputs(child_run) for child_run in parent_run.get_children()]
+    if all(have_val_and_test_outputs):
+        return True
+    elif not any(have_val_and_test_outputs):
+        return False
+    else:
+        raise ValueError(f"Parent run {parent_run.display_name} ({parent_run.id}) has mixed children with legacy "
+                         "test-only outputs and with both validation and test outputs")
 
 
 def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "cross_validation_split_index",
+                             crossval_arg_name: str = "crossval_index",
                              output_filename: str = "test_output.csv",
                              overwrite: bool = False) -> Dict[int, pd.DataFrame]:
     """Fetch output CSV files from cross-validation runs as dataframes.
@@ -41,17 +81,16 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
             raise ValueError(f"Child run expected to have the tag '{crossval_arg_name}'")
         child_dir = download_dir / str(child_run_index)
         try:
-            remote_filename = "outputs/" + output_filename
-            child_csv = download_file_if_necessary(child_run, remote_filename, child_dir / output_filename,
+            child_csv = download_file_if_necessary(child_run, output_filename, child_dir / output_filename,
                                                    overwrite=overwrite)
             all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
         except Exception as e:
             print(f"Failed to download {output_filename} for run {child_run.id}: {e}")
-    return dict(sorted(all_outputs_dfs.items()))
+    return dict(sorted(all_outputs_dfs.items()))  # type: ignore
 
 
 def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "cross_validation_split_index",
+                             crossval_arg_name: str = "crossval_index",
                              overwrite: bool = False) -> pd.DataFrame:
     """Fetch metrics logged to Azure ML from cross-validation runs as a dataframe.
 

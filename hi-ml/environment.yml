@@ -1,7 +1,6 @@
-# This environment definition only specifies python and pytorch itself. It will be picked up automatically
-# for AzureML jobs that are started from within the hi-ml folder. The submission logic will automatically add the
-# pip packages required by health_azure and health_ml
-name: himl-basic
+# This environment definition contains all packages to run hi-ml and hi-ml-azure development work, building and
+# testing
+name: himl
 channels:
   - defaults
   - pytorch
@@ -10,3 +9,8 @@ dependencies:
   - python=3.7.3
   - pytorch=1.10.0
   - cudatoolkit=11.3.1
+  - pip:
+      - -r ../hi-ml-azure/run_requirements.txt
+      - -r run_requirements.txt
+      - -r ../build_requirements.txt
+      - -r ../test_requirements.txt

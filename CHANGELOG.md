@@ -30,12 +30,14 @@ the environment file since it is necessary for the augmentations.
 - ([#196](https://github.com/microsoft/hi-ml/pull/196)) Show current workspace name in error message.
 
 ### Fixed
-
+- ([#267]https://github.com/microsoft/hi-ml/pull/267)) Correct PYTHONPATH for Windows in VS Code settings
+- ([#266]https://github.com/microsoft/hi-ml/pull/266)) Pin jinja2 package to avoid 'No attribute Markup' bug in version 3.1.0
 - ([#246](https://github.com/microsoft/hi-ml/pull/246)) Added tolerance to `test_attentionlayers.py`.
 - ([#198](https://github.com/microsoft/hi-ml/pull/198)) Dependencies for histopathology folder are no longer specified in `test_requirements.txt`, but correctly in the histopathology Conda environment.
 - ([#188](https://github.com/microsoft/hi-ml/pull/188)) Updated DeepSMILES models. Now they are uptodate with innereye-dl.
 - ([#179](https://github.com/microsoft/hi-ml/pull/179)) HEDJitter was jittering the D channel as well. StainNormalization was relying on skimage.
 - ([#195](https://github.com/microsoft/hi-ml/pull/195)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.
+
 
 ### Removed
 

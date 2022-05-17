@@ -25,6 +25,7 @@ for folder in folders_to_add:
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
+from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,  # noqa: E402
                                 set_environment_variables_for_multi_node, create_argparser, parse_arguments,
@@ -36,7 +37,7 @@ from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (check_conda_environments, get_all_environment_files,  # noqa: E402
                                           get_all_pip_requirements_files,
-                                          is_linux, logging_to_stdout)
+                                          is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
 
@@ -278,7 +279,7 @@ class Runner:
                     experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
                     input_datasets=input_datasets,  # type: ignore
                     num_nodes=self.experiment_config.num_nodes,
-                    wait_for_completion=False,
+                    wait_for_completion=self.experiment_config.wait_for_completion,
                     ignored_folders=[],
                     submit_to_azureml=self.experiment_config.azureml,
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,

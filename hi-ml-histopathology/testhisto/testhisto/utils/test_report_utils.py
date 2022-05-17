@@ -9,8 +9,68 @@ import pandas.testing
 import pytest
 
 from health_azure.utils import download_file_if_necessary
+from histopathology.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV,
+                                               AML_VAL_OUTPUTS_CSV)
 from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
-                                               get_best_epoch_metrics, get_best_epochs, get_crossval_metrics_table)
+                                               crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
+                                               get_best_epochs, get_crossval_metrics_table,
+                                               run_has_val_and_test_outputs)
+
+
+def test_run_has_val_and_test_outputs() -> None:
+    arbitrary_filename = AML_OUTPUTS_DIR + "/some_other_file"
+
+    run = MagicMock(display_name="mock run", id="abc123")
+
+    with patch.object(run, 'get_file_names', return_value=[AML_LEGACY_TEST_OUTPUTS_CSV]):
+        assert not run_has_val_and_test_outputs(run)
+
+    with patch.object(run, 'get_file_names', return_value=[AML_VAL_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV]):
+        assert run_has_val_and_test_outputs(run)
+
+    with patch.object(run, 'get_file_names', return_value=[AML_VAL_OUTPUTS_CSV]):
+        with pytest.raises(ValueError, match="does not have the expected files"):
+            run_has_val_and_test_outputs(run)
+
+    with patch.object(run, 'get_file_names', return_value=[AML_TEST_OUTPUTS_CSV]):
+        with pytest.raises(ValueError, match="does not have the expected files"):
+            run_has_val_and_test_outputs(run)
+
+    with patch.object(run, 'get_file_names', return_value=[arbitrary_filename]):
+        with pytest.raises(ValueError, match="does not have the expected files"):
+            run_has_val_and_test_outputs(run)
+
+
+def test_crossval_runs_have_val_and_test_outputs() -> None:
+    legacy_run = MagicMock(display_name="legacy run", id="child1")
+    legacy_run.get_file_names.return_value = [AML_LEGACY_TEST_OUTPUTS_CSV]
+
+    run_with_val_and_test = MagicMock(display_name="run with val and test", id="child2")
+    run_with_val_and_test.get_file_names.return_value = [AML_VAL_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV]
+
+    arbitrary_filename = AML_OUTPUTS_DIR + "/some_other_file"
+    invalid_run = MagicMock(display_name="invalid run", id="child3")
+    invalid_run.get_file_names.return_value = [arbitrary_filename]
+
+    parent_run = MagicMock()
+
+    with patch.object(parent_run, 'get_children', return_value=[legacy_run, legacy_run]):
+        assert not crossval_runs_have_val_and_test_outputs(parent_run)
+
+    with patch.object(parent_run, 'get_children', return_value=[run_with_val_and_test, run_with_val_and_test]):
+        assert crossval_runs_have_val_and_test_outputs(parent_run)
+
+    with patch.object(parent_run, 'get_children', return_value=[legacy_run, invalid_run]):
+        with pytest.raises(ValueError, match="does not have the expected files"):
+            crossval_runs_have_val_and_test_outputs(parent_run)
+
+    with patch.object(parent_run, 'get_children', return_value=[run_with_val_and_test, invalid_run]):
+        with pytest.raises(ValueError, match="does not have the expected files"):
+            crossval_runs_have_val_and_test_outputs(parent_run)
+
+    with patch.object(parent_run, 'get_children', return_value=[legacy_run, run_with_val_and_test]):
+        with pytest.raises(ValueError, match="has mixed children"):
+            crossval_runs_have_val_and_test_outputs(parent_run)
 
 
 @pytest.mark.parametrize('overwrite', [False, True])

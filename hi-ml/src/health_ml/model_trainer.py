@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
 from pytorch_lightning import Callback, Trainer, seed_everything
-from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
+from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -134,6 +134,8 @@ def create_lightning_trainer(container: LightningContainer,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
     else:
+        # Use a local import here to be able to support older PL versions
+        from pytorch_lightning.callbacks import TQDMProgressBar
         callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
@@ -143,10 +145,12 @@ def create_lightning_trainer(container: LightningContainer,
                       accelerator=accelerator,
                       strategy=strategy,
                       max_epochs=container.max_epochs,
-                      # Both these arguments can be integers or floats. If integers, it is the number of batches.
+                      # All of the following limit_batches  arguments can be integers or floats.
+                      # If integers, it is the number of batches.
                       # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
+                      limit_test_batches=container.pl_limit_test_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,

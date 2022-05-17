@@ -12,6 +12,7 @@ def mount_dataset(dataset_id: str) -> str:
     target_folder = "/tmp/datasets/" + dataset_id
     dataset = DatasetConfig(name=dataset_id, target_folder=target_folder, use_mounting=True)
     dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
+    assert mount_ctx is not None  # for mypy
     mount_ctx.start()
     return str(dataset_mount_folder)
 
@@ -19,7 +20,8 @@ def mount_dataset(dataset_id: str) -> str:
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_id', type=str,
+    # Run this script as "python mount_azure_dataset.py --dataset_id TCGA-CRCk"
+    parser.add_argument('--dataset_id', type=str,
                         help='Name of the Azure dataset e.g. PANDA or TCGA-CRCk')
     args = parser.parse_args()
     mount_dataset(args.dataset_id)

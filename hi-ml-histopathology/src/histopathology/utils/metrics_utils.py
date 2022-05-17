@@ -5,7 +5,7 @@
 
 import sys
 from pathlib import Path
-from typing import Tuple, List, Any, Dict, Union
+from typing import Sequence, Tuple, List, Any, Dict, Union
 
 import torch
 import matplotlib.pyplot as plt
@@ -37,7 +37,10 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     :param return_col: column name of the values we want to return for each tile
     :return: tuple containing the slides id, the slide score, the tile ids, the tiles scores
     """
+    # TODO: Refactor into separate functions to select slides by probabilities and tiles by attentions
     tmp_s = [(results[prob_col][i][label], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
+    if len(tmp_s) == 0:
+        return []
     if select[0] == 'lowest_pred':
         tmp_s.sort(reverse=False)
     elif select[0] == 'highest_pred':
@@ -66,7 +69,7 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
 
 
 def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
-                     gt_col: str = ResultsKey.TRUE_LABEL) -> plt.figure:
+                     gt_col: str = ResultsKey.TRUE_LABEL) -> plt.Figure:
     """
     :param results: List that contains slide_level dicts
     :param prob_col: column name that contains the scores
@@ -86,7 +89,7 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
 
 
 def plot_attention_tiles(slide: str, scores: List[float], paths: List, attn: List, case: str, ncols: int = 5,
-                         size: Tuple = (10, 10)) -> plt.figure:
+                         size: Tuple = (10, 10)) -> plt.Figure:
     """
     :param slide: slide identifier
     :param scores: predicted scores of each class for the slide
@@ -109,7 +112,7 @@ def plot_attention_tiles(slide: str, scores: List[float], paths: List, attn: Lis
     return fig
 
 
-def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
+def plot_slide(slide_image: np.ndarray, scale: float) -> plt.Figure:
     """Plots a slide thumbnail from a given slide image and scale.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :return: matplotlib figure of the slide thumbnail.
@@ -125,10 +128,10 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
 
 def plot_heatmap_overlay(slide: str,
                          slide_image: np.ndarray,
-                         results: Dict[str, List[Any]],
+                         results: Dict[ResultsKey, List[Any]],
                          location_bbox: List[int],
                          tile_size: int = 224,
-                         level: int = 1) -> plt.figure:
+                         level: int = 1) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
     :param slide: slide identifier.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
@@ -145,7 +148,7 @@ def plot_heatmap_overlay(slide: str,
     ax.set_xlim(0, slide_image.shape[1])
     ax.set_ylim(slide_image.shape[0], 0)
 
-    coords = []
+    coords_list = []
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
@@ -153,10 +156,10 @@ def plot_heatmap_overlay(slide: str,
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
         tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
-                                   results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
-        coords.append(tile_coords)
+                                             results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
+        coords_list.append(tile_coords)
 
-    coords = np.array(coords)  # type: ignore
+    coords = np.array(coords_list)
     attentions = np.array(attentions.cpu()).reshape(-1)
 
     sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
@@ -173,7 +176,7 @@ def plot_heatmap_overlay(slide: str,
     return fig
 
 
-def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> plt.figure:
+def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str]) -> plt.Figure:
     """Plots a normalized confusion matrix and returns the figure.
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.

@@ -31,7 +31,7 @@ class PandaTilesDataset(TilesDataset):
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
     N_CLASSES = 6
 
-    _RELATIVE_ROOT_FOLDER = Path("PANDA_tiles_20210926-135446/panda_tiles_level1_224")
+    _RELATIVE_ROOT_FOLDER = Path("panda_tiles_level1_224")
 
     def __init__(self,
                  root: Path,
@@ -41,13 +41,20 @@ class PandaTilesDataset(TilesDataset):
         super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
                          dataset_csv=dataset_csv,
                          dataset_df=dataset_df,
-                         train=None)
+                         train=None,
+                         validate_columns=False)
         if occupancy_threshold is not None:
             self.dataset_df: pd.DataFrame
             dataset_df_filtered = self.dataset_df.loc[
                 self.dataset_df['occupancy'] > occupancy_threshold
             ]
             self.dataset_df = dataset_df_filtered
+
+        # Change "left" --> "tile_x" and "top" --> "tile_y"
+        # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
+        self.dataset_df.rename(columns={"left": TilesDataset.TILE_X_COLUMN, "top": TilesDataset.TILE_Y_COLUMN},
+                               inplace=True)
+        self.validate_columns()
 
 
 class PandaTilesDatasetReturnImageLabel(VisionDataset):

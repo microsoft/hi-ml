@@ -7,23 +7,39 @@ On Windows system, we recommend using WSL, the Windows Subsystem for Linux, beca
 Inside VSCode, please install the extensions that are recommended for this project - they are available in `.vscode/extensions.json` in the
 repository root.
 
+## Opening the repository
+
+Once you have the repository on your computer, you can open either all projects
+at once or individual projects separately in VSCode.
+
+* To open all projects at once, use VSCode's "Open Workspace from File", and
+  select `himl-projects.code-workspace`.
+* To open individual projects, use VSCode's "Open Folder", and select one of the
+  folders `hi-ml-azure`, `hi-ml`, or `hi-ml-histopathology`
+
 ## Creating a Conda environment
 
-To create a separate Conda environment with all packages that `hi-ml` requires for running and testing,
-use the provided `environment.yml` file. You can create a Conda environment called `himl` from that via either
+Different projects in this repository use different Conda environments:
+
+* The `himl` Conda environment should be used for work on the `hi-ml` and `hi-ml-azure` projects.
+* The `HimlHisto` Conda environment should be used for work on `hi-ml-histopathology`.
+
+Please select the right Python interpreter for your project (or all projects if using the `himl-projects` workspace)
+inside VSCode, by choosing "Python: Select Interpreter" from the command palette (Ctrl-Shift-P on VSCode for Windows)
+
+To create the Conda environment `himl`, please use either
 
 ```shell script
-conda env create --file environment.yml
+conda env create --file hi-ml/environment.yml
 ```
 
-or
+or use `make` in the repository root folder:
 
 ```shell script
 make env
 ```
 
-Afterwards, please activate this environment via `conda activate himl`. Select this Python interpreter also inside VSCode,
-by choosing "Python: Select Interpreter" from the command palette (Ctrl-Shift-P on VSCode for Windows)
+Please see the project-specific README files for instructions how to set up the other Conda environments.
 
 ## Installing `pyright`
 
@@ -97,7 +113,7 @@ This will build all your documentation in `docs/build/html`.
 * In the browser, navigate to the AzureML workspace that you want to use for running your tests.
 * In the top right section, there will be a dropdown menu showing the name of your AzureML workspace. Expand that.
 * In the panel, there is a link "Download config file". Click that.
-* This will download a file `config.json`. Move that file to both of the folders `hi-ml/testhiml` and `hi-ml/testazure` 
+* This will download a file `config.json`. Move that file to both of the folders `hi-ml/testhiml` and `hi-ml/testazure`
   The file `config.json` is already present in `.gitignore`, and will hence not be checked in.
 
 ## Creating and Deleting Docker Environments in AzureML
@@ -124,7 +140,6 @@ When running the tests locally, they can either be run against the source direct
 
 All tests in the repository should be picked up automatically by VSCode. In particular, this includes the tests in the `hi-ml-histopathology` folder, which
 are not always necessary when working on the core `hi-ml` projects.
-You can exclude a set of tests from test discovery by modifying `python.testing.pytestArgs` in the VSCode `.vscode/settings.json` file.
 
 ## Creating a New Release
 

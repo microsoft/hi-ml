@@ -20,9 +20,8 @@ from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME,
-                                          parse_model_id_and_version)
-from health_ml.utils.type_annotations import TupleFloat2
+                                          DEFAULT_LOGS_DIR_NAME)
+from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2
 
 
 @unique
@@ -128,15 +127,11 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    weights_url: List[str] = param.List(default=[], class_=str,
-                                        doc="If provided, a set of urls from which checkpoints will be downloaded"
-                                            "and used for inference.")
-    local_weights_path: List[Path] = param.List(default=[], class_=Path,
-                                                doc="A list of checkpoints paths to use for inference, "
-                                                    "when the job is running outside Azure.")
-    model_id: str = param.String(default="",
-                                 doc="A model id string in the form 'model name:version' "
-                                     "to use a registered model for inference.")
+    weights_url: str = param.String(default="",
+                                    doc="If provided, use this URL to download checkpoints for inference.")
+    local_weights_path: Optional[Path] = \
+        param.ClassSelector(class_=Path, allow_None=True, default=None,
+                            doc="Checkpoint paths to use for inference, when the job is running outside Azure.")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -146,15 +141,24 @@ class WorkflowParams(param.Parameterized):
     hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
                                                 "LightningContainer to run hyperparameter tuning. If False, just "
                                                 "run a plain single training job.")
+    regression_test_folder: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="A path to a folder that contains a set of files. At the end of training and "
+                                "model evaluation, all files given in that folder must be present in the job's output "
+                                "folder, and their contents must match exactly. When running in AzureML, you need to "
+                                "ensure that this folder is part of the snapshot that gets uploaded. The path should "
+                                "be relative to the repository root directory.")
+    regression_test_csv_tolerance: float = \
+        param.Number(default=0.0, allow_None=False,
+                     doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
+                         "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
+
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
-            raise ValueError("Cannot specify more than one of local_weights_path, weights_url or model_id.")
-
-        if self.model_id:
-            parse_model_id_and_version(self.model_id)
+        if self.weights_url and self.local_weights_path:
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url.")
 
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
@@ -381,14 +385,18 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
                           "Setting it to True comes with a performance hit.")
-    pl_limit_train_batches: Optional[int] = \
-        param.Integer(default=None,
-                      doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
-                          "given number of batches.")
-    pl_limit_val_batches: Optional[int] = \
-        param.Integer(default=None,
-                      doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
-                          "given number of batches.")
+    pl_limit_train_batches: Optional[IntOrFloat] = \
+        param.Number(default=None,
+                     doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
+                         "given number of batches if integer, or proportion of training dataset if float.")
+    pl_limit_val_batches: Optional[IntOrFloat] = \
+        param.Number(default=None,
+                     doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
+                         "given number of batches if integer, or proportion of validation dataset if float.")
+    pl_limit_test_batches: Optional[IntOrFloat] = \
+        param.Number(default=None,
+                     doc="PyTorch Lightning trainer flag 'limit_test_batches': Limit the test dataset to the "
+                         "given number of batches if integer, or proportion of test dataset if float.")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "

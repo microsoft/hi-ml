@@ -108,6 +108,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
+@pytest.mark.flaky(reruns=3)
 def test_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -173,6 +174,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     shutil.rmtree(loaded_config2.outputs_folder)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_load_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     """
     Tests that the parameters feed into the BYOL model and online evaluator are
@@ -256,6 +258,7 @@ def test_ssl_container_rsna() -> None:
     assert loaded_config2 is not None
     assert isinstance(loaded_config2, CXRImageClassifier)
     assert loaded_config2.model.freeze_encoder
+    assert isinstance(loaded_config2.model.class_weights, torch.Tensor)  # for mypy
     assert torch.isclose(loaded_config2.model.class_weights,
                          torch.tensor([0.21, 0.79]),
                          atol=1e-6).all()  # type: ignore
@@ -265,6 +268,7 @@ def test_ssl_container_rsna() -> None:
     shutil.rmtree(loaded_config2.outputs_folder)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_simclr_lr_scheduler() -> None:
     """
     Test if the LR scheduler has the expected warmup behaviour.
@@ -308,6 +312,7 @@ def test_simclr_lr_scheduler() -> None:
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """ This test checks if a SSLContainer correctly resumes training.
     First we run SSL using a Trainer for 20 epochs.
@@ -447,6 +452,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_online_evaluator_not_distributed() -> None:
     """
     Check if the online evaluator uses the DDP flag correctly when running not distributed
@@ -510,6 +516,7 @@ def test_online_evaluator_distributed() -> None:
             assert callback.evaluator == mock_ddp_result
 
 
+@pytest.mark.flaky(reruns=3)
 def test_simclr_num_nodes() -> None:
     """
     Test if the number of nodes is correctly passed through to the SIMCLR model. After an update of the semantics of
@@ -533,6 +540,7 @@ def test_simclr_num_nodes() -> None:
             assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes  # type:ignore
 
 
+@pytest.mark.flaky(reruns=3)
 def test_simclr_num_gpus() -> None:
     """
     Test if the number of GPUs is correctly passed through to the SIMCLR model.

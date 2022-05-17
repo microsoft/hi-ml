@@ -4,6 +4,7 @@
 env:
 	conda env create --file environment.yml
 	pip install -r ../test_requirements.txt
+	pip install -r ../build_requirements.txt
 
 # call make for parent
 define call_parent
@@ -28,7 +29,7 @@ pip_test:
 # we could also build a full Conda before starting the tests. Unclear about the performance
 # impact of that.
 call_pip_local:
-	sed -e '1,/pip:/ d' environment.yml | cut -d "-" -f 2- > temp_requirements.txt
+	sed -e '1,/pip:/ d' environment.yml | grep -v "#" | cut -d "-" -f 2- > temp_requirements.txt
 	pip install -r temp_requirements.txt
 
 # pip upgrade and install local package in editable mode
@@ -50,16 +51,17 @@ clean:
 
 # run flake8, assuming test requirements already installed
 call_flake8:
-	flake8 --count --statistics --config=../.flake8 .
+	flake8 --count --statistics .
 
 # pip install test requirements and run flake8
 flake8: pip_test call_flake8
 
 # run mypy for hi-ml and hi-ml-azure, assuming test requirements already installed
 call_mypy:
-	mypy --config=../mypy.ini --install-types --non-interactive -p src
-	mypy --config=../mypy.ini --install-types --non-interactive -p testhisto
-	mypy --config=../mypy.ini --install-types --non-interactive -p testSSL
+	mypy --install-types --non-interactive -p histopathology
+	mypy --install-types --non-interactive -p SSL
+	mypy --install-types --non-interactive -p testhisto
+	mypy --install-types --non-interactive -p testSSL
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy
@@ -92,11 +94,9 @@ call_pytest_fast:
 # install test requirements and run pytest fast subset
 pytest_fast: pip_test call_pytest_fast
 
-# run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
+# run pytest with coverage on package
 call_pytest_and_coverage:
 	pytest --cov=histopathology  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhisto
-	pytest --cov=SSL  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testSSL
-	pycobertura show --format text --output coverage.txt coverage.xml
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage

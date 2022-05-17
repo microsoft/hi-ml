@@ -2,29 +2,37 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import logging
 import os
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
-from unittest.mock import MagicMock
-
-import pytest
+import shutil
 import torch
+import pytest
+from pathlib import Path
+from unittest.mock import MagicMock
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type, Tuple
+
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
 from torchvision.models import resnet18
 
-from health_ml.lightning_container import LightningContainer
 from health_ml.networks.layers.attention_layers import AttentionLayer
-
+from histopathology.configs.classification.BaseMIL import BaseMILTiles
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
-from histopathology.configs.classification.DeepSMILEPanda import DeepSMILEPanda
-from histopathology.datamodules.base_module import TilesDataModule
+from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
+from histopathology.datamodules.base_module import HistoDataModule, TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
-from histopathology.models.deepmil import DeepMILModule
+from histopathology.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
+from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
+from health_ml.utils.common_utils import is_gpu_available
+
+no_gpu = not is_gpu_available()
 
 
 def get_supervised_imagenet_encoder() -> TileEncoder:
@@ -32,7 +40,7 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
 
 
 def get_attention_pooling_layer(num_encoding: int = 512,
-                                pool_out_dim: int = 1) -> Tuple[Type[nn.Module], int]:
+                                pool_out_dim: int = 1) -> Tuple[nn.Module, int]:
 
     pool_hidden_dim = 5  # different dimensions get tested in test_attentionlayers.py
     pooling_layer = AttentionLayer(num_encoding,
@@ -59,7 +67,7 @@ def _test_lightningmodule(
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=pool_out_dim)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=encoder,
         label_column="label",
         n_classes=n_classes,
@@ -121,6 +129,50 @@ def _test_lightningmodule(
         assert torch.all(score <= 1)
 
 
+@pytest.fixture(scope="session")
+def mock_panda_tiles_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
+    tiles_generator = MockPandaTilesGenerator(
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=4,
+        n_slides=10,
+        n_channels=3,
+        tile_size=28,
+        img_size=224,
+    )
+    logging.info("Generating temporary mock tiles that will be deleted at the end of the session.")
+    tiles_generator.generate_mock_histo_data()
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
+
+
+@pytest.fixture(scope="session")
+def mock_panda_slides_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
+    wsi_generator = MockPandaSlidesGenerator(
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=4,
+        n_slides=10,
+        n_channels=3,
+        n_levels=3,
+        tile_size=28,
+        background_val=255,
+        tiles_pos_type=TilesPositioningType.RANDOM
+    )
+    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
+    wsi_generator.generate_mock_histo_data()
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
+
+
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("batch_size", [1, 15])
 @pytest.mark.parametrize("max_bag_size", [1, 7])
@@ -165,7 +217,7 @@ def test_metrics(n_classes: int) -> None:
     pooling_layer, num_features = get_attention_pooling_layer(num_encoding=input_dim[0],
                                                               pool_out_dim=1)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=IdentityEncoder(input_dim=input_dim),
         label_column=TilesDataset.LABEL_COLUMN,
         n_classes=n_classes,
@@ -228,37 +280,7 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
     }
 
 
-CONTAINER_DATASET_DIR = {
-    DeepSMILEPanda: PANDA_TILES_DATASET_DIR,
-    DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
-}
-
-
-@pytest.mark.parametrize("container_type", [DeepSMILEPanda,
-                                            DeepSMILECrck])
-@pytest.mark.parametrize("use_gpu", [True, False])
-def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> None:
-    dataset_dir = CONTAINER_DATASET_DIR[container_type]
-    if not os.path.isdir(dataset_dir):
-        pytest.skip(
-            f"Dataset for container {container_type.__name__} "
-            f"is unavailable: {dataset_dir}"
-        )
-    if container_type is DeepSMILECrck:
-        container = DeepSMILECrck(encoder_type=ImageNetEncoder.__name__)
-    elif container_type is DeepSMILEPanda:
-        container = DeepSMILEPanda(encoder_type=ImageNetEncoder.__name__)
-    else:
-        container = container_type()
-
-    container.setup()
-
-    data_module: TilesDataModule = container.get_data_module()  # type: ignore
-    data_module.max_bag_size = 10
-    module = container.create_model()
-    if use_gpu:
-        module.cuda()
-
+def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     train_data_loader = data_module.train_dataloader()
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -266,26 +288,101 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
         loss.retain_grad()
         loss.backward()
         assert loss.grad is not None
-        assert loss.shape == ()
+        assert loss.shape == (1, 1)
         assert isinstance(loss, Tensor)
         break
 
+
+def assert_validation_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     val_data_loader = data_module.val_dataloader()
     for batch_idx, batch in enumerate(val_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.validation_step(batch, batch_idx)
-        assert loss.shape == ()  # noqa
+        outputs_dict = module.validation_step(batch, batch_idx)
+        loss = outputs_dict[ResultsKey.LOSS]  # noqa
+        assert loss.shape == (1, 1)  # noqa
         assert isinstance(loss, Tensor)
         break
 
+
+def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     test_data_loader = data_module.test_dataloader()
     for batch_idx, batch in enumerate(test_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
         outputs_dict = module.test_step(batch, batch_idx)
         loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        assert loss.shape == ()
+        assert loss.shape == (1, 1) # noqa
         assert isinstance(loss, Tensor)
         break
+
+
+CONTAINER_DATASET_DIR = {
+    DeepSMILETilesPanda: PANDA_TILES_DATASET_DIR,
+    DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
+}
+
+
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
+                                            DeepSMILECrck])
+@pytest.mark.parametrize("use_gpu", [True, False])
+def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
+    dataset_dir = CONTAINER_DATASET_DIR[container_type]
+    if not os.path.isdir(dataset_dir):
+        pytest.skip(
+            f"Dataset for container {container_type.__name__} "
+            f"is unavailable: {dataset_dir}"
+        )
+    if container_type is DeepSMILECrck:
+        container = container_type(encoder_type=ImageNetEncoder.__name__)
+    elif container_type is DeepSMILETilesPanda:
+        container = DeepSMILETilesPanda(encoder_type=ImageNetEncoder.__name__)
+    else:
+        container = container_type()
+
+    container.setup()
+
+    data_module: TilesDataModule = container.get_data_module()  # type: ignore
+    data_module.max_bag_size = 10
+
+    module = container.create_model()
+    module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.log = MagicMock()  # type: ignore
+    if use_gpu:
+        module.cuda()
+
+    assert_train_step(module, data_module, use_gpu)
+    assert_validation_step(module, data_module, use_gpu)
+    assert_test_step(module, data_module, use_gpu)
+
+
+def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
+    container = mock_container(tmp_path=tmp_path)
+    container.setup()
+    data_module = container.get_data_module()
+    module = container.create_model()
+
+    module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.log = MagicMock()  # type: ignore
+    if use_gpu:
+        module.cuda()
+
+    assert_train_step(module, data_module, use_gpu)
+    assert_validation_step(module, data_module, use_gpu)
+    assert_test_step(module, data_module, use_gpu)
+
+
+def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
+    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,
+                               tmp_path=mock_panda_tiles_root_dir)
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
+                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
+def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
+                                  tmp_path: str,
+                                  request: pytest.FixtureRequest) -> None:
+    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 def test_class_weights_binary() -> None:
@@ -295,7 +392,7 @@ def test_class_weights_binary() -> None:
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=1)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=get_supervised_imagenet_encoder(),
         label_column="label",
         n_classes=n_classes,
@@ -323,7 +420,7 @@ def test_class_weights_multiclass() -> None:
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
     pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=1)
 
-    module = DeepMILModule(
+    module = TilesDeepMILModule(
         encoder=get_supervised_imagenet_encoder(),
         label_column="label",
         n_classes=n_classes,
