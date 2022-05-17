@@ -6,6 +6,9 @@ on:
       - '*'
   pull_request:
     branches: [ main ]
+    paths:
+      - "hi-ml-azure/**"
+      - "hi-ml/**"
 
 env:
   pythonVersion: 3.7
