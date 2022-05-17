@@ -81,7 +81,7 @@ class TilesDataset(Dataset):
         else:
             split = self.TRAIN_SPLIT_LABEL if train else self.TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
-        
+ 
         if validate_columns:
             self.validate_columns()
 
