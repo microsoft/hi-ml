@@ -173,7 +173,6 @@ jobs:
 
       - name: Download package artifacts
         id: download
-        if: ${{ matrix.folder != 'hi-ml-histopathology' }}
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
@@ -183,11 +182,9 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          if [ ${{ matrix.folder }} != 'hi-ml-histopathology' ]; then
-            make pip_upgrade
-            # Install package
-            pip install ${{ steps.download.outputs.package_filename }}
-          fi
+          make pip_upgrade
+          # Install package
+          pip install ${{ steps.download.outputs.package_filename }}
 
           if [ ${{ matrix.packageName }} == '*.whl' ]; then
             # Set env vars so wheel is sent to azureml as a private package
