@@ -19,6 +19,11 @@ from histopathology.models.encoders import (
     SSLEncoder)
 from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
+from histopathology.datasets.default_paths import (
+    PANDA_DATASET_DIR,
+    PANDA_DATASET_ID,
+    PANDA_TILES_DATASET_DIR,
+    PANDA_TILES_DATASET_ID)
 
 
 class BaseDeepSMILEPanda(BaseMIL):
@@ -61,8 +66,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/PANDA_tiles"), Path("/tmp/datasets/PANDA")],
-            azure_datasets=["PANDA_tiles", "PANDA"])
+            local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
+            azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
