@@ -76,9 +76,14 @@ jobs:
         run: |
           make pip_upgrade
 
-      - name: Install hi-ml locally
+      - name: Install required packages
         run: |
           cd hi-ml-azure
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
           make pip_local
 
       - name: Install hi-ml-azure locally
@@ -89,9 +94,6 @@ jobs:
       - name: Test with pytest
         run: |
           cd ${{ env.folder }}
-
-          # Install local package in editable mode
-          make pip_local
 
           # Run tests
           make pip_test
