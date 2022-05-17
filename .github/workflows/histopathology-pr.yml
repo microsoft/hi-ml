@@ -107,4 +107,4 @@ jobs:
           branch_prefix="refs/heads/"
           full_branch_name=$GITHUB_REF
           branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
