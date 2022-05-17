@@ -74,11 +74,12 @@ jobs:
 
       - name: PIP upgrade
         run: |
+          cd ${{ env.folder }}
           make pip_upgrade
 
       - name: Install required packages
         run: |
-          cd hi-ml-azure
+          cd ${{ env.folder }}
           make pip_from_conda
 
       - name: Install hi-ml locally
