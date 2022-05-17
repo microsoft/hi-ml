@@ -9,7 +9,7 @@ on:
     paths:
       - "hi-ml-azure/**"
       - "hi-ml/**"
-      - "build-test-pr.yml"
+      - ".github/workflows/build-test-pr.yml"
 
 env:
   pythonVersion: 3.7

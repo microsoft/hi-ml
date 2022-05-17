@@ -8,7 +8,7 @@ on:
     branches: [ main ]
     paths:
       - "hi-ml-histopathology/**"
-      - "histopathology-pr.yml"
+      - ".github/workflows/histopathology-pr.yml"
 
 env:
   pythonVersion: 3.7
