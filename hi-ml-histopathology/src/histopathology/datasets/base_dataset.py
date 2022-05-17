@@ -75,15 +75,15 @@ class TilesDataset(Dataset):
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
             dataset_df = pd.read_csv(self.dataset_csv)
 
-        if validate_columns:
-            self.validate_columns()
-
         dataset_df = dataset_df.set_index(self.TILE_ID_COLUMN)
         if train is None:
             self.dataset_df = dataset_df
         else:
             split = self.TRAIN_SPLIT_LABEL if train else self.TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
+        
+        if validate_columns:
+            self.validate_columns()
 
     def validate_columns(self) -> None:
         """Check that loaded dataframe contains expected columns, raises `ValueError` otherwise.
