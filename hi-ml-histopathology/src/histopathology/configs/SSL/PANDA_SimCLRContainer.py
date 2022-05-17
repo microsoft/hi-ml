@@ -12,6 +12,8 @@ from SSL.utils import SSLTrainingType
 from health_azure.utils import is_running_in_azure_ml
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
 from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
+from histopathology.datasets.default_paths import PANDA_TILES_DATASET_ID
+
 
 current_file = Path(__file__)
 print(f"Running container from {current_file}")
@@ -39,7 +41,7 @@ class PANDA_SimCLR(HistoSSLContainer):
 
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
                          linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
-                         azure_datasets=['PANDA_tiles_20220427'],
+                         azure_datasets=[PANDA_TILES_DATASET_ID],
                          random_seed=1,
                          num_workers=num_workers,
                          is_debug_model=is_debug_model,
