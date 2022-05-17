@@ -95,9 +95,12 @@ class TilesDataset(Dataset):
         """
         columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.LABEL_COLUMN,
                    self.SPLIT_COLUMN, self.TILE_X_COLUMN, self.TILE_Y_COLUMN]
+        columns_not_found = []
         for column in columns:
             if column is not None and column not in self.dataset_df.columns:
-                raise ValueError(f"Expected column '{column}' not found in the dataframe")
+                columns_not_found.append(column)
+        if len(columns_not_found) > 0:
+            raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
 
     def __len__(self) -> int:
         return self.dataset_df.shape[0]
@@ -204,9 +207,12 @@ class SlidesDataset(Dataset):
         """
         columns = [self.IMAGE_COLUMN, self.LABEL_COLUMN, self.MASK_COLUMN,
                    self.SPLIT_COLUMN] + list(self.METADATA_COLUMNS)
+        columns_not_found = []
         for column in columns:
             if column is not None and column not in self.dataset_df.columns:
-                raise ValueError(f"Expected column '{column}' not found in the dataframe")
+                columns_not_found.append(column)
+        if len(columns_not_found) > 0:
+            raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
 
     def __len__(self) -> int:
         return self.dataset_df.shape[0]
