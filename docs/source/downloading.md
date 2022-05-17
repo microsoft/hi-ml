@@ -21,7 +21,7 @@ end up with the files ["my_outputs/abc/def/1.txt", "my_outputs/abc/2.txt"]
 If you wish to specify the file name(s) to be downloaded, you can do so with the "prefix" parameter. E.g.
 prefix="outputs" will download all files within the "output" folder, if such a folder exists within your Run.
 
-There is an additional parameter, "validate_checksum" which defaults to False. If True, will validate 
+There is an additional parameter, "validate_checksum" which defaults to False. If True, will validate
 MD5 hash of the data arriving (in chunks) to that being sent.
 
 Note that if your code is running in a distributed manner, files will only be downloaded onto nodes with local rank = 0.
@@ -43,7 +43,7 @@ All files within the checkpoint directory will be downloaded into the folder spe
 Since checkpoint files are often large and therefore prone to corruption during download, by default, this function will validate the MD5 hash of the data downloaded (in chunks) compared to that being sent.
 
 Note that if your code is running in a distributed manner, files will only be downloaded onto nodes with local rank = 0.
-E.g. if you have 2 nodes each running 4 processes, the file will be downloaded by CPU/GPU 0 on each of the 2 nodes. 
+E.g. if you have 2 nodes each running 4 processes, the file will be downloaded by CPU/GPU 0 on each of the 2 nodes.
 All processes will be synchronized to only exit the downloading method once it has completed on all nodes/ranks.
 
 
@@ -67,7 +67,7 @@ function with file_prefix="foo/bar" and output_folder="outputs", you would end u
 files ["outputs/foo/bar/1.txt", "outputs/foo/bar/2.txt"]
 
 This function takes additional parameters "overwrite" and "show_progress". If True, overwrite will overwrite any existing local files with the same path. If False and there is a duplicate file, it will skip this file.
-If show_progress is set to True, the progress of the file download will be visible in the terminal. 
+If show_progress is set to True, the progress of the file download will be visible in the terminal.
 
 ## Uploading files to an Azure ML Datastore
 
@@ -84,4 +84,4 @@ Note that the path to local data must be a folder, not a single path. The folder
     following paths uploaded to your Datastore: ["baz/1.txt", "baz/2.txt"]
 
 This function takes additional parameters "overwrite" and "show_progress". If True, overwrite will overwrite any existing remote files with the same path. If False and there is a duplicate file, it will skip this file.
-If show_progress is set to True, the progress of the file upload will be visible in the terminal. 
+If show_progress is set to True, the progress of the file upload will be visible in the terminal.

@@ -11,12 +11,12 @@ to one dataset.
 
 
 ### AzureML Data Stores
-Secondly, there are data stores. This is a concept coming from Azure Machine Learning, described 
+Secondly, there are data stores. This is a concept coming from Azure Machine Learning, described
 [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-access-data). Data stores provide access to
 one blob storage account. They exist so that the credentials to access blob storage do not have to be passed around
-in the code - rather, the credentials are stored in the data store once and for all. 
+in the code - rather, the credentials are stored in the data store once and for all.
 
-You can view all data stores in your AzureML workspace by clicking on one of the bottom icons in the left-hand 
+You can view all data stores in your AzureML workspace by clicking on one of the bottom icons in the left-hand
 navigation bar of the AzureML studio.
 
 One of these data stores is designated as the default data store.
@@ -27,11 +27,11 @@ Thirdly, there are datasets. Again, this is a concept coming from Azure Machine 
 * A data store
 * A set of files accessed through that data store
 
-You can view all datasets in your AzureML workspace by clicking on one of the icons in the left-hand 
+You can view all datasets in your AzureML workspace by clicking on one of the icons in the left-hand
 navigation bar of the AzureML studio.
 
 ### Preparing data
-To simplify usage, the `hi-ml` package creates AzureML datasets for you. All you need to do is to 
+To simplify usage, the `hi-ml` package creates AzureML datasets for you. All you need to do is to
 * Create a blob storage account for your data, and within it, a container for your data.
 * Create a data store that points to that storage account, and store the credentials for the blob storage account in it
 
@@ -54,7 +54,7 @@ What will happen under the hood?
 is no dataset of that name, it will create one from all the files in blob storage in folder "my_folder". The dataset
 will be created using the data store provided, "my_datastore".
 * Once the script runs in AzureML, it will download the dataset "my_folder" to a temporary folder.
-* You can access this temporary location by `run_info.input_datasets[0]`, and read the files from it. 
+* You can access this temporary location by `run_info.input_datasets[0]`, and read the files from it.
 
 More complicated setups are described below.
 
@@ -77,11 +77,11 @@ output_folder = run_info.output_datasets[0]
 ```
 Your script can now read files from `input_folder`, transform them, and write them to `output_folder`. The latter
 will be a folder on the temp file system of the machine. At the end of the script, the contents of that temp folder
-will be uploaded to blob storage, and registered as a dataset. 
+will be uploaded to blob storage, and registered as a dataset.
 
 ### Mounting and downloading
 An input dataset can be downloaded before the start of the actual script run, or it can be mounted. When mounted,
-the files are accessed via the network once needed - this is very helpful for large datasets where downloads would 
+the files are accessed via the network once needed - this is very helpful for large datasets where downloads would
 create a long waiting time before the job start.
 
 Similarly, an output dataset can be uploaded at the end of the script, or it can be mounted. Mounting here means that
@@ -89,7 +89,7 @@ all files will be written to blob storage already while the script runs (rather 
 
 Note: If you are using mounted output datasets, you should NOT rename files in the output folder.
 
-Mounting and downloading can be triggered by passing in `DatasetConfig` objects for the `input_datasets` argument, 
+Mounting and downloading can be triggered by passing in `DatasetConfig` objects for the `input_datasets` argument,
 like this:
 
 ```python
@@ -105,14 +105,14 @@ output_folder = run_info.output_datasets[0]
 
 ### Local execution
 For debugging, it is essential to have the ability to run a script on a local machine, outside of AzureML.
-Clearly, your script needs to be able to access data in those runs too. 
+Clearly, your script needs to be able to access data in those runs too.
 
 There are two ways of achieving that: Firstly, you can specify an equivalent local folder in the
 `DatasetConfig` objects:
 ```python
 from pathlib import Path
 from health_azure import DatasetConfig, submit_to_azure_if_needed
-input_dataset = DatasetConfig(name="my_folder", 
+input_dataset = DatasetConfig(name="my_folder",
                               datastore="my_datastore",
                               local_folder=Path("/datasets/my_folder_local"))
 run_info = submit_to_azure_if_needed(...,
@@ -134,8 +134,8 @@ AzureML has the capability to download/mount a dataset to such a fixed location.
 trigger that behaviour via an additional option in the `DatasetConfig` objects:
 ```python
 from health_azure import DatasetConfig, submit_to_azure_if_needed
-input_dataset = DatasetConfig(name="my_folder", 
-                              datastore="my_datastore", 
+input_dataset = DatasetConfig(name="my_folder",
+                              datastore="my_datastore",
                               use_mounting=True,
                               target_folder="/tmp/mnist")
 run_info = submit_to_azure_if_needed(...,
@@ -147,12 +147,12 @@ input_folder = run_info.input_datasets[0]
 This is also true when running locally - if `local_folder` is not specified and an AzureML workspace can be found, then the dataset will be downloaded or mounted to the `target_folder`.
 
 ### Dataset versions
-AzureML datasets can have versions, starting at 1. You can view the different versions of a dataset in the AzureML 
+AzureML datasets can have versions, starting at 1. You can view the different versions of a dataset in the AzureML
 workspace. In the `hi-ml` toolbox, you would always use the latest version of a dataset unless specified otherwise.
 If you do need a specific version, use the `version` argument in the `DatasetConfig` objects:
 ```python
 from health_azure import DatasetConfig, submit_to_azure_if_needed
-input_dataset = DatasetConfig(name="my_folder", 
+input_dataset = DatasetConfig(name="my_folder",
                               datastore="my_datastore",
                               version=7)
 run_info = submit_to_azure_if_needed(...,
