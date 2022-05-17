@@ -1,4 +1,4 @@
-name: Multimodal PR Workflow
+name: Multimodal PR
 on:
   push:
     branches: [ main ]

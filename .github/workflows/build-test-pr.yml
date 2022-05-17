@@ -1,4 +1,4 @@
-name: PR BuildAndTest.CI
+name: HI-ML HI-ML-Azure PR
 on:
   push:
     branches: [ main ]

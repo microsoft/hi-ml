@@ -1,4 +1,4 @@
-name: Histopathology PR Workflow
+name: Histopathology PR
 on:
   push:
     branches: [ main ]
