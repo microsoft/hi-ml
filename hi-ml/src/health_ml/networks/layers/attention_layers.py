@@ -135,6 +135,7 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
         >>> out, attention_weights = encoder_layer(src)
     """
     # new forward returns output as well as attention weights
+
     def forward(self, src: torch.Tensor,  # type: ignore
                 src_mask: Optional[torch.Tensor] = None,
                 src_key_padding_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -187,6 +188,7 @@ class TransformerPooling(Module):
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
     """
+
     def __init__(self, num_layers: int, num_heads: int, dim_representation: int) -> None:
         super(TransformerPooling, self).__init__()
         self.num_layers = num_layers
