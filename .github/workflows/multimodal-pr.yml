@@ -8,6 +8,7 @@ on:
     branches: [ main ]
     paths:
       - "multimodal/**"
+      - "multimodal-pr.yml"
 
 env:
   pythonVersion: 3.7
