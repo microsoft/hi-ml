@@ -62,7 +62,7 @@ class TilesDataset(Dataset):
         from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         :param train: If `True`, loads only the training split (resp. `False` for test split). By
         default (`None`), loads the entire dataset as-is.
-        :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`. 
+        :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
         """
