@@ -35,7 +35,7 @@ from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from health_azure.utils import PackageDependency, create_argparser
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                                       repository_root)
+                                       himl_azure_root, repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -50,8 +50,51 @@ def oh_no() -> None:
     raise ValueError("Throwing an exception")
 
 
+@pytest.mark.fast()
+def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
+    current_file_path = Path(__file__)
+    # If no start_at arg is provided, will start looking for file at current working directory.
+    # First mock this to be the hi-ml-azure root
+    himl_az_root = himl_azure_root()
+    himl_azure_test_root = himl_az_root / "testazure" / "testazure"
+    with patch("health_azure.utils.Path.cwd", return_value=himl_azure_test_root):
+        # current_working_directory = Path.cwd()
+        found_file_path = util.find_file_in_parent_folders(
+            file_name=current_file_path.name,
+            stop_at_path=[himl_az_root]
+        )
+        last_caplog_msg = caplog.messages[-1]
+        assert found_file_path == current_file_path
+        assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
+
+        # Now try to search for a nonexistent path in the same folder. This should return None
+        nonexistent_path = himl_az_root / "idontexist.py"
+        assert not nonexistent_path.is_file()
+        assert util.find_file_in_parent_folders(
+            file_name=nonexistent_path.name,
+            stop_at_path=[himl_az_root]
+        ) is None
+
+        # Try to find the first path (i.e. current file name) when starting in a different folder.
+        # This should not work
+        assert util.find_file_in_parent_folders(
+            file_name=current_file_path.name,
+            stop_at_path=[himl_az_root],
+            start_at_path=himl_az_root
+        ) is None
+
+    # Try to find the first path (i.e. current file name) when current working directory is not the testazure
+    # folder. This should not work
+    with patch("health_azure.utils.Path.cwd", return_value=himl_az_root):
+        assert not (himl_az_root / current_file_path.name).is_file()
+        assert util.find_file_in_parent_folders(
+            file_name=current_file_path.name,
+            stop_at_path=[himl_az_root.parent]
+        ) is None
+
+
 @pytest.mark.fast
-def test_find_file(tmp_path: Path) -> None:
+def test_find_file_in_parent_to_pythonpath(tmp_path: Path) -> None:
     file_name = "some_file.json"
     file = tmp_path / file_name
     file.touch()
@@ -1330,17 +1373,17 @@ from health_azure.utils import replace_directory
 """,
 
         "body": """
-output_dir = Path("outputs/test_outputs")
-output_dir.mkdir(parents=True, exist_ok=True)
-file_name = "hello.txt"
-(output_dir / file_name).write_text("Hello World!")
-assert (output_dir / file_name).exists()
-new_output_dir = output_dir.parent / "more_test_outputs"
+    output_dir = Path("outputs/test_outputs")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    file_name = "hello.txt"
+    (output_dir / file_name).write_text("Hello World!")
+    assert (output_dir / file_name).exists()
+    new_output_dir = output_dir.parent / "more_test_outputs"
 
-replace_directory(output_dir, new_output_dir)
+    replace_directory(output_dir, new_output_dir)
 
-assert not output_dir.exists()
-assert (new_output_dir / file_name).exists()
+    assert not output_dir.exists()
+    assert (new_output_dir / file_name).exists()
 """
     }
 

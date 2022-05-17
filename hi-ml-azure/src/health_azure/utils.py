@@ -5,7 +5,6 @@
 """
 Utility functions for interacting with AzureML runs
 """
-from contextlib import contextmanager
 import hashlib
 import json
 import logging
@@ -14,21 +13,16 @@ import re
 import shutil
 import sys
 import tempfile
-from argparse import (
-    ArgumentDefaultsHelpFormatter,
-    ArgumentError,
-    ArgumentParser,
-    Namespace,
-    OPTIONAL,
-    SUPPRESS,
-    _UNRECOGNIZED_ARGS_ATTR,
-)
+from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
+                      ArgumentParser, Namespace)
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, Generator, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar,
+                    Union)
 
 import conda_merge
 import pandas as pd
@@ -693,15 +687,19 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
     return run_or_recovery_id
 
 
-def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Optional[Path]:
+def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path],
+                                start_at_path: Optional[Path] = None) -> Optional[Path]:
     """Searches for a file of the given name in the current working directory, or any of its parent folders.
     Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
     of the given folders in stop_at_path.
 
     :param file_name: The name of the file to find.
     :param stop_at_path: A list of folders. If any of them is reached, search stops.
+    :param start_at_path: An optional path to the directory in which to start searching. If not supplied,
+        will use the current working directory.
     :return: The absolute path of the file if found, or None if it was not found.
     """
+    start_at_path = start_at_path or Path.cwd()
 
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
         logging.debug(f"Searching for file {file_name} in {start_at}")
@@ -712,7 +710,7 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
             return None
         return return_file_or_parent(start_at.parent)
 
-    return return_file_or_parent(start_at=Path.cwd())
+    return return_file_or_parent(start_at=start_at_path)
 
 
 def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
@@ -2025,3 +2023,16 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
     finally:
         if not target_config_exists:
             target_config_json.unlink()
+
+
+def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
+    """
+    Raises an exception if 'actual' is not any of the given valid values.
+    :param message: The prefix for the error message.
+    :param actual: The actual value.
+    :param valid: The set of valid strings that 'actual' is allowed to take on.
+    :return:
+    """
+    if actual not in valid:
+        all_valid = ", ".join(["<None>" if v is None else v for v in valid])
+        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))

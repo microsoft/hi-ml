@@ -58,4 +58,3 @@ that ID:
 1. Via the search bar, find "Azure Active Directory" and open it.
 1. In the overview of that, you will see a field "Tenant ID"
 1. Create an environment variable called `HIML_TENANT_ID`, and set that to the tenant ID you just saw.
-
