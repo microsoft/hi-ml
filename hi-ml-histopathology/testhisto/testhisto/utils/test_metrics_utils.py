@@ -250,7 +250,7 @@ def test_location_selected_tiles(level: int) -> None:
                 and (ResultsKey.TILE_RIGHT in test_dict.keys()) and (ResultsKey.TILE_BOTTOM in test_dict.keys()):
             tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
                                                  test_dict[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
-        else:    
+        else:
             tile_coords = np.transpose(
                 np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),  # type: ignore
                           test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))  # type: ignore
