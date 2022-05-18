@@ -331,6 +331,16 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
-        results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})
+        results.update(
+            {
+                ResultsKey.SLIDE_ID: [
+                    [slide_id] * self.tile_count for slide_id in batch[SlideKey.SLIDE_ID]
+                ],
+                ResultsKey.TILE_ID: [
+                    [f"_{tile_id}" for tile_id in range(self.tile_count)] for _ in batch[SlideKey.SLIDE_ID]
+                ],
+                ResultsKey.IMAGE_PATH: [
+                    [img_path] * self.tile_count for img_path in batch[SlideKey.IMAGE_PATH]
+                ],
+            }
+        )
