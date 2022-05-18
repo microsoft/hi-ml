@@ -342,9 +342,9 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_tiles: a boolean parameter to save tiles thumbnails. This is a temporary solution to enable tiles
-            visualisation when running the slides pipeline that lacks tiles coordinates due to the current tiling on
-            the fly strategy.
+        :param save_tiles: a boolean parameter to enable 'save_top_and_bottom_tiles' and
+            'save_slide_thumbnails_and_heatmaps'. This is a temporary solution to disable tiles visualisation when
+            running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
         """
         self.outputs_root = outputs_root
 
