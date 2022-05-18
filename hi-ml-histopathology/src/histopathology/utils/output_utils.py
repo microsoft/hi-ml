@@ -404,7 +404,7 @@ class DeepMILOutputsHandler:
                                                    level=self.level, slides_dataset=self.slides_dataset,
                                                    figures_dir=figures_dir)
 
-            save_scores_histogram(results, figures_dir=figures_dir)
+        save_scores_histogram(results, figures_dir=figures_dir)
 
         # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
         # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
