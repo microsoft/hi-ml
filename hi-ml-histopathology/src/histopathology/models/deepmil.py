@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
@@ -12,7 +12,7 @@ from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_ml.utils import log_on_epoch
-from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
+from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
