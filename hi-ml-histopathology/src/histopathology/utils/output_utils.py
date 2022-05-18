@@ -343,7 +343,8 @@ class DeepMILOutputsHandler:
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param save_tiles: a boolean parameter to save tiles thumbnails. This is a temporary solution to unable tiles
-            vizualisation when running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
+            vizualisation when running the slides pipeline that lacks tiles coordinates due to the current tiling on
+            the fly strategy.
         """
         self.outputs_root = outputs_root
 
@@ -394,7 +395,7 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if not self.save_tiles:
+        if self.save_tiles:
             logging.info("Selecting tiles ...")
             selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
 

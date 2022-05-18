@@ -71,6 +71,17 @@ class BaseMIL(LightningContainer):
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
+    level: int = param.Integer(1, bounds=(0, None),
+                            doc="The whole slide image level at which the image is extracted."
+                                "Whole slide images are represented in a pyramid structure consisting of "
+                                "multiple images at different resolutions."
+                                "If 1 (default), will extract baseline image at the resolution at level 1.")
+
+    # Outputs Handler parameters:
+    save_tiles: bool = param.Boolean(True, doc="a boolean parameter to save tiles thumbnails. This is a temporary"
+                                                "solution to unable tiles vizualisation when running the slides"
+                                                "pipeline that lacks tiles coordinates due to the current tiling on"
+                                                "the fly strategy.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -146,10 +157,11 @@ class BaseMIL(LightningContainer):
         return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
                                      n_classes=self.data_module.train_dataset.N_CLASSES,
                                      tile_size=self.tile_size,
-                                     level=1,
+                                     level=self.level,
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
-                                     maximise=self.maximise_primary_metric)
+                                     maximise=self.maximise_primary_metric,
+                                     save_tiles=self.save_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder
@@ -185,7 +197,7 @@ class BaseMIL(LightningContainer):
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
-        checkpoint_path = get_best_checkpoint_path(Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"))
+        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
         if checkpoint_path.is_file():
             return checkpoint_path
 
@@ -307,11 +319,6 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    level: int = param.Integer(1, bounds=(0, None),
-                               doc="The whole slide image level at which the image is extracted."
-                                   "Whole slide images are represented in a pyramid structure consisting of "
-                                   "multiple images at different resolutions."
-                                   "If 1 (default), will extract baseline image at the resolution at level 1.")
     tile_count: int = param.Integer(None, bounds=(0, None),
                                     doc="Number of tiles to extract."
                                     "If None (default), extracts all non-background tiles.")
@@ -334,9 +341,9 @@ class BaseMILSlides(BaseMIL):
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
-        # WARNING: comment lines 394 -> 
+        # WARNING: comment lines 394 ->
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
+        deepmil_module = SlidesDeepMILModule(tile_count=self.tile_count,
                                              encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
