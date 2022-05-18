@@ -143,6 +143,12 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILSlides.setup(self)
 
+    def get_dataloader_kwargs(self) -> dict:
+        return dict(
+            multiprocessing_context="spawn",
+            **super().get_dataloader_kwargs()
+        )
+
     def get_data_module(self) -> PandaSlidesDataModule:
         return PandaSlidesDataModule(
             root_path=self.local_datasets[0],
