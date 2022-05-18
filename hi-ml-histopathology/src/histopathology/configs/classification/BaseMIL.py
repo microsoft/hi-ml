@@ -71,11 +71,11 @@ class BaseMIL(LightningContainer):
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
-    level: int = param.Integer(1, bounds=(0, None),
-                            doc="The whole slide image level at which the image is extracted."
-                                "Whole slide images are represented in a pyramid structure consisting of "
-                                "multiple images at different resolutions."
-                                "If 1 (default), will extract baseline image at the resolution at level 1.")
+    level: int = param.Integer(1, bounds=(0, None), doc="The whole slide image level at which the image is extracted."
+                                                        "Whole slide images are represented in a pyramid consisting of"
+                                                        "multiple images at different resolutions."
+                                                        "If 1 (default), will extract baseline image at the resolution"
+                                                        "at level 1.")
 
     # Outputs Handler parameters:
     save_tiles: bool = param.Boolean(True, doc="a boolean parameter to save tiles thumbnails. This is a temporary"
