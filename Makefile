@@ -8,7 +8,6 @@ env:
 
 # call make for each sub package
 define call_packages
-	cd hi-ml-histopathology && ${MAKE} $(1)
 	cd hi-ml-azure && $(MAKE) $(1)
 	cd hi-ml && $(MAKE) $(1)
 endef
