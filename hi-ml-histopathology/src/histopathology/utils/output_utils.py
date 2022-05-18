@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+import logging
 from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
@@ -118,7 +119,7 @@ def collate_results_on_cpu(epoch_results: EpochResultsType) -> ResultsType:
 
 
 def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
-    print("Saving outputs ...")
+    logging.info("Saving outputs ...")
     # collate at slide level
     list_slide_dicts: List[Dict[ResultsKey, Any]] = []
     # any column can be used here, the assumption is that the first dimension is the N of slides
@@ -128,7 +129,7 @@ def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
         list_slide_dicts.append(slide_dict)
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
-    print(f"Metrics results will be output to {outputs_dir}")
+    logging.info(f"Metrics results will be output to {outputs_dir}")
     csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME
 
     # Collect the list of dictionaries in a list of pandas dataframe and save
@@ -148,7 +149,7 @@ def save_features(results: ResultsType, outputs_dir: Path) -> None:
 
 def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path) \
         -> Dict[str, List[str]]:
-    print("Selecting tiles ...")
+    logging.info("Selecting tiles ...")
 
     def select_k_tiles_from_results(label: int, select: Tuple[str, str]) \
             -> List[Tuple[Any, Any, List, List]]:
@@ -174,7 +175,7 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
 
     selected_slide_ids: Dict[str, List[str]] = {}
     for key in report_cases.keys():
-        print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
+        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
         key_dir = figures_dir / key
         key_dir.mkdir(parents=True, exist_ok=True)
 
@@ -197,7 +198,7 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
 def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
                                        level: int, slides_dataset: SlidesDataset, figures_dir: Path) -> None:
     for key in selected_slide_ids:
-        print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
+        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
         key_dir = figures_dir / key
         key_dir.mkdir(parents=True, exist_ok=True)
         for slide_id in selected_slide_ids[key]:
@@ -223,17 +224,17 @@ def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_s
 
 
 def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
-    print("Plotting histogram ...")
+    logging.info("Plotting histogram ...")
     fig = plot_scores_hist(results)
     save_figure(fig=fig, figpath=figures_dir / 'hist_scores.png')
 
 
 def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequence[str], figures_dir: Path) -> None:
-    print("Computing and saving confusion matrix...")
+    logging.info("Computing and saving confusion matrix...")
     cf_matrix = conf_matrix_metric.compute().cpu().numpy()
     #  We can't log tensors in the normal way - just print it to console
-    print('test/confusion matrix:')
-    print(cf_matrix)
+    logging.info('test/confusion matrix:')
+    logging.info(cf_matrix)
     #  Save the normalized confusion matrix as a figure in outputs
     cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
@@ -331,7 +332,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool) -> None:
+                 maximise: bool, save_tiles: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -341,12 +342,15 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
+        :param save_tiles: a boolean parameter to save tiles thumbnails. This is a temporary solution to unable tiles
+            vizualisation when running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
         """
         self.outputs_root = outputs_root
 
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
+        self.save_tiles = save_tiles
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
 
@@ -390,14 +394,16 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        print("Selecting tiles ...")
-        selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
+        if not self.save_tiles:
+            logging.info("Selecting tiles ...")
+            selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
 
-        if self.slides_dataset is not None:
-            save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size, level=self.level,
-                                               slides_dataset=self.slides_dataset, figures_dir=figures_dir)
+            if self.slides_dataset is not None:
+                save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size,
+                                                   level=self.level, slides_dataset=self.slides_dataset,
+                                                   figures_dir=figures_dir)
 
-        save_scores_histogram(results, figures_dir=figures_dir)
+            save_scores_histogram(results, figures_dir=figures_dir)
 
         # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
         # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore

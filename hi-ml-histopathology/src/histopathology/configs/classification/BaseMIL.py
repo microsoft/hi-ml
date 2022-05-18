@@ -334,7 +334,8 @@ class BaseMILSlides(BaseMIL):
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
-        # We leave the outputs handler out for now (wsi datamodule doesn't support tiles coordinates YET)
+        # WARNING: comment lines 394 -> 
+        outputs_handler = self.get_outputs_handler()
         deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
                                              encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
@@ -347,5 +348,7 @@ class BaseMILSlides(BaseMIL):
                                              weight_decay=self.weight_decay,
                                              adam_betas=self.adam_betas,
                                              is_finetune=self.is_finetune,
-                                             class_names=self.class_names)
+                                             class_names=self.class_names,
+                                             outputs_handler=outputs_handler)
+        outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module

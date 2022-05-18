@@ -46,7 +46,8 @@ class BaseDeepMILModule(LightningModule):
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 chunk_size: int = 0) -> None:
+                 chunk_size: int = 0,
+                 tile_count: int = 44) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -67,6 +68,8 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
+        :param tile_count: number of tiles used to tiles on the fly. This is a temporary solution to fill in outputs
+            handler expected results.
         """
         super().__init__()
 
@@ -78,6 +81,7 @@ class BaseDeepMILModule(LightningModule):
         self.encoder = encoder
         self.aggregation_fn = pooling_layer
         self.num_pooling = num_features
+        self.tile_count = tile_count
 
         self.class_names = validate_class_names(class_names, self.n_classes)
 
@@ -319,10 +323,6 @@ class TilesDeepMILModule(BaseDeepMILModule):
 
 class SlidesDeepMILModule(BaseDeepMILModule):
     """Base class for slides based deep multiple-instance learning."""
-
-    def __init__(self, tiles_count: int, **kwargs: Any) -> None:
-        self.tiles_count = tiles_count
-        super().__init__(**kwargs)
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
