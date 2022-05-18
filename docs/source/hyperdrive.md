@@ -7,7 +7,7 @@ object as an additional argument. Note that this object needs to be created with
 will later be replaced with the correct `run_config` that submits your script.)
 
 The example below shows a hyperparameter search that aims to minimize the validation loss `val_loss`, by choosing
-one of three possible values for the learning rate commandline argument `learning_rate`. 
+one of three possible values for the learning rate commandline argument `learning_rate`.
 ```python
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
@@ -25,5 +25,5 @@ hyperdrive_config = HyperDriveConfig(
 submit_to_azure_if_needed(..., hyperdrive_config=hyperdrive_config)
 ```
 
-For further examples, please check the [example scripts here](examples.md), and the 
+For further examples, please check the [example scripts here](examples.md), and the
 [HyperDrive documentation](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters).

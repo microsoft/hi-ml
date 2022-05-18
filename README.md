@@ -1,5 +1,7 @@
 # Microsoft Health Intelligence Machine Learning Toolbox
 
+[![Codecov coverage](https://codecov.io/gh/microsoft/hi-ml/branch/main/graph/badge.svg?token=kMr2pSIJ2U)](https://codecov.io/gh/microsoft/hi-ml)
+
 ## Overview
 
 This toolbox aims at providing low-level and high-level building blocks for Machine Learning / AI researchers and

@@ -56,7 +56,7 @@ All results that you achieve in such runs outside AzureML can be written straigh
 * When instantiated outside an AzureML run, it will create a new `Run` object that writes its metrics straight through
   to AzureML, even though the code is not running in AzureML.
 
-This behaviour is controlled by the `enable_logging_outside_azure_ml` argument. With the following code snippet, 
+This behaviour is controlled by the `enable_logging_outside_azure_ml` argument. With the following code snippet,
 you can to use the `AzureMLLogger` to write metrics to AzureML when the code is inside or outside AzureML:
 
 ```python
@@ -156,4 +156,4 @@ class MyModule(LightningModule):
 
 `log_learning_rate` will log values from all learning rate schedulers, and all learning rates if a scheduler returns
 multiple values. In this example, the logged metric will be `learning_rate` if there is a single scheduler that outputs
-a single LR, or `learning_rate/1/0` to indicate the value coming from scheduler index 1, value index 0. 
+a single LR, or `learning_rate/1/0` to indicate the value coming from scheduler index 1, value index 0.

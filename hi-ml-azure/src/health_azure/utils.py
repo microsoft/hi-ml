@@ -927,6 +927,7 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
 
 class PackageDependency:
     """Class to hold information from a single line of a conda/pip environment file  (i.e. a single package spec)"""
+
     def __init__(self, dependency_str: str) -> None:
         self.package_name = ""
         self.operator = ""
