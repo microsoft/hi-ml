@@ -79,9 +79,9 @@ class BaseMIL(LightningContainer):
 
     # Outputs Handler parameters:
     save_tiles: bool = param.Boolean(True, doc="a boolean parameter to save tiles thumbnails. This is a temporary"
-                                                "solution to unable tiles vizualisation when running the slides"
-                                                "pipeline that lacks tiles coordinates due to the current tiling on"
-                                                "the fly strategy.")
+                                               "solution to unable tiles vizualisation when running the slides"
+                                               "pipeline that lacks tiles coordinates due to the current tiling on"
+                                               "the fly strategy.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
