@@ -307,11 +307,11 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    level: int = param.Integer(0, bounds=(0, None),
+    level: int = param.Integer(1, bounds=(0, None),
                                doc="The whole slide image level at which the image is extracted."
                                    "Whole slide images are represented in a pyramid structure consisting of "
                                    "multiple images at different resolutions."
-                                   "If 0 (default), will extract baseline image at the highest resolution.")
+                                   "If 1 (default), will extract baseline image at the resolution at level 1.")
     tile_count: int = param.Integer(None, bounds=(0, None),
                                     doc="Number of tiles to extract."
                                     "If None (default), extracts all non-background tiles.")
