@@ -57,3 +57,7 @@ pytest:
 # run pytest with coverage on package
 pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
+
+# Run regression tests and compare performance
+run_regression_test:
+	cd ../; python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckImageNetMIL --crossval_count=1 --additional_env_file=hi-ml-histopathology/environment.yml --pl_limit_train_batch=2 --pl_limit_val_batch=2 --pl_limit_test_batch=2 --max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 --azureml --cluster=innereye4cl --regression_test_folder=RegressionTestResults/HD_13448836-ddc9-4000-87a4-f84075d9d29c_1/outputs --regression_test_csv_tolerance=0.05
