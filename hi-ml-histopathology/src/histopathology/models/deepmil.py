@@ -200,7 +200,7 @@ class BaseDeepMILModule(LightningModule):
         bag_logits_list = []
         bag_attn_list = []
         for bag_idx in range(len(batch[self.label_column])):
-            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
+            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx].float()
             labels = batch[self.label_column][bag_idx]
             bag_labels_list.append(self.get_bag_label(labels))
             logit, attn = self(images)
