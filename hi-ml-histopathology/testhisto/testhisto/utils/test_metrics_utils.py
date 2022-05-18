@@ -246,9 +246,14 @@ def test_location_selected_tiles(level: int) -> None:
     slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
     slide_idx = slide_ids.index(slide)
     for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):  # type: ignore
-        tile_coords = np.transpose(
-            np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),  # type: ignore
-                      test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))  # type: ignore
+        if (ResultsKey.TILE_TOP in test_dict.keys()) and (ResultsKey.TILE_LEFT in test_dict.keys()) \
+                and (ResultsKey.TILE_RIGHT in test_dict.keys()) and (ResultsKey.TILE_BOTTOM in test_dict.keys()):
+            tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
+                                                 test_dict[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
+        else:    
+            tile_coords = np.transpose(
+                np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),  # type: ignore
+                          test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))  # type: ignore
         coords_list.append(tile_coords)
 
     coords = np.array(coords_list)
