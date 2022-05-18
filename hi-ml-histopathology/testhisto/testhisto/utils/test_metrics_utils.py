@@ -88,7 +88,27 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
                  [Tensor([200, 424, 200, 424]),
                   Tensor([200, 200, 424, 424]),
                   Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424])]
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_LEFT:
+                 [Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_TOP:
+                 [Tensor([200, 424, 200, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_RIGHT:
+                 [Tensor([200, 424, 424, 424]),
+                  Tensor([200, 424, 424, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_BOTTOM:
+                 [Tensor([200, 424, 200, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 424, 424, 424]),
+                  Tensor([200, 200, 424, 424])],
              }
 
 
