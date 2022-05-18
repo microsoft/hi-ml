@@ -1,5 +1,5 @@
 name: 'Check PR Title'
-on: 
+on:
   pull_request:
     types: [edited, opened, synchronize, reopened]
 

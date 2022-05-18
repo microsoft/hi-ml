@@ -100,7 +100,7 @@ def get_latest_recovery_checkpoint():
     all_recovery_files = [f for f in Path(CHECKPOINT_FOLDER).glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
     if len(all_recovery_files) == 0:
         return None
-    # Get recovery checkpoint with highest epoch number    
+    # Get recovery checkpoint with highest epoch number
     recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in all_recovery_files]
     idx_max_epoch = int(np.argmax(recovery_epochs))
     return str(all_recovery_files[idx_max_epoch])

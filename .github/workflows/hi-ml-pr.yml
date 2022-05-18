@@ -1,4 +1,4 @@
-name: PR BuildAndTest.CI
+name: HI-ML HI-ML-Azure PR
 on:
   push:
     branches: [ main ]
@@ -6,6 +6,10 @@ on:
       - '*'
   pull_request:
     branches: [ main ]
+    paths:
+      - "hi-ml-azure/**"
+      - "hi-ml/**"
+      - ".github/workflows/hi-ml-pr.yml"
 
 env:
   pythonVersion: 3.7
@@ -18,10 +22,6 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
-  HIML_COV_DOT_ARTIFACT_SUFFIX: '-code_coverage_report_dot'
-  HIML_COV_HTML_ARTIFACT_SUFFIX: '-code_coverage_report_html'
-  HIML_COV_TXT_ARTIFACT_SUFFIX: '-code_coverage_txt'
-  HIML_COV_XML_ARTIFACT_SUFFIX: '-code_coverage_xml'
 
 jobs:
 
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        folder: [ hi-ml, hi-ml-azure, hi-ml-histopathology ]
+        folder: [ hi-ml, hi-ml-azure ]
       # This will let all parts of the matrix run, to collect as many errors as possible, rather than aborting after first fail
       fail-fast: false
     steps:
@@ -177,7 +177,6 @@ jobs:
 
       - name: Download package artifacts
         id: download
-        if: ${{ matrix.folder != 'hi-ml-histopathology' }}
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
@@ -187,11 +186,9 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
-          if [ ${{ matrix.folder }} != 'hi-ml-histopathology' ]; then
-            make pip_upgrade
-            # Install package
-            pip install ${{ steps.download.outputs.package_filename }}
-          fi
+          make pip_upgrade
+          # Install package
+          pip install ${{ steps.download.outputs.package_filename }}
 
           if [ ${{ matrix.packageName }} == '*.whl' ]; then
             # Set env vars so wheel is sent to azureml as a private package
@@ -209,68 +206,6 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
             name: ${{ matrix.folder }}
-
-  test-project-folders:
-    runs-on: ubuntu-18.04
-    needs: [ build-python ]
-    strategy:
-      matrix:
-        folder: [ hi-ml-histopathology ]
-        packageName: [ '*.whl' ]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: PIP upgrade
-        run: |
-          cd hi-ml-azure
-          make pip_upgrade
-
-      - name: Download hi-ml-azure
-        id: download_himlazure
-        uses: ./.github/actions/download_package_artifacts
-        with:
-          folder: hi-ml-azure
-          package_type: ${{ matrix.packageName }}
-
-      - name: Download hi-ml
-        id: download_himl
-        uses: ./.github/actions/download_package_artifacts
-        with:
-          folder: hi-ml
-          package_type: ${{ matrix.packageName }}
-
-      - name: Install dependencies
-        run: |
-          cd hi-ml-azure
-          pip install ${{ steps.download_himlazure.outputs.package_filename }}
-          cd ../hi-ml
-          pip install ${{ steps.download_himl.outputs.package_filename }}
-
-      - name: Run tests
-        run: |
-          cd ${{ matrix.folder }}
-          make pip_local
-          make pytest_and_coverage
-
-      - name: Upload coverage report to Codecov
-        if: ${{ matrix.packageName == '*.whl' }}
-        uses: codecov/codecov-action@v2
-        with:
-            name: ${{ matrix.folder }}
-
-      - name: Run GPU tests
-        run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ matrix.folder }}/environment.yml --folder=${{ matrix.folder }} --experiment="$branch_name_without_prefix"
 
   publish-testpypi-pkg:
     runs-on: ubuntu-18.04

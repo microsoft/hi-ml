@@ -44,6 +44,7 @@ class HTMLReport:
     Create an HTML report which Azure ML is able to render. If you do not provide a title or output folder,
     this will generate a report at "outputs/report.html"
     """
+
     def __init__(self, title: str = "Report", output_folder: str = DEFAULT_OUTPUTS_FOLDER):
         self.report_title = title
         self.output_folder = output_folder

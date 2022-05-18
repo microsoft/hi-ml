@@ -310,7 +310,7 @@ def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, us
         batch = move_batch_to_expected_device(batch, use_gpu)
         outputs_dict = module.test_step(batch, batch_idx)
         loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        assert loss.shape == (1, 1) # noqa
+        assert loss.shape == (1, 1)  # noqa
         assert isinstance(loss, Tensor)
         break
 
