@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-import numpy
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
@@ -308,13 +307,6 @@ class TilesDeepMILModule(BaseDeepMILModule):
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
-
-        batch_size = len(batch)
-        bag_size = len(batch[self.label_column][0])
-        results.update({ResultsKey.TILE_SIZE_X: [numpy.full(bag_size,
-                                                           batch[TilesDataset.IMAGE_COLUMN][0].shape[2])] * batch_size,
-                        ResultsKey.TILE_SIZE_Y: [numpy.full(bag_size,
-                                                           batch[TilesDataset.IMAGE_COLUMN][0].shape[3])] * batch_size})
 
         if (TileKey.TILE_TOP in batch.keys()) and (TileKey.TILE_LEFT in batch.keys()) \
                 and (TileKey.TILE_RIGHT in batch.keys()) and (TileKey.TILE_BOTTOM in batch.keys()):
