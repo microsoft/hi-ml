@@ -15,7 +15,7 @@ import matplotlib.patches as patches
 import matplotlib.collections as collection
 
 from histopathology.models.transforms import load_pil_image
-from histopathology.utils.naming import ResultsKey
+from histopathology.utils.naming import ResultsKey, TileKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
 
 
@@ -155,8 +155,14 @@ def plot_heatmap_overlay(slide: str,
 
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
-        tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
-                                             results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
+        if (TileKey.TILE_TOP in results.keys()) and (TileKey.TILE_LEFT in results.keys()) \
+                and (TileKey.TILE_RIGHT in results.keys()) and (TileKey.TILE_BOTTOM in results.keys()):
+            tile_coords = np.transpose(np.array([results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
+                                                results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
+        else:
+            # the condition below ensures compatibility with older tile datasets
+            tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
+                                                results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
         coords_list.append(tile_coords)
 
     coords = np.array(coords_list)

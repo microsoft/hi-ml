@@ -50,10 +50,10 @@ class PandaTilesDataset(TilesDataset):
             ]
             self.dataset_df = dataset_df_filtered
 
-        # Change "left" --> "tile_x" and "top" --> "tile_y"
+        # Copy columns "left" --> "tile_x" and "top" --> "tile_y"
         # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
-        self.dataset_df.rename(columns={"left": TilesDataset.TILE_X_COLUMN, "top": TilesDataset.TILE_Y_COLUMN},
-                               inplace=True)
+        self.dataset_df[TilesDataset.TILE_X_COLUMN] = self.dataset_df['left']
+        self.dataset_df[TilesDataset.TILE_Y_COLUMN] = self.dataset_df['top']
         self.validate_columns()
 
 
