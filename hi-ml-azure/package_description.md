@@ -25,7 +25,7 @@ Examples that illustrate the use of the `hi-ml` toolbox can be found on
 
 ## Changelog
 
-We are relying on Github's auto-generated changelog to describe what went into a release. Please check each individual release 
+We are relying on Github's auto-generated changelog to describe what went into a release. Please check each individual release
 ([available here](https://github.com/microsoft/hi-ml/releases)) to see a full changelog.
 
 ## Links

@@ -174,7 +174,7 @@ def plot_heatmap_overlay(slide: str,
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor=None)
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor='black')
     pc.set_array(np.array(attentions))
     pc.set_clim([0, 1])
     ax.add_collection(pc)

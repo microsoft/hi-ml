@@ -327,6 +327,7 @@ class TilesDeepMILModule(BaseDeepMILModule):
 
 class SlidesDeepMILModule(BaseDeepMILModule):
     """Base class for slides based deep multiple-instance learning."""
+
     def __init__(self, tiles_count: int, **kwargs: Any) -> None:
         self.tiles_count = tiles_count
         super().__init__(**kwargs)

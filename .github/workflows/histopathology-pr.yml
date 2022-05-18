@@ -1,4 +1,4 @@
-name: Multimodal PR
+name: Histopathology PR
 on:
   push:
     branches: [ main ]
@@ -7,12 +7,15 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - "multimodal/**"
-      - ".github/workflows/multimodal-pr.yml"
+      - "hi-ml-histopathology/**"
+      - ".github/workflows/histopathology-pr.yml"
+      # When the core hi-ml libraries change, test the histo test too, to find problems with backwards compatibility
+      - "hi-ml-azure/**"
+      - "hi-ml/**"
 
 env:
   pythonVersion: 3.7
-  folder: multimodal
+  folder: hi-ml-histopathology
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -58,29 +61,6 @@ jobs:
           make pip_test
           make mypy
 
-  pyright:
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          environment-file: ${{ env.folder }}/environment.yml
-
-      - name: pyright
-        shell: bash -l {0}
-        run: |
-          conda info
-          cd ${{ env.folder }}
-          make pyright_install
-          make pyright
-
   pytest:
     runs-on: ubuntu-18.04
     steps:
@@ -93,13 +73,42 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
+      - name: PIP upgrade
+        run: |
+          cd ${{ env.folder }}
+          make pip_upgrade
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
       - name: Test with pytest
         run: |
           cd ${{ env.folder }}
 
-          # Install local package in editable mode
-          make pip_local
-
           # Run tests
           make pip_test
-          make pytest
+          make pytest_coverage
+
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+            name: ${{ env.folder }}
+
+      - name: Run GPU tests
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --experiment="$branch_name_without_prefix"

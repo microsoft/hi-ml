@@ -85,7 +85,7 @@ class Foo:
     This is the class description.
 
     The following block will be pretty-printed by Sphinx. Note the space between >>> and the code!
-    
+
     Usage example:
         >>> from module import Foo
         >>> foo = Foo(bar=1.23)
@@ -107,7 +107,7 @@ class Foo:
         if enclosed in double backtick.
 
         This method can raise a :exc:`ValueError`.
-        
+
         :param arg: This is a description for the method argument.
             Long descriptions should be indented.
         """

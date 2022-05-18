@@ -28,6 +28,7 @@ from histopathology.datasets.default_paths import (
 
 class BaseDeepSMILEPanda(BaseMIL):
     """Base class for DeepSMILEPanda common configs between tiles and slides piplines."""
+
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
@@ -61,6 +62,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     max_bag_size_inf=max_bag_size and batch_size = 2 runs on multiple GPUs with
     ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
+
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMILTiles:
@@ -119,6 +121,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
     """DeepSMILESlidesPanda is derived from BaseMILSlides and BaseDeeppSMILEPanda to inherits common behaviors from both
     slides basemil and panda specific configuration.
     """
+
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMILSlides:

@@ -20,7 +20,7 @@ def location_selected_tiles(tile_coords: np.ndarray,
     level_dict = {0: 1, 1: 4, 2: 16}
     factor = level_dict[level]
 
-    x_tr, y_tr = location_bbox
+    y_tr, x_tr = location_bbox
     tile_xs, tile_ys = tile_coords.T
     tile_xs = tile_xs - x_tr
     tile_ys = tile_ys - y_tr
