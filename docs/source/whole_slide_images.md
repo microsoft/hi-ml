@@ -99,4 +99,3 @@ Test code created tiles of size 224x224 pilfes, loaded the mask images, and used
 For cuCIM the total time was 4.7s, 2.48s to retain the tiles as a Numpy stack but not save them as pngs. cuCIM has the option of cacheing images, but is actually made performance slightly worse, possibly because the natural tile sizes in the original tiffs were larger than the tile sizes.
 
 For OpenSlide the comparable total times were 5.7s, and 3.26s.
-

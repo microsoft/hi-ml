@@ -194,4 +194,3 @@ class MyContainer(LightningContainer):
 To the optimizer and LR scheduler: the Lightning model returned by `create_model` should define its own
 `configure_optimizers` method, with the same signature as `LightningModule.configure_optimizers`,
 and returns a tuple containing the Optimizer and LRScheduler objects
-
