@@ -35,7 +35,7 @@ Container:
 	max_bag_size_inf                        : 0
 	max_epochs                              : 50
 	max_num_gpus                            : -1
-	model_id                                : 
+	model_id                                :
 	momentum                                : 0.6
 	monitor_gpu                             : False
 	monitor_loading                         : False

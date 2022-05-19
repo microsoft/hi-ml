@@ -1,5 +1,4 @@
 
-!RegressionTestResults/
 outputs/
 config.json*
 coverage.txt
@@ -168,6 +167,3 @@ None/
 hi-ml-histopathology/testSSL/test_outputs
 test_outputs/
 lightning_logs/
-
-
-!hi-ml-histopathology/RegressionTestResults/*/outputs

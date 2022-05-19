@@ -1,0 +1,161 @@
+
+Container:
+	_min_l_rate                             : 0.0
+	_model_name                             : TcgaCrckImageNetMIL
+	adam_betas                              : (0.9, 0.99)
+	additional_env_files                    : [PosixPath('hi-ml-histopathology/environment.yml')]
+	autosave_every_n_val_epochs             : 1
+	azure_datasets                          : ['TCGA-CRCk']
+	batch_size                              : 16
+	cache_mode                              : CacheMode.NONE
+	class_names                             : None
+	crossval_count                          : 1
+	crossval_index                          : 0
+	dataset_mountpoints                     : []
+	detect_anomaly                          : False
+	dropout_rate                            : None
+	encoder_type                            : ImageNetEncoder
+	encoding_chunk_size                     : 60
+	file_system_config                      : <ExperimentFolderHandler ExperimentFolderHandler00009>
+	hyperdrive                              : False
+	is_caching                              : False
+	is_finetune                             : False
+	l_rate                                  : 0.0005
+	l_rate_exponential_gamma                : 0.9
+	l_rate_multi_step_gamma                 : 0.1
+	l_rate_multi_step_milestones            : None
+	l_rate_polynomial_gamma                 : 0.0001
+	l_rate_scheduler                        : LRSchedulerType.Polynomial
+	l_rate_step_gamma                       : 0.1
+	l_rate_step_step_size                   : 50
+	l_rate_warmup                           : LRWarmUpType.NoWarmUp
+	l_rate_warmup_epochs                    : 0
+	local_datasets                          : [PosixPath('/mnt/batch/tasks/shared/LS_root/jobs/innereye4ws/azureml/tcgacrckimagenetmil_1652890963_a94baadc/wd/INPUT_0_f4167a4f-41be-4244-a670-4c7c1ac09cf9')]
+	local_weights_path                      : None
+	max_bag_size                            : 3
+	max_bag_size_inf                        : 3
+	max_epochs                              : 2
+	max_num_gpus                            : -1
+	maximise_primary_metric                 : True
+	momentum                                : 0.6
+	monitor_gpu                             : False
+	monitor_loading                         : False
+	n_channels                              : 3
+	name                                    : TcgaCrckImageNetMIL00008
+	num_transformer_pool_heads              : 4
+	num_transformer_pool_layers             : 4
+	opt_eps                                 : 0.0001
+	optimizer_type                          : OptimizerType.Adam
+	output_to                               : None
+	pl_deterministic                        : False
+	pl_find_unused_parameters               : False
+	pl_limit_test_batches                   : 2.0
+	pl_limit_train_batches                  : 2.0
+	pl_limit_val_batches                    : 2.0
+	pl_num_sanity_val_steps                 : 0
+	pl_profiler                             : None
+	pl_progress_bar_refresh_rate            : None
+	pool_hidden_dim                         : 128
+	pool_out_dim                            : 1
+	pool_type                               : AttentionLayer
+	precache_location                       : CacheLocation.NONE
+	primary_val_metric                      : auroc
+	random_seed                             : 42
+	regression_test_csv_tolerance           : 0.05
+	regression_test_folder                  : hi-ml-histopathology/RegressionTestResults/HD_13448836-ddc9-4000-87a4-f84075d9d29c_1
+	rms_alpha                               : 0.9
+	tile_size                               : 224
+	use_mixed_precision                     : False
+	weight_decay                            : 0.0001
+	weights_url                             :
+	num_nodes                               : 1
+	best_checkpoint_filename                : checkpoint_max_val_auroc
+	best_checkpoint_filename_with_suffix    : checkpoint_max_val_auroc.ckpt
+	encoder                                 : ImageNetEncoder(
+  (preprocessing_fn): Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+  (feature_extractor_fn): ResNet(
+    (conv1): Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+    (maxpool): MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+    (layer1): Sequential(
+      (0): BasicBlock(
+        (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+      (1): BasicBlock(
+        (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (layer2): Sequential(
+      (0): BasicBlock(
+        (conv1): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (downsample): Sequential(
+          (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(2, 2), bias=False)
+          (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
+      )
+      (1): BasicBlock(
+        (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (layer3): Sequential(
+      (0): BasicBlock(
+        (conv1): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (downsample): Sequential(
+          (0): Conv2d(128, 256, kernel_size=(1, 1), stride=(2, 2), bias=False)
+          (1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
+      )
+      (1): BasicBlock(
+        (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (layer4): Sequential(
+      (0): BasicBlock(
+        (conv1): Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (downsample): Sequential(
+          (0): Conv2d(256, 512, kernel_size=(1, 1), stride=(2, 2), bias=False)
+          (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
+      )
+      (1): BasicBlock(
+        (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (avgpool): AdaptiveAvgPool2d(output_size=(1, 1))
+    (fc): Flatten(start_dim=1, end_dim=-1)
+  )
+)
+	data_module                             : <histopathology.datamodules.tcga_crck_module.TcgaCrckTilesDataModule object at 0x7efae4bac278>
