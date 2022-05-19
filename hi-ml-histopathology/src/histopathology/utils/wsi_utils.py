@@ -5,6 +5,7 @@ from typing import List
 from histopathology.utils.naming import SlideKey
 from health_ml.utils.bag_utils import multibag_collate
 
+
 def image_collate(batch: List[dict]) -> List[dict]:
     """
         Combine instances from a list of dicts into a single dict, by stacking them along first dim
