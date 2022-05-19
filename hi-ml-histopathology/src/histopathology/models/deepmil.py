@@ -337,7 +337,8 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                     [slide_id] * self.tile_count for slide_id in batch[SlideKey.SLIDE_ID]
                 ],
                 ResultsKey.TILE_ID: [
-                    [f"_{tile_id}" for tile_id in range(self.tile_count)] for _ in batch[SlideKey.SLIDE_ID]
+                    [f"{slide_id}_{tile_id}" for tile_id in range(self.tile_count)]
+                    for slide_id in batch[SlideKey.SLIDE_ID]
                 ],
                 ResultsKey.IMAGE_PATH: [
                     [img_path] * self.tile_count for img_path in batch[SlideKey.IMAGE_PATH]
