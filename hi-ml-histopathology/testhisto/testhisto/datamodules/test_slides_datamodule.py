@@ -86,7 +86,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> None:
-    batch_size = 1
+    batch_size = 2
     tile_count = None
     tile_size = 28
     level = 0
