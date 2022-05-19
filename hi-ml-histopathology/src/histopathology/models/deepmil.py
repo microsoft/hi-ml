@@ -68,8 +68,6 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
-        :param tile_count: number of tiles used to tiles on the fly. This is a temporary solution to fill in outputs
-            handler expected results.
         """
         super().__init__()
 
@@ -81,7 +79,6 @@ class BaseDeepMILModule(LightningModule):
         self.encoder = encoder
         self.aggregation_fn = pooling_layer
         self.num_pooling = num_features
-        self.tile_count = tile_count
 
         self.class_names = validate_class_names(class_names, self.n_classes)
 
@@ -331,17 +328,18 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
+        tile_counts = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
         results.update(
             {
                 ResultsKey.SLIDE_ID: [
-                    [slide_id] * self.tile_count for slide_id in batch[SlideKey.SLIDE_ID]
+                    [slide_id] * tile_counts[i] for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
                 ],
                 ResultsKey.TILE_ID: [
-                    [f"{slide_id}_{tile_id}" for tile_id in range(self.tile_count)]
-                    for slide_id in batch[SlideKey.SLIDE_ID]
+                    [f"{slide_id}_{tile_id}" for tile_id in range(tile_counts[i])]
+                    for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
                 ],
                 ResultsKey.IMAGE_PATH: [
-                    [img_path] * self.tile_count for img_path in batch[SlideKey.IMAGE_PATH]
+                    [img_path] * tile_counts[i] for i, img_path in enumerate(batch[SlideKey.IMAGE_PATH])
                 ],
             }
         )

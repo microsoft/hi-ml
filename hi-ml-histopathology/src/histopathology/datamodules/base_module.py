@@ -85,6 +85,15 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         """Create the training, validation, and test datasets"""
         raise NotImplementedError
 
+    def train_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.train_dataset, ModelKey.TRAIN, shuffle=True, **self.dataloader_kwargs)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.val_dataset, ModelKey.VAL, shuffle=False, **self.dataloader_kwargs)
+
+    def test_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.test_dataset, ModelKey.TEST, shuffle=False, **self.dataloader_kwargs)
+
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
     """Base class to load the tiles of a dataset as train, val, test sets"""
@@ -222,15 +231,6 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             **dataloader_kwargs,
         )
 
-    def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, ModelKey.TRAIN, shuffle=True, **self.dataloader_kwargs)
-
-    def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, ModelKey.VAL, shuffle=True, **self.dataloader_kwargs)
-
-    def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, ModelKey.TEST, shuffle=True, **self.dataloader_kwargs)
-
 
 class SlidesDataModule(HistoDataModule[SlidesDataset]):
     """
@@ -281,8 +281,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        # if self.tile_count is None:
-        #     assert self.batch_size == 1, "batch_size > 1 not supported if tiles_count=None 'for now'"
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
@@ -326,12 +324,3 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             generator=generator,
             **dataloader_kwargs,
         )
-
-    def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
-
-    def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, shuffle=True, stage=ModelKey.VAL, **self.dataloader_kwargs)
-
-    def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, shuffle=True, stage=ModelKey.TEST, **self.dataloader_kwargs)

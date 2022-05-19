@@ -3,8 +3,7 @@ import numpy as np
 
 from typing import List
 from histopathology.utils.naming import SlideKey
-from torch.utils.data.dataloader import default_collate
-
+from health_ml.utils.bag_utils import multibag_collate
 
 def image_collate(batch: List[dict]) -> List[dict]:
     """
@@ -17,5 +16,6 @@ def image_collate(batch: List[dict]) -> List[dict]:
     for i, item in enumerate(batch):
         data = item[0]
         data[SlideKey.IMAGE] = torch.tensor(np.array([ix[SlideKey.IMAGE] for ix in item]))
+        data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
-    return default_collate(batch)
+    return multibag_collate(batch)
