@@ -241,7 +241,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        level: Optional[int] = 0,
+        level: Optional[int] = 1,
         tile_count: Optional[int] = None,
         tile_size: Optional[int] = 224,
         step: Optional[int] = None,
@@ -252,7 +252,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         **kwargs: Any,
     ) -> None:
         """
-        :param level: the whole slide image level at which the image is extracted, defaults to 0
+        :param level: the whole slide image level at which the image is extracted, defaults to 1
         this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend
         :param tile_count: number of tiles to extract, if None extracts all non-background tiles, defaults to None
         this param is passed to TileOnGridd monai transform for tiling on the fly.
@@ -291,7 +291,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     keys=slides_dataset.IMAGE_COLUMN,
                     reader=WSIReader,
                     backend="cuCIM",
-                    dtype=np.float32,
+                    dtype=np.uint8,
                     level=self.level,
                     image_only=True,
                 ),

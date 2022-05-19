@@ -51,7 +51,7 @@ class BaseDeepSMILEPanda(BaseMIL):
         super().__init__(**default_kwargs)
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         if not is_running_in_azure_ml():
-            self.max_epochs = 1
+            self.max_epochs = 2
 
 
 class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
@@ -127,10 +127,15 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             # declared in BaseMILSlides:
             # N.B: For the moment we only support running the pipeline with a fixed tile_count.
             # Padding to the same shape or collating to a List of Tensors  will be adressed in another PR.
-            tile_count=60,
+            level=1,
+            tile_count=44,
+            tile_size=224,
+            random_offset=True,
+            background_val=255,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA")],
-            azure_datasets=["PANDA"])
+            azure_datasets=["PANDA"],
+            save_tiles=False,)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
@@ -139,11 +144,24 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILSlides.setup(self)
 
+    def get_dataloader_kwargs(self) -> dict:
+        return dict(
+            multiprocessing_context="spawn",
+            **super().get_dataloader_kwargs()
+        )
+
     def get_data_module(self) -> PandaSlidesDataModule:
         return PandaSlidesDataModule(
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
+            level=self.level,
             tile_count=self.tile_count,
+            tile_size=self.tile_size,
+            step=self.step,
+            random_offset=self.random_offset,
+            pad_full=self.pad_full,
+            background_val=self.background_val,
+            filter_mode=self.filter_mode,
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
