@@ -21,7 +21,7 @@ from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
                                           DEFAULT_LOGS_DIR_NAME)
-from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2, IntOrBool
+from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2
 
 
 @unique
@@ -397,7 +397,7 @@ class TrainerParams(param.Parameterized):
         param.Number(default=None,
                      doc="PyTorch Lightning trainer flag 'limit_test_batches': Limit the test dataset to the "
                          "given number of batches if integer, or proportion of test dataset if float.")
-    pl_limit_batches: int= \
+    pl_limit_batches: int = \
         param.Number(default=0,
                      doc="PyTorch Lightning trainer flag 'fast_dev_run': Runs n if set to 'n' batch(es) of train, "
                          "and test. Default to 0 to use all train, val and test batches available. This is equivalent " "to setting 'pl_limit_train_batches' = 'pl_limit_val_batches' = 'pl_limit_test_batches'  = n."
