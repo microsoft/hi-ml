@@ -400,7 +400,9 @@ class TrainerParams(param.Parameterized):
     pl_limit_batches: Optional[IntOrBool] = \
         param.Number(default=False,
                      doc="PyTorch Lightning trainer flag 'fast_dev_run': Runs n if set to ``n`` (int) else 1 if set to"
-                         "``True`` batch(es) of train, val and test to" "find any bugs (ie: a sort of unit test).")
+                         "``True`` batch(es) of train, val and test. Default to False to use all train, val and test"
+                         "batches available. This is equivalent to setting"
+                         "'pl_limit_train_batches' = 'pl_limit_val_batches' = 'pl_limit_test_batches'  = n")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
