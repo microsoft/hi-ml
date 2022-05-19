@@ -21,7 +21,7 @@ from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
                                           DEFAULT_LOGS_DIR_NAME)
-from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2
+from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2, IntOrBool
 
 
 @unique
@@ -397,10 +397,10 @@ class TrainerParams(param.Parameterized):
         param.Number(default=None,
                      doc="PyTorch Lightning trainer flag 'limit_test_batches': Limit the test dataset to the "
                          "given number of batches if integer, or proportion of test dataset if float.")
-    pl_limit_batches: Optional[IntOrFloat] = \
-        param.Number(default=None,
-                     doc="PyTorch Lightning trainer flag 'fast_dev_run': Limit the test dataset to the "
-                         "given number of batches if integer, or proportion of test dataset if float.")
+    pl_limit_batches: Optional[IntOrBool] = \
+        param.Number(default=False,
+                     doc="PyTorch Lightning trainer flag 'fast_dev_run': Runs n if set to ``n`` (int) else 1 if set to"
+                         "``True`` batch(es) of train, val and test to" "find any bugs (ie: a sort of unit test).")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "

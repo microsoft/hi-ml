@@ -151,6 +151,7 @@ def create_lightning_trainer(container: LightningContainer,
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
                       limit_test_batches=container.pl_limit_test_batches or 1.0,
+                      fast_dev_run=container.pl_limit_batches,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
@@ -163,7 +164,6 @@ def create_lightning_trainer(container: LightningContainer,
                       profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
-                      fast_dev_run=2,
                       **additional_args)
     return trainer, storing_logger
 
