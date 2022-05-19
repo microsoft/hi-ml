@@ -269,6 +269,8 @@ def test_metrics(n_classes: int) -> None:
         expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
         assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
+    assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
+
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
     device = "cuda" if use_gpu else "cpu"
