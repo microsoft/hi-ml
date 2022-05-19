@@ -156,7 +156,7 @@ def plot_heatmap_overlay(slide: str,
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
         tile_coords = np.transpose(np.array([results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
-                                                results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
+                                             results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
         coords_list.append(tile_coords)
 
     coords = np.array(coords_list)
