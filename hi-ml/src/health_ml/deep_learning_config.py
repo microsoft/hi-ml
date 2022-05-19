@@ -397,6 +397,13 @@ class TrainerParams(param.Parameterized):
         param.Number(default=None,
                      doc="PyTorch Lightning trainer flag 'limit_test_batches': Limit the test dataset to the "
                          "given number of batches if integer, or proportion of test dataset if float.")
+    pl_limit_batches: Optional[int] = \
+        param.Integer(default=0,
+                      doc="PyTorch Lightning trainer flag 'fast_dev_run': Runs n if set to 'n' batch(es) of train, "
+                          "and test. Default to 0 to use all train, val and test batches available. This is equivalent "
+                          "to setting 'pl_limit_train_batches' = 'pl_limit_val_batches' = 'pl_limit_test_batches'  = n."
+                          "Setting pl_limit_batches to n > 0 overrides pl_limit_{train, val, test}_batches to the same "
+                          "value n.")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
