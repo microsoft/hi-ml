@@ -2,7 +2,7 @@ import torch
 import pytest
 import numpy as np
 
-from typing import Dict, List
+from typing import Any, Dict, List
 from typing import Sequence
 from histopathology.utils.naming import SlideKey
 from histopathology.utils.wsi_utils import image_collate
@@ -27,7 +27,7 @@ class MockTiledWSIDataset(Dataset):
     def __len__(self) -> int:
         return self.n_slides
 
-    def __getitem__(self, index: int) -> Dict:
+    def __getitem__(self, index: int) -> List[Dict[SlideKey, Any]]:
         tile_count = np.random.randint(self.n_tiles) if self.random_n_tiles else self.n_tiles
         label = np.random.choice(self.n_classes)
         return [{SlideKey.SLIDE_ID: self.slide_ids[index],
