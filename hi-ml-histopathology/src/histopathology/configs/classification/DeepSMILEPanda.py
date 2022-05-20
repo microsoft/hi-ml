@@ -126,7 +126,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILSlides:
             level=1,
-            tile_count=44,
+            tile_count=56,
             tile_size=224,
             random_offset=True,
             background_val=255,
