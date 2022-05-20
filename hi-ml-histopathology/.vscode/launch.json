@@ -45,10 +45,9 @@
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
                 "--model=histopathology.SlidesPandaImageNetMIL",
-                "--max_epochs=2",
                 "--pl_limit_batches=2",
                 "--crossval_count=0",
-                "--batch_size=4"
+                "--batch_size=2"
             ],
             "console": "integratedTerminal",
         },
