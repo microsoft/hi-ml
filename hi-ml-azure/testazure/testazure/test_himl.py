@@ -45,7 +45,8 @@ from health_azure.utils import (
     check_config_json,
     get_most_recent_run,
     get_workspace,
-    is_running_in_azure_ml
+    is_running_in_azure_ml,
+    get_driver_log_file_text,
 )
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
@@ -875,20 +876,13 @@ def render_and_run_test_script(path: Path,
         if run.status not in ["Failed", "Completed", "Cancelled"]:
             run.wait_for_completion()
         assert run.status == "Completed"
-        log_root = path / "logs"
-        log_root.mkdir(exist_ok=False)
-        files = run.get_file_names()
-        # Account for old and new job runtime: log files live in different places
-        driver_log_files = ["azureml-logs/70_driver_log.txt", "user_logs/std_log.txt"]
-        driver_log = log_root / "driver_log.txt"
-        for f in driver_log_files:
-            if f in files:
-                run.download_file(f, output_file_path=str(driver_log))
-                break
-        else:
-            raise ValueError("The run does not contain any of the driver log files")
-        log_text = driver_log.read_text()
-        return log_text
+
+        # TODO: upgrade to walrus operator when upgrading python version to 3.8+
+        # if log_text := get_driver_log_file_text(run=run):
+        log_text = get_driver_log_file_text(run=run)
+        if log_text:
+            return log_text
+        raise ValueError("The run does not contain any of the driver log files")
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])

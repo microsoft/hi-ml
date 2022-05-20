@@ -1459,6 +1459,27 @@ def download_files_from_run_id(
     torch_barrier()
 
 
+def get_driver_log_file_text(run: Run) -> Optional[str]:
+    """Given a run object, return the text stored in the driver log file of that run. Detects log files produced 
+    by both old and new runtimes.
+
+    :param run: Run object representing the current run.
+    :return: Driver log file text if a file exists, None otherwise.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        run.download_files(prefix="azureml-logs", output_directory=tmp_dir_name,
+                            append_prefix=False)
+        run.download_files(prefix="user_logs", output_directory=tmp_dir_name,
+                            append_prefix=False)
+
+        for log_file_name in ["70_driver_log.txt", "std_log.txt"]:
+            driver_log_path = Path(tmp_dir_name) / log_file_name
+            if driver_log_path.exists():
+                return driver_log_path.read_text()
+
+    logging.warning("Tried to get driver log file text when no such file exists.")
+    return None
+
 def _download_file_from_run(
     run: Run, filename: str, output_file: Path, validate_checksum: bool = False
 ) -> Optional[Path]:
