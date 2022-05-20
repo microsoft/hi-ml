@@ -28,7 +28,7 @@ Prio 1, to be completed later
 
 ## Training an SSL encoder
 
-* [Train an SSL encoder on a pre-tiled dataset: TCGA-Crck](ssl_tile_dataset.md)
+* [Train an SSL encoder on a pre-tiled dataset: TCGA-Crck](ssl_on_tile_dataset.md)
 * How to use the checkpoint in a classifier
 * If people want to train an SSL model on their data:
   * What is the expected data format?
