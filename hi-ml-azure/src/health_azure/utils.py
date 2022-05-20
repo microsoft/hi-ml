@@ -1460,7 +1460,7 @@ def download_files_from_run_id(
     torch_barrier()
 
 
-def get_driver_log_file_text(run: Run, download_file=True) -> Optional[str]:
+def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[str]:
     """
     Return the text stored in the driver log file of that run. Detects log files produced
     by both old and new runtimes.
@@ -1478,8 +1478,9 @@ def get_driver_log_file_text(run: Run, download_file=True) -> Optional[str]:
                     output_directory=tmp_dir_name,
                     append_prefix=False,
                 )
-            if log_file_path.is_file():
-                return log_file_path.read_text()
+            tmp_log_file_path = tmp_dir_name / log_file_path
+            if tmp_log_file_path.is_file():
+                return tmp_log_file_path.read_text()
 
     files_as_str = ', '.join([f"'{str(log_file_path)}'" for log_file_path in VALID_LOG_FILE_PATHS])
     logging.warning(
