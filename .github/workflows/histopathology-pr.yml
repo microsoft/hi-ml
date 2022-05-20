@@ -104,7 +104,7 @@ jobs:
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v2
         with:
-            name: ${{ env.folder }}
+            flags: ${{ env.folder }}
 
       - name: Run GPU tests
         run: |

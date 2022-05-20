@@ -205,7 +205,7 @@ jobs:
         if: ${{ matrix.packageName == '*.whl' }}
         uses: codecov/codecov-action@v2
         with:
-            name: ${{ matrix.folder }}
+            flags: ${{ matrix.folder }}
 
   publish-testpypi-pkg:
     runs-on: ubuntu-18.04
