@@ -1,3 +1,6 @@
+comment:
+  # Skip the "diff" part of the report because it shows lots of misleading red lines when not everything is uploaded
+  layout: "reach, flags, files"
 flags:
   hi-ml:
     paths:
