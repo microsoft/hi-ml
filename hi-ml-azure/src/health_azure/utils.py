@@ -1462,8 +1462,7 @@ def download_files_from_run_id(
 
 def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[str]:
     """
-    Return the text stored in the driver log file of that run. Detects log files produced
-    by both old and new runtimes.
+    Returns text stored in run log driver file.
 
     :param run: Run object representing the current run.
     :param download_file: Boolean flag that control if the log file should be downloaded from the run or not.
