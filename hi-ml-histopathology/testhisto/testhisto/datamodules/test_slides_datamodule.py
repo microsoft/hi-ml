@@ -135,8 +135,9 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-def test_overlapping_tiles(mock_panda_slides_root_dir: Path) -> None:
-    batch_size = 1
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir: Path) -> None:
+    batch_size = batch_size
     tile_size = 28
     level = 0
     step = 14
