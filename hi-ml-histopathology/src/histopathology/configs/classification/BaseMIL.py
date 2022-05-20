@@ -68,12 +68,12 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
+    max_bag_size: int = param.Integer(1000, bounds=(0, None), allow_None=True,
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
                                           "random subsets of instances.")
-    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
+    max_bag_size_inf: int = param.Integer(0, bounds=(0, None), allow_None=True,
                                           doc="Upper bound on number of tiles in each loaded bag during "
                                           "validation and test stages."
                                           "If 0 (default), will return all samples in each bag. "

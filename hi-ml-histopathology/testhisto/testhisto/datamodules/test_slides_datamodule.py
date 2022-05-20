@@ -75,12 +75,13 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
     for sample in dataloader:
         # sanity check for expected shape
         tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
-        assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
+        assert len(tiles) == batch_size
+        assert tiles[assert_batch_index].shape == (tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly
         original_tile = get_original_tile(mock_panda_slides_root_dir, wsi_id)
         for i in range(tile_count):
-            assert (original_tile == tiles[assert_batch_index, i].numpy()).all()
+            assert (original_tile == tiles[assert_batch_index][i].numpy()).all()
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
@@ -90,6 +91,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> No
     tile_count = None
     tile_size = 28
     level = 0
+    assert_batch_index = 0
     min_expected_tile_count = 16
     datamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir,
@@ -101,7 +103,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> No
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
         tiles = sample[SlideKey.IMAGE]
-        assert tiles.shape[1] >= min_expected_tile_count
+        assert tiles[assert_batch_index].shape[0] >= min_expected_tile_count
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
@@ -124,20 +126,19 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
     for sample in dataloader:
         # sanity check for expected shape
         tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
-        assert tiles.shape == (batch_size, tile_count, channels, tile_size, tile_size)
+        assert tiles[assert_batch_index].shape == (tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly at different resolutions
         original_tile = get_original_tile(mock_panda_slides_root_dir, wsi_id)
         for i in range(tile_count):
             # multi resolution mock data has been created via 2 factor downsampling
-            assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[assert_batch_index, i].numpy()).all()
+            assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[assert_batch_index][i].numpy()).all()
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir: Path) -> None:
-    batch_size = batch_size
     tile_size = 28
     level = 0
     step = 14
@@ -145,12 +146,17 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir: Path) ->
     min_expected_tile_count = 32
     assert_batch_index = 0
     datamodule = PandaSlidesDataModule(
-        root_path=mock_panda_slides_root_dir, batch_size=batch_size, tile_size=tile_size, step=step, level=level
+        root_path=mock_panda_slides_root_dir,
+        max_bag_size=None,
+        batch_size=batch_size,
+        tile_size=tile_size,
+        step=step,
+        level=level
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
         tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
-        assert tiles.shape[1] >= min_expected_tile_count
+        assert tiles[assert_batch_index].shape[0] >= min_expected_tile_count
 
         original_tile = get_original_tile(mock_panda_slides_root_dir, wsi_id)
         tile_matches = 0
@@ -171,7 +177,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         assert_batch_index = 0
         for sample in dataloader:
             tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
-            tiles_dict.update({wsi_id: tiles[assert_batch_index, :, :, :, :]})
+            tiles_dict.update({wsi_id: tiles[assert_batch_index]})
         return tiles_dict
 
     batch_size = 1
@@ -182,6 +188,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
         max_bag_size=tile_count,
+        max_bag_size_inf=None,
         tile_size=tile_size,
         level=level,
         transforms_dict=get_transforms_dict(),
