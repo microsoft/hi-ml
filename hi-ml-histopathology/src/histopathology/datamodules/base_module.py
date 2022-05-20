@@ -48,7 +48,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         root_path: Path,
         batch_size: int = 1,
         max_bag_size: int = 0,
-        max_bag_size_inf: Optional[int] = 0,
+        max_bag_size_inf: int = 0,
         seed: Optional[int] = None,
         transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
