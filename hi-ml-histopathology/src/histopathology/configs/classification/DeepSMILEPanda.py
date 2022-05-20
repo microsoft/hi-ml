@@ -125,10 +125,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMILSlides:
-            # N.B: For the moment we only support running the pipeline with a fixed tile_count.
-            # Padding to the same shape or collating to a List of Tensors  will be adressed in another PR.
             level=1,
-            tile_count=44,
+            tile_count=None,
             tile_size=224,
             random_offset=True,
             background_val=255,
