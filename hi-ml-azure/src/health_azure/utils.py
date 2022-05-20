@@ -76,6 +76,7 @@ CONDA_CHANNELS = "channels"
 CONDA_DEPENDENCIES = "dependencies"
 CONDA_PIP = "pip"
 
+VALID_LOG_FILE_PATHS = [Path("user_logs/std_log.txt"), Path("azureml-logs/70_driver_log.txt")]
 
 # By default, define several environment variables that work around known issues in the software stack
 DEFAULT_ENVIRONMENT_VARIABLES = {
@@ -1459,31 +1460,32 @@ def download_files_from_run_id(
     torch_barrier()
 
 
-def get_driver_log_file_text(run: Run) -> Optional[str]:
-    """Given a run object, return the text stored in the driver log file of that run. Detects log files produced
+def get_driver_log_file_text(run: Run, download_file=True) -> Optional[str]:
+    """
+    Return the text stored in the driver log file of that run. Detects log files produced
     by both old and new runtimes.
 
     :param run: Run object representing the current run.
-    :return: Driver log file text if a file exists, None otherwise.
+    :param download_file: Boolean flag that control if the log file should be downloaded from the run or not.
+    :return: Driver log file text if a file exists, `None` otherwise.
     """
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        run.download_files(
-            prefix="azureml-logs",
-            output_directory=tmp_dir_name,
-            append_prefix=False
-        )
-        run.download_files(
-            prefix="user_logs",
-            output_directory=tmp_dir_name,
-            append_prefix=False
-        )
 
-        for log_file_name in ["70_driver_log.txt", "std_log.txt"]:
-            driver_log_path = Path(tmp_dir_name) / log_file_name
-            if driver_log_path.exists():
-                return driver_log_path.read_text()
+        for log_file_path in VALID_LOG_FILE_PATHS:
+            if download_file:
+                run.download_files(
+                    prefix=str(log_file_path),
+                    output_directory=tmp_dir_name,
+                    append_prefix=False,
+                )
+            if log_file_path.is_file():
+                return log_file_path.read_text()
 
-    logging.warning("Tried to get driver log file text when no such file exists.")
+    files_as_str = ', '.join([f"'{str(log_file_path)}'" for log_file_path in VALID_LOG_FILE_PATHS])
+    logging.warning(
+        "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
+        f"one of the following: {files_as_str}"
+    )
     return None
 
 

@@ -42,6 +42,7 @@ from health_azure.utils import (
     ENVIRONMENT_VERSION,
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
+    VALID_LOG_FILE_PATHS,
     check_config_json,
     get_most_recent_run,
     get_workspace,
@@ -877,12 +878,20 @@ def render_and_run_test_script(path: Path,
             run.wait_for_completion()
         assert run.status == "Completed"
 
+        # test error case mocking where no log file is present
+        log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
+        assert log_text_undownloaded is None
+
         # TODO: upgrade to walrus operator when upgrading python version to 3.8+
         # if log_text := get_driver_log_file_text(run=run):
         log_text = get_driver_log_file_text(run=run)
-        if log_text:
+        if log_text is not None:
             return log_text
-        raise ValueError("The run does not contain any of the driver log files")
+
+        raise ValueError(
+            "The run does not contain any of the following log files: "
+            f"{[str(log_file_path) for log_file_path in VALID_LOG_FILE_PATHS]}"
+        )
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
