@@ -2,7 +2,7 @@
 
 ## Onboarding to Azure
 
-To be completed later, this is not priority 0.
+Prio 1, to be completed later
 
 ## Creating datasets
 
@@ -11,14 +11,14 @@ To be completed later, this is not priority 0.
 
 ## Training a model
 
-* [PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
+* Prio 0: [PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
   * How to invoke training for the existing model on PANDA data
   * Where to find results and how to interpret them
   * What results are expected (accuracy)
   * If people want to re-use that model on their data:
     * What is the expected data format?
     * Which parameters need to be tuned?
-* [TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
+* Prio 1: [TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
   * How to invoke training for the existing model on TCGA-Crck data
   * Where to find results and how to interpret them
   * What results are expected (accuracy)
