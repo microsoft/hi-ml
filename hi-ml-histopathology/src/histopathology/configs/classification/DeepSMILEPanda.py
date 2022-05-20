@@ -126,7 +126,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILSlides:
             level=1,
-            tile_count=56,
+            max_bag_size=56,
+            max_bag_size_inf=0,
             tile_size=224,
             random_offset=True,
             background_val=255,
@@ -153,7 +154,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
             level=self.level,
-            tile_count=self.tile_count,
+            max_bag_size=self.max_bag_size,
+            max_bag_size_inf=self.max_bag_size_inf,
             tile_size=self.tile_size,
             step=self.step,
             random_offset=self.random_offset,

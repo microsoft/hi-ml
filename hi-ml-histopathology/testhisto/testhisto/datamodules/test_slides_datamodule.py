@@ -67,7 +67,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
     datamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
-        tile_count=tile_count,
+        max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
     )
@@ -94,7 +94,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir: Path) -> No
     datamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
-        tile_count=tile_count,
+        max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
     )
@@ -116,7 +116,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
     datamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
-        tile_count=tile_count,
+        max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
     )
@@ -181,7 +181,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
     flipdatamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
-        tile_count=tile_count,
+        max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
         transforms_dict=get_transforms_dict(),

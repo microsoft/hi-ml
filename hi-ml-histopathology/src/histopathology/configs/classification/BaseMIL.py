@@ -68,6 +68,17 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    max_bag_size: int = param.Integer(1000, bounds=(0, None),
+                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0, bags larger than `max_bag_size` will yield "
+                                          "random subsets of instances.")
+    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
+                                          doc="Upper bound on number of tiles in each loaded bag during "
+                                          "validation and test stages."
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
+                                          "random subsets of instances.")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
@@ -233,17 +244,6 @@ class BaseMILTiles(BaseMIL):
     configure experiment-specific parameters.
     """
     # Tiles Data module parameters:
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
-                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0, bags larger than `max_bag_size` will yield "
-                                          "random subsets of instances.")
-    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
-                                          doc="Upper bound on number of tiles in each loaded bag during "
-                                          "validation and test stages."
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
-                                          "random subsets of instances.")
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
@@ -320,9 +320,6 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    tile_count: int = param.Integer(None, bounds=(0, None),
-                                    doc="Number of tiles to extract."
-                                    "If None (default), extracts all non-background tiles.")
     tile_size: int = param.Integer(224, bounds=(0, None), doc="Size of the square tile, defaults to 224.")
     step: int = param.Integer(None, bounds=(0, None),
                               doc="Step size to define the offset between tiles."
@@ -343,7 +340,7 @@ class BaseMILSlides(BaseMIL):
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(tile_count=self.tile_count,
+        deepmil_module = SlidesDeepMILModule(max_bag_size=self.max_bag_size,
                                              encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
