@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -312,10 +312,16 @@ class TilesDeepMILModule(BaseDeepMILModule):
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
 
-        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
-            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
-                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
-                           )
+        if all(key in batch.keys() for key in [TileKey.TILE_TOP, TileKey.TILE_LEFT,
+                                               TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]):
+            results.update({ResultsKey.TILE_TOP: batch[TileKey.TILE_TOP],
+                            ResultsKey.TILE_LEFT: batch[TileKey.TILE_LEFT],
+                            ResultsKey.TILE_RIGHT: batch[TileKey.TILE_RIGHT],
+                            ResultsKey.TILE_BOTTOM: batch[TileKey.TILE_BOTTOM]})
+        # the condition below ensures compatibility with older tile datasets (without LEFT, TOP, RIGHT, BOTTOM)
+        elif (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_LEFT: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_TOP: batch[TilesDataset.TILE_Y_COLUMN]})
         else:
             rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
                            "input tiles dataset.")
