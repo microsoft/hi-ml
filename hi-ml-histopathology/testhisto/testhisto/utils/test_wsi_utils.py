@@ -54,7 +54,7 @@ def test_image_collate(random_n_tiles: bool) -> None:
     batch: dict = image_collate(samples_list)
 
     assert isinstance(batch, Dict)
-    assert batch.keys() == samples_list[0].keys()
+    assert batch.keys() == samples_list[0].keys()  # type: ignore
 
     for key, value_list in batch.items():
         assert isinstance(value_list, List)
