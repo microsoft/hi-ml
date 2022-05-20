@@ -279,7 +279,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
