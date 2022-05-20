@@ -40,8 +40,8 @@ class MockTiledWSIDataset(Dataset):
 
 @pytest.mark.parametrize("random_n_tiles", [False, True])
 def test_image_collate(random_n_tiles: bool) -> None:
-    # random_n_tiles accounts for both train and inference settings where a the number of tiles is fixed (during
-    # training) and not fixed during inference (validation and test)
+    # random_n_tiles accounts for both train and inference settings where the number of tiles is fixed (during
+    # training) and None during inference (validation and test)
     dataset = MockTiledWSIDataset(n_tiles=20,
                                   n_slides=10,
                                   n_classes=4,
