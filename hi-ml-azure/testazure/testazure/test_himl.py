@@ -885,13 +885,14 @@ def render_and_run_test_script(path: Path,
         # TODO: upgrade to walrus operator when upgrading python version to 3.8+
         # if log_text := get_driver_log_file_text(run=run):
         log_text = get_driver_log_file_text(run=run)
-        if log_text is not None:
-            return log_text
 
-        raise ValueError(
-            "The run does not contain any of the following log files: "
-            f"{[str(log_file_path) for log_file_path in VALID_LOG_FILE_PATHS]}"
-        )
+        if log_text is None:
+            raise ValueError(
+                "The run does not contain any of the following log files: "
+                f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
+            )
+
+        return log_text
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])

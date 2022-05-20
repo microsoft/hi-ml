@@ -1466,7 +1466,7 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
 
     :param run: Run object representing the current run.
     :param download_file: If ``True``, download log file from the run.
-    :return: Driver log file text if a file exists, `None` otherwise.
+    :return: Driver log file text if a file exists, ``None`` otherwise.
     """
     with tempfile.TemporaryDirectory() as tmp_dir_name:
 
@@ -1481,7 +1481,7 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
             if tmp_log_file_path.is_file():
                 return tmp_log_file_path.read_text()
 
-    files_as_str = ', '.join([f"'{str(log_file_path)}'" for log_file_path in VALID_LOG_FILE_PATHS])
+    files_as_str = ', '.join(f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
     logging.warning(
         "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
         f"one of the following: {files_as_str}"
