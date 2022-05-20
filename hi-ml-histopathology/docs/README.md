@@ -18,7 +18,7 @@ To be completed later, this is not priority 0.
   * If people want to re-use that model on their data:
     * What is the expected data format?
     * Which parameters need to be tuned?
-* [TCGA-Crck DeepMil on whole slides with ImageNet encoder](tcga-crck_model.md)
+* [TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
   * How to invoke training for the existing model on TCGA-Crck data
   * Where to find results and how to interpret them
   * What results are expected (accuracy)
