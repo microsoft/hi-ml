@@ -1,0 +1,13 @@
+flags:
+  hi-ml:
+    paths:
+      - hi-ml
+    carryforward: true
+  hi-ml-azure:
+    paths:
+      - hi-ml-azure
+    carryforward: true
+  hi-ml-histopathology:
+    paths:
+      - hi-ml-histopathology
+    carryforward: true
