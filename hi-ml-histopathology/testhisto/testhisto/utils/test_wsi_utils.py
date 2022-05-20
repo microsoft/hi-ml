@@ -51,7 +51,7 @@ def test_image_collate(random_n_tiles: bool) -> None:
     batch_size = 5
     samples_list = [dataset[idx] for idx in range(batch_size)]
 
-    batch = image_collate(samples_list)
+    batch: dict = image_collate(samples_list)
 
     assert isinstance(batch, Dict)
     assert batch.keys() == samples_list[0].keys()
