@@ -1465,7 +1465,7 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
     Returns text stored in run log driver file.
 
     :param run: Run object representing the current run.
-    :param download_file: Boolean flag that control if the log file should be downloaded from the run or not.
+    :param download_file: If ``True``, download log file from the run.
     :return: Driver log file text if a file exists, `None` otherwise.
     """
     with tempfile.TemporaryDirectory() as tmp_dir_name:
