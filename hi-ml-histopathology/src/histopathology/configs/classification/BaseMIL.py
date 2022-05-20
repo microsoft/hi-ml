@@ -340,8 +340,7 @@ class BaseMILSlides(BaseMIL):
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(max_bag_size=self.max_bag_size,
-                                             encoder=self.get_model_encoder(),
+        deepmil_module = SlidesDeepMILModule(encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
