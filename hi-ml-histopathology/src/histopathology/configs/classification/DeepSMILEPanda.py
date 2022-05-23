@@ -125,17 +125,16 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMILSlides:
-            # N.B: For the moment we only support running the pipeline with a fixed tile_count.
-            # Padding to the same shape or collating to a List of Tensors  will be adressed in another PR.
             level=1,
-            tile_count=44,
+            max_bag_size=56,
+            max_bag_size_inf=0,
             tile_size=224,
             random_offset=True,
             background_val=255,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA"],
-            save_tiles=False,)
+            save_output_tiles=False,)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
@@ -155,7 +154,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
             level=self.level,
-            tile_count=self.tile_count,
+            max_bag_size=self.max_bag_size,
+            max_bag_size_inf=self.max_bag_size_inf,
             tile_size=self.tile_size,
             step=self.step,
             random_offset=self.random_offset,

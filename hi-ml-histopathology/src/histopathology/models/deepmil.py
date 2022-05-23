@@ -46,8 +46,7 @@ class BaseDeepMILModule(LightningModule):
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 chunk_size: int = 0,
-                 tile_count: int = 44) -> None:
+                 chunk_size: int = 0) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -68,8 +67,6 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
-        :param tile_count: number of tiles used to tiles on the fly. This is a temporary solution to fill in outputs
-            handler expected results.
         """
         super().__init__()
 
@@ -81,7 +78,6 @@ class BaseDeepMILModule(LightningModule):
         self.encoder = encoder
         self.aggregation_fn = pooling_layer
         self.num_pooling = num_features
-        self.tile_count = tile_count
 
         self.class_names = validate_class_names(class_names, self.n_classes)
 
@@ -337,17 +333,18 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
+        bag_sizes = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
         results.update(
             {
                 ResultsKey.SLIDE_ID: [
-                    [slide_id] * self.tile_count for slide_id in batch[SlideKey.SLIDE_ID]
+                    [slide_id] * bag_sizes[i] for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
                 ],
                 ResultsKey.TILE_ID: [
-                    [f"{slide_id}_{tile_id}" for tile_id in range(self.tile_count)]
-                    for slide_id in batch[SlideKey.SLIDE_ID]
+                    [f"{slide_id}_{tile_id}" for tile_id in range(bag_sizes[i])]
+                    for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
                 ],
                 ResultsKey.IMAGE_PATH: [
-                    [img_path] * self.tile_count for img_path in batch[SlideKey.IMAGE_PATH]
+                    [img_path] * bag_sizes[i] for i, img_path in enumerate(batch[SlideKey.IMAGE_PATH])
                 ],
             }
         )
