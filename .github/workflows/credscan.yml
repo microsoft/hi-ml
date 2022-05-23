@@ -1,3 +1,5 @@
+name: CredScan
+
 on:
   push:
     branches: [ main ]
@@ -10,7 +12,7 @@ jobs:
     steps:
       - name: Credential Scanning
         id: credscan
-        uses: microsoft/security-devops-action
+        uses: microsoft/security-devops-action@latest
         with:
           tool: bandit
       - name: Upload results to Security tab
