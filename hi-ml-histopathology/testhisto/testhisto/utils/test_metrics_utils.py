@@ -19,7 +19,7 @@ from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
 
 from histopathology.utils.metrics_utils import plot_scores_hist, resize_and_save, select_k_tiles, plot_slide, \
-    plot_heatmap_overlay, plot_normalized_confusion_matrix
+    plot_heatmap_overlay, plot_normalized_confusion_matrix, SortingKey
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
@@ -119,9 +119,9 @@ def test_select_k_tiles() -> None:
 
     # FN
     top_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
-                            select=('lowest_pred', 'highest_att'))
+                            select=(SortingKey.LOW_PRED, 'highest_att'))
     bottom_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
-                               select=('lowest_pred', 'lowest_att'))
+                               select=(SortingKey.LOW_PRED, 'lowest_att'))
     assert_equal_lists(top_fn, [(5, Tensor([0.7, 0.3]), [1, 4], [Tensor([0.43]), Tensor([0.25])]),
                                 (3, Tensor([0.6, 0.4]), [1, 2], [Tensor([0.25]), Tensor([0.23])])])
     assert_equal_lists(bottom_fn, [(5, Tensor([0.7, 0.3]), [2, 3], [Tensor([0.01]), Tensor([0.07])]),
@@ -139,9 +139,9 @@ def test_select_k_tiles() -> None:
 
     # FP
     top_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
-                            select=('lowest_pred', 'highest_att'))
+                            select=(SortingKey.LOW_PRED, 'highest_att'))
     bottom_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
-                               select=('lowest_pred', 'lowest_att'))
+                               select=(SortingKey.LOW_PRED, 'lowest_att'))
     assert_equal_lists(top_fp, [(8, Tensor([0.01, 0.99]), [1, 3], [Tensor([0.73]), Tensor([0.37])]),
                                 (7, Tensor([0.1, 0.9]), [1, 3], [Tensor([0.63]), Tensor([0.27])])])
     assert_equal_lists(bottom_fp, [(8, Tensor([0.01, 0.99]), [4, 2], [Tensor([0.15]), Tensor([0.31])]),

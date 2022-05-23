@@ -19,7 +19,7 @@ from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
+from histopathology.utils.metrics_utils import (SortingKey, plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
@@ -158,16 +158,16 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
     # Class 0
     tn_top_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'highest_att'))
     tn_bottom_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'lowest_att'))
-    fp_top_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'highest_att'))
-    fp_bottom_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'lowest_att'))
+    fp_top_tiles = select_k_tiles_from_results(label=0, select=(SortingKey.LOW_PRED, 'highest_att'))
+    fp_bottom_tiles = select_k_tiles_from_results(label=0, select=(SortingKey.LOW_PRED, 'lowest_att'))
     report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles],
                     'FP': [fp_top_tiles, fp_bottom_tiles]}
 
     # Class 1 to n_classes-1
     n_classes_to_select = n_classes if n_classes > 1 else 2
     for i in range(1, n_classes_to_select):
-        fn_top_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'lowest_att'))
+        fn_top_tiles = select_k_tiles_from_results(label=i, select=(SortingKey.LOW_PRED, 'highest_att'))
+        fn_bottom_tiles = select_k_tiles_from_results(label=i, select=(SortingKey.LOW_PRED, 'lowest_att'))
         tp_top_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'highest_att'))
         tp_bottom_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'lowest_att'))
         report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
