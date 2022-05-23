@@ -20,7 +20,7 @@ repos:
   - id: check-shebang-scripts-are-executable  # Checks that scripts with shebangs are executable
 
 - repo: https://github.com/PyCQA/flake8
-  rev: 3.9.2
+  rev: 4.0.1
   hooks:
   - id: flake8
 
