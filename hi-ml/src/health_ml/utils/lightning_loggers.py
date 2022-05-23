@@ -16,6 +16,7 @@ class StoringLogger(LightningLoggerBase):
     A Pytorch Lightning logger that simply stores the metrics that are written to it.
     Used for diagnostic purposes in unit tests.
     """
+
     def __init__(self) -> None:
         super().__init__()
         self.results_per_epoch: Dict[int, DictStrFloatOrFloatList] = {}

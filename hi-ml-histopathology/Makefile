@@ -3,43 +3,30 @@
 # Create a Conda environment for this folder only
 env:
 	conda env create --file environment.yml
-	pip install -r ../test_requirements.txt
-	pip install -r ../build_requirements.txt
+	pip install -r requirements_test.txt
+	pip install -r requirements_build.txt
 
-# call make for parent
-define call_parent
-	cd .. && $(MAKE) $(1)
-endef
-
-## Package management
+# Package management
 
 # pip upgrade
 pip_upgrade:
-	$(call call_parent,pip_upgrade)
+	python -m pip install --upgrade pip
 
 # pip upgrade and install build requirements
-pip_build:
-	$(call call_parent,pip_build)
+pip_build: pip_upgrade
+	pip install -r requirements_build.txt
 
 # pip upgrade and install test requirements
-pip_test:
-	$(call call_parent,pip_test)
+pip_test: pip_upgrade
+	pip install -r requirements_test.txt
 
 # pip install all requirements for histo, read off the Conda file. This is somewhat hacky,
 # we could also build a full Conda before starting the tests. Unclear about the performance
 # impact of that.
-call_pip_local:
+pip_from_conda:
 	sed -e '1,/pip:/ d' environment.yml | grep -v "#" | cut -d "-" -f 2- > temp_requirements.txt
 	pip install -r temp_requirements.txt
 
-# pip upgrade and install local package in editable mode
-pip_local: pip_upgrade call_pip_local
-
-
-# pip install everything for local development and testing
-pip: pip_build pip_test call_pip_local
-
-## Actions
 # clean build artifacts
 clean:
 	rm -vrf `find . -type d -name __pycache__`
@@ -50,49 +37,23 @@ clean:
 	rm -vf ./coverage ./coverage.txt ./coverage.xml
 
 # run flake8, assuming test requirements already installed
-call_flake8:
+flake8:
 	flake8 --count --statistics .
 
-# pip install test requirements and run flake8
-flake8: pip_test call_flake8
-
 # run mypy, assuming test requirements already installed
-call_mypy:
+mypy:
 	mypy --install-types --non-interactive -p histopathology
 	mypy --install-types --non-interactive -p SSL
 	mypy --install-types --non-interactive -p testhisto
 	mypy --install-types --non-interactive -p testSSL
 
-# pip install test requirements and run mypy
-mypy: pip_test call_mypy
-
 # run basic checks
-call_check: call_flake8 call_mypy
-
-# install test requirements and run basic checks
-check: pip_test call_check
+check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
-call_pytest:
-	pytest testhisto testSSL
+pytest:
+	pytest
 
-# install test requirements and run tests
-pytest: pip_test testhisto testSSL
-
-# run pytest fast subset on package, assuming test requirements already installed
-call_pytest_fast:
-	pytest -m fast testhisto testSSL
-
-# install test requirements and run pytest fast subset
-pytest_fast: pip_test call_pytest_fast
-
-# run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
-call_pytest_and_coverage:
-	pytest --cov=histopathology  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhisto
-	pycobertura show --format text --output coverage.txt coverage.xml
-
-# install test requirements and run pytest coverage
-pytest_and_coverage: pip_test call_pytest_and_coverage
-
-# install test requirements and run all tests
-test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
+# run pytest with coverage on package
+pytest_coverage:
+	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc

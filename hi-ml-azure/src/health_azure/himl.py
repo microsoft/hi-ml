@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml._base_sdk_common import user_agent
-from azureml.core import Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
@@ -79,6 +79,50 @@ class AzureRunInfo:
     logs_folder: Path
     """The folder into which all log files (for example, tensorboard) should be written. All files written to this
     folder will be uploaded to blob storage regularly during the script run."""
+
+
+def validate_num_nodes(compute_cluster: ComputeTarget, num_nodes: int) -> None:
+    """
+    Check that the user hasn't requested more nodes than the maximum number of nodes allowed by
+    their compute cluster
+
+    :param compute_cluster: An AML ComputeTarget representing the cluster whose upper node limit
+        should be checked
+    :param num_nodes: The number of nodes that the user has requested
+    """
+    max_cluster_nodes: int = compute_cluster.scale_settings.maximum_node_count
+    if num_nodes > max_cluster_nodes:
+        raise ValueError(
+            f"You have requested {num_nodes} nodes, which is more than your compute cluster "
+            f"({compute_cluster.name})'s maximum of {max_cluster_nodes} nodes.")
+
+
+def validate_compute_name(existing_compute_targets: Dict[str, ComputeTarget], compute_target_name: str) -> None:
+    """
+    Check that a specified compute target is one of the available existing compute targets in a Workspace
+
+    :param existing_compute_targets: A list of AML ComputeTarget objects available to a given AML Workspace
+    :param compute_cluster_name: The name of the specific compute target whose name to look up in existing
+        compute targets
+    """
+    if compute_target_name not in existing_compute_targets:
+        raise ValueError(f"Could not find the compute target {compute_target_name} in the AzureML workspace. ",
+                         f"Existing compute targets: {list(existing_compute_targets)}")
+
+
+def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, num_nodes: int) -> None:
+    """
+    Check that both the specified compute cluster exists in the given Workspace, and that it has enough
+    nodes to spin up the requested number of nodes
+
+    :param existing_compute_clusters: A list of AML ComputeTarget objects in a given AML Workspace
+    :param compute_cluster_name: The name of the specific compute cluster whose properties should be checked
+    :param num_nodes: The number of nodes that the user has requested
+    """
+    existing_compute_clusters: Dict[str, ComputeTarget] = workspace.compute_targets
+    validate_compute_name(existing_compute_clusters, compute_cluster_name)
+    compute_cluster = existing_compute_clusters[compute_cluster_name]
+    validate_num_nodes(compute_cluster, num_nodes)
 
 
 def create_run_configuration(workspace: Workspace,
@@ -151,10 +195,8 @@ def create_run_configuration(workspace: Workspace,
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
 
-    existing_compute_clusters = workspace.compute_targets
-    if compute_cluster_name not in existing_compute_clusters:
-        raise ValueError(f"Could not find the compute target {compute_cluster_name} in the AzureML workspace. ",
-                         f"Existing clusters: {list(existing_compute_clusters.keys())}")
+    validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
+
     run_config.target = compute_cluster_name
 
     if max_run_duration:

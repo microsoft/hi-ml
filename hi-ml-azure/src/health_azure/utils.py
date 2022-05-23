@@ -5,7 +5,6 @@
 """
 Utility functions for interacting with AzureML runs
 """
-from contextlib import contextmanager
 import hashlib
 import json
 import logging
@@ -14,21 +13,16 @@ import re
 import shutil
 import sys
 import tempfile
-from argparse import (
-    ArgumentDefaultsHelpFormatter,
-    ArgumentError,
-    ArgumentParser,
-    Namespace,
-    OPTIONAL,
-    SUPPRESS,
-    _UNRECOGNIZED_ARGS_ATTR,
-)
+from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
+                      ArgumentParser, Namespace)
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, Generator, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar,
+                    Union)
 
 import conda_merge
 import pandas as pd
@@ -933,6 +927,7 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
 
 class PackageDependency:
     """Class to hold information from a single line of a conda/pip environment file  (i.e. a single package spec)"""
+
     def __init__(self, dependency_str: str) -> None:
         self.package_name = ""
         self.operator = ""
@@ -2029,3 +2024,16 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
     finally:
         if not target_config_exists:
             target_config_json.unlink()
+
+
+def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
+    """
+    Raises an exception if 'actual' is not any of the given valid values.
+    :param message: The prefix for the error message.
+    :param actual: The actual value.
+    :param valid: The set of valid strings that 'actual' is allowed to take on.
+    :return:
+    """
+    if actual not in valid:
+        all_valid = ", ".join(["<None>" if v is None else v for v in valid])
+        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))

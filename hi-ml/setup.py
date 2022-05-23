@@ -47,7 +47,7 @@ if not version:
     # runs, one which circumvents AzureML's apparent package caching:
     build_number = os.getenv('GITHUB_RUN_NUMBER')
     if build_number:
-        version = '0.1.0.post' + build_number
+        version = '0.1.1.post' + build_number
     else:
         default_random_version_number = floor(random() * 10_000_000_000)
         version = f'0.1.0.post{str(default_random_version_number)}'

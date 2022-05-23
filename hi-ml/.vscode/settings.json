@@ -21,10 +21,7 @@
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
-  "python.linting.pylintEnabled": true,
-  "python.linting.pylintArgs": [
-    "--max-line-length=120"
-  ],
+  "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": true,
   "python.linting.mypyEnabled": true,
   "python.linting.pycodestyleEnabled": false,
@@ -52,9 +49,6 @@
     "-l=120",
     "--src=${workspaceFolder}/src",
     "--src=${workspaceFolder}/../hi-ml-azure/src"
-  ],
-  "python.testing.pytestArgs": [
-    "${workspaceFolder}/testhiml/testhiml"
   ],
   "python.analysis.extraPaths": [
     "${workspaceFolder}/../hi-ml-azure/src",

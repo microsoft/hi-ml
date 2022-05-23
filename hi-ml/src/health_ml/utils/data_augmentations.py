@@ -21,6 +21,7 @@ class HEDJitter(object):
         >>> transform = HEDJitter(0.05)
         >>> img = transform(img)
     """
+
     def __init__(self, theta: float = 0.) -> None:
         """
         :param theta: How much to jitter HED color space.
@@ -90,6 +91,7 @@ class StainNormalization(object):
             >>> transform = StainNormalization()
             >>> img = transform(img)
     """
+
     def __init__(self) -> None:
         # mean and std per channel of a reference image
         self.reference_mean = np.array([148.60, 169.30, 105.97])
@@ -143,6 +145,7 @@ class GaussianBlur(object):
             >>> transform = GaussianBlur(kernel_size=int(224 * 0.1) + 1)
             >>> img = transform(img)
     """
+
     def __init__(self, kernel_size: int, p: float = 0.5, min: float = 0.1, max: float = 2.0) -> None:
         """
         :param kernel_size: Size of the Gaussian kernel, e.g., about 10% of the image size.
@@ -175,6 +178,7 @@ class RandomRotationByMultiplesOf90(object):
             >>> transform = RandomRotationByMultiplesOf90()
             >>> img = transform(img)
     """
+
     def __init__(self) -> None:
         super().__init__()
 

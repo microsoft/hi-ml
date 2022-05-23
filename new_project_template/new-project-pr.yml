@@ -1,0 +1,174 @@
+name: Newproject PR Workflow
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "newproject/**"
+
+env:
+  pythonVersion: 3.7
+  folder: newproject
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  HIML_DIST_ARTIFACT_SUFFIX: '-dist'
+  HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
+  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+
+jobs:
+
+  flake8:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: flake8
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make flake8
+
+  mypy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: mypy
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make mypy
+
+  pyright:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          environment-file: ${{ env.folder }}/environment.yml
+
+      - name: pyright
+        shell: bash -l {0}
+        run: |
+          conda info
+          cd ${{ env.folder }}
+          make pyright_install
+          make pyright
+
+  pytest:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install hi-ml-azure in editable mode
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Install hi-ml in editable mode
+        run: |
+          cd hi-ml
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Test with pytest
+        run: |
+          cd ${{ env.folder }}
+
+          # Install local package in editable mode
+          make pip_local
+
+          # Run tests
+          make pip_test
+          make pytest
+
+      - name: Run GPU tests
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --add_to_sys_path=${{ env.folder }} --experiment="$branch_name_without_prefix"
+
+  build-python:
+    runs-on: ubuntu-18.04
+    needs: [ pytest ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Build Distribution
+        run: |
+          cd ${{ env.folder }}
+          make pip_build
+          make build
+
+      - name: Upload package artifacts
+        uses: ./.github/actions/upload_package_artifacts
+        with:
+          folder: ${{ env.folder }}
+
+  publish-pypi-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ build-python ]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: ${{ env.folder }}
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN_NEWPROJECT }}
+          packages_dir: ${{ env.folder }}/dist/

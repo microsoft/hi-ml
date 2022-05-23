@@ -1,0 +1,105 @@
+name: Multimodal PR
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "multimodal/**"
+      - ".github/workflows/multimodal-pr.yml"
+
+env:
+  pythonVersion: 3.7
+  folder: multimodal
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+
+jobs:
+
+  flake8:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: flake8
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make flake8
+
+  mypy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: mypy
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make mypy
+
+  pyright:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          environment-file: ${{ env.folder }}/environment.yml
+
+      - name: pyright
+        shell: bash -l {0}
+        run: |
+          conda info
+          cd ${{ env.folder }}
+          make pyright_install
+          make pyright
+
+  pytest:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Test with pytest
+        run: |
+          cd ${{ env.folder }}
+
+          # Install local package in editable mode
+          make pip_local
+
+          # Run tests
+          make pip_test
+          make pytest

@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
@@ -12,9 +12,9 @@ from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_ml.utils import log_on_epoch
-from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
+from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -46,7 +46,8 @@ class BaseDeepMILModule(LightningModule):
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 chunk_size: int = 0) -> None:
+                 chunk_size: int = 0,
+                 tile_count: int = 44) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -67,6 +68,8 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
+        :param tile_count: number of tiles used to tiles on the fly. This is a temporary solution to fill in outputs
+            handler expected results.
         """
         super().__init__()
 
@@ -78,6 +81,7 @@ class BaseDeepMILModule(LightningModule):
         self.encoder = encoder
         self.aggregation_fn = pooling_layer
         self.num_pooling = num_features
+        self.tile_count = tile_count
 
         self.class_names = validate_class_names(class_names, self.n_classes)
 
@@ -200,7 +204,7 @@ class BaseDeepMILModule(LightningModule):
         bag_logits_list = []
         bag_attn_list = []
         for bag_idx in range(len(batch[self.label_column])):
-            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
+            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx].float()
             labels = batch[self.label_column][bag_idx]
             bag_labels_list.append(self.get_bag_label(labels))
             logit, attn = self(images)
@@ -308,10 +312,16 @@ class TilesDeepMILModule(BaseDeepMILModule):
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
 
-        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
-            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
-                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
-                           )
+        if all(key in batch.keys() for key in [TileKey.TILE_TOP, TileKey.TILE_LEFT,
+                                               TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]):
+            results.update({ResultsKey.TILE_TOP: batch[TileKey.TILE_TOP],
+                            ResultsKey.TILE_LEFT: batch[TileKey.TILE_LEFT],
+                            ResultsKey.TILE_RIGHT: batch[TileKey.TILE_RIGHT],
+                            ResultsKey.TILE_BOTTOM: batch[TileKey.TILE_BOTTOM]})
+        # the condition below ensures compatibility with older tile datasets (without LEFT, TOP, RIGHT, BOTTOM)
+        elif (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_LEFT: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_TOP: batch[TilesDataset.TILE_Y_COLUMN]})
         else:
             rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
                            "input tiles dataset.")
@@ -319,9 +329,6 @@ class TilesDeepMILModule(BaseDeepMILModule):
 
 class SlidesDeepMILModule(BaseDeepMILModule):
     """Base class for slides based deep multiple-instance learning."""
-    def __init__(self, tiles_count: int, **kwargs: Any) -> None:
-        self.tiles_count = tiles_count
-        super().__init__(**kwargs)
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
@@ -330,6 +337,17 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
-        results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})
+        results.update(
+            {
+                ResultsKey.SLIDE_ID: [
+                    [slide_id] * self.tile_count for slide_id in batch[SlideKey.SLIDE_ID]
+                ],
+                ResultsKey.TILE_ID: [
+                    [f"{slide_id}_{tile_id}" for tile_id in range(self.tile_count)]
+                    for slide_id in batch[SlideKey.SLIDE_ID]
+                ],
+                ResultsKey.IMAGE_PATH: [
+                    [img_path] * self.tile_count for img_path in batch[SlideKey.IMAGE_PATH]
+                ],
+            }
+        )

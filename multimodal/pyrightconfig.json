@@ -1,0 +1,10 @@
+{
+  "include": [
+    "health_multimodal",
+    "test_multimodal",
+  ],
+  "useLibraryCodeForTypes": false,
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportPrivateImportUsage": false,
+}

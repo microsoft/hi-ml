@@ -155,8 +155,8 @@ def plot_heatmap_overlay(slide: str,
 
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
-        tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
-                                             results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
+        tile_coords = np.transpose(np.array([results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
+                                             results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
         coords_list.append(tile_coords)
 
     coords = np.array(coords_list)
@@ -168,7 +168,7 @@ def plot_heatmap_overlay(slide: str,
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor=None)
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor='black')
     pc.set_array(np.array(attentions))
     pc.set_clim([0, 1])
     ax.add_collection(pc)
