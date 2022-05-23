@@ -40,6 +40,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         n_repeat_tile: int = 2,
         background_val: Union[int, float] = 255,
         tiles_pos_type: TilesPositioningType = TilesPositioningType.DIAGONAL,
+        n_tiles_list: List[int] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -49,6 +50,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param background_val: A value to assign to the background, defaults to 255.
         :param tiles_pos_type: The tiles positioning type to define how tiles should be positioned within the WSI grid,
         defaults to TilesPositioningType.DIAGONAL.
+        :param n_tiles_list: A list to use different n_tiles per slide for randomly positioned tiles.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
         super().__init__(**kwargs)
@@ -62,6 +64,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         self.step_size = self.tile_size * self.n_repeat_tile
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
+        self.n_tiles_list = n_tiles_list
+
+        if self.n_tiles_list:
+            assert len(self.n_tiles_list) == self.n_slides, "n_tiles_list length should be equal to n_slides"
+            assert self.tiles_pos_type == TilesPositioningType.RANDOM, "different n_tiles enabled only for randomly "
+            "positionned tiles."
 
     def validate(self) -> None:
         assert (
@@ -193,8 +201,14 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
         for slide_counter in range(self.n_slides):
 
+            if self.n_tiles_list:
+                self.total_tiles = self.n_tiles_list[slide_counter]
+                self.n_tiles = self.n_tiles_list[slide_counter]
+                self.dataloader = self.get_dataloader()
+                iterator = iter(self.dataloader)
+
             tiles, _ = next(iterator) if iterator else (None, None)
-            mock_image, dump_tiles = self.create_mock_wsi(tiles)
+            mock_image, dump_tiles = self.create_mock_wsi(tiles, )
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
 
             slide_tiff_filename = self.dest_data_path / "train_images" / f"_{slide_counter}.tiff"

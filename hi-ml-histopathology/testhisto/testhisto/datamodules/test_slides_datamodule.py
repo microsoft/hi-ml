@@ -5,7 +5,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from typing import Generator, Dict, Callable, Union
+from typing import Generator, Dict, Callable, Union, Tuple
 import pytest
 import logging
 import numpy as np
@@ -14,6 +14,8 @@ from pathlib import Path
 from monai.transforms import RandFlipd
 
 from health_ml.utils.common_utils import is_gpu_available
+from histopathology.datamodules.base_module import SlidesDataModule
+from histopathology.datasets.panda_dataset import PandaDataset
 
 from histopathology.utils.naming import SlideKey, ModelKey
 from histopathology.datamodules.panda_module import PandaSlidesDataModule
@@ -45,7 +47,31 @@ def mock_panda_slides_root_dir(
         background_val=255,
         tiles_pos_type=TilesPositioningType.DIAGONAL,
     )
-    logging.info("Generating mock whole slide images")
+    logging.info("Generating mock whole slide images that will be deleted at the end of the session.")
+    wsi_generator.generate_mock_histo_data()
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
+
+
+@pytest.fixture(scope="session")
+def mock_panda_slides_root_with_different_n_tiles(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_slides_diff_n_tiles")
+    wsi_generator = MockPandaSlidesGenerator(
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=4,
+        n_slides=6,
+        n_channels=3,
+        n_levels=3,
+        tile_size=28,
+        background_val=255,
+        tiles_pos_type=TilesPositioningType.RANDOM,
+        n_tiles_list=[4, 5, 6, 7, 8, 9],
+    )
+    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
@@ -215,3 +241,46 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         for tile in flip_test_tiles[wsi_id]:
             # no transformation has been applied to test tiles
             assert (tile.numpy() == original_tile).all()
+
+
+class MockPandaSlidesDataModule(SlidesDataModule):
+    """ MockPandaSlidesDataModule is the child class of SlidesDataModule specific to PANDA dataset
+    Method get_splits() returns the train, val, test splits from the PANDA dataset. Here we return the same subsets for
+    train/val and test to make sure train_dataloader returns a fixed n_tiles and test and validation dataloaders return
+    all available tiles in the whole slide image for whole slide inference.
+    """
+    def get_splits(self) -> Tuple[PandaDataset, PandaDataset, PandaDataset]:
+
+        return (PandaDataset(self.root_path), PandaDataset(self.root_path), PandaDataset(self.root_path))
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_whole_slide_inference(batch_size: int, mock_panda_slides_root_with_different_n_tiles: Path) -> None:
+    tile_count = 2
+    tile_size = 28
+    level = 0
+    assert_batch_index = 0
+    n_tiles_list = [4, 5, 6, 7, 8, 9]
+
+    datamodule = MockPandaSlidesDataModule(
+        root_path=mock_panda_slides_root_with_different_n_tiles,
+        batch_size=batch_size,
+        max_bag_size=tile_count,
+        max_bag_size_inf=None,
+        tile_size=tile_size,
+        level=level,
+    )
+    train_dataloader = datamodule.train_dataloader()
+    for sample in train_dataloader:
+        tiles = sample[SlideKey.IMAGE]
+        assert tiles[assert_batch_index].shape[0] == tile_count
+
+    def assert_whole_slide_inference_with_all_tiles(dataloader: torch.utils.data.DataLoader) -> None:
+        for i, sample in enumerate(dataloader):
+            tiles = sample[SlideKey.IMAGE]
+            assert tiles[assert_batch_index].shape[0] == n_tiles_list[i * batch_size]
+
+    assert_whole_slide_inference_with_all_tiles(datamodule.val_dataloader())
+    assert_whole_slide_inference_with_all_tiles(datamodule.test_dataloader())
