@@ -60,4 +60,4 @@ pytest_coverage:
 
 # Run regression tests and compare performance
 run_regression_test:
-	cd ../; python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckImageNetMIL --crossval_count=1 --additional_env_file=hi-ml-histopathology/environment.yml --pl_limit_train_batch=2 --pl_limit_val_batch=2 --pl_limit_test_batch=2 --max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 --azureml --cluster=innereye4cl --regression_test_folder=hi-ml-histopathology/RegressionTestResults/HD_13448836-ddc9-4000-87a4-f84075d9d29c_1 --regression_test_csv_tolerance=0.05
+	cd ../; python hi-ml/src/health_ml/runner.py --model=cpath.TilesPandaImageNetMIL --azureml --tag panda_transformer_newdataset --cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml/hi-ml-histopathology/environment.yml --is_finetune --regression_test_folder=hi-ml-histopathology/RegressionTestResults/HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0/OUTPUT --regression_test_csv_tolerance=0.05
