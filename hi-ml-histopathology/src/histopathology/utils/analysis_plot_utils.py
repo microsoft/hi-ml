@@ -14,9 +14,10 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from sklearn.manifold import TSNE
-from sklearn.metrics import auc, precision_recall_curve, roc_curve
+from sklearn.metrics import auc, precision_recall_curve, roc_curve, confusion_matrix
 
 from histopathology.utils.naming import ResultsKey
+from histopathology.utils.metrics_utils import plot_normalized_confusion_matrix
 
 TRAIN_STYLE = dict(ls='-')
 VAL_STYLE = dict(ls='--')
@@ -267,3 +268,21 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
                                      color='k', label="Best epoch (val.)"),)
     fig.legend(handles=legend_handles, **legend_kwargs, loc='lower center',
                bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
+
+
+def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
+    _, axs = plt.subplots(1, len(class_names), figsize=(8, 4))
+    for k, tiles_df in crossval_dfs.items():
+        slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
+        tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
+        # True slide label is guaranteed unique
+        assert all(len(unique_slide_label) == 1 for unique_slide_label in tile_labels_true.unique())
+        labels_true = tile_labels_true.first()
+
+        tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
+        labels_pred = tile_labels_pred.first()
+        
+        cf_matrix = confusion_matrix(y_true=labels_true, y_pred=labels_pred)
+        cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
+        fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=class_names)
+        axs[k].plot(fig)
