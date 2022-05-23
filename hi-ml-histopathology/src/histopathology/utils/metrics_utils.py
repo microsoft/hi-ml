@@ -28,7 +28,7 @@ class SortingKey(Enum):
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
-                   select: Tuple = (SortingKey.LOW_PRED, 'highest_att'),
+                   select: Tuple = (SortingKey.LOW_PRED, SortingKey.HIGH_ATT),
                    slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
                    attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROBS,
                    return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
@@ -51,15 +51,15 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
         return []
     if select[0] == SortingKey.LOW_PRED:
         tmp_s.sort(reverse=False)
-    elif select[0] == 'highest_pred':
+    elif select[0] == SortingKey.HIGH_PRED:
         tmp_s.sort(reverse=True)
     else:
         ValueError('select value not recognised')
     _, sorted_idx = zip(*tmp_s)
     k_idx = []
-    if select[1] == 'highest_att':
+    if select[1] == SortingKey.HIGH_ATT:
         descending = True
-    elif select[1] == 'lowest_att':
+    elif select[1] == SortingKey.LOW_ATT:
         descending = False
     for _, slide_idx in enumerate(sorted_idx[:n_slides]):
         tmp = results[attn_col][slide_idx]
