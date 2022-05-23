@@ -332,7 +332,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_tiles: bool = True) -> None:
+                 maximise: bool, save_tiles: bool = True, k_tiles: int = 10) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -345,6 +345,7 @@ class DeepMILOutputsHandler:
         :param save_tiles: a boolean parameter to enable 'save_top_and_bottom_tiles' and
             'save_slide_thumbnails_and_heatmaps'. This is a temporary solution to disable tiles visualisation when
             running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
+        :param k_tiles: Number of tiles to select as top and bottom tiles. Defaults to 10.
         """
         self.outputs_root = outputs_root
 
