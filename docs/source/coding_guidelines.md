@@ -2,17 +2,20 @@
 
 ## Design Phase
 
-For non-trivial changes, please communicate your plans early on to reach maximum impact and to avoid duplicate work:
+For non-trivial changes, please communicate your plans early on to reach maximum impact and to avoid duplicate work.
+Create an [issue](https://github.com/microsoft/hi-ml/issues) or a
+[discussion](https://github.com/microsoft/hi-ml/discussions) that describes the problem that you are trying to solve,
+and describe why this adds a positive contribution to the project.
 
-* Create an issue that describes the problem that you are trying to solve, and why this adds a positive contribution to
-  the project.
-* Ask the rest of the team if they have already worked on it or thought about it. This helps to get to know about existing code fragments that can simplify your task, and integrate better with existing code.
+Tag one of the core hi-ml team (@ant0nsc, @mebristo, @fepegar) to get input on your problem. In particular, you should
+find out if this has already been worked on or thought about. This will help you to get to know about
+existing code fragments that can simplify your task, and integrate better with existing code.
 
-If you are a member of the core `hi-ml` team, we recommend to work with another team member to create a design for your
+We recommend to work with a core hi-ml team member to create a design for your
 work. Depending on the size of the task at hand, a design can be anywhere between a short description of
-your plan on Github, or a long document where you list your design options and invite feedback.
-
-Your design partner will later also be well positioned to review your PR because they are familiar with your plan.
+your plan in a Github discussion or issue, or it can be a shared document where you list your design options and invite
+feedback. Your design partner will later also be well positioned to review your PR because they are familiar with your
+plan.
 
 ## Setting up your development environment
 
