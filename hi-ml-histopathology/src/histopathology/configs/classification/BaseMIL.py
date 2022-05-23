@@ -68,6 +68,17 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    max_bag_size: int = param.Integer(1000, bounds=(0, None), allow_None=True,
+                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0, bags larger than `max_bag_size` will yield "
+                                          "random subsets of instances.")
+    max_bag_size_inf: int = param.Integer(0, bounds=(0, None), allow_None=True,
+                                          doc="Upper bound on number of tiles in each loaded bag during "
+                                          "validation and test stages."
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
+                                          "random subsets of instances.")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
@@ -78,10 +89,11 @@ class BaseMIL(LightningContainer):
                                                         "at level 1.")
 
     # Outputs Handler parameters:
-    save_tiles: bool = param.Boolean(True, doc="a boolean parameter to enable 'save_top_and_bottom_tiles' and"
-                                               "'save_slide_thumbnails_and_heatmaps'. This is a temporary solution to"
-                                               "disable tiles visualisation when running the slides pipeline that lacks"
-                                               "tiles coordinates due to the current tiling on the fly strategy.")
+    save_output_tiles: bool = param.Boolean(True, doc="a boolean parameter to enable 'save_top_and_bottom_tiles' and "
+                                                      "'save_slide_thumbnails_and_heatmaps'. This is a temporary "
+                                                      "solution to disable tiles visualisation when running the slides "
+                                                      "pipeline that lacks tiles coordinates due to the current tiling "
+                                                      "on the fly strategy.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -161,7 +173,7 @@ class BaseMIL(LightningContainer):
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
-                                     save_tiles=self.save_tiles)
+                                     save_output_tiles=self.save_output_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder
@@ -232,17 +244,6 @@ class BaseMILTiles(BaseMIL):
     configure experiment-specific parameters.
     """
     # Tiles Data module parameters:
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
-                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0, bags larger than `max_bag_size` will yield "
-                                          "random subsets of instances.")
-    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
-                                          doc="Upper bound on number of tiles in each loaded bag during "
-                                          "validation and test stages."
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
-                                          "random subsets of instances.")
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
@@ -319,9 +320,6 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    tile_count: int = param.Integer(None, bounds=(0, None),
-                                    doc="Number of tiles to extract."
-                                    "If None (default), extracts all non-background tiles.")
     tile_size: int = param.Integer(224, bounds=(0, None), doc="Size of the square tile, defaults to 224.")
     step: int = param.Integer(None, bounds=(0, None),
                               doc="Step size to define the offset between tiles."
@@ -342,8 +340,7 @@ class BaseMILSlides(BaseMIL):
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(tile_count=self.tile_count,
-                                             encoder=self.get_model_encoder(),
+        deepmil_module = SlidesDeepMILModule(encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,

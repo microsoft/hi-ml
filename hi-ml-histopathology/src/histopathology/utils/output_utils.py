@@ -332,7 +332,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_tiles: bool = True, k_tiles: int = 10) -> None:
+                 maximise: bool, save_output_tiles: bool = True, k_tiles: int = 10) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -342,7 +342,7 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_tiles: a boolean parameter to enable 'save_top_and_bottom_tiles' and
+        :param save_output_tiles: a boolean parameter to enable 'save_top_and_bottom_tiles' and
             'save_slide_thumbnails_and_heatmaps'. This is a temporary solution to disable tiles visualisation when
             running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
         :param k_tiles: Number of tiles to select as top and bottom tiles. Defaults to 10.
@@ -352,7 +352,7 @@ class DeepMILOutputsHandler:
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.save_tiles = save_tiles
+        self.save_output_tiles = save_output_tiles
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
 
@@ -396,7 +396,7 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_tiles:
+        if self.save_output_tiles:
             logging.info("Selecting tiles ...")
             selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
 
