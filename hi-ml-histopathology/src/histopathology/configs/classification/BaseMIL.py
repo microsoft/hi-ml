@@ -94,6 +94,7 @@ class BaseMIL(LightningContainer):
                                                       "solution to disable tiles visualisation when running the slides "
                                                       "pipeline that lacks tiles coordinates due to the current tiling "
                                                       "on the fly strategy.")
+    k_tiles: int = param.Integer(10, bounds=(0, None), doc="Number of tiles to save top and bottom tiles. Defaults 10.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -173,7 +174,8 @@ class BaseMIL(LightningContainer):
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
-                                     save_output_tiles=self.save_output_tiles)
+                                     save_output_tiles=self.save_output_tiles,
+                                     k_tiles=self.k_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder

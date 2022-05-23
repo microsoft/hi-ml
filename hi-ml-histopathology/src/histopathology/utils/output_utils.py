@@ -147,13 +147,13 @@ def save_features(results: ResultsType, outputs_dir: Path) -> None:
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
-def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path) \
+def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path, k_tiles: int = 10) \
         -> Dict[str, List[str]]:
     logging.info("Selecting tiles ...")
 
     def select_k_tiles_from_results(label: int, select: Tuple[str, str]) \
             -> List[Tuple[Any, Any, List, List]]:
-        return select_k_tiles(results, n_slides=10, label=label, n_tiles=10, select=select)
+        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles, select=select)
 
     # Class 0
     tn_top_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'highest_att'))
@@ -348,13 +348,13 @@ class DeepMILOutputsHandler:
         :param k_tiles: Number of tiles to select as top and bottom tiles. Defaults to 10.
         """
         self.outputs_root = outputs_root
-
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
         self.save_output_tiles = save_output_tiles
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
+        self.k_tiles = k_tiles
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
