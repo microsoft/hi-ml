@@ -19,10 +19,26 @@ repos:
   - id: mixed-line-ending          # Replaces or checks mixed line ending
   - id: check-shebang-scripts-are-executable  # Checks that scripts with shebangs are executable
 
+# The structure of this was suggested by the author of pre-commit and maintainer of flake8
+# See https://stackoverflow.com/a/66485642/3956024
 - repo: https://github.com/PyCQA/flake8
   rev: 4.0.1
   hooks:
   - id: flake8
+    name: flake8 ./hi-ml/
+    alias: flake8-hi-ml
+    files: ^hi-ml/
+    args: [--config, hi-ml/.flake8]
+  - id: flake8
+    name: flake8 ./hi-ml-azure/
+    alias: flake8-hi-ml-azure
+    files: ^hi-ml-azure/
+    args: [--config, hi-ml-azure/.flake8]
+  - id: flake8
+    name: flake8 ./hi-ml-histopathology/
+    alias: flake8-hi-ml-histopathology
+    files: ^hi-ml-histopathology/
+    args: [--config, hi-ml-histopathology/.flake8]
 
 - repo: https://github.com/pre-commit/mirrors-autopep8
   rev: v1.5.7
