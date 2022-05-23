@@ -20,15 +20,22 @@ from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
 
 
-class SortingKey(Enum):
-    LOW_PRED = "lowest_pred"
-    HIGH_PRED = "highest_pred"
-    LOW_ATT = "lowest_att"
-    HIGH_ATT = "highest_att"
+class PredSortOrder(Enum):
+    """Enum to define the sorting order to be used for selecting top/bottom tiles with higest/lowest prediction scores.
+    """
+    LOW = False
+    HIGH = True
+
+
+class AttSortOrder(Enum):
+    """Enum to define the sorting order to be used for selecting top/bottom tiles with higest/lowest attention scores.
+    """
+    LOW = False
+    HIGH = True
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
-                   select: Tuple = (SortingKey.LOW_PRED, SortingKey.HIGH_ATT),
+                   sorting_order: Tuple = (PredSortOrder.LOW, AttSortOrder.HIGH),
                    slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
                    attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROBS,
                    return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
@@ -47,23 +54,17 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     """
     # TODO: Refactor into separate functions to select slides by probabilities and tiles by attentions
     tmp_s = [(results[prob_col][i][label], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
+
     if len(tmp_s) == 0:
         return []
-    if select[0] == SortingKey.LOW_PRED:
-        tmp_s.sort(reverse=False)
-    elif select[0] == SortingKey.HIGH_PRED:
-        tmp_s.sort(reverse=True)
-    else:
-        ValueError('select value not recognised')
+
+    tmp_s.sort(reverse=sorting_order[0].value)
     _, sorted_idx = zip(*tmp_s)
+
     k_idx = []
-    if select[1] == SortingKey.HIGH_ATT:
-        descending = True
-    elif select[1] == SortingKey.LOW_ATT:
-        descending = False
     for _, slide_idx in enumerate(sorted_idx[:n_slides]):
         tmp = results[attn_col][slide_idx]
-        _, t_indices = torch.sort(tmp, descending=descending)
+        _, t_indices = torch.sort(tmp, descending=sorting_order[1].value)
         k_tiles = []
         scores = []
         for t_idx in t_indices[0][:n_tiles]:
