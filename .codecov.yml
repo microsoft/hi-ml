@@ -1,0 +1,16 @@
+comment:
+  # Skip the "diff" part of the report because it shows lots of misleading red lines when not everything is uploaded
+  layout: "reach, flags, files"
+flags:
+  hi-ml:
+    paths:
+      - hi-ml
+    carryforward: true
+  hi-ml-azure:
+    paths:
+      - hi-ml-azure
+    carryforward: true
+  hi-ml-histopathology:
+    paths:
+      - hi-ml-histopathology
+    carryforward: true

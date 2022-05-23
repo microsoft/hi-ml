@@ -79,16 +79,26 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
                   Tensor([[0.53, 0.11, 0.17, 0.55]]),
                   Tensor([[0.63, 0.21, 0.27, 0.05]]),
                   Tensor([[0.73, 0.31, 0.37, 0.15]])],
-             ResultsKey.TILE_X:
+             ResultsKey.TILE_LEFT:
                  [Tensor([200, 200, 424, 424]),
                   Tensor([200, 200, 424, 424]),
                   Tensor([200, 200, 424, 424]),
                   Tensor([200, 200, 424, 424])],
-             ResultsKey.TILE_Y:
+             ResultsKey.TILE_TOP:
                  [Tensor([200, 424, 200, 424]),
                   Tensor([200, 200, 424, 424]),
                   Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424])]
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_RIGHT:
+                 [Tensor([200, 424, 424, 424]),
+                  Tensor([200, 424, 424, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_BOTTOM:
+                 [Tensor([200, 424, 200, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 424, 424, 424]),
+                  Tensor([200, 200, 424, 424])],
              }
 
 
@@ -226,9 +236,8 @@ def test_location_selected_tiles(level: int) -> None:
     slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
     slide_idx = slide_ids.index(slide)
     for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):  # type: ignore
-        tile_coords = np.transpose(
-            np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),  # type: ignore
-                      test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))  # type: ignore
+        tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
+                                             test_dict[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
         coords_list.append(tile_coords)
 
     coords = np.array(coords_list)

@@ -11,6 +11,7 @@ from torchvision.datasets.vision import VisionDataset
 
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.transforms import load_pil_image
+from histopathology.utils.naming import TileKey
 
 from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
 
@@ -50,10 +51,12 @@ class PandaTilesDataset(TilesDataset):
             ]
             self.dataset_df = dataset_df_filtered
 
-        # Change "left" --> "tile_x" and "top" --> "tile_y"
+        # Copy columns "left" --> "tile_x" and "top" --> "tile_y"
         # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
-        self.dataset_df.rename(columns={"left": TilesDataset.TILE_X_COLUMN, "top": TilesDataset.TILE_Y_COLUMN},
-                               inplace=True)
+        if TileKey.TILE_LEFT in self.dataset_df.columns:
+            self.dataset_df[TilesDataset.TILE_X_COLUMN] = self.dataset_df[TileKey.TILE_LEFT]
+        if TileKey.TILE_TOP in self.dataset_df.columns:
+            self.dataset_df[TilesDataset.TILE_Y_COLUMN] = self.dataset_df[TileKey.TILE_TOP]
         self.validate_columns()
 
 
