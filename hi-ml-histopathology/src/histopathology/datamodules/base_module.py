@@ -281,8 +281,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.filter_mode = filter_mode
         # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
-        self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size
-        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf
+        self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size  # type: ignore
+        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
