@@ -127,7 +127,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             # declared in BaseMILSlides:
             level=1,
             max_bag_size=56,
-            max_bag_size_inf=None,
+            max_bag_size_inf=0,
             tile_size=224,
             random_offset=True,
             background_val=255,

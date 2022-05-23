@@ -42,7 +42,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         n_repeat_tile: int = 2,
         background_val: Union[int, float] = 255,
         tiles_pos_type: TilesPositioningType = TilesPositioningType.DIAGONAL,
-        n_tiles_list: List[int] = None,
+        n_tiles_list: Optional[List[int]] = None,
         **kwargs: Any,
     ) -> None:
         """

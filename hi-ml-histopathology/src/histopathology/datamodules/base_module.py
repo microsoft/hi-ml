@@ -61,11 +61,11 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
         random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
-        tile_count used for tiling on the fly. It has to be set to None to use all foreground tiles available in a whole
-        slide image. The same applies for 'max_bag_size_inf'.
+        tile_count used for tiling on the fly at training time.
         :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
         If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances.
+        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
+        tile_count used for tiling on the fly at validation and test time.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transforms_dict: A dictionary that contains transform, or a composition of transforms using
@@ -279,6 +279,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
+        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
+        # max_bag_size_inf to None if set to 0
+        self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size
+        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
