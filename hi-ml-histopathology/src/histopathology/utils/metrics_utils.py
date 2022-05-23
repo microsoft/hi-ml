@@ -21,10 +21,10 @@ from histopathology.utils.heatmap_utils import location_selected_tiles
 
 
 class SortingKey(Enum):
-    LOW_PRED = "SortingKey.LOW_PRED"
+    LOW_PRED = "lowest_pred"
     HIGH_PRED = "highest_pred"
-    LOW_ATT = "SortingKey.LOW_PRED"
-    HIGH_ATT = "highest_pred"
+    LOW_ATT = "lowest_att"
+    HIGH_ATT = "highest_att"
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
