@@ -68,6 +68,7 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             encoding_chunk_size=4,
             level=0,
             max_bag_size=4,
+            max_bag_size_inf=None,
             # declared in DatasetParams:
             local_datasets=[tmp_path],
             # declared in TrainerParams:
