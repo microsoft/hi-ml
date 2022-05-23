@@ -11,6 +11,8 @@ from torch import Tensor
 from tifffile import TiffWriter
 
 from typing import Any, Optional, Tuple, List, Union
+
+import torch
 from histopathology.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
@@ -203,12 +205,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
             if self.n_tiles_list:
                 self.total_tiles = self.n_tiles_list[slide_counter]
-                self.n_tiles = self.n_tiles_list[slide_counter]
-                self.dataloader = self.get_dataloader()
+                self.n_tiles: int = self.n_tiles_list[slide_counter]
+                self.dataloader: torch.data.utils.Dataloader = self.get_dataloader()
                 iterator = iter(self.dataloader)
 
             tiles, _ = next(iterator) if iterator else (None, None)
-            mock_image, dump_tiles = self.create_mock_wsi(tiles, )
+            mock_image, dump_tiles = self.create_mock_wsi(tiles)
             wsi_levels = self._create_multi_resolution_wsi(mock_image)
 
             slide_tiff_filename = self.dest_data_path / "train_images" / f"_{slide_counter}.tiff"
