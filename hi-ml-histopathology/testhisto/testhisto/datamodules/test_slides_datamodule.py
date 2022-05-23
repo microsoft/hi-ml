@@ -214,7 +214,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         root_path=mock_panda_slides_root_dir,
         batch_size=batch_size,
         max_bag_size=tile_count,
-        max_bag_size_inf=None,
+        max_bag_size_inf=0,
         tile_size=tile_size,
         level=level,
         transforms_dict=get_transforms_dict(),
@@ -268,7 +268,7 @@ def test_whole_slide_inference(batch_size: int, mock_panda_slides_root_with_diff
         root_path=mock_panda_slides_root_with_different_n_tiles,
         batch_size=batch_size,
         max_bag_size=tile_count,
-        max_bag_size_inf=None,
+        max_bag_size_inf=0,
         tile_size=tile_size,
         level=level,
     )
