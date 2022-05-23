@@ -22,7 +22,7 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from girder_client import GirderClient
-from health_ml.utils.common_utils import logging_to_stdout
+from health_azure.logging import logging_to_stdout
 from health_azure.utils import get_aml_run_from_run_id
 
 from histopathology.utils.naming import ResultsKey
