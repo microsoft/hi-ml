@@ -12,8 +12,13 @@ In particular, you should find out if this has already been worked on or thought
 This will help you to get to know about existing code fragments that can simplify your task, and integrate better with existing code.
 
 We recommend to work with a core `hi-ml` team member to create a design for your work.
-Depending on the size of the task at hand, a design can be anywhere between a short description of your plan in a GitHub discussion or issue, or it can be a shared document where you list your design options and invite feedback.
-Your design partner will later also be well positioned to review your pull request (PR) because they will be already familiar with your plan.
+Depending on the size of the task at hand, a design can be anywhere between a short description of your plan in a GitHub
+discussion or issue, or it can be a shared document where you list your design options and invite feedback.
+Your design partner will later also be well positioned to review your pull request (PR) because they will be already
+familiar with your plan.
+
+When working on a large contribution, we suggest to break it down into a set of small PRs that are more manageable for
+you and for the reviewers (see below in the section "Scope of PRs")
 
 ## Setting up your development environment
 
