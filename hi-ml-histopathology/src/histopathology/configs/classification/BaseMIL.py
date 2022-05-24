@@ -89,7 +89,7 @@ class BaseMIL(LightningContainer):
                                                         "at level 1.")
 
     # Outputs Handler parameters:
-    save_output_tiles: bool = param.Boolean(True, doc="a boolean parameter to enable 'save_top_and_bottom_tiles' and "
+    save_slide_thumbnails_and_heatmaps: bool = param.Boolean(True, doc="a boolean parameter to enable "
                                                       "'save_slide_thumbnails_and_heatmaps'. This is a temporary "
                                                       "solution to disable tiles visualisation when running the slides "
                                                       "pipeline that lacks tiles coordinates due to the current tiling "
@@ -174,7 +174,7 @@ class BaseMIL(LightningContainer):
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
-                                     save_output_tiles=self.save_output_tiles,
+                                     save_slide_thumbnails_and_heatmaps=self.save_slide_thumbnails_and_heatmaps,
                                      k_tiles=self.k_tiles)
 
     def get_model_encoder(self) -> TileEncoder:

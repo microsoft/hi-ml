@@ -20,6 +20,7 @@ from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
+from histopathology.utils.k_top_bottom_tiles_utils import KTopBottomTilesHandler
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
@@ -334,7 +335,8 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_tiles: bool = True, k_tiles: int = 10) -> None:
+                 maximise: bool, save_slide_thumbnails_and_heatmaps: bool = True, k_slides: int = 10, k_tiles: int = 10,
+                 ncols: int = 4) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -344,23 +346,27 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_output_tiles: a boolean parameter to enable 'save_top_and_bottom_tiles' and
-            'save_slide_thumbnails_and_heatmaps'. This is a temporary solution to disable tiles visualisation when
-            running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
-        :param k_tiles: Number of tiles to select as top and bottom tiles. Defaults to 10.
+        :param save_slide_thumbnails_and_heatmaps: a boolean parameter to enable 'save_slide_thumbnails_and_heatmaps'.
+            This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
+            tiles coordinates due to the current tiling on the fly strategy.
+        :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
+        :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
+        :param ncols: Number of columnds to use to plot top and bottom tiles.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.save_output_tiles = save_output_tiles
+        self.save_slide_thumbnails_and_heatmaps = save_slide_thumbnails_and_heatmaps
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
         self.k_tiles = k_tiles
+        self.k_slides = k_slides
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
+        self.k_tiles_handler = KTopBottomTilesHandler(self.n_classes, self.k_tiles, self.k_slides, ncols=ncols)
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -398,12 +404,13 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_output_tiles:
-            logging.info("Selecting tiles ...")
-            selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
+        logging.info("Selecting tiles ...")
+        self.k_tiles_handler.save_top_and_bottom_tiles(figures_dir)
 
+        if self.save_slide_thumbnails_and_heatmaps:
             if self.slides_dataset is not None:
-                save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size,
+                save_slide_thumbnails_and_heatmaps(results, self.k_tiles_handler.get_selected_slide_ids(),
+                                                   tile_size=self.tile_size,
                                                    level=self.level, slides_dataset=self.slides_dataset,
                                                    figures_dir=figures_dir)
 

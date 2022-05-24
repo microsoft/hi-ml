@@ -1,3 +1,4 @@
+import logging
 import torch
 import heapq
 import numpy as np
@@ -62,22 +63,30 @@ class SlideNode:
 
 class KTopBottomTilesHandler:
     def __init__(
-        self, n_classes: int, figures_dir: Path, k_tiles: int = 10, k_slides: int = 10, ncols: int = 4
+        self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4
     ) -> None:
         self.n_classes = n_classes
-        self.figures_dir = figures_dir
-        self.k_tiles = k_tiles
         self.k_slides = k_slides
+        self.k_tiles = k_tiles
         self.ncols = ncols
         self.n_classes_to_select = n_classes if n_classes > 1 else 2
         self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
+        self.report_cases_slide_ids = self.get_report_cases()
+
+    def init_report_cases(self) -> Dict[str, List[str]]:
+        report_cases = {"TN": [], "FP": []}
+        report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
+        report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
+
+    def get_selected_slide_ids(self) -> Dict[str, List[str]]:
+        return self.report_cases_slide_ids
 
     def _update_slides_heap(
         self, heap: List[SlideNode], tiles: Tensor, att_scores: Tensor, slide_node: SlideNode
     ) -> None:
         heapq.heappush(heap, slide_node)
-        if len(heap) == self.n_slides + 1:
+        if len(heap) == self.k_slides + 1:
             old_slide_node = heap[0]
             heapq.heappop(heap)
             if old_slide_node.slide_id != slide_node.slide_id:
@@ -104,22 +113,24 @@ class KTopBottomTilesHandler:
                     slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
                 )
 
-    def make_figure_dirs(self, case: str) -> Path:
-        key_dir = self.figures_dir / case
+    def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
+        key_dir = figures_dir / case
         key_dir.mkdir(parents=True, exist_ok=True)
         return key_dir
 
-    def save_top_and_bottom_tiles(self):
+    def save_top_and_bottom_tiles(self, figures_dir: Path) -> None:
+        logging.info(f"Plotting {self.k_tiles} top and bottom tiles...")
         for class_id in range(self.n_classes_to_select):
-
             for slide_node in self.top_slides_heaps[class_id]:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
-                key_dir = self.make_figure_dirs(case=case, class_id=class_id)
+                key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
                 slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
                 slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
+                self.report_cases_slide_ids[case].append(slide_node.slide_id)
 
             for slide_node in self.bottom_slides_heaps[class_id]:
                 case = "FP" if class_id == 0 else f"FN_{class_id}"
-                key_dir = self.make_figure_dirs(case=case, class_id=class_id)
+                key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
                 slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
                 slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
+                self.report_cases_slide_ids[case].append(slide_node.slide_id)
