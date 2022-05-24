@@ -17,7 +17,6 @@ from sklearn.manifold import TSNE
 from sklearn.metrics import auc, precision_recall_curve, roc_curve, confusion_matrix
 
 from histopathology.utils.naming import ResultsKey
-from histopathology.utils.metrics_utils import plot_normalized_confusion_matrix
 
 TRAIN_STYLE = dict(ls='-')
 VAL_STYLE = dict(ls='--')
@@ -271,7 +270,8 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
 
 
 def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
-    _, axs = plt.subplots(1, len(class_names), figsize=(8, 4))
+    import seaborn as sns
+    fig, axs = plt.subplots(1, len(crossval_dfs), figsize=(len(crossval_dfs)*6, 5))
     for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
@@ -281,8 +281,13 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
 
         tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
         labels_pred = tile_labels_pred.first()
-        
+   
         cf_matrix = confusion_matrix(y_true=labels_true, y_pred=labels_pred)
         cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-        fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=class_names)
-        axs[k].plot(fig)
+        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k])
+        axs[k].set_xlabel('Predicted')
+        axs[k].set_ylabel('True')
+        axs[k].xaxis.set_ticklabels(class_names)
+        axs[k].yaxis.set_ticklabels(class_names)
+        axs[k].set_title(f'Fold {k}')
+    return fig

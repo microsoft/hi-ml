@@ -274,7 +274,6 @@ class BaseDeepMILModule(LightningModule):
         test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics(ModelKey.TEST)
         return test_result
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
@@ -292,6 +291,7 @@ class BaseDeepMILModule(LightningModule):
                 epoch_results=epoch_results,
                 is_global_rank_zero=self.global_rank == 0
             )
+        self.log_metrics(ModelKey.TEST)
 
 
 class TilesDeepMILModule(BaseDeepMILModule):

@@ -64,8 +64,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         render_metrics_table(report, heading="Test metrics", level=3,
                              metrics_df=metrics_df, best_epochs=None,
                              base_metrics_list=base_metrics_list, metrics_prefix='test/')
-
-    report.add_heading("Model outputs", level=2)
+  
+    report.add_heading("ROC and PR Curves", level=2)
 
     has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
 
@@ -86,6 +86,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                                     parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
                                     output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
 
+    report.add_heading("Confusion Matrices", level=2)
+    
     if has_val_and_test_outputs:
         # Add val. confusion matrices
         render_confusion_matrices(report, "Validation Confusion Matrices", level=3, class_names=class_names,
@@ -94,10 +96,13 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     
     if include_test:
         # Add test confusion matrices
+        test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
         render_confusion_matrices(report, "Test Confusion Matrices", level=3, class_names=class_names,
                                 parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
                                 output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
-        
+    
+    report.add_heading("Model Outputs", level=2)
+
     print(f"Rendering report to: {report.report_path_html.absolute()}")
     report.render()
 
@@ -159,11 +164,11 @@ def render_confusion_matrices(report: HTMLReport, heading: str, level: int, clas
 if __name__ == "__main__":
     """
     Usage example from CLI:
-    generate_crossval_report.py \
-    --run_id "HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733" \
+    python generate_crossval_report.py \
+    --run_id "insert AML run ID here" \
     --output_dir "outputs" \
-    --class_names "ISUP 0,ISUP 1,ISUP 2,ISUP 3,ISUP 4,ISUP 5" \
-    -- include_test
+    --class_names "insert class names here (separated by comma)" \
+    --include_test
     """
 
     from argparse import ArgumentParser
