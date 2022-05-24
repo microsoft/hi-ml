@@ -8,7 +8,6 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -25,7 +24,7 @@ from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatm
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
-from histopathology.utils.viz_utils import load_image_dict
+from histopathology.utils.viz_utils import load_image_dict, save_figure
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
@@ -56,11 +55,6 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
         raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
                          f"of classes ({effective_n_classes})")
     return tuple(class_names)
-
-
-def save_figure(fig: plt.figure, figpath: Path) -> None:
-    fig.savefig(figpath, bbox_inches='tight')
-    plt.close(fig)
 
 
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:

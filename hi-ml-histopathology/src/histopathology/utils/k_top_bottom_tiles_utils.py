@@ -4,14 +4,13 @@ import heapq
 import numpy as np
 import matplotlib.pyplot as plt
 
+from math import ceil
 from torch import Tensor
 from pathlib import Path
 from typing import Optional, List, Tuple, Dict
-from math import ceil
+
 from histopathology.utils.naming import ResultsKey, SlideKey
-
-from histopathology.utils.output_utils import save_figure
-
+from histopathology.utils.viz_utils import save_figure
 
 class TileNode:
     def __init__(self, data: Tensor, attn: float, id: Optional[int], x: Optional[float], y: Optional[float]) -> None:
@@ -72,12 +71,13 @@ class KTopBottomTilesHandler:
         self.n_classes_to_select = n_classes if n_classes > 1 else 2
         self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
-        self.report_cases_slide_ids = self.get_report_cases()
+        self.report_cases_slide_ids = self.init_report_cases()
 
     def init_report_cases(self) -> Dict[str, List[str]]:
         report_cases = {"TN": [], "FP": []}
         report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
+        return report_cases
 
     def get_selected_slide_ids(self) -> Dict[str, List[str]]:
         return self.report_cases_slide_ids

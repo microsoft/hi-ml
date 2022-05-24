@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import math
+from pathlib import Path
 from typing import Any, Dict
 
 import matplotlib.pyplot as plt
@@ -59,3 +60,8 @@ def plot_panda_data_sample(panda_dir: str, nsamples: int, ncols: int, level: int
         ax.imshow(img[SlideKey.IMAGE].transpose(1, 2, 0))
         ax.set_title(title)
     fig.tight_layout()
+
+
+def save_figure(fig: plt.figure, figpath: Path) -> None:
+    fig.savefig(figpath, bbox_inches='tight')
+    plt.close(fig)
