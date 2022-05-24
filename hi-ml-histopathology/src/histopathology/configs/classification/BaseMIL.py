@@ -89,11 +89,9 @@ class BaseMIL(LightningContainer):
                                                         "at level 1.")
 
     # Outputs Handler parameters:
-    save_slide_thumbnails_and_heatmaps: bool = param.Boolean(True, doc="a boolean parameter to enable "
-                                                      "'save_slide_thumbnails_and_heatmaps'. This is a temporary "
-                                                      "solution to disable tiles visualisation when running the slides "
-                                                      "pipeline that lacks tiles coordinates due to the current tiling "
-                                                      "on the fly strategy.")
+    save_slide_thumbnails_and_heatmaps: bool = param.Boolean(True,
+                                                             doc="a boolean parameter to enable "
+                                                                 "'save_slide_thumbnails_and_heatmaps'.")
     k_tiles: int = param.Integer(10, bounds=(0, None), doc="Number of tiles to save top and bottom tiles. Defaults 10.")
 
     def __init__(self, **kwargs: Any) -> None:
