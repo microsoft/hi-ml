@@ -281,7 +281,7 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
 
         tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
         labels_pred = tile_labels_pred.first()
-   
+
         cf_matrix = confusion_matrix(y_true=labels_true, y_pred=labels_pred)
         cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
         sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k])

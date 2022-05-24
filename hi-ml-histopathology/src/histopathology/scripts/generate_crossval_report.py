@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
 from histopathology.utils.analysis_plot_utils import (add_training_curves_legend, plot_confusion_matrices, plot_crossval_roc_and_pr_curves,
-                                                      plot_crossval_training_curves, plot_confusion_matrices)
+                                                      plot_crossval_training_curves)
 from histopathology.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
                                                AML_VAL_OUTPUTS_CSV)
 from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
@@ -26,6 +26,18 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                          class_names: str,
                          workspace_config_path: Optional[Path] = None,
                          include_test: bool = False, overwrite: bool = False) -> None:
+    """
+    Function to generate an HTML report of a cross validation AML run.
+
+    :param run_id: The parent Hyperdrive run ID.
+    :param output_dir: Directory where to download Azure ML data and save the report.
+    :param class_names: Names of classes separated by comma, same as used in the Hyperdrive run.
+                        These are used to find the per-class metrics from Azure ML.
+    :param workspace_config: Path to Azure ML workspace config.json file.
+                             If omitted, will try to load default workspace.
+    :param include_test: Opt-in flag to include test results in the generated report.
+    :param overwrite: Forces (re)download of metrics and output files, even if they already exist locally.
+    """
     aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace=aml_workspace)
     report_dir = output_dir / parent_run.display_name
@@ -64,7 +76,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         render_metrics_table(report, heading="Test metrics", level=3,
                              metrics_df=metrics_df, best_epochs=None,
                              base_metrics_list=base_metrics_list, metrics_prefix='test/')
-  
+
     report.add_heading("ROC and PR Curves", level=2)
 
     has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
@@ -76,31 +88,31 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         if has_val_and_test_outputs:
             # Add val. ROC and PR curves
             render_roc_and_pr_curves(report, "Validation ROC and PR curves", level=3,
-                                    parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                    output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
+                                     parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
+                                     output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
 
         if include_test:
             # Add test ROC and PR curves
             test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
             render_roc_and_pr_curves(report, "Test ROC and PR curves", level=3,
-                                    parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                    output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
+                                     parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
+                                     output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
 
     report.add_heading("Confusion Matrices", level=2)
-    
+
     if has_val_and_test_outputs:
         # Add val. confusion matrices
         render_confusion_matrices(report, "Validation Confusion Matrices", level=3, class_names=class_names,
-                                parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
-    
+                                  parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
+                                  output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
+
     if include_test:
         # Add test confusion matrices
         test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
         render_confusion_matrices(report, "Test Confusion Matrices", level=3, class_names=class_names,
-                                parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
-    
+                                  parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
+                                  output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
+
     report.add_heading("Model Outputs", level=2)
 
     print(f"Rendering report to: {report.report_path_html.absolute()}")
@@ -110,7 +122,16 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 def render_training_curves(report: HTMLReport, heading: str, level: int,
                            metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
                            report_dir: Path) -> None:
+    """
+    Function to render training curves for HTML reports.
 
+    :param report: HTML report to perform the rendering.
+    :param heading: Heading of the section.
+    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param metrics_df: Dataframe containing metrics.
+    :param best_epochs: Optional dictionary mapping each cross-validation index to its best epoch.
+    :param report_dir: Directory of the HTML report.
+    """
     report.add_heading(heading, level=level)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
     plot_crossval_training_curves(metrics_df, train_metric='train/loss_epoch', val_metric='val/loss_epoch',
@@ -126,7 +147,16 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
 def render_metrics_table(report: HTMLReport, heading: str, level: int,
                          metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
                          base_metrics_list: List[str], metrics_prefix: str) -> None:
+    """
+    Function to render metrics table for HTML reports.
 
+    :param report: HTML report to perform the rendering.
+    :param heading: Heading of the section.
+    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param base_metrics_list: List of metric names to include in the table.
+    :param best_epochs: Optional dictionary mapping each cross-validation index to its best epoch.
+    :param metrics_prefix: Prefix to add to the metrics names (e.g. `val`, `test`)
+    """
     report.add_heading(heading, level=level)
     metrics_list = [metrics_prefix + metric for metric in base_metrics_list]
     if best_epochs:
@@ -138,7 +168,19 @@ def render_metrics_table(report: HTMLReport, heading: str, level: int,
 def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int,
                              parent_run_id: str, aml_workspace: Workspace, report_dir: Path,
                              output_filename: str, overwrite: bool, prefix: str = '') -> None:
+    """
+    Function to render ROC and PR curves for HTML reports.
 
+    :param report: HTML report to perform the rendering.
+    :param heading: Heading of the section.
+    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param parent_run_id: The parent Hyperdrive run ID.
+    :param aml_workspace: Azure ML workspace of the run.
+    :param report_dir: Local directory where the report is stored.
+    :param output_filename: Name of the output CSV file.
+    :param overwrite: Forces (re)download of metrics and output files, even if they already exist locally.
+    :param prefix: Prefix to add to the figures saved (e.g. `val`, `test`).
+    """
     report.add_heading(heading, level=level)
     outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace, output_filename=output_filename,
                                            overwrite=overwrite)
@@ -149,9 +191,22 @@ def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int,
 
 
 def render_confusion_matrices(report: HTMLReport, heading: str, level: int, class_names: List[str],
-                             parent_run_id: str, aml_workspace: Workspace, report_dir: Path,
-                             output_filename: str, overwrite: bool, prefix: str = '') -> None:
+                              parent_run_id: str, aml_workspace: Workspace, report_dir: Path,
+                              output_filename: str, overwrite: bool, prefix: str = '') -> None:
+    """
+    Function to render confusion matrices for HTML reports.
 
+    :param report: HTML report to perform the rendering.
+    :param heading: Heading of the section.
+    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param class_names: Names of classes.
+    :param parent_run_id: The parent Hyperdrive run ID.
+    :param aml_workspace: Azure ML workspace of the run.
+    :param report_dir: Local directory where the report is stored.
+    :param output_filename: Name of the output CSV file.
+    :param overwrite: Forces (re)download of metrics and output files, even if they already exist locally.
+    :param prefix: Prefix to add to the figures saved (e.g. `val`, `test`).
+    """
     report.add_heading(heading, level=level)
     outputs_dfs = collect_crossval_outputs(parent_run_id, report_dir, aml_workspace, output_filename=output_filename,
                                            overwrite=overwrite)
@@ -177,7 +232,7 @@ if __name__ == "__main__":
     parser.add_argument('--run_id', help="The parent Hyperdrive run ID.")
     parser.add_argument('--output_dir', help="Directory where to download Azure ML data and save the report.")
     parser.add_argument('--class_names', help="Names of classes separated by comma, same as used in the Hyperdrive run. "
-                                               "These are used to find the per-class metrics from Azure ML.")
+                                              "These are used to find the per-class metrics from Azure ML.")
     parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
                                                    "If omitted, will try to load default workspace.")
     parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
