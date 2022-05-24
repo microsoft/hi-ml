@@ -22,7 +22,7 @@ from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
-                                                select_k_tiles, PredSortOrder, AttSortOrder)
+                                                select_k_tiles)
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict
 
@@ -152,25 +152,26 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
         -> Dict[str, List[str]]:
     logging.info("Selecting tiles ...")
 
-    def select_k_tiles_from_results(label: int, sorting_order: Tuple[str, str]) \
+    def select_k_tiles_from_results(label: int, highest_pred: bool, highest_att: bool) \
             -> List[Tuple[Any, Any, List, List]]:
-        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles, sorting_order=sorting_order)
+        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles, highest_pred=highest_pred,
+                              highest_att=highest_att)
 
     # Class 0
-    tn_top_tiles = select_k_tiles_from_results(label=0, sorting_order=(PredSortOrder.HIGH, AttSortOrder.HIGH))
-    tn_bottom_tiles = select_k_tiles_from_results(label=0, sorting_order=(PredSortOrder.HIGH, AttSortOrder.LOW))
-    fp_top_tiles = select_k_tiles_from_results(label=0, sorting_order=(PredSortOrder.LOW, AttSortOrder.HIGH))
-    fp_bottom_tiles = select_k_tiles_from_results(label=0, sorting_order=(PredSortOrder.LOW, AttSortOrder.LOW))
+    tn_top_tiles = select_k_tiles_from_results(label=0, highest_pred=True, highest_att=True)
+    tn_bottom_tiles = select_k_tiles_from_results(label=0, highest_pred=True, highest_att=False)
+    fp_top_tiles = select_k_tiles_from_results(label=0, highest_pred=False, highest_att=True)
+    fp_bottom_tiles = select_k_tiles_from_results(label=0, highest_pred=False, highest_att=False)
     report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles],
                     'FP': [fp_top_tiles, fp_bottom_tiles]}
 
     # Class 1 to n_classes-1
     n_classes_to_select = n_classes if n_classes > 1 else 2
     for i in range(1, n_classes_to_select):
-        fn_top_tiles = select_k_tiles_from_results(label=i, sorting_order=(PredSortOrder.LOW, AttSortOrder.HIGH))
-        fn_bottom_tiles = select_k_tiles_from_results(label=i, sorting_order=(PredSortOrder.LOW, AttSortOrder.LOW))
-        tp_top_tiles = select_k_tiles_from_results(label=i, sorting_order=(PredSortOrder.HIGH, AttSortOrder.HIGH))
-        tp_bottom_tiles = select_k_tiles_from_results(label=i, sorting_order=(PredSortOrder.HIGH, AttSortOrder.LOW))
+        fn_top_tiles = select_k_tiles_from_results(label=i, highest_pred=False, highest_att=True)
+        fn_bottom_tiles = select_k_tiles_from_results(label=i, highest_pred=False, highest_att=False)
+        tp_top_tiles = select_k_tiles_from_results(label=i, highest_pred=True, highest_att=True)
+        tp_bottom_tiles = select_k_tiles_from_results(label=i, highest_pred=True, highest_att=False)
         report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
                              'FN_' + str(i): [fn_top_tiles, fn_bottom_tiles]})
 
