@@ -12,6 +12,7 @@ from typing import Optional, List, Tuple, Dict
 from histopathology.utils.naming import ResultsKey, SlideKey
 from histopathology.utils.viz_utils import save_figure
 
+
 class TileNode:
     def __init__(self, data: Tensor, attn: float, id: Optional[int], x: Optional[float], y: Optional[float]) -> None:
         self.data = data
@@ -134,3 +135,12 @@ class KTopBottomTilesHandler:
                 slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
                 slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
                 self.report_cases_slide_ids[case].append(slide_node.slide_id)
+
+    def gather_slide_heaps_across_gpus(self) -> None:
+        if torch.distributed.is_initialized():
+            world_size = torch.distributed.get_world_size()
+            if world_size > 1:
+                object_list: EpochResultsType = [None] * world_size  # type: ignore
+                torch.distributed.all_gather_object(object_list, epoch_results)
+                epoch_results = list(chain(*object_list))  # type: ignore
+            return epoch_results
