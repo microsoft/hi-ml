@@ -104,20 +104,22 @@ class KTopBottomTilesHandler:
                     slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
                 )
 
-    def make_figure_dirs(self, prefix: str, class_id: int) -> Path:
-        case = f"{prefix}N" if class_id == 0 else f"{prefix}P_{class_id}"
+    def make_figure_dirs(self, case: str) -> Path:
         key_dir = self.figures_dir / case
         key_dir.mkdir(parents=True, exist_ok=True)
-        return case, key_dir
+        return key_dir
 
     def save_top_and_bottom_tiles(self):
         for class_id in range(self.n_classes_to_select):
+
             for slide_node in self.top_slides_heaps[class_id]:
-                case, key_dir = self.make_figure_dirs(prefix="T", class_id=class_id)
+                case = "TN" if class_id == 0 else f"TP_{class_id}"
+                key_dir = self.make_figure_dirs(case=case, class_id=class_id)
                 slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
                 slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
 
             for slide_node in self.bottom_slides_heaps[class_id]:
-                case, key_dir = self.make_figure_dirs(prefix="F", class_id=class_id)
+                case = "FP" if class_id == 0 else f"FN_{class_id}"
+                key_dir = self.make_figure_dirs(case=case, class_id=class_id)
                 slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
                 slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
