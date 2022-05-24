@@ -77,20 +77,17 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                              metrics_df=metrics_df, best_epochs=None,
                              base_metrics_list=base_metrics_list, metrics_prefix='test/')
 
-    report.add_heading("ROC and PR Curves", level=2)
-
     has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
 
     if n_classes == 2:
         # Currently ROC and PR curves rendered only for binary case
         # TODO: Enable rendering of multi-class ROC and PR curves
-
+        report.add_heading("ROC and PR Curves", level=2)
         if has_val_and_test_outputs:
             # Add val. ROC and PR curves
             render_roc_and_pr_curves(report, "Validation ROC and PR curves", level=3,
                                      parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
                                      output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
-
         if include_test:
             # Add test ROC and PR curves
             test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV

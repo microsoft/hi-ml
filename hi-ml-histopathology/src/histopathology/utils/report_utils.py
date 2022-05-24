@@ -134,7 +134,6 @@ def get_crossval_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[
     metrics_rows = []
     for metric in metrics_list:
         values: pd.Series = metrics_df.loc[metric].fillna(value=np.nan)
-        print(metric, values)
         mean = values.mean()
         std = values.std()
         row = [metric] + [f"{v:.3f}" for v in values] + [f"{mean:.3f} ± {std:.3f}"]
