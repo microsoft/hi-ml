@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from enum import Enum
 import sys
 from pathlib import Path
 from typing import Sequence, Tuple, List, Any, Dict, Union
