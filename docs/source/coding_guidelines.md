@@ -44,17 +44,6 @@ See the [`mypy` documentation](https://mypy.readthedocs.io/en/latest/getting_sta
 We highly recommend to run all those tools _before_ pushing the latest changes to a PR.
 If you have `make` installed, you can run both tools in one go via `make check` (from the repository root folder).
 
-### String Style
-
-End sentences in docstrings with a period:
-
-```python
-def method(self, arg: int) -> None:
-    """Method description, followed by a period."""
-```
-
-In contrast, error messages should not end with a period.
-
 ### Documentation
 
 For general information around docstrings, please check [PEP 257](https://peps.python.org/pep-0257/).
@@ -94,7 +83,7 @@ class Foo:
     """
 
     ANY_ATTRIBUTE = "what_ever."
-    """Document class attributes after the attribute."""
+    """Document class attributes after the attribute. Should end with a period."""
 
     def __init__(self, bar: float = 0.5) -> None:
         """
@@ -104,7 +93,7 @@ class Foo:
         self.bar = bar
 
     def method(self, arg: int) -> None:
-        """Short method description, followed by an empty line.
+        """Short method description, followed by an empty line. Sentences should end with a period.
 
         Longer descriptions can be added as well.
         Argument names like ``arg`` are rendered nicely if enclosed in double backticks.
