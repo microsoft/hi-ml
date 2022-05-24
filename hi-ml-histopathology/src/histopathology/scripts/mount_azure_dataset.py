@@ -2,6 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
+import sys
+himl_histo_root_dir = Path(__file__).parent.parent.parent
+himl_root = himl_histo_root_dir.parent.parent
+himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
+sys.path.insert(0, str(himl_azure_package_root))
 
 from health_azure import DatasetConfig
 from health_azure.utils import get_workspace

@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import torch
 import logging
-import heapq
+
 from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
@@ -455,23 +455,3 @@ class DeepMILOutputsHandler:
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
-
-
-class TopBottomTilesHandler:
-    def __init__(self, k_tiles: int, n_classes: int) -> None:
-        self.k_tiles = k_tiles
-        self.n_classes = n_classes
-        self.report_cases = self.get_report_cases_dict()
-        self.top_slides = []
-        self.bottom_slides = []
-
-    def get_report_cases_dict(self) -> None:
-        report_cases = {'TN': [[], []], 'FP': [[], []]}
-        n_classes_to_select = self.n_classes if self.n_classes > 1 else 2
-        for i in range(1, n_classes_to_select):
-            report_cases[f"TP_{i}"] = [[], []]
-            report_cases[f"FN_{i}"] = [[], []]
-        return report_cases
-
-    def update_top_bottom_slide(self, batch, results):
-        pass
