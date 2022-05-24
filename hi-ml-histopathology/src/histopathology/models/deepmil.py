@@ -260,14 +260,12 @@ class BaseDeepMILModule(LightningModule):
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        self.log_metrics(ModelKey.TRAIN)
         return train_result[ResultsKey.LOSS]
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics(ModelKey.VAL)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -276,7 +274,11 @@ class BaseDeepMILModule(LightningModule):
                  sync_dist=True)
         return test_result
 
+    def training_epoch_end(self, outputs: EpochResultsType) -> None:
+        self.log_metrics(ModelKey.TRAIN)
+
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
+        self.log_metrics(ModelKey.VAL)
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
@@ -286,12 +288,12 @@ class BaseDeepMILModule(LightningModule):
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
+        self.log_metrics(ModelKey.TEST)
         if self.outputs_handler:
             self.outputs_handler.save_test_outputs(
                 epoch_results=epoch_results,
                 is_global_rank_zero=self.global_rank == 0
             )
-        self.log_metrics(ModelKey.TEST)
 
 
 class TilesDeepMILModule(BaseDeepMILModule):
