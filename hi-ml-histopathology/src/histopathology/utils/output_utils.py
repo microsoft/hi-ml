@@ -360,7 +360,8 @@ class DeepMILOutputsHandler:
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.k_tiles_handler = KTopBottomTilesHandler(self.n_classes, self.k_tiles, self.k_slides, ncols=ncols)
+        self.k_tiles_handler = KTopBottomTilesHandler(self.n_classes, k_tiles=self.k_tiles, k_slide=self.k_slides,
+                                                      ncols=ncols)
 
     @property
     def validation_outputs_dir(self) -> Path:

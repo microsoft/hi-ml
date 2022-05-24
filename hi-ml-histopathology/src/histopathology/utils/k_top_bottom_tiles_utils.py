@@ -14,7 +14,9 @@ from histopathology.utils.viz_utils import save_figure
 
 
 class TileNode:
-    def __init__(self, data: Tensor, attn: float, id: Optional[int], x: Optional[float], y: Optional[float]) -> None:
+    def __init__(
+        self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
+    ) -> None:
         self.data = data
         self.attn = attn
         self.id = id
@@ -62,9 +64,7 @@ class SlideNode:
 
 
 class KTopBottomTilesHandler:
-    def __init__(
-        self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4
-    ) -> None:
+    def __init__(self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4) -> None:
         self.n_classes = n_classes
         self.k_slides = k_slides
         self.k_tiles = k_tiles
@@ -101,15 +101,17 @@ class KTopBottomTilesHandler:
             probs_gt_label = results[ResultsKey.CLASS_PROBS][:, gt_label.item()]
             for i, slide_id in enumerate(slide_ids):
                 self._update_slides_heap(
-                    top=True, gt_label=gt_label.item(),
+                    top=True,
+                    gt_label=gt_label.item(),
                     tiles=batch[SlideKey.IMAGE][i],
-                    att_scores=results[ResultsKey.BAG_ATTN][i],
+                    att_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
                     slide_node=SlideNode(prob_score=probs_gt_label[i], slide_id=slide_id),
                 )
                 self._update_slides_heap(
-                    top=True, gt_label=gt_label.item(),
+                    top=False,
+                    gt_label=gt_label.item(),
                     tiles=batch[SlideKey.IMAGE][i],
-                    att_scores=results[ResultsKey.BAG_ATTN][i],
+                    att_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
                     slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
                 )
 
