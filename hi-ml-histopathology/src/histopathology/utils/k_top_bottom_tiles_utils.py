@@ -32,7 +32,7 @@ class SlideNode:
     def __lt__(self, other):
         return self.prob_score < other.prob_score
 
-    def update_tiles(self, tiles: Tensor, att_scores: Tensor, k_tiles: int) -> None:
+    def update_top_bottom_tiles(self, tiles: Tensor, att_scores: Tensor, k_tiles: int) -> None:
         k_tiles = min(k_tiles, len(att_scores))
         sorted_indices = torch.argsort(att_scores.squeeze(), descending=True)
         self.top_tiles = [TileNode(data=tiles[i], attn=att_scores[i]) for i in sorted_indices[:k_tiles]]
@@ -84,31 +84,30 @@ class KTopBottomTilesHandler:
         return self.report_cases_slide_ids
 
     def _update_slides_heap(
-        self, heap: List[SlideNode], tiles: Tensor, att_scores: Tensor, slide_node: SlideNode
+        self, top: bool, gt_label: int, tiles: Tensor, att_scores: Tensor, slide_node: SlideNode
     ) -> None:
-        heapq.heappush(heap, slide_node)
-        if len(heap) == self.k_slides + 1:
-            old_slide_node = heap[0]
-            heapq.heappop(heap)
+        slide_heaps = self.top_slides_heaps if top else self.bottom_slides_heaps
+        heapq.heappush(slide_heaps[gt_label], slide_node)
+        if len(slide_heaps[gt_label]) == self.k_slides + 1:
+            old_slide_node = slide_heaps[gt_label][0]
+            heapq.heappop(slide_heaps[gt_label])
             if old_slide_node.slide_id != slide_node.slide_id:
-                slide_node.update_tiles(tiles, att_scores, self.k_tiles)
+                slide_node.update_top_bottom_tiles(tiles, att_scores, self.k_tiles)
 
     def update_top_bottom_slides_heaps(self, batch: Dict, results: dict) -> None:
         slide_ids = np.unique(batch[SlideKey.SLIDE_ID])  # to account for repetitions in tiles pipeline
-        # TODO double check that order is preserved affter unique
-        bag_labels = results[ResultsKey.TRUE_LABEL]
-        probs_perclass = results[ResultsKey.CLASS_PROBS]
-        for gt_label in bag_labels:
-            probs_gt_label = probs_perclass[:, gt_label]
+        # TODO double check that order is preserved after unique
+        for gt_label in results[ResultsKey.TRUE_LABEL]:
+            probs_gt_label = results[ResultsKey.CLASS_PROBS][:, gt_label.item()]
             for i, slide_id in enumerate(slide_ids):
                 self._update_slides_heap(
-                    heap=self.top_slides_heaps[gt_label],
+                    top=True, gt_label=gt_label.item(),
                     tiles=batch[SlideKey.IMAGE][i],
                     att_scores=results[ResultsKey.BAG_ATTN][i],
                     slide_node=SlideNode(prob_score=probs_gt_label[i], slide_id=slide_id),
                 )
                 self._update_slides_heap(
-                    heap=self.bottom_slides_heaps[gt_label],
+                    top=True, gt_label=gt_label.item(),
                     tiles=batch[SlideKey.IMAGE][i],
                     att_scores=results[ResultsKey.BAG_ATTN][i],
                     slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
