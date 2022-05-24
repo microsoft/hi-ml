@@ -173,11 +173,15 @@ called, for example, after an AzureML run to collect results, can this be automa
 obsolete? Reasons for this approach:
 
 * People tend to forget that there is a script to do X already, and may re-do the task in question manually.
-* Any script that requires input from the user also has a chance to be provided with the wrong input, leading to friction or incorrect results. In a programmatic scenario, where the script is called automatically, this chance of errors is greatly minimized.
+* Any script that requires input from the user also has a chance to be provided with the wrong input, leading to
+  friction or incorrect results. In a programmatic scenario, where the script is called automatically, this chance of
+  errors is greatly minimized.
 
 ## What not to check in
 
 * DO NOT check in files taken from or derived from private datasets.
+* DO NOT check in any form of credentials, passwords or access tokens.
+* Do not check in any code that contains absolute paths (for example, paths that only work on your machine).
 * Avoid checking in large files (anything over 100kB). If you need to check in large files, consider adding them via Git LFS.
 
 ### Jupyter Notebooks
@@ -214,16 +218,12 @@ Try gauging the value of your contribution for yourself by asking the following 
 ### Pull Request Process
 
 * When creating a PR, do add a summary of your contribution in the PR description.
-* The template PR description also contains a checklist for the PR author.
-* For collecting early feedback on your work, please use a Draft Pull Request. These PRs are marked with a grey icon in the Github UI, and send a clear signal that the code there is not yet ready for review. When submitting a draft PR, all the checks will be run.
+* The template PR description contains a checklist for the PR author.
+* Link your PR to a GitHub issue that describes the problem/feature that you are working on.
+* For collecting early feedback on your work, please use a Draft Pull Request. These PRs are marked with a grey icon in
+  the Github UI, and send a clear signal that the code there is not yet ready for review. When submitting a draft PR,
+  all the checks will be run as for a normal PR.
 * Once your work is ready for review, click the "Ready for Review" button on the Github PR page, and assign reviewers for your PR.
-
-### Pull Request Contents
-
-* Include a brief description.
-* Link to an issue, if relevant.
-* Write unit tests for the code - see above for details.
-* Add appropriate documentation for any new code that you introduce.
 
 ### Pull Request Titles
 
