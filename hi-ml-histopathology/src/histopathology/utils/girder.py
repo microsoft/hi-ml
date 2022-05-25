@@ -57,9 +57,7 @@ class Color:
         return f"rgba{astuple(self)}"
 
 
-class Transparent(Color):
-    def __init__(self) -> None:
-        super().__init__(0, 0, 0, 0)
+TRANSPARENT = Color(0, 0, 0, 0)
 
 
 @dataclass
@@ -309,7 +307,7 @@ class RunOutputs:
         for i, (_, row) in enumerate(df.iterrows()):
             rgba_uchar = colormap(row.bag_attn, bytes=True)
             fill_color = Color(*rgba_uchar)
-            line_color = Transparent()
+            line_color = TRANSPARENT
             rectangle = Rectangle(
                 f"{original_attentions[i]:.4f}",
                 fill_color,
