@@ -15,6 +15,7 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
+from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.utils.naming import SlideKey
 
 
@@ -131,7 +132,7 @@ def generate_patch_list(image_file, level, patch_size=256, inner_patch_size=164,
     return results_dict
 
 
-class WSIDataset(SlidesDataset, torch.utils.data.IterableDataset):
+class PandaWSIDataset(PandaDataset, torch.utils.data.IterableDataset):
     def __init__(self, patch_size, level, to_nchw=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.patch_list = []
@@ -145,7 +146,7 @@ class WSIDataset(SlidesDataset, torch.utils.data.IterableDataset):
             patches = generate_patch_list(image)
             self.patch_list.append(patches)
 
-    def __iter__(self) -> Generator[Dict, str, Any]:
+    def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         for i, patches in enumerate(self.patch_list):
             per_worker = int(math.ceil((len(patches)) / float(worker_info.num_workers)))
@@ -209,7 +210,7 @@ class WSIDataset(SlidesDataset, torch.utils.data.IterableDataset):
 
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
-    dataset = WSIDataset(root=Path("/tmp/datasets/PANDA"), patch_size=224, level=2,)
+    dataset = PandaWSIDataset(root=Path("/tmp/datasets/PANDA"), patch_size=224, level=2,)
     dataloader = DataLoader(dataset=dataset, batch_size=2, pin_memory=True, num_workers=2, drop_last=True)
     tile_count = 0
 
