@@ -275,8 +275,8 @@ class RunOutputs:
 
     def get_df(self, force: bool) -> pd.DataFrame:
         csv_name = f"test_output-{self.workspace.name}-{self.run.id}.csv"
-        local_csv_path = self.temp_dir / csv_name
-        if local_csv_path.is_file() and not force:
+        cached_csv_path = Path(tempfile.gettempdir()) / csv_name
+        if cached_csv_path.is_file() and not force:
             logging.info("Found cached CSV file")
         else:
             logging.info("Downloading outputs CSV...")
@@ -285,15 +285,11 @@ class RunOutputs:
                 azureml._restclient.models.error_response.ErrorResponseException,
             )
             try:
-                self.run.download_file(AML_TEST_OUTPUTS_CSV, local_csv_path)
+                self.run.download_file(AML_TEST_OUTPUTS_CSV, cached_csv_path)
             except aml_exceptions as e:
                 raise FileNotFoundError("Error downloading outputs file from run") from e
-        logging.info("Reading CSV file: %s ...", local_csv_path)
-        return self._read_csv(local_csv_path)
-
-    @property
-    def temp_dir(self) -> Path:
-        return Path(tempfile.gettempdir())
+        logging.info("Reading CSV file: %s ...", cached_csv_path)
+        return self._read_csv(cached_csv_path)
 
     def get_annotation_from_slide_data_frame(
             self,
