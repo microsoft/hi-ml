@@ -113,6 +113,15 @@ class KTopBottomTilesHandler:
         else:
             slide_node.update_top_bottom_tiles(tiles, attn_scores, self.k_tiles)
 
+    def reduce_slides_heaps(self, slide_heaps: Dict[str, List[str]]) -> None:
+        for class_id in self.n_classes_to_select:
+            while len(slide_heaps[class_id] > self.k_slides):
+                heapq.heappop(slide_heaps[class_id])
+
+    def copy_tiles_to_shallow_slides_heaps(self, slide_heaps: Dict[str, List[str]]) -> None:
+        for class_id in self.n_classes_to_select:
+            pass
+
     def update_top_slides_heap(
         self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode
     ) -> None:
@@ -165,11 +174,15 @@ class KTopBottomTilesHandler:
                 self.report_cases_slide_ids[case].append(slide_node.slide_id)
 
     def gather_slide_heaps_across_gpus(self) -> None:
-        # if torch.distributed.is_initialized():
-        #     world_size = torch.distributed.get_world_size()
-        #     if world_size > 1:
-        #         object_list: EpochResultsType = [None] * world_size  # type: ignore
-        #         torch.distributed.all_gather_object(object_list, epoch_results)
-        #         epoch_results = list(chain(*object_list))  # type: ignore
-        #     return epoch_results
+        if torch.distributed.is_initialized():
+            world_size = torch.distributed.get_world_size()
+            if world_size > 1:
+                top_slides_heaps_shallow = self.top_slides_heaps_shallow_copy()
+                bottom_slides_heaps_shallow = self.bottom_slides_heaps_shallow_copy()
+                bottom_slides_list = [None] * world_size
+                top_slides_list = [None] * world_size
+                torch.distributed.all_gather_object(bottom_slides_list, top_slides_heaps_shallow)
+                torch.distributed.all_gather_object(top_slides_list, bottom_slides_heaps_shallow)
+                epoch_results = list(chain(*object_list))  # type: ignore
+            return epoch_results
         pass
