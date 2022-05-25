@@ -152,7 +152,8 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
 
 def render_metrics_table(report: HTMLReport, heading: str, level: int,
                          metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
-                         base_metrics_list: List[str], metrics_prefix: str) -> None:            # type: ignore
+                         base_metrics_list: List[str],                                      # type: ignore
+                         metrics_prefix: str) -> None:
     """
     Function to render metrics table for HTML reports.
 
