@@ -30,18 +30,24 @@ class SlideNode:
         self.prob_score = prob_score
         self.top_tiles: List[TileNode] = []
         self.bottom_tiles: List[TileNode] = []
+        self.device: Optional[int] = None
 
     def __lt__(self, other: "SlideNode") -> bool:
         return self.prob_score < other.prob_score
 
     def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, k_tiles: int) -> None:
         k_tiles = min(k_tiles, len(attn_scores))
-        sorted_indices = torch.argsort(attn_scores.squeeze(), descending=True)
-        self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in sorted_indices[:k_tiles]]
-        self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in sorted_indices[-k_tiles:]]
+
+        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=True)
+        self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in top_k_indices]
+
+        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=False)
+        self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in bottom_k_indices]
 
     def shallow_copy(self) -> None:
-        return SlideNode(self.prob_score, self.slide_id)
+        shallow_node = SlideNode(self.prob_score, self.slide_id)
+        shallow_node.device = shallow_node.top_tiles[0].data.device.index
+        return shallow_node
 
     def copy_tiles(self, slide_node: "SlideNode") -> None:
         self.top_tiles = slide_node.top_tiles
@@ -84,53 +90,33 @@ class KTopBottomTilesHandler:
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
         return report_cases
 
-    def _slides_heaps_shallow_copy(self, top: bool) -> Dict[int, List[SlideNode]]:
-        slides_heaps = self.top_slides_heaps if top else self.bottom_slides_heaps
-        slides_heaps_shallow_copy = Dict[int, List[SlideNode]] = {}
-        for class_id, slide_nodes in slides_heaps:
-            slides_heaps_shallow_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
-        return slides_heaps_shallow_copy
-
-    def top_slides_heaps_shallow_copy(self) -> Dict[int, List[SlideNode]]:
-        return self._slides_heaps_shallow_copy(top=True)
-
-    def bottom_slides_heaps_shallow_copy(self) -> Dict[int, List[SlideNode]]:
-        return self._slides_heaps_shallow_copy(top=True)
-
     def get_selected_slide_ids(self) -> Dict[str, List[str]]:
         return self.report_cases_slide_ids
 
     def _update_slides_heap(
-        self, top: bool, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode
+        self,
+        slides_heaps: Dict[int, List[SlideNode]],
+        gt_label: int,
+        tiles: Tensor,
+        attn_scores: Tensor,
+        slide_node: SlideNode,
     ) -> None:
-        slide_heaps = self.top_slides_heaps if top else self.bottom_slides_heaps
-        heapq.heappush(slide_heaps[gt_label], slide_node)
-        if len(slide_heaps[gt_label]) == self.k_slides + 1:
-            old_slide_node = slide_heaps[gt_label][0]
-            heapq.heappop(slide_heaps[gt_label])
+        heapq.heappush(slides_heaps[gt_label], slide_node)
+        if len(slides_heaps[gt_label]) == self.k_slides + 1:
+            old_slide_node = slides_heaps[gt_label][0]
+            heapq.heappop(slides_heaps[gt_label])
             if old_slide_node.slide_id != slide_node.slide_id:
                 slide_node.update_top_bottom_tiles(tiles, attn_scores, self.k_tiles)
         else:
             slide_node.update_top_bottom_tiles(tiles, attn_scores, self.k_tiles)
 
-    def reduce_slides_heaps(self, slide_heaps: Dict[str, List[str]]) -> None:
-        for class_id in self.n_classes_to_select:
-            while len(slide_heaps[class_id] > self.k_slides):
-                heapq.heappop(slide_heaps[class_id])
-
-    def copy_tiles_to_shallow_slides_heaps(self, slide_heaps: Dict[str, List[str]]) -> None:
-        for class_id in self.n_classes_to_select:
-            pass
-
-    def update_top_slides_heap(
-        self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode
-    ) -> None:
-        return self._update_slides_heap(True, gt_label, tiles, attn_scores, slide_node)
+    def update_top_slides_heap(self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode) -> None:
+        return self._update_slides_heap(self.top_slides_heaps, gt_label, tiles, attn_scores, slide_node)
 
     def update_bottom_slides_heap(
         self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode
     ) -> None:
-        return self._update_slides_heap(False, gt_label, tiles, attn_scores, slide_node)
+        return self._update_slides_heap(self.bottom_slides_heaps, gt_label, tiles, attn_scores, slide_node)
 
     def update_top_bottom_slides_heaps(self, batch: Dict, results: Dict) -> None:
         slide_ids = np.unique(batch[SlideKey.SLIDE_ID])  # to account for repetitions in tiles pipeline
@@ -150,6 +136,58 @@ class KTopBottomTilesHandler:
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
                     slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
                 )
+
+    def _slides_heaps_shallow_copy(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
+        slides_heaps_shallow_copy: Dict[int, List[SlideNode]] = {}
+        for class_id, slide_nodes in slides_heaps:
+            slides_heaps_shallow_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
+        return slides_heaps_shallow_copy
+
+    def top_slides_heaps_shallow_copy(self) -> Dict[int, List[SlideNode]]:
+        return self._slides_heaps_shallow_copy(self.top_slides_heaps)
+
+    def bottom_slides_heaps_shallow_copy(self) -> Dict[int, List[SlideNode]]:
+        return self._slides_heaps_shallow_copy(self.bottom_slides_heaps)
+
+    def _gather_slides_heaps_list(
+        self, world_size: int, slides_heaps_list: List[Dict[int, List[SlideNode]]]
+    ) -> Dict[int, List[SlideNode]]:
+        slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
+        for class_id in self.n_classes_to_select:
+            for rank in range(world_size):
+                for slide_node in slides_heaps_list[rank][class_id]:
+                    heapq.heappush(slides_heaps[class_id], slide_node)
+                    if len(slides_heaps[class_id]) == self.k_slides + 1:
+                        heapq.heappop(slides_heaps[class_id])
+        return slides_heaps
+
+    def transfer_tiles_to_shallow_slides_heaps(self, slides_heaps: Dict[str, List[str]]) -> None:
+        for class_id in self.n_classes_to_select:
+            pass
+
+    def _gather_slides_heaps(
+        self, world_size: int, slides_heaps_shallow: Dict[int, List[SlideNode]]
+    ) -> Dict[int, List[SlideNode]]:
+        slides_heaps_list = [None] * world_size
+        torch.distributed.all_gather_object(slides_heaps_list, slides_heaps_shallow)
+        return self._gather_slides_heaps_list(slides_heaps_list)
+
+    def _gather_top_slides_heaps(self, world_size: int) -> Dict[int, List[SlideNode]]:
+        # top_slides_heaps_shallow = self.top_slides_heaps_shallow_copy()
+        top_slides_heaps_shallow = self.top_slides_heaps
+        return self._gather_slides_heaps(world_size=world_size, slides_heaps_shallow=top_slides_heaps_shallow)
+
+    def _gather_bottom_slides_heaps(self, world_size: int) -> Dict[int, List[SlideNode]]:
+        # bottom_slides_heaps_shallow = self.bottom_slides_heaps_shallow_copy()
+        bottom_slides_heaps_shallow = self.bottom_slides_heaps()
+        return self._gather_slides_heaps(world_size=world_size, slides_heaps_shallow=bottom_slides_heaps_shallow)
+
+    def gather_top_bottom_slides_heaps_across_gpus(self) -> None:
+        if torch.distributed.is_initialized():
+            world_size = torch.distributed.get_world_size()
+            if world_size > 1:
+                self.top_slides_heaps = self._gather_top_slides_heaps(world_size=world_size)
+                self.bottom_slides_heaps = self._gather_bottom_slides_heaps(world_size=world_size)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
         key_dir = figures_dir / case
@@ -172,17 +210,3 @@ class KTopBottomTilesHandler:
                 slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
                 slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
                 self.report_cases_slide_ids[case].append(slide_node.slide_id)
-
-    def gather_slide_heaps_across_gpus(self) -> None:
-        if torch.distributed.is_initialized():
-            world_size = torch.distributed.get_world_size()
-            if world_size > 1:
-                top_slides_heaps_shallow = self.top_slides_heaps_shallow_copy()
-                bottom_slides_heaps_shallow = self.bottom_slides_heaps_shallow_copy()
-                bottom_slides_list = [None] * world_size
-                top_slides_list = [None] * world_size
-                torch.distributed.all_gather_object(bottom_slides_list, top_slides_heaps_shallow)
-                torch.distributed.all_gather_object(top_slides_list, bottom_slides_heaps_shallow)
-                epoch_results = list(chain(*object_list))  # type: ignore
-            return epoch_results
-        pass

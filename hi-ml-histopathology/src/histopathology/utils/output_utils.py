@@ -428,6 +428,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
+        self.k_tiles_handler.gather_top_bottom_slides_heaps_across_gpus()
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
