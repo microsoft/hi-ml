@@ -1,4 +1,4 @@
-# Notes for developers
+# Setting up the Development Environment
 
 ## Development environment
 
@@ -77,7 +77,7 @@ pip install --extra-index-url https://test.pypi.org/simple/ hi-ml==0.1.0.post165
 
 * If you are using Conda, you can add an additional parameter for `pip` into the Conda `environment.yml` file like this:
 
-```yml
+```yaml
 name: foo
 dependencies:
   - pip=20.1.1
