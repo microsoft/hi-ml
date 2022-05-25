@@ -9,7 +9,6 @@ import sys
 
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
-from health_azure.utils import is_running_in_azure_ml
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatasetWithReturnIndex
 from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 
