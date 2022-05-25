@@ -206,7 +206,7 @@ class DigitalSlideArchive:
         return urljoin(self.url, GirderClient.DEFAULT_API_ROOT)
 
     def add_annotation(self, item_id: str, annotation: Annotation) -> Dict:
-        response = self._client.post(
+        response = self.post(
             path="annotation",
             parameters={"itemId": item_id},
             json=annotation.as_json(),
