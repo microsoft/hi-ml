@@ -323,6 +323,18 @@ class TilesDeepMILModule(BaseDeepMILModule):
                            "input tiles dataset.")
 
 
+class PandaTilesDeepMILModule(TilesDeepMILModule):
+    def __init__(self, n_epochs: int, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.save_hyperparameters()
+        self.n_epochs = n_epochs
+
+    def configure_optimizers(self) -> Dict[str, Any]:  # type: ignore
+        optimizer = optim.AdamW(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+
+
 class SlidesDeepMILModule(BaseDeepMILModule):
     """Base class for slides based deep multiple-instance learning."""
 
