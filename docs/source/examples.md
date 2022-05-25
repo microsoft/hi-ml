@@ -44,7 +44,7 @@ python sample.py -n 103 --azureml
 then the function `submit_to_azure_if_needed` will perform all the required actions to run this script in AzureML and exit. Note that:
 
 * code after `submit_to_azure_if_needed` is not run locally, but it is run in AzureML.
-* the print statement prints to the AzureML console output and is available in the `Output + logs` tab of the experiment in the `70_driver_log.txt` file, and can be downloaded from there.
+* the print statement prints to the AzureML console output and is available in the `Output + logs` tab of the experiment in the `70_driver_log.txt` if using the old AzureML runtime, or `std_log.txt` if using the new AzureML runtime, and can be downloaded from there.
 * the command line arguments are passed through (apart from --azureml) when running in AzureML.
 * a new file: `most_recent_run.txt` will be created containing an identifier of this AzureML run.
 

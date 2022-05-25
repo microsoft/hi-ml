@@ -76,6 +76,7 @@ CONDA_CHANNELS = "channels"
 CONDA_DEPENDENCIES = "dependencies"
 CONDA_PIP = "pip"
 
+VALID_LOG_FILE_PATHS = [Path("user_logs/std_log.txt"), Path("azureml-logs/70_driver_log.txt")]
 
 # By default, define several environment variables that work around known issues in the software stack
 DEFAULT_ENVIRONMENT_VARIABLES = {
@@ -1457,6 +1458,35 @@ def download_files_from_run_id(
     run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     _download_files_from_run(run, output_folder, prefix=prefix, validate_checksum=validate_checksum)
     torch_barrier()
+
+
+def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[str]:
+    """
+    Returns text stored in run log driver file.
+
+    :param run: Run object representing the current run.
+    :param download_file: If ``True``, download log file from the run.
+    :return: Driver log file text if a file exists, ``None`` otherwise.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+
+        for log_file_path in VALID_LOG_FILE_PATHS:
+            if download_file:
+                run.download_files(
+                    prefix=str(log_file_path),
+                    output_directory=tmp_dir_name,
+                    append_prefix=False,
+                )
+            tmp_log_file_path = tmp_dir_name / log_file_path
+            if tmp_log_file_path.is_file():
+                return tmp_log_file_path.read_text()
+
+    files_as_str = ', '.join(f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
+    logging.warning(
+        "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
+        f"one of the following: {files_as_str}"
+    )
+    return None
 
 
 def _download_file_from_run(
