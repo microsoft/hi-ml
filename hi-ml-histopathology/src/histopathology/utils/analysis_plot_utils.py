@@ -270,8 +270,15 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
 
 
 def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
+    """
+    Plot normalized confusion matrices from HyperDrive child runs.
+    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
+        as returned by :py:func:`collect_crossval_outputs()`.
+    :param class_names: Names of classes.
+    :return: The created `Figure` object.
+    """
     import seaborn as sns
-    fig, axs = plt.subplots(1, len(crossval_dfs), figsize=(len(crossval_dfs)*6, 5))
+    fig, axs = plt.subplots(1, len(crossval_dfs), figsize=(len(crossval_dfs) * 6, 5))
     for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]

@@ -12,10 +12,11 @@ from matplotlib import pyplot as plt
 
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
-from histopathology.utils.analysis_plot_utils import (add_training_curves_legend, plot_confusion_matrices, plot_crossval_roc_and_pr_curves,
+from histopathology.utils.analysis_plot_utils import (add_training_curves_legend, plot_confusion_matrices,
+                                                      plot_crossval_roc_and_pr_curves,
                                                       plot_crossval_training_curves)
 from histopathology.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
-                                               AML_VAL_OUTPUTS_CSV)
+                                               AML_VAL_OUTPUTS_CSV, validate_class_names)
 from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
                                                crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                                get_best_epochs, get_crossval_metrics_table, get_formatted_run_info)
@@ -23,7 +24,6 @@ from histopathology.utils.naming import MetricsKey
 
 
 def generate_html_report(parent_run_id: str, output_dir: Path,
-                         class_names: str,
                          workspace_config_path: Optional[Path] = None,
                          include_test: bool = False, overwrite: bool = False) -> None:
     """
@@ -31,8 +31,6 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     :param run_id: The parent Hyperdrive run ID.
     :param output_dir: Directory where to download Azure ML data and save the report.
-    :param class_names: Names of classes separated by comma, same as used in the Hyperdrive run.
-                        These are used to find the per-class metrics from Azure ML.
     :param workspace_config: Path to Azure ML workspace config.json file.
                              If omitted, will try to load default workspace.
     :param include_test: Opt-in flag to include test results in the generated report.
@@ -57,18 +55,27 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     render_training_curves(report, heading="Training curves", level=3,
                            metrics_df=metrics_df, best_epochs=best_epochs, report_dir=report_dir)
 
-    # Add tables with relevant metrics (val. and test)
-    class_names = class_names.split(sep=",")
-    n_classes = len(class_names)
-    if n_classes == 2:
-        base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.PRECISION, MetricsKey.RECALL, MetricsKey.F1]
-    elif n_classes > 1:
+    # Get metrics list with class names
+    num_classes_index = metrics_df[0]['hyperparams']['name'].index('n_classes')
+    num_classes = int(metrics_df[0]['hyperparams']['value'][num_classes_index])
+    class_names_index = metrics_df[0]['hyperparams']['name'].index('class_names')
+    class_names = metrics_df[0]['hyperparams']['value'][class_names_index]
+    if class_names == "None":
+        class_names = validate_class_names(class_names=None, n_classes=num_classes)
+    else:
+        # Remove [,], and quotation marks from the string of class names
+        class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
+        class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
+
+    if num_classes > 1:
         base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC]
     else:
-        raise ValueError(f"Invalid number of classes {n_classes} inferred from {class_names}, these should be > = 2.")
+        base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.PRECISION, MetricsKey.RECALL, MetricsKey.F1]
+
     base_metrics_list += class_names
 
-    render_metrics_table(report, heading="Validation metrics (best epoch)", level=3,
+    # Add tables with relevant metrics (val. and test)
+    render_metrics_table(report, heading="Validation metrics (best epoch based on maximum validation AUROC)", level=3,
                          metrics_df=metrics_df, best_epochs=best_epochs,
                          base_metrics_list=base_metrics_list, metrics_prefix='val/')
 
@@ -79,7 +86,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
 
-    if n_classes == 2:
+    if num_classes == 1:
         # Currently ROC and PR curves rendered only for binary case
         # TODO: Enable rendering of multi-class ROC and PR curves
         report.add_heading("ROC and PR Curves", level=2)
@@ -94,6 +101,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
             render_roc_and_pr_curves(report, "Test ROC and PR curves", level=3,
                                      parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
                                      output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
+
+    # Add confusion matrices for each fold
 
     report.add_heading("Confusion Matrices", level=2)
 
@@ -217,9 +226,8 @@ if __name__ == "__main__":
     """
     Usage example from CLI:
     python generate_crossval_report.py \
-    --run_id "insert AML run ID here" \
-    --output_dir "outputs" \
-    --class_names "insert class names here (separated by comma)" \
+    --run_id <insert AML run ID here> \
+    --output_dir outputs \
     --include_test
     """
 
@@ -228,8 +236,6 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--run_id', help="The parent Hyperdrive run ID.")
     parser.add_argument('--output_dir', help="Directory where to download Azure ML data and save the report.")
-    parser.add_argument('--class_names', help="Names of classes separated by comma, same as used in the Hyperdrive run. "
-                                              "These are used to find the per-class metrics from Azure ML.")
     parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
                                                    "If omitted, will try to load default workspace.")
     parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
@@ -250,7 +256,6 @@ if __name__ == "__main__":
 
     generate_html_report(parent_run_id=args.run_id,
                          output_dir=Path(args.output_dir),
-                         class_names=args.class_names,
                          workspace_config_path=workspace_config,
                          include_test=args.include_test,
                          overwrite=args.overwrite)
