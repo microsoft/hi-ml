@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import Any, Optional
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPanda
+from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPandaBasic
 from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
 
 
-class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
+class MockDeepSMILETilesPanda(DeepSMILETilesPandaBasic):
     def __init__(self, tmp_path: Path, **kwargs: Any) -> None:
         default_kwargs = dict(
             # Model parameters:

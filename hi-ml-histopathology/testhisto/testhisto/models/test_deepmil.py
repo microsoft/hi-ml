@@ -19,7 +19,7 @@ from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.BaseMIL import BaseMILTiles
 
 from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
-from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
+from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPandaBasic
 from histopathology.datamodules.base_module import HistoDataModule, TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
@@ -29,7 +29,7 @@ from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
-from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
+from testhisto.mocks.container import DeepSMILETilesPandaBasic, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
 
 no_gpu = not is_gpu_available()
@@ -316,12 +316,12 @@ def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, us
 
 
 CONTAINER_DATASET_DIR = {
-    DeepSMILETilesPanda: PANDA_TILES_DATASET_DIR,
+    DeepSMILETilesPandaBasic: PANDA_TILES_DATASET_DIR,
     DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
 }
 
 
-@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPandaBasic,
                                             DeepSMILECrck])
 @pytest.mark.parametrize("use_gpu", [True, False])
 def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
@@ -333,8 +333,8 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
         )
     if container_type is DeepSMILECrck:
         container = container_type(encoder_type=ImageNetEncoder.__name__)
-    elif container_type is DeepSMILETilesPanda:
-        container = DeepSMILETilesPanda(encoder_type=ImageNetEncoder.__name__)
+    elif container_type is DeepSMILETilesPandaBasic:
+        container = DeepSMILETilesPandaBasic(encoder_type=ImageNetEncoder.__name__)
     else:
         container = container_type()
 
@@ -371,13 +371,13 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
 
 
 def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
-    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,
+    _test_mock_panda_container(use_gpu=False, mock_container=DeepSMILETilesPandaBasic,
                                tmp_path=mock_panda_tiles_root_dir)
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
+@pytest.mark.parametrize("mock_container, tmp_path", [(DeepSMILETilesPandaBasic, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
 def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tmp_path: str,
