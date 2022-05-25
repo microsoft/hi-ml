@@ -8,6 +8,7 @@ from math import ceil
 from torch import Tensor
 from pathlib import Path
 from typing import Optional, List, Tuple, Dict
+from collections import ChainMap
 
 from histopathology.utils.naming import ResultsKey, SlideKey
 from histopathology.utils.viz_utils import save_figure
@@ -173,21 +174,74 @@ class KTopBottomTilesHandler:
         return self._gather_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _gather_top_slides_heaps(self, world_size: int) -> Dict[int, List[SlideNode]]:
-        # top_slides_heaps_shallow = self.top_slides_heaps_shallow_copy()
-        top_slides_heaps_shallow = self.top_slides_heaps
+        top_slides_heaps_shallow = self.top_slides_heaps_shallow_copy()
         return self._gather_slides_heaps(world_size=world_size, slides_heaps_shallow=top_slides_heaps_shallow)
 
     def _gather_bottom_slides_heaps(self, world_size: int) -> Dict[int, List[SlideNode]]:
-        # bottom_slides_heaps_shallow = self.bottom_slides_heaps_shallow_copy()
-        bottom_slides_heaps_shallow = self.bottom_slides_heaps
+        bottom_slides_heaps_shallow = self.bottom_slides_heaps_shallow_copy()
         return self._gather_slides_heaps(world_size=world_size, slides_heaps_shallow=bottom_slides_heaps_shallow)
 
-    def gather_top_bottom_slides_heaps_across_gpus(self) -> None:
+    def _select_tiles_per_device(
+        self, final_slides_heaps: Dict[int, List[SlideNode]], slides_heaps: Dict[int, List[SlideNode]]
+    ) -> None:
+        tiles = {}
+        for class_id in range(self.n_classes_to_select):
+            for top_slide_node in final_slides_heaps[class_id]:
+                slide_node = any(
+                    slide_node
+                    for slide_node in slides_heaps[class_id]
+                    if slide_node.slide_id == top_slide_node.slide_id
+                )
+                if slide_node:
+                    tiles[top_slide_node.slide_id] = slide_node.top_tiles
+        return tiles
+
+    def _select_top_tiles_per_device(
+        self, final_top_slides_heaps: Dict[int, List[SlideNode]]
+    ) -> Dict[str, List[TileNode]]:
+        return self.select_tiles_per_device(
+            final_slides_heaps=final_top_slides_heaps, slides_heaps=self.top_slides_heaps
+        )
+
+    def _select_bottom_tiles_per_device(
+        self, final_bottom_slides_heaps: Dict[int, List[SlideNode]]
+    ) -> Dict[str, List[TileNode]]:
+        return self.select_tiles_per_device(
+            final_slides_heaps=final_bottom_slides_heaps, slides_heaps=self.bottom_slides_heaps
+        )
+
+    def update_slides_heaps_with_top_bottom_tiles(
+        self,
+        slides_heaps: Dict[int, List[SlideNode]],
+        top_tiles: Dict[str, List[TileNode]],
+        bottom_tiles: Dict[str, List[TileNode]],
+    ) -> None:
+        for class_id in range(self.n_classes_to_select):
+            for slide_node in slides_heaps[class_id]:
+                slide_node.top_tiles = top_tiles[slide_node.slide_id]
+                slide_node.bottom_tiles = bottom_tiles[slide_node.slide_id]
+
+    def gather_top_bottom_tiles_across_gpus(self) -> None:
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
-                self.top_slides_heaps = self._gather_top_slides_heaps(world_size=world_size)
-                self.bottom_slides_heaps = self._gather_bottom_slides_heaps(world_size=world_size)
+
+                final_top_slides_heaps = self._gather_top_slides_heaps(world_size=world_size)
+                top_tiles_per_device = self._select_top_tiles_per_device(final_top_slides_heaps)
+                self.top_slides_heaps = final_top_slides_heaps
+                top_tiles_list = [None] * world_size
+                torch.distributed.all_gather_object(top_tiles_list, top_tiles_per_device)
+                top_tiles = dict(ChainMap(*top_tiles_list))
+
+                final_bottom_slides_heaps = self._gather_bottom_slides_heaps(world_size=world_size)
+                bottom_tiles_per_device = self._select_bottom_tiles_per_device(final_bottom_slides_heaps)
+                self.bottom_slides_heaps = final_bottom_slides_heaps
+                bottom_tiles_list = [None] * world_size
+                torch.distributed.all_gather_object(bottom_tiles_list, bottom_tiles_per_device)
+                bottom_tiles = dict(ChainMap(*bottom_tiles_list))
+
+                self.update_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, top_tiles, bottom_tiles)
+                self.update_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
         key_dir = figures_dir / case
