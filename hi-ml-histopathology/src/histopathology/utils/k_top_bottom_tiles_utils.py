@@ -138,10 +138,11 @@ class KTopBottomTilesHandler:
                 self.report_cases_slide_ids[case].append(slide_node.slide_id)
 
     def gather_slide_heaps_across_gpus(self) -> None:
-        if torch.distributed.is_initialized():
-            world_size = torch.distributed.get_world_size()
-            if world_size > 1:
-                object_list: EpochResultsType = [None] * world_size  # type: ignore
-                torch.distributed.all_gather_object(object_list, epoch_results)
-                epoch_results = list(chain(*object_list))  # type: ignore
-            return epoch_results
+        # if torch.distributed.is_initialized():
+        #     world_size = torch.distributed.get_world_size()
+        #     if world_size > 1:
+        #         object_list: EpochResultsType = [None] * world_size  # type: ignore
+        #         torch.distributed.all_gather_object(object_list, epoch_results)
+        #         epoch_results = list(chain(*object_list))  # type: ignore
+        #     return epoch_results
+        pass
