@@ -59,7 +59,7 @@ Container:
 	pl_progress_bar_refresh_rate            : None
 	pool_hidden_dim                         : 2048
 	pool_out_dim                            : 1
-	pool_type                               : TransformerPooling_NVIDIA
+	pool_type                               : TransformerPooling
 	precache_location                       : CacheLocation.NONE
 	primary_val_metric                      : accuracy
 	random_seed                             : 42
@@ -70,7 +70,7 @@ Container:
 	tile_size                               : 224
 	use_mixed_precision                     : False
 	weight_decay                            : 0.1
-	weights_url                             : 
+	weights_url                             :
 	num_nodes                               : 1
 	best_checkpoint_filename                : checkpoint_max_val_auroc
 	best_checkpoint_filename_with_suffix    : checkpoint_max_val_auroc.ckpt
