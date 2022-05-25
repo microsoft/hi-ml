@@ -67,6 +67,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
         class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
 
+    base_metrics_list: List[str]
     if num_classes > 1:
         base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC]
     else:
@@ -152,8 +153,7 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
 
 def render_metrics_table(report: HTMLReport, heading: str, level: int,
                          metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
-                         base_metrics_list: List[str],                                      # type: ignore
-                         metrics_prefix: str) -> None:
+                         base_metrics_list: List[str], metrics_prefix: str) -> None:
     """
     Function to render metrics table for HTML reports.
 
