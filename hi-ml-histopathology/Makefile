@@ -59,5 +59,17 @@ pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
-run_regression_test:
-	cd ../; python hi-ml/src/health_ml/runner.py --model=cpath.TilesPandaImageNetMIL --azureml --tag panda_transformer_newdataset --cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml/hi-ml-histopathology/environment.yml --is_finetune --regression_test_folder=hi-ml-histopathology/RegressionTestResults/HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0/OUTPUT --regression_test_csv_tolerance=0.05
+pandaimagenetmil_regression_test:
+	cd ../; python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL --cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml-histopathology/environment.yml --is_finetune --regression_test_folder=hi-ml-histopathology/RegressionTestResults/HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 --regression_test_csv_tolerance=0.5 --regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch'
+
+
+tcgacrcksslmil_regression_test:
+	cd ../; python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --azureml --cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --regression_test_folder=hi-ml-histopathology/RegressionTestResults/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 --regression_metrics=test/auroc,test/f1score,test/precision,test/recall
+
+
+crck_simclr_regression_test:
+	cd ../; python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR  --azureml --cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --regression_test_folder=hi-ml-histopathology/RegressionTestResults/CRCK_SimCLR_1647951559_d2a19df5 --regression_test_csv_tolerance=0.5 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05
+
+
+regression tests:
+	pandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test

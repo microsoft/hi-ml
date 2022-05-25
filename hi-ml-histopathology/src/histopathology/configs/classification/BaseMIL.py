@@ -185,7 +185,7 @@ class BaseMIL(LightningContainer):
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
-        checkpoint_path = get_best_checkpoint_path(Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"))
+        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
         if checkpoint_path.is_file():
             return checkpoint_path
 
