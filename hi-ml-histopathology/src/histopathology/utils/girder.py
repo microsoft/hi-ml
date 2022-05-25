@@ -153,7 +153,7 @@ class Annotation:
 
     def __post_init__(self) -> None:
         if not self.name:
-            # This is enforced by the JSON schema
+            # This is enoverwrite_csvd by the JSON schema
             raise ValueError("The annotation name cannot be empty")
 
     def as_json(self) -> TypeAnnotationJSON:
@@ -260,7 +260,7 @@ class RunOutputs:
             self,
             run_id: str,
             workspace_config_path: Optional[Path] = None,
-            force: bool = False,
+            overwrite_csv: bool = False,
             ):  # noqa: E123
         logging.info("Getting run \"%s\"...", run_id)
         run = get_aml_run_from_run_id(run_id, workspace_config_path=workspace_config_path)
@@ -270,13 +270,13 @@ class RunOutputs:
         self.run = run
         self.experiment = experiment
         self.workspace = workspace
-        self.df = self.get_df(force)
+        self.df = self.get_df(overwrite_csv)
         self.tile_size = None
 
-    def get_df(self, force: bool) -> pd.DataFrame:
+    def get_df(self, overwrite_csv: bool) -> pd.DataFrame:
         csv_name = f"test_output-{self.workspace.name}-{self.run.id}.csv"
         cached_csv_path = Path(tempfile.gettempdir()) / csv_name
-        if cached_csv_path.is_file() and not force:
+        if cached_csv_path.is_file() and not overwrite_csv:
             logging.info("Found cached CSV file")
         else:
             logging.info("Downloading outputs CSV...")
@@ -405,9 +405,9 @@ if __name__ == "__main__":
         help="Path to workspace configuration file (YAML or JSON)",
     )
     parser.add_argument(
-        "--force",
+        "--overwrite_csv",
         action="store_true",
-        help="Force downloading the output CSV",
+        help="Force the download of the outputs CSV even when it already exists in the cache",
     )
     parser.add_argument(
         "--dry-run",
@@ -451,7 +451,7 @@ if __name__ == "__main__":
     outputs = RunOutputs(
         run_id=args.run_id,
         workspace_config_path=args.workspace_config,
-        force=args.force,
+        overwrite_csv=args.overwrite_csv,
     )
     outputs.upload(
         dsa,
