@@ -126,9 +126,9 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILSlides:
             level=1,
-            max_bag_size=10,
-            max_bag_size_inf=0,
-            tile_size=16,
+            max_bag_size=56,
+            max_bag_size_inf=56,
+            tile_size=224,
             random_offset=True,
             background_val=255,
             # declared in DatasetParams:
@@ -136,8 +136,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             azure_datasets=["PANDA"],
             save_slide_thumbnails_and_heatmaps=False,
             # declared in OutputsHandler
-            k_slides=2,
-            k_tiles=1)
+            k_slides=3,
+            k_tiles=4)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
