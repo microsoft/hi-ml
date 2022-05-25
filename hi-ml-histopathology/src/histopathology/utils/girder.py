@@ -187,6 +187,7 @@ class DigitalSlideArchive:
         self.get = self._client.get
 
     def _get_client(self, api_url: str, api_key: Optional[str]) -> GirderClient:
+        logging.info("Logging into DSA API hosted at %s...", api_url)
         client = GirderClient(apiUrl=api_url)
         try:
             api_key = os.environ[self.API_KEY_ENV_NAME] if api_key is None else api_key
@@ -197,6 +198,7 @@ class DigitalSlideArchive:
             )
             raise RuntimeError(message) from e
         client.authenticate(apiKey=api_key)
+        logging.info("Authentication successful")
         return client
 
     @property
@@ -286,7 +288,7 @@ class RunOutputs:
                 self.run.download_file(AML_TEST_OUTPUTS_CSV, local_csv_path)
             except aml_exceptions as e:
                 raise FileNotFoundError("Error downloading outputs file from run") from e
-        logging.info("Reading CSV file: %s...", local_csv_path)
+        logging.info("Reading CSV file: %s ...", local_csv_path)
         return self._read_csv(local_csv_path)
 
     @property
@@ -366,9 +368,9 @@ class RunOutputs:
         for slide_id in progress:
             progress.set_description(slide_id)
             if id_filter not in slide_id:
-                tqdm.write(f"Skipping slide with ID {slide_id} ")
+                continue
             item = dsa.search_item(slide_id, search_mode=search_mode)
-            tqdm.write(f"Processing slide {slide_id}: {item.url}")
+            tqdm.write(f"Processing slide {slide_id} - {item.url}")
             annotation_name = self.run.id
             annotation = self.get_slide_annotation_from_df(
                 self.df,
@@ -445,9 +447,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging_to_stdout()
-    logging.info("Logging into DSA hosted at %s...", args.dsa_url)
     dsa = DigitalSlideArchive(args.dsa_url, args.dsa_key)
-    logging.info("Logging successful")
     if args.login_only:
         sys.exit(0)
     if args.run_id is None:
