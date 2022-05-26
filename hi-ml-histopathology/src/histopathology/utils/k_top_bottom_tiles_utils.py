@@ -230,7 +230,7 @@ class KTopBottomTilesHandler:
         return slides_heaps
 
     @staticmethod
-    def gather_dictionaries(world_size: int, dicts: Dict, return_list: bool = False) -> Union[List[Dict], Dict]:
+    def _gather_dictionaries(world_size: int, dicts: Dict, return_list: bool = False) -> Union[List[Dict], Dict]:
         """Gathers python dictionaries accross devices.
 
         :param world_size: The number of devices in the ddp context.
@@ -253,7 +253,7 @@ class KTopBottomTilesHandler:
         :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
         :return: A reduced shallow_slides_heaps conatining only the best shallo slide nodes across all devices.
         """
-        slides_heaps_list = self.gather_dictionaries(world_size, shallow_slides_heaps, return_list=True)
+        slides_heaps_list = self._gather_dictionaries(world_size, shallow_slides_heaps, return_list=True)
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
@@ -322,17 +322,18 @@ class KTopBottomTilesHandler:
         shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
         final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
         top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
-        final_top_tiles = self.gather_dictionaries(world_size, top_tiles)
-        final_bottom_tiles = self.gather_dictionaries(world_size, bottom_tiles)
+        final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
+        final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
         self.set_top_slides_heaps(final_top_slides_heaps)
+        logging.info("All good needs to update top and bottom tiles and we're done.")
         self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
         shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
         final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
-        final_top_tiles = self.gather_dictionaries(world_size, top_tiles)
-        final_bottom_tiles = self.gather_dictionaries(world_size, bottom_tiles)
+        final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
+        final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
         self.set_bottom_slides_heaps(final_bottom_slides_heaps)
         self._update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
