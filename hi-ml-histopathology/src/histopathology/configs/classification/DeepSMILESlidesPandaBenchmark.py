@@ -1,9 +1,6 @@
 """
 Configuration for PANDA experiments from Myronenko et al. 2021:
 (https://link.springer.com/chapter/10.1007/978-3-030-87237-3_32)
-Run the command below from cpath root repository (change model for different encoders)
-python cpath/runner.py --model=cpath.SlidesPandaImageNetMIL --tag "SlidesPandaImageNetMIL_attentionpooling"
---cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml/hi-ml-histopathology/environment.yml --is_finetune
 """
 from typing import Any, Dict, Callable, Union
 from torch import optim
