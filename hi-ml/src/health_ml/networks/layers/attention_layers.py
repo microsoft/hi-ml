@@ -233,7 +233,8 @@ class TransformerPoolingBenchmark(Module):
     """Create a Transformer encoder module consisting of multiple Transformer encoder layers.
     The pooling is inspired by the transformer pooling in `monai.networks.nets.milmodel`.
     The transformer pooling is used in the implementation of (Myronenko et al. 2021).
-    Example in https://github.com/Project-MONAI/tutorials/blob/master/pathology/multiple_instance_learning/panda_mil_train_evaluate_pytorch_gpu.py.
+    Example in https://github.com/Project-MONAI/tutorials/blob/master/pathology/multiple_instance_learning/
+    panda_mil_train_evaluate_pytorch_gpu.py.
     Args:
         num_layers: Number of Transformer encoder layers.
         num_heads: Number of attention heads per layer.
