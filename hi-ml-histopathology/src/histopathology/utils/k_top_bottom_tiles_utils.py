@@ -351,11 +351,15 @@ class KTopBottomTilesHandler:
 
     def gather_top_bottom_tiles_for_top_bottom_slides(self) -> None:
         """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
-            1- make a shallow copy of slides_heaps
-            2- gather best shallow slides across gpus
-            3- select top and bottom tiles available in each device
-            4- gather these tiles across devices
-            5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
+            if shallow_syn in enabled:
+                1- make a shallow copy of slides_heaps
+                2- gather best shallow slides across gpus
+                3- select top and bottom tiles available in each device
+                4- gather these tiles across devices
+                5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
+            Otherwise:
+                1- gather slides_heaps across gpus
+                2- update self.top and bottom slides heaps
         """
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
