@@ -60,14 +60,14 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Use same transforms as demonstrated in
         # https://github.com/Project-MONAI/tutorials/blob/master/pathology/multiple_instance_learning/panda_mil_train_evaluate_pytorch_gpu.py
         transform_train = Compose([
-                                    RandFlipd(keys=image_key, spatial_axis=0, prob=0.5),
-                                    RandFlipd(keys=image_key, spatial_axis=1, prob=0.5),
-                                    RandRotate90d(keys=image_key, prob=0.5),
-                                    ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
-                                  ])
+            RandFlipd(keys=image_key, spatial_axis=0, prob=0.5),
+            RandFlipd(keys=image_key, spatial_axis=1, prob=0.5),
+            RandRotate90d(keys=image_key, prob=0.5),
+            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
+        ])
         transform_inf = Compose([
-                                ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
-                                ])
+            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
+        ])
         # in case the transformations for training contain augmentations, val and test transform will be different
         return {ModelKey.TRAIN: transform_train, ModelKey.VAL: transform_inf, ModelKey.TEST: transform_inf}
 
@@ -99,20 +99,20 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
         # Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
         deepmil_module = PandaSlidesDeepMILModuleBenchmark(encoder=self.get_model_encoder(),
-                                                        label_column=SlideKey.LABEL,
-                                                        n_classes=self.data_module.train_dataset.N_CLASSES,
-                                                        pooling_layer=pooling_layer,
-                                                        num_features=num_features,
-                                                        dropout_rate=self.dropout_rate,
-                                                        class_weights=self.data_module.class_weights,
-                                                        l_rate=self.l_rate,
-                                                        weight_decay=self.weight_decay,
-                                                        adam_betas=self.adam_betas,
-                                                        is_finetune=self.is_finetune,
-                                                        class_names=self.class_names,
-                                                        outputs_handler=outputs_handler,
-                                                        chunk_size=self.encoding_chunk_size,
-                                                        n_epochs=self.max_epochs)
+                                                           label_column=SlideKey.LABEL,
+                                                           n_classes=self.data_module.train_dataset.N_CLASSES,
+                                                           pooling_layer=pooling_layer,
+                                                           num_features=num_features,
+                                                           dropout_rate=self.dropout_rate,
+                                                           class_weights=self.data_module.class_weights,
+                                                           l_rate=self.l_rate,
+                                                           weight_decay=self.weight_decay,
+                                                           adam_betas=self.adam_betas,
+                                                           is_finetune=self.is_finetune,
+                                                           class_names=self.class_names,
+                                                           outputs_handler=outputs_handler,
+                                                           chunk_size=self.encoding_chunk_size,
+                                                           n_epochs=self.max_epochs)
         outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module
 

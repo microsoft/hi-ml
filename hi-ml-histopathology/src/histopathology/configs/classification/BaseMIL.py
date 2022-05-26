@@ -28,8 +28,9 @@ from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_D
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
-from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
-                                            SSLEncoder, TileEncoder)
+from histopathology.models.encoders import (
+    HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
+    SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
@@ -125,7 +126,7 @@ class BaseMIL(LightningContainer):
         if self.encoder_type == ImageNetEncoder.__name__:
             return ImageNetEncoder(feature_extraction_model=resnet18,
                                    tile_size=self.tile_size, n_channels=self.n_channels)
-                # Myronenko et al. 2021 uses Resnet50 CNN encoder
+        # Myronenko et al. 2021 uses Resnet50 CNN encoder
         if self.encoder_type == ImageNetEncoder_Resnet50.__name__:
             return ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
                                             tile_size=self.tile_size, n_channels=self.n_channels)
@@ -166,9 +167,9 @@ class BaseMIL(LightningContainer):
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         elif self.pool_type == TransformerPoolingBenchmark.__name__:
             pooling_layer = TransformerPoolingBenchmark(self.num_transformer_pool_layers,
-                                                      self.num_transformer_pool_heads,
-                                                      num_encoding,
-                                                      self.pool_hidden_dim)
+                                                        self.num_transformer_pool_heads,
+                                                        num_encoding,
+                                                        self.pool_hidden_dim)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")

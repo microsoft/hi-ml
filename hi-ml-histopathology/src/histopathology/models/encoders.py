@@ -135,6 +135,7 @@ class HistoSSLEncoder(TileEncoder):
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
         return setup_feature_extractor(histossl_encoder, self.input_dim)
 
+
 class ImageNetEncoder_Resnet50(TileEncoder):
     # Myronenko et al. 2021 uses intensity scaling (0-255)-->(0-1), and no ImageNet preprocessing is used.
     # ResNet50 CNN encoder without ImageNet preprocessing is defined below.
