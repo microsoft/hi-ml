@@ -91,21 +91,17 @@ class SlideNode:
 class KTopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
 
-    def __init__(
-        self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4, shallow_sync: bool = True
-    ) -> None:
+    def __init__(self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
         :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
         :param ncols: Number of columns to use to plot top and bottom tiles.
-        :param shallow_syn: Flag to apply ddp synchronization with shallow copies of the slide Nodes.
         """
         self.n_classes = n_classes
         self.k_slides = k_slides
         self.k_tiles = k_tiles
         self.ncols = ncols
-        self.shallow_sync = shallow_sync
         self.n_classes_to_select = n_classes if n_classes > 1 else 2
         self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
@@ -342,15 +338,11 @@ class KTopBottomTilesHandler:
 
     def gather_top_bottom_tiles_for_top_bottom_slides(self) -> None:
         """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
-            if shallow_syn in enabled:
-                1- make a shallow copy of slides_heaps
-                2- gather best shallow slides across gpus
-                3- select top and bottom tiles available in each device
-                4- gather these tiles across devices
-                5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
-            Otherwise:
-                1- gather slides_heaps across gpus
-                2- update self top and bottom slides heaps
+            1- make a shallow copy of slides_heaps
+            2- gather best shallow slides across gpus
+            3- select top and bottom tiles available in each device
+            4- gather these tiles across devices
+            5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
         """
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
