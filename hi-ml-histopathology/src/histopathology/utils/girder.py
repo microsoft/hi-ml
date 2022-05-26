@@ -167,10 +167,10 @@ class DigitalSlideArchive:
     API_KEY_ENV_NAME = "DSA_API_KEY"
 
     def __init__(
-            self,
-            url: Optional[str] = None,
-            api_key: Optional[str] = None,
-            ):  # noqa: E123
+        self,
+        url: Optional[str] = None,
+        api_key: Optional[str] = None,
+    ):
         try:
             url = os.environ[self.URL_ENV_NAME] if url is None else url
         except KeyError as e:
@@ -255,11 +255,11 @@ class Item:
 
 class RunOutputs:
     def __init__(
-            self,
-            run_id: str,
-            workspace_config_path: Optional[Path] = None,
-            overwrite_csv: bool = False,
-            ):  # noqa: E123
+        self,
+        run_id: str,
+        workspace_config_path: Optional[Path] = None,
+        overwrite_csv: bool = False,
+    ):
         logging.info("Getting run \"%s\"...", run_id)
         run = get_aml_run_from_run_id(run_id, workspace_config_path=workspace_config_path)
         experiment = run.experiment
@@ -290,13 +290,13 @@ class RunOutputs:
         return self._read_csv(cached_csv_path)
 
     def get_annotation_from_slide_data_frame(
-            self,
-            df: pd.DataFrame,
-            name: str,
-            rescale: bool = False,
-            colormap_name: str = "Greens",
-            description: str = "",
-            ) -> Annotation:  # noqa: E123
+        self,
+        df: pd.DataFrame,
+        name: str,
+        rescale: bool = False,
+        colormap_name: str = "Greens",
+        description: str = "",
+    ) -> Annotation:
         original_attentions = df.bag_attn.values
         if rescale:
             df = df.copy()
@@ -325,26 +325,26 @@ class RunOutputs:
         return pd.read_csv(csv_path, index_col=0)
 
     def get_slide_annotation_from_df(
-            self,
-            df_or_path: Union[pd.DataFrame, Path],
-            slide_id: str,
-            annotation_name: str,
-            **annotation_kwargs: Any,
-            ) -> Annotation:  # noqa: E123
+        self,
+        df_or_path: Union[pd.DataFrame, Path],
+        slide_id: str,
+        annotation_name: str,
+        **annotation_kwargs: Any,
+    ) -> Annotation:
         df = df_or_path if isinstance(df_or_path, pd.DataFrame) else self._read_csv(df_or_path)
         slide_mask = df[ResultsKey.SLIDE_ID] == slide_id
         df_slide = df[slide_mask]
         return self.get_annotation_from_slide_data_frame(df_slide, annotation_name, **annotation_kwargs)
 
     def upload(
-            self,
-            dsa: DigitalSlideArchive,
-            dry_run: bool = False,
-            max_slides: Optional[int] = None,
-            id_filter: Optional[str] = "",
-            search_mode: str = "full",
-            **annotation_kwargs: Any,
-            ) -> List[Dict]:  # noqa: E123
+        self,
+        dsa: DigitalSlideArchive,
+        dry_run: bool = False,
+        max_slides: Optional[int] = None,
+        id_filter: Optional[str] = "",
+        search_mode: str = "full",
+        **annotation_kwargs: Any,
+    ) -> List[Dict]:
         unique_slide_ids = sorted(self.df[ResultsKey.SLIDE_ID].unique())
 
         num_slides = len(unique_slide_ids)
