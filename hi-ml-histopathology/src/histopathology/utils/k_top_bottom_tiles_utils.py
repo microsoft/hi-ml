@@ -141,7 +141,7 @@ class KTopBottomTilesHandler:
 
     def _shallow_copy_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
         shallow_slides_heaps_copy: Dict[int, List[SlideNode]] = {}
-        for class_id, slide_nodes in slides_heaps:
+        for class_id, slide_nodes in slides_heaps.items():
             shallow_slides_heaps_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
         return shallow_slides_heaps_copy
 
@@ -242,8 +242,8 @@ class KTopBottomTilesHandler:
         self._update_top_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
-        bottom_shallow_slides_heaps = self._shallow_copy_bottom_slides_heaps()
-        final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, bottom_shallow_slides_heaps)
+        shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
+        final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
         final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(top_tiles, bottom_tiles)
         self.set_bottom_slides_heaps(final_bottom_slides_heaps)
@@ -261,19 +261,19 @@ class KTopBottomTilesHandler:
         key_dir.mkdir(parents=True, exist_ok=True)
         return key_dir
 
+    def plot_slide_node_attention_tiles(self, case: str, figures_dir: Path, slide_node: SlideNode) -> None:
+        key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
+        slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
+        slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
+        self.report_cases_slide_ids[case].append(slide_node.slide_id)
+
     def save_top_and_bottom_tiles(self, figures_dir: Path) -> None:
         logging.info(f"Plotting {self.k_tiles} top and bottom tiles...")
         for class_id in range(self.n_classes_to_select):
             for slide_node in self.top_slides_heaps[class_id]:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
-                key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
-                slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
-                slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
-                self.report_cases_slide_ids[case].append(slide_node.slide_id)
+                self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
 
             for slide_node in self.bottom_slides_heaps[class_id]:
                 case = "FP" if class_id == 0 else f"FN_{class_id}"
-                key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
-                slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
-                slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
-                self.report_cases_slide_ids[case].append(slide_node.slide_id)
+                self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
