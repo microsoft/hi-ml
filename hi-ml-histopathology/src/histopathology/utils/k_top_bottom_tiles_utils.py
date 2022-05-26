@@ -327,29 +327,9 @@ class KTopBottomTilesHandler:
     ) -> None:
         self._update_shallow_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
-    def gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
-        """Gathers top tiles across devices in ddp context"""
-        shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
-        final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
-        top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
-        self.set_top_slides_heaps(final_top_slides_heaps)
-        final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
-        final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
-        self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
-
-    def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
-        """Gathers bottom tiles across devices in ddp context"""
-        shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
-        final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
-        top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
-        self.set_bottom_slides_heaps(final_bottom_slides_heaps)
-        final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
-        final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
-        self._update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
-
     def gather_top_bottom_tiles_for_top_bottom_slides(self) -> None:
         """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
-            1- make a shallow copy of slides_heaps
+            1- make a shallow copy of top and bottom slides_heaps
             2- gather best shallow slides across gpus
             3- select top and bottom tiles available in each device
             4- gather these tiles across devices
@@ -358,8 +338,30 @@ class KTopBottomTilesHandler:
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
-                self.gather_top_bottom_tiles_for_top_slides(world_size)
-                self.gather_top_bottom_tiles_for_bottom_slides(world_size)
+
+                shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
+                shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
+
+                final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
+                final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
+
+                top_slides_top_tiles, top_slides_bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(
+                    final_top_slides_heaps
+                )
+                bot_slides_top_tiles, bot_slides_bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(
+                    final_bottom_slides_heaps
+                )
+
+                self.set_bottom_slides_heaps(final_bottom_slides_heaps)
+                self.set_top_slides_heaps(final_top_slides_heaps)
+
+                final_top_tiles = self._gather_dictionaries(world_size, top_slides_top_tiles)
+                final_bottom_tiles = self._gather_dictionaries(world_size, top_slides_bottom_tiles)
+                self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
+
+                final_top_tiles = self._gather_dictionaries(world_size, bot_slides_top_tiles)
+                final_bottom_tiles = self._gather_dictionaries(world_size, bot_slides_bottom_tiles)
+                self._update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
         """Create the figure directory"""
