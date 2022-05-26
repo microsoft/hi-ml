@@ -2,12 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
+import json
 import logging
 import os
 from pathlib import Path
 import shutil
 import tempfile
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from azureml.core import Run
 import pandas as pd
@@ -23,6 +24,46 @@ FILE_FORMAT_ERROR = "File format error"
 MISSING_FILE = "Missing"
 CSV_SUFFIX = ".csv"
 TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
+
+
+def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], tolerance: Optional[float] = 1e-5) -> None:
+    """
+    Function to give more clarity on the difference between two dictionaries.
+
+    :param expected: The first dictionary to compare
+    :param actual: The second dictionary to compare
+    :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5
+    """
+    def _check_values_match(expected_value: Any, actual_value: Any, tolerance: Optional[float] = 1e-5) -> None:
+        if type(actual_value) in [float, int] and type(expected_value) in [float, int]:
+            if abs(actual_value - expected_value) > tolerance:
+                raise ValueError(f"Expected: {expected_value} does not match actual {actual_value}")
+            else:
+                return
+        else:
+            if expected_value != actual_value:
+                raise ValueError(f"Expected: {expected_value} does not match actual {actual_value}")
+        return
+
+    for expected_key, expected_val in expected.items():
+        print('actual', actual)
+        if expected_key not in actual:
+            logging.warning(f"Key {expected_key} is expected but not found in actual")
+        else:
+            actual_val = actual[expected_key]
+            expected_type = type(expected_val)
+            actual_type = type(actual_val)
+            if expected_type is not actual_type:
+                logging.warning(f"Actual value has type {actual_type} but we expected {expected_type}")
+            if actual_type in [float, int]:
+                _check_values_match(expected_val, actual_val, tolerance=tolerance)
+            elif actual_type in [dict, list, set, str]:
+                expected_len = len(expected_val)
+                actual_len = len(actual_val)
+                if expected_len != actual_len:
+                    logging.warning(f"Expected value to have length {expected_len} but found {actual_len}")
+                for expected_value, actual_value in zip(expected_val, actual_val):
+                    _check_values_match(expected_value, actual_value, tolerance=tolerance)
 
 
 def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
@@ -71,6 +112,12 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         if expected_lines != actual_lines:
             print_lines("Expected", expected_lines)
             print_lines("Actual", actual_lines)
+            # Add additional context for json file mismatches
+            if expected.suffix == ".json":
+                compare_dictionaries(
+                json.loads('\n'.join(expected_lines)),
+                json.loads('\n'.join(actual_lines)),
+                tolerance=csv_relative_tolerance)
             return CONTENTS_MISMATCH
     else:
         expected_binary = expected.read_bytes()

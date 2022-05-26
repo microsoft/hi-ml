@@ -2,11 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import json
+import logging
 import uuid
 from pathlib import Path
+from typing import Any, Dict, List
 from unittest import mock
 
 import pytest
+from torch import lerp
 from health_azure.utils import create_aml_run_object
 from health_ml.experiment_config import ExperimentConfig
 
@@ -20,6 +24,7 @@ from health_ml.utils.regression_test_utils import (
     REGRESSION_TEST_AZUREML_FOLDER,
     REGRESSION_TEST_AZUREML_PARENT_FOLDER,
     TEXT_FILE_SUFFIXES,
+    compare_dictionaries,
     compare_files,
     compare_folder_contents,
     compare_folders_and_run_outputs,
@@ -65,6 +70,28 @@ def test_compare_files_text(tmp_path: Path, file_extension: str) -> None:
     assert compare_files(expected=expected, actual=actual) == ""
     actual.write_text("does_not_match")
     assert compare_files(expected=expected, actual=actual) == CONTENTS_MISMATCH
+
+
+def test_compare_files_json(tmp_path: Path) -> None:
+    tmp_json_dir = tmp_path / "json_files"
+    tmp_json_dir.mkdir()
+    dict1 = {"a": [1.0, 2.0, 3.0], "b": 4}
+    dict2 = {"a": [1.0, 2.0, 3.0], "b": 4}
+    tmp_json_path1 = tmp_json_dir / "tmp_json1.json"
+    with open(tmp_json_path1, "w+") as f_path:
+        json.dump(dict1, f_path)
+    tmp_json_path2 = tmp_json_dir / "tmp_json2.json"
+    with open(tmp_json_path2, "w+") as f_path:
+        json.dump(dict2, f_path)
+    assert compare_files(expected=tmp_json_path1, actual=tmp_json_path2) == ""
+
+    # now test the case where the dictionaries are different
+    dict3 = {"c": [5.0, 6.0]}
+    tmp_json_path3 = tmp_json_dir / "tmp_json2.json"
+    with open(tmp_json_path3, "w+") as f_path:
+        json.dump(dict3, f_path)
+    err = compare_files(expected=tmp_json_path1, actual=tmp_json_path3)
+    assert err == CONTENTS_MISMATCH
 
 
 def test_compare_files_csv(tmp_path: Path) -> None:
@@ -239,3 +266,21 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     # Now run the same comparison that failed previously, without mocking. This should now
     # realize that the present run is an offline run, and skip the comparison
     compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())
+
+
+@pytest.mark.parametrize("dict1, dict2, should_pass, expected_warnings", [
+    ({"a": [1.0, 2.0, 3.0], "b": 4}, {"a": [1.0, 2.0, 3.0], "b": 4}, True, ""),
+    ({"a": [1.0, 2.0, 3.0], "b": 4}, {"c": [1.0, 2.0, 3.0]}, False, ["Key a is expected but not found in actual", "Key b is expected but not found in actual"]),
+    ({"c": "hello"}, {"c": "hello"}, True, ""),
+    ({"d": {"a": [1, 2, 3]}}, {"d": {"a": [1, 2, 3]}}, True, "")
+
+])
+def test_compare_dictionaries(dict1: Dict[str, Any], dict2: Dict[str, Any], should_pass: bool, expected_warnings: List[str], caplog: pytest.LogCaptureFixture):
+    with caplog.at_level(logging.WARNING):
+        compare_dictionaries(dict1, dict2)
+        if should_pass:
+            assert len(caplog.text) == 0
+        else:
+            for expected_warning in expected_warnings:
+                assert expected_warning in caplog.text
+    caplog.clear()

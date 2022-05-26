@@ -172,9 +172,10 @@ class MLRunner:
                         df = get_metrics_for_childless_run(
                             run=RUN_CONTEXT,
                             keep_metrics=regression_metrics)
-                metrics_filename = str(self.container.outputs_folder / "metrics.csv")
+
+                metrics_filename = str(self.container.outputs_folder / "regression_metrics.json")
                 logging.info(f"Saving metrics to {metrics_filename}")
-                df.to_csv(metrics_filename)
+                df.to_json(metrics_filename)
 
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                 actual=self.container.outputs_folder,

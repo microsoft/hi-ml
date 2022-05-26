@@ -1822,12 +1822,13 @@ def aggregate_hyperdrive_metrics(
 
     assert isinstance(run, HyperDriveRun)
     metrics: DefaultDict = defaultdict()
-    filter_metrics = len(keep_metrics) > 0
     for child_run in run.get_children():
         child_run_metrics = child_run.get_metrics()
+        keep_metrics = keep_metrics or child_run_metrics.keys()
+
         child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
         for metric_name, metric_val in child_run_metrics.items():
-            if filter_metrics and (metric_name in keep_metrics):
+            if metric_name in keep_metrics:
                 if metric_name not in metrics:
                     metrics[metric_name] = {}
                 metrics[metric_name][child_run_tag] = metric_val
@@ -1861,6 +1862,7 @@ def get_metrics_for_childless_run(
         run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     metrics = {}
     run_metrics = run.get_metrics()
+    keep_metrics = keep_metrics or run_metrics.keys()
     for metric_name, metric_val in run_metrics.items():
         if metric_name in keep_metrics:
             metrics[metric_name] = metric_val

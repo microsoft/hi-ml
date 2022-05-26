@@ -53,7 +53,7 @@ def get_metrics_from_run(run: Run, metrics_list: List[str]) -> pd.DataFrame:
     :param metrics_list: A list of metrics names to include.
     :return: A Pandas DataFrame containing metric names and corresponding values.
     """
-    print(f"Getting metrics for run {run.name}")
+    print(f"Getting metrics for run {run.id}")
     if isinstance(run, _OfflineRun):
         raise ValueError("Can't get metrics for an OfflineRun")
     if len(list(run.get_children())) > 0:
@@ -77,14 +77,14 @@ def upload_regression_metrics_file_to_run(metrics_df: pd.DataFrame, run: Run) ->
     :param metrics_df: the DataFrame of metrics that should be stored in a csv file and uploaded to the run.
     :param run: The AML Run to upload the metrics file to.
     """
-    regression_results_dir = Path('/tmp') / run.name
+    regression_results_dir = Path('/tmp') / run.id
     regression_results_dir.mkdir(exist_ok=True)
-    metrics_csv_output = regression_results_dir / "metrics.csv"
+    metrics_json_output = regression_results_dir / "metrics.json"
 
-    print(f"Saving downloaded metrics to {metrics_csv_output}")
-    metrics_df.to_csv(metrics_csv_output, header=None, na_rep=np.NaN)
-    # run.upload_file("metrics.csv", str(metrics_csv_output))
-    metrics_csv_output.unlink()
+    print(f"Saving downloaded metrics to {metrics_json_output}")
+    metrics_df.to_json(metrics_json_output)
+    run.upload_file("regression_metrics.json", str(metrics_json_output))
+    metrics_json_output.unlink()
 
 
 if __name__ == "__main__":
@@ -92,13 +92,14 @@ if __name__ == "__main__":
     parser.add_argument("--run", type=str, default='', help="The run id to retrieve metrics from")
     parser.add_argument("--metrics_list", type=str,
                         help="A comma-separated list of metrics names to retrieve from the AML Run")
-    parser.add_argument("--upload_metrics_csv", type=bool, default=True,
-                        help="If True, saves a csv file of the metrics dataframe and uploads this to the AML Run")
+    parser.add_argument("--upload_metrics_file", type=bool, default=True,
+                        help="If True, saves a json file of the metrics dataframe and uploads this to the AML Run")
     args = parser.parse_args(sys.argv[1:])
     run_id = args.run
     metrics_list = args.metrics_list.split(",")
 
     run = get_aml_run_from_run_id(run_id)
+    print(f"Run: {run}. Run id: {run.id}")
     metrics_df = get_metrics_from_run(run, metrics_list)
-    if args.upload_metrics_csv:
+    if args.upload_metrics_file:
         upload_regression_metrics_file_to_run(metrics_df, run)
