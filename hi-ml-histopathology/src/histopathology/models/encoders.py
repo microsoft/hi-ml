@@ -134,3 +134,22 @@ class HistoSSLEncoder(TileEncoder):
         resnet18_model = resnet18(pretrained=False)
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
         return setup_feature_extractor(histossl_encoder, self.input_dim)
+
+class ImageNetEncoder_Resnet50(TileEncoder):
+    # Myronenko et al. 2021 uses intensity scaling (0-255)-->(0-1), and no ImageNet preprocessing is used.
+    # ResNet50 CNN encoder without ImageNet preprocessing is defined below.
+
+    def __init__(self, feature_extraction_model: Callable[..., nn.Module],
+                 tile_size: int, n_channels: int = 3) -> None:
+        """
+        :param feature_extraction_model: A function accepting a `pretrained` keyword argument that
+        returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
+        :param tile_size: Tile width/height, in pixels.
+        :param n_channels: Number of channels in the tile (default=3).
+        """
+        self.create_feature_extractor_fn = feature_extraction_model
+        super().__init__(tile_size=tile_size, n_channels=n_channels)
+
+    def _get_encoder(self) -> Tuple[nn.Module, int]:
+        pretrained_model = self.create_feature_extractor_fn(pretrained=True)
+        return setup_feature_extractor(pretrained_model, self.input_dim)
