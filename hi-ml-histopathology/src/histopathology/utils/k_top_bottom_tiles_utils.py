@@ -69,7 +69,17 @@ class SlideNode:
         """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
         return SlideNode(self.prob_score, self.slide_id)
 
-    def plot_attention_tiles(self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple = (10, 10)) -> None:
+    def plot_attention_tiles(
+        self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple[int, int] = (10, 10)
+    ) -> None:
+        """Plot and dave top or bottom tiles figures with their attention scores.
+
+        :param top: A boolean flag to pick top or bottom tiles.
+        :param case: The report case (e.g., TP, FN, ...)
+        :param key_dir: The path to the directory where to save the attention tiles figure.
+        :param ncols: Number of columns to create the subfigures grid, defaults to 5
+        :param size: The figure size , defaults to (10, 10)
+        """
         tiles = self.top_tiles if top else self.bottom_tiles
         suffix = "top" if top else "bottom"
         nrows = int(ceil(len(tiles) / ncols))
@@ -85,7 +95,6 @@ class SlideNode:
             axs.ravel()[i].set_axis_off()
 
         save_figure(fig=fig, figpath=key_dir / f"{self.slide_id}_{suffix}.png")
-        return fig
 
 
 class KTopBottomTilesHandler:
@@ -319,6 +328,7 @@ class KTopBottomTilesHandler:
         self._update_shallow_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
     def gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
+        """Gathers top tiles across devices in ddp context"""
         shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
         final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
         top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
@@ -328,6 +338,7 @@ class KTopBottomTilesHandler:
         self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
+        """Gathers bottom tiles across devices in ddp context"""
         shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
         final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
@@ -351,17 +362,28 @@ class KTopBottomTilesHandler:
                 self.gather_top_bottom_tiles_for_bottom_slides(world_size)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
+        """Create the figure directory"""
         key_dir = figures_dir / case
         key_dir.mkdir(parents=True, exist_ok=True)
         return key_dir
 
     def plot_slide_node_attention_tiles(self, case: str, figures_dir: Path, slide_node: SlideNode) -> None:
+        """Plots the top and bottom attention tiles of a given slide_node
+
+        :param case: The report case (e.g., TP, FN, ...)
+        :param figures_dir: The path to the directory where to save the attention tiles figure.
+        :param slide_node: the slide_node for which we plot top and bottom tiles.
+        """
         key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
         slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
         slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
         self.report_cases_slide_ids[case].append(slide_node.slide_id)
 
     def save_top_and_bottom_tiles(self, figures_dir: Path) -> None:
+        """Save top and bottom tiles figures.
+
+        :param figures_dir: The path to the directory where to save the attention tiles figure.
+        """
         for class_id in range(self.n_classes_to_select):
             for slide_node in self.top_slides_heaps[class_id]:
                 logging.info(f"Plotting {self.k_tiles} top and bottom tiles of {self.k_slides} top and slides...")
