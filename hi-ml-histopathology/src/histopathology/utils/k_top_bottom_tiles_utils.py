@@ -78,7 +78,7 @@ class SlideNode:
         fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
         for i, tile_node in enumerate(tiles):
-            axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+            axs.ravel()[i].imshow(tile_node.data.cpu().numpy(), clim=(0, 255), cmap="gray")
             axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
 
         for i in range(len(axs.ravel())):
@@ -92,7 +92,7 @@ class KTopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
 
     def __init__(
-        self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4, shallow_syn: bool = True
+        self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4, shallow_sync: bool = True
     ) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -105,7 +105,7 @@ class KTopBottomTilesHandler:
         self.k_slides = k_slides
         self.k_tiles = k_tiles
         self.ncols = ncols
-        self.shallow_syn = shallow_syn
+        self.shallow_sync = shallow_sync
         self.n_classes_to_select = n_classes if n_classes > 1 else 2
         self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
@@ -364,7 +364,7 @@ class KTopBottomTilesHandler:
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
-                if self.shallow_syn:
+                if self.shallow_sync:
                     self.shallow_gather_top_bottom_tiles_for_top_slides(world_size)
                     self.shallow_gather_top_bottom_tiles_for_bottom_slides(world_size)
                 else:
