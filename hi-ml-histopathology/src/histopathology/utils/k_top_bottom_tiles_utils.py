@@ -70,8 +70,6 @@ class SlideNode:
         return SlideNode(self.prob_score, self.slide_id)
 
     def plot_attention_tiles(self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple = (10, 10)) -> None:
-        logging.info(f"LEN TOP TILES {len(self.top_tiles)}")
-        logging.info(f"LEN BOTTOM TILES {len(self.bottom_tiles)}")
         tiles = self.top_tiles if top else self.bottom_tiles
         suffix = "top" if top else "bottom"
         nrows = int(ceil(len(tiles) / ncols))
