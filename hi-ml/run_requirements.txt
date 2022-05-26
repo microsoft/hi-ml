@@ -7,5 +7,5 @@ pandas>=1.3.4
 protobuf<=3.20.1
 pytorch-lightning==1.5.5
 rpdb>=0.1.6
-torchvision>=0.11.1
-torch>=1.10.0
+torchvision>=0.10.0
+torch>=1.9.0
