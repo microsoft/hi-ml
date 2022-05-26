@@ -154,7 +154,7 @@ class Annotation:
 
     def __post_init__(self) -> None:
         if not self.name:
-            # This is enoverwrite_csvd by the JSON schema
+            # This is enforced by the JSON schema
             raise ValueError("The annotation name cannot be empty")
 
     def as_json(self) -> TypeAnnotationJSON:
