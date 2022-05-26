@@ -359,7 +359,7 @@ class KTopBottomTilesHandler:
                 5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
             Otherwise:
                 1- gather slides_heaps across gpus
-                2- update self.top and bottom slides heaps
+                2- update self top and bottom slides heaps
         """
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
