@@ -78,7 +78,7 @@ class SlideNode:
         fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
         for i, tile_node in enumerate(tiles):
-            axs.ravel()[i].imshow(tile_node.data.cpu().numpy(), clim=(0, 255), cmap="gray")
+            axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
             axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
 
         for i in range(len(axs.ravel())):
