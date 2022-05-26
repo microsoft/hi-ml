@@ -15,7 +15,7 @@ from histopathology.utils.viz_utils import save_figure
 
 
 class TileNode:
-    """Data structure class for tile nodes used by `SlideNode`."""
+    """Data structure class for tile nodes used by `SlideNode` to store top and bottom tiles."""
 
     def __init__(
         self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
@@ -78,7 +78,7 @@ class SlideNode:
         fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
         for i, tile_node in enumerate(tiles):
-            axs.ravel()[i].imshow(tile_node.data.numpy(), clim=(0, 255), cmap="gray")
+            axs.ravel()[i].imshow(tile_node.data.cpu().numpy(), clim=(0, 255), cmap="gray")
             axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
 
         for i in range(len(axs.ravel())):
