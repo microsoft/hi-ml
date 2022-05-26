@@ -70,6 +70,8 @@ class SlideNode:
         return SlideNode(self.prob_score, self.slide_id)
 
     def plot_attention_tiles(self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple = (10, 10)) -> None:
+        logging.info("LEN TOP TILES", len(self.top_tiles))
+        logging.info("LEN BOTTOM TILES", len(self.bottom_tiles))
         tiles = self.top_tiles if top else self.bottom_tiles
         suffix = "top" if top else "bottom"
         nrows = int(ceil(len(tiles) / ncols))
@@ -78,8 +80,8 @@ class SlideNode:
         fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
         for i, tile_node in enumerate(tiles):
-            axs.ravel()[i].imshow(tile_node.data.cpu().item(), clim=(0, 255), cmap="gray")
-            axs.ravel()[i].set_title("%.6f" % tile_node.attn.cpu().item())
+            axs.ravel()[i].imshow(tile_node.data.numpy(), clim=(0, 255), cmap="gray")
+            axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
 
         for i in range(len(axs.ravel())):
             axs.ravel()[i].set_axis_off()
@@ -91,17 +93,21 @@ class SlideNode:
 class KTopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
 
-    def __init__(self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4) -> None:
+    def __init__(
+        self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4, shallow_syn: bool = True
+    ) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
         :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
-        :param ncols: Number of columnds to use to plot top and bottom tiles.
+        :param ncols: Number of columns to use to plot top and bottom tiles.
+        :param shallow_syn: Flag to apply ddp synchronization with shallow copies of the slide Nodes.
         """
         self.n_classes = n_classes
         self.k_slides = k_slides
         self.k_tiles = k_tiles
         self.ncols = ncols
+        self.shallow_syn = shallow_syn
         self.n_classes_to_select = n_classes if n_classes > 1 else 2
         self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
@@ -244,16 +250,16 @@ class KTopBottomTilesHandler:
             return dicts_list
         return dict(ChainMap(*dicts_list))
 
-    def _gather_shallow_slides_heaps(
-        self, world_size: int, shallow_slides_heaps: Dict[int, List[SlideNode]]
+    def _gather_slides_heaps(
+        self, world_size: int, slides_heaps: Dict[int, List[SlideNode]]
     ) -> Dict[int, List[SlideNode]]:
         """Gathers shallow slides heaps across devices.
 
         :param world_size: The number of devices in the ddp context.
-        :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
-        :return: A reduced shallow_slides_heaps conatining only the best shallo slide nodes across all devices.
+        :param slides_heaps: Reference to shallow slides heaps to be gathered across devices.
+        :return: A reduced slides_heaps conatining only the best slide nodes across all devices.
         """
-        slides_heaps_list = self._gather_dictionaries(world_size, shallow_slides_heaps, return_list=True)
+        slides_heaps_list = self._gather_dictionaries(world_size, slides_heaps, return_list=True)
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
@@ -318,9 +324,9 @@ class KTopBottomTilesHandler:
     ) -> None:
         self._update_shallow_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
-    def gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
+    def shallow_gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
         shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
-        final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
+        final_top_slides_heaps = self._gather_slides_heaps(world_size, shallow_top_slides_heaps)
         top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
         final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
         final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
@@ -328,14 +334,22 @@ class KTopBottomTilesHandler:
         logging.info("All good needs to update top and bottom tiles and we're done.")
         self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
-    def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
+    def shallow_gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
         shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
-        final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
+        final_bottom_slides_heaps = self._gather_slides_heaps(world_size, shallow_bottom_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
         final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
         final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
         self.set_bottom_slides_heaps(final_bottom_slides_heaps)
         self._update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
+
+    def gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
+        final_top_slides_heaps = self._gather_slides_heaps(world_size, self.top_slides_heaps)
+        self.set_top_slides_heaps(final_top_slides_heaps)
+
+    def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int) -> None:
+        final_bottom_slides_heaps = self._gather_slides_heaps(world_size, self.bottom_slides_heaps)
+        self.set_top_slides_heaps(final_bottom_slides_heaps)
 
     def gather_top_bottom_tiles_for_top_bottom_slides(self) -> None:
         """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
@@ -348,8 +362,12 @@ class KTopBottomTilesHandler:
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
-                self.gather_top_bottom_tiles_for_top_slides(world_size)
-                self.gather_top_bottom_tiles_for_bottom_slides(world_size)
+                if self.shallow_syn:
+                    self.shallow_gather_top_bottom_tiles_for_top_slides(world_size)
+                    self.shallow_gather_top_bottom_tiles_for_bottom_slides(world_size)
+                else:
+                    self.gather_top_bottom_tiles_for_top_slides(world_size)
+                    self.gather_top_bottom_tiles_for_bottom_slides(world_size)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
         key_dir = figures_dir / case
