@@ -139,17 +139,17 @@ class KTopBottomTilesHandler:
                     slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
                 )
 
-    def _copy_shallow_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
+    def _shallow_copy_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
         shallow_slides_heaps_copy: Dict[int, List[SlideNode]] = {}
         for class_id, slide_nodes in slides_heaps:
             shallow_slides_heaps_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
         return shallow_slides_heaps_copy
 
-    def _copy_shallow_top_slides_heaps(self) -> Dict[int, List[SlideNode]]:
-        return self._copy_shallow_slides_heaps(self.top_slides_heaps)
+    def _shallow_copy_top_slides_heaps(self) -> Dict[int, List[SlideNode]]:
+        return self._shallow_copy_slides_heaps(self.top_slides_heaps)
 
-    def _copy_shallow_bottom_slides_heaps(self) -> Dict[int, List[SlideNode]]:
-        return self._copy_shallow_slides_heaps(self.bottom_slides_heaps)
+    def _shallow_copy_bottom_slides_heaps(self) -> Dict[int, List[SlideNode]]:
+        return self._shallow_copy_slides_heaps(self.bottom_slides_heaps)
 
     def _reduce_slides_heaps_list(
         self, world_size: int, slides_heaps_list: List[Dict[int, List[SlideNode]]]
@@ -234,7 +234,7 @@ class KTopBottomTilesHandler:
         self._update_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
     def gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
-        shallow_top_slides_heaps = self._copy_shallow_top_slides_heaps()
+        shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
         final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
         top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
         final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(top_tiles, bottom_tiles)
@@ -242,7 +242,7 @@ class KTopBottomTilesHandler:
         self._update_top_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
-        bottom_shallow_slides_heaps = self._copy_shallow_bottom_slides_heaps()
+        bottom_shallow_slides_heaps = self._shallow_copy_bottom_slides_heaps()
         final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, bottom_shallow_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
         final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(top_tiles, bottom_tiles)
