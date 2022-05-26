@@ -15,9 +15,18 @@ from histopathology.utils.viz_utils import save_figure
 
 
 class TileNode:
+    """Data structure class for tile nodes used in slide node."""
+
     def __init__(
         self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
     ) -> None:
+        """
+        :param data: A tensor containing the tile data.
+        :param attn: The attention score assigned to the tile.
+        :param id: An optional tile id, defaults to None
+        :param x: An optional tile coordinate x, defaults to None
+        :param y: An optional coordinate y, defaults to None
+        """
         self.data = data
         self.attn = attn
         self.id = id
@@ -26,7 +35,14 @@ class TileNode:
 
 
 class SlideNode:
+    """Data structure class for slide nodes used by `KTopBottomTilesHandler` to store top ann """
+
     def __init__(self, prob_score: float, slide_id: str) -> None:
+        """_summary_
+
+        :param prob_score: The probability score assigned to the slide node.
+        :param slide_id: The slide id in the data cohort.
+        """
         self.slide_id = slide_id
         self.prob_score = prob_score
         self.top_tiles: List[TileNode] = []
@@ -36,6 +52,12 @@ class SlideNode:
         return self.prob_score.item() < other.prob_score.item()
 
     def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, k_tiles: int) -> None:
+        """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
+
+        :param tiles: A tensor of tiles data.
+        :param attn_scores: A tensor of attention scores assigned by the deepmil model to the set of tiles.
+        :param k_tiles: The number of k tiles to select as k top and bottom tiles.
+        """
         k_tiles = min(k_tiles, len(attn_scores))
 
         _, top_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=True)
@@ -45,6 +67,7 @@ class SlideNode:
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in bottom_k_indices]
 
     def shallow_copy(self) -> None:
+        """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
         return SlideNode(self.prob_score, self.slide_id)
 
     def plot_attention_tiles(self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple = (10, 10)) -> None:
@@ -67,7 +90,15 @@ class SlideNode:
 
 
 class KTopBottomTilesHandler:
+    """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
+
     def __init__(self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4) -> None:
+        """
+        :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
+        :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
+        :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
+        :param ncols: Number of columnds to use to plot top and bottom tiles.
+        """
         self.n_classes = n_classes
         self.k_slides = k_slides
         self.k_tiles = k_tiles
