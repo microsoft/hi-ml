@@ -31,7 +31,6 @@ class SlideNode:
         self.prob_score = prob_score
         self.top_tiles: List[TileNode] = []
         self.bottom_tiles: List[TileNode] = []
-        self.device: Optional[int] = None
 
     def __lt__(self, other: "SlideNode") -> bool:
         return self.prob_score.item() < other.prob_score.item()
@@ -46,9 +45,7 @@ class SlideNode:
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in bottom_k_indices]
 
     def shallow_copy(self) -> None:
-        shallow_node = SlideNode(self.prob_score, self.slide_id)
-        shallow_node.device = shallow_node.top_tiles[0].data.device.index
-        return shallow_node
+        return SlideNode(self.prob_score, self.slide_id)
 
     def plot_attention_tiles(self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple = (10, 10)) -> None:
         tiles = self.top_tiles if top else self.bottom_tiles
@@ -81,6 +78,12 @@ class KTopBottomTilesHandler:
         self.report_cases_slide_ids = self.init_report_cases()
 
     def init_report_cases(self) -> Dict[str, List[str]]:
+        """ Initializes the report cases dictionary to store slide_ids per case.
+        Possible cases are set such as class 0 is considered to be the negative class.
+
+        :return: A dictionary that maps TN/FP TP_{i}/FN_{i}, i={1,..., self.n_classes+1} cases to an empty list to be
+            filled with corresponding slide ids.
+        """
         report_cases = {"TN": [], "FP": []}
         report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
@@ -103,6 +106,21 @@ class KTopBottomTilesHandler:
         attn_scores: Tensor,
         slide_node: SlideNode,
     ) -> None:
+        """Update the content of a slides_heap of a given gt_label.
+        First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
+        defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
+        bottom_slides_heaps nodes.
+        Second, we check if we exceeded self.k_slides to be determined.
+            If so, we update the slides_node top and bottom tiles only if it has been kept in the heap
+            Else, we haven't reached the heaps max_capacity so we save the top and bottom tiles.
+
+        :param slides_heaps: The slides_heaps dict to be updated. Either self.top_slides_heaps or
+            self.bottom_slides_heaps.
+        :param gt_label: The ground truthe label e.g the class_id.
+        :param tiles: Tiles of a given whole slide retrieved from the current validation or test batch.
+        :param attn_scores: The tiles attention scores to determine top and bottom tiles.
+        :param slide_node: A shallow version of slide_node that contains only slide_id and its assigned prob_score.
+        """
         heapq.heappush(slides_heaps[gt_label], slide_node)
         if len(slides_heaps[gt_label]) == self.k_slides + 1:
             old_slide_node = slides_heaps[gt_label][0]
@@ -121,6 +139,12 @@ class KTopBottomTilesHandler:
         return self._update_slides_heap(self.bottom_slides_heaps, gt_label, tiles, attn_scores, slide_node)
 
     def update_top_bottom_slides_heaps(self, batch: Dict, results: Dict) -> None:
+        """Updates top and bottom slides heaps on the fly during validation and test.
+
+        :param batch: The current validation/test batch that contains the slides info, corresponding tiles and
+            additional metadata.
+        :param results: Batch results that contain attention scores, probability scores and the true labels.
+        """
         slide_ids = np.unique(batch[SlideKey.SLIDE_ID])  # to account for repetitions in tiles pipeline
         # TODO double check that order is preserved after unique
         for gt_label in results[ResultsKey.TRUE_LABEL]:
@@ -140,6 +164,11 @@ class KTopBottomTilesHandler:
                 )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
+        """Returns a shallow copy of slides heaps to be synchronised across devices.
+
+        :param slides_heaps: The slides_heaps dict to be shallow copied. Either self.top_slides_heaps or
+            self.bottom_slides_heaps.
+        """
         shallow_slides_heaps_copy: Dict[int, List[SlideNode]] = {}
         for class_id, slide_nodes in slides_heaps.items():
             shallow_slides_heaps_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
@@ -154,8 +183,15 @@ class KTopBottomTilesHandler:
     def _reduce_slides_heaps_list(
         self, world_size: int, slides_heaps_list: List[Dict[int, List[SlideNode]]]
     ) -> Dict[int, List[SlideNode]]:
+        """Reduces the list of slides_heaps gathered across devices into a single slides_heaps that contain top or
+        bottom shallow slide nodes.
+
+        :param world_size: The number of devices in the ddp context.
+        :param slides_heaps_list: A list of slides heaps gathered across devices.
+        :return: A reduced version of slides_heaps_list to a single slides_heaps containing only top or bottom slides.
+        """
         slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
-        for class_id in range(self.n_classes_to_select):
+        for class_id in range(self.n_classes):
             for rank in range(world_size):
                 for slide_node in slides_heaps_list[rank][class_id]:
                     heapq.heappush(slides_heaps[class_id], slide_node)
@@ -166,6 +202,12 @@ class KTopBottomTilesHandler:
     def _gather_shallow_slides_heaps(
         self, world_size: int, shallow_slides_heaps: Dict[int, List[SlideNode]]
     ) -> Dict[int, List[SlideNode]]:
+        """Gathers shallow slides heaps across devices.
+
+        :param world_size: The number of devices in the ddp context.
+        :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
+        :return: A reduced shallow_slides_heaps conatining only the best shallo slide nodes across all devices.
+        """
         slides_heaps_list = [None] * world_size
         torch.distributed.all_gather_object(slides_heaps_list, shallow_slides_heaps)
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
@@ -175,16 +217,13 @@ class KTopBottomTilesHandler:
     ) -> Tuple[Dict[str, List[TileNode]], Dict[str, List[TileNode]]]:
         top_tiles = {}
         bottom_tiles = {}
-        for class_id in range(self.n_classes_to_select):
+        for class_id in range(self.n_classes):
             for top_slide_node in final_slides_heaps[class_id]:
-                slide_node = any(
-                    slide_node
-                    for slide_node in slides_heaps[class_id]
-                    if slide_node.slide_id == top_slide_node.slide_id
-                )
-                if slide_node:
-                    top_tiles[top_slide_node.slide_id] = slide_node.top_tiles
-                    bottom_tiles[top_slide_node.slide_id] = slide_node.bottom_tiles
+                for slide_node in slides_heaps[class_id]:
+                    if slide_node.slide_id == top_slide_node.slide_id:
+                        top_tiles[top_slide_node.slide_id] = slide_node.top_tiles
+                        bottom_tiles[top_slide_node.slide_id] = slide_node.bottom_tiles
+                        break
         return top_tiles, bottom_tiles
 
     def _select_top_slides_top_bottom_tiles_per_device(
@@ -218,7 +257,7 @@ class KTopBottomTilesHandler:
         top_tiles: Dict[str, List[TileNode]],
         bottom_tiles: Dict[str, List[TileNode]],
     ) -> None:
-        for class_id in range(self.n_classes_to_select):
+        for class_id in range(self.n_classes):
             for slide_node in slides_heaps[class_id]:
                 slide_node.top_tiles = top_tiles[slide_node.slide_id]
                 slide_node.bottom_tiles = bottom_tiles[slide_node.slide_id]
@@ -237,7 +276,9 @@ class KTopBottomTilesHandler:
         shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
         final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
         top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
-        final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(top_tiles, bottom_tiles)
+        final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(
+            world_size, top_tiles, bottom_tiles
+        )
         self.set_top_slides_heaps(final_top_slides_heaps)
         self._update_top_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, final_top_tiles, final_bottom_tiles)
 
@@ -245,7 +286,9 @@ class KTopBottomTilesHandler:
         shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
         final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
-        final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(top_tiles, bottom_tiles)
+        final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(
+            world_size, top_tiles, bottom_tiles
+        )
         self.set_bottom_slides_heaps(final_bottom_slides_heaps)
         self._update_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, final_top_tiles, final_bottom_tiles)
 
