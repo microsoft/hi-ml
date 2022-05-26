@@ -136,7 +136,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             azure_datasets=["PANDA"],
             save_slide_thumbnails_and_heatmaps=False,
             # declared in OutputsHandler
-            k_slides=10,
+            k_slides=6,
             k_tiles=10)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)

@@ -2,6 +2,7 @@ import logging
 import torch
 import heapq
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from math import ceil
@@ -134,6 +135,11 @@ class KTopBottomTilesHandler:
     def set_bottom_slides_heaps(self, bottom_slides_heaps) -> None:
         self.bottom_slides_heaps = bottom_slides_heaps
 
+    def empty_top_bottom_tiles_cache(self) -> None:
+        delattr(self, "top_slides_heaps")
+        delattr(self, "bottom_slides_heaps")
+        torch.cuda.empty_cache()
+
     def get_selected_slide_ids(self) -> Dict[str, List[str]]:
         return self.report_cases_slide_ids
 
@@ -184,7 +190,8 @@ class KTopBottomTilesHandler:
             additional metadata.
         :param results: Batch results that contain attention scores, probability scores and the true labels.
         """
-        slide_ids = np.unique(batch[SlideKey.SLIDE_ID])  # to account for repetitions in tiles pipeline
+        _, idx = np.unique(batch[SlideKey.SLIDE_ID], return_index=True)  # to account for repetitions in tiles pipeline
+        slide_ids = np.array(batch[SlideKey.SLIDE_ID])[np.sort(idx)]
         # TODO double check that order is preserved after unique
         for gt_label in results[ResultsKey.TRUE_LABEL]:
             probs_gt_label = results[ResultsKey.CLASS_PROBS][:, gt_label.item()]
@@ -352,6 +359,7 @@ class KTopBottomTilesHandler:
                     final_bottom_slides_heaps
                 )
 
+                self.empty_top_bottom_tiles_cache()
                 self.set_bottom_slides_heaps(final_bottom_slides_heaps)
                 self.set_top_slides_heaps(final_top_slides_heaps)
 
