@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from math import ceil
 from torch import Tensor
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict, Union
 from collections import ChainMap
 
 from histopathology.utils.naming import ResultsKey, SlideKey
@@ -199,6 +199,21 @@ class KTopBottomTilesHandler:
                         heapq.heappop(slides_heaps[class_id])
         return slides_heaps
 
+    @staticmethod
+    def gather_dictionaries(world_size: int, dicts: Dict, return_list: bool = False) -> Union[List[Dict], Dict]:
+        """Gathers python dictionaries accross devices.
+
+        :param world_size: The number of devices in the ddp context.
+        :param dicts: The dictionaries to be gathered across devices.
+        :param return_list: Flag to return the gathered dictionaries as a list, defaults to False
+        :return: Either a list of dictionaries or a reduced version of this list as a single dictionary.
+        """
+        dicts_list = [None] * world_size
+        torch.distributed.all_gather_object(dicts_list, dicts)
+        if return_list:
+            return dicts_list
+        return dict(ChainMap(*dicts_list))
+
     def _gather_shallow_slides_heaps(
         self, world_size: int, shallow_slides_heaps: Dict[int, List[SlideNode]]
     ) -> Dict[int, List[SlideNode]]:
@@ -208,13 +223,19 @@ class KTopBottomTilesHandler:
         :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
         :return: A reduced shallow_slides_heaps conatining only the best shallo slide nodes across all devices.
         """
-        slides_heaps_list = [None] * world_size
-        torch.distributed.all_gather_object(slides_heaps_list, shallow_slides_heaps)
+        slides_heaps_list = self.gather_dictionaries(world_size, shallow_slides_heaps, return_list=True)
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
         self, final_slides_heaps: Dict[int, List[SlideNode]], slides_heaps: Dict[int, List[SlideNode]]
     ) -> Tuple[Dict[str, List[TileNode]], Dict[str, List[TileNode]]]:
+        """Select top and bottom tiles from top or bottom slides_heaps in current device.
+
+        :param final_slides_heaps: Selected top or bottom slides_heaps that contains shallow slide nodes.
+        :param slides_heaps: The slides_heaps dict from where to select tiles. Either self.top_slides_heaps or
+            self.bottom_slides_heaps.
+        :return: Two dictionaries containing slide_ids and their corresponding top and bottom tiles.
+        """
         top_tiles = {}
         bottom_tiles = {}
         for class_id in range(self.n_classes):
@@ -240,59 +261,59 @@ class KTopBottomTilesHandler:
             final_slides_heaps=final_bottom_slides_heaps, slides_heaps=self.bottom_slides_heaps
         )
 
-    def _gather_top_bottom_tiles_across_gpus(
-        self, world_size: int, top_tiles: Dict[str, List[TileNode]], bottom_tiles: Dict[str, List[TileNode]],
-    ) -> None:
-        top_tiles_list = [None] * world_size
-        bottom_tiles_list = [None] * world_size
-        torch.distributed.all_gather_object(top_tiles_list, top_tiles)
-        torch.distributed.all_gather_object(bottom_tiles_list, bottom_tiles)
-        final_top_tiles = dict(ChainMap(*top_tiles_list))
-        final_bottom_tiles = dict(ChainMap(*bottom_tiles_list))
-        return final_top_tiles, final_bottom_tiles
-
-    def _update_slides_heaps_with_top_bottom_tiles(
+    def _update_shallow_slides_heaps_with_top_bottom_tiles(
         self,
         slides_heaps: Dict[int, List[SlideNode]],
         top_tiles: Dict[str, List[TileNode]],
         bottom_tiles: Dict[str, List[TileNode]],
     ) -> None:
+        """Update shallow version of slides heaps with top and bottom tiles gathered across devices.
+
+        :param slides_heaps: The slides_heaps to update. Either self.top_slides_heaps or self.bottom_slides_heaps.
+        :param top_tiles: Top tiles dictionary with slide_ids as keys.
+        :param bottom_tiles: Bottom tiles dictionary with slide_ids as keys.
+        """
         for class_id in range(self.n_classes):
             for slide_node in slides_heaps[class_id]:
                 slide_node.top_tiles = top_tiles[slide_node.slide_id]
                 slide_node.bottom_tiles = bottom_tiles[slide_node.slide_id]
 
-    def _update_top_slides_heaps_with_top_bottom_tiles(
+    def _update_shallow_top_slides_heaps_with_top_bottom_tiles(
         self, top_tiles: Dict[str, List[TileNode]], bottom_tiles: Dict[str, List[TileNode]],
     ) -> None:
-        self._update_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, top_tiles, bottom_tiles)
+        self._update_shallow_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, top_tiles, bottom_tiles)
 
-    def _update_bottom_slides_heaps_with_top_bottom_tiles(
+    def _update_shallow_bottom_slides_heaps_with_top_bottom_tiles(
         self, top_tiles: Dict[str, List[TileNode]], bottom_tiles: Dict[str, List[TileNode]],
     ) -> None:
-        self._update_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
+        self._update_shallow_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
     def gather_top_bottom_tiles_for_top_slides(self, world_size: int) -> None:
         shallow_top_slides_heaps = self._shallow_copy_top_slides_heaps()
         final_top_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
         top_tiles, bottom_tiles = self._select_top_slides_top_bottom_tiles_per_device(final_top_slides_heaps)
-        final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(
-            world_size, top_tiles, bottom_tiles
-        )
+        final_top_tiles = self.gather_dictionaries(world_size, top_tiles)
+        final_bottom_tiles = self.gather_dictionaries(world_size, bottom_tiles)
         self.set_top_slides_heaps(final_top_slides_heaps)
-        self._update_top_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, final_top_tiles, final_bottom_tiles)
+        self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
         shallow_bottom_slides_heaps = self._shallow_copy_bottom_slides_heaps()
         final_bottom_slides_heaps = self._gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
         top_tiles, bottom_tiles = self._select_bottom_slides_top_bottom_tiles_per_device(final_bottom_slides_heaps)
-        final_top_tiles, final_bottom_tiles = self._gather_top_bottom_tiles_across_gpus(
-            world_size, top_tiles, bottom_tiles
-        )
+        final_top_tiles = self.gather_dictionaries(world_size, top_tiles)
+        final_bottom_tiles = self.gather_dictionaries(world_size, bottom_tiles)
         self.set_bottom_slides_heaps(final_bottom_slides_heaps)
-        self._update_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, final_top_tiles, final_bottom_tiles)
+        self._update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_top_bottom_slides(self) -> None:
+        """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
+            1- make a shallow copy of slides_heaps
+            2- gather best shallow slides across gpus
+            3- select top and bottom tiles available in each device
+            4- gather these tiles across devices
+            5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
+        """
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
