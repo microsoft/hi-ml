@@ -15,13 +15,13 @@ from histopathology.utils.viz_utils import save_figure
 
 
 class TileNode:
-    """Data structure class for tile nodes used in slide node."""
+    """Data structure class for tile nodes used by `SlideNode`."""
 
     def __init__(
         self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
     ) -> None:
         """
-        :param data: A tensor containing the tile data.
+        :param data: A tensor of tile data.
         :param attn: The attention score assigned to the tile.
         :param id: An optional tile id, defaults to None
         :param x: An optional tile coordinate x, defaults to None
@@ -38,8 +38,7 @@ class SlideNode:
     """Data structure class for slide nodes used by `KTopBottomTilesHandler` to store top ann """
 
     def __init__(self, prob_score: float, slide_id: str) -> None:
-        """_summary_
-
+        """
         :param prob_score: The probability score assigned to the slide node.
         :param slide_id: The slide id in the data cohort.
         """
