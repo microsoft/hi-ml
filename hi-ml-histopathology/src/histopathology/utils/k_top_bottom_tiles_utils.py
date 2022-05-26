@@ -329,7 +329,6 @@ class KTopBottomTilesHandler:
         self.set_top_slides_heaps(final_top_slides_heaps)
         final_top_tiles = self._gather_dictionaries(world_size, top_tiles)
         final_bottom_tiles = self._gather_dictionaries(world_size, bottom_tiles)
-        logging.info("All good needs to update top and bottom tiles and we're done.")
         self._update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def gather_top_bottom_tiles_for_bottom_slides(self, world_size: int,) -> None:
