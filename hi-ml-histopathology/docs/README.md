@@ -2,8 +2,6 @@
 
 ## Onboarding to Azure
 
-Prio 1, to be completed later
-
 ## Creating datasets
 
 * [How to get PANDA (whole slides) and upload it to Azure](panda_dataset.md)
@@ -11,7 +9,7 @@ Prio 1, to be completed later
 
 ## Training a model
 
-* Prio 0: [PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
+* [PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
   * How to invoke training for the existing model on PANDA data
   * Where to find results and how to interpret them
   * What results are expected (accuracy)
