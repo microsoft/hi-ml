@@ -9,16 +9,16 @@
 
 ## Training a model
 
-* [PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
-  * How to invoke training for the existing model on PANDA data
-  * Where to find results and how to interpret them
+* [Train a PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
+  * How to invoke training on PANDA data, using the existing model config
+  * Where to find the results and how to interpret them: AzureML dashboards, HTML report, checkpoints
   * What results are expected (accuracy)
   * If people want to re-use that model on their data:
     * What is the expected data format?
     * Which parameters need to be tuned?
-* Prio 1: [TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
-  * How to invoke training for the existing model on TCGA-Crck data
-  * Where to find results and how to interpret them
+* [Train a TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
+  * How to invoke training on TCGA-Crck data, using the existing model config
+  * Where to find the results and how to interpret them: AzureML dashboards, HTML report, checkpoints
   * What results are expected (accuracy)
   * If people want to re-use that model on their data:
     * What is the expected data format?
