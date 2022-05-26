@@ -4,6 +4,7 @@ jinja2==3.0.2
 matplotlib>=3.4.3
 opencv-python-headless>=4.5.1.48
 pandas>=1.3.4
+protobuf<=3.20.1
 pytorch-lightning==1.5.5
 rpdb>=0.1.6
 torchvision>=0.10.0
