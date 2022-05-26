@@ -379,12 +379,13 @@ class KTopBottomTilesHandler:
         self.report_cases_slide_ids[case].append(slide_node.slide_id)
 
     def save_top_and_bottom_tiles(self, figures_dir: Path) -> None:
-        logging.info(f"Plotting {self.k_tiles} top and bottom tiles...")
         for class_id in range(self.n_classes_to_select):
             for slide_node in self.top_slides_heaps[class_id]:
+                logging.info(f"Plotting {self.k_tiles} top and bottom tiles of {self.k_slides} top and slides...")
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
                 self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
 
             for slide_node in self.bottom_slides_heaps[class_id]:
+                logging.info(f"Plotting {self.k_tiles} top and bottom tiles of {self.k_slides} bottom and slides...")
                 case = "FP" if class_id == 0 else f"FN_{class_id}"
                 self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
