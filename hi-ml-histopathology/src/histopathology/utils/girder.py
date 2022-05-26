@@ -33,6 +33,9 @@ TypeRectangleJSON = Dict[str, Union[str, float, Dict[str, str]]]
 TypePointJSON = Dict[str, Union[str, List[float], Dict[str, str]]]
 TypeAnnotationJSON = Dict[str, Union[str, List[Dict]]]
 
+# DSA coordinates are generally expressed using three dimensions
+Z_ZERO = [0]
+
 
 @dataclass
 class Color:
@@ -118,7 +121,7 @@ class Rectangle(Element):
         data["fillColor"] = str(self.fill_color)
         data["lineColor"] = str(self.line_color)
         data["type"] = "rectangle"
-        data["center"] = self.center_xy.tolist() + [0]
+        data["center"] = self.center_xy.tolist() + Z_ZERO
         data["width"] = float(self.width)
         data["height"] = float(self.height)
         data["label"] = {"value": self.label}
@@ -138,7 +141,7 @@ class Point(Element):
         data["fillColor"] = str(self.fill_color)
         data["lineColor"] = str(self.line_color)
         data["type"] = "point"
-        data["center"] = list(astuple(self.center)) + [0]
+        data["center"] = list(astuple(self.center)) + Z_ZERO
         data["label"] = {"value": self.label}
         return data
 
