@@ -254,7 +254,7 @@ class KTopBottomTilesHandler:
     @staticmethod
     def gather_dictionaries(
         world_size: int, dicts: Dict, return_list: bool = False
-    ) -> Union[List[Dict[IntOrString, SlideOrTileKey]], Dict[IntOrString, SlideOrTileKey]]:
+    ) -> Union[List[Dict[IntOrString, SlideOrTileNode]], Dict[IntOrString, SlideOrTileNode]]:
         """Gathers python dictionaries accross devices.
 
         :param world_size: The number of devices in the ddp context.
