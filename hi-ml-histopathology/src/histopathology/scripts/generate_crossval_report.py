@@ -126,9 +126,9 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
 
     :param report: HTML report to perform the rendering.
     :param heading: Heading of the section.
-    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param level: Level of HTML heading (e.g. sub-section, sub-sub-section) corresponding to HTML heading levels.
     :param metrics_df: Dataframe containing metrics.
-    :param best_epochs: Optional dictionary mapping each cross-validation index to its best epoch.
+    :param best_epochs: Dictionary mapping each cross-validation index to its best epoch.
     :param report_dir: Directory of the HTML report.
     """
     report.add_heading(heading, level=level)
@@ -151,9 +151,9 @@ def render_metrics_table(report: HTMLReport, heading: str, level: int,
 
     :param report: HTML report to perform the rendering.
     :param heading: Heading of the section.
-    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param level: Level of HTML heading (e.g. sub-section, sub-sub-section) corresponding to HTML heading levels.
     :param base_metrics_list: List of metric names to include in the table.
-    :param best_epochs: Optional dictionary mapping each cross-validation index to its best epoch.
+    :param best_epochs: Dictionary mapping each cross-validation index to its best epoch.
     :param metrics_prefix: Prefix to add to the metrics names (e.g. `val`, `test`)
     """
     report.add_heading(heading, level=level)
@@ -172,7 +172,7 @@ def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int,
 
     :param report: HTML report to perform the rendering.
     :param heading: Heading of the section.
-    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param level: Level of HTML heading (e.g. sub-section, sub-sub-section) corresponding to HTML heading levels.
     :param parent_run_id: The parent Hyperdrive run ID.
     :param aml_workspace: Azure ML workspace of the run.
     :param report_dir: Local directory where the report is stored.
@@ -197,7 +197,7 @@ def render_confusion_matrices(report: HTMLReport, heading: str, level: int, clas
 
     :param report: HTML report to perform the rendering.
     :param heading: Heading of the section.
-    :param level: Level of the section (e.g. sub-section, sub-sub-section, and so on).
+    :param level: Level of HTML heading (e.g. sub-section, sub-sub-section) corresponding to HTML heading levels.
     :param class_names: Names of classes.
     :param parent_run_id: The parent Hyperdrive run ID.
     :param aml_workspace: Azure ML workspace of the run.

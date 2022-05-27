@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
+import seaborn as sns
 from sklearn.manifold import TSNE
 from sklearn.metrics import auc, precision_recall_curve, roc_curve, confusion_matrix
 
@@ -277,8 +278,8 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
     :param class_names: Names of classes.
     :return: The created `Figure` object.
     """
-    import seaborn as sns
-    fig, axs = plt.subplots(1, len(crossval_dfs), figsize=(len(crossval_dfs) * 6, 5))
+    crossval_count = len(crossval_dfs)
+    fig, axs = plt.subplots(1, crossval_count, figsize=(crossval_count * 6, 5))
     for k, tiles_df in crossval_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
