@@ -228,6 +228,7 @@ def test_metrics(n_classes: int) -> None:
     # Patching to enable running the module without a Trainer object
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
+    module.outputs_handler = MagicMock()
 
     batch_size = 20
     bag_size = 5
