@@ -1822,10 +1822,9 @@ def aggregate_hyperdrive_metrics(
         assert run_id is not None, "Either run or run_id must be provided"
         workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
         run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-    assert run is not None  # for pyright
     assert isinstance(run, HyperDriveRun)
     metrics: DefaultDict = defaultdict()
-    for child_run in run.get_children():
+    for child_run in run.get_children():  # type: ignore
         child_run_metrics = child_run.get_metrics()
         keep_metrics = keep_metrics or child_run_metrics.keys()
 
@@ -1869,8 +1868,7 @@ def get_metrics_for_childless_run(
         logging.warning("Can't get metrics for _OfflineRun object")
         return pd.DataFrame({})
     metrics = {}
-    assert run is not None  # for pyright
-    run_metrics = run.get_metrics()
+    run_metrics = run.get_metrics()  # type: ignore
     keep_metrics = keep_metrics or run_metrics.keys()
     for metric_name, metric_val in run_metrics.items():
         if metric_name in keep_metrics:
