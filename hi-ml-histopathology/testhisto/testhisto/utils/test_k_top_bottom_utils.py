@@ -12,6 +12,7 @@ from histopathology.utils.naming import ResultsKey, SlideKey
 def mock_data_results_generator(
     batch_size: int = 2, n_tiles: int = 4, n_classes: int = 2, tile_size: Tuple[int, int, int] = (1, 4, 4)
 ) -> Generator:
+    """Helper funcition to create mock data and results for testing."""
     diff_n_tiles = [n_tiles + i for i in range(batch_size)]
     mock_data = {
         SlideKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(batch_size)]),
@@ -27,6 +28,7 @@ def mock_data_results_generator(
 
 
 def get_batch_data(data, batch_idx: int, batch_size: int) -> Generator:
+    """Helper function to smaller batches from a dictionary."""
     batch = {}
     for k in data:
         batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
@@ -36,6 +38,7 @@ def get_batch_data(data, batch_idx: int, batch_size: int) -> Generator:
 def select_slides_by_probability(
     results: Dict[ResultsKey, Any], k_slides: int = 5, label: int = 1, top: bool = True
 ) -> Tuple[List[str], torch.Tensor]:
+    """Select top or bottom slides accoring to their probability scores."""
     class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
     class_prob = results[ResultsKey.CLASS_PROBS][class_indices, label]
     assert class_prob.shape == (len(class_indices),)
