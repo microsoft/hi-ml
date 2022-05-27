@@ -17,6 +17,8 @@ dependencies:
       - matplotlib==3.4.3
       - opencv-python-headless==4.5.1.48
       - pandas==1.3.4
+      - pre-commit==2.19.0
+      - protobuf==3.20.1
       - pytorch-lightning==1.5.5
       - rpdb==0.1.6
       - setuptools==59.5.0

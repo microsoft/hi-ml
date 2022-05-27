@@ -51,8 +51,9 @@ The `hi-ml` toolbox provides
    :maxdepth: 1
    :caption: Developers
 
-   developers.md
    CONTRIBUTING.md
+   coding_guidelines.md
+   developers.md
 
 .. toctree::
    :maxdepth: 1
