@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 from math import ceil
 from torch import Tensor
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict, Union
+from typing import Optional, List, Tuple, Dict, Union, Any
 from collections import ChainMap
 
-from histopathology.utils.naming import ResultsKey, SlideKey
+from histopathology.utils.naming import ResultsKey, SlideKey, TileKey
 from histopathology.utils.viz_utils import save_figure
+
+_SlideOrTileKey = Union[SlideKey, TileKey]
 
 
 class TileNode:
@@ -37,7 +39,7 @@ class TileNode:
 class SlideNode:
     """Data structure class for slide nodes used by `KTopBottomTilesHandler` to store top ann """
 
-    def __init__(self, prob_score: float, slide_id: str) -> None:
+    def __init__(self, slide_id: str, prob_score: float,) -> None:
         """
         :param prob_score: The probability score assigned to the slide node.
         :param slide_id: The slide id in the data cohort.
@@ -59,15 +61,15 @@ class SlideNode:
         """
         k_tiles = min(k_tiles, len(attn_scores))
 
-        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=True)
+        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=True, sorted=True)
         self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in top_k_indices]
 
-        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=False)
+        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=False, sorted=True)
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in bottom_k_indices]
 
     def shallow_copy(self) -> None:
         """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
-        return SlideNode(self.prob_score, self.slide_id)
+        return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
         self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple[int, int] = (10, 10)
@@ -181,7 +183,7 @@ class KTopBottomTilesHandler:
     ) -> None:
         return self._update_slides_heap(self.bottom_slides_heaps, gt_label, tiles, attn_scores, slide_node)
 
-    def update_top_bottom_slides_heaps(self, batch: Dict, results: Dict) -> None:
+    def update_top_bottom_slides_heaps(self, batch: Dict[_SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
         """Updates top and bottom slides heaps on the fly during validation and test.
 
         :param batch: The current validation/test batch that contains the slides info, corresponding tiles and
@@ -191,20 +193,22 @@ class KTopBottomTilesHandler:
         _, idx = np.unique(batch[SlideKey.SLIDE_ID], return_index=True)  # to account for repetitions in tiles pipeline
         slide_ids = np.array(batch[SlideKey.SLIDE_ID])[np.sort(idx)]
         # TODO double check that order is preserved after unique
-        for gt_label in results[ResultsKey.TRUE_LABEL]:
-            probs_gt_label = results[ResultsKey.CLASS_PROBS][:, gt_label.item()]
-            for i, slide_id in enumerate(slide_ids):
+
+        for label in range(self.n_classes):
+            class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
+            for i in class_indices:
+                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
                 self.update_top_slides_heap(
-                    gt_label=gt_label.item(),
+                    gt_label=label,
                     tiles=batch[SlideKey.IMAGE][i],
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(prob_score=probs_gt_label[i], slide_id=slide_id),
+                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i]),
                 )
                 self.update_bottom_slides_heap(
-                    gt_label=gt_label.item(),
+                    gt_label=label,
                     tiles=batch[SlideKey.IMAGE][i],
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(prob_score=-probs_gt_label[i], slide_id=slide_id),
+                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i]),
                 )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
