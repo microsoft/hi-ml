@@ -21,7 +21,7 @@ from histopathology.utils.report_utils import (collect_crossval_metrics, collect
                                                crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                                get_best_epochs, get_crossval_metrics_table, get_formatted_run_info,
                                                collect_class_info)
-from histopathology.utils.naming import MetricsKey
+from histopathology.utils.naming import MetricsKey, ModelKey
 
 
 def generate_html_report(parent_run_id: str, output_dir: Path,
@@ -46,11 +46,11 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     report.add_text(get_formatted_run_info(parent_run))
 
-    report.add_heading("Azure ML metrics", level=2)
+    report.add_heading("Azure ML Metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
     metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
-    best_epochs = get_best_epochs(metrics_df, 'val/auroc', maximise=True)
+    best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/auroc', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
     render_training_curves(report, heading="Training curves", level=3,
@@ -70,12 +70,12 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     # Add tables with relevant metrics (val. and test)
     render_metrics_table(report, heading="Validation metrics (best epoch based on maximum validation AUROC)", level=3,
                          metrics_df=metrics_df, best_epochs=best_epochs,
-                         base_metrics_list=base_metrics_list, metrics_prefix='val/')
+                         base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.VAL}/')
 
     if include_test:
         render_metrics_table(report, heading="Test metrics", level=3,
                              metrics_df=metrics_df, best_epochs=None,
-                             base_metrics_list=base_metrics_list, metrics_prefix='test/')
+                             base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.TEST}/')
 
     has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
 
@@ -87,13 +87,15 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
             # Add val. ROC and PR curves
             render_roc_and_pr_curves(report, "Validation ROC and PR curves", level=3,
                                      parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                     output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
+                                     output_filename=AML_VAL_OUTPUTS_CSV,
+                                     overwrite=overwrite, prefix=f'{ModelKey.VAL}_')
         if include_test:
             # Add test ROC and PR curves
             test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
             render_roc_and_pr_curves(report, "Test ROC and PR curves", level=3,
                                      parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                     output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
+                                     output_filename=test_outputs_filename,
+                                     overwrite=overwrite, prefix=f'{ModelKey.TEST}_')
 
     # Add confusion matrices for each fold
 
@@ -103,16 +105,17 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         # Add val. confusion matrices
         render_confusion_matrices(report, "Validation Confusion Matrices", level=3, class_names=class_names,
                                   parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                  output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix='val_')
+                                  output_filename=AML_VAL_OUTPUTS_CSV, overwrite=overwrite, prefix=f'{ModelKey.VAL}_')
 
     if include_test:
         # Add test confusion matrices
         test_outputs_filename = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
         render_confusion_matrices(report, "Test Confusion Matrices", level=3, class_names=class_names,
                                   parent_run_id=parent_run_id, aml_workspace=aml_workspace, report_dir=report_dir,
-                                  output_filename=test_outputs_filename, overwrite=overwrite, prefix='test_')
+                                  output_filename=test_outputs_filename,
+                                  overwrite=overwrite, prefix=f'{ModelKey.TEST}_')
 
-    report.add_heading("Model Outputs", level=2)
+    report.add_heading("Qualitative Model Outputs", level=2)
 
     print(f"Rendering report to: {report.report_path_html.absolute()}")
     report.render()
@@ -127,15 +130,16 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
     :param report: HTML report to perform the rendering.
     :param heading: Heading of the section.
     :param level: Level of HTML heading (e.g. sub-section, sub-sub-section) corresponding to HTML heading levels.
-    :param metrics_df: Dataframe containing metrics.
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param best_epochs: Dictionary mapping each cross-validation index to its best epoch.
     :param report_dir: Directory of the HTML report.
     """
     report.add_heading(heading, level=level)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
-    plot_crossval_training_curves(metrics_df, train_metric='train/loss_epoch', val_metric='val/loss_epoch',
+    plot_crossval_training_curves(metrics_df, train_metric='train/loss_epoch', val_metric=f'{ModelKey.VAL}/loss_epoch',
                                   ylabel="Loss", best_epochs=best_epochs, ax=ax1)
-    plot_crossval_training_curves(metrics_df, train_metric='train/auroc', val_metric='val/auroc',
+    plot_crossval_training_curves(metrics_df, train_metric='train/auroc', val_metric=f'{ModelKey.VAL}/auroc',
                                   ylabel="AUROC", best_epochs=best_epochs, ax=ax2)
     add_training_curves_legend(fig, include_best_epoch=True)
     training_curves_fig_path = report_dir / "training_curves.png"
@@ -152,6 +156,8 @@ def render_metrics_table(report: HTMLReport, heading: str, level: int,
     :param report: HTML report to perform the rendering.
     :param heading: Heading of the section.
     :param level: Level of HTML heading (e.g. sub-section, sub-sub-section) corresponding to HTML heading levels.
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param base_metrics_list: List of metric names to include in the table.
     :param best_epochs: Dictionary mapping each cross-validation index to its best epoch.
     :param metrics_prefix: Prefix to add to the metrics names (e.g. `val`, `test`)

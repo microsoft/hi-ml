@@ -292,10 +292,9 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
 
         cf_matrix = confusion_matrix(y_true=labels_true, y_pred=labels_pred)
         cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k])
+        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k],
+                    xticklabels=class_names, yticklabels=class_names)
         axs[k].set_xlabel('Predicted')
         axs[k].set_ylabel('True')
-        axs[k].xaxis.set_ticklabels(class_names)
-        axs[k].yaxis.set_ticklabels(class_names)
         axs[k].set_title(f'Fold {k}')
     return fig
