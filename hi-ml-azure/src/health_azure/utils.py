@@ -32,6 +32,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
+from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
@@ -1776,7 +1777,8 @@ def aggregate_hyperdrive_metrics(
     workspace_config_path: Optional[Path] = None,
 ) -> pd.DataFrame:
     """
-    For a given HyperDriveRun object, or id of a HyperDriveRun, retrieves the metrics from each of its children and then aggregates it. Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
+    For a given HyperDriveRun object, or id of a HyperDriveRun, retrieves the metrics from each of its children and
+    then aggregates it. Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
     Returns a DataFrame where each column is one child run, and each row is a metric logged by that child run.
     For example, for a HyperDrive run with 2 children, where each logs epoch, accuracy and loss, the result
     would look like::
@@ -1817,6 +1819,7 @@ def aggregate_hyperdrive_metrics(
     :return: A Pandas DataFrame containing the aggregated metrics from each child run
     """
     if run is None:
+        assert run_id is not None, "Either run or run_id must be provided"
         workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
         run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
 
@@ -1843,9 +1846,10 @@ def get_metrics_for_childless_run(
     keep_metrics: Optional[List[str]] = None,
     aml_workspace: Optional[Workspace] = None,
     workspace_config_path: Optional[Path] = None,
-    ) -> pd.DataFrame:
+) -> pd.DataFrame:
     """
-    For a given Run object or id, retrieves the metrics from that Run and returns them as a pandas DataFrame. Optionally filters the metrics logged in the Run, by providing a list of metrics to keep. This function
+    For a given Run object or id, retrieves the metrics from that Run and returns them as a pandas DataFrame.
+    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep. This function
     expects a childless AML Run. If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
     please use the function 'aggregate_hyperdrive_metrics'.
 
@@ -1858,8 +1862,13 @@ def get_metrics_for_childless_run(
     :return: A Pandas DataFrame containing the metrics
     """
     if run is None:
+        assert run_id is not None, "Either run or run_id must be provided"
         workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
         run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
+    if isinstance(run, _OfflineRun):
+        logging.warning("Can't get metrics for _OfflineRun object")
+        return pd.DataFrame({})
+
     metrics = {}
     run_metrics = run.get_metrics()
     keep_metrics = keep_metrics or run_metrics.keys()

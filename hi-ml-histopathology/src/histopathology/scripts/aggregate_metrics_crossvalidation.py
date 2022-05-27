@@ -8,11 +8,9 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import List
 
-import numpy as np
 import pandas as pd
 from azureml.core import Run
 from azureml.core.run import _OfflineRun
-
 
 HIML_ROOT = Path.cwd()
 health_ml_root = HIML_ROOT / "hi-ml" / "src"
@@ -22,8 +20,8 @@ print(f"Inserting into sys path: {health_azure_root}")
 sys.path.insert(0, str(health_ml_root))
 sys.path.insert(0, str(health_azure_root))
 
-from health_azure import aggregate_hyperdrive_metrics
-from health_azure.utils import get_aml_run_from_run_id, get_metrics_for_childless_run
+from health_azure import aggregate_hyperdrive_metrics  # NOQA: E402
+from health_azure.utils import get_aml_run_from_run_id, get_metrics_for_childless_run  # NOQA: E402
 
 
 def print_metrics(metrics_list: List[str], metrics_df: pd.DataFrame) -> None:

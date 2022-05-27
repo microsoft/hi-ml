@@ -7,7 +7,6 @@ Tests for the functions in health_azure.azure_util
 """
 import json
 import logging
-from multiprocessing import dummy
 import os
 import sys
 import time
@@ -2234,15 +2233,7 @@ def test_download_files_from_hyperdrive_children(tmp_path: Path) -> None:
 
 @patch("health_azure.utils.isinstance", return_value=True)
 def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
-    # test the case where run id is provided
-    ws = DEFAULT_WORKSPACE.workspace
-    num_crossval_splits = 2
-    dummy_hyperdrive_run = MockHyperDriveRun(num_children=num_crossval_splits)
-
-    with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
-        mock_get_run.return_value = dummy_hyperdrive_run
-        df = util.aggregate_hyperdrive_metrics(run_id="run_id_123", child_run_arg_name="child_run_index", aml_workspace=ws)
-        print("Aggregated dataframe: \n", df)
+    def _assert_dataframe_properties(df: pd.DataFrame, num_crossval_splits: int) -> None:
         num_rows, num_cols = df.shape
         assert num_rows == 7  # The number of metrics specified in MockChildRun.get_metrics
         assert num_cols == num_crossval_splits
@@ -2251,23 +2242,49 @@ def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
         test_accuracies = df.loc["test/accuracy"]
         assert isinstance(test_accuracies[0], float)
 
-    assert 0 == 1
+    # test the case where run id is provided
+    ws = DEFAULT_WORKSPACE.workspace
+    num_crossval_splits = 2
+    dummy_hyperdrive_run = MockHyperDriveRun(num_children=num_crossval_splits)
+
+    with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
+        mock_get_run.return_value = dummy_hyperdrive_run
+        metrics_df = util.aggregate_hyperdrive_metrics(
+            run_id="run_id_123",
+            child_run_arg_name="child_run_index",
+            aml_workspace=ws
+        )
+        _assert_dataframe_properties(metrics_df, num_crossval_splits)
 
     # test the case where a run object is provided
-    df2 = util.aggregate_hyperdrive_metrics(run=dummy_hyperdrive_run, child_run_arg_name="child_run_index", aml_workspace=ws)
-    num_rows, num_cols = df2.shape
-    assert num_rows == 7  # The number of metrics specified in MockChildRun.get_metrics
-    assert num_cols == num_crossval_splits
-    epochs = df.loc["epoch"]
-    assert isinstance(epochs[0], list)
-    test_accuracies = df.loc["test/accuracy"]
-    assert isinstance(test_accuracies[0], float)
+    metrics_df_2 = util.aggregate_hyperdrive_metrics(
+        run=dummy_hyperdrive_run,
+        child_run_arg_name="child_run_index",
+        aml_workspace=ws
+    )
+    _assert_dataframe_properties(metrics_df_2, num_crossval_splits)
 
-    # TODO: test case where provide an invalid child run arg name
-    # TODO: what happens if we dont provide a workspace?
+    # if neither a run or a run_id is passed, an error should be raised
+    with pytest.raises(AssertionError, match="Either run or run_id must be provided"):
+        util.aggregate_hyperdrive_metrics(child_run_arg_name="child_run_index", aml_workspace=ws)
+
+    # test case where provide an invalid child run arg name
+    invalid_metrics = ["test/accuracy", "idontexist"]
+    metrics_df_3 = util.aggregate_hyperdrive_metrics(
+        run=dummy_hyperdrive_run,
+        child_run_arg_name="child_run_index",
+        keep_metrics=invalid_metrics,
+        aml_workspace=ws
+    )
+    assert len(metrics_df_3) == 1
+    assert list(metrics_df_3.index) == ['test/accuracy']
+
+    # if a workspace or config file isn't provided, an error should not be raised
+    metrics_df_4 = util.aggregate_hyperdrive_metrics(run=dummy_hyperdrive_run, child_run_arg_name="child_run_index")
+    _assert_dataframe_properties(metrics_df_4, num_crossval_splits)
 
 
-def test_get_metrics_for_childless_run():
+def test_get_metrics_for_childless_run() -> None:
     ws = DEFAULT_WORKSPACE.workspace
     dummy_run_id = "run_abc_123"
     dummy_run = MockRunWithMetrics(dummy_run_id)
@@ -2288,6 +2305,10 @@ def test_get_metrics_for_childless_run():
     assert len(metrics_df) == len(expected_metrics_dict)
     pd.testing.assert_frame_equal(expected_metrics_df, metrics_df_2, check_exact=False, rtol=similarity_tolerance)
 
+    # if neither a run or a run_id is passed, an error should be raised
+    with pytest.raises(AssertionError, match="Either run or run_id must be provided"):
+        util.get_metrics_for_childless_run(aml_workspace=ws)
+
     # test the case where we filter a subset of the metrics
     restrict_metrics = ["test/accuracy", "val/loss"]
     metrics_df_3 = util.get_metrics_for_childless_run(run=dummy_run, keep_metrics=restrict_metrics, aml_workspace=ws)
@@ -2302,7 +2323,7 @@ def test_get_metrics_for_childless_run():
     assert list(metrics_df_4.index) == ['test/accuracy']
 
     # what happens if we dont provide a workspace?
-    metrics_df_5 = util.get_metrics_for_childless_run(run=dummy_run, aml_workspace=ws)
+    metrics_df_5 = util.get_metrics_for_childless_run(run=dummy_run)
     pd.testing.assert_frame_equal(expected_metrics_df, metrics_df_5, check_exact=False, rtol=similarity_tolerance)
 
 

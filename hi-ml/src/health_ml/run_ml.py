@@ -25,7 +25,7 @@ from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
-from health_ml.utils.regression_test_utils import compare_folders_and_run_outputs, REGRESSION_TEST_OUTPUT_FOLDER
+from health_ml.utils.regression_test_utils import compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
 
 
@@ -155,10 +155,8 @@ class MLRunner:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
             # has usually already downloaded the results for the other runs, and uploaded files to the parent
             # run context.
-            regression_metrics = self.container.regression_metrics
-            # Hack to get list to parse from  makefile
-            if regression_metrics is not None:
-                regression_metrics = regression_metrics.split(',')
+            regression_metrics_str = self.container.regression_metrics
+            regression_metrics = regression_metrics_str.split(',') if regression_metrics_str else None
 
             logging.info("Comparing the current results against stored results")
             if self.is_crossval_disabled_or_child_0():
@@ -173,9 +171,10 @@ class MLRunner:
                             run=RUN_CONTEXT,
                             keep_metrics=regression_metrics)
 
-                metrics_filename = str(self.container.outputs_folder / "regression_metrics.json")
-                logging.info(f"Saving metrics to {metrics_filename}")
-                df.to_json(metrics_filename)
+                    if len(df) > 0:
+                        metrics_filename = str(self.container.outputs_folder / "regression_metrics.json")
+                        logging.info(f"Saving metrics to {metrics_filename}")
+                        df.to_json(metrics_filename)
 
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                 actual=self.container.outputs_folder,

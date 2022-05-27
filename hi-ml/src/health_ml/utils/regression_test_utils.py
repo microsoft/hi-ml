@@ -46,7 +46,6 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
         return
 
     for expected_key, expected_val in expected.items():
-        print('actual', actual)
         if expected_key not in actual:
             logging.warning(f"Key {expected_key} is expected but not found in actual")
         else:
@@ -95,6 +94,9 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
             logging.warning(f"{prefix} file can't be read as CSV: {str(ex)}")
             return None
 
+    def _load_json_from_text_lines(lines: List[str]) -> Dict[str, Any]:
+        return json.loads('\n'.join(lines))
+
     if expected.suffix == CSV_SUFFIX:
         expected_df = try_read_csv("Expected", expected)
         actual_df = try_read_csv("Actual", actual)
@@ -115,9 +117,10 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
             # Add additional context for json file mismatches
             if expected.suffix == ".json":
                 compare_dictionaries(
-                json.loads('\n'.join(expected_lines)),
-                json.loads('\n'.join(actual_lines)),
-                tolerance=csv_relative_tolerance)
+                    _load_json_from_text_lines(expected_lines),
+                    _load_json_from_text_lines(actual_lines),
+                    tolerance=csv_relative_tolerance
+                )
             return CONTENTS_MISMATCH
     else:
         expected_binary = expected.read_bytes()
