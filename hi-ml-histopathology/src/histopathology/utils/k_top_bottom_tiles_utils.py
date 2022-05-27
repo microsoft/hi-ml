@@ -83,18 +83,18 @@ class SlideNode:
         tiles = self.top_tiles if top else self.bottom_tiles
         suffix = "top" if top else "bottom"
         nrows = int(ceil(len(tiles) / ncols))
+        if nrows > 0:
+            fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=size)
+            fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
-        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=size)
-        fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
+            for i, tile_node in enumerate(tiles):
+                axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+                axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
 
-        for i, tile_node in enumerate(tiles):
-            axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-            axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
+            for i in range(len(axs.ravel())):
+                axs.ravel()[i].set_axis_off()
 
-        for i in range(len(axs.ravel())):
-            axs.ravel()[i].set_axis_off()
-
-        save_figure(fig=fig, figpath=key_dir / f"{self.slide_id}_{suffix}.png")
+            save_figure(fig=fig, figpath=key_dir / f"{self.slide_id}_{suffix}.png")
 
 
 class KTopBottomTilesHandler:
