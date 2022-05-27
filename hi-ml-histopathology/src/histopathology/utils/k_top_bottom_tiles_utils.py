@@ -13,7 +13,7 @@ from collections import ChainMap
 from histopathology.utils.naming import ResultsKey, SlideKey, TileKey
 from histopathology.utils.viz_utils import save_figure
 
-_SlideOrTileKey = Union[SlideKey, TileKey]
+SlideOrTileKey = Union[SlideKey, TileKey]
 
 
 class TileNode:
@@ -97,6 +97,9 @@ class SlideNode:
                 axs.ravel()[i].set_axis_off()
 
             save_figure(fig=fig, figpath=key_dir / f"{self.slide_id}_{suffix}.png")
+
+
+SlideOrTileNode = Union[SlideNode, TileNode]
 
 
 class KTopBottomTilesHandler:
@@ -183,7 +186,7 @@ class KTopBottomTilesHandler:
     ) -> None:
         return self._update_slides_heap(self.bottom_slides_heaps, gt_label, tiles, attn_scores, slide_node)
 
-    def update_top_bottom_slides_heaps(self, batch: Dict[_SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
+    def update_top_bottom_slides_heaps(self, batch: Dict[SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
         """Updates top and bottom slides heaps on the fly during validation and test.
 
         :param batch: The current validation/test batch that contains the slides info, corresponding tiles and
@@ -248,7 +251,9 @@ class KTopBottomTilesHandler:
         return slides_heaps
 
     @staticmethod
-    def gather_dictionaries(world_size: int, dicts: Dict, return_list: bool = False) -> Union[List[Dict], Dict]:
+    def gather_dictionaries(
+        world_size: int, dicts: Dict, return_list: bool = False
+    ) -> Union[List[Dict[str, SlideOrTileKey]], Dict[str, SlideOrTileKey]]:
         """Gathers python dictionaries accross devices.
 
         :param world_size: The number of devices in the ddp context.
@@ -256,7 +261,7 @@ class KTopBottomTilesHandler:
         :param return_list: Flag to return the gathered dictionaries as a list, defaults to False
         :return: Either a list of dictionaries or a reduced version of this list as a single dictionary.
         """
-        dicts_list: List[Dict] = [None] * world_size
+        dicts_list = [None] * world_size  # type: ignore
         torch.distributed.all_gather_object(dicts_list, dicts)
         if return_list:
             return dicts_list
