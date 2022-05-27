@@ -28,7 +28,7 @@ TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
 REGRESSION_TEST_METRICS_FILENAME = "regression_metrics.json"
 
 
-def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], tolerance: Optional[float] = 1e-5) -> None:
+def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], tolerance: float = 1e-5) -> None:
     """
     Function to give more clarity on the difference between two dictionaries.
 
@@ -36,9 +36,9 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
     :param actual: The second dictionary to compare
     :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5
     """
-    def _check_values_match(expected_value: Any, actual_value: Any, tolerance: Optional[float] = 1e-5) -> None:
+    def _check_values_match(expected_value: Any, actual_value: Any, tolerance: float = 1e-5) -> None:
         if type(actual_value) in [float, int] and type(expected_value) in [float, int]:
-            if isclose(actual, expected, rel_tol=tolerance):
+            if not isclose(actual_value, expected_value, rel_tol=tolerance):
                 raise ValueError(f"Expected: {expected_value} does not match actual {actual_value}")
             else:
                 return
