@@ -4,7 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Tuple
 
 import dateutil.parser
 import numpy as np
@@ -13,7 +13,9 @@ from azureml.core import Experiment, Run, Workspace
 
 from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
-from histopathology.utils.output_utils import AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV, AML_VAL_OUTPUTS_CSV
+from histopathology.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
+                                               AML_VAL_OUTPUTS_CSV, validate_class_names)
+from histopathology.utils.naming import AMLMetricsJsonKey
 
 
 def run_has_val_and_test_outputs(run: Run) -> bool:
@@ -211,3 +213,26 @@ def get_formatted_run_info(parent_run: Run) -> str:
     html += f"\n<p>{format_submission_info(parent_run)}"
     html += f"\n<p>Command-line arguments: <code>{parent_run.get_tags()['commandline_args']}</code>"
     return html
+
+
+def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, Tuple[str]]:
+    """
+    Get the class names from metrics dataframe
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :return: Number of classes and list of class names
+    """
+    hyperparams = metrics_df[0][AMLMetricsJsonKey.HYPERPARAMS]
+    hyperparams_name = hyperparams[AMLMetricsJsonKey.NAME]
+    hyperparams_value = hyperparams[AMLMetricsJsonKey.VALUE]
+    num_classes_index = hyperparams_name.index(AMLMetricsJsonKey.N_CLASSES)
+    num_classes = int(hyperparams_value[num_classes_index])
+    class_names_index = hyperparams_name.index(AMLMetricsJsonKey.CLASS_NAMES)
+    class_names = hyperparams_value[class_names_index]
+    if class_names == "None":
+        class_names = None
+    else:
+        # Remove [,], and quotation marks from the string of class names
+        class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
+    class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
+    return (num_classes, class_names)

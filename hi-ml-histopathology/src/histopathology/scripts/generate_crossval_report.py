@@ -16,10 +16,11 @@ from histopathology.utils.analysis_plot_utils import (add_training_curves_legend
                                                       plot_crossval_roc_and_pr_curves,
                                                       plot_crossval_training_curves)
 from histopathology.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
-                                               AML_VAL_OUTPUTS_CSV, validate_class_names)
+                                               AML_VAL_OUTPUTS_CSV)
 from histopathology.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
                                                crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                               get_best_epochs, get_crossval_metrics_table, get_formatted_run_info)
+                                               get_best_epochs, get_crossval_metrics_table, get_formatted_run_info,
+                                               collect_class_info)
 from histopathology.utils.naming import MetricsKey
 
 
@@ -31,9 +32,9 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     :param run_id: The parent Hyperdrive run ID.
     :param output_dir: Directory where to download Azure ML data and save the report.
-    :param workspace_config: Path to Azure ML workspace config.json file.
-                             If omitted, will try to load default workspace.
-    :param include_test: Opt-in flag to include test results in the generated report.
+    :param workspace_config_path: Path to Azure ML workspace config.json file.
+        If omitted, will try to load default workspace.
+    :param include_test: Include test results in the generated report.
     :param overwrite: Forces (re)download of metrics and output files, even if they already exist locally.
     """
     aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
@@ -56,16 +57,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                            metrics_df=metrics_df, best_epochs=best_epochs, report_dir=report_dir)
 
     # Get metrics list with class names
-    num_classes_index = metrics_df[0]['hyperparams']['name'].index('n_classes')
-    num_classes = int(metrics_df[0]['hyperparams']['value'][num_classes_index])
-    class_names_index = metrics_df[0]['hyperparams']['name'].index('class_names')
-    class_names = metrics_df[0]['hyperparams']['value'][class_names_index]
-    if class_names == "None":
-        class_names = validate_class_names(class_names=None, n_classes=num_classes)
-    else:
-        # Remove [,], and quotation marks from the string of class names
-        class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
-        class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
+    num_classes, class_names = collect_class_info(metrics_df=metrics_df)
 
     base_metrics_list: List[str]
     if num_classes > 1:
