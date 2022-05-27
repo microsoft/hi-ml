@@ -50,7 +50,7 @@ class SlideNode:
         self.bottom_tiles: List[TileNode] = []
 
     def __lt__(self, other: "SlideNode") -> bool:
-        return self.prob_score.item() < other.prob_score.item()
+        return self.prob_score < other.prob_score
 
     def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, k_tiles: int) -> None:
         """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
@@ -206,13 +206,13 @@ class KTopBottomTilesHandler:
                     gt_label=label,
                     tiles=batch[SlideKey.IMAGE][i],
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i]),
+                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
                 )
                 self.update_bottom_slides_heap(
                     gt_label=label,
                     tiles=batch[SlideKey.IMAGE][i],
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i]),
+                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
                 )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
