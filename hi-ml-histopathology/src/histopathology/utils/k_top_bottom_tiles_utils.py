@@ -100,7 +100,7 @@ class SlideNode:
 
 
 SlideOrTileNode = Union[SlideNode, TileNode]
-
+IntOrString = Union[int, str]
 
 class KTopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
@@ -253,7 +253,7 @@ class KTopBottomTilesHandler:
     @staticmethod
     def gather_dictionaries(
         world_size: int, dicts: Dict, return_list: bool = False
-    ) -> Union[List[Dict[str, SlideOrTileKey]], Dict[str, SlideOrTileKey]]:
+    ) -> Union[List[Dict[IntOrString, SlideOrTileKey]], Dict[IntOrString, SlideOrTileKey]]:
         """Gathers python dictionaries accross devices.
 
         :param world_size: The number of devices in the ddp context.
