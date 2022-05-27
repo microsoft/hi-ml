@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
 import os
 import torch
 import param
@@ -10,10 +11,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from torch import nn
 from pathlib import Path
 from monai.transforms import Compose
-from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from torchvision.models.resnet import resnet50
+from torchvision.models.resnet import resnet18, resnet50
 
 from health_azure.utils import CheckpointDownloader, get_workspace
 
@@ -126,8 +126,8 @@ class BaseMIL(LightningContainer):
         if self.encoder_type == ImageNetEncoder.__name__:
             return ImageNetEncoder(feature_extraction_model=resnet18,
                                    tile_size=self.tile_size, n_channels=self.n_channels)
-        # Myronenko et al. 2021 uses Resnet50 CNN encoder
-        if self.encoder_type == ImageNetEncoder_Resnet50.__name__:
+        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
+            # Myronenko et al. 2021 uses Resnet50 CNN encoder
             return ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
                                             tile_size=self.tile_size, n_channels=self.n_channels)
 

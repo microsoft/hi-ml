@@ -13,7 +13,7 @@ from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 
 
 class PandaTilesDataModuleBenchmark(TilesDataModule):
-    """ PandaTilesDataModuleBaseline is the child class of TilesDataModule specific to PANDA dataset
+    """ PandaTilesDataModuleBenchmark is the child class of TilesDataModule specific to PANDA dataset
     Method get_splits() returns the train, val, test splits from the PANDA dataset
     """
 

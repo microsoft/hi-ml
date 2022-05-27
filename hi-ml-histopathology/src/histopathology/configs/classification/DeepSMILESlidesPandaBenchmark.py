@@ -1,7 +1,9 @@
-"""
-Configuration for PANDA experiments from Myronenko et al. 2021:
-(https://link.springer.com/chapter/10.1007/978-3-030-87237-3_32)
-"""
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
+
 from typing import Any, Dict, Callable, Union
 from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
@@ -15,7 +17,7 @@ from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.datamodules.panda_module_benchmark import PandaSlidesDataModuleBenchmark
 from histopathology.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder,
+    ImageNetEncoder_Resnet50,
     ImageNetSimCLREncoder,
     SSLEncoder,
 )
@@ -25,7 +27,10 @@ from histopathology.utils.naming import MetricsKey, ModelKey, SlideKey
 
 
 class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
-    """`is_finetune` sets the fine-tuning mode. For fine-tuning,
+    """
+    Configuration for PANDA experiments from Myronenko et al. 2021:
+    (https://link.springer.com/chapter/10.1007/978-3-030-87237-3_32)
+    `is_finetune` sets the fine-tuning mode. For fine-tuning,
     batch_size = 2 runs on 8 GPUs with
     ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
@@ -96,8 +101,6 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        # Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
-        # Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
         deepmil_module = PandaSlidesDeepMILModuleBenchmark(encoder=self.get_model_encoder(),
                                                            label_column=SlideKey.LABEL,
                                                            n_classes=self.data_module.train_dataset.N_CLASSES,
@@ -118,6 +121,10 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
 
 
 class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
+    """
+    Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
+    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
+    """
     def __init__(self, n_epochs: int, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.save_hyperparameters()
@@ -131,7 +138,7 @@ class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
 
 class SlidesPandaImageNetMILBenchmark(DeepSMILESlidesPandaBenchmark):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
+        super().__init__(encoder_type=ImageNetEncoder_Resnet50.__name__, **kwargs)
 
 
 class SlidesPandaImageNetSimCLRMILBenchmark(DeepSMILESlidesPandaBenchmark):
