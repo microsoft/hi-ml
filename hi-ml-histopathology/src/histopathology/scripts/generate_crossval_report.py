@@ -50,7 +50,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     # Download metrics from AML. Can take several seconds for each child run
     metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
-    best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/auroc', maximise=True)
+    best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/{MetricsKey.AUROC}', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
     render_training_curves(report, heading="Training curves", level=3,
@@ -137,9 +137,11 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
     """
     report.add_heading(heading, level=level)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
-    plot_crossval_training_curves(metrics_df, train_metric='train/loss_epoch', val_metric=f'{ModelKey.VAL}/loss_epoch',
+    plot_crossval_training_curves(metrics_df, train_metric=f'{ModelKey.TRAIN}/loss_epoch',
+                                  val_metric=f'{ModelKey.VAL}/loss_epoch',
                                   ylabel="Loss", best_epochs=best_epochs, ax=ax1)
-    plot_crossval_training_curves(metrics_df, train_metric='train/auroc', val_metric=f'{ModelKey.VAL}/auroc',
+    plot_crossval_training_curves(metrics_df, train_metric=f'{ModelKey.TRAIN}/{MetricsKey.AUROC}',
+                                  val_metric=f'{ModelKey.VAL}/{MetricsKey.AUROC}',
                                   ylabel="AUROC", best_epochs=best_epochs, ax=ax2)
     add_training_curves_legend(fig, include_best_epoch=True)
     training_curves_fig_path = report_dir / "training_curves.png"
