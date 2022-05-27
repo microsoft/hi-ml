@@ -125,7 +125,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                                   report_dir=report_dir, outputs_dfs=outputs_dfs_test,
                                   prefix=f'{ModelKey.TEST}_')
 
-    report.add_heading("Qualitative model outputs", level=2)
+    # TODO: Add qualitative model outputs
+    # report.add_heading("Qualitative model outputs", level=2)
 
     print(f"Rendering report to: {report.report_path_html.resolve()}")
     report.render()
