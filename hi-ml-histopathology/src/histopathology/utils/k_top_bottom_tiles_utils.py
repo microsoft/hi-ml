@@ -253,7 +253,7 @@ class KTopBottomTilesHandler:
 
     @staticmethod
     def gather_dictionaries(
-        world_size: int, dicts: Dict, return_list: bool = False
+        world_size: int, dicts: Dict[IntOrString, SlideOrTileNode], return_list: bool = False
     ) -> Union[List[Dict[IntOrString, SlideOrTileNode]], Dict[IntOrString, SlideOrTileNode]]:
         """Gathers python dictionaries accross devices.
 
@@ -265,7 +265,7 @@ class KTopBottomTilesHandler:
         dicts_list = [None] * world_size  # type: ignore
         torch.distributed.all_gather_object(dicts_list, dicts)
         if return_list:
-            return dicts_list
+            return dicts_list  # type: ignore
         return dict(ChainMap(*dicts_list))  # type: ignore
 
     def gather_shallow_slides_heaps(
