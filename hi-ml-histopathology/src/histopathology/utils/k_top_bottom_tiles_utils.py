@@ -102,6 +102,7 @@ class SlideNode:
 SlideOrTileNode = Union[SlideNode, TileNode]
 IntOrString = Union[int, str]
 
+
 class KTopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
 
