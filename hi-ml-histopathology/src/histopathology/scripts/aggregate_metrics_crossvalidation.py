@@ -54,7 +54,7 @@ def get_metrics_from_run(run: Run, metrics_list: List[str]) -> pd.DataFrame:
     print(f"Getting metrics for run {run.id}")
     if isinstance(run, _OfflineRun):
         raise ValueError("Can't get metrics for an OfflineRun")
-    if len(list(run.get_children())) > 0:
+    if run.get_children():
         metrics_df = aggregate_hyperdrive_metrics(
             child_run_arg_name="crossval_index",
             run=run,

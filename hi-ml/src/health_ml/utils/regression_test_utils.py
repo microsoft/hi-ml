@@ -5,9 +5,10 @@
 import json
 import logging
 import os
-from pathlib import Path
 import shutil
 import tempfile
+from math import isclose
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from azureml.core import Run
@@ -24,6 +25,7 @@ FILE_FORMAT_ERROR = "File format error"
 MISSING_FILE = "Missing"
 CSV_SUFFIX = ".csv"
 TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
+REGRESSION_TEST_METRICS_FILENAME = "regression_metrics.json"
 
 
 def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], tolerance: Optional[float] = 1e-5) -> None:
@@ -36,7 +38,7 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
     """
     def _check_values_match(expected_value: Any, actual_value: Any, tolerance: Optional[float] = 1e-5) -> None:
         if type(actual_value) in [float, int] and type(expected_value) in [float, int]:
-            if abs(actual_value - expected_value) > tolerance:
+            if isclose(actual, expected, rel_tol=tolerance):
                 raise ValueError(f"Expected: {expected_value} does not match actual {actual_value}")
             else:
                 return
@@ -47,7 +49,7 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
 
     for expected_key, expected_val in expected.items():
         if expected_key not in actual:
-            logging.warning(f"Key {expected_key} is expected but not found in actual")
+            logging.warning(f"Key {expected_key} is expected but not found in actual dictionary: {actual}")
         else:
             actual_val = actual[expected_key]
             expected_type = type(expected_val)

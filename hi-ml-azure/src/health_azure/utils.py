@@ -1850,7 +1850,7 @@ def get_metrics_for_childless_run(
     For a given Run object or id, retrieves the metrics from that Run and returns them as a pandas DataFrame.
     Optionally filters the metrics logged in the Run, by providing a list of metrics to keep. This function
     expects a childless AML Run. If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
-    please use the function 'aggregate_hyperdrive_metrics'.
+    please use the function ``aggregate_hyperdrive_metrics``.
 
     :param run: A (childless) Run object to retrieve the metrics from. Either this or run_id must be provided
     :param run_id: The id (type: str) of a (childless) AML Run. Either this or run must be provided.
@@ -1874,9 +1874,6 @@ def get_metrics_for_childless_run(
         if metric_name in keep_metrics:
             metrics[metric_name] = metric_val
     df = pd.DataFrame.from_dict(metrics, orient="index")
-    # remove columns that only contain NANs
-    df = df.dropna(axis=1, how='all')
-    # TODO: For validation metrics, get the best epoch
     return df
 
 
