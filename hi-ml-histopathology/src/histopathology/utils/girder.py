@@ -351,7 +351,9 @@ class RunOutputs:
 
         :param overwrite_csv: Force download of the output CSV even when it is found locally.
         """
-        csv_name = f"test_output-{self.workspace.name}-{self.run.id}.csv"
+        csv_filename = AML_TEST_OUTPUTS_CSV
+        csv_stem = Path(csv_filename).stem
+        csv_name = f"{csv_stem}-{self.workspace.name}-{self.run.id}.csv"
         cached_csv_path = Path(tempfile.gettempdir()) / csv_name
         if cached_csv_path.is_file() and not overwrite_csv:
             logging.info("Found cached CSV file")
@@ -362,7 +364,7 @@ class RunOutputs:
                 azureml._restclient.models.error_response.ErrorResponseException,
             )
             try:
-                self.run.download_file(AML_TEST_OUTPUTS_CSV, cached_csv_path)
+                self.run.download_file(csv_filename, cached_csv_path)
             except aml_exceptions as e:
                 raise FileNotFoundError("Error downloading outputs file from run") from e
         logging.info("Reading CSV file: %s ...", cached_csv_path)
@@ -382,7 +384,7 @@ class RunOutputs:
         :param name: Annotation name.
         :param rescale: If ``True``, attention values will be remapped to :math:`[0, 1]` to increase
             the dynamic range of output colors.
-        :param colormap_name: Name of Matplotlib colormap used for the annotation elements.
+        :param colormap_name: Name of the Matplotlib colormap used for the annotation elements.
         :param description: Optional description for the annotation.
         """
         original_attentions = df.bag_attn.values
