@@ -47,7 +47,9 @@
                 "--model=histopathology.SlidesPandaImageNetMIL",
                 "--pl_limit_batches=4",
                 "--crossval_count=0",
-                "--batch_size=2"
+                "--batch_size=2",
+                "--k_slides=2",
+                "--k_tiles=2"
             ],
             "console": "integratedTerminal",
         },
