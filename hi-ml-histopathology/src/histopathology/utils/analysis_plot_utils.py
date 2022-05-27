@@ -288,6 +288,11 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
         labels_true = tile_labels_true.first()
 
         tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
+        non_unique_slides = [slide_id for slide_id, unique_slide_label in tile_labels_pred.unique().items()
+                             if len(unique_slide_label) > 1]
+        if non_unique_slides:
+            warnings.warn(f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
+                          f"{sorted(non_unique_slides)}")
         labels_pred = tile_labels_pred.first()
 
         cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
