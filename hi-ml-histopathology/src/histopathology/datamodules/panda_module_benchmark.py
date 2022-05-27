@@ -12,9 +12,8 @@ from typing import Tuple
 
 from health_ml.utils.split_dataset import DatasetSplits
 
-from histopathology.datamodules.base_module import SlidesDataModule, TilesDataModule
+from histopathology.datamodules.base_module import SlidesDataModule
 from histopathology.datasets.panda_dataset import PandaDataset
-from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 
 
 class PandaSlidesDataModuleBenchmark(SlidesDataModule):
