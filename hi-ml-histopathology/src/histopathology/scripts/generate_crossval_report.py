@@ -113,7 +113,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     if has_val_and_test_outputs:
         # Add val. confusion matrices
-        render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3, 
+        render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3,
                                   class_names=class_names,
                                   report_dir=report_dir, outputs_dfs=outputs_dfs_val,
                                   prefix=f'{ModelKey.VAL}_')
@@ -127,7 +127,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     report.add_heading("Qualitative model outputs", level=2)
 
-    print(f"Rendering report to: {report.report_path_html.absolute()}")
+    print(f"Rendering report to: {report.report_path_html.resolve()}")
     report.render()
 
 
@@ -245,9 +245,9 @@ if __name__ == "__main__":
 
     if args.output_dir is None:
         args.output_dir = Path.cwd() / "outputs"
-    workspace_config = Path(args.workspace_config).absolute() if args.workspace_config else None
+    workspace_config = Path(args.workspace_config).resolve() if args.workspace_config else None
 
-    print(f"Output dir: {Path(args.output_dir).absolute()}")
+    print(f"Output dir: {Path(args.output_dir).resolve()}")
     if workspace_config is not None:
         if not workspace_config.is_file():
             raise ValueError(f"Specified workspace config file does not exist: {workspace_config}")
