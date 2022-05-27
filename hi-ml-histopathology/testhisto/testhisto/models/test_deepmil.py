@@ -363,6 +363,7 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     module = container.create_model()
 
     module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.outputs_handler = MagicMock()
     module.log = MagicMock()  # type: ignore
     if use_gpu:
         module.cuda()
