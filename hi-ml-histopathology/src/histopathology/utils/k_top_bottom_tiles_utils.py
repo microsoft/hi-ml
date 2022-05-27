@@ -62,12 +62,12 @@ class SlideNode:
         k_tiles = min(k_tiles, len(attn_scores))
 
         _, top_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=True, sorted=True)
-        self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in top_k_indices]
+        self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in top_k_indices]
 
         _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=False, sorted=True)
-        self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i]) for i in bottom_k_indices]
+        self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in bottom_k_indices]
 
-    def shallow_copy(self) -> None:
+    def shallow_copy(self) -> "SlideNode":
         """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
         return SlideNode(self.slide_id, self.prob_score)
 
@@ -91,7 +91,7 @@ class SlideNode:
 
             for i, tile_node in enumerate(tiles):
                 axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-                axs.ravel()[i].set_title("%.6f" % tile_node.attn.item())
+                axs.ravel()[i].set_title("%.6f" % tile_node.attn)
 
             for i in range(len(axs.ravel())):
                 axs.ravel()[i].set_axis_off()
@@ -124,15 +124,15 @@ class KTopBottomTilesHandler:
         :return: A dictionary that maps TN/FP TP_{i}/FN_{i}, i={1,..., self.n_classes+1} cases to an empty list to be
             filled with corresponding slide ids.
         """
-        report_cases = {"TN": [], "FP": []}
+        report_cases: Dict[str, List[str]] = {"TN": [], "FP": []}
         report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes)})
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
         return report_cases
 
-    def set_top_slides_heaps(self, top_slides_heaps) -> None:
+    def set_top_slides_heaps(self, top_slides_heaps: Dict[int, List[SlideNode]]) -> None:
         self.top_slides_heaps = top_slides_heaps
 
-    def set_bottom_slides_heaps(self, bottom_slides_heaps) -> None:
+    def set_bottom_slides_heaps(self, bottom_slides_heaps: Dict[int, List[SlideNode]]) -> None:
         self.bottom_slides_heaps = bottom_slides_heaps
 
     def empty_top_bottom_tiles_cache(self) -> None:
@@ -256,11 +256,11 @@ class KTopBottomTilesHandler:
         :param return_list: Flag to return the gathered dictionaries as a list, defaults to False
         :return: Either a list of dictionaries or a reduced version of this list as a single dictionary.
         """
-        dicts_list = [None] * world_size
+        dicts_list: List[Dict] = [None] * world_size
         torch.distributed.all_gather_object(dicts_list, dicts)
         if return_list:
             return dicts_list
-        return dict(ChainMap(*dicts_list))
+        return dict(ChainMap(*dicts_list))  # type: ignore
 
     def gather_shallow_slides_heaps(
         self, world_size: int, shallow_slides_heaps: Dict[int, List[SlideNode]]
@@ -271,7 +271,9 @@ class KTopBottomTilesHandler:
         :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
         :return: A reduced slides_heaps conatining only the best slide nodes across all devices.
         """
-        slides_heaps_list = self.gather_dictionaries(world_size, shallow_slides_heaps, return_list=True)
+        slides_heaps_list: List[Dict[int, List[SlideNode]]] = self.gather_dictionaries(
+            world_size, shallow_slides_heaps, return_list=True
+        )
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
@@ -365,8 +367,10 @@ class KTopBottomTilesHandler:
                 self.set_bottom_slides_heaps(final_bottom_slides_heaps)
                 self.set_top_slides_heaps(final_top_slides_heaps)
 
-                final_top_tiles = self.gather_dictionaries(world_size, top_slides_top_tiles)
-                final_bottom_tiles = self.gather_dictionaries(world_size, top_slides_bottom_tiles)
+                final_top_tiles: Dict[str, List[TileNode]] = self.gather_dictionaries(world_size, top_slides_top_tiles)
+                final_bottom_tiles: Dict[str, List[TileNode]] = self.gather_dictionaries(
+                    world_size, top_slides_bottom_tiles
+                )
                 self.update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
                 final_top_tiles = self.gather_dictionaries(world_size, bot_slides_top_tiles)
