@@ -2,7 +2,6 @@ import logging
 import torch
 import heapq
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from math import ceil
