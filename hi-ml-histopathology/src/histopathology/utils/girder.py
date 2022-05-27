@@ -3,6 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+"""
+Tools to upload training results from Azure Machine Learning runs to a deployed instance of the
+`Digital Slide Archive <https://digitalslidearchive.github.io/>`_.
+
+The `Girder Python client <https://girder.readthedocs.io/en/latest/python-client.html>`_ is used
+to communicate with the API.
+
+An example API can be found at the `Kitware demo <https://demo.kitware.com/histomicstk/api/v1>`_.
+"""
+
 from __future__ import annotations
 
 import os
@@ -39,6 +49,12 @@ Z_ZERO = [0]
 
 @dataclass
 class Color:
+    """Container for RGBA color.
+
+    All values are expected to be in :math:`[0, 255]`. Check the
+    `documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#colors>`_
+    for more information.
+    """
     red: int
     green: int
     blue: int
@@ -54,6 +70,7 @@ class Color:
 
     @property
     def components(self) -> Sequence[int]:
+        """Tuple of R, G, B and A components."""
         return astuple(self)
 
     def __str__(self) -> str:
@@ -65,16 +82,19 @@ TRANSPARENT = Color(0, 0, 0, 0)
 
 @dataclass
 class Element:
+    """Base class for annotations elements such as points or rectangles."""
     label: str
     fill_color: Color
     line_color: Color
 
     def as_json(self) -> Dict:
+        """Return JSON representation suitable for the DSA."""
         raise NotImplementedError
 
 
 @dataclass
 class Coordinates:
+    """Helper class to represent x and y coordinates."""
     x: float
     y: float
 
@@ -91,6 +111,11 @@ class Coordinates:
 
 @dataclass
 class Rectangle(Element):
+    """Container for rectangles in annotations.
+
+    More information can be found in the
+    `DSA documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#rectangle>`_.
+    """  # noqa: E501
     left: float
     top: float
     right: float
@@ -130,6 +155,11 @@ class Rectangle(Element):
 
 @dataclass
 class Point(Element):
+    """Container for points in DSA annotations.
+
+    More information can be found in the
+    `DSA documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#point>`_.
+    """  # noqa: E501
     center: Coordinates
 
     def __post_init__(self) -> None:
@@ -148,6 +178,11 @@ class Point(Element):
 
 @dataclass
 class Annotation:
+    """Container for DSA annotation.
+
+    An example can be found in the
+    `DSA documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#a-sample-annotation>`_.
+    """  # noqa: E501
     name: str
     elements: Sequence[Element]
     description: str = ""
@@ -166,6 +201,15 @@ class Annotation:
 
 
 class DigitalSlideArchive:
+    """Representation of a deployed instance of the Digital Slide Archive.
+
+    :param url: URL of a deployed instance of the `Digital Slide Archive <https://digitalslidearchive.github.io/>`_.
+        For example: https://demo.kitware.com/histomicstk/. If not given, it must be defined in an environment
+        variable ``DSA_URL``.
+    :param api_key: Girder `API key <https://girder.readthedocs.io/en/latest/user-guide.html#api-keys>`_ to
+        perform allowed operations. If not given, it must be defined in an environment
+        variable ``DSA_API_KEY``.
+    """
     URL_ENV_NAME = "DSA_URL"
     API_KEY_ENV_NAME = "DSA_API_KEY"
 
@@ -207,6 +251,11 @@ class DigitalSlideArchive:
         return urljoin(self.url, GirderClient.DEFAULT_API_ROOT)
 
     def add_annotation(self, item_id: str, annotation: Annotation) -> Dict:
+        """Add annotation to a DSA item.
+
+        :param item_id: Unique string representing the item ID.
+        :param annotation: Instance of :class:`Annotation` that will be added to the item.
+        """
         response = self.post(
             path="annotation",
             parameters={"itemId": item_id},
@@ -215,6 +264,13 @@ class DigitalSlideArchive:
         return response
 
     def search_item(self, text: str, search_mode: str = "text") -> Item:
+        """Search a file in the DSA collections and return its parent item.
+
+        :param text: Text query.
+        :param search_mode: Girder search mode. It ``'text'``, the full item ID will be matched.
+            If ``'prefix'``, the file whose name starts with the value in ``text`` will be returned.
+        :raises RuntimeError: If no items are found for the query or if more than one item is found.
+        """
         parameters = dict(q=text, types="[\"item\"]", mode=search_mode)
         result = self.get("/resource/search", parameters=parameters)
         items_jsons = result["item"]
@@ -226,6 +282,14 @@ class DigitalSlideArchive:
 
 
 class Item:
+    """Representation of an item in the Digital Slide Archive.
+
+    :param dsa: Instance of :class:`DigitalSlideArchive`.
+    :param id: ID of the item in the Digital Slide Archive.
+    :param json: JSON representation of the Digital Slide Archive item.
+    :raises ValueError: If no ID or JSON is passed.
+    :raises ValueError: If both an ID and JSON are passed.
+    """
     def __init__(self, dsa: DigitalSlideArchive, id: Optional[str] = None, json: Optional[Dict] = None):
         self._dsa = dsa
 
@@ -257,6 +321,12 @@ class Item:
 
 
 class RunOutputs:
+    """Class to process outputs CSV of an Azure Machine Learning (AML) run.
+
+    :param run_id: ID of the AML run from which results will be downloaded.
+    :param workspace_config_path: Path to an AML workspace configuration file, e.g., ``config.json``.
+    :param overwrite_csv: Force download of the output CSV even when it is found locally.
+    """
     def __init__(
         self,
         run_id: str,
@@ -275,6 +345,12 @@ class RunOutputs:
         self.tile_size = None
 
     def get_df(self, overwrite_csv: bool) -> pd.DataFrame:
+        """Download outputs CSV from Azure ML and read the data frame.
+
+        The CSV is cached locally for future
+
+        :param overwrite_csv: Force download of the output CSV even when it is found locally.
+        """
         csv_name = f"test_output-{self.workspace.name}-{self.run.id}.csv"
         cached_csv_path = Path(tempfile.gettempdir()) / csv_name
         if cached_csv_path.is_file() and not overwrite_csv:
@@ -300,6 +376,15 @@ class RunOutputs:
         colormap_name: str = "Greens",
         description: str = "",
     ) -> Annotation:
+        """Create an annotation from a slide data frame.
+
+        :param df: Data frame with data from a single slide.
+        :param name: Annotation name.
+        :param rescale: If ``True``, attention values will be remapped to :math:`[0, 1]` to increase
+            the dynamic range of output colors.
+        :param colormap_name: Name of Matplotlib colormap used for the annotation elements.
+        :param description: Optional description for the annotation.
+        """
         original_attentions = df.bag_attn.values
         if rescale:
             df = df.copy()
@@ -334,6 +419,13 @@ class RunOutputs:
         annotation_name: str,
         **annotation_kwargs: Any,
     ) -> Annotation:
+        """Create an annotation from an outputs data frame.
+
+        :param df_or_path: Data frame or path to a CSV file.
+        :param slide_id: Slide ID as described in the data frame.
+        :param annotation_name: Name of the generated annotation.
+        :param annotation_kwargs: Additional kwargs to :meth:`get_annotation_from_slide_data_frame`.
+        """
         df = df_or_path if isinstance(df_or_path, pd.DataFrame) else self._read_csv(df_or_path)
         slide_mask = df[ResultsKey.SLIDE_ID] == slide_id
         df_slide = df[slide_mask]
@@ -348,6 +440,15 @@ class RunOutputs:
         search_mode: str = "full",
         **annotation_kwargs: Any,
     ) -> List[Dict]:
+        """Create annotations from a data frame and upload them to DSA.
+
+        :param dsa: Instance of :class:`DigitalSlideArchive` to which results will be uploaded.
+        :param dry_run: Create annotations and show outputs, without uploading any data.
+        :param max_slides: Maximum number of slides to upload, useful for debugging.
+        :param id_filter: Filter to only process slides matching this string, according to ``search_mode``.
+        :param search_mode: See :meth:`DigitalSlideArchive.search_item`.
+        :param annotation_kwargs: Additional kwargs to :meth:`get_annotation_from_slide_data_frame`.
+        """
         unique_slide_ids = sorted(self.df[ResultsKey.SLIDE_ID].unique())
 
         num_slides = len(unique_slide_ids)
