@@ -215,7 +215,7 @@ def get_formatted_run_info(parent_run: Run) -> str:
     return html
 
 
-def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, Tuple[str]]:
+def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
     """
     Get the class names from metrics dataframe
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
@@ -235,4 +235,4 @@ def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, Tuple[str]]:
         # Remove [,], and quotation marks from the string of class names
         class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
     class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
-    return (num_classes, class_names)
+    return (num_classes, list(class_names))
