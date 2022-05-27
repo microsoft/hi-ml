@@ -1,7 +1,0 @@
-test/macro_accuracy,0.7384915947914124
-test/weighted_accuracy,0.7749762535095215
-test/auroc,0.9394614100456238
-test/ISUP 0,nan
-test/ISUP 1,0.7781407237052917
-test/ISUP 2,0.6177520751953125
-test/ISUP 3,nan
