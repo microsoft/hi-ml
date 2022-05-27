@@ -89,9 +89,7 @@ class BaseMIL(LightningContainer):
                                                         "at level 1.")
 
     # Outputs Handler parameters:
-    save_slide_thumbnails_and_heatmaps: bool = param.Boolean(True,
-                                                             doc="a boolean parameter to enable "
-                                                                 "'save_slide_thumbnails_and_heatmaps'.")
+    save_output_slides: bool = param.Boolean(True, doc="a boolean parameter to enable saving heatmaps and thumbnails.")
     k_slides: int = param.Integer(10, bounds=(0, None),
                                   doc="Number of slide to save top and bottom tiles. Defaults 10.")
     k_tiles: int = param.Integer(10, bounds=(0, None),
@@ -175,7 +173,7 @@ class BaseMIL(LightningContainer):
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
-                                     save_slide_thumbnails_and_heatmaps=self.save_slide_thumbnails_and_heatmaps,
+                                     save_output_slides=self.save_output_slides,
                                      k_slides=self.k_slides,
                                      k_tiles=self.k_tiles)
 

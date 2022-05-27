@@ -329,7 +329,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_slide_thumbnails_and_heatmaps: bool = True, k_slides: int = 10, k_tiles: int = 10,
+                 maximise: bool, save_output_slides: bool = True, k_slides: int = 10, k_tiles: int = 10,
                  ncols: int = 4) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
@@ -340,7 +340,7 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_slide_thumbnails_and_heatmaps: a boolean parameter to enable 'save_slide_thumbnails_and_heatmaps'.
+        :param save_output_slides: a boolean parameter to enable 'save_slide_thumbnails_and_heatmaps'.
             This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
             tiles coordinates due to the current tiling on the fly strategy.
         :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
@@ -351,7 +351,7 @@ class DeepMILOutputsHandler:
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.save_slide_thumbnails_and_heatmaps = save_slide_thumbnails_and_heatmaps
+        self.save_output_slides = save_output_slides
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
         self.k_tiles = k_tiles
@@ -399,10 +399,7 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        logging.info("Selecting tiles ...")
-        self.k_tiles_handler.save_top_and_bottom_tiles(figures_dir)
-
-        if self.save_slide_thumbnails_and_heatmaps:
+        if self.save_output_slides:
             if self.slides_dataset is not None:
                 save_slide_thumbnails_and_heatmaps(results, self.k_tiles_handler.get_selected_slide_ids(),
                                                    tile_size=self.tile_size,
@@ -428,7 +425,6 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        self.k_tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
@@ -458,3 +454,6 @@ class DeepMILOutputsHandler:
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
+            logging.info("Selecting tiles ...")
+            self.k_tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
+            self.k_tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)

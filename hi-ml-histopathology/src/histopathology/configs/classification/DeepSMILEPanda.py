@@ -46,7 +46,10 @@ class BaseDeepSMILEPanda(BaseMIL):
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
-            adam_betas=(0.9, 0.99))
+            adam_betas=(0.9, 0.99),
+            # declared in OutputsHandler
+            k_slides=10,
+            k_tiles=10)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
@@ -134,10 +137,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA")],
             azure_datasets=["PANDA"],
-            save_slide_thumbnails_and_heatmaps=False,
-            # declared in OutputsHandler
-            k_slides=5,
-            k_tiles=5)
+            save_output_slides=False,
+            )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 

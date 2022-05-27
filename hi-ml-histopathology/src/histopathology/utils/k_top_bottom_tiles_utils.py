@@ -107,11 +107,10 @@ class KTopBottomTilesHandler:
         :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
         :param ncols: Number of columns to use to plot top and bottom tiles.
         """
-        self.n_classes = n_classes
+        self.n_classes = n_classes if n_classes > 1 else 2
         self.k_slides = k_slides
         self.k_tiles = k_tiles
         self.ncols = ncols
-        self.n_classes_to_select = n_classes if n_classes > 1 else 2
         self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
@@ -124,8 +123,8 @@ class KTopBottomTilesHandler:
             filled with corresponding slide ids.
         """
         report_cases = {"TN": [], "FP": []}
-        report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
-        report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes_to_select)})
+        report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes)})
+        report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
         return report_cases
 
     def set_top_slides_heaps(self, top_slides_heaps) -> None:
@@ -394,7 +393,7 @@ class KTopBottomTilesHandler:
         :param figures_dir: The path to the directory where to save the attention tiles figure.
         """
         logging.info(f"Plotting {self.k_tiles} top and bottom tiles of {self.k_slides} top and slides...")
-        for class_id in range(self.n_classes_to_select):
+        for class_id in range(self.n_classes):
             for slide_node in self.top_slides_heaps[class_id]:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
                 self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
