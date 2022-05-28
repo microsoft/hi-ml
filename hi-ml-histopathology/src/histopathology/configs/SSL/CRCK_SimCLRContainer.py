@@ -32,7 +32,7 @@ class CRCK_SimCLR(HistoSSLContainer):
                                                TcgaCrck_TilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
-        # if not running in Azure ML, you may want to override certain properties the command line, such as:
+        # if not running in Azure ML, you may want to override certain properties on the command line, such as:
         # --is_debug_model = True
         # --num_workers = 0
         # --max_epochs = 2

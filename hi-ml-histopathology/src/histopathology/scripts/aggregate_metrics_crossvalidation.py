@@ -12,7 +12,7 @@ import pandas as pd
 from azureml.core import Run
 from azureml.core.run import _OfflineRun
 
-HIML_ROOT = Path.cwd()
+HIML_ROOT = Path(__file__).parent.parent.parent.parent.parent.absolute()
 health_ml_root = HIML_ROOT / "hi-ml" / "src"
 health_azure_root = HIML_ROOT / "hi-ml-azure" / "src"
 print(f"Inserting into sys path: {health_ml_root}")
@@ -54,7 +54,7 @@ def get_metrics_from_run(run: Run, metrics_list: List[str]) -> pd.DataFrame:
     print(f"Getting metrics for run {run.id}")
     if isinstance(run, _OfflineRun):
         raise ValueError("Can't get metrics for an OfflineRun")
-    if run.get_children():
+    if len(list(run.get_children())) > 0:
         metrics_df = aggregate_hyperdrive_metrics(
             child_run_arg_name="crossval_index",
             run=run,
@@ -70,7 +70,7 @@ def get_metrics_from_run(run: Run, metrics_list: List[str]) -> pd.DataFrame:
 def upload_regression_metrics_file_to_run(metrics_df: pd.DataFrame, run: Run) -> None:
     """
     For a given metrics DataFrame, creates a temporary local csv file and uploads its to the provided
-    Azure ML Run.
+    Azure ML Run. Note that this assumes there is an 'outputs' folder in your Run.
 
     :param metrics_df: the DataFrame of metrics that should be stored in a csv file and uploaded to the run.
     :param run: The AML Run to upload the metrics file to.
@@ -79,9 +79,9 @@ def upload_regression_metrics_file_to_run(metrics_df: pd.DataFrame, run: Run) ->
     regression_results_dir.mkdir(exist_ok=True)
     metrics_json_output = regression_results_dir / "metrics.json"
 
-    print(f"Saving downloaded metrics to {metrics_json_output}")
     metrics_df.to_json(metrics_json_output)
-    run.upload_file("regression_metrics.json", str(metrics_json_output))
+    print(f"Uploading metrics file to AML Run")
+    run.upload_file("outputs/regression_metrics.json", str(metrics_json_output))
     metrics_json_output.unlink()
 
 

@@ -88,7 +88,7 @@ crck_simclr_regression_test:
 	cd ../; \
 	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR  --azureml \
 	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml \
-	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR_1647524987_a58b5f05 \
+	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR_1653673515_42d53d78 \
 	--regression_test_csv_tolerance=0.5 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
 	}
