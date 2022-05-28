@@ -80,7 +80,7 @@ def upload_regression_metrics_file_to_run(metrics_df: pd.DataFrame, run: Run) ->
     metrics_json_output = regression_results_dir / "metrics.json"
 
     metrics_df.to_json(metrics_json_output)
-    print(f"Uploading metrics file to AML Run")
+    print("Uploading metrics file to AML Run")
     run.upload_file("outputs/regression_metrics.json", str(metrics_json_output))
     metrics_json_output.unlink()
 
