@@ -13,8 +13,6 @@ from collections import ChainMap
 from histopathology.utils.naming import ResultsKey, SlideKey, TileKey
 from histopathology.utils.viz_utils import save_figure
 
-SlideOrTileKey = Union[SlideKey, TileKey]
-
 
 class TileNode:
     """Data structure class for tile nodes used by `SlideNode` to store top and bottom tiles."""
@@ -99,8 +97,10 @@ class SlideNode:
             save_figure(fig=fig, figpath=key_dir / f"{self.slide_id}_{suffix}.png")
 
 
-SlideOrTileNode = Union[SlideNode, TileNode]
-IntOrString = Union[int, str]
+SlideOrTileKey = Union[SlideKey, TileKey]
+SlideDict = Dict[int, List[SlideNode]]
+TileDict = Dict[str, List[TileNode]]
+SlideOrTileDict = Union[SlideDict, TileDict]
 
 
 class KTopBottomTilesHandler:
@@ -117,8 +117,8 @@ class KTopBottomTilesHandler:
         self.k_slides = k_slides
         self.k_tiles = k_tiles
         self.ncols = ncols
-        self.top_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
-        self.bottom_slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
+        self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
+        self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
 
     def init_report_cases(self) -> Dict[str, List[str]]:
@@ -133,10 +133,10 @@ class KTopBottomTilesHandler:
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
         return report_cases
 
-    def set_top_slides_heaps(self, top_slides_heaps: Dict[int, List[SlideNode]]) -> None:
+    def set_top_slides_heaps(self, top_slides_heaps: SlideDict) -> None:
         self.top_slides_heaps = top_slides_heaps
 
-    def set_bottom_slides_heaps(self, bottom_slides_heaps: Dict[int, List[SlideNode]]) -> None:
+    def set_bottom_slides_heaps(self, bottom_slides_heaps: SlideDict) -> None:
         self.bottom_slides_heaps = bottom_slides_heaps
 
     def empty_top_bottom_tiles_cache(self) -> None:
@@ -148,12 +148,7 @@ class KTopBottomTilesHandler:
         return self.report_cases_slide_ids
 
     def _update_slides_heap(
-        self,
-        slides_heaps: Dict[int, List[SlideNode]],
-        gt_label: int,
-        tiles: Tensor,
-        attn_scores: Tensor,
-        slide_node: SlideNode,
+        self, slides_heaps: SlideDict, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode,
     ) -> None:
         """Update the content of a slides_heap of a given gt_label.
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
@@ -215,26 +210,24 @@ class KTopBottomTilesHandler:
                     slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
                 )
 
-    def _shallow_copy_slides_heaps(self, slides_heaps: Dict[int, List[SlideNode]]) -> Dict[int, List[SlideNode]]:
+    def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
         """Returns a shallow copy of slides heaps to be synchronised across devices.
 
         :param slides_heaps: The slides_heaps dict to be shallow copied. Either self.top_slides_heaps or
             self.bottom_slides_heaps.
         """
-        shallow_slides_heaps_copy: Dict[int, List[SlideNode]] = {}
+        shallow_slides_heaps_copy: SlideDict = {}
         for class_id, slide_nodes in slides_heaps.items():
             shallow_slides_heaps_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
         return shallow_slides_heaps_copy
 
-    def shallow_copy_top_slides_heaps(self) -> Dict[int, List[SlideNode]]:
+    def shallow_copy_top_slides_heaps(self) -> SlideDict:
         return self._shallow_copy_slides_heaps(self.top_slides_heaps)
 
-    def shallow_copy_bottom_slides_heaps(self) -> Dict[int, List[SlideNode]]:
+    def shallow_copy_bottom_slides_heaps(self) -> SlideDict:
         return self._shallow_copy_slides_heaps(self.bottom_slides_heaps)
 
-    def _reduce_slides_heaps_list(
-        self, world_size: int, slides_heaps_list: List[Dict[int, List[SlideNode]]]
-    ) -> Dict[int, List[SlideNode]]:
+    def _reduce_slides_heaps_list(self, world_size: int, slides_heaps_list: List[SlideDict]) -> SlideDict:
         """Reduces the list of slides_heaps gathered across devices into a single slides_heaps that contain top or
         bottom shallow slide nodes.
 
@@ -242,7 +235,7 @@ class KTopBottomTilesHandler:
         :param slides_heaps_list: A list of slides heaps gathered across devices.
         :return: A reduced version of slides_heaps_list to a single slides_heaps containing only top or bottom slides.
         """
-        slides_heaps: Dict[int, List[SlideNode]] = {class_id: [] for class_id in range(self.n_classes)}
+        slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         for class_id in range(self.n_classes):
             for rank in range(world_size):
                 for slide_node in slides_heaps_list[rank][class_id]:
@@ -253,8 +246,8 @@ class KTopBottomTilesHandler:
 
     @staticmethod
     def gather_dictionaries(
-        world_size: int, dicts: Dict[IntOrString, SlideOrTileNode], return_list: bool = False
-    ) -> Union[List[Dict[IntOrString, SlideOrTileNode]], Dict[IntOrString, SlideOrTileNode]]:
+        world_size: int, dicts: SlideOrTileDict, return_list: bool = False
+    ) -> Union[List[SlideOrTileDict], SlideOrTileDict]:
         """Gathers python dictionaries accross devices.
 
         :param world_size: The number of devices in the ddp context.
@@ -268,23 +261,21 @@ class KTopBottomTilesHandler:
             return dicts_list  # type: ignore
         return dict(ChainMap(*dicts_list))  # type: ignore
 
-    def gather_shallow_slides_heaps(
-        self, world_size: int, shallow_slides_heaps: Dict[int, List[SlideNode]]
-    ) -> Dict[int, List[SlideNode]]:
+    def gather_shallow_slides_heaps(self, world_size: int, shallow_slides_heaps: SlideDict) -> SlideDict:
         """Gathers shallow slides heaps across devices.
 
         :param world_size: The number of devices in the ddp context.
         :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
         :return: A reduced slides_heaps conatining only the best slide nodes across all devices.
         """
-        slides_heaps_list: List[Dict[int, List[SlideNode]]] = self.gather_dictionaries(
+        slides_heaps_list: List[SlideDict] = self.gather_dictionaries(
             world_size, shallow_slides_heaps, return_list=True
         )
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
-        self, final_slides_heaps: Dict[int, List[SlideNode]], slides_heaps: Dict[int, List[SlideNode]]
-    ) -> Tuple[Dict[str, List[TileNode]], Dict[str, List[TileNode]]]:
+        self, final_slides_heaps: SlideDict, slides_heaps: SlideDict
+    ) -> Tuple[TileDict, TileDict]:
         """Select top and bottom tiles from top or bottom slides_heaps in current device.
 
         :param final_slides_heaps: Selected top or bottom slides_heaps that contains shallow slide nodes.
@@ -304,24 +295,21 @@ class KTopBottomTilesHandler:
         return top_tiles, bottom_tiles
 
     def select_top_slides_top_bottom_tiles_per_device(
-        self, final_top_slides_heaps: Dict[int, List[SlideNode]]
-    ) -> Tuple[Dict[str, List[TileNode]], Dict[str, List[TileNode]]]:
+        self, final_top_slides_heaps: SlideDict
+    ) -> Tuple[TileDict, TileDict]:
         return self._select_slides_top_bottom_tiles_per_device(
             final_slides_heaps=final_top_slides_heaps, slides_heaps=self.top_slides_heaps
         )
 
     def select_bottom_slides_top_bottom_tiles_per_device(
-        self, final_bottom_slides_heaps: Dict[int, List[SlideNode]]
-    ) -> Tuple[Dict[str, List[TileNode]], Dict[str, List[TileNode]]]:
+        self, final_bottom_slides_heaps: SlideDict
+    ) -> Tuple[TileDict, TileDict]:
         return self._select_slides_top_bottom_tiles_per_device(
             final_slides_heaps=final_bottom_slides_heaps, slides_heaps=self.bottom_slides_heaps
         )
 
     def _update_shallow_slides_heaps_with_top_bottom_tiles(
-        self,
-        slides_heaps: Dict[int, List[SlideNode]],
-        top_tiles: Dict[str, List[TileNode]],
-        bottom_tiles: Dict[str, List[TileNode]],
+        self, slides_heaps: SlideDict, top_tiles: TileDict, bottom_tiles: TileDict,
     ) -> None:
         """Update shallow version of slides heaps with top and bottom tiles gathered across devices.
 
@@ -335,12 +323,12 @@ class KTopBottomTilesHandler:
                 slide_node.bottom_tiles = bottom_tiles[slide_node.slide_id]
 
     def update_shallow_top_slides_heaps_with_top_bottom_tiles(
-        self, top_tiles: Dict[str, List[TileNode]], bottom_tiles: Dict[str, List[TileNode]],
+        self, top_tiles: TileDict, bottom_tiles: TileDict,
     ) -> None:
         self._update_shallow_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, top_tiles, bottom_tiles)
 
     def update_shallow_bottom_slides_heaps_with_top_bottom_tiles(
-        self, top_tiles: Dict[str, List[TileNode]], bottom_tiles: Dict[str, List[TileNode]],
+        self, top_tiles: TileDict, bottom_tiles: TileDict,
     ) -> None:
         self._update_shallow_slides_heaps_with_top_bottom_tiles(self.bottom_slides_heaps, top_tiles, bottom_tiles)
 
@@ -373,10 +361,8 @@ class KTopBottomTilesHandler:
                 self.set_bottom_slides_heaps(final_bottom_slides_heaps)
                 self.set_top_slides_heaps(final_top_slides_heaps)
 
-                final_top_tiles: Dict[str, List[TileNode]] = self.gather_dictionaries(world_size, top_slides_top_tiles)
-                final_bottom_tiles: Dict[str, List[TileNode]] = self.gather_dictionaries(
-                    world_size, top_slides_bottom_tiles
-                )
+                final_top_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_top_tiles)
+                final_bottom_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_bottom_tiles)
                 self.update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
                 final_top_tiles = self.gather_dictionaries(world_size, bot_slides_top_tiles)
