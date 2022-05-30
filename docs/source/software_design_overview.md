@@ -66,7 +66,7 @@ Once all the above criteria are satisfied, the branch will be merged into "main"
 
 ## Software Configuration Management
 
-Software of Unknown Provenance (SOUP, 3rd party software that the main software code relies upon) is consumed via two
+Third party libraries (sometimes called Software of Unknown Provenance, SOUP) are consumed via two
 package management systems:
 
 - Conda
@@ -77,10 +77,11 @@ cannot be modified in place. Rather, a new version needs to be released.
 
 Our training and deployment code uses Conda environment files that specify an explicit version of a dependent package to
 use (for example, `lightning_bolts==0.4.0`). The Conda environment files are also version controlled in GitHub. Any
-change to a version of a 3rd party library will need to be carried out via the same change management process as a code
+change to a version of a third party library will need to be carried out via the same change management process as a code
 change, with Pull Request, review, and all tests passing.
 
-The list of SOUP items is maintained in GitHub in the Conda configuration files (`environment.yml`).
+The list of third party software is maintained in GitHub in the Conda configuration file, that is `environment.yml` for
+Linux environments and `environment_win.yml` for Windows environments.
 
 ## Defect Handling
 
