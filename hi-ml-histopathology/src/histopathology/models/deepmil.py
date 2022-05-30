@@ -253,7 +253,7 @@ class BaseDeepMILModule(LightningModule):
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
         if stage == ModelKey.TEST and self.outputs_handler:
-            self.outputs_handler.k_tiles_handler.update_top_bottom_slides_heaps(batch, results)
+            self.outputs_handler.tiles_handler.update_top_bottom_slides_heaps(batch, results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore

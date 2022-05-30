@@ -19,7 +19,7 @@ from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.utils.k_top_bottom_tiles_utils import KTopBottomTilesHandler
+from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
@@ -329,7 +329,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_slides: bool = True, k_slides: int = 10, k_tiles: int = 10,
+                 maximise: bool, save_output_slides: bool = True, n_top_slides: int = 10, n_top_tiles: int = 10,
                  ncols: int = 4) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
@@ -343,8 +343,9 @@ class DeepMILOutputsHandler:
         :param save_output_slides: a boolean parameter to enable 'save_slide_thumbnails_and_heatmaps'.
             This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
             tiles coordinates due to the current tiling on the fly strategy.
-        :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
-        :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
+        :param n_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
+            Defaults to 10.
+        :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
         :param ncols: Number of columnds to use to plot top and bottom tiles.
         """
         self.outputs_root = outputs_root
@@ -354,14 +355,14 @@ class DeepMILOutputsHandler:
         self.save_output_slides = save_output_slides
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
-        self.k_tiles = k_tiles
-        self.k_slides = k_slides
+        self.n_top_tiles = n_top_tiles
+        self.n_top_slides = n_top_slides
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.k_tiles_handler = KTopBottomTilesHandler(self.n_classes, k_tiles=self.k_tiles, k_slides=self.k_slides,
-                                                      ncols=ncols)
+        self.tiles_handler = TopBottomTilesHandler(self.n_classes, n_top_tiles=self.n_top_tiles,
+                                                   n_top_slides=self.n_top_slides, ncols=ncols)
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -401,7 +402,7 @@ class DeepMILOutputsHandler:
 
         if self.save_output_slides:
             if self.slides_dataset is not None:
-                save_slide_thumbnails_and_heatmaps(results, self.k_tiles_handler.get_selected_slide_ids(),
+                save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.get_selected_slide_ids(),
                                                    tile_size=self.tile_size,
                                                    level=self.level, slides_dataset=self.slides_dataset,
                                                    figures_dir=figures_dir)
@@ -455,5 +456,5 @@ class DeepMILOutputsHandler:
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
             logging.info("Selecting tiles ...")
-            self.k_tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
-            self.k_tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
+            self.tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
+            self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)

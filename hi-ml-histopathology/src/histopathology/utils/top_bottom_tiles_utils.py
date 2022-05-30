@@ -15,7 +15,7 @@ from histopathology.utils.viz_utils import save_figure
 
 
 class TileNode:
-    """Data structure class for tile nodes used by `SlideNode` to store top and bottom tiles."""
+    """Data structure class for tile nodes used by `SlideNode` to store top and bottom tiles by attention scores."""
 
     def __init__(
         self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
@@ -35,7 +35,8 @@ class TileNode:
 
 
 class SlideNode:
-    """Data structure class for slide nodes used by `KTopBottomTilesHandler` to store top ann """
+    """Data structure class for slide nodes used by `KTopBottomTilesHandler` to store top and bottom slides by
+    probability score. """
 
     def __init__(self, slide_id: str, prob_score: float,) -> None:
         """
@@ -50,19 +51,19 @@ class SlideNode:
     def __lt__(self, other: "SlideNode") -> bool:
         return self.prob_score < other.prob_score
 
-    def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, k_tiles: int) -> None:
+    def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, n_top_tiles: int) -> None:
         """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
 
         :param tiles: A tensor of tiles data of shape (channels, height, width), e.g (3, 224, 224).
         :param attn_scores: A tensor of attention scores assigned by the deepmil model to the set of tiles.
-        :param k_tiles: The number of k tiles to select as k top and bottom tiles.
+        :param n_top_tiles: The number of tiles to select as top and bottom tiles.
         """
-        k_tiles = min(k_tiles, len(attn_scores))
+        n_top_tiles = min(n_top_tiles, len(attn_scores))
 
-        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=True, sorted=True)
+        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=n_top_tiles, largest=True, sorted=True)
         self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in top_k_indices]
 
-        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=k_tiles, largest=False, sorted=True)
+        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=n_top_tiles, largest=False, sorted=True)
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in bottom_k_indices]
 
     def shallow_copy(self) -> "SlideNode":
@@ -102,19 +103,20 @@ SlideDict = Dict[int, List[SlideNode]]
 TileDict = Dict[str, List[TileNode]]
 
 
-class KTopBottomTilesHandler:
+class TopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
 
-    def __init__(self, n_classes: int, k_slides: int = 10, k_tiles: int = 10, ncols: int = 4) -> None:
+    def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, ncols: int = 4) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
-        :param k_slides: Number of slides to select to define top and bottom tiles based of pred scores. Defaults to 10.
-        :param k_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
+        :param n_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
+            prediction scores.Defaults to 10.
+        :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
         :param ncols: Number of columns to use to plot top and bottom tiles.
         """
         self.n_classes = n_classes if n_classes > 1 else 2
-        self.k_slides = k_slides
-        self.k_tiles = k_tiles
+        self.n_top_slides = n_top_slides
+        self.n_top_tiles = n_top_tiles
         self.ncols = ncols
         self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
@@ -153,7 +155,7 @@ class KTopBottomTilesHandler:
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
         defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
         bottom_slides_heaps nodes.
-        Second, we check if we exceeded self.k_slides to be selected.
+        Second, we check if we exceeded self.n_top_slides to be selected.
             If so, we update the slides_node top and bottom tiles only if it has been kept in the heap.
             Else, we haven't reached the heaps max_capacity so we save the top and bottom tiles.
 
@@ -165,13 +167,13 @@ class KTopBottomTilesHandler:
         :param slide_node: A shallow version of slide_node that contains only slide_id and its assigned prob_score.
         """
         heapq.heappush(slides_heaps[gt_label], slide_node)
-        if len(slides_heaps[gt_label]) == self.k_slides + 1:
+        if len(slides_heaps[gt_label]) == self.n_top_slides + 1:
             old_slide_node = slides_heaps[gt_label][0]
             heapq.heappop(slides_heaps[gt_label])
             if old_slide_node.slide_id != slide_node.slide_id:
-                slide_node.update_top_bottom_tiles(tiles, attn_scores, self.k_tiles)
+                slide_node.update_top_bottom_tiles(tiles, attn_scores, self.n_top_tiles)
         else:
-            slide_node.update_top_bottom_tiles(tiles, attn_scores, self.k_tiles)
+            slide_node.update_top_bottom_tiles(tiles, attn_scores, self.n_top_tiles)
 
     def update_top_slides_heap(self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode) -> None:
         return self._update_slides_heap(self.top_slides_heaps, gt_label, tiles, attn_scores, slide_node)
@@ -239,7 +241,7 @@ class KTopBottomTilesHandler:
             for rank in range(world_size):
                 for slide_node in slides_heaps_list[rank][class_id]:
                     heapq.heappush(slides_heaps[class_id], slide_node)
-                    if len(slides_heaps[class_id]) == self.k_slides + 1:
+                    if len(slides_heaps[class_id]) == self.n_top_slides + 1:
                         heapq.heappop(slides_heaps[class_id])
         return slides_heaps
 
@@ -389,7 +391,7 @@ class KTopBottomTilesHandler:
 
         :param figures_dir: The path to the directory where to save the attention tiles figure.
         """
-        logging.info(f"Plotting {self.k_tiles} top and bottom tiles of {self.k_slides} top and slides...")
+        logging.info(f"Plotting {self.n_top_tiles} top and bottom tiles of {self.n_top_slides} top and slides...")
         for class_id in range(self.n_classes):
             for slide_node in self.top_slides_heaps[class_id]:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"

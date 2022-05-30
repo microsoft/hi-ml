@@ -92,10 +92,12 @@ class BaseMIL(LightningContainer):
 
     # Outputs Handler parameters:
     save_output_slides: bool = param.Boolean(True, doc="a boolean parameter to enable saving heatmaps and thumbnails.")
-    k_slides: int = param.Integer(10, bounds=(0, None),
-                                  doc="Number of slide when saving top and bottom tiles. Defaults 10.")
-    k_tiles: int = param.Integer(10, bounds=(0, None),
-                                 doc="Number of tiles to save top and bottom tiles. Defaults 10.")
+    n_top_slides: int = param.Integer(10, bounds=(0, None), doc="Number of slides to select when saving top and bottom "
+                                                                "tiles. If set to 10 (default), it select 10 top and "
+                                                                "10 bottom slides.")
+    n_top_tiles: int = param.Integer(10, bounds=(0, None), doc="Number of tiles to select when saving top and bottom"
+                                                               "tiles. If set to 10 (default), it saves 10 top and 10"
+                                                               "bottom tiles.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -186,8 +188,8 @@ class BaseMIL(LightningContainer):
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
                                      save_output_slides=self.save_output_slides,
-                                     k_slides=self.k_slides,
-                                     k_tiles=self.k_tiles)
+                                     n_top_slides=self.n_top_slides,
+                                     n_top_tiles=self.n_top_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder

@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from typing import Dict, Generator, List, Tuple, Any
 
-from histopathology.utils.k_top_bottom_tiles_utils import KTopBottomTilesHandler, SlideNode
+from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler, SlideNode
 from histopathology.utils.naming import ResultsKey, SlideKey
 from testhisto.utils.utils_testhisto import run_distributed
 
@@ -40,31 +40,31 @@ def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
 
 
 def _select_slides_by_probability(
-    results: Dict[ResultsKey, Any], k_slides: int = 5, label: int = 1, top: bool = True
+    results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1, top: bool = True
 ) -> Tuple[List[str], torch.Tensor]:
     """Select top or bottom slides accoring to their probability scores."""
     class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
     class_prob = results[ResultsKey.CLASS_PROBS][class_indices, label]
     assert class_prob.shape == (len(class_indices),)
-    k_slides = min(k_slides, len(class_prob))
+    n_top_slides = min(n_top_slides, len(class_prob))
 
-    _, sorting_indices = class_prob.topk(k_slides, largest=top, sorted=True)
+    _, sorting_indices = class_prob.topk(n_top_slides, largest=top, sorted=True)
     sorted_class_indices = class_indices[sorting_indices]
     return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices]
 
 
 def _assert_equal_top_bottom_tiles(
-    slide_ids: List[str], batches: Dict, results: Dict, k_tiles: int, slide_nodes: List[SlideNode]
+    slide_ids: List[str], batches: Dict, results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
     for i, slide_id in enumerate(slide_ids):
         slide_batch_idx = int(slide_id.split("_")[1])
         tiles = batches[SlideKey.IMAGE][slide_batch_idx]
 
         _, top_tiles_ids = torch.topk(
-            results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=k_tiles, largest=True, sorted=True
+            results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=n_top_tiles, largest=True, sorted=True
         )
         _, bottom_tiles_ids = torch.topk(
-            results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=k_tiles, largest=False, sorted=True
+            results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=n_top_tiles, largest=False, sorted=True
         )
 
         expected_top_tiles = [tiles[tile_id] for tile_id in top_tiles_ids]
@@ -87,9 +87,9 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
     n_batches = 10
     total_batches = n_batches * world_size
 
-    k_tiles = 2
-    k_slides = 2
-    handler = KTopBottomTilesHandler(n_classes, k_slides=k_slides, k_tiles=k_tiles)
+    n_top_tiles = 2
+    n_top_slides = 2
+    handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
 
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
@@ -109,10 +109,10 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
             shallow_bottom_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
 
     for label in range(n_classes):
-        top_slides_ids = _select_slides_by_probability(results, k_slides, label, top=True)
+        top_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=True)
         assert top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]][::-1]
 
-        bottom_slides_ids = _select_slides_by_probability(results, k_slides, label, top=False)
+        bottom_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=False)
         assert bottom_slides_ids == [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]][::-1]
 
 
@@ -138,9 +138,9 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     n_batches = 10
     total_batches = n_batches * world_size
 
-    k_tiles = 2
-    k_slides = 2
-    handler = KTopBottomTilesHandler(n_classes, k_slides=k_slides, k_tiles=k_tiles)
+    n_top_tiles = 2
+    n_top_slides = 2
+    handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
 
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
@@ -154,13 +154,13 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
     for label in range(n_classes):
-        top_slides_ids = _select_slides_by_probability(results, k_slides, label, top=True)
+        top_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=True)
         assert top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]][::-1]
-        _assert_equal_top_bottom_tiles(top_slides_ids, data, results, k_tiles, handler.top_slides_heaps[label])
+        _assert_equal_top_bottom_tiles(top_slides_ids, data, results, n_top_tiles, handler.top_slides_heaps[label])
 
-        bottom_slides_ids = _select_slides_by_probability(results, k_slides, label, top=False)
+        bottom_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=False)
         assert bottom_slides_ids == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]][::-1]
-        _assert_equal_top_bottom_tiles(bottom_slides_ids, data, results, k_tiles, handler.bottom_slides_heaps[label])
+        _assert_equal_top_bottom_tiles(bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label])
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")

@@ -48,8 +48,8 @@ class BaseDeepSMILEPanda(BaseMIL):
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99),
             # declared in OutputsHandler
-            k_slides=10,
-            k_tiles=10)
+            n_top_slides=10,
+            n_top_tiles=10)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
