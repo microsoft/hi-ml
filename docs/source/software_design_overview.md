@@ -1,9 +1,12 @@
 # Software Development Process
 
-This document provides a high-level overview of the software development process that our team uses.
-For detailed guidance, please refer to the [coding guidelines](coding_guidelines.md).
+This document provides a high-level overview of the software development process that our team uses for their
+repositories (most importantly [InnerEye-DeepLearning](https://github.com/microsoft/InnerEye-DeepLearning) and
+[hi-ml](https://github.com/microsoft/hi-ml)).
 
-## Version control
+For detailed guidance for developers, please refer to the [coding guidelines](coding_guidelines.md).
+
+## Version Control
 
 Software code versioning is done via GitHub. The code with the highest level of quality control is in the "main" branch.
 Ongoing development happens in separate branches. Once development in the branch is finished, a Pull Request (PR)
@@ -79,8 +82,13 @@ change, with Pull Request, review, and all tests passing.
 
 The list of SOUP items is maintained in GitHub in the Conda configuration files (`environment.yml`).
 
-## Defect handling
+## Defect Handling
 
 The handling of any bugs or defects discovered is done via GitHub Issues.
 
 The defects are triaged and assigned during regular meetings to the appropriate team member.
+
+## Updates to the Development Process
+
+The development process described here is subject to change. Changes will undergo the review process described in this
+very document, and will be published on GitHub upon completion.
