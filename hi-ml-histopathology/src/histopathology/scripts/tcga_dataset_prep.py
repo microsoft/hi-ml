@@ -17,10 +17,15 @@ def check_dataset_csv_paths(dataset_dir: Path) -> None:
 
 
 if __name__ == '__main__':
-    dataset_dir = Path.cwd()
+    # Script needs to be started in the parent folder of the dataset folder
+    current_dir = Path.cwd()
+    expected_datasetdir = "TCGA-Crck"
+    if not (current_dir / expected_datasetdir).is_dir:
+        raise ValueError(f"The current folder must contain the actual dataset folder {expected_datasetdir}")
+    dataset_dir = current_dir / expected_datasetdir
     expected_subdirs = ["CRC_DX_TEST", "CRC_DX_TRAIN"]
     if not all([(dataset_dir / subdir).is_dir() for subdir in expected_subdirs]):
-        raise ValueError(f"The current folder needs to have these subfolder: {expected_subdirs}")
+        raise ValueError(f"The folder {expected_datasetdir} needs to have these subfolder: {expected_subdirs}")
     image_paths = [str(image_path.relative_to(dataset_dir))
                    for split_dir in dataset_dir.iterdir()
                    for class_dir in split_dir.iterdir()
@@ -30,6 +35,6 @@ if __name__ == '__main__':
 
     # takes up to ~20 seconds
     df = df.apply(extract_fields, axis='columns', result_type='expand')
-    df.to_csv(TcgaPradDataset.DEFAULT_CSV_FILENAME, index=False)
+    df.to_csv(dataset_dir / TcgaPradDataset.DEFAULT_CSV_FILENAME, index=False)
 
     check_dataset_csv_paths(dataset_dir)

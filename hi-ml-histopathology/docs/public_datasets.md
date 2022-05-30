@@ -1,4 +1,4 @@
-# Datasets
+# Using Public Datasets PANDA and TCGA-Crck
 
 ## Setting up your storage account and tools
 
@@ -9,10 +9,10 @@ Your storage account should have a container called `datasets`. Verify in the Az
 You can do that by going to the "Containers" section in the left-hand navigation. If there is no such container, create
 one with the "+ Container" button.
 
-To upload the PANDA dataset to Azure, we recommend using [azcopy](http://aka.ms/azcopy). You will first need to log in,
+To upload datasets to Azure, we recommend using [azcopy](http://aka.ms/azcopy). You will first need to log in,
 by calling `azcopy login`. Follow the instructions at the prompt.
 
-## PANDA dataset
+## PANDA Dataset
 
 The PANDA dataset was released with the [Prostate cANcer graDe Assessment (PANDA)
 Challenge](https://panda.grand-challenge.org/). The dataset is available from
@@ -29,20 +29,22 @@ head PANDA/train.csv  # just to check if we are in the right folder
 azcopy copy PANDA https://<your_storage_account>.blob.core.windows.net/datasets/ --recursive
 ```
 
-## TCGA-Crck dataset
-
-Should run this in an Azure VM
+## TCGA-Crck Dataset
 
 This dataset contains histological images from patients with colorectal cancer, available from
 [here](https://zenodo.org/record/2530835).
 
-To download and prepare the dataset, please run the following commands in a Linux shell, in the root folder of the git
-repository.
+To download and prepare the dataset, please run the following commands in a Linux shell in the root folder of the git
+repository. To prepare:
 
-- Note 1: Depending on the speed of your internet connection, this script can run for several hours because it downloads
-  a total of more than 10GB of files. It is advantageous to run the script in a Virtual Machine in Azure.
-- Note 2: In the last statement, where we upload the full dataset to Azure, replace `<your_storage_account>` with the
+- In the last statement, where we upload the full dataset to Azure, replace `<your_storage_account>` with the
   name of your Azure storage account.
+- For Python to pick up the paths in `hi-ml-histopathology/src/histopathology/scripts/tcga_dataset_prep.py`, you need to
+  add the `hi
+
+Note: Depending on the speed of your internet connection, this script can run for several hours because it downloads
+a total of more than 20GB of files. It is advantageous to run the script in a Virtual Machine in Azure (downloading
+can be easily automated because no authentication is required).
 
 ```shell
 mkdir TCGA-Crck
@@ -61,8 +63,9 @@ do
     rm $file
 done
 # Create a summary file dataset.csv with all file paths and class labels
-python hi-ml-histopathology/src/histopathology/scripts/tcga_dataset_prep.py
 cd ..
+export PYTHONPATH=`pwd`/hi-ml-histopathology/src
+python hi-ml-histopathology/src/histopathology/scripts/tcga_dataset_prep.py
 # Upload
 azcopy copy TCGA-Crck https://<your_storage_account>.blob.core.windows.net/datasets/ --recursive
 ```
