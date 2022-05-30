@@ -245,9 +245,7 @@ class KTopBottomTilesHandler:
         return slides_heaps
 
     @staticmethod
-    def gather_dictionaries(
-        world_size: int, dicts: SlideOrTileDict, return_list: bool = False
-    ) -> Union[List[SlideDict], List[TileDict], SlideDict, TileDict]:
+    def gather_dictionaries(world_size: int, dicts: Dict, return_list: bool = False) -> Union[List[Dict], Dict]:
         """Gathers python dictionaries accross devices.
 
         :param world_size: The number of devices in the ddp context.
@@ -270,7 +268,7 @@ class KTopBottomTilesHandler:
         """
         slides_heaps_list: List[SlideDict] = self.gather_dictionaries(
             world_size, shallow_slides_heaps, return_list=True
-        )
+        )  # type: ignore
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
@@ -361,12 +359,12 @@ class KTopBottomTilesHandler:
                 self.set_bottom_slides_heaps(final_bottom_slides_heaps)
                 self.set_top_slides_heaps(final_top_slides_heaps)
 
-                final_top_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_top_tiles)
-                final_bottom_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_bottom_tiles)
+                final_top_tiles = self.gather_dictionaries(world_size, top_slides_top_tiles)  # type: ignore
+                final_bottom_tiles = self.gather_dictionaries(world_size, top_slides_bottom_tiles)  # type: ignore
                 self.update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
-                final_top_tiles = self.gather_dictionaries(world_size, bot_slides_top_tiles)
-                final_bottom_tiles = self.gather_dictionaries(world_size, bot_slides_bottom_tiles)
+                final_top_tiles = self.gather_dictionaries(world_size, bot_slides_top_tiles)  # type: ignore
+                final_bottom_tiles = self.gather_dictionaries(world_size, bot_slides_bottom_tiles)  # type: ignore
                 self.update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
