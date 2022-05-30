@@ -55,7 +55,7 @@ def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
     yield batch
 
 
