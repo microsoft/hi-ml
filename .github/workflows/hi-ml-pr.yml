@@ -146,7 +146,6 @@ jobs:
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
-        packageName: [ '*.whl', '*.tar.gz' ]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -163,7 +162,6 @@ jobs:
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: hi-ml-azure
-          package_type: ${{ matrix.packageName }}
 
       - name: Install dependencies
         if: ${{ matrix.folder != 'hi-ml-azure' }}
@@ -180,29 +178,25 @@ jobs:
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
-          package_type: ${{ matrix.packageName }}
 
       - name: Install artifact and test
         run: |
           cd ${{ matrix.folder }}
 
           make pip_upgrade
+
           # Install package
           pip install ${{ steps.download.outputs.package_filename }}
 
-          if [ ${{ matrix.packageName }} == '*.whl' ]; then
-            # Set env vars so wheel is sent to azureml as a private package
-            echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
+          # Set env vars so wheel is sent to azureml as a private package
+          echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
 
-            # Test with pytest
-            make pytest_and_coverage
-          else
-            # Test with pytest, fast only
-            make pytest_fast
-          fi
+          # Test with pytest
+          make pytest_and_coverage
 
       - name: Upload coverage report to Codecov
-        if: ${{ matrix.packageName == '*.whl' }}
+        # Coverage should also be uploaded if tests still fail
+        if: always()
         uses: codecov/codecov-action@v2
         with:
             flags: ${{ matrix.folder }}
