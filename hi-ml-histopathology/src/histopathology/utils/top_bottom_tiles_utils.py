@@ -267,9 +267,9 @@ class TopBottomTilesHandler:
         :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
         :return: A reduced slides_heaps conatining only the best slide nodes across all devices.
         """
-        slides_heaps_list: List[SlideDict] = self.gather_dictionaries(
+        slides_heaps_list: List[SlideDict] = self.gather_dictionaries(  # type: ignore
             world_size, shallow_slides_heaps, return_list=True
-        )  # type: ignore
+        )
         return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
 
     def _select_slides_top_bottom_tiles_per_device(
