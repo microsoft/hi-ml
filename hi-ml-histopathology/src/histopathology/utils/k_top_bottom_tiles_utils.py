@@ -358,13 +358,13 @@ class KTopBottomTilesHandler:
                 self.set_bottom_slides_heaps(final_bottom_slides_heaps)
                 self.set_top_slides_heaps(final_top_slides_heaps)
 
-                final_top_tiles = self.gather_dictionaries(world_size, top_slides_top_tiles)  # type: ignore
-                final_bottom_tiles = self.gather_dictionaries(world_size, top_slides_bottom_tiles)  # type: ignore
-                self.update_shallow_top_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
+                top_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_top_tiles)  # type: ignore
+                bottom_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_bottom_tiles)  # type: ignore
+                self.update_shallow_top_slides_heaps_with_top_bottom_tiles(top_tiles, bottom_tiles)
 
-                final_top_tiles = self.gather_dictionaries(world_size, bot_slides_top_tiles)  # type: ignore
-                final_bottom_tiles = self.gather_dictionaries(world_size, bot_slides_bottom_tiles)  # type: ignore
-                self.update_shallow_bottom_slides_heaps_with_top_bottom_tiles(final_top_tiles, final_bottom_tiles)
+                top_tiles: TileDict = self.gather_dictionaries(world_size, bot_slides_top_tiles)  # type: ignore
+                bottom_tiles: TileDict = self.gather_dictionaries(world_size, bot_slides_bottom_tiles)  # type: ignore
+                self.update_shallow_bottom_slides_heaps_with_top_bottom_tiles(top_tiles, bottom_tiles)
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
         """Create the figure directory"""
