@@ -1,11 +1,17 @@
+from click import Path
+import matplotlib
 import torch
 import pytest
 import numpy as np
 from typing import Dict, Generator, List, Tuple, Any
 
+from health_ml.utils.common_utils import is_windows
 from testhisto.utils.utils_testhisto import run_distributed
 from histopathology.utils.naming import ResultsKey, SlideKey
-from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler, SlideNode
+from health_ml.utils.fixed_paths import OutputFolderForTests
+from histopathology.utils.metrics_utils import resize_and_save
+from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
+from histopathology.utils.top_bottom_tiles_utils import TileNode, TopBottomTilesHandler, SlideNode
 
 
 def _create_mock_data(n_samples: int, n_tiles: int = 3, device: str = "cpu") -> Dict:
@@ -49,7 +55,7 @@ def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
     yield batch
 
 
@@ -275,3 +281,41 @@ def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     # test with n_classes = 3
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
+
+
+@pytest.fixture
+def slide_node() -> SlideNode:
+    """Fixture to create a mock slide node with corresponding top and bottom tiles."""
+    torch.manual_seed(42)
+    tile_size = (3, 224, 224)
+    n_top_tiles = 10
+    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5)
+    top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90]
+    slide_node.top_tiles = [
+        TileNode(attn=top_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(n_top_tiles)
+    ]
+    bottom_attn_scores = [0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01, 0.009]
+    slide_node.bottom_tiles = [
+        TileNode(attn=bottom_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(n_top_tiles)
+    ]
+    return slide_node
+
+
+def assert_plot_tiles_figure(tiles_fig, fig_name: str, test_output_dirs: OutputFolderForTests) -> None:
+    assert isinstance(tiles_fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / fig_name
+    resize_and_save(5, 5, file)
+
+    assert file.exists()
+    expected = full_ml_test_data_path("top_bottom_tiles") / fig_name
+    assert_binary_files_match(file, expected)
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
+
+    top_tiles_fig = slide_node.plot_attention_tiles(tiles=slide_node.top_tiles, case="TP")
+    bottom_tiles_fig = slide_node.plot_attention_tiles(tiles=slide_node.bottom_tiles, case="FN")
+
+    assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
+    assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)
