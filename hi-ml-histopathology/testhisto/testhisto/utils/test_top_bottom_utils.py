@@ -39,10 +39,32 @@ def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
     yield batch
 
 
-def _select_slides_by_probability(
+def _create_and_update_top_bottom_tiles_handler(
+    data: Dict,
+    results: Dict,
+    n_top_slides: int,
+    n_top_tiles: int,
+    n_classes: int,
+    rank: int = 0,
+    batch_size: int = 2,
+    n_batches: int = 10,
+) -> TopBottomTilesHandler:
+
+    handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
+
+    for i in range(rank * n_batches, (rank + 1) * n_batches):
+        batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
+        batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
+        handler.update_top_bottom_slides_heaps(batch_data, batch_results)
+
+    return handler
+
+
+def _get_expected_slides_by_probability(
     results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1, top: bool = True
 ) -> Tuple[List[str], torch.Tensor]:
     """Select top or bottom slides accoring to their probability scores."""
+
     class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
     class_prob = results[ResultsKey.CLASS_PROBS][class_indices, label]
     assert class_prob.shape == (len(class_indices),)
@@ -50,10 +72,23 @@ def _select_slides_by_probability(
 
     _, sorting_indices = class_prob.topk(n_top_slides, largest=top, sorted=True)
     sorted_class_indices = class_indices[sorting_indices]
+
     return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices]
 
 
-def _assert_equal_top_bottom_tiles(
+def get_expected_top_slides_by_probability(
+    results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1
+) -> Tuple[List[str], torch.Tensor]:
+    return _get_expected_slides_by_probability(results, n_top_slides, label, top=True)
+
+
+def get_expected_bottom_slides_by_probability(
+    results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1
+) -> Tuple[List[str], torch.Tensor]:
+    return _get_expected_slides_by_probability(results, n_top_slides, label, top=False)
+
+
+def assert_equal_top_bottom_tiles(
     slide_ids: List[str], batches: Dict, results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
     for i, slide_id in enumerate(slide_ids):
@@ -86,19 +121,16 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
     batch_size = 2
     n_batches = 10
     total_batches = n_batches * world_size
-
     n_top_tiles = 2
     n_top_slides = 2
-    handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
 
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
     results = _create_mock_results(n_samples=batch_size * total_batches, n_classes=n_classes, device=device)
 
-    for i in range(rank * n_batches, (rank + 1) * n_batches):
-        batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
-        batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
-        handler.update_top_bottom_slides_heaps(batch_data, batch_results)
+    handler = _create_and_update_top_bottom_tiles_handler(
+        data, results, n_top_slides, n_top_tiles, n_classes, rank, batch_size, n_batches
+    )
 
     shallow_top_slides_heaps = handler.shallow_copy_top_slides_heaps()
     shallow_bottom_slides_heaps = handler.shallow_copy_bottom_slides_heaps()
@@ -109,11 +141,14 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
             shallow_bottom_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
 
     for label in range(n_classes):
-        top_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=True)
-        assert top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]][::-1]
+        expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
+        assert expected_top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]][::-1]
 
-        bottom_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=False)
-        assert bottom_slides_ids == [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]][::-1]
+        expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
+        assert (
+            expected_bottom_slides_ids
+            == [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]][::-1]
+        )
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
@@ -133,35 +168,49 @@ def test_gather_shallow_slide_nodes_distributed() -> None:
 def test_select_k_top_bottom_tiles_on_the_fly(
     n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
+    """This tests checks that k top and bottom tiles are selected properly on the fly by executing the following:
+        1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
+        2- Create a handler that is only exposed to a subset of the data distributed across devices. This handler
+           updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
+        3- Gather top and bottom tiles if ddp context
+        4- Select expected top slides from the entire dataset using torch.topk given that it's a small set that fits
+           entirely in memory.
+        5- Assert that the top slides selected on the fly are equal to the expected top slides selected from the entire
+           dataset for both ddp and single device runs.
+        6- Assert that corresponding top and bottom tiles are equal as well
+        7- Repeat steps 4, 5 and 6 for bottom slides.
+    """
 
     batch_size = 2
     n_batches = 10
     total_batches = n_batches * world_size
-
     n_top_tiles = 2
     n_top_slides = 2
-    handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
 
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
     results = _create_mock_results(n_samples=batch_size * total_batches, n_classes=n_classes, device=device)
 
-    for i in range(rank * n_batches, (rank + 1) * n_batches):
-        batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
-        batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
-        handler.update_top_bottom_slides_heaps(batch_data, batch_results)
+    handler = _create_and_update_top_bottom_tiles_handler(
+        data, results, n_top_slides, n_top_tiles, n_classes, rank, batch_size, n_batches
+    )
 
     handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
     for label in range(n_classes):
-        top_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=True)
-        assert top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]][::-1]
-        _assert_equal_top_bottom_tiles(top_slides_ids, data, results, n_top_tiles, handler.top_slides_heaps[label])
+        expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
+        assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]][::-1]
+        assert_equal_top_bottom_tiles(
+            expected_top_slides_ids, data, results, n_top_tiles, handler.top_slides_heaps[label]
+        )
 
-        bottom_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=False)
-        assert bottom_slides_ids == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]][::-1]
-        _assert_equal_top_bottom_tiles(
-            bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label]
+        expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
+        assert (
+            expected_bottom_slides_ids
+            == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]][::-1]
+        )
+        assert_equal_top_bottom_tiles(
+            expected_bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label]
         )
 
 
