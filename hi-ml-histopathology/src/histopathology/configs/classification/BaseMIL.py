@@ -93,7 +93,7 @@ class BaseMIL(LightningContainer):
     # Outputs Handler parameters:
     save_output_slides: bool = param.Boolean(True, doc="a boolean parameter to enable saving heatmaps and thumbnails.")
     k_slides: int = param.Integer(10, bounds=(0, None),
-                                  doc="Number of slide to save top and bottom tiles. Defaults 10.")
+                                  doc="Number of slide when saving top and bottom tiles. Defaults 10.")
     k_tiles: int = param.Integer(10, bounds=(0, None),
                                  doc="Number of tiles to save top and bottom tiles. Defaults 10.")
 
