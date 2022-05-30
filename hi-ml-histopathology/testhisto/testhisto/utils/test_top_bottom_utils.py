@@ -63,6 +63,19 @@ def _create_and_update_top_bottom_tiles_handler(
     batch_size: int = 2,
     n_batches: int = 10,
 ) -> TopBottomTilesHandler:
+    """Create a top and bottom tiles handler and update its top and bottom slides/tiles while looping through the data
+    available for the current rank
+
+    :param data: The data dictionary containing the entire small dataset.
+    :param results: The results dictionary containing mock resulst for all data.
+    :param n_top_slides: The number of slides to use to select top and bottom slides.
+    :param n_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
+    :param n_classes: The number of class labels.
+    :param rank: The identifier of the current process within the ddp context, defaults to 0
+    :param batch_size: The number of samples in a batch, defaults to 2
+    :param n_batches: The number of batches, defaults to 10
+    :return: A top bottom tiles handler with selected top and bottom slides and corresponding top and bottom slides.
+    """
 
     handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
 
@@ -75,9 +88,16 @@ def _create_and_update_top_bottom_tiles_handler(
 
 
 def _get_expected_slides_by_probability(
-    results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1, top: bool = True
-) -> Tuple[List[str], torch.Tensor]:
-    """Select top or bottom slides accoring to their probability scores."""
+    results: Dict[ResultsKey, Any], n_top_slides: int = 2, label: int = 1, top: bool = True
+) -> List[str]:
+    """Select top or bottom slides according to their probability scores from the entire dataset.
+
+    :param results: The results dictionary for the entire dataset.
+    :param n_top_slides: The number of slides to use to select top and bottom slides, defaults to 5
+    :param label: The current label to process given that top and bottom are grouped by class label, defaults to 1
+    :param top: A flag to select top or bottom slides with highest (respetively, lowest) prob scores, defaults to True
+    :return: A list of selected slide ids.
+    """
 
     class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
     class_prob = results[ResultsKey.CLASS_PROBS][class_indices, label]
@@ -92,19 +112,32 @@ def _get_expected_slides_by_probability(
 
 def get_expected_top_slides_by_probability(
     results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1
-) -> Tuple[List[str], torch.Tensor]:
+) -> List[str]:
+    """Calls `_get_expected_slides_by_probability` with `top=True` to select expected top slides for the entire dataset
+    in one go. """
     return _get_expected_slides_by_probability(results, n_top_slides, label, top=True)
 
 
 def get_expected_bottom_slides_by_probability(
     results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1
 ) -> Tuple[List[str], torch.Tensor]:
+    """Calls `_get_expected_slides_by_probability` with `top=False` to select expected bottom slides for the entire
+    dataset in one go. """
     return _get_expected_slides_by_probability(results, n_top_slides, label, top=False)
 
 
 def assert_equal_top_bottom_tiles(
     slide_ids: List[str], batches: Dict, results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
+    """Asserts that top and bottom tiles selected on the fly by the top bottom tiles handler are equal to the expected
+    top and bottom tiles in the mock dataset.
+
+    :param slide_ids: A list of expected slide ids0
+    :param batches: A dictionary of data batches.
+    :param results: A dictionary of data results.
+    :param n_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
+    :param slide_nodes: The top or bottom slide nodes selected on the fly by the handler.
+    """
     for i, slide_id in enumerate(slide_ids):
         slide_batch_idx = int(slide_id.split("_")[1])
         tiles = batches[SlideKey.IMAGE][slide_batch_idx]
@@ -131,6 +164,7 @@ def assert_equal_top_bottom_tiles(
 
 @pytest.mark.parametrize("n_classes", [2, 3])
 def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
+    """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
     n_tiles = 3
     batch_size = 2
     n_batches = 10
@@ -171,7 +205,7 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu
 def test_gather_shallow_slide_nodes_distributed() -> None:
-    # These tests need to be called sequentially to prevent them to be run in parallel
+    """These tests need to be called sequentially to prevent them to be run in parallel."""
     # test with n_classes = 2
     run_distributed(test_gather_shallow_slide_nodes, [2], world_size=1)
     run_distributed(test_gather_shallow_slide_nodes, [2], world_size=2)
@@ -234,7 +268,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu
 def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
-    # These tests need to be called sequentially to prevent them to be run in parallel
+    """These tests need to be called sequentially to prevent them to be run in parallel"""
     # test with n_classes = 2
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
