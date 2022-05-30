@@ -154,8 +154,8 @@ class KTopBottomTilesHandler:
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
         defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
         bottom_slides_heaps nodes.
-        Second, we check if we exceeded self.k_slides to be determined.
-            If so, we update the slides_node top and bottom tiles only if it has been kept in the heap
+        Second, we check if we exceeded self.k_slides to be selected.
+            If so, we update the slides_node top and bottom tiles only if it has been kept in the heap.
             Else, we haven't reached the heaps max_capacity so we save the top and bottom tiles.
 
         :param slides_heaps: The slides_heaps dict to be updated. Either self.top_slides_heaps or

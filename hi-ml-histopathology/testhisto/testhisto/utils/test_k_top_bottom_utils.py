@@ -1,12 +1,11 @@
 import torch
 import pytest
 import numpy as np
-
-from torch import Tensor
 from typing import Dict, Generator, List, Tuple, Any
 
 from histopathology.utils.k_top_bottom_tiles_utils import KTopBottomTilesHandler, SlideNode
 from histopathology.utils.naming import ResultsKey, SlideKey
+from testhisto.utils.utils_testhisto import run_distributed
 
 
 def _create_mock_data(n_samples: int, device: str = "cpu") -> Dict:
@@ -25,7 +24,7 @@ def _create_mock_results(n_samples: int, n_classes: int = 2, device: str = "cpu"
     diff_n_tiles = [n_tiles + i for i in range(n_samples)]
     mock_results = {
         ResultsKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
-        ResultsKey.TRUE_LABEL: Tensor([[i % n_classes] for i in range(n_samples)], device=device).int(),
+        ResultsKey.TRUE_LABEL: torch.randint(2, size=(n_samples,), device=device),
         ResultsKey.BAG_ATTN: [torch.rand(size=(1, diff_n_tiles[i]), device=device) for i in range(n_samples)],
         ResultsKey.CLASS_PROBS: torch.rand((n_samples, n_classes), device=device),
     }
@@ -81,23 +80,78 @@ def _assert_equal_top_bottom_tiles(
         )
 
 
-@pytest.mark.fast
 @pytest.mark.parametrize("n_classes", [2, 3])
-def test_select_k_top_bottom_on_the_fly(n_classes: int) -> None:
+def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
+
     batch_size = 2
     n_batches = 10
+    total_batches = n_batches * world_size
 
     k_tiles = 2
     k_slides = 2
     handler = KTopBottomTilesHandler(n_classes, k_slides=k_slides, k_tiles=k_tiles)
 
-    data = _create_mock_data(n_samples=batch_size * n_batches)
-    results = _create_mock_results(n_samples=batch_size * n_batches, n_classes=n_classes)
+    torch.manual_seed(42)
+    data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
+    results = _create_mock_results(n_samples=batch_size * total_batches, n_classes=n_classes, device=device)
 
-    for i in range(n_batches):
+    for i in range(rank * n_batches, (rank + 1) * n_batches):
         batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
         batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
         handler.update_top_bottom_slides_heaps(batch_data, batch_results)
+
+    shallow_top_slides_heaps = handler.shallow_copy_top_slides_heaps()
+    shallow_bottom_slides_heaps = handler.shallow_copy_bottom_slides_heaps()
+
+    if torch.distributed.is_initialized():
+        if world_size > 1:
+            shallow_top_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
+            shallow_bottom_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
+
+    for label in range(n_classes):
+        top_slides_ids = _select_slides_by_probability(results, k_slides, label, top=True)
+        assert top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]][::-1]
+
+        bottom_slides_ids = _select_slides_by_probability(results, k_slides, label, top=False)
+        assert bottom_slides_ids == [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]][::-1]
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_gather_shallow_slide_nodes_distributed() -> None:
+    # These tests need to be called sequentially to prevent them to be run in parallel
+    # test with n_classes = 2
+    run_distributed(test_gather_shallow_slide_nodes, [2], world_size=1)
+    run_distributed(test_gather_shallow_slide_nodes, [2], world_size=2)
+    # test with n_classes = 3
+    run_distributed(test_gather_shallow_slide_nodes, [3], world_size=1)
+    run_distributed(test_gather_shallow_slide_nodes, [3], world_size=2)
+
+
+@pytest.mark.parametrize("n_classes", [2, 3])
+def test_select_k_top_bottom_tiles_on_the_fly(
+    n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
+
+    batch_size = 2
+    n_batches = 10
+    total_batches = n_batches * world_size
+
+    k_tiles = 2
+    k_slides = 2
+    handler = KTopBottomTilesHandler(n_classes, k_slides=k_slides, k_tiles=k_tiles)
+
+    torch.manual_seed(42)
+    data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
+    results = _create_mock_results(n_samples=batch_size * total_batches, n_classes=n_classes, device=device)
+
+    for i in range(rank * n_batches, (rank + 1) * n_batches):
+        batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
+        batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
+        handler.update_top_bottom_slides_heaps(batch_data, batch_results)
+
+    handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
     for label in range(n_classes):
         top_slides_ids = _select_slides_by_probability(results, k_slides, label, top=True)
@@ -107,3 +161,16 @@ def test_select_k_top_bottom_on_the_fly(n_classes: int) -> None:
         bottom_slides_ids = _select_slides_by_probability(results, k_slides, label, top=False)
         assert bottom_slides_ids == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]][::-1]
         _assert_equal_top_bottom_tiles(bottom_slides_ids, data, results, k_tiles, handler.bottom_slides_heaps[label])
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
+    # These tests need to be called sequentially to prevent them to be run in parallel
+    # test with n_classes = 2
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
+    # test with n_classes = 3
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
