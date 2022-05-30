@@ -21,7 +21,7 @@ class TileNode:
         self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
     ) -> None:
         """
-        :param data: A tensor of tile data.
+        :param data: A tensor of tile data of shape (channels, height, width), e.g (3, 224, 224).
         :param attn: The attention score assigned to the tile.
         :param id: An optional tile id, defaults to None
         :param x: An optional tile coordinate x, defaults to None
@@ -53,7 +53,7 @@ class SlideNode:
     def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, k_tiles: int) -> None:
         """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
 
-        :param tiles: A tensor of tiles data.
+        :param tiles: A tensor of tiles data of shape (channels, height, width), e.g (3, 224, 224).
         :param attn_scores: A tensor of attention scores assigned by the deepmil model to the set of tiles.
         :param k_tiles: The number of k tiles to select as k top and bottom tiles.
         """
@@ -70,13 +70,13 @@ class SlideNode:
         return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
-        self, top: bool, case: str, key_dir: Path, ncols: int = 5, size: Tuple[int, int] = (10, 10)
+        self, top: bool, case: str, case_dir: Path, ncols: int = 5, size: Tuple[int, int] = (10, 10)
     ) -> None:
-        """Plot and dave top or bottom tiles figures with their attention scores.
+        """Plot and save top or bottom tiles figures with their attention scores.
 
         :param top: A boolean flag to pick top or bottom tiles.
         :param case: The report case (e.g., TP, FN, ...)
-        :param key_dir: The path to the directory where to save the attention tiles figure.
+        :param case_dir: The path to the directory where to save the attention tiles figure.
         :param ncols: Number of columns to create the subfigures grid, defaults to 5
         :param size: The figure size , defaults to (10, 10)
         """
@@ -94,13 +94,12 @@ class SlideNode:
             for i in range(len(axs.ravel())):
                 axs.ravel()[i].set_axis_off()
 
-            save_figure(fig=fig, figpath=key_dir / f"{self.slide_id}_{suffix}.png")
+            save_figure(fig=fig, figpath=case_dir / f"{self.slide_id}_{suffix}.png")
 
 
 SlideOrTileKey = Union[SlideKey, TileKey]
 SlideDict = Dict[int, List[SlideNode]]
 TileDict = Dict[str, List[TileNode]]
-SlideOrTileDict = Union[SlideDict, TileDict]
 
 
 class KTopBottomTilesHandler:
@@ -369,9 +368,9 @@ class KTopBottomTilesHandler:
 
     def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
         """Create the figure directory"""
-        key_dir = figures_dir / case
-        key_dir.mkdir(parents=True, exist_ok=True)
-        return key_dir
+        case_dir = figures_dir / case
+        case_dir.mkdir(parents=True, exist_ok=True)
+        return case_dir
 
     def plot_slide_node_attention_tiles(self, case: str, figures_dir: Path, slide_node: SlideNode) -> None:
         """Plots the top and bottom attention tiles of a given slide_node
@@ -380,9 +379,9 @@ class KTopBottomTilesHandler:
         :param figures_dir: The path to the directory where to save the attention tiles figure.
         :param slide_node: the slide_node for which we plot top and bottom tiles.
         """
-        key_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
-        slide_node.plot_attention_tiles(top=True, case=case, key_dir=key_dir, ncols=self.ncols)
-        slide_node.plot_attention_tiles(top=False, case=case, key_dir=key_dir, ncols=self.ncols)
+        case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
+        slide_node.plot_attention_tiles(top=True, case=case, case_dir=case_dir, ncols=self.ncols)
+        slide_node.plot_attention_tiles(top=False, case=case, case_dir=case_dir, ncols=self.ncols)
         self.report_cases_slide_ids[case].append(slide_node.slide_id)
 
     def save_top_and_bottom_tiles(self, figures_dir: Path) -> None:
