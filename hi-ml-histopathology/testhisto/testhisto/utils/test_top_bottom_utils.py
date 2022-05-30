@@ -8,8 +8,15 @@ from histopathology.utils.naming import ResultsKey, SlideKey
 from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler, SlideNode
 
 
-def _create_mock_data(n_samples: int, device: str = "cpu") -> Dict:
-    n_tiles = 6
+def _create_mock_data(n_samples: int, n_tiles: int = 3, device: str = "cpu") -> Dict:
+    """Generates a mock pretiled slides data dictionary.
+
+    :param n_samples: The number of whole slide images to generate.
+    :param n_tiles: The minimum number of tiles in each slide, defaults to 3
+    :param device: torch device where tensors should be created, defaults to "cpu"
+    :return: A dictioanry containing randomly generated mock data.
+    """
+    n_tiles = 3
     tile_size = (1, 4, 4)
     diff_n_tiles = [n_tiles + i for i in range(n_samples)]
     mock_data = {
@@ -19,8 +26,15 @@ def _create_mock_data(n_samples: int, device: str = "cpu") -> Dict:
     return mock_data
 
 
-def _create_mock_results(n_samples: int, n_classes: int = 2, device: str = "cpu") -> Dict:
-    n_tiles: int = 3
+def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, device: str = "cpu") -> Dict:
+    """Generates mock results data dictionary.
+
+    :param n_samples: The number of whole slide images.
+    :param n_tiles: The minimum number of tiles in each slide, defaults to 3
+    :param n_classes: the number of class labels in the dataset, defaults to 2
+    :param device: torch device where tensors should be created, defaults to "cpu"
+    :return: A dictioanry containing randomly generated mock results.
+    """
     diff_n_tiles = [n_tiles + i for i in range(n_samples)]
     mock_results = {
         ResultsKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
@@ -117,7 +131,7 @@ def assert_equal_top_bottom_tiles(
 
 @pytest.mark.parametrize("n_classes", [2, 3])
 def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
-
+    n_tiles = 3
     batch_size = 2
     n_batches = 10
     total_batches = n_batches * world_size
@@ -125,8 +139,10 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
     n_top_slides = 2
 
     torch.manual_seed(42)
-    data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
-    results = _create_mock_results(n_samples=batch_size * total_batches, n_classes=n_classes, device=device)
+    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(
+        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
+    )
 
     handler = _create_and_update_top_bottom_tiles_handler(
         data, results, n_top_slides, n_top_tiles, n_classes, rank, batch_size, n_batches
@@ -168,7 +184,7 @@ def test_gather_shallow_slide_nodes_distributed() -> None:
 def test_select_k_top_bottom_tiles_on_the_fly(
     n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
-    """This tests checks that k top and bottom tiles are selected properly on the fly by executing the following:
+    """This tests checks that k top and bottom tiles are selected properly `on the fly`:
         1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
         2- Create a handler that is only exposed to a subset of the data distributed across devices. This handler
            updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
