@@ -3,9 +3,9 @@ import pytest
 import numpy as np
 from typing import Dict, Generator, List, Tuple, Any
 
-from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler, SlideNode
-from histopathology.utils.naming import ResultsKey, SlideKey
 from testhisto.utils.utils_testhisto import run_distributed
+from histopathology.utils.naming import ResultsKey, SlideKey
+from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler, SlideNode
 
 
 def _create_mock_data(n_samples: int, device: str = "cpu") -> Dict:
@@ -160,7 +160,9 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 
         bottom_slides_ids = _select_slides_by_probability(results, n_top_slides, label, top=False)
         assert bottom_slides_ids == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]][::-1]
-        _assert_equal_top_bottom_tiles(bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label])
+        _assert_equal_top_bottom_tiles(
+            bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label]
+        )
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
