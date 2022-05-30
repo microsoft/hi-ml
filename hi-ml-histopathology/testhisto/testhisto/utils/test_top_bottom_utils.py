@@ -1,11 +1,13 @@
-from click import Path
+
 import matplotlib
 import torch
 import pytest
 import numpy as np
+from pathlib import Path
 from typing import Dict, Generator, List, Tuple, Any
 
 from health_ml.utils.common_utils import is_windows
+from histopathology.utils.viz_utils import save_figure
 from testhisto.utils.utils_testhisto import run_distributed
 from histopathology.utils.naming import ResultsKey, SlideKey
 from health_ml.utils.fixed_paths import OutputFolderForTests
@@ -304,7 +306,7 @@ def slide_node() -> SlideNode:
 def assert_plot_tiles_figure(tiles_fig, fig_name: str, test_output_dirs: OutputFolderForTests) -> None:
     assert isinstance(tiles_fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / fig_name
-    resize_and_save(5, 5, file)
+    save_figure(fig=tiles_fig, figpath=file)
 
     assert file.exists()
     expected = full_ml_test_data_path("top_bottom_tiles") / fig_name
