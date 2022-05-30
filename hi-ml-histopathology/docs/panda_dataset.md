@@ -31,11 +31,14 @@ azcopy copy PANDA https://<your_storage_account>.blob.core.windows.net/datasets/
 
 ## TCGA-Crck dataset
 
+Should run this in an Azure VM
+
 ```shell
-wget https://zenodo.org/record/2530835/files/CRC_DX_TEST_MSIMUT.zip?download=1
-wget https://zenodo.org/record/2530835/files/CRC_DX_TEST_MSIMUT.zip?download=1
-wget https://zenodo.org/record/2530835/files/CRC_DX_TEST_MSIMUT.zip?download=1
-wget https://zenodo.org/record/2530835/files/CRC_DX_TEST_MSIMUT.zip?download=1
+for file in CRC_DX_TRAIN_MSIMUT.zip CRC_DX_TEST_MSIMUT.zip CRC_DX_TRAIN_MSS.zip CRC_DX_TEST_MSS.zip
+do
+    wget https://zenodo.org/record/2530835/files/$file
+    unzip $file
+done
 ```
 
 ## Making your storage account accessible to AzureML
