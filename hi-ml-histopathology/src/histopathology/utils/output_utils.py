@@ -149,8 +149,8 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
 
     def select_k_tiles_from_results(label: int, use_highest_pred: bool, use_highest_att: bool) \
             -> List[Tuple[Any, Any, List, List]]:
-        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles, use_highest_pred=use_highest_pred,
-                              use_highest_att=use_highest_att)
+        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles,
+                              use_highest_pred=use_highest_pred, use_highest_att=use_highest_att)
 
     # Class 0
     tn_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=True)
