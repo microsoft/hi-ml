@@ -278,10 +278,10 @@ def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
     # test with n_classes = 2
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
+    # run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
     # test with n_classes = 3
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
+    # run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
 
 
 @pytest.fixture
