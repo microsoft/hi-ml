@@ -41,8 +41,6 @@ class BaseDeepSMILEPanda(BaseMIL):
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
-            # declared in WorkflowParams:
-            crossval_count=5,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
