@@ -11,7 +11,6 @@ from histopathology.utils.viz_utils import save_figure
 from testhisto.utils.utils_testhisto import run_distributed
 from histopathology.utils.naming import ResultsKey, SlideKey
 from health_ml.utils.fixed_paths import OutputFolderForTests
-from histopathology.utils.metrics_utils import resize_and_save
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 from histopathology.utils.top_bottom_tiles_utils import TileNode, TopBottomTilesHandler, SlideNode
 

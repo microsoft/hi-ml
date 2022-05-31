@@ -71,21 +71,21 @@ class SlideNode:
         return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
-        self, tiles: bool, case: str, ncols: int = 5, size: Tuple[int, int] = (10, 10)
+        self, tile_nodes: bool, case: str, ncols: int = 5, size: Tuple[int, int] = (10, 10)
     ) -> plt.Figure:
         """Plot and save top or bottom tiles figures with their attention scores.
 
-        :param top: A tensor of top or bottom tiles data of shape (channels, height, width), e.g (3, 224, 224).
+        :param tile_nodes: A tensor of top or bottom tiles nodes.
         :param case: The report case (e.g., TP, FN, ...)
         :param ncols: Number of columns to create the subfigures grid, defaults to 5
         :param size: The figure size , defaults to (10, 10)
         """
-        nrows = int(ceil(len(tiles) / ncols))
+        nrows = int(ceil(len(tile_nodes) / ncols))
         if nrows > 0:
             fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=size)
             fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
-            for i, tile_node in enumerate(tiles):
+            for i, tile_node in enumerate(tile_nodes):
                 axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
                 axs.ravel()[i].set_title("%.6f" % tile_node.attn)
 
@@ -379,10 +379,10 @@ class TopBottomTilesHandler:
         """
         case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
 
-        top_tiles_fig = slide_node.plot_attention_tiles(tiles=slide_node.top_tiles, case=case, ncols=self.ncols)
+        top_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.top_tiles, case=case, ncols=self.ncols)
         save_figure(fig=top_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_top.png")
 
-        bottom_tiles_fig = slide_node.plot_attention_tiles(tiles=slide_node.bottom_tiles, case=case, ncols=self.ncols)
+        bottom_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.bottom_tiles, case=case, ncols=self.ncols)
         save_figure(fig=bottom_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_bottom.png")
 
         self.report_cases_slide_ids[case].append(slide_node.slide_id)
