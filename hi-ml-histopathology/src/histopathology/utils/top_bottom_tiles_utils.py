@@ -353,8 +353,8 @@ class TopBottomTilesHandler:
                 )
 
                 self.empty_top_bottom_tiles_cache()
-                self.set_bottom_slides_heaps(final_bottom_slides_heaps)
                 self.set_top_slides_heaps(final_top_slides_heaps)
+                self.set_bottom_slides_heaps(final_bottom_slides_heaps)
 
                 top_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_top_tiles)  # type: ignore
                 bottom_tiles: TileDict = self.gather_dictionaries(world_size, top_slides_bottom_tiles)  # type: ignore

@@ -156,15 +156,15 @@ def assert_equal_top_bottom_tiles(
             results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=n_top_tiles, largest=False, sorted=True
         )
 
-        expected_top_tiles = [tiles[tile_id] for tile_id in top_tiles_ids]
-        expected_bottom_tiles = [tiles[tile_id] for tile_id in bottom_tiles_ids]
+        expected_top_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in top_tiles_ids]
+        expected_bottom_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in bottom_tiles_ids]
 
         assert all(
-            torch.equal(expected_top_tile, top_tile.data)
+            torch.equal(expected_top_tile.cpu(), top_tile.data.cpu())
             for expected_top_tile, top_tile in zip(expected_top_tiles, slide_nodes[-(i + 1)].top_tiles)
         )
         assert all(
-            torch.equal(expected_bottom_tile, bottom_tile.data)
+            torch.equal(expected_bottom_tile.cpu(), bottom_tile.data.cpu())
             for expected_bottom_tile, bottom_tile in zip(expected_bottom_tiles, slide_nodes[-(i + 1)].bottom_tiles)
         )
 
@@ -238,6 +238,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
         7- Repeat steps 4, 5 and 6 for bottom slides.
     """
 
+    n_tiles = 3
     batch_size = 2
     n_batches = 10
     total_batches = n_batches * world_size
@@ -245,13 +246,14 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     n_top_slides = 2
 
     torch.manual_seed(42)
-    data = _create_mock_data(n_samples=batch_size * total_batches, device=device)
-    results = _create_mock_results(n_samples=batch_size * total_batches, n_classes=n_classes, device=device)
+    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(
+        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
+    )
 
     handler = _create_and_update_top_bottom_tiles_handler(
         data, results, n_top_slides, n_top_tiles, n_classes, rank, batch_size, n_batches
     )
-
     handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
     for label in range(n_classes):
@@ -278,10 +280,10 @@ def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
     # test with n_classes = 2
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
-    # run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
     # test with n_classes = 3
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
-    # run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
 
 
 @pytest.fixture
