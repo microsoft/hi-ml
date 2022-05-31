@@ -186,32 +186,41 @@ def test_gather_shallow_slide_nodes_distributed() -> None:
 
 
 def assert_equal_top_bottom_attention_tiles(
-    slide_ids: List[str], results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
+    slide_ids: List[str], data: Dict, results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
     """Asserts that top and bottom tiles selected on the fly by the top bottom tiles handler are equal to the expected
     top and bottom tiles in the mock dataset.
 
     :param slide_ids: A list of expected slide ids0
+    :param data: A dictionary containing the entire dataset.
     :param results: A dictionary of data results.
     :param n_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
     :param slide_nodes: The top or bottom slide nodes selected on the fly by the handler.
     """
     for i, slide_id in enumerate(slide_ids):
         slide_batch_idx = int(slide_id.split("_")[1])
-        expected_top_attns, _ = torch.topk(
+        tiles = data[SlideKey.IMAGE][slide_batch_idx]
+
+        expected_top_attns, top_tiles_ids = torch.topk(
             results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=n_top_tiles, largest=True, sorted=True
         )
-        expected_bottom_attns, _ = torch.topk(
+        expected_bottom_attns, bottom_tiles_ids = torch.topk(
             results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=n_top_tiles, largest=False, sorted=True
         )
-        assert all(
-            expected_top_attn.item() == top_tile.attn
-            for expected_top_attn, top_tile in zip(expected_top_attns, slide_nodes[i].top_tiles)
-        )
-        assert all(
-            expected_bottom_attn.item() == bottom_tile.attn
-            for expected_bottom_attn, bottom_tile in zip(expected_bottom_attns, slide_nodes[i].bottom_tiles)
-        )
+
+        expected_top_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in top_tiles_ids]
+        expected_bottom_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in bottom_tiles_ids]
+
+        top_tiles = slide_nodes[i].top_tiles
+        bottom_tiles = slide_nodes[i].bottom_tiles
+
+        for j, expected_top_tile in enumerate(expected_top_tiles):
+            assert torch.equal(expected_top_tile.cpu(), top_tiles[j].data)
+            assert expected_top_attns[j].item() == top_tiles[j].attn
+
+        for j, expected_bottom_tile in enumerate(expected_bottom_tiles):
+            assert torch.equal(expected_bottom_tile.cpu(), bottom_tiles[j].data)
+            assert expected_bottom_attns[j].item() == bottom_tiles[j].attn
 
 
 @pytest.mark.parametrize("n_classes", [2, 3])
@@ -254,7 +263,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
             expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
             assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]]
             assert_equal_top_bottom_attention_tiles(
-                expected_top_slides_ids, results, n_top_tiles, handler.top_slides_heaps[label]
+                expected_top_slides_ids, data, results, n_top_tiles, handler.top_slides_heaps[label]
             )
 
             expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
@@ -262,7 +271,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
                 slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]
             ]
             assert_equal_top_bottom_attention_tiles(
-                expected_bottom_slides_ids, results, n_top_tiles, handler.bottom_slides_heaps[label]
+                expected_bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label]
             )
 
 
