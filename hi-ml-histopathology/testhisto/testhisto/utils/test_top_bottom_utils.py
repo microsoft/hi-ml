@@ -52,7 +52,7 @@ def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, d
     return mock_results
 
 
-def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
+def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Generator:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
