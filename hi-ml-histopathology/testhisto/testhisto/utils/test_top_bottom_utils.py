@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from typing import Dict, Generator, List, Tuple, Any
+from typing import Dict, Generator, List, Any
 
 from health_ml.utils.common_utils import is_windows
 from histopathology.utils.viz_utils import save_figure
@@ -56,7 +56,7 @@ def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
     yield batch
 
 
