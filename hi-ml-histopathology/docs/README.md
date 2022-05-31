@@ -1,21 +1,19 @@
-# Using the histopathology models
+# Using the Histopathology Models
 
 ## Onboarding to Azure
 
+Please follow the [detailed instructions here](azure_setup.md).
+
 ## Creating datasets
 
-* [How to get PANDA (whole slides) and upload it to Azure](panda_dataset.md)
-* [How to get TCGA-Crck (tiles) and upload it to Azure](tcga-crck_dataset.md)
+We are working with two public datasets, [PANDA](https://panda.grand-challenge.org/) and
+[TCGA-Crck](https://zenodo.org/record/2530835).
+
+Please follow the [detailed instructions](public_datasets.md) to download and prepare the datasets in Azure.
 
 ## Training a model
 
-* [Train a PANDA DeepMil on whole slides with ImageNet encoder](panda_model.md)
-  * How to invoke training on PANDA data, using the existing model config
-  * Where to find the results and how to interpret them: AzureML dashboards, HTML report, checkpoints
-  * What results are expected (accuracy)
-  * If people want to re-use that model on their data:
-    * What is the expected data format?
-    * Which parameters need to be tuned?
+* [Train a DeepMil model with an ImageNet encoder on the PANDA dataset](panda_model.md)
 * [Train a TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
   * How to invoke training on TCGA-Crck data, using the existing model config
   * Where to find the results and how to interpret them: AzureML dashboards, HTML report, checkpoints
