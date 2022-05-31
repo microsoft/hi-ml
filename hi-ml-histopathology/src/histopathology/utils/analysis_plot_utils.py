@@ -13,8 +13,9 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
+import seaborn as sns
 from sklearn.manifold import TSNE
-from sklearn.metrics import auc, precision_recall_curve, roc_curve
+from sklearn.metrics import auc, precision_recall_curve, roc_curve, confusion_matrix
 
 from histopathology.utils.naming import ResultsKey
 
@@ -267,3 +268,37 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
                                      color='k', label="Best epoch (val.)"),)
     fig.legend(handles=legend_handles, **legend_kwargs, loc='lower center',
                bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
+
+
+def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
+    """
+    Plot normalized confusion matrices from HyperDrive child runs.
+    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
+        as returned by :py:func:`collect_crossval_outputs()`.
+    :param class_names: Names of classes.
+    :return: The created `Figure` object.
+    """
+    crossval_count = len(crossval_dfs)
+    fig, axs = plt.subplots(1, crossval_count, figsize=(crossval_count * 6, 5))
+    for k, tiles_df in crossval_dfs.items():
+        slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
+        tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
+        # True slide label is guaranteed unique
+        assert all(len(unique_slide_label) == 1 for unique_slide_label in tile_labels_true.unique())
+        labels_true = tile_labels_true.first()
+
+        tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
+        non_unique_slides = [slide_id for slide_id, unique_slide_label in tile_labels_pred.unique().items()
+                             if len(unique_slide_label) > 1]
+        if non_unique_slides:
+            warnings.warn(f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
+                          f"{sorted(non_unique_slides)}")
+        labels_pred = tile_labels_pred.first()
+
+        cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
+        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k],
+                    xticklabels=class_names, yticklabels=class_names)
+        axs[k].set_xlabel('Predicted')
+        axs[k].set_ylabel('True')
+        axs[k].set_title(f'Fold {k}')
+    return fig

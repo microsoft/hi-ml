@@ -57,8 +57,10 @@ class ResultsKey(str, Enum):
     PRED_LABEL = 'pred_label'
     TRUE_LABEL = 'true_label'
     BAG_ATTN = 'bag_attn'
-    TILE_X = "x"  # TODO: deprecate ambiguous x and y names
-    TILE_Y = "y"
+    TILE_LEFT = 'left'
+    TILE_TOP = 'top'
+    TILE_RIGHT = 'right'
+    TILE_BOTTOM = 'bottom'
 
 
 class MetricsKey(str, Enum):
@@ -76,3 +78,11 @@ class ModelKey(str, Enum):
     TRAIN = 'train'
     VAL = 'val'
     TEST = 'test'
+
+
+class AMLMetricsJsonKey(str, Enum):
+    HYPERPARAMS = 'hyperparams'
+    NAME = 'name'
+    VALUE = 'value'
+    N_CLASSES = 'n_classes'
+    CLASS_NAMES = 'class_names'

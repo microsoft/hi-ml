@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
@@ -12,9 +12,9 @@ from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_ml.utils import log_on_epoch
-from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
+from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import TileEncoder
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
 
@@ -200,7 +200,7 @@ class BaseDeepMILModule(LightningModule):
         bag_logits_list = []
         bag_attn_list = []
         for bag_idx in range(len(batch[self.label_column])):
-            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx]
+            images = batch[TilesDataset.IMAGE_COLUMN][bag_idx].float()
             labels = batch[self.label_column][bag_idx]
             bag_labels_list.append(self.get_bag_label(labels))
             logit, attn = self(images)
@@ -260,24 +260,25 @@ class BaseDeepMILModule(LightningModule):
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        self.log_metrics(ModelKey.TRAIN)
         return train_result[ResultsKey.LOSS]
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics(ModelKey.VAL)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
         self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
-        self.log_metrics(ModelKey.TEST)
         return test_result
 
+    def training_epoch_end(self, outputs: EpochResultsType) -> None:
+        self.log_metrics(ModelKey.TRAIN)
+
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
+        self.log_metrics(ModelKey.VAL)
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
@@ -287,6 +288,7 @@ class BaseDeepMILModule(LightningModule):
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
+        self.log_metrics(ModelKey.TEST)
         if self.outputs_handler:
             self.outputs_handler.save_test_outputs(
                 epoch_results=epoch_results,
@@ -308,10 +310,16 @@ class TilesDeepMILModule(BaseDeepMILModule):
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
 
-        if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
-            results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
-                           ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
-                           )
+        if all(key in batch.keys() for key in [TileKey.TILE_TOP, TileKey.TILE_LEFT,
+                                               TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]):
+            results.update({ResultsKey.TILE_TOP: batch[TileKey.TILE_TOP],
+                            ResultsKey.TILE_LEFT: batch[TileKey.TILE_LEFT],
+                            ResultsKey.TILE_RIGHT: batch[TileKey.TILE_RIGHT],
+                            ResultsKey.TILE_BOTTOM: batch[TileKey.TILE_BOTTOM]})
+        # the condition below ensures compatibility with older tile datasets (without LEFT, TOP, RIGHT, BOTTOM)
+        elif (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
+            results.update({ResultsKey.TILE_LEFT: batch[TilesDataset.TILE_X_COLUMN],
+                           ResultsKey.TILE_TOP: batch[TilesDataset.TILE_Y_COLUMN]})
         else:
             rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
                            "input tiles dataset.")
@@ -320,10 +328,6 @@ class TilesDeepMILModule(BaseDeepMILModule):
 class SlidesDeepMILModule(BaseDeepMILModule):
     """Base class for slides based deep multiple-instance learning."""
 
-    def __init__(self, tiles_count: int, **kwargs: Any) -> None:
-        self.tiles_count = tiles_count
-        super().__init__(**kwargs)
-
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
         # SlidesDataModule attributes a single label to a bag of tiles already no need to do majority voting
@@ -331,6 +335,18 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
-        results.update({ResultsKey.SLIDE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        ResultsKey.TILE_ID: [batch[SlidesDataset.SLIDE_ID_COLUMN] * self.tiles_count],
-                        ResultsKey.IMAGE_PATH: [batch[SlideKey.IMAGE_PATH] * self.tiles_count]})
+        bag_sizes = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
+        results.update(
+            {
+                ResultsKey.SLIDE_ID: [
+                    [slide_id] * bag_sizes[i] for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
+                ],
+                ResultsKey.TILE_ID: [
+                    [f"{slide_id}_{tile_id}" for tile_id in range(bag_sizes[i])]
+                    for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
+                ],
+                ResultsKey.IMAGE_PATH: [
+                    [img_path] * bag_sizes[i] for i, img_path in enumerate(batch[SlideKey.IMAGE_PATH])
+                ],
+            }
+        )

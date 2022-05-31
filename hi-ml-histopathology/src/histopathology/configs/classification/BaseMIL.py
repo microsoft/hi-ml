@@ -2,33 +2,35 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
 import os
 import torch
 import param
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from torch import nn
 from pathlib import Path
 from monai.transforms import Compose
-from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from health_azure.utils import CheckpointDownloader, get_workspace
+from torchvision.models.resnet import resnet18, resnet50
 
+from health_azure.utils import CheckpointDownloader, get_workspace
 
 from health_ml.utils import fixed_paths
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
-                                                        MeanPoolingLayer, TransformerPooling)
+                                                        MeanPoolingLayer, TransformerPooling,
+                                                        TransformerPoolingBenchmark)
 from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
-from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
-                                            SSLEncoder, TileEncoder)
+from histopathology.models.encoders import (
+    HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
+    SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
@@ -68,9 +70,32 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    max_bag_size: int = param.Integer(1000, bounds=(0, None),
+                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0, bags larger than `max_bag_size` will yield "
+                                          "random subsets of instances.")
+    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
+                                          doc="Upper bound on number of tiles in each loaded bag during "
+                                          "validation and test stages."
+                                          "If 0 (default), will return all samples in each bag. "
+                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
+                                          "random subsets of instances.")
     encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
+    level: int = param.Integer(1, bounds=(0, None), doc="The whole slide image level at which the image is extracted."
+                                                        "Whole slide images are represented in a pyramid consisting of"
+                                                        "multiple images at different resolutions."
+                                                        "If 1 (default), will extract baseline image at the resolution"
+                                                        "at level 1.")
+
+    # Outputs Handler parameters:
+    save_output_tiles: bool = param.Boolean(True, doc="a boolean parameter to enable 'save_top_and_bottom_tiles' and "
+                                                      "'save_slide_thumbnails_and_heatmaps'. This is a temporary "
+                                                      "solution to disable tiles visualisation when running the slides "
+                                                      "pipeline that lacks tiles coordinates due to the current tiling "
+                                                      "on the fly strategy.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -101,6 +126,10 @@ class BaseMIL(LightningContainer):
         if self.encoder_type == ImageNetEncoder.__name__:
             return ImageNetEncoder(feature_extraction_model=resnet18,
                                    tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
+            # Myronenko et al. 2021 uses Resnet50 CNN encoder
+            return ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
+                                            tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             return ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
@@ -136,6 +165,12 @@ class BaseMIL(LightningContainer):
                                                self.num_transformer_pool_heads,
                                                num_encoding)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
+        elif self.pool_type == TransformerPoolingBenchmark.__name__:
+            pooling_layer = TransformerPoolingBenchmark(self.num_transformer_pool_layers,
+                                                        self.num_transformer_pool_heads,
+                                                        num_encoding,
+                                                        self.pool_hidden_dim)
+            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 
@@ -146,10 +181,11 @@ class BaseMIL(LightningContainer):
         return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
                                      n_classes=self.data_module.train_dataset.N_CLASSES,
                                      tile_size=self.tile_size,
-                                     level=1,
+                                     level=self.level,
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
-                                     maximise=self.maximise_primary_metric)
+                                     maximise=self.maximise_primary_metric,
+                                     save_output_tiles=self.save_output_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder
@@ -185,7 +221,7 @@ class BaseMIL(LightningContainer):
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
-        checkpoint_path = get_best_checkpoint_path(Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"))
+        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
         if checkpoint_path.is_file():
             return checkpoint_path
 
@@ -220,17 +256,6 @@ class BaseMILTiles(BaseMIL):
     configure experiment-specific parameters.
     """
     # Tiles Data module parameters:
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
-                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0, bags larger than `max_bag_size` will yield "
-                                          "random subsets of instances.")
-    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
-                                          doc="Upper bound on number of tiles in each loaded bag during "
-                                          "validation and test stages."
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
-                                          "random subsets of instances.")
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
@@ -307,14 +332,6 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    level: int = param.Integer(0, bounds=(0, None),
-                               doc="The whole slide image level at which the image is extracted."
-                                   "Whole slide images are represented in a pyramid structure consisting of "
-                                   "multiple images at different resolutions."
-                                   "If 0 (default), will extract baseline image at the highest resolution.")
-    tile_count: int = param.Integer(None, bounds=(0, None),
-                                    doc="Number of tiles to extract."
-                                    "If None (default), extracts all non-background tiles.")
     tile_size: int = param.Integer(224, bounds=(0, None), doc="Size of the square tile, defaults to 224.")
     step: int = param.Integer(None, bounds=(0, None),
                               doc="Step size to define the offset between tiles."
@@ -334,9 +351,8 @@ class BaseMILSlides(BaseMIL):
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
         pooling_layer, num_features = self.get_pooling_layer()
-        # We leave the outputs handler out for now (wsi datamodule doesn't support tiles coordinates YET)
-        deepmil_module = SlidesDeepMILModule(tiles_count=self.tile_count,
-                                             encoder=self.get_model_encoder(),
+        outputs_handler = self.get_outputs_handler()
+        deepmil_module = SlidesDeepMILModule(encoder=self.get_model_encoder(),
                                              label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              pooling_layer=pooling_layer,
@@ -347,5 +363,7 @@ class BaseMILSlides(BaseMIL):
                                              weight_decay=self.weight_decay,
                                              adam_betas=self.adam_betas,
                                              is_finetune=self.is_finetune,
-                                             class_names=self.class_names)
+                                             class_names=self.class_names,
+                                             outputs_handler=outputs_handler)
+        outputs_handler.set_slides_dataset(self.get_slides_dataset())
         return deepmil_module

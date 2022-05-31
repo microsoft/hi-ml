@@ -288,7 +288,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--margin",
         type=int,
-        default=64,
+        default=0,
     )
     parser.add_argument(
         "--min-occupancy",
