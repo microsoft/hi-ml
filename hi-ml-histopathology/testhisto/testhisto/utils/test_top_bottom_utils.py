@@ -56,7 +56,7 @@ def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Generator:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
     yield batch
 
 
@@ -212,11 +212,13 @@ def assert_equal_top_bottom_tiles(
         bottom_tiles = slide_nodes[i].bottom_tiles
 
         for j, expected_top_tile in enumerate(expected_top_tiles):
-            # assert torch.equal(expected_top_tile.cpu(), top_tiles[j].data.cpu())
+            assert np.testing.assert_array_equal(expected_top_tile.cpu().numpy(), top_tiles[j].data.cpu().numpy())
             assert expected_top_attns[j].item() == top_tiles[j].attn
 
         for j, expected_bottom_tile in enumerate(expected_bottom_tiles):
-            # assert torch.equal(expected_bottom_tile.cpu(), bottom_tiles[j].data.cpu())
+            assert np.testing.assert_array_equal(
+                expected_bottom_tile.cpu().numpy() == bottom_tiles[j].data.cpu().numpy()
+            )
             assert expected_bottom_attns[j].item() == bottom_tiles[j].attn
 
 
@@ -276,10 +278,10 @@ def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
     # test with n_classes = 2
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
-    # run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
     # test with n_classes = 3
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
-    # run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
 
 
 @pytest.fixture
