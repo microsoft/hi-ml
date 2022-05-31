@@ -161,12 +161,15 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
             shallow_top_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
             shallow_bottom_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
 
-    for label in range(n_classes):
-        expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
-        assert expected_top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]]
+    if rank == 0:
+        for label in range(n_classes):
+            expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
+            assert expected_top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]]
 
-        expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
-        assert expected_bottom_slides_ids == [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]]
+            expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
+            assert expected_bottom_slides_ids == [
+                slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]
+            ]
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
@@ -246,18 +249,21 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     )
     handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
-    for label in range(n_classes):
-        expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
-        assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]]
-        assert_equal_top_bottom_attention_tiles(
-            expected_top_slides_ids, results, n_top_tiles, handler.top_slides_heaps[label]
-        )
+    if rank == 0:
+        for label in range(n_classes):
+            expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
+            assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]]
+            assert_equal_top_bottom_attention_tiles(
+                expected_top_slides_ids, results, n_top_tiles, handler.top_slides_heaps[label]
+            )
 
-        expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
-        assert expected_bottom_slides_ids == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]]
-        assert_equal_top_bottom_attention_tiles(
-            expected_bottom_slides_ids, results, n_top_tiles, handler.bottom_slides_heaps[label]
-        )
+            expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
+            assert expected_bottom_slides_ids == [
+                slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]
+            ]
+            assert_equal_top_bottom_attention_tiles(
+                expected_bottom_slides_ids, results, n_top_tiles, handler.bottom_slides_heaps[label]
+            )
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")

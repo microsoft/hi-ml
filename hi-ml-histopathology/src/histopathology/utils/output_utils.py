@@ -451,10 +451,10 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
+        self.tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
 
-        # Only global rank-0 process should actually render and save the outputs
+        # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             logging.info("Selecting tiles ...")
-            self.tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
             self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)

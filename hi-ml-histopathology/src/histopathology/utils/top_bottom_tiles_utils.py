@@ -27,7 +27,7 @@ class TileNode:
         :param x: An optional tile coordinate x, defaults to None
         :param y: An optional coordinate y, defaults to None
         """
-        self.data = data
+        self.data = data.cpu()
         self.attn = attn
         self.id = id
         self.x = x
@@ -86,7 +86,7 @@ class SlideNode:
             fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
             for i, tile_node in enumerate(tile_nodes):
-                axs.ravel()[i].imshow(np.transpose(tile_node.data.cpu().numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+                axs.ravel()[i].imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
                 axs.ravel()[i].set_title("%.6f" % tile_node.attn)
 
             for i in range(len(axs.ravel())):
