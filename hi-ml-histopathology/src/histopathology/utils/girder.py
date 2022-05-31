@@ -290,6 +290,7 @@ class Item:
     :raises ValueError: If no ID or JSON is passed.
     :raises ValueError: If both an ID and JSON are passed.
     """
+
     def __init__(self, dsa: DigitalSlideArchive, id: Optional[str] = None, json: Optional[Dict] = None):
         self._dsa = dsa
 
@@ -327,6 +328,7 @@ class RunOutputs:
     :param workspace_config_path: Path to an AML workspace configuration file, e.g., ``config.json``.
     :param overwrite_csv: Force download of the output CSV even when it is found locally.
     """
+
     def __init__(
         self,
         run_id: str,
@@ -535,6 +537,18 @@ if __name__ == "__main__":
         help="Just log into the DSA and exit. Useful to ensure connection to the DSA from current host",
     )
     parser.add_argument(
+        "--rescale",
+        action="store_true",
+        help="Rescale attention values between 0 and 1 to maximize heatmaps contrast",
+    )
+    parser.add_argument(
+        "--colormap",
+        type=str,
+        choices=plt.colormaps(),
+        default="Greens",
+        help="Matplotlib colormap used for the heatmaps",
+    )
+    parser.add_argument(
         "--search-mode",
         type=str,
         choices=("full", "prefix"),
@@ -563,4 +577,6 @@ if __name__ == "__main__":
         max_slides=args.max_slides,
         id_filter=args.id_filter,
         search_mode=args.search_mode,
+        colormap_name=args.colormap,
+        rescale=args.rescale,
     )
