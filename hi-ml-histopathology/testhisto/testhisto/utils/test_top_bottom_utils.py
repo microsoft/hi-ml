@@ -315,8 +315,8 @@ def assert_plot_tiles_figure(tiles_fig, fig_name: str, test_output_dirs: OutputF
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
 
-    top_tiles_fig = slide_node.plot_attention_tiles(tiles_nodes=slide_node.top_tiles, case="TP")
-    bottom_tiles_fig = slide_node.plot_attention_tiles(tiles_nodes=slide_node.bottom_tiles, case="FN")
+    top_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.top_tiles, case="TP")
+    bottom_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.bottom_tiles, case="FN")
 
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
     assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)
