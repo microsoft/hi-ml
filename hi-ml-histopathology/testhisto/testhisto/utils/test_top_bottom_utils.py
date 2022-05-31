@@ -183,13 +183,12 @@ def test_gather_shallow_slide_nodes_distributed() -> None:
 
 
 def assert_equal_top_bottom_attention_tiles(
-    slide_ids: List[str], batches: Dict, results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
+    slide_ids: List[str], results: Dict, n_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
     """Asserts that top and bottom tiles selected on the fly by the top bottom tiles handler are equal to the expected
     top and bottom tiles in the mock dataset.
 
     :param slide_ids: A list of expected slide ids0
-    :param batches: A dictionary of data batches.
     :param results: A dictionary of data results.
     :param n_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
     :param slide_nodes: The top or bottom slide nodes selected on the fly by the handler.
@@ -251,13 +250,13 @@ def test_select_k_top_bottom_tiles_on_the_fly(
         expected_top_slides_ids = get_expected_top_slides_by_probability(results, n_top_slides, label)
         assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]]
         assert_equal_top_bottom_attention_tiles(
-            expected_top_slides_ids, data, results, n_top_tiles, handler.top_slides_heaps[label]
+            expected_top_slides_ids, results, n_top_tiles, handler.top_slides_heaps[label]
         )
 
         expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, n_top_slides, label)
         assert expected_bottom_slides_ids == [slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]]
         assert_equal_top_bottom_attention_tiles(
-            expected_bottom_slides_ids, data, results, n_top_tiles, handler.bottom_slides_heaps[label]
+            expected_bottom_slides_ids, results, n_top_tiles, handler.bottom_slides_heaps[label]
         )
 
 
