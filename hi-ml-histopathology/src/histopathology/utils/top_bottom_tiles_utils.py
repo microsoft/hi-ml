@@ -71,7 +71,7 @@ class SlideNode:
         return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
-        self, tile_nodes: bool, case: str, ncols: int = 5, size: Tuple[int, int] = (10, 10)
+        self, tile_nodes: List[TileNode], case: str, ncols: int = 5, size: Tuple[int, int] = (10, 10)
     ) -> plt.Figure:
         """Plot and save top or bottom tiles figures with their attention scores.
 
@@ -382,7 +382,9 @@ class TopBottomTilesHandler:
         top_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.top_tiles, case=case, ncols=self.ncols)
         save_figure(fig=top_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_top.png")
 
-        bottom_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.bottom_tiles, case=case, ncols=self.ncols)
+        bottom_tiles_fig = slide_node.plot_attention_tiles(
+            tile_nodes=slide_node.bottom_tiles, case=case, ncols=self.ncols
+        )
         save_figure(fig=bottom_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_bottom.png")
 
         self.report_cases_slide_ids[case].append(slide_node.slide_id)
