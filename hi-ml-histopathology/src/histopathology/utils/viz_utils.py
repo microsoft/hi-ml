@@ -63,5 +63,10 @@ def plot_panda_data_sample(panda_dir: str, nsamples: int, ncols: int, level: int
 
 
 def save_figure(fig: plt.figure, figpath: Path) -> None:
+    """Save a matplotlib figure in a given figpath.
+
+    :param fig: The figure to be saved.
+    :param figpath: The filename where to save the figure.
+    """
     fig.savefig(figpath, bbox_inches='tight')
     plt.close(fig)
