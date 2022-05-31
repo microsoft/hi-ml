@@ -23,7 +23,7 @@ from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
+from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
@@ -379,7 +379,7 @@ class DeepMILOutputsHandler:
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
         self.slides_dataset = slides_dataset
 
-    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
@@ -400,7 +400,7 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_output_slides:
+        if self.save_output_slides and stage == ModelKey.TEST:
             if self.slides_dataset is not None:
                 save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.get_selected_slide_ids(),
                                                    tile_size=self.tile_size,
@@ -454,7 +454,7 @@ class DeepMILOutputsHandler:
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
-            self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
             logging.info("Selecting tiles ...")
             self.tiles_handler.gather_top_bottom_tiles_for_top_bottom_slides()
             self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)
