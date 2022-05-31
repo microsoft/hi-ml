@@ -1,8 +1,8 @@
-
-import matplotlib
 import torch
 import pytest
 import numpy as np
+import matplotlib.pyplot as plt
+
 from pathlib import Path
 from typing import Dict, Generator, List, Tuple, Any
 
@@ -56,7 +56,7 @@ def _batch_data(data, batch_idx: int, batch_size: int) -> Generator:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
     yield batch
 
 
@@ -127,7 +127,7 @@ def get_expected_top_slides_by_probability(
 
 def get_expected_bottom_slides_by_probability(
     results: Dict[ResultsKey, Any], n_top_slides: int = 5, label: int = 1
-) -> Tuple[List[str], torch.Tensor]:
+) -> List[str]:
     """Calls `_get_expected_slides_by_probability` with `top=False` to select expected bottom slides for the entire
     dataset in one go. """
     return _get_expected_slides_by_probability(results, n_top_slides, label, top=False)
@@ -302,8 +302,8 @@ def slide_node() -> SlideNode:
     return slide_node
 
 
-def assert_plot_tiles_figure(tiles_fig, fig_name: str, test_output_dirs: OutputFolderForTests) -> None:
-    assert isinstance(tiles_fig, matplotlib.figure.Figure)
+def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_dirs: OutputFolderForTests) -> None:
+    assert isinstance(tiles_fig, plt.Figure)
     file = Path(test_output_dirs.root_dir) / fig_name
     save_figure(fig=tiles_fig, figpath=file)
 
