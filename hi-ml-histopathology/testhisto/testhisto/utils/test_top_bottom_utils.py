@@ -216,9 +216,7 @@ def assert_equal_top_bottom_tiles(
             assert expected_top_attns[j].item() == top_tiles[j].attn
 
         for j, expected_bottom_tile in enumerate(expected_bottom_tiles):
-            assert np.testing.assert_array_equal(
-                expected_bottom_tile.cpu().numpy() == bottom_tiles[j].data.cpu().numpy()
-            )
+            assert np.testing.assert_array_equal(expected_bottom_tile.cpu().numpy(), bottom_tiles[j].data.cpu().numpy())
             assert expected_bottom_attns[j].item() == bottom_tiles[j].attn
 
 
