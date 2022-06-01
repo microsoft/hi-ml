@@ -44,7 +44,6 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             max_bag_size=56,
             batch_size=8,  # effective batch size = batch_size * num_GPUs
             max_epochs=50,
-            crossval_count=5,
             l_rate=3e-4,
             weight_decay=0,
             primary_val_metric=MetricsKey.ACC)
