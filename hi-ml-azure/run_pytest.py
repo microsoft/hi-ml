@@ -5,6 +5,10 @@ from pathlib import Path
 import pytest
 import param
 from _pytest.main import ExitCode
+from azureml._restclient.constants import RunStatus
+from azureml.core import Run
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR
+
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent
@@ -81,6 +85,57 @@ def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
         raise ValueError(f"PyTest failed with exit code: {status_code}")
 
 
+def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Path:
+    """
+    Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
+    For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
+    to <destination>/bar.csv (the directory will be stripped off).
+    :param blob_path: The name of the file to download.
+    :param run: The AzureML run to download the files from
+    :param destination: Local path to save the downloaded blob to.
+    :return: Destination path to the downloaded file(s)
+    """
+    blobs_prefix = str((DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
+    destination = destination / blob_path.name
+    logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    try:
+        run.download_file(blobs_prefix, str(destination), _validate_checksum=True)
+    except Exception as ex:
+        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.id}") from ex
+    return destination
+
+
+def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> Path:
+    """
+    Downloads the pytest result file that is stored in the output folder of the given AzureML run.
+    If there is no pytest result file, throw an Exception.
+    :param run: The run from which the files should be read.
+    :param destination_folder: The folder into which the PyTest result file is downloaded.
+    :return: The path (folder and filename) of the downloaded file.
+    """
+    logging.info(f"Downloading pytest result file: {PYTEST_RESULTS_FILE}")
+    try:
+        return download_run_output_file(Path(PYTEST_RESULTS_FILE), destination=destination_folder, run=run)
+    except ValueError:
+        raise ValueError(f"No pytest result file {PYTEST_RESULTS_FILE} was found for run {run.id}")
+
+
+def pytest_after_submission_hook(azure_run: Run) -> None:
+    """
+    A function that will be called right after pytest gpu tests submission.
+    """
+    # We want the job output to be visible on the console. Do not exit yet if the job fails, because we
+    # may need to download the pytest result file.
+    azure_run.wait_for_completion(show_output=True, raise_on_error=False)
+    # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
+    # A build step will pick up that file and publish it to Azure DevOps.
+    # If pytest_mark is set, this file must exist.
+    logging.info("Downloading pytest result file.")
+    download_pytest_result(azure_run)
+    if azure_run.status == RunStatus.FAILED:
+        raise ValueError(f"The AzureML run failed. Please check this URL for details: " f"{azure_run.get_portal_url()}")
+
+
 if __name__ == "__main__":
     config = RunPytestConfig()
 
@@ -107,6 +162,7 @@ if __name__ == "__main__":
                 snapshot_root_directory=git_repo_root_folder(),
                 conda_environment_file=config.conda_env,
                 experiment_name=config.experiment,
-                max_run_duration=config.max_run_duration
+                max_run_duration=config.max_run_duration,
+                after_submission=pytest_after_submission_hook
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark)
