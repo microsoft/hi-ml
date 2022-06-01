@@ -65,7 +65,8 @@ def _test_lightningmodule(
     encoder = get_supervised_imagenet_encoder()
 
     # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=pool_out_dim)
+    pooling_layer, num_features = get_attention_pooling_layer(
+        pool_out_dim=pool_out_dim)
 
     module = TilesDeepMILModule(
         encoder=encoder,
@@ -144,7 +145,8 @@ def mock_panda_tiles_root_dir(
         tile_size=28,
         img_size=224,
     )
-    logging.info("Generating temporary mock tiles that will be deleted at the end of the session.")
+    logging.info(
+        "Generating temporary mock tiles that will be deleted at the end of the session.")
     tiles_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
@@ -167,7 +169,8 @@ def mock_panda_slides_root_dir(
         background_val=255,
         tiles_pos_type=TilesPositioningType.RANDOM
     )
-    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
+    logging.info(
+        "Generating temporary mock slides that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
@@ -197,7 +200,8 @@ def validate_metric_inputs(scores: torch.Tensor, labels: torch.Tensor) -> None:
         return (x == x.long()).all()  # type: ignore
 
     assert labels.shape == (scores.shape[0], )
-    assert torch.is_floating_point(scores), "Received scores with integer dtype"
+    assert torch.is_floating_point(
+        scores), "Received scores with integer dtype"
     assert not is_integral(scores), "Received scores with integral values"
     assert is_integral(labels), "Received labels with floating-point values"
 
@@ -258,7 +262,8 @@ def test_metrics(n_classes: int) -> None:
     # Patch the metrics to check that the inputs are valid. In particular, test that the scores
     # do not have integral values, which would suggest that hard labels were passed instead.
     for metric_obj in module_metrics_dict.values():
-        metric_obj.update = add_callback(metric_obj.update, validate_metric_inputs)
+        metric_obj.update = add_callback(
+            metric_obj.update, validate_metric_inputs)
 
     results = module.test_step(batch, 0)
     predicted_probs = results[ResultsKey.PROB]
@@ -266,10 +271,13 @@ def test_metrics(n_classes: int) -> None:
 
     for key, metric_obj in module_metrics_dict.items():
         value = metric_obj.compute()
-        expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
-        assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
+        expected_value = independent_metrics_dict[key](
+            predicted_probs, true_labels.view(batch_size,))
+        assert torch.allclose(
+            value, expected_value), f"Discrepancy in '{key}' metric"
 
-    assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
+    assert all(key in results.keys() for key in [
+               ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
@@ -384,7 +392,8 @@ def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None
 def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tmp_path: str,
                                   request: pytest.FixtureRequest) -> None:
-    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
+    _test_mock_panda_container(
+        use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 def test_class_weights_binary() -> None:
@@ -408,7 +417,8 @@ def test_class_weights_binary() -> None:
     pos_weight = Tensor([class_weights[1] / (class_weights[0] + 1e-5)])
     loss_weighted = module.loss_fn(logits.squeeze(1), bag_label.float())
     criterion_unweighted = nn.BCEWithLogitsLoss()
-    loss_unweighted = criterion_unweighted(logits.squeeze(1), bag_label.float())
+    loss_unweighted = criterion_unweighted(
+        logits.squeeze(1), bag_label.float())
     if bag_label.item() == 1:
         assert allclose(loss_weighted, pos_weight * loss_unweighted)
     else:

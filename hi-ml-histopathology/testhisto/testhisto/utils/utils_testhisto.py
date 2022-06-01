@@ -22,9 +22,11 @@ def assert_dicts_equal(d1: Mapping, d2: Mapping, exclude_keys: Collection[Any] =
     for key in keys1:
         msg = f"Dictionaries differ for key '{key}': {d1[key]} vs {d2[key]}"
         if isinstance(d1[key], torch.Tensor):
-            assert torch.allclose(d1[key], d2[key], rtol=rtol, atol=atol, equal_nan=True), msg
+            assert torch.allclose(
+                d1[key], d2[key], rtol=rtol, atol=atol, equal_nan=True), msg
         elif isinstance(d1[key], np.ndarray):
-            assert np.allclose(d1[key], d2[key], rtol=rtol, atol=atol, equal_nan=True), msg
+            assert np.allclose(d1[key], d2[key], rtol=rtol,
+                               atol=atol, equal_nan=True), msg
         else:
             assert d1[key] == d2[key], msg
 
@@ -54,7 +56,8 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
         actual_size = actual_image.size
         expected_size = expected_image.size
         assert actual_size == expected_size, f"Image sizes don't match: actual {actual_size}, expected {expected_size}"
-        assert np.allclose(np.array(actual_image), np.array(expected_image)), "Image pixel data does not match."
+        assert np.allclose(np.array(actual_image), np.array(
+            expected_image)), "Image pixel data does not match."
         return
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
 
@@ -95,7 +98,8 @@ def _run_distributed_process(rank: int, world_size: int, fn: Callable[..., None]
     # TODO: Add timeouts and proper handling of CUDA/NCCL errors
     os.environ['MASTER_ADDR'] = '127.0.0.1'
     os.environ['MASTER_PORT'] = '29500'
-    torch.distributed.init_process_group(backend, rank=rank, world_size=world_size)
+    torch.distributed.init_process_group(
+        backend, rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
     device = f'cuda:{rank}'
     fn(*args, rank=rank, world_size=world_size, device=device)
@@ -117,4 +121,5 @@ def run_distributed(fn: Callable[..., None], args: Sequence[Any] = (), world_siz
         ``fn(*args, rank=..., world_size=..., device=...)``.
     :param world_size: Total number of distributed subprocesses to spawn.
     """
-    torch.multiprocessing.spawn(_run_distributed_process, args=(world_size, fn, args), nprocs=world_size)
+    torch.multiprocessing.spawn(_run_distributed_process, args=(
+        world_size, fn, args), nprocs=world_size)

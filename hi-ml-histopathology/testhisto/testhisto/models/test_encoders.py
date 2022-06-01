@@ -50,7 +50,8 @@ def _test_encoder(encoder: nn.Module, input_dims: Tuple[int, ...], output_dim: i
                                                get_histo_ssl_encoder])
 def test_encoder(create_encoder_fn: Callable[[], TileEncoder]) -> None:
     encoder = create_encoder_fn()
-    _test_encoder(encoder, input_dims=encoder.input_dim, output_dim=encoder.num_encoding)
+    _test_encoder(encoder, input_dims=encoder.input_dim,
+                  output_dim=encoder.num_encoding)
 
 
 def _dummy_classifier() -> nn.Module:

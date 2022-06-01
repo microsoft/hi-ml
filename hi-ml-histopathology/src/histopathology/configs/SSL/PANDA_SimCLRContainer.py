@@ -31,7 +31,8 @@ class PANDA_SimCLR(HistoSSLContainer):
     in the _get_transforms method.
     It has been tested on a toy local dataset (2 slides) and on AML on (~25 slides).
     """
-    SSLContainer._SSLDataClassMappings.update({SSLDatasetNameHiml.PANDA.value: PandaTilesDatasetWithReturnIndex})
+    SSLContainer._SSLDataClassMappings.update(
+        {SSLDatasetNameHiml.PANDA.value: PandaTilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
         if not is_running_in_azure_ml():
@@ -55,7 +56,8 @@ class PANDA_SimCLR(HistoSSLContainer):
                          ssl_training_type=SSLTrainingType.SimCLR,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=None,  # Change to path_augmentation to use the config
-                         linear_head_augmentation_config=None,  # Change to path_augmentation to use the config
+                         # Change to path_augmentation to use the config
+                         linear_head_augmentation_config=None,
                          drop_last=False,
                          **kwargs)
         self.pl_check_val_every_n_epoch = 10

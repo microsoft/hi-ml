@@ -69,10 +69,12 @@ def create_lightning_trainer(container: LightningContainer,
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            strategy = DDPPlugin(
+                find_unused_parameters=container.pl_find_unused_parameters)
             message += "s per node with DDP"
     logging.info(f"Using {message}")
-    tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
+    tensorboard_logger = TensorBoardLogger(save_dir=str(
+        container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger(False)]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
@@ -108,11 +110,13 @@ def create_lightning_trainer(container: LightningContainer,
     ]
     if container.monitor_loading:
         # TODO antonsc: Remove after fixing the callback.
-        raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
+        raise NotImplementedError(
+            "Monitoring batch loading times has been temporarily disabled.")
         # callbacks.append(BatchTimeCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
-        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
+        callbacks.append(GPUStatsMonitor(
+            intra_step_time=True, inter_step_time=True))
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
     additional_args = container.get_trainer_arguments()
     # Callbacks can be specified via the "callbacks" argument (the legacy behaviour) or the new get_callbacks method
@@ -136,7 +140,8 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         # Use a local import here to be able to support older PL versions
         from pytorch_lightning.callbacks import TQDMProgressBar
-        callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
+        callbacks.append(TQDMProgressBar(
+            refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
@@ -162,7 +167,8 @@ def create_lightning_trainer(container: LightningContainer,
                       sync_batchnorm=True,
                       detect_anomaly=container.detect_anomaly,
                       profiler=container.pl_profiler,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+                      resume_from_checkpoint=str(
+                          resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
                       **additional_args)
     return trainer, storing_logger
@@ -188,7 +194,8 @@ def model_train(checkpoint_path: Optional[Path],
 
     # Execute some bookkeeping tasks only once if running distributed:
     if is_global_rank_zero():
-        logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
+        logging.info(
+            f"Model checkpoints are saved at {container.checkpoint_folder}")
         write_experiment_summary_file(container,
                                       outputs_folder=container.outputs_folder)
 
@@ -223,7 +230,8 @@ def model_train(checkpoint_path: Optional[Path],
                                                        multiple_trainloader_mode=multiple_trainloader_mode)
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
-    logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
+    logging.info(
+        f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
 
     # get recovery checkpoint if it exists
     logging.info("Starting training")
@@ -238,7 +246,8 @@ def model_train(checkpoint_path: Optional[Path],
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
     # all necessary properties.
     if lightning_model.global_rank != 0:
-        logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
+        logging.info(
+            f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
     logging.info("Removing redundant checkpoint files.")

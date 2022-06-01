@@ -32,7 +32,8 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
         if len(existing_stores) == 1:
             return datastores[existing_stores[0]]
         datastore = workspace.get_default_datastore()
-        logging.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
+        logging.info(
+            f"Using the workspace default datastore {datastore.name} to access datasets.")
         return datastore
     if datastore_name in datastores:
         return datastores[datastore_name]
@@ -54,12 +55,15 @@ def get_or_create_dataset(workspace: Workspace, datastore_name: str, dataset_nam
         azureml_dataset = Dataset.get_by_name(workspace, name=dataset_name)
         logging.info("Dataset found.")
     except Exception:
-        logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
+        logging.info(
+            f"Retrieving datastore '{datastore_name}' from AzureML workspace")
         datastore = get_datastore(workspace, datastore_name)
-        logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
+        logging.info(
+            f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
         # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
         # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
-        azureml_dataset = Dataset.File.from_files(path=(datastore, dataset_name + "/"))
+        azureml_dataset = Dataset.File.from_files(
+            path=(datastore, dataset_name + "/"))
         logging.info("Registering the dataset for future use.")
         azureml_dataset.register(workspace, name=dataset_name)
     return azureml_dataset
@@ -107,7 +111,8 @@ class DatasetConfig:
         # documentation tools in the editor work nicer.
         name = name.strip()
         if not name:
-            raise ValueError("The name of the dataset must be a non-empty string.")
+            raise ValueError(
+                "The name of the dataset must be a non-empty string.")
         self.name = name
         self.datastore = datastore
         self.version = version
@@ -115,7 +120,8 @@ class DatasetConfig:
         # If target_folder is "" then convert to None
         self.target_folder = Path(target_folder) if target_folder else None
         if str(self.target_folder) == ".":
-            raise ValueError("Can't mount or download a dataset to the current working directory.")
+            raise ValueError(
+                "Can't mount or download a dataset to the current working directory.")
         self.local_folder = Path(local_folder) if local_folder else None
 
     def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Path, Optional[MountContext]]:
@@ -152,7 +158,8 @@ class DatasetConfig:
         else:
             status += f"downloaded to {target_path}"
             print(status)
-            azureml_dataset.download(target_path=str(target_path), overwrite=False)
+            azureml_dataset.download(
+                target_path=str(target_path), overwrite=False)
             result = target_path, None
         return result
 
@@ -170,10 +177,12 @@ class DatasetConfig:
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
-        named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
+        named_input = azureml_dataset.as_named_input(
+            _input_dataset_key(index=dataset_index))
         # If running on windows then self.target_folder may be a WindowsPath, make sure it is
         # in posix format for Azure.
-        path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
+        path_on_compute = self.target_folder.as_posix(
+        ) if self.target_folder is not None else None
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if use_mounting:
             status += "mounted at "
@@ -311,7 +320,8 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
             workspace = get_workspace(aml_workspace, workspace_config_path)
             logging.info(f"Found workspace for datasets: {workspace.name}")
         except Exception as ex:
-            logging.info(f"Could not find workspace for datasets. Exception: {ex}")
+            logging.info(
+                f"Could not find workspace for datasets. Exception: {ex}")
     return workspace
 
 
@@ -332,7 +342,8 @@ def setup_local_datasets(aml_workspace: Optional[Workspace],
     :param dataset_configs: List of DatasetConfig describing the input datasets.
     :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """
-    workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
+    workspace = find_workspace_for_local_datasets(
+        aml_workspace, workspace_config_path, dataset_configs)
 
     mounted_input_datasets: List[Optional[Path]] = []
     mount_contexts: List[MountContext] = []

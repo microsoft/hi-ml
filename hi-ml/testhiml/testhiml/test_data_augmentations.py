@@ -47,7 +47,8 @@ def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
     # After applying a stochastic augmentation a second time it should have a different output
     if stochastic:
         augmented_img = data_augmentation(input_img)  # type: ignore
-        assert not(torch.allclose(augmented_img, expected_output_img, atol=1e-04))
+        assert not(torch.allclose(augmented_img,
+                   expected_output_img, atol=1e-04))
 
 
 def test_stain_normalization() -> None:
@@ -60,7 +61,8 @@ def test_stain_normalization() -> None:
          [[0.8235, 0.5294],
           [0.8275, 0.7725]]]])
 
-    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=False)
+    _test_data_augmentation(data_augmentation, dummy_img,
+                            expected_output_img, stochastic=False)
 
 
 def test_hed_jitter() -> None:
@@ -73,7 +75,8 @@ def test_hed_jitter() -> None:
          [[0.2232, 0.8028],
           [0.9117, 0.1742]]]])
 
-    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True)
+    _test_data_augmentation(data_augmentation, dummy_img,
+                            expected_output_img, stochastic=True)
 
 
 def test_gaussian_blur() -> None:
@@ -86,7 +89,8 @@ def test_gaussian_blur() -> None:
          [[0.7821, 0.6929],
           [0.7393, 0.7463]]]])
 
-    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True)
+    _test_data_augmentation(data_augmentation, dummy_img,
+                            expected_output_img, stochastic=True)
 
 
 def test_random_rotation() -> None:
@@ -99,4 +103,5 @@ def test_random_rotation() -> None:
          [[0.7216, 0.1127],
           [0.1592, 0.8305]]]])
 
-    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True, seed=1)
+    _test_data_augmentation(data_augmentation, dummy_img,
+                            expected_output_img, stochastic=True, seed=1)

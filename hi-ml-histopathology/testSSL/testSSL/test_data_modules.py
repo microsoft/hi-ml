@@ -20,7 +20,8 @@ from testSSL.utils import TEST_OUTPUTS_PATH
 
 
 path_to_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
-cxr_augmentation_config = load_yaml_augmentation_config(path_encoder_augmentation_cxr)
+cxr_augmentation_config = load_yaml_augmentation_config(
+    path_encoder_augmentation_cxr)
 
 
 def test_weights_module() -> None:
@@ -40,7 +41,8 @@ def test_weights_module() -> None:
     data_module.setup()
     class_weights = data_module.compute_class_weights()
     assert class_weights is not None
-    assert torch.isclose(class_weights, torch.tensor([0.21, 0.79], dtype=torch.float32), atol=1e-3).all()
+    assert torch.isclose(class_weights, torch.tensor(
+        [0.21, 0.79], dtype=torch.float32), atol=1e-3).all()
     assert len(data_module.dataset_train) == 240
     assert len(data_module.dataset_val) == 60
     training_batch = next(iter(data_module.train_dataloader()))
@@ -59,8 +61,10 @@ def test_vision_module() -> None:
     data_module = HimlVisionDataModule(dataset_cls=HimlCifar10,
                                        val_split=0.1,
                                        return_index=False,
-                                       train_transforms=CIFARTrainTransform(32),
-                                       val_transforms=CIFARLinearHeadTransform(32),
+                                       train_transforms=CIFARTrainTransform(
+                                           32),
+                                       val_transforms=CIFARLinearHeadTransform(
+                                           32),
                                        data_dir=None,
                                        batch_size=5,
                                        shuffle=False,
@@ -94,7 +98,8 @@ def test_vision_datamodule_with_return_index() -> None:
     """
     data_module = HimlVisionDataModule(dataset_cls=HimlCifar10,
                                        return_index=True,
-                                       train_transforms=CIFARLinearHeadTransform(32),
+                                       train_transforms=CIFARLinearHeadTransform(
+                                           32),
                                        val_transforms=None,
                                        data_dir=None,
                                        batch_size=5,
@@ -193,7 +198,8 @@ def test_combined_data_module() -> None:
                                              return_index=True,
                                              train_transforms=None,
                                              val_transforms=val_transform,
-                                             data_dir=str(path_to_test_dataset),
+                                             data_dir=str(
+                                                 path_to_test_dataset),
                                              # 300 images in total in test dataset
                                              batch_size=60,
                                              shuffle=False,
@@ -220,6 +226,8 @@ def test_combined_data_module() -> None:
     val_dataloader = combined_loader.val_dataloader()
     assert isinstance(val_dataloader, CombinedLoader)
     for batch in val_dataloader:
-        assert set(batch.keys()) == {SSLDataModuleType.ENCODER, SSLDataModuleType.LINEAR_HEAD}
-        indices_classifier_module_short.append(tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist()))
+        assert set(batch.keys()) == {
+            SSLDataModuleType.ENCODER, SSLDataModuleType.LINEAR_HEAD}
+        indices_classifier_module_short.append(
+            tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist()))
     assert len(set(indices_classifier_module_short)) == 1

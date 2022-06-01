@@ -92,7 +92,8 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
-            transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(
+                PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
@@ -133,8 +134,10 @@ class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
         self.n_epochs = n_epochs
 
     def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
-        optimizer = optim.AdamW(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
+        optimizer = optim.AdamW(
+            self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 

@@ -25,7 +25,8 @@ def test_validate_workflow_params() -> None:
     assert ex.value.args[0] == error_message
 
     # The following should be okay
-    WorkflowParams(local_dataset=Path("foo"), local_weights_path=Path("foo")).validate()
+    WorkflowParams(local_dataset=Path("foo"),
+                   local_weights_path=Path("foo")).validate()
     WorkflowParams(local_dataset=Path("foo"), weights_url="foo").validate()
 
 
@@ -96,7 +97,8 @@ def test_validate_dataset_params() -> None:
     with pytest.raises(ValueError) as e:
         DatasetParams(azure_datasets=["foo"],
                       dataset_mountpoints=[Path("foo"), Path("bar")]).validate()
-    assert "Expected the number of azure datasets to equal the number of mountpoints" in str(e)
+    assert "Expected the number of azure datasets to equal the number of mountpoints" in str(
+        e)
 
 
 def test_output_params_set_output_to() -> None:
@@ -136,7 +138,8 @@ def test_validate_optimizer_params() -> None:
     config.validate()
 
     # assert that passing a string to a param expecting a numeric value causes an Exception to be raised
-    numeric_params = [k for k, v in config.params().items() if isinstance(v, Number)]
+    numeric_params = [k for k, v in config.params().items()
+                      if isinstance(v, Number)]
     for numeric_param_name in numeric_params:
         with pytest.raises(Exception) as e:
             config = OptimizerParams()

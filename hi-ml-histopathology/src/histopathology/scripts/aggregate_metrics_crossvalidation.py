@@ -28,7 +28,8 @@ def get_cross_validation_metrics_df(run_id: str) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    metrics_list = ['test/accuracy', 'test/auroc', 'test/f1score', 'test/precision', 'test/recall']
+    metrics_list = ['test/accuracy', 'test/auroc',
+                    'test/f1score', 'test/precision', 'test/recall']
     run_id = "hsharma_features_viz:HD_eff4c009-2f9f-4c2c-94c6-c0c84944a412"
     metrics_df = get_cross_validation_metrics_df(run_id=run_id)
     for metric in metrics_list:
@@ -37,4 +38,5 @@ if __name__ == "__main__":
             std = metrics_df.loc[[metric]].std(axis=1)[metric]
             print(f"{metric}: {round(mean,4)} ± {round(std,4)}")
         else:
-            print(f"Metric {metric} not found in the Hyperdrive run metrics for run id {run_id}.")
+            print(
+                f"Metric {metric} not found in the Hyperdrive run metrics for run id {run_id}.")

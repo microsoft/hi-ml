@@ -38,7 +38,8 @@ if __name__ == "__main__":
         state_dict = checkpoint['state_dict']
         # Here we modify the checkpoints: They reference weights from an older version of the code, delete any
         # such weights
-        linear_head_states = [name for name in state_dict.keys() if name.startswith("non_linear_evaluator")]
+        linear_head_states = [name for name in state_dict.keys(
+        ) if name.startswith("non_linear_evaluator")]
         print(linear_head_states)
         if linear_head_states:
             print(f"Removing linear head from {file}")
@@ -47,9 +48,12 @@ if __name__ == "__main__":
             torch.save(checkpoint, file)
 
     # Create a new AzureML run in the same experiment. The run will get a new unique ID
-    new_run = create_aml_run_object(experiment_name=experiment_name, workspace_config_path=workspace_config_json)
-    new_run.upload_folder(name=checkpoint_folder, path=str(download_folder / checkpoint_folder))
+    new_run = create_aml_run_object(
+        experiment_name=experiment_name, workspace_config_path=workspace_config_json)
+    new_run.upload_folder(name=checkpoint_folder, path=str(
+        download_folder / checkpoint_folder))
     new_run.complete()
 
-    print(f"Uploaded the modified checkpoints to this run: {new_run.get_portal_url()}")
+    print(
+        f"Uploaded the modified checkpoints to this run: {new_run.get_portal_url()}")
     print(f"Use this RunID to download the modified checkpoints: {new_run.id}")

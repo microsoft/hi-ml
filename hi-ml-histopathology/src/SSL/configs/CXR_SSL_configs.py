@@ -12,9 +12,12 @@ from SSL.utils import SSLTrainingType
 RSNA_AZURE_DATASET_ID = "rsna_pneumonia_detection_kaggle_dataset"
 NIH_AZURE_DATASET_ID = "nih-training-set"
 
-configs_path = Path(sys.modules["SSL.configs"].__path__._path[0])  # type: ignore
-path_encoder_augmentation_cxr = configs_path / "cxr_ssl_encoder_augmentations.yaml"
-path_linear_head_augmentation_cxr = configs_path / "cxr_linear_head_augmentations.yaml"
+configs_path = Path(
+    sys.modules["SSL.configs"].__path__._path[0])  # type: ignore
+path_encoder_augmentation_cxr = configs_path / \
+    "cxr_ssl_encoder_augmentations.yaml"
+path_linear_head_augmentation_cxr = configs_path / \
+    "cxr_linear_head_augmentations.yaml"
 
 
 class NIH_RSNA_BYOL(SSLContainer):
@@ -27,7 +30,8 @@ class NIH_RSNA_BYOL(SSLContainer):
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                          linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                          # the first Azure dataset is for training, the second is for the linear head
-                         azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
+                         azure_datasets=[NIH_AZURE_DATASET_ID,
+                                         RSNA_AZURE_DATASET_ID],
                          random_seed=1,
                          max_epochs=1000,
                          # We usually train this model with 16 GPUs, giving an effective batch size of 1200
@@ -44,7 +48,8 @@ class NIH_RSNA_SimCLR(SSLContainer):
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                          linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                          # the first Azure dataset is for training, the second is for the linear head
-                         azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
+                         azure_datasets=[NIH_AZURE_DATASET_ID,
+                                         RSNA_AZURE_DATASET_ID],
                          random_seed=1,
                          max_epochs=1000,
                          # We usually train this model with 16 GPUs, giving an effective batch size of 1200

@@ -42,17 +42,20 @@ class BaseMIL(LightningContainer):
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
     # Model parameters:
-    pool_type: str = param.String(doc="Name of the pooling layer class to use.")
+    pool_type: str = param.String(
+        doc="Name of the pooling layer class to use.")
     pool_hidden_dim: int = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the\
         hidden dimensions.")
-    pool_out_dim: int = param.Integer(1, doc="Dimension of the pooled representation.")
+    pool_out_dim: int = param.Integer(
+        1, doc="Dimension of the pooled representation.")
     num_transformer_pool_layers: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
          of encoding layers.")
     num_transformer_pool_heads: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
          of attention heads.")
     is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
                                                  "keep the encoder frozen.")
-    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
+    dropout_rate: Optional[float] = param.Number(
+        None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
@@ -65,11 +68,14 @@ class BaseMIL(LightningContainer):
 
     # Encoder parameters:
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
-    tile_size: int = param.Integer(224, bounds=(1, None), doc="Tile width/height, in pixels.")
-    n_channels: int = param.Integer(3, bounds=(1, None), doc="Number of channels in the tile.")
+    tile_size: int = param.Integer(224, bounds=(
+        1, None), doc="Tile width/height, in pixels.")
+    n_channels: int = param.Integer(3, bounds=(
+        1, None), doc="Number of channels in the tile.")
 
     # Data module parameters:
-    batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size: int = param.Integer(16, bounds=(
+        1, None), doc="Number of slides to load per batch.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
                                           "If 0 (default), will return all samples in each bag. "
@@ -117,7 +123,8 @@ class BaseMIL(LightningContainer):
             run_id=run_id,
             checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
             download_dir=self.outputs_folder,
-            remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
+            remote_checkpoint_dir=Path(
+                f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
         )
         downloader.download_checkpoint_if_necessary()
         return downloader
@@ -289,7 +296,8 @@ class BaseMILTiles(BaseMIL):
         if self.is_caching:
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                EncodeTilesBatchd(image_key, self.encoder,
+                                  chunk_size=self.encoding_chunk_size)
             ])
         else:
             transform = LoadTilesBatchd(image_key, progress=True)
@@ -332,7 +340,8 @@ class BaseMILSlides(BaseMIL):
     and configure experiment-specific parameters.
     """
     # Slides Data module parameters:
-    tile_size: int = param.Integer(224, bounds=(0, None), doc="Size of the square tile, defaults to 224.")
+    tile_size: int = param.Integer(224, bounds=(
+        0, None), doc="Size of the square tile, defaults to 224.")
     step: int = param.Integer(None, bounds=(0, None),
                               doc="Step size to define the offset between tiles."
                               "If None (default), it takes the same value as tile_size."
@@ -340,7 +349,8 @@ class BaseMILSlides(BaseMIL):
                               "If step > tile_size, it skips some chunks in the wsi.")
     random_offset: bool = param.Boolean(False, doc="If True, randomize position of the grid, instead of starting at"
                                                    "the top-left corner,")
-    pad_full: bool = param.Boolean(False, doc="If True, pad image to the size evenly divisible by tile_size")
+    pad_full: bool = param.Boolean(
+        False, doc="If True, pad image to the size evenly divisible by tile_size")
     background_val: int = param.Integer(255, bounds=(0, None),
                                         doc="Threshold to estimate the foreground in a whole slide image.")
     filter_mode: str = param.String("min", doc="mode must be in ['min', 'max', 'random']. If total number of tiles is"

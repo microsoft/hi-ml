@@ -53,7 +53,8 @@ class HTMLReport:
         report_folder.mkdir(exist_ok=True, parents=True)
 
         self.report_folder = report_folder
-        self.report_path_html = (report_folder / title.lower().replace(" ", "_")).with_suffix('.html')
+        self.report_path_html = (
+            report_folder / title.lower().replace(" ", "_")).with_suffix('.html')
         self.report_html = ""
         self.template = ""
         self.template_path = self._create_template()
@@ -74,10 +75,12 @@ class HTMLReport:
         # calling render() will populate this attribute
         if len(self.report_html) == 0:
             self.render(save_html=False)
-        expected_tags = ["<!DOCTYPE html>", "<head>", "</head>", "<body>", "</body>", "</html>"]
+        expected_tags = ["<!DOCTYPE html>", "<head>",
+                         "</head>", "<body>", "</body>", "</html>"]
         for tag in expected_tags:
             if self.report_html.count(tag) < 1:
-                raise ValueError(f"report_html is missing the tag {tag}. This will cause problems with rendering")
+                raise ValueError(
+                    f"report_html is missing the tag {tag}. This will cause problems with rendering")
             elif self.report_html.count(tag) > 1:
                 raise ValueError(f"report_html contains more than one tag {tag}. This will cause problems with"
                                  "rendering")
@@ -144,7 +147,8 @@ class HTMLReport:
         :param tag_class: An optional class name to apply styling to the text
         """
         if level < 1 or level > 5:
-            raise ValueError(f"Level must be an integer between 1 and 5 (inclusive), but got {level}")
+            raise ValueError(
+                f"Level must be an integer between 1 and 5 (inclusive), but got {level}")
         class_spec = f" class={tag_class}" if tag_class else ""
         template_addition = f"""<div class="container" >
         <h{level}{class_spec}>{text}</h{level}>
@@ -176,7 +180,8 @@ class HTMLReport:
         """
         for table in tables:
             num_existing_tables = self.template.count("table.to_html")
-            table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
+            # starts at zero
+            table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"
 
             template_addition = """<div class="container" >
             {% for table in """ + table_key + """ %}
@@ -201,7 +206,8 @@ class HTMLReport:
         :raises ValueError: If neither a list of tables nor a list of paths is provided
         """
         if tables is None and table_paths_or_dir is None:
-            raise ValueError("One of tables or table_paths_or_dir must be provided")
+            raise ValueError(
+                "One of tables or table_paths_or_dir must be provided")
 
         tables = tables or []
         if table_paths_or_dir is not None:
@@ -235,7 +241,8 @@ class HTMLReport:
         # Increment the image name so as not to replace other images
         num_existing_images = self.template.count("<img src=")
 
-        image_key_html = image_key_html.split("_")[0] + f"_{num_existing_images}"
+        image_key_html = image_key_html.split(
+            "_")[0] + f"_{num_existing_images}"
 
         template_addition = """<div class="container">
         {% for image_path in """ + image_key_html + """ %}
@@ -252,7 +259,8 @@ class HTMLReport:
                 img_data_base64_bytes = base64.b64encode(img_data)
                 img_data_base64_str = img_data_base64_bytes.decode()
 
-            img_type: str = mimetypes.guess_type(str(img_path_html))[0]  # type: ignore
+            img_type: str = mimetypes.guess_type(str(img_path_html))[
+                0]  # type: ignore
             img_path_str = "data:" + img_type + ";base64," + img_data_base64_str
         else:
             img_path_str = str(img_path_html)
@@ -277,7 +285,8 @@ class HTMLReport:
                 for image_path in image_path_or_dir.iterdir():
                     self.add_images([image_path], base64_encode=base64_encode)
             else:
-                self._add_image_to_report(image_path_or_dir, base64_encode=base64_encode)
+                self._add_image_to_report(
+                    image_path_or_dir, base64_encode=base64_encode)
 
     @classmethod
     def load_imgs_onto_subplot(cls, img_folder_or_paths: List[Path], num_plot_columns: int = 2,
@@ -316,7 +325,8 @@ class HTMLReport:
             with open(plot_path, "rb") as f_path:
                 img_arr = plt.imread(f_path)
 
-                axs: plt.Axes = fig.add_subplot(num_plot_rows, num_plot_columns, plot_index + 1)
+                axs: plt.Axes = fig.add_subplot(
+                    num_plot_rows, num_plot_columns, plot_index + 1)
                 axs.set_axis_off()
                 plt.imshow(img_arr)
 
@@ -336,7 +346,8 @@ class HTMLReport:
         :param num_cols: The number of columns in the subplot
         :param base64_encode: If True, encode image as base64 in the report HTML. Default is False.
         """
-        fig = self.load_imgs_onto_subplot(image_folder_or_paths, figsize=figsize, num_plot_columns=num_cols)
+        fig = self.load_imgs_onto_subplot(
+            image_folder_or_paths, figsize=figsize, num_plot_columns=num_cols)
         img_num = len(list(self.report_folder.glob("gallery_image_*")))
         gallery_img_path = self.report_folder / f"gallery_image_{img_num}.png"
         fig.savefig(str(gallery_img_path))
@@ -431,7 +442,8 @@ class HTMLReport:
             elif component_type == ReportComponentKey.IMAGE.value:
                 self.add_images(dir_or_paths, base64_encode=base64_encode)
             elif component_type == ReportComponentKey.IMAGE_GALLERY.value:
-                self.add_image_gallery(dir_or_paths, figsize=figsize, num_cols=num_cols, base64_encode=base64_encode)
+                self.add_image_gallery(
+                    dir_or_paths, figsize=figsize, num_cols=num_cols, base64_encode=base64_encode)
             elif component_type == ReportComponentKey.TEXT.value:
                 self.add_text(component_val)
             else:
@@ -481,14 +493,17 @@ class HTMLReport:
                     )
                     full_artifact_path = ",".join(artifact_paths)
                 else:
-                    full_artifact_path = str(self.report_folder / component_val)
-                    download_files_from_run_id(run_id, self.report_folder, prefix=component_val)
+                    full_artifact_path = str(
+                        self.report_folder / component_val)
+                    download_files_from_run_id(
+                        run_id, self.report_folder, prefix=component_val)
 
                 updated_component = {ReportComponentKey.TYPE.value: component_type,
                                      ReportComponentKey.VALUE.value: full_artifact_path}
 
                 # add back any other entries such as figsize, num_columns etc
-                additional_keys = set(component.keys()).difference(set(updated_component.keys()))
+                additional_keys = set(component.keys()).difference(
+                    set(updated_component.keys()))
                 for k in additional_keys:
                     updated_component[k] = component[k]
                 updated_report_contents.append(updated_component)
@@ -523,6 +538,7 @@ class HTMLReport:
         zipped_folder_path = self.report_folder.with_suffix(".zip")
         with zipfile.ZipFile(zipped_folder_path, "w") as zipped_folder:
             for report_file in report_files:
-                zipped_folder.write(report_file, arcname=report_file.relative_to(self.report_folder))
+                zipped_folder.write(
+                    report_file, arcname=report_file.relative_to(self.report_folder))
         print(f"Zipped folder path: {str(zipped_folder_path)}")
         return zipped_folder_path

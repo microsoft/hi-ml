@@ -40,7 +40,8 @@ class BagSampler(Sampler[List[int]]):
         :param generator: The pseudorandom number generator to use for shuffling. By default, creates one with a random
             seed.
         """
-        self.unique_bag_ids, self.bag_indices = np.unique(bag_ids, return_inverse=True)
+        self.unique_bag_ids, self.bag_indices = np.unique(
+            bag_ids, return_inverse=True)
         self.shuffle_bags = shuffle_bags
         self.shuffle_samples = shuffle_samples
         self.max_bag_size = max_bag_size
@@ -61,7 +62,8 @@ class BagSampler(Sampler[List[int]]):
             if generator is None:
                 generator = self.generator or _create_generator()
             perm = torch.randperm(len(bag), generator=generator)
-            bag = np.atleast_1d(bag[perm])  # pytorch squeezes singleton tensors
+            # pytorch squeezes singleton tensors
+            bag = np.atleast_1d(bag[perm])
         if self.max_bag_size > 0:
             bag = bag[:self.max_bag_size]
         return bag.tolist()
@@ -151,7 +153,8 @@ class BatchedDataset(Dataset):
         stop_index = start_index + self.batch_size
         # list of len batch, each element is a dict, dict values are lists or tensors,
         # len of lists/tensors is variable -> we can't use default collate
-        multi_bag_list = [self.base_dataset[i] for i in range(start_index, stop_index)]
+        multi_bag_list = [self.base_dataset[i]
+                          for i in range(start_index, stop_index)]
         return multi_bag_list
 
 
@@ -163,13 +166,15 @@ def multibag_collate(batch: List) -> Any:
     if isinstance(elem, Mapping):
         elem_keys = elem.keys()
         if not all(other.keys() == elem_keys for other in batch[1:]):
-            raise RuntimeError("Every element in the batch should have the same keys")
+            raise RuntimeError(
+                "Every element in the batch should have the same keys")
         return {key: [d[key] for d in batch] for key in elem}
 
     elif isinstance(elem, Sequence):
         elem_len = len(elem)
         if not all(len(other) == elem_len for other in batch[1:]):
-            raise RuntimeError("Every element in the batch should be of equal size")
+            raise RuntimeError(
+                "Every element in the batch should be of equal size")
         return tuple(zip(*batch))
 
     return batch  # return other types as a plain list

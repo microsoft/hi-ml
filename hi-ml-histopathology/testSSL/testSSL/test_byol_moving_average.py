@@ -39,7 +39,8 @@ def test_update_tau() -> None:
     byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=initial_tau)
     trainer = Trainer(max_epochs=5)
     trainer.train_dataloader = dummy_rsna_train_dataloader
-    total_steps = len(trainer.train_dataloader) * trainer.max_epochs  # type: ignore
+    total_steps = len(trainer.train_dataloader) * \
+        trainer.max_epochs  # type: ignore
     global_step = 15
     byol_module = BootstrapYourOwnLatent(num_samples=16,
                                          learning_rate=1e-3,
@@ -48,8 +49,10 @@ def test_update_tau() -> None:
                                          warmup_epochs=10,
                                          max_epochs=100)
     with mock.patch("SSL.lightning_modules.byol.byol_module.BootstrapYourOwnLatent.global_step", global_step):
-        new_tau = byol_weight_update.update_tau(pl_module=byol_module, trainer=trainer)
-    expected_tau = 1 - (1 - initial_tau) * (math.cos(math.pi * global_step / total_steps) + 1) / 2
+        new_tau = byol_weight_update.update_tau(
+            pl_module=byol_module, trainer=trainer)
+    expected_tau = 1 - (1 - initial_tau) * \
+        (math.cos(math.pi * global_step / total_steps) + 1) / 2
     assert new_tau == expected_tau
 
 

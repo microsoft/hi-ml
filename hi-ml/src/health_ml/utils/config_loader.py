@@ -77,7 +77,8 @@ class ModelConfigLoader:
         except Exception as e:
             exception_text = str(e)
             if exception_text != "":
-                logging.warning(f"Error when trying to import module {module_spec.name}: {exception_text}")
+                logging.warning(
+                    f"Error when trying to import module {module_spec.name}: {exception_text}")
             return None
         model_config = _class()
         return model_config
@@ -100,11 +101,13 @@ class ModelConfigLoader:
             )
             for root in module_spec.submodule_search_locations:
                 # List all python files in all the dirs under root, except for private dirs (prefixed with .)
-                all_py_files = [x for x in Path(root).rglob("*.py") if ".." not in str(x)]
+                all_py_files = [x for x in Path(root).rglob(
+                    "*.py") if ".." not in str(x)]
                 for f in all_py_files:
                     if f.is_file() and "__pycache__" not in str(f) and f.name != "setup.py":
                         sub_namespace = path_to_namespace(f, root=root)
-                        namespaces_to_search.append(root_namespace + "." + sub_namespace)
+                        namespaces_to_search.append(
+                            root_namespace + "." + sub_namespace)
         elif module_spec.origin:
             # The module search spec already points to a python file: Search only that.
             namespaces_to_search.append(module_spec.name)
@@ -120,7 +123,8 @@ class ModelConfigLoader:
                 continue
 
             if _module_spec:
-                config = self._get_model_config(_module_spec, model_name=model_name)
+                config = self._get_model_config(
+                    _module_spec, model_name=model_name)
                 if config:
                     configs[n] = config  # type: ignore
         return configs
@@ -133,16 +137,19 @@ class ModelConfigLoader:
         namespace, or fully qualified name of the model, like mymodule.configs.MyConfig)
         """
         if not model_name:
-            raise ValueError("Unable to load a model configuration because the model name is missing.")
+            raise ValueError(
+                "Unable to load a model configuration because the model name is missing.")
 
         logging.info(f"Trying to locate model {model_name}")
 
         name_parts = model_name.split(".")
         class_name = name_parts[-1]
         module_spec = self.find_module_search_specs(model_name)
-        configs = self._search_recursively_and_store(module_spec=module_spec, model_name=class_name)
+        configs = self._search_recursively_and_store(
+            module_spec=module_spec, model_name=class_name)
         if len(configs) == 0:
-            raise ValueError(f"Model '{model_name}' was not found in search namespace {module_spec.name}")
+            raise ValueError(
+                f"Model '{model_name}' was not found in search namespace {module_spec.name}")
         elif len(configs) > 1:
             raise ValueError(
                 f"Multiple instances of model '{model_name}' were found in namespaces: {[*configs.keys()]}"
