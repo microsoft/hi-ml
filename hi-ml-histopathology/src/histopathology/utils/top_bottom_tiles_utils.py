@@ -18,29 +18,35 @@ class TileNode:
     """Data structure class for tile nodes used by `SlideNode` to store top and bottom tiles by attention scores."""
 
     def __init__(
-        self, data: Tensor, attn: float, id: Optional[int] = None, x: Optional[float] = None, y: Optional[float] = None
+        self,
+        data: Tensor,
+        attn: float,
+        id: Optional[int] = None,
+        left: Optional[float] = None,
+        top: Optional[float] = None,
     ) -> None:
         """
         :param data: A tensor of tile data of shape (channels, height, width), e.g (3, 224, 224).
         :param attn: The attention score assigned to the tile.
         :param id: An optional tile id, defaults to None
-        :param x: An optional tile coordinate x, defaults to None
-        :param y: An optional coordinate y, defaults to None
+        :param left: An optional tile coordinate at the LEFT (e.g. x_coor), defaults to None
+        :param top: An optional tile coordinate at the TOP (e.g. y_coor), defaults to None
         """
         self.data = data.cpu()
         self.attn = attn
         self.id = id
-        self.x = x
-        self.y = y
+        self.left = left
+        self.top = top
 
 
 class SlideNode:
-    """Data structure class for slide nodes used by `KTopBottomTilesHandler` to store top and bottom slides by
+    """Data structure class for slide nodes used by `TopBottomTilesHandler` to store top and bottom slides by
     probability score. """
 
     def __init__(self, slide_id: str, prob_score: float,) -> None:
         """
-        :param prob_score: The probability score assigned to the slide node.
+        :param prob_score: The probability score assigned to the slide node. This scalar defines the order of the
+            slide_node among the nodes in the max/min heap.
         :param slide_id: The slide id in the data cohort.
         """
         self.slide_id = slide_id
@@ -51,11 +57,11 @@ class SlideNode:
     def __lt__(self, other: "SlideNode") -> bool:
         return self.prob_score < other.prob_score
 
-    def update_top_bottom_tiles(self, tiles: Tensor, attn_scores: Tensor, n_top_tiles: int) -> None:
+    def update_selected_tiles(self, tiles: Tensor, attn_scores: Tensor, n_top_tiles: int) -> None:
         """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
 
-        :param tiles: A tensor of tiles data of shape (channels, height, width), e.g (3, 224, 224).
-        :param attn_scores: A tensor of attention scores assigned by the deepmil model to the set of tiles.
+        :param tiles: A stack of tiles with shape (n_tiles, channels, height, width).
+        :param attn_scores: A tensor of attention scores assigned by the deepmil model to tiles of shape (n_tiles, 1).
         :param n_top_tiles: The number of tiles to select as top and bottom tiles.
         """
         n_top_tiles = min(n_top_tiles, len(attn_scores))
@@ -71,7 +77,7 @@ class SlideNode:
         return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
-        self, tile_nodes: List[TileNode], case: str, ncols: int = 5, size: Tuple[int, int] = (10, 10)
+        self, tile_nodes: List[TileNode], case: str, n_columns: int = 5, size: Tuple[int, int] = (10, 10)
     ) -> plt.Figure:
         """Plot and save top or bottom tiles figures with their attention scores.
 
@@ -80,17 +86,15 @@ class SlideNode:
         :param ncols: Number of columns to create the subfigures grid, defaults to 5
         :param size: The figure size , defaults to (10, 10)
         """
-        nrows = int(ceil(len(tile_nodes) / ncols))
+        nrows = int(ceil(len(tile_nodes) / n_columns))
         if nrows > 0:
-            fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=size)
+            fig, axs = plt.subplots(nrows=nrows, ncols=n_columns, figsize=size)
             fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
 
-            for i, tile_node in enumerate(tile_nodes):
-                axs.ravel()[i].imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-                axs.ravel()[i].set_title("%.6f" % tile_node.attn)
-
-            for i in range(len(axs.ravel())):
-                axs.ravel()[i].set_axis_off()
+            for ax, tile_node in zip(axs.flat(), tile_nodes):
+                ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+                ax.set_title("%.6f" % tile_node.attn)
+                ax.set_axis_off()
         return fig
 
 
@@ -102,18 +106,18 @@ TileDict = Dict[str, List[TileNode]]
 class TopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
 
-    def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, ncols: int = 4) -> None:
+    def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, n_columns: int = 4) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param n_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
             prediction scores.Defaults to 10.
         :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
-        :param ncols: Number of columns to use to plot top and bottom tiles.
+        :param n_columns: Number of columns to use to plot top and bottom tiles.
         """
         self.n_classes = n_classes if n_classes > 1 else 2
         self.n_top_slides = n_top_slides
         self.n_top_tiles = n_top_tiles
-        self.ncols = ncols
+        self.n_columns = n_columns
         self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
@@ -130,24 +134,14 @@ class TopBottomTilesHandler:
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
         return report_cases
 
-    def set_top_slides_heaps(self, top_slides_heaps: SlideDict) -> None:
-        self.top_slides_heaps = top_slides_heaps
+    def _reset_slides_heaps(self, new_top_slides_heaps: SlideDict, new_bottom_slides_heaps: SlideDict) -> None:
+        self.top_slides_heaps = new_top_slides_heaps
+        self.bottom_slides_heaps = new_bottom_slides_heaps
 
-    def set_bottom_slides_heaps(self, bottom_slides_heaps: SlideDict) -> None:
-        self.bottom_slides_heaps = bottom_slides_heaps
-
-    def empty_top_bottom_tiles_cache(self) -> None:
-        delattr(self, "top_slides_heaps")
-        delattr(self, "bottom_slides_heaps")
-        torch.cuda.empty_cache()
-
-    def get_selected_slide_ids(self) -> Dict[str, List[str]]:
-        return self.report_cases_slide_ids
-
-    def _update_slides_heap(
-        self, slides_heaps: SlideDict, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode,
+    def _update_class_slides(
+        self, class_slides_heap: List[SlideNode], tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode,
     ) -> None:
-        """Update the content of a slides_heap of a given gt_label.
+        """Update the content of a class_slides_heap.
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
         defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
         bottom_slides_heaps nodes.
@@ -155,32 +149,23 @@ class TopBottomTilesHandler:
             If so, we update the slides_node top and bottom tiles only if it has been kept in the heap.
             Else, we haven't reached the heaps max_capacity so we save the top and bottom tiles.
 
-        :param slides_heaps: The slides_heaps dict to be updated. Either self.top_slides_heaps or
+        :param class_slides_heap: The class_slides_heap dict to be updated. Either self.top_slides_heaps or
             self.bottom_slides_heaps.
-        :param gt_label: The ground truthe label e.g the class_id.
         :param tiles: Tiles of a given whole slide retrieved from the current validation or test batch.
-        :param attn_scores: The tiles attention scores to determine top and bottom tiles.
+            (n_tiles, channels, height, width)
+        :param attn_scores: The tiles attention scores to determine top and bottom tiles. (n_tiles, )
         :param slide_node: A shallow version of slide_node that contains only slide_id and its assigned prob_score.
         """
-        heapq.heappush(slides_heaps[gt_label], slide_node)
-        if len(slides_heaps[gt_label]) == self.n_top_slides + 1:
-            old_slide_node = slides_heaps[gt_label][0]
-            heapq.heappop(slides_heaps[gt_label])
+        heapq.heappush(class_slides_heap, slide_node)
+        if len(class_slides_heap) == self.n_top_slides + 1:
+            old_slide_node = heapq.heappop(class_slides_heap)
             if old_slide_node.slide_id != slide_node.slide_id:
-                slide_node.update_top_bottom_tiles(tiles, attn_scores, self.n_top_tiles)
+                slide_node.update_selected_tiles(tiles, attn_scores, self.n_top_tiles)
         else:
-            slide_node.update_top_bottom_tiles(tiles, attn_scores, self.n_top_tiles)
+            slide_node.update_selected_tiles(tiles, attn_scores, self.n_top_tiles)
 
-    def update_top_slides_heap(self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode) -> None:
-        return self._update_slides_heap(self.top_slides_heaps, gt_label, tiles, attn_scores, slide_node)
-
-    def update_bottom_slides_heap(
-        self, gt_label: int, tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode
-    ) -> None:
-        return self._update_slides_heap(self.bottom_slides_heaps, gt_label, tiles, attn_scores, slide_node)
-
-    def update_top_bottom_slides_heaps(self, batch: Dict[SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
-        """Updates top and bottom slides heaps on the fly during validation and test.
+    def update_slides_selection(self, batch: Dict[SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
+        """Updates top and bottom slides heaps on the fly during validation or test.
 
         :param batch: The current validation/test batch that contains the slides info, corresponding tiles and
             additional metadata.
@@ -195,14 +180,14 @@ class TopBottomTilesHandler:
             class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
             for i in class_indices:
                 probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-                self.update_top_slides_heap(
-                    gt_label=label,
+                self._update_class_slides(
+                    slides_heaps=self.top_slides_heaps[label],
                     tiles=batch[SlideKey.IMAGE][i],
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
                     slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
                 )
-                self.update_bottom_slides_heap(
-                    gt_label=label,
+                self._update_class_slides(
+                    slides_heaps=self.bottom_slides_heaps[label],
                     tiles=batch[SlideKey.IMAGE][i],
                     attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
                     slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
@@ -218,12 +203,6 @@ class TopBottomTilesHandler:
         for class_id, slide_nodes in slides_heaps.items():
             shallow_slides_heaps_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
         return shallow_slides_heaps_copy
-
-    def shallow_copy_top_slides_heaps(self) -> SlideDict:
-        return self._shallow_copy_slides_heaps(self.top_slides_heaps)
-
-    def shallow_copy_bottom_slides_heaps(self) -> SlideDict:
-        return self._shallow_copy_slides_heaps(self.bottom_slides_heaps)
 
     def _reduce_slides_heaps_list(self, world_size: int, slides_heaps_list: List[SlideDict]) -> SlideDict:
         """Reduces the list of slides_heaps gathered across devices into a single slides_heaps that contain top or
@@ -380,11 +359,13 @@ class TopBottomTilesHandler:
         """
         case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
 
-        top_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.top_tiles, case=case, ncols=self.ncols)
+        top_tiles_fig = slide_node.plot_attention_tiles(
+            tile_nodes=slide_node.top_tiles, case=case, n_columns=self.n_columns
+        )
         save_figure(fig=top_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_top.png")
 
         bottom_tiles_fig = slide_node.plot_attention_tiles(
-            tile_nodes=slide_node.bottom_tiles, case=case, ncols=self.ncols
+            tile_nodes=slide_node.bottom_tiles, case=case, n_columns=self.n_columns
         )
         save_figure(fig=bottom_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_bottom.png")
 

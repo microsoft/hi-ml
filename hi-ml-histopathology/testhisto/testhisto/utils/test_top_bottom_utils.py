@@ -89,7 +89,7 @@ def _create_and_update_top_bottom_tiles_handler(
     for i in range(rank * n_batches, (rank + 1) * n_batches):
         batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
         batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
-        handler.update_top_bottom_slides_heaps(batch_data, batch_results)
+        handler.update_slides_selection(batch_data, batch_results)
 
     return handler
 
