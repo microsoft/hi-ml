@@ -68,7 +68,6 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILTiles:
             is_caching=False,
-            batch_size=8,
             # declared in DatasetParams:
             local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
             azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
