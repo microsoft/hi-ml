@@ -67,6 +67,9 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILTiles:
             is_caching=False,
+            max_bag_size=56,
+            max_bag_size_inf=0,
+            batch_size=8,
             # declared in DatasetParams:
             local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
             azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
@@ -76,6 +79,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
+        if self.is_finetune:
+            self.batch_size = 2
         BaseMILTiles.setup(self)
 
     def get_data_module(self) -> PandaTilesDataModule:
