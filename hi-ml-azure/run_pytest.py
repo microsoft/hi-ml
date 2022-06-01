@@ -34,7 +34,7 @@ from health_azure.utils import (  # noqa: E402
     is_running_in_azure_ml,
     parse_arguments,
 )
-from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR  # noqa: E402
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
 
