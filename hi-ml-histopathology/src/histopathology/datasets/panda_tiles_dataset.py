@@ -88,7 +88,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
     class label.
     """
     occupancy_threshold = 0
-    random_selection = 0
+    random_selection = 1
 
     def __init__(self,
                  root: Path,
