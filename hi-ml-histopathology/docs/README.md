@@ -13,22 +13,12 @@ Please follow the [detailed instructions](public_datasets.md) to download and pr
 
 ## Training a model
 
-* [Train a DeepMil model with an ImageNet encoder on the PANDA dataset](panda_model.md)
-* [Train a TCGA-Crck DeepMil on tile dataset with ImageNet encoder](tcga-crck_model.md)
-  * How to invoke training on TCGA-Crck data, using the existing model config
-  * Where to find the results and how to interpret them: AzureML dashboards, HTML report, checkpoints
-  * What results are expected (accuracy)
-  * If people want to re-use that model on their data:
-    * What is the expected data format?
-    * Which parameters need to be tuned?
+* [Train a DeepMIL model with an ImageNet encoder on the PANDA dataset (whole slides)](panda_model.md)
+* [Train a DeepMIL model with an ImageNet encoder on the TCGA-Crck dataset (tiles)](tcga-crck_model.md)
 
 ## Training an SSL encoder
 
-* [Train an SSL encoder on a pre-tiled dataset: TCGA-Crck](ssl_on_tile_dataset.md)
-* How to use the checkpoint in a classifier
-* If people want to train an SSL model on their data:
-  * What is the expected data format?
-  * Which parameters need to be tuned?
+[Train an SSL encoder on the TCGA-Crck dataset (tiles)](ssl_on_tile_dataset.md)
 
 ## Visualizing data and results in DSA
 

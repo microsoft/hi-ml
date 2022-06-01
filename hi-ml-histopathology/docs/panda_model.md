@@ -1,4 +1,4 @@
-# DeepMil model on PANDA dataset
+# DeepMIL model on PANDA dataset
 
 - How to invoke training on PANDA data, using the existing model config
 - Where to find the results and how to interpret them: AzureML dashboards, HTML report, checkpoints
@@ -17,8 +17,8 @@ The models are developed to reproduce the results described in
 [Project-MONAI
 tutorial](https://github.com/Project-MONAI/tutorials/blob/master/pathology/multiple_instance_learning/panda_mil_train_evaluate_pytorch_gpu.py).
 
-A ResNet50 pre-trained encoder checkpoint is downloaded on-the-fly (from <https://download.pytorch.org/models/>) at the
-start of the training run.
+A ResNet50 encoder that was pre-trained on ImageNet is downloaded on-the-fly (from
+[here](https://download.pytorch.org/models/) at the start of the training run.
 
 ## Preparations
 
@@ -39,9 +39,9 @@ python src/histopathology/scripts/mount_azure_dataset.py --dataset_id PANDA
 ```
 
 After a few seconds, this may bring up a browser to authenticate you in Azure, and let you access the AzureML
-workspace that you chose by downloading the `config.json` file. If you get an error message saying that authencation
-failed, "The token is not yet valid (nbf)", please ensure that your
-system's time is set correctly (on WSL, use `sudo hwclock -s`) and then try again.
+workspace that you chose by downloading the `config.json` file. If you get an error message saying that authentication
+failed (error message contains "The token is not yet valid (nbf)"), please ensure that your
+system's time is set correctly and then try again. On WSL, you can use `sudo hwclock -s`.
 
 Upon success, the script will print out:
 
@@ -58,11 +58,13 @@ conda activate HimlHisto
 python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark
 ```
 
-However, the GPU demand for this model is rather high. We recommend running in AzureML, on a GPU compute cluster:
+However, the GPU demand for this model is rather high. We recommend running in AzureML, on a GPU compute cluster. You
+can run the training in the cloud by simply appending name of the compute cluster, `--cluster=<your_cluster_name>`. In
+addition, you can turn on fine-tuning of the encoder, which will improve the results further:
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --cluster=innereye4cl --additional_env_files environment.yml
+python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --is_finetune --additional_env_files environment.yml --cluster=<your_cluster_name>
 ```
 
 After a few seconds, this may bring up a browser to authenticate you in Azure, and let you access the AzureML
@@ -75,15 +77,16 @@ URL to view the submitted run in AzureML, view progress, metrics, etc.
 
 ## Expected results
 
-The best runs so far uses Transformer Pooling layer similar to the one implemented in Myronenko et. al 2021 (`pool_type=TransformerPoolingBenchmark.__name__`).
+The best runs so far uses Transformer Pooling layer similar to the one implemented in Myronenko et. al 2021
+(`pool_type=TransformerPoolingBenchmark.__name__`), in combintation with fine-tuning the encoder.
 
-`SlidesPandaImageNetMIL` Model trained on tiles created on-the-fly from WSI:
-[Link to best run]: <https://ml.azure.com/experiments/id/0e4d640b-7e4f-44cc-afcf-42bfbe9b2294/runs/HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd?wsid=/subscriptions/db9fc1d1-b44e-45a8-902d-8c766c255568/resourcegroups/innereyerg/workspaces/innereye4ws&tid=72f988bf-86f1-41af-91ab-2d7cd011db47>
-Cross validation metrics (mean ± std):
+`SlidesPandaImageNetMIL` model trained with fine-tuning, cross validation metrics (mean ± std):
 
 - Validation accuracy: 0.7828 ± 0.0037
 - Validation AUROC: 0.9473 ± 0.002
 - Validation QWK: 0.8793 ± 0.0074
+
+For internal reference, this was run `HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd` on `innereye4ws`.
 
 ## Model variants
 
@@ -109,7 +112,7 @@ This will mean that the job starts faster, but may not run at maximum speed beca
 To use cross-validation, supply the additional commandline flag `--crossval_count=5` for 5-fold cross-validation, like:
 
 ```shell
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --cluster=innereye4cl --additional_env_files environment.yml --crossval_count=5
+python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --additional_env_files environment.yml --crossval_count=5 --cluster=<your_cluster_name>
 ```
 
 Cross-validation will start 5 training runs in parallel. For this reason, cross-validation can only be used in AzureML.
