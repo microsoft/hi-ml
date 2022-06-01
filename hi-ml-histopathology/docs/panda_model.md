@@ -27,7 +27,7 @@ activate it, and the instructions to [set up Azure](../README.md#setting-up-azur
 
 ## Mount datasets
 
-If you would like to use the models interactively to debug and/or devlop, it is necessary to mount the datasets that are
+If you would like to use the models interactively to debug and/or develop, it is necessary to mount the datasets that are
 available in Azure. Instructions to prepare and upload the PANDA dataset are [here](public_datasets.md).
 "Mounting" here means that the dataset will be loaded on-demand over the network (see also [the
 docs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-with-datasets#mount-vs-download)).
@@ -68,7 +68,7 @@ python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageN
 ```
 
 After a few seconds, this may bring up a browser to authenticate you in Azure, and let you access the AzureML
-workspace that you chose by downloading the `config.json` file. If you get an error message saying that authencation
+workspace that you chose by downloading the `config.json` file. If you get an error message saying that authentication
 failed, "The token is not yet valid (nbf)", please ensure that your
 system's time is set correctly (on WSL, use `sudo hwclock -s`) and then try again.
 
