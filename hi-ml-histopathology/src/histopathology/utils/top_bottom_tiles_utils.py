@@ -188,7 +188,6 @@ class TopBottomTilesHandler:
         """
         _, idx = np.unique(batch[SlideKey.SLIDE_ID], return_index=True)  # to account for repetitions in tiles pipeline
         slide_ids = np.array(batch[SlideKey.SLIDE_ID])[np.sort(idx)]
-        # TODO double check that order is preserved after unique
 
         for label in range(self.n_classes):
             class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
