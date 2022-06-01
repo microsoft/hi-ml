@@ -186,8 +186,10 @@ class TopBottomTilesHandler:
             additional metadata.
         :param results: Batch results that contain attention scores, probability scores and the true labels.
         """
-        _, idx = np.unique(batch[SlideKey.SLIDE_ID], return_index=True)  # to account for repetitions in tiles pipeline
-        slide_ids = np.array(batch[SlideKey.SLIDE_ID])[np.sort(idx)]
+        slide_ids, idx = np.unique(
+            batch[SlideKey.SLIDE_ID], return_index=True
+        )  # to account for repetitions in tiles pipeline
+        slide_ids = slide_ids[np.sort(idx)]
 
         for label in range(self.n_classes):
             class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)

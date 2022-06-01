@@ -36,6 +36,8 @@ class BaseDeepSMILEPanda(BaseMIL):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             is_finetune=False,
+            max_bag_size=56,
+            max_bag_size_inf=0,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             # declared in TrainerParams:
@@ -70,6 +72,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILTiles:
             is_caching=False,
+            batch_size=8,
             # declared in DatasetParams:
             local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
             azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
