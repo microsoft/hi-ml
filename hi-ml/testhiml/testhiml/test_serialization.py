@@ -83,8 +83,7 @@ def test_serialization_roundtrip() -> None:
     assert isinstance(info2.model, torch.jit.ScriptModule)
     assert info1.model_example_input is not None
     assert info2.model_example_input is not None
-    assert torch.allclose(info2.model_example_input,
-                          info1.model_example_input, atol=0, rtol=0)
+    assert torch.allclose(info2.model_example_input, info1.model_example_input, atol=0, rtol=0)
     serialized_output = info2.model.forward(info2.model_example_input)
     assert torch.allclose(serialized_output, model_output, atol=0, rtol=0)
     # Tokenizer should be written as a byte stream
@@ -118,8 +117,7 @@ def test_get_metadata() -> None:
         # This ModelInfo object has no fields pre-set
         model_info = ModelInfo()
         # If AzureML run info is already present in the object, those fields should be preserved.
-        model_info2 = ModelInfo(azure_ml_run_id="foo",
-                                azure_ml_workspace="bar")
+        model_info2 = ModelInfo(azure_ml_run_id="foo", azure_ml_workspace="bar")
         with mock.patch("health_ml.utils.serialization.RUN_CONTEXT", run):
             with mock.patch("health_ml.utils.serialization.is_running_in_azure_ml", return_value=True):
                 model_info.get_metadata_from_azureml()

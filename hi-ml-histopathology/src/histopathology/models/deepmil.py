@@ -113,8 +113,7 @@ class BaseDeepMILModule(LightningModule):
         elif 0 <= self.dropout_rate < 1:
             return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
         else:
-            raise ValueError(
-                f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
+            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
@@ -126,8 +125,7 @@ class BaseDeepMILModule(LightningModule):
         else:
             pos_weight = None
             if self.class_weights is not None:
-                pos_weight = Tensor(
-                    [self.class_weights[1] / (self.class_weights[0] + 1e-5)])
+                pos_weight = Tensor([self.class_weights[1] / (self.class_weights[0] + 1e-5)])
             return nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     def get_activation(self) -> Callable:
@@ -163,16 +161,13 @@ class BaseDeepMILModule(LightningModule):
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
             if metric_name == MetricsKey.CONF_MATRIX:
                 metric_value = metric_object.compute()
-                metric_value_n = metric_value / \
-                    metric_value.sum(axis=1, keepdims=True)
+                metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    log_on_epoch(
-                        self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
+                    log_on_epoch(self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
-    # type: ignore
-    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         should_enable_encoder_grad = torch.is_grad_enabled() and self.is_finetune
         with set_grad_enabled(should_enable_encoder_grad):
             if self.chunk_size > 0:
@@ -183,10 +178,8 @@ class BaseDeepMILModule(LightningModule):
                     embeddings.append(chunk_embeddings)
                 instance_features = torch.cat(embeddings)
             else:
-                instance_features = self.encoder(
-                    instances)                # N X L x 1 x 1
-        attentions, bag_features = self.aggregation_fn(
-            instance_features)  # K x N | K x L
+                instance_features = self.encoder(instances)                # N X L x 1 x 1
+        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)
         return bag_logit, attentions
@@ -223,8 +216,7 @@ class BaseDeepMILModule(LightningModule):
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
 
-        bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(
-            batch)
+        bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
             loss = self.loss_fn(bag_logits, bag_labels.long())
@@ -251,8 +243,7 @@ class BaseDeepMILModule(LightningModule):
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(
-                predicted_probs, bag_labels.view(batch_size,).int())
+            metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
         results.update({ResultsKey.LOSS: loss,
                         ResultsKey.PROB: predicted_probs,
                         ResultsKey.CLASS_PROBS: probs_perclass,
@@ -260,11 +251,9 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.TRUE_LABEL: bag_labels,
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
-        self.update_results_with_data_specific_info(
-            batch=batch, results=results)
+        self.update_results_with_data_specific_info(batch=batch, results=results)
         if stage == ModelKey.TEST and self.outputs_handler:
-            self.outputs_handler.tiles_handler.update_slides_selection(
-                batch, results)
+            self.outputs_handler.tiles_handler.update_slides_selection(batch, results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -272,8 +261,7 @@ class BaseDeepMILModule(LightningModule):
         self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         if self.verbose:
-            print(
-                f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
+            print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
         return train_result[ResultsKey.LOSS]
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -296,8 +284,7 @@ class BaseDeepMILModule(LightningModule):
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
-                metrics_dict=self.get_metrics_dict(
-                    ModelKey.VAL),  # type: ignore
+                metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0
             )
@@ -357,8 +344,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                     [slide_id] * bag_sizes[i] for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
                 ],
                 ResultsKey.TILE_ID: [
-                    [f"{slide_id}_{tile_id}" for tile_id in range(
-                        bag_sizes[i])]
+                    [f"{slide_id}_{tile_id}" for tile_id in range(bag_sizes[i])]
                     for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
                 ],
                 ResultsKey.IMAGE_PATH: [

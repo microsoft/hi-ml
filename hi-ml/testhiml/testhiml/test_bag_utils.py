@@ -8,8 +8,7 @@ from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader, Dataset
 
 
-from health_ml.utils.bag_utils import (
-    BagSampler, create_bag_dataloader, multibag_collate)
+from health_ml.utils.bag_utils import (BagSampler, create_bag_dataloader, multibag_collate)
 
 # Run GPU tests only if available
 GPUS = [0, -1] if torch.cuda.is_available() else [0]  # type: ignore
@@ -48,8 +47,7 @@ def test_bag_sampler(shuffle_bags: bool, shuffle_samples: bool, max_bag_size: in
         assert 0 < len(bag) <= max_expected_bag_size
         assert all(isinstance(idx, int) for idx in bag)
         idx_counter.update(bag)
-    assert all(count == 1 for count in idx_counter.values()
-               ), "There were repeated indices"
+    assert all(count == 1 for count in idx_counter.values()), "There were repeated indices"
     if not limited_bag_size:
         assert set(idx_counter) == set(range(n_samples)), \
             "Sampled indices do not match input indices"
@@ -60,10 +58,8 @@ def test_bag_sampler(shuffle_bags: bool, shuffle_samples: bool, max_bag_size: in
         ids_in_bag = set(bag_ids[idx] for idx in bag)
         assert len(ids_in_bag) == 1, "Bag has mixed IDs"
         bag_id_counter.update(ids_in_bag)
-    assert all(count == 1 for count in bag_id_counter.values()
-               ), "There were repeated bag IDs"
-    assert set(bag_id_counter) == set(
-        bag_ids), "Sampled bag IDs do not match input bag IDs"
+    assert all(count == 1 for count in bag_id_counter.values()), "There were repeated bag IDs"
+    assert set(bag_id_counter) == set(bag_ids), "Sampled bag IDs do not match input bag IDs"
 
 
 @pytest.mark.parametrize('shuffle_bags', [False, True])
@@ -197,12 +193,10 @@ def test_bag_dataloader(shuffle_bags: bool, shuffle_samples: bool, batch_size: i
 
             for key, value in batch.items():
                 assert isinstance(value, List)
-                assert len(
-                    value) == actual_batch_size, f"'{key}' does not match batch size"
+                assert len(value) == actual_batch_size, f"'{key}' does not match batch size"
             for bag_idx in range(actual_batch_size):
                 bag_size = batch['input'][bag_idx].shape[0]
-                assert batch['input'][bag_idx].shape == (
-                    bag_size, *input_shape)
+                assert batch['input'][bag_idx].shape == (bag_size, *input_shape)
                 assert batch['label'][bag_idx].shape == (bag_size,)
                 assert batch['instance_id'][bag_idx].shape == (bag_size,)
                 assert batch['bag_id'][bag_idx].shape == (bag_size,)
@@ -255,10 +249,8 @@ class InstrumentedLightningModule(LightningModule):
         batch_bag_ids = self.get_bag_id(batch)
         if self.batch_size is not None:
             n_bags_in_batch = len(batch_instance_ids)
-            # flatten list of lists
-            batch_instance_ids = sum(map(to_list, batch_instance_ids), [])
-            batch_bag_ids = sum(map(to_list, batch_bag_ids),
-                                [])  # flatten list of lists
+            batch_instance_ids = sum(map(to_list, batch_instance_ids), [])  # flatten list of lists
+            batch_bag_ids = sum(map(to_list, batch_bag_ids), [])  # flatten list of lists
         else:
             n_bags_in_batch = 1
             batch_instance_ids = to_list(batch_instance_ids)

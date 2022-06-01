@@ -39,8 +39,7 @@ def test_epoch_timers(caplog: LogCaptureFixture) -> None:
     old_total_load_time = timer.total_load_time
     timer.max_batch_load_time_seconds = 10.0
     assert timer.num_load_time_exceeded == 0
-    timer.batch_start(batch_index=batch_index,
-                      epoch=epoch, message_prefix="prefix")
+    timer.batch_start(batch_index=batch_index, epoch=epoch, message_prefix="prefix")
     # This should be updated in any case
     assert timer.total_load_time > old_total_load_time
     # But this batch should not be recognized as having gone over the threshold
@@ -52,8 +51,7 @@ def test_epoch_timers(caplog: LogCaptureFixture) -> None:
     # Third minibatch considered as above threshold: set threshold to 0 for that
     old_total_load_time = timer.total_load_time
     timer.max_batch_load_time_seconds = 0.0
-    timer.batch_start(batch_index=batch_index,
-                      epoch=epoch, message_prefix="prefix")
+    timer.batch_start(batch_index=batch_index, epoch=epoch, message_prefix="prefix")
     # This should be updated in any case
     assert timer.total_load_time > old_total_load_time
     # Batch should not be recognized as having gone over the threshold
@@ -114,10 +112,8 @@ def test_batch_time_callback(caplog: LogCaptureFixture) -> None:
     assert callback.train_timers.epoch_end_time > old_train_epoch_end_time
 
     # Run 1 training batch
-    callback.on_train_batch_start(
-        None, None, None, batch_idx=0, dataloader_idx=0)  # type: ignore
-    callback.on_train_batch_end(
-        None, None, None, None, batch_idx=0, dataloader_idx=0)  # type: ignore
+    callback.on_train_batch_start(None, None, None, batch_idx=0, dataloader_idx=0)  # type: ignore
+    callback.on_train_batch_end(None, None, None, None, batch_idx=0, dataloader_idx=0)  # type: ignore
     assert len(logged_metrics) == 2
 
     # Upon batch end, we should see metrics being logged. Batch level timings should be logged both as averages and max
@@ -128,16 +124,12 @@ def test_batch_time_callback(caplog: LogCaptureFixture) -> None:
             assert logged_metrics[name][1] == max if suffix == " max" else torch.mean
 
     check_batch_metrics("train")
-    assert caplog.messages[-1].startswith(
-        f"Epoch {epoch} training: Loaded the first")
+    assert caplog.messages[-1].startswith(f"Epoch {epoch} training: Loaded the first")
     # Run 2 validation batches
     for batch_idx in range(2):
-        callback.on_validation_batch_start(
-            None, None, None, batch_idx=batch_idx, dataloader_idx=0)  # type: ignore
-        callback.on_validation_batch_end(
-            None, None, None, None, batch_idx=batch_idx, dataloader_idx=0)  # type: ignore
-    assert caplog.messages[-1].startswith(
-        f"Epoch {epoch} validation: Loaded the first")
+        callback.on_validation_batch_start(None, None, None, batch_idx=batch_idx, dataloader_idx=0)  # type: ignore
+        callback.on_validation_batch_end(None, None, None, None, batch_idx=batch_idx, dataloader_idx=0)  # type: ignore
+    assert caplog.messages[-1].startswith(f"Epoch {epoch} validation: Loaded the first")
     assert callback.train_timers.num_batches == 1
     assert callback.val_timers.num_batches == 2
     check_batch_metrics("val")

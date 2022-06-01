@@ -19,8 +19,7 @@ from setuptools import find_namespace_packages, setup  # type: ignore
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
-long_description = (
-    here / 'package_description.md').read_text(encoding='utf-8')
+long_description = (here / 'package_description.md').read_text(encoding='utf-8')
 
 version = ''
 
@@ -83,8 +82,7 @@ setup(
     ],
     keywords='HealthIntelligence',
     license='MIT License',
-    packages=find_namespace_packages(
-        include=['health_newproject', 'health_newproject.*']),
+    packages=find_namespace_packages(include=['health_newproject', 'health_newproject.*']),
     include_package_data=True,
     install_requires=install_requires,
 )

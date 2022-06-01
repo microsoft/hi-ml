@@ -25,8 +25,7 @@ from monai.transforms.io.dictionary import LoadImaged
 from monai.apps.pathology.transforms import TileOnGridd
 from monai.data.image_reader import WSIReader
 
-_SlidesOrTilesDataset = TypeVar(
-    '_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
+_SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
 
 
 class CacheMode(Enum):
@@ -51,8 +50,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         max_bag_size: int = 0,
         max_bag_size_inf: int = 0,
         seed: Optional[int] = None,
-        transforms_dict: Optional[Dict[ModelKey,
-                                       Union[Callable, None]]] = None,
+        transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
@@ -142,8 +140,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         if precache_location is not CacheLocation.NONE and cache_dir is None:
             raise ValueError("A cache directory is required for pre-caching")
         if cache_mode is CacheMode.DISK and cache_dir is None:
-            raise ValueError(
-                "A cache directory is required for on-disk caching")
+            raise ValueError("A cache directory is required for on-disk caching")
 
         self.cache_mode = cache_mode
         self.precache_location = precache_location
@@ -153,12 +150,9 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
     def prepare_data(self) -> None:
         if self.precache_location != CacheLocation.NONE:
-            self._load_dataset(self.train_dataset,
-                               stage=ModelKey.TRAIN, shuffle=True)
-            self._load_dataset(
-                self.val_dataset, stage=ModelKey.VAL, shuffle=True)
-            self._load_dataset(self.test_dataset,
-                               stage=ModelKey.TEST, shuffle=True)
+            self._load_dataset(self.train_dataset, stage=ModelKey.TRAIN, shuffle=True)
+            self._load_dataset(self.val_dataset, stage=ModelKey.VAL, shuffle=True)
+            self._load_dataset(self.test_dataset, stage=ModelKey.TEST, shuffle=True)
 
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
@@ -167,17 +161,14 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
     def _get_transformed_dataset(self, dataset: Dataset, transform: Union[Sequence[Callable], Callable]) -> Dataset:
         if self.cache_mode is CacheMode.MEMORY:
-            dataset = CacheDataset(
-                dataset, transform, num_workers=1)  # type: ignore
+            dataset = CacheDataset(dataset, transform, num_workers=1)  # type: ignore
         elif self.cache_mode is CacheMode.DISK:
-            dataset = PersistentDataset(
-                dataset, transform, cache_dir=self.cache_dir)  # type: ignore
+            dataset = PersistentDataset(dataset, transform, cache_dir=self.cache_dir)  # type: ignore
             if self.precache_location != CacheLocation.NONE:
                 import tqdm  # TODO: Make optional
 
                 for i in tqdm.trange(len(dataset), desc="Loading dataset"):
-                    # empty loop to pre-compute all transformed samples
-                    dataset[i]
+                    dataset[i]  # empty loop to pre-compute all transformed samples
         else:
             dataset = Dataset(dataset, transform)  # type: ignore
         return dataset
@@ -188,8 +179,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         if dataset_pickle_path and dataset_pickle_path.is_file():
             if self.precache_location == CacheLocation.CPU:
                 memory_location = torch.device("cpu")
-                print(
-                    f"Loading dataset from {dataset_pickle_path} into {memory_location}")
+                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
             else:
                 # by default torch.load will reload on the same device it was saved from
                 memory_location = None  # type: ignore
@@ -218,8 +208,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         # Save and restore PRNG state for consistency across (pre-)caching options
         generator_state = generator.get_state()
-        transformed_bag_dataset = self._get_transformed_dataset(
-            bag_dataset, transform)  # type: ignore
+        transformed_bag_dataset = self._get_transformed_dataset(bag_dataset, transform)  # type: ignore
         generator.set_state(generator_state)
 
         # Dataset is saved if cache_dir is True, regardless of CacheMode
@@ -232,8 +221,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
     def _get_dataloader(self, dataset: TilesDataset, stage: ModelKey, shuffle: bool,
                         **dataloader_kwargs: Any) -> DataLoader:
-        transformed_bag_dataset = self._load_dataset(
-            dataset, stage=stage, shuffle=shuffle)
+        transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
         return DataLoader(
@@ -321,8 +309,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
-            transforms = Compose(
-                [base_transform, self.transforms_dict[stage]]).flatten()
+            transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
             transforms = base_transform
         return Dataset(slides_dataset, transforms)

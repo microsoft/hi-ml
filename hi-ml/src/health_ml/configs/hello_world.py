@@ -42,14 +42,12 @@ def _split_crossval(xy: torch.Tensor, crossval_count: int, crossval_index: int) 
     split_size = n // crossval_count
     val_start = crossval_index * split_size
     val_end = (crossval_index + 1) * split_size
-    train1_start = 0 if crossval_index == 0 else (
-        crossval_index - 1) * split_size
+    train1_start = 0 if crossval_index == 0 else (crossval_index - 1) * split_size
     train1_end = 0 if crossval_index == 0 else val_start
     train2_start = val_end if crossval_index < (crossval_count - 1) else 0
     train2_end = n if crossval_index < (crossval_count - 1) else 0
     val = xy[val_start:val_end]
-    train = torch.concat([xy[train1_start:train1_end],
-                         xy[train2_start:train2_end]])
+    train = torch.concat([xy[train1_start:train1_end], xy[train2_start:train2_end]])
     return (train, val)
 
 
@@ -92,8 +90,7 @@ class HelloWorldDataModule(LightningDataModule):
         else:
             # This could be done via a library function like sklearn's KFold function, but we don't want to add
             # scikit-learn as a dependency just for this example.
-            train, val = _split_crossval(
-                xy[n_test:], crossval_count=crossval_count, crossval_index=crossval_index)
+            train, val = _split_crossval(xy[n_test:], crossval_count=crossval_count, crossval_index=crossval_index)
             self.val = HelloWorldDataset(xy=val)
             self.train = HelloWorldDataset(xy=train)
 
@@ -120,8 +117,7 @@ class HelloRegression(LightningModule):
 
     def __init__(self) -> None:
         super().__init__()
-        self.model = torch.nn.Linear(
-            in_features=1, out_features=1, bias=True)  # type: ignore
+        self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)  # type: ignore
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
 
@@ -136,8 +132,7 @@ class HelloRegression(LightningModule):
         """
         return self.model(x)
 
-    # type: ignore
-    def training_step(self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:
+    def training_step(self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
         """
         This method is part of the standard PyTorch Lightning interface. For an introduction, please see
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
@@ -200,8 +195,7 @@ class HelloRegression(LightningModule):
         self.test_mse = []
         self.test_mae.reset()
 
-    # type: ignore
-    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
+    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
         This method is part of the standard PyTorch Lightning interface. For an introduction, please see
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html

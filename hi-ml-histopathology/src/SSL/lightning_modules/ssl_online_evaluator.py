@@ -105,10 +105,8 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
             raise ValueError("Unable to retrieve the accelerator information")
         if accelerator.is_distributed:
             if accelerator.use_ddp:
-                self.evaluator = SyncBatchNorm.convert_sync_batchnorm(
-                    self.evaluator)
-                self.evaluator = DistributedDataParallel(
-                    self.evaluator, device_ids=[pl_module.device])  # type: ignore
+                self.evaluator = SyncBatchNorm.convert_sync_batchnorm(self.evaluator)
+                self.evaluator = DistributedDataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
             else:
                 rank_zero_warn("This type of distributed accelerator is not supported. "
                                "The online evaluator will not synchronize across GPUs.")
@@ -141,8 +139,7 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         detach from computation graph for this loss computation.
         Returns cross-entropy loss for the input batch.
         """
-        batch = batch[SSLDataModuleType.LINEAR_HEAD] if isinstance(
-            batch, dict) else batch
+        batch = batch[SSLDataModuleType.LINEAR_HEAD] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
@@ -150,8 +147,7 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
 
         # Run the linear-head with SSL embeddings.
         mlp_preds = self.evaluator(representations)
-        weights = None if self.class_weights is None else self.class_weights.to(
-            device=pl_module.device)
+        weights = None if self.class_weights is None else self.class_weights.to(device=pl_module.device)
         mlp_loss = F.cross_entropy(mlp_preds, y, weight=weights)
 
         with torch.no_grad():
@@ -173,16 +169,14 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         Metrics are computed only if the sample IDs in the batch have not yet been seen in this epoch (linear head
         data may be repeated if the SSL data is longer than the linear head data).
         """
-        ids_linear_head = tuple(
-            batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
+        ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             with set_model_to_eval_mode(self.evaluator):
                 loss = self.shared_step(batch, pl_module, is_training=False)
                 log_on_epoch(pl_module, 'ssl_online_evaluator/val/loss', loss)
                 for metric in self.val_metrics:
-                    log_on_epoch(
-                        pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
+                    log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:  # type: ignore
         """
@@ -190,8 +184,7 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         """
         # Similar code should also live in the encoder training.
         # There is a silent assumption here that SSL data is larger than linear head data
-        ids_linear_head = tuple(
-            batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
+        ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
@@ -202,5 +195,4 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
             # log metrics
             log_on_epoch(pl_module, 'ssl_online_evaluator/train/loss', loss)
             for metric in self.train_metrics:
-                log_on_epoch(
-                    pl_module, f"ssl_online_evaluator/train/online_{metric.name}", metric)
+                log_on_epoch(pl_module, f"ssl_online_evaluator/train/online_{metric.name}", metric)

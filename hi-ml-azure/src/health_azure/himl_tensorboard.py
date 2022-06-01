@@ -30,8 +30,7 @@ class HimlTensorboardConfig(azure_util.AmlRunScriptConfig):
     log_dir: Path = param.ClassSelector(class_=Path, default=Path("outputs"), instantiate=False,
                                         doc="Path to directory in which Tensorboard  files"
                                             "(summarywriter and TB logs) are stored")
-    port: int = param.Integer(
-        default=6006, doc="The port to run Tensorboard on")
+    port: int = param.Integer(default=6006, doc="The port to run Tensorboard on")
 
 
 class WrappedTensorboard(Tensorboard):
@@ -110,8 +109,7 @@ class WrappedTensorboard(Tensorboard):
 
 def main() -> None:  # pragma: no cover
     tb_config = HimlTensorboardConfig()
-    tb_config = azure_util.parse_args_and_update_config(
-        tb_config, sys.argv[1:])
+    tb_config = azure_util.parse_args_and_update_config(tb_config, sys.argv[1:])
 
     config_path = tb_config.config_file
 
@@ -119,8 +117,7 @@ def main() -> None:  # pragma: no cover
         logging.info("You have not provided a config path. Therefore we will try to find one in your "
                      "current directory, and its parents")
 
-    workspace = get_workspace(
-        aml_workspace=None, workspace_config_path=config_path)
+    workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
     runs = azure_util._get_runs_from_script_config(tb_config, workspace)
 
@@ -129,8 +126,7 @@ def main() -> None:  # pragma: no cover
         raise ValueError("No runs were found")
 
     local_logs_dir = ROOT_DIR / tb_config.log_dir
-    logging.info(
-        f"Creating directory {local_logs_dir} to store TensorBoard logs in")
+    logging.info(f"Creating directory {local_logs_dir} to store TensorBoard logs in")
     local_logs_dir.mkdir(exist_ok=True, parents=True)
 
     remote_logs_dir = local_logs_dir.relative_to(ROOT_DIR)

@@ -103,8 +103,7 @@ def read_image_opencv(input_filename: Path) -> torch.Tensor:
     numpy_array = cv2.imread(str(input_filename))
     numpy_array = cv2.cvtColor(numpy_array, cv2.COLOR_BGR2RGB)
     is_greyscale = False not in \
-        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) ==
-         (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
+        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
     if is_greyscale:
         numpy_array = numpy_array[:, :, 0]
     if len(numpy_array.shape) == 2:
@@ -129,8 +128,7 @@ def read_image_opencv2(input_filename: Path) -> torch.Tensor:
     numpy_array = cv2.imread(str(input_filename))
     numpy_array = cv2.cvtColor(numpy_array, cv2.COLOR_BGR2RGB)
     is_greyscale = False not in \
-        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) ==
-         (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
+        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
     if is_greyscale:
         numpy_array = numpy_array[:, :, 0]
     torch_tensor = TF.to_tensor(numpy_array)
@@ -190,8 +188,7 @@ def read_image_scipy2(input_filename: Path) -> np.array:  # type: ignore
     :param input_filename: Source image file path.
     :return: numpy array of shape (H, W), (H, W, 3).
     """
-    numpy_array = imageio.imread(
-        input_filename).astype(np.float)  # type: ignore
+    numpy_array = imageio.imread(input_filename).astype(np.float)  # type: ignore
     return numpy_array
 
 
@@ -291,8 +288,7 @@ def check_loaded_image(type: str, image_file: Path, tensor: torch.Tensor) -> Non
     source_greyscale = im.mode == 'L'
     channels = 1 if source_greyscale else 3
     width, height = im.size
-    print(
-        f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
+    print(f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
     assert isinstance(tensor, torch.Tensor)
     assert tensor.dtype == torch.float32
     assert tensor.shape == (channels, height, width)
@@ -313,8 +309,7 @@ def check_loaded_image2(type: str, image_file: Path, im2: np.ndarray) -> None:
     im = Image.open(image_file)
     source_greyscale = im.mode == 'L'
     width, height = im.size
-    print(
-        f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
+    print(f"Testing file: {image_file}, type: {type}, format: {im.format}, size: {im.size}, mode: {im.mode}")
     assert isinstance(im2, np.ndarray)
     assert im2.dtype == np.float  # type: ignore
     if source_greyscale:
@@ -358,8 +353,7 @@ def mount_and_convert_source_files(
                 for folder, suffix, write_op, _ in bin_libs:
                     target_folder = output_folder / folder / option
                     target_folder.mkdir(parents=True, exist_ok=True)
-                    target_file = target_folder / \
-                        image_file.with_suffix(suffix).name
+                    target_file = target_folder / image_file.with_suffix(suffix).name
                     write_op(tensor, target_file)
 
                 print(f"Converted file: {image_file}, format: {im.format} -> {im2.format}, "
@@ -371,8 +365,7 @@ def run_profiling(
         output_folder: Path,
         source_options: List[str],
         png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
-        # type: ignore
-        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],
+        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],  # type: ignore
         bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
     """
     Loop through multiple repeats of each source type, loading the image file and processing it with each
@@ -402,8 +395,7 @@ def run_profiling(
 
                 for folder, suffix, _, op in bin_libs:
                     target_folder = output_folder / folder / source_option
-                    native_file = target_folder / \
-                        image_file.with_suffix(suffix).name
+                    native_file = target_folder / image_file.with_suffix(suffix).name
                     tensor = op(native_file)
                     check_loaded_image(folder, image_file, tensor)
 
@@ -412,8 +404,7 @@ def wrap_run_profiling(
         repeats: int,
         output_folder: Path,
         png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
-        # type: ignore
-        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],
+        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],  # type: ignore
         bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
         profile_name: str,
         profile_source_options: List[str]) -> None:
@@ -511,8 +502,7 @@ def main() -> None:
     output_folder = Path("outputs")
     output_folder.mkdir(exist_ok=True)
 
-    mount_and_convert_source_files(
-        dataset, output_folder, source_options, bin_libs)
+    mount_and_convert_source_files(dataset, output_folder, source_options, bin_libs)
 
     profile_sets: Dict[str, List[str]] = {
         "rgb": [source_options[0][0], source_options[2][0]],

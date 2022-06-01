@@ -10,11 +10,9 @@ from health_ml.utils.config_loader import ModelConfigLoader, path_to_namespace
 
 def test_find_module_search_specs() -> None:
     config_loader = ModelConfigLoader()
-    module_spec = config_loader.find_module_search_specs(
-        model_name="health_ml.utils.config_loader.Foo")
+    module_spec = config_loader.find_module_search_specs(model_name="health_ml.utils.config_loader.Foo")
     assert module_spec.name == "health_ml.utils.config_loader"
-    module_spec = config_loader.find_module_search_specs(
-        model_name="DoesNotExist")
+    module_spec = config_loader.find_module_search_specs(model_name="DoesNotExist")
     assert module_spec.name == "health_ml.configs"
 
 
@@ -37,8 +35,7 @@ def test_create_model_config_from_name_errors() -> None:
     assert "was not found in search namespace" in str(e)
 
     with pytest.raises(Exception) as e:
-        config_loader.create_model_config_from_name(
-            "testhiml.idontexist.idontexist")
+        config_loader.create_model_config_from_name("testhiml.idontexist.idontexist")
     assert "Module testhiml.idontexist was not found" in str(e)
 
 
@@ -65,8 +62,7 @@ def test_path_to_namespace() -> None:
     """
     A test to check conversion between paths and python namespaces.
     """
-    assert path_to_namespace(Path("/foo/bar/baz"),
-                             root=Path("/foo")) == "bar.baz"
+    assert path_to_namespace(Path("/foo/bar/baz"), root=Path("/foo")) == "bar.baz"
 
 
 def test_config_fully_qualified() -> None:

@@ -65,14 +65,12 @@ def test_get_all_environment_files(temp_project_root: Path, temp_env_path: Path,
         expected_env_path = env_file_root / ENVIRONMENT_YAML_FILE_NAME
         assert expected_env_path.is_file()
         # Now check that get_all_environment_files returns this path
-        assert get_all_environment_files(project_root=himl_root) == [
-            expected_env_path]
+        assert get_all_environment_files(project_root=himl_root) == [expected_env_path]
 
         # If we patch the git_repo_root_folder to return a different folder, we should be able
         # to pick up an env file there
         with patch("health_azure.paths.git_repo_root_folder", return_value=temp_project_root):
-            assert get_all_environment_files(
-                project_root=temp_project_root) == [temp_env_path]
+            assert get_all_environment_files(project_root=temp_project_root) == [temp_env_path]
 
         # If we patch git_repo_root_folder to return a different folder that does not contain an env
         # file, an error should be raised
@@ -85,15 +83,13 @@ def test_get_all_environment_files(temp_project_root: Path, temp_env_path: Path,
     # won't be hi-ml, so we replace it here with temp_path (which has no concept of the hi-ml directory)
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=False):
         with patch("health_azure.paths.git_repo_root_folder", return_value=temp_project_root):
-            assert get_all_environment_files(
-                project_root=temp_project_root) == [temp_env_path]
+            assert get_all_environment_files(project_root=temp_project_root) == [temp_env_path]
 
         # Now pass a directory that doesn't have an env file and check that an error is raised
         with patch("health_azure.paths.git_repo_root_folder", return_value=empty_temp_dir):
             with pytest.raises(ValueError) as e2:
                 get_all_environment_files(project_root=empty_temp_dir)
-            assert "No Conda environment files were found in the repository" in str(
-                e2)
+            assert "No Conda environment files were found in the repository" in str(e2)
 
 
 @pytest.mark.fast

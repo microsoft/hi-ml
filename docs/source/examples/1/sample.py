@@ -28,8 +28,7 @@ def sieve(n: int) -> List[int]:
 
 def main() -> None:
     parser = ArgumentParser()
-    parser.add_argument("-n", "--count", type=int, default=100,
-                        required=False, help="Maximum value (not included)")
+    parser.add_argument("-n", "--count", type=int, default=100, required=False, help="Maximum value (not included)")
     args = parser.parse_args()
 
     primes = sieve(args.count)

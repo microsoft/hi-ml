@@ -71,14 +71,11 @@ class AzureMLLogger(LightningLoggerBase):
                                                  workspace=workspace,
                                                  workspace_config_path=workspace_config_path,
                                                  snapshot_directory=snapshot_directory)
-                print(
-                    f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
-                print(
-                    f"To check progress, visit this URL: {self.run.get_portal_url()}")
+                print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
+                print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
                 self.has_custom_run = True
             except Exception:
-                logging.error(
-                    "Unable to create an AzureML run to store the results.")
+                logging.error("Unable to create an AzureML run to store the results.")
                 raise
         else:
             print("AzureMLLogger will not write any logs because it is running outside AzureML, and the "
@@ -149,8 +146,7 @@ class AzureMLLogger(LightningLoggerBase):
         # Convert anything that is not a primitive type to str
         params_final = self._sanitize_params(params)
         if not isinstance(params_final, dict):
-            raise ValueError(
-                f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
+            raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
         return {str(key): str(value) for key, value in params_final.items()}
 
 
@@ -228,8 +224,7 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def on_predict_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_predict_epoch_start(trainer, pl_module)
-        self.start_stage(self.PROGRESS_STAGE_PREDICT,
-                         self.total_predict_batches)
+        self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches)
 
     def start_stage(self, stage: str, total_num_batches: int) -> None:
         """
@@ -338,8 +333,7 @@ def log_on_epoch(module: LightningModule,
     """
     assert module.trainer is not None, "No trainer is set for this module."
     if operator.xor(name is None, value is None):
-        raise ValueError(
-            "Both or neither of 'name' and 'value' must be provided.")
+        raise ValueError("Both or neither of 'name' and 'value' must be provided.")
     is_sync_dist = module.trainer.world_size > 1 if sync_dist is None else sync_dist
     metrics = metrics or {}
     if name is not None:
@@ -370,8 +364,7 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
     """
     schedulers = module.lr_schedulers()
     if schedulers is None:
-        raise ValueError(
-            "Learning rate logging can only be used during training.")
+        raise ValueError("Learning rate logging can only be used during training.")
     single_scheduler = not isinstance(schedulers, list)
     if single_scheduler:
         schedulers = [schedulers]

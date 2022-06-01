@@ -42,14 +42,11 @@ class HistoSSLContainer(SSLContainer):
         else:
             # is_ssl_encoder_module will be True for ssl training, False for linear head training
             train_transforms = self.get_transforms(apply_augmentations=True)
-            val_transforms = self.get_transforms(
-                apply_augmentations=is_ssl_encoder_module)
+            val_transforms = self.get_transforms(apply_augmentations=is_ssl_encoder_module)
 
             if is_ssl_encoder_module:
-                train_transforms = DualViewTransformWrapper(
-                    train_transforms)  # type: ignore
-                val_transforms = DualViewTransformWrapper(
-                    val_transforms)  # type: ignore
+                train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
+                val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
         return train_transforms, val_transforms
 
     @staticmethod
@@ -59,8 +56,7 @@ class HistoSSLContainer(SSLContainer):
             # SimClr augmentations
             transforms = [RandomResizedCrop(size=224),
                           RandomHorizontalFlip(p=0.5),
-                          RandomApply(
-                              [ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8),
+                          RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8),
                           RandomGrayscale(p=0.2),
                           GaussianBlur(int(224 * 0.1) + 1)]
         else:

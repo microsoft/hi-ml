@@ -112,8 +112,7 @@ class SchedulerWithWarmUp(_LRScheduler):
                                           eta_min=args.min_l_rate,
                                           last_epoch=self.last_epoch)
         else:
-            raise ValueError(
-                "Unknown learning rate scheduler {}".format(args.l_rate_scheduler))
+            raise ValueError("Unknown learning rate scheduler {}".format(args.l_rate_scheduler))
         return scheduler
 
     def state_dict(self) -> Dict:
@@ -136,8 +135,7 @@ class SchedulerWithWarmUp(_LRScheduler):
         Initializes variables "_scheduler" and "_warmup_scheduler" separately, by calling load_state_dict
         for these variables.
         """
-        top_level = {key: val for key, val in state_dict.items(
-        ) if key != "_scheduler" and key != "_warmup"}
+        top_level = {key: val for key, val in state_dict.items() if key != "_scheduler" and key != "_warmup"}
         self.__dict__.update(top_level)
         self._scheduler.load_state_dict(state_dict["_scheduler"])
         self._warmup.load_state_dict(state_dict["_warmup"])
@@ -149,8 +147,7 @@ class SchedulerWithWarmUp(_LRScheduler):
         # values = self.get_lr()
         # The values are then set in the optimizer, and stored in self._last_lr
         if epoch is not None:
-            raise ValueError(
-                "Calling scheduler.step with an epoch argument will be deprecated.")
+            raise ValueError("Calling scheduler.step with an epoch argument will be deprecated.")
         # self.step is called from within the base class constructor, _LRScheduler.__init__
         # The scheduler itself has already been initialized, and scheduler.step has also been called already in
         # the respective constructor. Avoid calling it again here.

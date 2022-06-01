@@ -164,8 +164,7 @@ def test_traverse_none() -> None:
     config = OptimizerConfig()
     config.optimizer = None
     assert _object_to_dict(None) is None
-    assert _object_to_dict(config) == {
-        "learning_rate": 1e-3, "optimizer": None}
+    assert _object_to_dict(config) == {"learning_rate": 1e-3, "optimizer": None}
     assert object_to_yaml(config) == """learning_rate: 0.001
 optimizer: null
 """

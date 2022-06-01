@@ -50,10 +50,8 @@ class ByolMovingAverageWeightUpdate(Callback):
         """
         Update tau parameter (controlling update of teacher model) for BYOL according to current step (cosine schedule).
         """
-        max_steps = len(trainer.train_dataloader) * \
-            trainer.max_epochs  # type: ignore
-        tau = 1 - (1 - self.initial_tau) * (math.cos(math.pi *
-                                                     pl_module.global_step / max_steps) + 1) / 2
+        max_steps = len(trainer.train_dataloader) * trainer.max_epochs  # type: ignore
+        tau = 1 - (1 - self.initial_tau) * (math.cos(math.pi * pl_module.global_step / max_steps) + 1) / 2
         return tau
 
     def update_weights(self, online_net: torch.nn.Module, target_net: torch.nn.Module) -> None:
@@ -63,5 +61,4 @@ class ByolMovingAverageWeightUpdate(Callback):
         # apply MA weight update
         for current_params, ma_params in zip(online_net.parameters(), target_net.parameters()):
             up_weight, old_weight = current_params.data, ma_params.data
-            ma_params.data = old_weight * self.current_tau + \
-                (1 - self.current_tau) * up_weight
+            ma_params.data = old_weight * self.current_tau + (1 - self.current_tau) * up_weight

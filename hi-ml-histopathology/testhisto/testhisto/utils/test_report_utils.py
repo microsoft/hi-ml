@@ -45,10 +45,8 @@ def test_crossval_runs_have_val_and_test_outputs() -> None:
     legacy_run = MagicMock(display_name="legacy run", id="child1")
     legacy_run.get_file_names.return_value = [AML_LEGACY_TEST_OUTPUTS_CSV]
 
-    run_with_val_and_test = MagicMock(
-        display_name="run with val and test", id="child2")
-    run_with_val_and_test.get_file_names.return_value = [
-        AML_VAL_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV]
+    run_with_val_and_test = MagicMock(display_name="run with val and test", id="child2")
+    run_with_val_and_test.get_file_names.return_value = [AML_VAL_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV]
 
     arbitrary_filename = AML_OUTPUTS_DIR + "/some_other_file"
     invalid_run = MagicMock(display_name="invalid run", id="child3")
@@ -88,15 +86,13 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
     run = MagicMock()
     run.download_file.side_effect = create_mock_file
 
-    local_path = download_file_if_necessary(
-        run, remote_filename, expected_local_path)
+    local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
     assert local_path == expected_local_path
     assert local_path.exists()
     run.download_file.assert_called_once()
 
     run.reset_mock()
-    new_local_path = download_file_if_necessary(
-        run, remote_filename, expected_local_path, overwrite=overwrite)
+    new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
     assert new_local_path == local_path
     assert new_local_path.exists()
     if overwrite:
@@ -108,8 +104,7 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
 class MockChildRun:
     def __init__(self, run_id: str, cross_val_index: int):
         self.run_id = run_id
-        self.tags = {"hyperparameters": json.dumps(
-            {"child_run_index": cross_val_index})}
+        self.tags = {"hyperparameters": json.dumps({"child_run_index": cross_val_index})}
 
     def get_metrics(self) -> Dict[str, Union[float, List[Union[int, float]]]]:
         num_epochs = 5
@@ -140,8 +135,7 @@ def test_collect_crossval_outputs(tmp_path: Path) -> None:
 
     columns = ['id', 'value', 'split']
     for child_index in child_indices:
-        csv_contents = ','.join(columns) + \
-            f"\n0,0.1,{child_index}\n1,0.2,{child_index}"
+        csv_contents = ','.join(columns) + f"\n0,0.1,{child_index}\n1,0.2,{child_index}"
         csv_path = download_dir / str(child_index) / output_filename
         csv_path.parent.mkdir()
         csv_path.write_text(csv_contents)
@@ -213,14 +207,12 @@ def test_collect_crossval_metrics(metrics_df: pd.DataFrame, tmp_path: Path, over
         else:
             mock_aggregate.assert_not_called()
 
-        pandas.testing.assert_frame_equal(
-            returned_df, new_returned_df, check_exact=False)
+        pandas.testing.assert_frame_equal(returned_df, new_returned_df, check_exact=False)
 
 
 @pytest.mark.parametrize('maximise', [True, False])
 def test_get_best_epochs(metrics_df: pd.DataFrame, maximise: bool) -> None:
-    best_epochs = get_best_epochs(
-        metrics_df, 'val/accuracy', maximise=maximise)
+    best_epochs = get_best_epochs(metrics_df, 'val/accuracy', maximise=maximise)
     assert list(best_epochs.keys()) == list(metrics_df.columns)
     assert all(isinstance(epoch, int) for epoch in best_epochs.values())
 
@@ -231,8 +223,7 @@ def test_get_best_epochs(metrics_df: pd.DataFrame, maximise: bool) -> None:
 
 def test_get_best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) -> None:
     metrics_list = ['val/accuracy', 'val/auroc']
-    best_metrics_df = get_best_epoch_metrics(
-        metrics_df, metrics_list, best_epochs)
+    best_metrics_df = get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
     assert list(best_metrics_df.index) == metrics_list
     assert list(best_metrics_df.columns) == list(metrics_df.columns)
     # Check that all values are now scalars instead of lists:

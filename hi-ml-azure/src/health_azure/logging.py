@@ -58,8 +58,7 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
     """
     Adds a logging formatter that includes the timestamp and the logging level.
     """
-    formatter = logging.Formatter(
-        fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ")
+    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ")
     # noinspection PyTypeHints
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)

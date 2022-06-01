@@ -57,8 +57,7 @@ class DeepSMILECrck(BaseMILTiles):
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
-            self.downloader = self.download_ssl_checkpoint(
-                innereye_ssl_checkpoint_crck_4ws)
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_crck_4ws)
         super().setup()
 
     def get_data_module(self) -> TilesDataModule:
@@ -67,8 +66,7 @@ class DeepSMILECrck(BaseMILTiles):
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            transforms_dict=self.get_transforms_dict(
-                TcgaCrck_TilesDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(TcgaCrck_TilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,

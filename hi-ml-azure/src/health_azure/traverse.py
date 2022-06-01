@@ -44,28 +44,23 @@ def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
     if isinstance(o, param.Parameterized):
         for param_name, p in o.params().items():
             if _is_private(param_name):
-                logging.debug(
-                    f"get_all_writable_attributes: Skipping private field {param_name}")
+                logging.debug(f"get_all_writable_attributes: Skipping private field {param_name}")
             elif p.constant:
-                logging.debug(
-                    f"get_all_writable_attributes: Skipping constant field {param_name}")
+                logging.debug(f"get_all_writable_attributes: Skipping constant field {param_name}")
             elif p.readonly:
-                logging.debug(
-                    f"get_all_writable_attributes: Skipping readonly field {param_name}")
+                logging.debug(f"get_all_writable_attributes: Skipping readonly field {param_name}")
             else:
                 result[param_name] = getattr(o, param_name)
         return result
     try:
         for name, value in vars(o).items():
             if _is_private(name):
-                logging.debug(
-                    f"get_all_writable_attributes: Skipping private field {name}")
+                logging.debug(f"get_all_writable_attributes: Skipping private field {name}")
             else:
                 result[name] = value
         return result
     except TypeError:
-        raise ValueError(
-            "This function can only be used on objects that support the 'vars' operation")
+        raise ValueError("This function can only be used on objects that support the 'vars' operation")
 
 
 def all_basic_types(o: Iterable) -> bool:
@@ -95,16 +90,13 @@ def _object_to_dict(o: Any) -> Union[None, int, float, str, List, Dict]:
         return o.name
     if isinstance(o, list):
         if not all_basic_types(o):
-            raise ValueError(
-                f"Lists are only allowed to contain basic types (int, float, str), but got: {o}")
+            raise ValueError(f"Lists are only allowed to contain basic types (int, float, str), but got: {o}")
         return o
     if isinstance(o, dict):
         if not all_basic_types(o.keys()):
-            raise ValueError(
-                f"Dictionaries can only contain basic types (int, float, str) as keys, but got: {o}")
+            raise ValueError(f"Dictionaries can only contain basic types (int, float, str) as keys, but got: {o}")
         if not all_basic_types(o.values()):
-            raise ValueError(
-                f"Dictionaries can only contain basic types (int, float, str) as values, but got: {o}")
+            raise ValueError(f"Dictionaries can only contain basic types (int, float, str) as values, but got: {o}")
         return o
     if o is None:
         return o
@@ -129,8 +121,7 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
     :raises ValueError: If the argument is a basic datatype (int, str, float)
     """
     if is_basic_type(o):
-        raise ValueError(
-            "This function can only be used on objects that are basic datatypes.")
+        raise ValueError("This function can only be used on objects that are basic datatypes.")
     fields = get_all_writable_attributes(o)
     result = {}
     for field, value in fields.items():
@@ -204,8 +195,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any], traversed_fields: Optional[
                     try:
                         enum_case = getattr(t_value, value_to_write)
                     except Exception:
-                        report_issue(
-                            name, f"Skipped. Enum type {t_value.__name__} has no case {value_to_write}")
+                        report_issue(name, f"Skipped. Enum type {t_value.__name__} has no case {value_to_write}")
                     else:
                         try_set_field(name, enum_case)
                 else:
@@ -235,8 +225,7 @@ def _write_dict_to_object(o: Any, d: Dict[str, Any], traversed_fields: Optional[
                     f"write {t_value_to_write.__name__}",
                 )
         else:
-            report_issue(
-                name, "Present in the object, but missing in the dictionary.")
+            report_issue(name, "Present in the object, but missing in the dictionary.")
 
     return issues
 

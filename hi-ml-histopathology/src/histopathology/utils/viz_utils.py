@@ -46,8 +46,7 @@ def plot_panda_data_sample(panda_dir: str, nsamples: int, ncols: int, level: int
     :param margin: margin to be included
     :param title_key: metadata key in image_dict used to label each subplot
     """
-    panda_dataset = Dataset(PandaDataset(root=panda_dir))[
-        :nsamples]  # type: ignore
+    panda_dataset = Dataset(PandaDataset(root=panda_dir))[:nsamples]  # type: ignore
     loader = DataLoader(panda_dataset, batch_size=1)
 
     nrows = math.ceil(nsamples / ncols)

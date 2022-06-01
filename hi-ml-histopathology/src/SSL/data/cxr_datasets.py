@@ -48,8 +48,7 @@ class CxrDatasetBase(VisionDataset):
     def _prepare_dataset(self) -> None:
         self.indices: List[int] = []
         self.filenames: List[PathOrString] = []
-        raise NotImplementedError(
-            "_prepare_dataset needs to be implemented by the child classes.")
+        raise NotImplementedError("_prepare_dataset needs to be implemented by the child classes.")
 
     def __getitem__(self, index: int) -> OptionalIndexInputAndLabel:
         """
@@ -62,8 +61,7 @@ class CxrDatasetBase(VisionDataset):
             scan_image = load_dicom_image(filename)
             # Dicom files have arbitrary pixel intensities, convert to [0,255] range so that PIL can
             # read the array into an Image object.
-            scan_image = (scan_image - scan_image.min()) * \
-                255. / (scan_image.max() - scan_image.min())
+            scan_image = (scan_image - scan_image.min()) * 255. / (scan_image.max() - scan_image.min())
             # Load as PIL Image in grey-scale (convert("L") step), yields a 1-channel image.
             scan_image = Image.fromarray(scan_image).convert("L")
         else:
@@ -104,8 +102,7 @@ class RSNAKaggleCXR(CxrDatasetWithReturnIndex):
             self.targets = self.dataset_dataframe.label.values.astype(np.int64)
             self.subject_ids = self.dataset_dataframe.subject.values
             self.indices = np.arange(len(self.dataset_dataframe))
-            self.filenames = [
-                self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
+            self.filenames = [self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
         else:
             # No test set implemented for this data class.
             self.indices = []
@@ -138,19 +135,14 @@ class NIHCXR(CxrDatasetWithReturnIndex):
         self.dataset_dataframe = pd.read_csv(self.root / "Data_Entry_2017.csv")
         # To use full dataset (incl. official test set for train & val of SSL models, no test set)
         if self.use_full_dataset_for_train_and_val:
-            self.subject_ids = self.dataset_dataframe["Image Index"].values if self.train else [
-            ]
+            self.subject_ids = self.dataset_dataframe["Image Index"].values if self.train else []
         # To exclude official test set from train & val
         else:
-            train_ids = pd.read_csv(
-                self.root / "train_val_list.txt", header=None).values.reshape(-1)
-            is_train_val_ids = self.dataset_dataframe["Image Index"].isin(
-                train_ids).values
-            self.subject_ids = np.where(is_train_val_ids)[
-                0] if self.train else np.where(~is_train_val_ids)[0]
+            train_ids = pd.read_csv(self.root / "train_val_list.txt", header=None).values.reshape(-1)
+            is_train_val_ids = self.dataset_dataframe["Image Index"].isin(train_ids).values
+            self.subject_ids = np.where(is_train_val_ids)[0] if self.train else np.where(~is_train_val_ids)[0]
         self.indices = np.arange(len(self.subject_ids))
-        self.filenames = [self.root /
-                          f"{subject_id}" for subject_id in self.subject_ids]
+        self.filenames = [self.root / f"{subject_id}" for subject_id in self.subject_ids]
 
 
 class CheXpert(CxrDatasetWithReturnIndex):
@@ -178,16 +170,13 @@ class CheXpert(CxrDatasetWithReturnIndex):
             self.dataset_dataframe = pd.read_csv(self.root / "valid.csv")
 
         if self.remove_lateral_scans_from_dataset:  # Remove lateral shots
-            self.dataset_dataframe = self.dataset_dataframe.loc[
-                self.dataset_dataframe["Frontal/Lateral"] == "Frontal"]
+            self.dataset_dataframe = self.dataset_dataframe.loc[self.dataset_dataframe["Frontal/Lateral"] == "Frontal"]
 
         # Strip away the name of the folder that is included in the path column of the dataset
         strip_n = len("CheXpert-v1.0-small/")
-        self.dataset_dataframe.Path = self.dataset_dataframe.Path.apply(
-            lambda x: x[strip_n:])
+        self.dataset_dataframe.Path = self.dataset_dataframe.Path.apply(lambda x: x[strip_n:])
         self.indices = np.arange(len(self.dataset_dataframe))
-        self.filenames = [self.root /
-                          p for p in self.dataset_dataframe.Path.values]
+        self.filenames = [self.root / p for p in self.dataset_dataframe.Path.values]
 
 
 class CovidDataset(CxrDatasetWithReturnIndex):
@@ -201,14 +190,11 @@ class CovidDataset(CxrDatasetWithReturnIndex):
         self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
         mapping = {0: 0, 3: 0, 1: 1, 2: 1}
         # For monitoring purpose with use binary classification CV03vsCV12
-        self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.apply(
-            lambda x: mapping[x])
+        self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.apply(lambda x: mapping[x])
         self.indices = np.arange(len(self.dataset_dataframe))
         self.subject_ids = self.dataset_dataframe.subject.values
-        self.filenames = [
-            self.root / file for file in self.dataset_dataframe.filepath.values]
-        self.targets = self.dataset_dataframe.final_label.values.astype(
-            np.int64).reshape(-1)
+        self.filenames = [self.root / file for file in self.dataset_dataframe.filepath.values]
+        self.targets = self.dataset_dataframe.final_label.values.astype(np.int64).reshape(-1)
 
     @property
     def num_classes(self) -> int:
@@ -221,11 +207,9 @@ class CovidDataset(CxrDatasetWithReturnIndex):
         :param seed: random seed for splitting
         :return: dataset_train, dataset_val
         """
-        shuffled_subject_ids = np.random.RandomState(
-            seed).permutation(np.unique(self.subject_ids))
+        shuffled_subject_ids = np.random.RandomState(seed).permutation(np.unique(self.subject_ids))
         n_val = int(len(shuffled_subject_ids) * val_split)
-        val_subjects, train_subjects = shuffled_subject_ids[:
-                                                            n_val], shuffled_subject_ids[n_val:]
+        val_subjects, train_subjects = shuffled_subject_ids[:n_val], shuffled_subject_ids[n_val:]
         train_ids, val_ids = np.where(
             np.isin(self.subject_ids, train_subjects)
         )[0], np.where(

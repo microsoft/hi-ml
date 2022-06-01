@@ -37,8 +37,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     :param overwrite: Forces (re)download of metrics and output files, even if they already exist locally.
     """
     aml_workspace = get_workspace(workspace_config_path=workspace_config_path)
-    parent_run = get_aml_run_from_run_id(
-        parent_run_id, aml_workspace=aml_workspace)
+    parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace=aml_workspace)
     report_dir = output_dir / parent_run.display_name
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -49,10 +48,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     report.add_heading("Azure ML metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
-    metrics_df = collect_crossval_metrics(
-        parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
-    best_epochs = get_best_epochs(
-        metrics_df, f'{ModelKey.VAL}/{MetricsKey.AUROC}', maximise=True)
+    metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
+    best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/{MetricsKey.AUROC}', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
     render_training_curves(report, heading="Training curves", level=3,
@@ -65,8 +62,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     if num_classes > 1:
         base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC]
     else:
-        base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC,
-                             MetricsKey.PRECISION, MetricsKey.RECALL, MetricsKey.F1]
+        base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.PRECISION, MetricsKey.RECALL, MetricsKey.F1]
 
     base_metrics_list += class_names
 
@@ -80,8 +76,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                              metrics_df=metrics_df, best_epochs=None,
                              base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.TEST}/')
 
-    has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(
-        parent_run)
+    has_val_and_test_outputs = crossval_runs_have_val_and_test_outputs(parent_run)
 
     # Get output data frames
     if has_val_and_test_outputs:
@@ -183,8 +178,7 @@ def render_metrics_table(report: HTMLReport, heading: str, level: int,
     report.add_heading(heading, level=level)
     metrics_list = [metrics_prefix + metric for metric in base_metrics_list]
     if best_epochs:
-        metrics_df = get_best_epoch_metrics(
-            metrics_df, metrics_list, best_epochs)
+        metrics_df = get_best_epoch_metrics(metrics_df, metrics_list, best_epochs)
     metrics_table = get_crossval_metrics_table(metrics_df, metrics_list)
     report.add_tables([metrics_table])
 
@@ -202,8 +196,7 @@ def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int, repor
     :param prefix: Prefix to add to the figures saved (e.g. `val`, `test`).
     """
     report.add_heading(heading, level=level)
-    fig = plot_crossval_roc_and_pr_curves(
-        outputs_dfs, scores_column='prob_class1')
+    fig = plot_crossval_roc_and_pr_curves(outputs_dfs, scores_column='prob_class1')
     roc_pr_curves_fig_path = report_dir / f"{prefix}roc_pr_curves.png"
     fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
     report.add_images([roc_pr_curves_fig_path], base64_encode=True)
@@ -223,10 +216,8 @@ def render_confusion_matrices(report: HTMLReport, heading: str, level: int, clas
     :param prefix: Prefix to add to the figures saved (e.g. `val`, `test`).
     """
     report.add_heading(heading, level=level)
-    fig = plot_confusion_matrices(
-        crossval_dfs=outputs_dfs, class_names=class_names)
-    confusion_matrices_fig_path = report_dir / \
-        f"{prefix}confusion_matrices.png"
+    fig = plot_confusion_matrices(crossval_dfs=outputs_dfs, class_names=class_names)
+    confusion_matrices_fig_path = report_dir / f"{prefix}confusion_matrices.png"
     fig.savefig(confusion_matrices_fig_path, bbox_inches='tight')
     report.add_images([confusion_matrices_fig_path], base64_encode=True)
 
@@ -244,8 +235,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument('--run_id', help="The parent Hyperdrive run ID.")
-    parser.add_argument(
-        '--output_dir', help="Directory where to download Azure ML data and save the report.")
+    parser.add_argument('--output_dir', help="Directory where to download Azure ML data and save the report.")
     parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
                                                    "If omitted, will try to load default workspace.")
     parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
@@ -256,14 +246,12 @@ if __name__ == "__main__":
 
     if args.output_dir is None:
         args.output_dir = Path.cwd() / "outputs"
-    workspace_config = Path(args.workspace_config).resolve(
-    ) if args.workspace_config else None
+    workspace_config = Path(args.workspace_config).resolve() if args.workspace_config else None
 
     print(f"Output dir: {Path(args.output_dir).resolve()}")
     if workspace_config is not None:
         if not workspace_config.is_file():
-            raise ValueError(
-                f"Specified workspace config file does not exist: {workspace_config}")
+            raise ValueError(f"Specified workspace config file does not exist: {workspace_config}")
         print(f"Workspace config: {workspace_config}")
 
     generate_html_report(parent_run_id=args.run_id,

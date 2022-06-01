@@ -43,10 +43,8 @@ def get_ssl_transforms_from_config(config: CfgNode,
                                                    apply_augmentations=use_training_augmentations_for_validation,
                                                    expand_channels=expand_channels)
     if return_two_views_per_sample:
-        train_transforms = DualViewTransformWrapper(
-            train_transforms)  # type: ignore
-        val_transforms = DualViewTransformWrapper(
-            val_transforms)  # type: ignore
+        train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
+        val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
     return train_transforms, val_transforms
 
 

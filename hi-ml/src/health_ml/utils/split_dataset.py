@@ -43,19 +43,16 @@ class DatasetSplits:
 
         # perform dataset split validity assertions
         unique_train, unique_test, unique_val = self.unique_subjects()
-        intersection = pairwise_intersection(
-            unique_train, unique_test, unique_val)
+        intersection = pairwise_intersection(unique_train, unique_test, unique_val)
 
         if len(intersection) != 0:
-            raise ValueError(
-                "Train, Test, and Val splits must have no intersection, found: {}".format(intersection))
+            raise ValueError("Train, Test, and Val splits must have no intersection, found: {}".format(intersection))
 
         if self.group_column is not None:
             groups_train = self.train[self.group_column].unique()
             groups_test = self.test[self.group_column].unique()
             groups_val = self.val[self.group_column].unique()
-            group_intersection = pairwise_intersection(
-                groups_train, groups_test, groups_val)
+            group_intersection = pairwise_intersection(groups_train, groups_test, groups_val)
             if len(group_intersection) != 0:
                 raise ValueError("Train, Test, and Val splits must have no intersecting groups, found: {}"
                                  .format(group_intersection))
@@ -144,8 +141,7 @@ class DatasetSplits:
             remaining = list(subjects_test) + remaining
             subjects_test = set()
 
-        subjects_train |= set(
-            remaining[: ceil(len(remaining) * proportion_train)])
+        subjects_train |= set(remaining[: ceil(len(remaining) * proportion_train)])
         if len(subjects_test) > 0:
             subjects_test |= set(remaining[len(subjects_train):
                                            len(subjects_train) + ceil(len(remaining) * proportion_test)])
@@ -223,12 +219,9 @@ class DatasetSplits:
             proportion_test=proportion_test
         )
         return DatasetSplits._from_split_keys(df,
-                                              list(
-                                                  ranges[ModelExecutionMode.TRAIN]),
-                                              list(
-                                                  ranges[ModelExecutionMode.TEST]),
-                                              list(
-                                                  ranges[ModelExecutionMode.VAL]),
+                                              list(ranges[ModelExecutionMode.TRAIN]),
+                                              list(ranges[ModelExecutionMode.TEST]),
+                                              list(ranges[ModelExecutionMode.VAL]),
                                               key_column=key_column,
                                               subject_column=subject_column,
                                               group_column=group_column)
@@ -312,8 +305,7 @@ class DatasetSplits:
             # unique subjects
             subject_ids = cv_dataset[self.subject_column].unique()
             # calculate the random split indices
-            k_folds = KFold(n_splits=n_splits, shuffle=True,
-                            random_state=random_seed)
+            k_folds = KFold(n_splits=n_splits, shuffle=True, random_state=random_seed)
             folds_gen = k_folds.split(subject_ids)
         else:  # perform grouped k-fold cross-validation
             # Here we take all entries, rather than unique, to keep subjects
@@ -325,12 +317,10 @@ class DatasetSplits:
             # that tries to balance the group sizes in all folds
             k_folds = GroupKFold(n_splits=n_splits)
             folds_gen = k_folds.split(subject_ids, groups=groups)
-
-        def ids_from_indices(indices): return [subject_ids[x] for x in indices]
+        ids_from_indices = lambda indices: [subject_ids[x] for x in indices]
         # create the number of requested splits of the dataset
         return [
             DatasetSplits(train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),
-                          val=self.get_df_from_ids(cv_dataset, ids_from_indices(
-                              val_indices), self.subject_column),
+                          val=self.get_df_from_ids(cv_dataset, ids_from_indices(val_indices), self.subject_column),
                           test=self.test, subject_column=self.subject_column, group_column=self.group_column)
             for train_indices, val_indices in folds_gen]

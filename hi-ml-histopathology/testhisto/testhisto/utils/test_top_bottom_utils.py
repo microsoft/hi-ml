@@ -114,8 +114,7 @@ def _get_expected_slides_by_probability(
     _, sorting_indices = class_prob.topk(n_top_slides, largest=top, sorted=True)
     sorted_class_indices = class_indices[sorting_indices]
 
-    # the order is inversed in the heaps
-    return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices][::-1]
+    return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices][::-1]  # the order is inversed in the heaps
 
 
 def get_expected_top_slides_by_probability(

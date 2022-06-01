@@ -79,8 +79,7 @@ class LightningContainer(WorkflowParams,
         """
         return []
 
-    # type: ignore
-    def get_parameter_tuning_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+    def get_parameter_tuning_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:  # type: ignore
         """
         Returns a configuration for hyperparameter tuning via AzureML's Hyperdrive capability.
         Hyperparameter tuning can be triggered on the commandline via the "--hyperdrive" flag.
@@ -166,10 +165,8 @@ class LightningContainer(WorkflowParams,
         """
         self._model = self.create_model()
         if isinstance(self._model, LightningModuleWithOptimizer):
-            self._model._optimizer_params = create_from_matching_params(
-                self, OptimizerParams)
-            self._model._trainer_params = create_from_matching_params(
-                self, TrainerParams)
+            self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
+            self._model._trainer_params = create_from_matching_params(self, TrainerParams)
 
     def get_hyperdrive_config(self) -> Optional[HyperDriveConfig]:
         """
@@ -190,8 +187,7 @@ class LightningContainer(WorkflowParams,
         """
         if self._model is None:
             raise ValueError("No Lightning module has been set yet.")
-        self._model = type(self._model).load_from_checkpoint(
-            checkpoint_path=str(checkpoint_path))
+        self._model = type(self._model).load_from_checkpoint(checkpoint_path=str(checkpoint_path))
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""

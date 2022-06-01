@@ -58,16 +58,14 @@ def main() -> None:
     # X -> features, y -> label
     input_folder = run_info.input_datasets[0] or Path("inputs")
     X = np.loadtxt(fname=input_folder / "X.csv", delimiter=',', skiprows=1)
-    y = np.loadtxt(fname=input_folder / "y.csv",
-                   dtype='str', delimiter=',', skiprows=1)
+    y = np.loadtxt(fname=input_folder / "y.csv", dtype='str', delimiter=',', skiprows=1)
 
     # dividing X, y into train and test data
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
 
     # training a linear SVM classifier
     from sklearn.svm import SVC
-    svm_model_linear = SVC(
-        kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
+    svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
     svm_predictions = svm_model_linear.predict(X_test)
 
     # model accuracy for X_test

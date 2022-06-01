@@ -27,8 +27,7 @@ class PandaTilesDataModule(TilesDataModule):
 
         if self.crossval_count > 1:
             # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
-            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[
-                self.crossval_index]
+            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[self.crossval_index]
 
         return (PandaTilesDataset(self.root_path, dataset_df=splits.train),
                 PandaTilesDataset(self.root_path, dataset_df=splits.val),
@@ -50,8 +49,7 @@ class PandaSlidesDataModule(SlidesDataModule):
 
         if self.crossval_count > 1:
             # Function get_k_fold_cross_validation_splits() will concatenate train and val splits
-            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[
-                self.crossval_index]
+            splits = splits.get_k_fold_cross_validation_splits(self.crossval_count)[self.crossval_index]
 
         return (PandaDataset(self.root_path, dataset_df=splits.train),
                 PandaDataset(self.root_path, dataset_df=splits.val),

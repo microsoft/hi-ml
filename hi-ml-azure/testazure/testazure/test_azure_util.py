@@ -65,8 +65,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         )
         last_caplog_msg = caplog.messages[-1]
         assert found_file_path == current_file_path
-        assert(
-            f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
+        assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
 
         # Now try to search for a nonexistent path in the same folder. This should return None
         nonexistent_path = himl_az_root / "idontexist.py"
@@ -164,8 +163,7 @@ def test_get_workspace(
 
     # Workspace config file is set to a file that does not exist
     with pytest.raises(ValueError) as ex:
-        util.get_workspace(
-            None, workspace_config_path=tmp_path / "does_not_exist")
+        util.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
     assert "Workspace config file does not exist" in str(ex)
 
     # Workspace config file is set to a wrong type
@@ -245,13 +243,10 @@ def test_get_secret_from_environment() -> None:
     env_variable_value = "42"
     with pytest.raises(ValueError) as e:
         util.get_secret_from_environment(env_variable_name)
-    assert str(
-        e.value) == f"There is no value stored for the secret named '{env_variable_name}'"
-    assert util.get_secret_from_environment(
-        env_variable_name, allow_missing=True) is None
+    assert str(e.value) == f"There is no value stored for the secret named '{env_variable_name}'"
+    assert util.get_secret_from_environment(env_variable_name, allow_missing=True) is None
     with mock.patch.dict(os.environ, {env_variable_name: env_variable_value}):
-        assert util.get_secret_from_environment(
-            env_variable_name) == env_variable_value
+        assert util.get_secret_from_environment(env_variable_name) == env_variable_value
 
 
 def test_to_azure_friendly_string() -> None:
@@ -276,13 +271,11 @@ def test_split_recovery_id_fails() -> None:
     with pytest.raises(ValueError) as e:
         id = util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
         util.split_recovery_id(id)
-        assert str(
-            e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
+        assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
     with pytest.raises(ValueError) as e:
         id = "foo_bar"
         util.split_recovery_id(id)
-        assert str(
-            e.value) == f"The recovery ID was not in the expected format: {id}"
+        assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
 
 
 @pytest.mark.parametrize(["id", "expected1", "expected2"],
@@ -290,8 +283,7 @@ def test_split_recovery_id_fails() -> None:
                           ("foo:bar_ab_cd", "foo", "bar_ab_cd"),
                           ("a_b_c_00_123", "a_b_c", "a_b_c_00_123"),
                           ("baz_00_123", "baz", "baz_00_123"),
-                          ("foo_bar_abc_123_456", "foo_bar_abc",
-                           "foo_bar_abc_123_456"),
+                          ("foo_bar_abc_123_456", "foo_bar_abc", "foo_bar_abc_123_456"),
                           # This is the run ID of a hyperdrive parent run. It only has one numeric part at the end
                           ("foo_bar_123", "foo_bar", "foo_bar_123"),
                           # This is a hyperdrive child run
@@ -307,13 +299,12 @@ def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
 @pytest.mark.fast
 def test_split_dependency() -> None:
     assert util._split_dependency("foo.bar") == ("foo.bar", "", "")
-    assert util._split_dependency(
-        " foo.bar == 1.0 ") == ("foo.bar", "==", "1.0")
+    assert util._split_dependency(" foo.bar == 1.0 ") == ("foo.bar", "==", "1.0")
     assert util._split_dependency("foo.bar>=1.0") == ("foo.bar", ">=", "1.0")
     assert util._split_dependency("foo.bar<=1.0") == ("foo.bar", "<=", "1.0")
     assert util._split_dependency("foo.bar=1.0") == ("foo.bar", "=", "1.0")
     assert util._split_dependency("foo=1.0; platform_system=='Linux'") ==\
-        ("foo", "=", "1.0", ";", "platform_system", "==", "'Linux'")
+           ("foo", "=", "1.0", ";", "platform_system", "==", "'Linux'")
 
 
 @pytest.fixture
@@ -341,24 +332,20 @@ def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned: List[PackageDe
     # if only one pinned version, that should be returned
     expected_keep_dep = PackageDependency("a==0.1")
 
-    keep_dep = util._resolve_package_clash(
-        dummy_pip_dep_list_one_pinned, pin_pip_operator)
+    keep_dep = util._resolve_package_clash(dummy_pip_dep_list_one_pinned, pin_pip_operator)
     assert keep_dep.package_name == expected_keep_dep.package_name
     assert keep_dep.operator == expected_keep_dep.operator
     assert keep_dep.version == expected_keep_dep.version
 
     # if two pinned versions are found, a ValueError should be raised
     with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(
-            dummy_pip_dep_list_two_pinned, pin_pip_operator)
+        util._resolve_package_clash(dummy_pip_dep_list_two_pinned, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if no pinned package versions are found, a ValueError should be raised
     with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(
-            dummy_pip_dep_list_none_pinned, pin_pip_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(
-            e)
+        util._resolve_package_clash(dummy_pip_dep_list_none_pinned, pin_pip_operator)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
 
 
 @pytest.mark.fast
@@ -370,8 +357,7 @@ def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDep
 
     # if only one pinned version, a list containing only that should be returned
     dummy_dependency_dict_one_pinned = {"a": dummy_pip_dep_list_one_pinned}
-    resolved_list = util._resolve_dependencies(
-        dummy_dependency_dict_one_pinned, pin_pip_operator)
+    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned, pin_pip_operator)
     assert len(resolved_list) == 1
     resolved_package = resolved_list[0]
     assert isinstance(resolved_package, PackageDependency)
@@ -382,22 +368,18 @@ def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDep
     # if two pinned versions are found, a ValueError should be raised
     dummy_dependency_dict_two_pinned = {"b": dummy_pip_dep_list_two_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(
-            dummy_dependency_dict_two_pinned, pin_pip_operator)
+        util._resolve_dependencies(dummy_dependency_dict_two_pinned, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if no pinned package versions are found, a ValueError should be raised
     dummy_dependency_dict_none_pinned = {"c": dummy_pip_dep_list_none_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(
-            dummy_dependency_dict_none_pinned, pin_pip_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(
-            e)
+        util._resolve_dependencies(dummy_dependency_dict_none_pinned, pin_pip_operator)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
 
     # even if one package has exactly one pinned version, if other packages don't, a
     # ValueError should be raised
-    dummy_dependency_dict = {
-        "a": dummy_pip_dep_list_one_pinned, "b": dummy_pip_dep_list_two_pinned}
+    dummy_dependency_dict = {"a": dummy_pip_dep_list_one_pinned, "b": dummy_pip_dep_list_two_pinned}
     with pytest.raises(ValueError) as e:
         util._resolve_dependencies(dummy_dependency_dict, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
@@ -410,31 +392,25 @@ def test_retrieve_unique_pip_deps() -> None:
     deps_with_one_pinned = ["package==1.0",
                             "git+https:www.github.com/something.git",
                             "foo=1.0; platform_system='Linux'"]
-    dedup_deps = util._retrieve_unique_deps(
-        deps_with_one_pinned, pin_pip_operator)  # type: ignore
+    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_pip_operator)  # type: ignore
     assert dedup_deps == [d.replace(" ", "") for d in deps_with_one_pinned]
 
     # if duplicates are found with more than one pinned, a ValueError should be raised
-    deps_with_duplicates = ["package==1.0", "package==1.1",
-                            "git+https:www.github.com/something.git"]
+    deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
     with pytest.raises(ValueError) as e:
         util._retrieve_unique_deps(deps_with_duplicates, pin_pip_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if duplicates are found with none pinned, a ValueErorr should be raised
-    deps_with_duplicates = ["package>=1.0", "package>1.1",
-                            "git+https:www.github.com/something.git"]
+    deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
     with pytest.raises(ValueError) as e:
         util._retrieve_unique_deps(deps_with_duplicates, pin_pip_operator)
-        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(
-            e)
+        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
 
     # A more complex case
-    complex_deps_with_duplicates = [
-        "a==0.1", "b>=0.2", "c", "a>=1.1", "b==1.2", "c>=1.3", "c==2.3"]
+    complex_deps_with_duplicates = ["a==0.1", "b>=0.2", "c", "a>=1.1", "b==1.2", "c>=1.3", "c==2.3"]
     expected_dedup_deps = ["a==0.1", "b==1.2", "c==2.3"]
-    dedup_deps = util._retrieve_unique_deps(
-        complex_deps_with_duplicates, pin_pip_operator)  # type: ignore
+    dedup_deps = util._retrieve_unique_deps(complex_deps_with_duplicates, pin_pip_operator)  # type: ignore
     assert dedup_deps == expected_dedup_deps
 
 
@@ -462,24 +438,20 @@ def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned: List[Packa
     # if only one pinned version, that should be returned
     expected_keep_dep = PackageDependency("a=0.1")
 
-    keep_dep = util._resolve_package_clash(
-        dummy_conda_dep_list_one_pinned, pin_conda_operator)
+    keep_dep = util._resolve_package_clash(dummy_conda_dep_list_one_pinned, pin_conda_operator)
     assert keep_dep.package_name == expected_keep_dep.package_name
     assert keep_dep.operator == expected_keep_dep.operator
     assert keep_dep.version == expected_keep_dep.version
 
     # if two pinned versions are found, a ValueError should be raised
     with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(
-            dummy_conda_dep_list_two_pinned, pin_conda_operator)
+        util._resolve_package_clash(dummy_conda_dep_list_two_pinned, pin_conda_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if no pinned package versions are found, a ValueError should be raised
     with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(
-            dummy_conda_dep_list_none_pinned, pin_conda_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(
-            e)
+        util._resolve_package_clash(dummy_conda_dep_list_none_pinned, pin_conda_operator)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
 
 
 @pytest.mark.fast
@@ -491,8 +463,7 @@ def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned: List[Packag
 
     # if only one pinned version, a list containing only that should be returned
     dummy_dependency_dict_one_pinned = {"a": dummy_conda_dep_list_one_pinned}
-    resolved_list = util._resolve_dependencies(
-        dummy_dependency_dict_one_pinned, pin_conda_operator)
+    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned, pin_conda_operator)
     assert len(resolved_list) == 1
     resolved_package = resolved_list[0]
     assert isinstance(resolved_package, PackageDependency)
@@ -503,22 +474,18 @@ def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned: List[Packag
     # if two pinned versions are found, a ValueError should be raised
     dummy_dependency_dict_two_pinned = {"b": dummy_conda_dep_list_two_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(
-            dummy_dependency_dict_two_pinned, pin_conda_operator)
+        util._resolve_dependencies(dummy_dependency_dict_two_pinned, pin_conda_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if no pinned package versions are found, a ValueError should be raised
     dummy_dependency_dict_none_pinned = {"c": dummy_conda_dep_list_none_pinned}
     with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(
-            dummy_dependency_dict_none_pinned, pin_conda_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(
-            e)
+        util._resolve_dependencies(dummy_dependency_dict_none_pinned, pin_conda_operator)
+        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
 
     # even if one package has exactly one pinned version, if other packages don't, a
     # ValueError should be raised
-    dummy_dependency_dict = {
-        "a": dummy_conda_dep_list_one_pinned, "b": dummy_conda_dep_list_two_pinned}
+    dummy_dependency_dict = {"a": dummy_conda_dep_list_one_pinned, "b": dummy_conda_dep_list_two_pinned}
     with pytest.raises(ValueError) as e:
         util._resolve_dependencies(dummy_dependency_dict, pin_conda_operator)
         assert "Found more than one pinned dependency for package" in str(e)
@@ -528,33 +495,26 @@ def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned: List[Packag
 def test_retrieve_unique_conda_deps() -> None:
     pin_conda_operator = util.PinnedOperator.CONDA
     # if one pinned package is found, that should be retained
-    deps_with_one_pinned = ["package=1.0",
-                            "git+https:www.github.com/something.git"]
-    dedup_deps = util._retrieve_unique_deps(
-        deps_with_one_pinned, pin_conda_operator)  # type: ignore
+    deps_with_one_pinned = ["package=1.0", "git+https:www.github.com/something.git"]
+    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_conda_operator)  # type: ignore
     assert dedup_deps == deps_with_one_pinned
 
     # if duplicates are found with more than one pinned, a ValueError should be raised
-    deps_with_duplicates = ["package=1.0", "package=1.1",
-                            "git+https:www.github.com/something.git"]
+    deps_with_duplicates = ["package=1.0", "package=1.1", "git+https:www.github.com/something.git"]
     with pytest.raises(ValueError) as e:
         util._retrieve_unique_deps(deps_with_duplicates, pin_conda_operator)
         assert "Found more than one pinned dependency for package" in str(e)
 
     # if duplicates are found with none pinned, a ValueErorr should be raised
-    deps_with_duplicates = ["package>=1.0", "package>1.1",
-                            "git+https:www.github.com/something.git"]
+    deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
     with pytest.raises(ValueError) as e:
         util._retrieve_unique_deps(deps_with_duplicates, pin_conda_operator)
-        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(
-            e)
+        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
 
     # A more complex case
-    complex_deps_with_duplicates = [
-        "a=0.1", "b>=0.2", "c", "a>=1.1", "b=1.2", "c>=1.3", "c=2.3"]
+    complex_deps_with_duplicates = ["a=0.1", "b>=0.2", "c", "a>=1.1", "b=1.2", "c>=1.3", "c=2.3"]
     expected_dedup_deps = ["a=0.1", "b=1.2", "c=2.3"]
-    dedup_deps = util._retrieve_unique_deps(
-        complex_deps_with_duplicates, pin_conda_operator)  # type: ignore
+    dedup_deps = util._retrieve_unique_deps(complex_deps_with_duplicates, pin_conda_operator)  # type: ignore
     assert dedup_deps == expected_dedup_deps
 
 
@@ -565,8 +525,7 @@ def _generate_conda_env_lines(channels: List[str], conda_packages: List[str], pi
 
 
 def _generate_conda_env_str(channels: List[str], conda_packages: List[str], pip_packages: List[str]) -> str:
-    conda_env_lines = _generate_conda_env_lines(
-        channels, conda_packages, pip_packages)
+    conda_env_lines = _generate_conda_env_lines(channels, conda_packages, pip_packages)
     return "\n".join(conda_env_lines)
 
 
@@ -599,8 +558,7 @@ def test_merge_conda_one_pinned(random_folder: Path) -> None:
     environment definitions, if the package is only pinned in one of the definitions
     """
     env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=[
-                                       "conda1=1.0", "conda2=2.0", "conda_both=3.0"],
+                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
                                    pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
     env2 = _generate_conda_env_str(channels=["defaults"],
                                    conda_packages=["conda1", "conda2"],
@@ -610,12 +568,10 @@ def test_merge_conda_one_pinned(random_folder: Path) -> None:
 
     file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
     file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-    merged_file, merged_file_text = _merge_conda_files_and_read_text(
-        [file1, file2], random_folder)
+    merged_file, merged_file_text = _merge_conda_files_and_read_text([file1, file2], random_folder)
 
     expected_env_lines = _generate_conda_env_lines(channels=["defaults", "pytorch"],
-                                                   conda_packages=[
-                                                       "conda1=1.0", "conda2=2.0", "conda_both=3.0"],
+                                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
                                                    pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"])
     assert merged_file_text.splitlines() == expected_env_lines
     conda_dep = CondaDependencies(merged_file)
@@ -624,10 +580,8 @@ def test_merge_conda_one_pinned(random_folder: Path) -> None:
     assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
 
     # Package version conflicts are not resolved, both versions are retained.
-    assert list(conda_dep.conda_packages) == [
-        "conda1=1.0", "conda2=2.0", "conda_both=3.0"]
-    assert list(conda_dep.pip_packages) == [
-        "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
+    assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda2=2.0", "conda_both=3.0"]
+    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
 
 
 @pytest.mark.fast
@@ -635,8 +589,7 @@ def test_merge_conda_with_pip_requirements(random_folder: Path) -> None:
     """Tests that merging conda files, with an additional pip requirements file works as expected"""
     # Assert that extra pip requirements are added correctly
     env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=[
-                                       "conda1=1.0", "conda2=2.0", "conda_both=3.0"],
+                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
                                    pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
     env2 = _generate_conda_env_str(channels=["defaults"],
                                    conda_packages=["conda1", "conda2"],
@@ -648,18 +601,15 @@ def test_merge_conda_with_pip_requirements(random_folder: Path) -> None:
 
     pip_contents = """package1==0.0.1
     package2==0.0.1"""
-    pip_file = _create_and_write_env_file(
-        pip_contents, random_folder, "req.txt")
+    pip_file = _create_and_write_env_file(pip_contents, random_folder, "req.txt")
 
-    merged_file, merged_file_txt = _merge_conda_files_and_read_text(
-        [file1, file2], random_folder, pip_files=[pip_file])
+    merged_file, merged_file_txt = _merge_conda_files_and_read_text([file1, file2], random_folder, pip_files=[pip_file])
 
     assert merged_file_txt.splitlines() ==\
-        _generate_conda_env_lines(channels=["defaults", "pytorch"],
-                                  conda_packages=[
-            "conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-        pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0",
-                      "package1==0.0.1", "package2==0.0.1"])
+           _generate_conda_env_lines(channels=["defaults", "pytorch"],
+                                     conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
+                                     pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0",
+                                                   "package1==0.0.1", "package2==0.0.1"])
 
     # Are names merged correctly?
     assert "name:" not in merged_file_txt
@@ -676,8 +626,7 @@ def test_merge_conda_failure_cases(random_folder: Path, caplog: LogCaptureFixtur
     """Tests various failure cases of merging, such as empty conda files, no specified channels etc"""
     merged_file = random_folder / "merged.yml"
     env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=[
-                                       "conda1=1.0", "conda2=2.0", "conda_both=3.0"],
+                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
                                    pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
     env2 = _generate_conda_env_str(channels=["defaults"],
                                    conda_packages=["conda1", "conda2"],
@@ -735,8 +684,7 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
     merged_file = random_folder / "merged.yml"
     with pytest.raises(ValueError) as e:
         util.merge_conda_files(files, merged_file)
-        assert "Found more than one pinned dependency for package: conda1" in str(
-            e)
+        assert "Found more than one pinned dependency for package: conda1" in str(e)
 
     # if the pinned packages are both the same version, conda_merge will only retain one of them, so
     # an error won't be raised
@@ -752,12 +700,11 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
     file3 = _create_and_write_env_file(env3, random_folder, "env3.yml")
     file4 = _create_and_write_env_file(env4, random_folder, "env4.yml")
 
-    merged_path, merged_contents = _merge_conda_files_and_read_text(
-        [file3, file4], random_folder)
+    merged_path, merged_contents = _merge_conda_files_and_read_text([file3, file4], random_folder)
     assert merged_contents.splitlines() ==\
-        _generate_conda_env_lines(channels=["defaults"],
-                                  conda_packages=["conda_both=1.0"],
-                                  pip_packages=["foo==2.0"])
+           _generate_conda_env_lines(channels=["defaults"],
+                                     conda_packages=["conda_both=1.0"],
+                                     pip_packages=["foo==2.0"])
 
 
 @pytest.mark.fast
@@ -779,8 +726,7 @@ def test_merge_conda_none_pinned(random_folder: Path) -> None:
     merged_file = random_folder / "merged.yml"
     with pytest.raises(ValueError) as e:
         util.merge_conda_files(files, merged_file)
-        assert "Encountered 2 requirements for package conda1, none of which specify a pinned version" in str(
-            e)
+        assert "Encountered 2 requirements for package conda1, none of which specify a pinned version" in str(e)
 
 
 @pytest.mark.fast
@@ -799,16 +745,14 @@ def test_merge_conda_pip_include(random_folder: Path) -> None:
     assert "-r requirements.txt" not in merged_contents
 
     pip_req_contents = "package==1.0.0"
-    file2 = _create_and_write_env_file(
-        pip_req_contents, random_folder, "requirements.txt")
+    file2 = _create_and_write_env_file(pip_req_contents, random_folder, "requirements.txt")
 
-    merged_file2, merged_contents2 = _merge_conda_files_and_read_text(
-        [file1], random_folder, pip_files=[file2])
+    merged_file2, merged_contents2 = _merge_conda_files_and_read_text([file1], random_folder, pip_files=[file2])
 
     assert merged_contents2.splitlines() ==\
-        _generate_conda_env_lines(channels=["default"],
-                                  conda_packages=["conda_both=3.0"],
-                                  pip_packages=["foo==1.0", "package==1.0.0"])
+           _generate_conda_env_lines(channels=["default"],
+                                     conda_packages=["conda_both=3.0"],
+                                     pip_packages=["foo==1.0", "package==1.0.0"])
 
 
 def test_merge_conda_pip_include2(random_folder: Path) -> None:
@@ -817,11 +761,9 @@ def test_merge_conda_pip_include2(random_folder: Path) -> None:
     """
     if paths.is_himl_used_from_git_repo():
         root_yaml = paths.shared_himl_conda_env_file()
-        requirements = paths.git_repo_root_folder() / "hi-ml-azure" / \
-            "run_requirements.txt"
+        requirements = paths.git_repo_root_folder() / "hi-ml-azure" / "run_requirements.txt"
         merged_file2 = random_folder / "merged2.yml"
-        util.merge_conda_files([root_yaml], merged_file2,
-                               pip_files=[requirements])
+        util.merge_conda_files([root_yaml], merged_file2, pip_files=[requirements])
 
 
 def assert_pip_length(yaml: Any, expected_length: int) -> None:
@@ -844,8 +786,7 @@ def test_pip_include_1() -> None:
         # At the time of writing, the top-level environment file only had 4 include statements in the pip
         # section, they should all be filtered out.
         assert_pip_length(original_yaml, 4)
-        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(
-            env_file_path)
+        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(env_file_path)
         assert uses_pip_include
         pip = util._get_pip_dependencies(modified_yaml)
         # The pip section of the top-level yaml has nothing but include statements, so after filtering the
@@ -866,8 +807,7 @@ dependencies:
 """
     tmp_conda = tmp_path / "env.yml"
     tmp_conda.write_text(conda_str)
-    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(
-        tmp_conda)
+    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(tmp_conda)
     assert not uses_pip_include
     assert_pip_length(modified_yaml, 1)
 
@@ -879,8 +819,7 @@ dependencies:
     - any_package
 """
     tmp_conda.write_text(conda_str)
-    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(
-        tmp_conda)
+    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(tmp_conda)
     assert uses_pip_include
     assert util._get_pip_dependencies(modified_yaml) == (0, ["any_package"])
 
@@ -950,18 +889,12 @@ dependencies:
 """
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str)
-    conda_dependencies = CondaDependencies(
-        conda_dependencies_file_path=conda_environment_file)
-    env = util.create_python_environment(
-        conda_environment_file=conda_environment_file)
-    assert list(env.python.conda_dependencies.conda_channels) == list(
-        conda_dependencies.conda_channels)
-    assert list(env.python.conda_dependencies.conda_packages) == list(
-        conda_dependencies.conda_packages)
-    assert list(env.python.conda_dependencies.pip_options) == list(
-        conda_dependencies.pip_options)
-    assert list(env.python.conda_dependencies.pip_packages) == list(
-        conda_dependencies.pip_packages)
+    conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
+    env = util.create_python_environment(conda_environment_file=conda_environment_file)
+    assert list(env.python.conda_dependencies.conda_channels) == list(conda_dependencies.conda_channels)
+    assert list(env.python.conda_dependencies.conda_packages) == list(conda_dependencies.conda_packages)
+    assert list(env.python.conda_dependencies.pip_options) == list(conda_dependencies.pip_options)
+    assert list(env.python.conda_dependencies.pip_packages) == list(conda_dependencies.pip_packages)
     # Just check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
     assert env.name.startswith("HealthML")
 
@@ -996,8 +929,7 @@ dependencies:
 """
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str1)
-    env1 = util.create_python_environment(
-        conda_environment_file=conda_environment_file)
+    env1 = util.create_python_environment(conda_environment_file=conda_environment_file)
 
     # Changing the contents of the conda file should create a new environment names
     conda_str2 = """name: simple-env
@@ -1006,8 +938,7 @@ dependencies:
 """
     assert conda_str1 != conda_str2
     conda_environment_file.write_text(conda_str2)
-    env2 = util.create_python_environment(
-        conda_environment_file=conda_environment_file)
+    env2 = util.create_python_environment(conda_environment_file=conda_environment_file)
     assert env1.name != env2.name
 
     # Using a different PIP index URL can lead to different package resolution, so this should change name too
@@ -1031,8 +962,7 @@ dependencies:
 
     all_names = [env1.name, env2.name, env3.name, env5.name, env6.name]
     all_names_set = {*all_names}
-    assert len(all_names) == len(
-        all_names_set), "Environment names are not unique"
+    assert len(all_names) == len(all_names_set), "Environment names are not unique"
 
 
 def test_create_environment_wheel_fails(random_folder: Path) -> None:
@@ -1099,8 +1029,7 @@ def test_register_environment(
         with patch.object(mock_environment, "get", _mock_env_get):
             with patch.object(mock_environment, "register") as mock_register:
                 mock_register.return_value = mock_environment
-                env = util.register_environment(
-                    mock_workspace, mock_environment)
+                env = util.register_environment(mock_workspace, mock_environment)
                 assert env.version == util.ENVIRONMENT_VERSION
 
 
@@ -1158,8 +1087,7 @@ def test_get_most_recent_run(mock_workspace: MagicMock, mock_fetch_run: MagicMoc
 def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:
     mock_run_no_tags = MockRun()
     mock_run_tags = MockRun(tags={"completed": "True"})
-    all_runs = [mock_run_no_tags for _ in range(
-        5)] + [mock_run_tags for _ in range(5)]
+    all_runs = [mock_run_no_tags for _ in range(5)] + [mock_run_tags for _ in range(5)]
     return [r for r in all_runs if r.tags == tags] if tags else all_runs
 
 
@@ -1215,8 +1143,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
         second_run.remove_tags(tags)
 
     # Retrieve latest run with given tags (expect first_run to be returned)
-    retrieved_runs = util.get_latest_aml_runs_from_experiment(
-        AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
+    retrieved_runs = util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
     assert len(retrieved_runs) == 1
     assert retrieved_runs[0].id == first_run.id
     assert retrieved_runs[0].get_tags() == tags
@@ -1233,8 +1160,7 @@ def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_run_id: str) ->
 
     mock_workspace.get_run = _mock_get_run
 
-    aml_run = util.get_aml_run_from_run_id(
-        mock_run_id, aml_workspace=mock_workspace)
+    aml_run = util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
     if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
         mock_run_id = mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
 
@@ -1242,8 +1168,7 @@ def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_run_id: str) ->
 
 
 def _get_file_names(pref: str = "") -> List[str]:
-    file_names = ["somepath.txt", "abc/someotherpath.txt",
-                  "abc/def/anotherpath.txt"]
+    file_names = ["somepath.txt", "abc/someotherpath.txt", "abc/def/anotherpath.txt"]
     if len(pref) > 0:
         return [u for u in file_names if u.startswith(pref)]
     else:
@@ -1270,10 +1195,8 @@ def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
     """
     Creates an empty file at the given output_file_path
     """
-    output_file_path = Path(
-        'test_output') if output_file_path is None else output_file_path
-    output_file_path = Path(output_file_path) if not isinstance(
-        output_file_path, Path) else output_file_path  # mypy
+    output_file_path = Path('test_output') if output_file_path is None else output_file_path
+    output_file_path = Path(output_file_path) if not isinstance(output_file_path, Path) else output_file_path  # mypy
     output_file_path.parent.mkdir(exist_ok=True, parents=True)
     output_file_path.touch(exist_ok=True)
 
@@ -1299,8 +1222,7 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
             # First test the case where is_local_rank_zero returns True
             if not any(dummy_env_vars):
                 # Check that our mocked _download_file_from_run has been called once for each file
-                assert sum([p.exists()
-                           for p in expected_paths]) == len(expected_paths)
+                assert sum([p.exists() for p in expected_paths]) == len(expected_paths)
             # Now test the case where is_local_rank_zero returns False - in this case nothing should be created
             else:
                 assert not any([p.exists() for p in expected_paths])
@@ -1315,8 +1237,7 @@ def test_download_files_from_run_id(mock_download_run_files: MagicMock,
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
     util.download_files_from_run_id("run123", Path(__file__))
-    mock_download_run_files.assert_called_with(
-        mock_run, Path(__file__), prefix="", validate_checksum=False)
+    mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="", validate_checksum=False)
 
 
 @pytest.mark.parametrize("dummy_env_vars, expect_file_downloaded", [({}, True), ({util.ENV_LOCAL_RANK: "1"}, False)])
@@ -1331,8 +1252,7 @@ def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], 
     mock_run.download_file.side_effect = _mock_download_file
 
     with mock.patch.dict(os.environ, dummy_env_vars):
-        _ = util._download_file_from_run(
-            mock_run, dummy_filename, expected_file_path)
+        _ = util._download_file_from_run(mock_run, dummy_filename, expected_file_path)
 
         if expect_file_downloaded:
             mock_run.download_file.assert_called_with(dummy_filename, output_file_path=str(expected_file_path),
@@ -1378,8 +1298,7 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     output_file_path.unlink()
     assert not output_file_path.exists()
     start_time = time.perf_counter()
-    _ = util._download_file_from_run(
-        run, "dummy_file", output_file_path, validate_checksum=True)
+    _ = util._download_file_from_run(run, "dummy_file", output_file_path, validate_checksum=True)
     end_time = time.perf_counter()
     time_validate_checksum = end_time - start_time
 
@@ -1409,8 +1328,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
 
     # Test if we can retrieve the run directly from the workspace. This tests for a bug in an earlier version
     # of the code where run IDs as those created from runs outside AML were not recognized
-    run_2 = util.get_aml_run_from_run_id(
-        run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
+    run_2 = util.get_aml_run_from_run_id(run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
     assert run_2.id == run_id
 
     # Now create an AzureML run with a simple script that uses that file. The script will download the file,
@@ -1439,11 +1357,9 @@ from health_azure.utils import download_files_from_run_id""",
     }
     # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
     # config.json file, in AzureML runs it should be read off the run context.
-    render_and_run_test_script(
-        tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
     print("Local run finished")
-    render_and_run_test_script(
-        tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
 def test_replace_directory(tmp_path: Path) -> None:
@@ -1470,12 +1386,10 @@ from health_azure.utils import replace_directory
 """
     }
 
-    render_and_run_test_script(
-        tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
     print("Local run finished")
 
-    render_and_run_test_script(
-        tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:
@@ -1510,8 +1424,7 @@ def test_get_run_source(dummy_recovery_id: str,
     with patch.object(sys, "argv", arguments):
 
         script_config = util.AmlRunScriptConfig()
-        script_config = util.parse_args_and_update_config(
-            script_config, arguments)
+        script_config = util.parse_args_and_update_config(script_config, arguments)
 
         if isinstance(script_config.run, List):
             assert isinstance(script_config.run[0], str)
@@ -1529,8 +1442,7 @@ def delete_existing_blobs(datastore: AzureBlobDatastore, prefix: str) -> None:
     existing_blobs = list(datastore.blob_service.list_blobs(prefix=prefix,
                                                             container_name=container))
     for existing_blob in existing_blobs:
-        datastore.blob_service.delete_blob(
-            container_name=container, blob_name=existing_blob.name)
+        datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1548,8 +1460,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
     local_data_path.mkdir()
     test_data_path_remote = "test_data/abc"
 
-    delete_existing_blobs(datastore=default_datastore,
-                          prefix=test_data_path_remote)
+    delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
     try:
         # Create dummy data files and upload to datastore (checking they are uploaded)
         dummy_filenames = []
@@ -1559,8 +1470,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
             dummy_filenames.append(dummy_filename)
             data_to_upload_path = local_data_path / dummy_filename
             data_to_upload_path.write_text(dummy_file_content)
-        default_datastore.upload(str(local_data_path),
-                                 test_data_path_remote, overwrite=False)
+        default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
         existing = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
@@ -1576,12 +1486,10 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
                                      aml_workspace=ws, overwrite=overwrite, show_progress=True)
         expected_local_download_dir = downloaded_data_path / test_data_path_remote
         assert expected_local_download_dir.exists()
-        expected_download_paths = [
-            expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
+        expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
         assert all([p.exists() for p in expected_download_paths])
     finally:
-        delete_existing_blobs(datastore=default_datastore,
-                              prefix=test_data_path_remote)
+        delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1601,8 +1509,7 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     dummy_file_name = Path("abc/uploaded_file.txt")
     expected_remote_path = Path(remote_data_dir) / dummy_file_name.name
 
-    delete_existing_blobs(datastore=default_datastore,
-                          prefix=str(expected_remote_path.as_posix()))
+    delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
     try:
         # Create a dummy data file and upload to datastore
@@ -1619,8 +1526,7 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
                                                                         container_name=container))
         assert len(existing_blobs) == 1
     finally:
-        delete_existing_blobs(datastore=default_datastore,
-                              prefix=str(expected_remote_path.as_posix()))
+        delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
 
 @pytest.mark.parametrize("arguments, run_id", [
@@ -1631,16 +1537,14 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
 def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
     with patch.object(sys, "argv", arguments):
         script_config = util.AmlRunScriptConfig()
-        script_config = util.parse_args_and_update_config(
-            script_config, arguments)
+        script_config = util.parse_args_and_update_config(script_config, arguments)
 
         if isinstance(run_id, list):
             for script_config_run, expected_run_id in zip(script_config.run, run_id):
                 assert script_config_run == expected_run_id
         else:
             if len(run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-                assert script_config.run == [
-                    run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
+                assert script_config.run == [run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
             else:
                 assert script_config.run == [run_id]
 
@@ -1653,8 +1557,7 @@ def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files:
     dummy_run_id = "run_def_456"
     prefix = "path/to/file"
     output_file_dir = Path("my_ouputs")
-    util.download_checkpoints_from_run_id(
-        dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
     mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
                                                 workspace=mock_workspace, validate_checksum=True)
 
@@ -1701,8 +1604,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
 
     whole_file_path = prefix + file_name
     start_time = time.perf_counter()
-    util.download_checkpoints_from_run_id(
-        run.id, whole_file_path, output_file_dir, aml_workspace=ws)
+    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
@@ -1724,8 +1626,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     download_file_path.unlink()
     assert not download_file_path.exists()
 
-    util.download_checkpoints_from_run_id(
-        run.id, whole_file_path, output_file_dir, aml_workspace=ws)
+    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
     assert download_file_path.exists()
     with open(str(download_file_path), "rb") as f_path:
         for line in f_path:
@@ -1813,10 +1714,8 @@ def test_add_args(dummy_model_config: DummyConfig) -> None:
     # now call _add_overrideable_config_args_to_parser and assert that calling parse_args on the result
     # of that is a non-empty Namepsace
     with patch("health_azure.utils.get_overridable_parameters") as mock_get_overridable_parameters:
-        mock_get_overridable_parameters.return_value = {
-            "string_param": param.String(default="Hello")}
-        parser = util._add_overrideable_config_args_to_parser(
-            dummy_model_config, parser)
+        mock_get_overridable_parameters.return_value = {"string_param": param.String(default="Hello")}
+        parser = util._add_overrideable_config_args_to_parser(dummy_model_config, parser)
         assert isinstance(parser, ArgumentParser)
         args = parser.parse_args([])
         assert args != Namespace()
@@ -1842,18 +1741,14 @@ class ParamClass(param.Parameterized):
     optional_int: Optional[int] = param.Integer(None, doc="Optional int")
     optional_float: Optional[float] = param.Number(None, doc="Optional float")
     floats: List[float] = param.List(None, class_=float)
-    tuple1: Tuple[int, float] = param.NumericTuple(
-        (1, 2.3), length=2, doc="Tuple")
-    int_tuple: Tuple[int, int, int] = util.IntTuple(
-        (1, 1, 1), length=3, doc="Integer Tuple")
-    enum: ParamEnum = param.ClassSelector(
-        default=ParamEnum.EnumValue1, class_=ParamEnum, instantiate=False)
+    tuple1: Tuple[int, float] = param.NumericTuple((1, 2.3), length=2, doc="Tuple")
+    int_tuple: Tuple[int, int, int] = util.IntTuple((1, 1, 1), length=3, doc="Integer Tuple")
+    enum: ParamEnum = param.ClassSelector(default=ParamEnum.EnumValue1, class_=ParamEnum, instantiate=False)
     readonly: str = param.String("Nope", readonly=True)
     _non_override: str = param.String("Nope")
     constant: str = param.String("Nope", constant=True)
     strings: List[str] = param.List(default=['some_string'], class_=str)
-    other_args = util.ListOrDictParam(
-        None, doc="List or dictionary of other args")
+    other_args = util.ListOrDictParam(None, doc="List or dictionary of other args")
 
     def validate(self) -> None:
         pass
@@ -1972,8 +1867,7 @@ def check_parsing_fails(parameterized_config_and_parser: Tuple[ParamClass, Argum
     (["--not_flag=false", "--no-not_flag"], None, None, False),
     (["--flag=Falsf"], None, None, False),
     (["--flag=Truf"], None, None, False),
-    (["--other_args={'learning_rate': 0.5}"],
-     "other_args", {'learning_rate': 0.5}, True),
+    (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
     (["--other_args=['foo']"], "other_args", ["foo"], True),
     (["--other_args={'learning':3"], None, None, False),
     (["--other_args=['foo','bar'"], None, None, False)
@@ -1987,18 +1881,15 @@ def test_create_parser(parameterized_config_and_parser: Tuple[ParamClass, Argume
     Check that parse_args works as expected, with both non default and default values.
     """
     if expected_pass:
-        check_parsing_succeeds(
-            parameterized_config_and_parser, args, expected_key, expected_value)
+        check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
     else:
         check_parsing_fails(parameterized_config_and_parser, args)
 
 
 @pytest.mark.fast
 @pytest.mark.parametrize("flag, expected_value", [
-    ('on', True), ('t', True), ('true',
-                                True), ('y', True), ('yes', True), ('1', True),
-    ('off', False), ('f', False), ('false',
-                                   False), ('n', False), ('no', False), ('0', False)
+    ('on', True), ('t', True), ('true', True), ('y', True), ('yes', True), ('1', True),
+    ('off', False), ('f', False), ('false', False), ('n', False), ('no', False), ('0', False)
 ])
 def test_parsing_bools(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
                        flag: str,
@@ -2028,11 +1919,9 @@ def test_argparse_usage(capsys: CaptureFixture) -> None:
     """Test if the auto-generated argument parser prints out defaults and usage information.
     """
     class SimpleClass(param.Parameterized):
-        name: str = param.String(
-            default="name_default", doc="Name description")
+        name: str = param.String(default="name_default", doc="Name description")
     config = SimpleClass()
-    parser = create_argparser(config, usage="my_usage",
-                              description="my_description", epilog="my_epilog")
+    parser = create_argparser(config, usage="my_usage", description="my_description", epilog="my_epilog")
     arguments = ["", "--help"]
     with pytest.raises(SystemExit):
         with patch.object(sys, "argv", arguments):
@@ -2062,16 +1951,14 @@ def test_argparse_usage(capsys: CaptureFixture) -> None:
 def test_override_list(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
                        args: List[str], expected_key: str, expected_value: Any) -> None:
     """Test different options of overriding a non-empty list parameter to get an empty list"""
-    check_parsing_succeeds(parameterized_config_and_parser,
-                           args, expected_key, expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
 
 
 def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
     """Test if the auto-generated argument parser prints out defaults and auto-generated usage information.
     """
     class SimpleClass(param.Parameterized):
-        name: str = param.String(
-            default="name_default", doc="Name description")
+        name: str = param.String(default="name_default", doc="Name description")
     config = SimpleClass()
     parser = create_argparser(config)
     arguments = ["", "--help"]
@@ -2096,20 +1983,16 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
     parameterized_config = parameterized_config_and_parser[0]
     with patch("health_azure.utils.report_on_overrides") as mock_report_on_overrides:
         overrides = {"name": "newName", "int_tuple": (0, 1, 2)}
-        actual_overrides = util.apply_overrides(
-            parameterized_config, overrides)
+        actual_overrides = util.apply_overrides(parameterized_config, overrides)
         assert actual_overrides == overrides
-        assert all([x == i and isinstance(x, int)
-                   for i, x in enumerate(parameterized_config.int_tuple)])
+        assert all([x == i and isinstance(x, int) for i, x in enumerate(parameterized_config.int_tuple)])
         assert parameterized_config.name == "newName"
 
         # Attempt to change seed and constant, but the latter should be ignored.
         change_seed = {"seed": 123}
         old_constant = parameterized_config.constant
-        extra_overrides = {**change_seed,
-                           "constant": "Nothing"}  # type: ignore
-        changes2 = util.apply_overrides(
-            parameterized_config, overrides_to_apply=extra_overrides)  # type: ignore
+        extra_overrides = {**change_seed, "constant": "Nothing"}  # type: ignore
+        changes2 = util.apply_overrides(parameterized_config, overrides_to_apply=extra_overrides)  # type: ignore
         assert changes2 == change_seed
         assert parameterized_config.seed == 123
         assert parameterized_config.constant == old_constant
@@ -2143,15 +2026,13 @@ def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, 
     # a) parameter 'constant' is constant
     # b) parameter 'readonly' is readonly
     # b) parameter 'idontexist' is undefined (not the name of a parameter of ParamClass)
-    overrides = {"constant": "dif_value",
-                 "readonly": "new_value", "idontexist": (0, 1, 2)}
+    overrides = {"constant": "dif_value", "readonly": "new_value", "idontexist": (0, 1, 2)}
     keys_to_ignore: Set = set()
     util.report_on_overrides(parameterized_config, overrides, keys_to_ignore)
     # Expect one warning message per failed override
     new_logs = caplog.messages
     expected_warnings = len(overrides.keys())
-    assert len(
-        new_logs) == expected_warnings, f"Expected {expected_warnings} warnings but found: {caplog.records}"
+    assert len(new_logs) == expected_warnings, f"Expected {expected_warnings} warnings but found: {caplog.records}"
 
 
 @pytest.mark.fast
@@ -2167,11 +2048,9 @@ def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: A
     val = (value_idx_0, value_idx_1, value_idx_2)
     if not all([isinstance(x, int) for x in val]):
         with pytest.raises(ValueError):
-            parameterized_config.int_tuple = (
-                value_idx_0, value_idx_1, value_idx_2)
+            parameterized_config.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
     else:
-        parameterized_config.int_tuple = (
-            value_idx_0, value_idx_1, value_idx_2)
+        parameterized_config.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
 
 
 @pytest.mark.fast
@@ -2249,8 +2128,7 @@ class EvenNumberParam(util.CustomTypeParam):
 
 class MyScriptConfig(param.Parameterized):
     simple_string: str = param.String(default="")
-    even_number: int = EvenNumberParam(
-        2, doc="your choice of even number", allow_None=False)
+    even_number: int = EvenNumberParam(2, doc="your choice of even number", allow_None=False)
 
 
 def test_parse_args_and_apply_overrides() -> None:
@@ -2268,30 +2146,26 @@ def test_parse_args_and_apply_overrides() -> None:
     # parsing args with unaccepted values should cause an exception to be raised
     odd_number = new_even_number + 1
     with pytest.raises(ValueError) as e:
-        util.parse_args_and_update_config(
-            config, args=["--even_number", f"{odd_number}"])
+        util.parse_args_and_update_config(config, args=["--even_number", f"{odd_number}"])
         assert "not an even number" in str(e.value)
 
     none_number = "None"
     with pytest.raises(ArgumentError):
-        util.parse_args_and_update_config(
-            config, args=["--even_number", f"{none_number}"])
+        util.parse_args_and_update_config(config, args=["--even_number", f"{none_number}"])
 
     # Mock from_string to check test _validate
-    def mock_from_string_none(a, b): return None  # type: ignore
+    mock_from_string_none = lambda a, b: None  # type: ignore
     with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
         # Check that _validate fails with None value
         with pytest.raises(ValueError) as e:
-            util.parse_args_and_update_config(
-                config, ["--even_number", f"{none_number}"])
+            util.parse_args_and_update_config(config, ["--even_number", f"{none_number}"])
             assert "must not be None" in str(e.value)
 
 
 class MockChildRun:
     def __init__(self, run_id: str, cross_val_index: int):
         self.run_id = run_id
-        self.tags = {"hyperparameters": json.dumps(
-            {"child_run_index": cross_val_index})}
+        self.tags = {"hyperparameters": json.dumps({"child_run_index": cross_val_index})}
 
     def get_metrics(self) -> Dict[str, Union[float, List[Union[int, float]]]]:
         num_epochs = 5
@@ -2341,8 +2215,7 @@ def test_download_files_from_hyperdrive_children(tmp_path: Path) -> None:
 
     assert len(list(local_download_folder.iterdir())) == num_child_runs
     assert (local_download_folder / str(mock_run_1.id)).is_dir()
-    assert (local_download_folder / str(mock_run_1.id) /
-            remote_file_path).exists()
+    assert (local_download_folder / str(mock_run_1.id) / remote_file_path).exists()
 
 
 @patch("health_azure.utils.isinstance", return_value=True)
@@ -2351,8 +2224,7 @@ def test_aggregate_hyperdrive_metrics(_: MagicMock) -> None:
     num_crossval_splits = 2
     with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
         mock_get_run.return_value = MockHyperDriveRun(num_crossval_splits)
-        df = util.aggregate_hyperdrive_metrics(
-            "run_id_123", "child_run_index", aml_workspace=ws)
+        df = util.aggregate_hyperdrive_metrics("run_id_123", "child_run_index", aml_workspace=ws)
         num_rows, num_cols = df.shape
         assert num_rows == 7  # The number of metrics specified in MockChildRun.get_metrics
         assert num_cols == num_crossval_splits

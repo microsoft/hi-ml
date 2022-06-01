@@ -26,8 +26,7 @@ def main() -> None:
 
     print("Creating splits")
     num_cross_validation_splits = 5
-    k_folds = KFold(n_splits=num_cross_validation_splits,
-                    shuffle=True, random_state=0)
+    k_folds = KFold(n_splits=num_cross_validation_splits, shuffle=True, random_state=0)
     splits = np.array(list(k_folds.split(X)))
     indices_train_splits, indices_test_splits = [], []
     for split in splits:
@@ -37,10 +36,8 @@ def main() -> None:
     train_splits_file = inputs / "iris_data_splits.csv"
     target_splits_file = inputs / "iris_target_splits.csv"
 
-    np.savetxt(str(train_splits_file), np.vstack(
-        indices_train_splits), delimiter=",")
-    np.savetxt(str(target_splits_file), np.vstack(
-        indices_test_splits), delimiter=",")
+    np.savetxt(str(train_splits_file), np.vstack(indices_train_splits), delimiter=",")
+    np.savetxt(str(target_splits_file), np.vstack(indices_test_splits), delimiter=",")
 
     ws = get_workspace()
     datastore = get_datastore(workspace=ws,
@@ -48,8 +45,7 @@ def main() -> None:
 
     dataset_name = 'himl_kfold_split_iris'
     datastore.upload_files(
-        [str(train_data_file), str(targets_file), str(
-            train_splits_file), str(target_splits_file)],
+        [str(train_data_file), str(targets_file), str(train_splits_file), str(target_splits_file)],
         relative_root=str(inputs),
         target_path=dataset_name,
         overwrite=True,

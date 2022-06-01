@@ -36,10 +36,8 @@ class SSLClassifier(LightningModuleWithOptimizer):
                                             n_classes=num_classes,
                                             p=0.20)
         if self.num_classes == 2:
-            self.train_metrics = ModuleList(
-                [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
-            self.val_metrics = ModuleList(
-                [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
+            self.train_metrics = ModuleList([AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
+            self.val_metrics = ModuleList([AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
         else:
             # Note that for multi-class, Accuracy05 is the standard multi-class accuracy.
             self.train_metrics = ModuleList([Accuracy05()])
@@ -63,8 +61,7 @@ class SSLClassifier(LightningModuleWithOptimizer):
     def shared_step(self, batch: Any, is_training: bool) -> Any:
         _, x, y = batch
         mlp_preds = self.forward(x)
-        weights = None if self.class_weights is None else self.class_weights.to(
-            device=self.device)
+        weights = None if self.class_weights is None else self.class_weights.to(device=self.device)
         mlp_loss = F.cross_entropy(mlp_preds, y, weight=weights)
 
         with torch.no_grad():

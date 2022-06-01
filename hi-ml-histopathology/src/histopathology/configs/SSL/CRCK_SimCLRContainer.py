@@ -54,7 +54,6 @@ class CRCK_SimCLR(HistoSSLContainer):
                          ssl_training_type=SSLTrainingType.SimCLR,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=None,  # Change to path_augmentation to use the config
-                         # Change to path_augmentation to use the config
-                         linear_head_augmentation_config=None,
+                         linear_head_augmentation_config=None,  # Change to path_augmentation to use the config
                          drop_last=False,
                          **kwargs)

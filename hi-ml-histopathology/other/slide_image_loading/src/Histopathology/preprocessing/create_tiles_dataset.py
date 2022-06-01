@@ -53,23 +53,20 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
         -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
     image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size,
                                                        constant_values=255)
-    mask_tiles, _ = tiling.tile_array_2d(
-        sample['mask'], tile_size=tile_size, constant_values=0)
+    mask_tiles, _ = tiling.tile_array_2d(sample['mask'], tile_size=tile_size, constant_values=0)
 
     selected: np.ndarray
     occupancies: np.ndarray
     selected, occupancies = select_tile(mask_tiles, occupancy_threshold)
     n_discarded = (~selected).sum()
-    logging.info(
-        f"Percentage tiles discarded: {round(selected.sum() / n_discarded * 100, 2)}")
+    logging.info(f"Percentage tiles discarded: {round(selected.sum() / n_discarded * 100, 2)}")
 
     image_tiles = image_tiles[selected]
     mask_tiles = mask_tiles[selected]
     tile_locations = tile_locations[selected]
     occupancies = occupancies[selected]
 
-    abs_tile_locations = (
-        sample['scale'] * tile_locations + sample['location']).astype(int)
+    abs_tile_locations = (sample['scale'] * tile_locations + sample['location']).astype(int)
 
     return image_tiles, mask_tiles, abs_tile_locations, occupancies, n_discarded
 
@@ -117,8 +114,7 @@ def process_slide(image_wsi_reader: str, save_images: bool,
 
             dataset_csv_path = slide_dir / "dataset.csv"
             dataset_csv_file = dataset_csv_path.open('w')
-            dataset_csv_file.write(
-                ','.join(CSV_COLUMNS) + '\n')  # write CSV header
+            dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
 
             tiles_failure = 0
             failed_tiles_csv_path = slide_dir / "failed_tiles.csv"
@@ -126,8 +122,7 @@ def process_slide(image_wsi_reader: str, save_images: bool,
             failed_tiles_file.write('tile_id' + '\n')
 
             logging.info(f"Loading slide {slide_id} ...")
-            loader = LoadPandaROId(
-                WSIReader(image_wsi_reader), WSIReader(), level=level, margin=margin)
+            loader = LoadPandaROId(WSIReader(image_wsi_reader), WSIReader(), level=level, margin=margin)
             sample = loader(sample)  # load 'image' and 'mask' from disk
 
             logging.info(f"Tiling slide {slide_id} ...")
@@ -142,12 +137,9 @@ def process_slide(image_wsi_reader: str, save_images: bool,
                     tile_metadata = save_tile(sample, image_tiles[i], mask_tiles[i], tile_locations[i],
                                               slide_dir)
                     tile_metadata['occupancy'] = occupancies[i]
-                    tile_metadata['image'] = os.path.join(
-                        slide_dir.name, tile_metadata['image'])
-                    tile_metadata['mask'] = os.path.join(
-                        slide_dir.name, tile_metadata['mask'])
-                    dataset_row = ','.join(
-                        str(tile_metadata[column]) for column in CSV_COLUMNS)
+                    tile_metadata['image'] = os.path.join(slide_dir.name, tile_metadata['image'])
+                    tile_metadata['mask'] = os.path.join(slide_dir.name, tile_metadata['mask'])
+                    dataset_row = ','.join(str(tile_metadata[column]) for column in CSV_COLUMNS)
                     dataset_csv_file.write(dataset_row + '\n')
                 except Exception as e:
                     tiles_failure += 1
@@ -161,12 +153,10 @@ def process_slide(image_wsi_reader: str, save_images: bool,
             failed_tiles_file.close()
             if tiles_failure > 0:
                 # TODO what we want to do with slides that have some failed tiles?
-                logging.warning(
-                    f"{slide_id} is incomplete. {tiles_failure} tiles failed.")
+                logging.warning(f"{slide_id} is incomplete. {tiles_failure} tiles failed.")
         except Exception as e:
             traceback.print_exc()
-            warnings.warn(
-                f"An error occurred while processing slide {slide_id}: {e}")
+            warnings.warn(f"An error occurred while processing slide {slide_id}: {e}")
         return None
 
 
@@ -179,8 +169,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
             logging.info(f"Merging slide {slide_csv}")
             content = slide_csv.read_text()
             if not first_file:
-                # discard header row for all but the first file
-                content = content[content.index('\n') + 1:]
+                content = content[content.index('\n') + 1:]  # discard header row for all but the first file
             full_csv_file.write(content)
             first_file = False
     return full_csv
@@ -194,10 +183,8 @@ def main(process_slide: Callable,
     # to select a subsample use keyword n_slides
     dataset = Dataset(PandaDataset(panda_dir))  # type: ignore
 
-    output_dir = Path(root_output_dir) / \
-        f"panda_tiles_level{level}_{tile_size}"
-    logging.info(
-        f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
+    output_dir = Path(root_output_dir) / f"panda_tiles_level{level}_{tile_size}"
+    logging.info(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
 
     if overwrite and output_dir.exists():
         shutil.rmtree(output_dir)
@@ -215,8 +202,7 @@ def main(process_slide: Callable,
     else:
         map_func = map  # type: ignore
 
-    list(tqdm(map_func(func, dataset), desc="Slides",
-         unit="img", total=len(dataset)))  # type: ignore
+    list(tqdm(map_func(func, dataset), desc="Slides", unit="img", total=len(dataset)))  # type: ignore
 
     if parallel:
         pool.close()  # type: ignore

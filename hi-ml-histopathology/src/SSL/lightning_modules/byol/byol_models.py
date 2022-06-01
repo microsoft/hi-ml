@@ -39,10 +39,8 @@ class SiameseArm(nn.Module):
         super().__init__()
 
         self.encoder = SSLEncoder(*encoder_kwargs)  # Encoder
-        self.projector = _MLP(
-            input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
-        self.predictor = _MLP(
-            input_dim=self.projector.output_dim, hidden_dim=128, output_dim=128)
+        self.projector = _MLP(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+        self.predictor = _MLP(input_dim=self.projector.output_dim, hidden_dim=128, output_dim=128)
 
     def forward(self, x: T) -> T:
         y = self.encoder(x)

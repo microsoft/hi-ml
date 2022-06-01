@@ -28,25 +28,21 @@ class SSLClassifierContainer(SSLContainer):
 
     See docs/self_supervised_models.md for more details.
     """
-    freeze_encoder = param.Boolean(
-        default=True, doc="Whether to freeze the pretrained encoder or not.")
-    local_ssl_weights_path = param.ClassSelector(
-        class_=Path, default=None, doc="Local path to SSL weights")
+    freeze_encoder = param.Boolean(default=True, doc="Whether to freeze the pretrained encoder or not.")
+    local_ssl_weights_path = param.ClassSelector(class_=Path, default=None, doc="Local path to SSL weights")
 
     def create_model(self) -> LightningModuleWithOptimizer:
         """
         This method must create the actual Lightning model that will be trained.
         """
         if self.local_ssl_weights_path is None:
-            path_to_checkpoint = get_best_checkpoint_path(
-                self.checkpoint_folder)
+            path_to_checkpoint = get_best_checkpoint_path(self.checkpoint_folder)
         else:
             path_to_checkpoint = self.local_ssl_weights_path
         data_module: DataModuleTypes = self.data_module
         assert isinstance(data_module, HimlVisionDataModule)
         model = create_ssl_image_classifier(num_classes=data_module.dataset_train.dataset.num_classes,
-                                            pl_checkpoint_path=str(
-                                                path_to_checkpoint),
+                                            pl_checkpoint_path=str(path_to_checkpoint),
                                             freeze_encoder=self.freeze_encoder,
                                             class_weights=data_module.class_weights)
 
@@ -59,8 +55,7 @@ class SSLClassifierContainer(SSLContainer):
         """
         if hasattr(self, "data_module"):
             return self.data_module
-        self.data_module: DataModuleTypes = self._create_ssl_data_modules(
-            is_ssl_encoder_module=False)
+        self.data_module: DataModuleTypes = self._create_ssl_data_modules(is_ssl_encoder_module=False)
         if self.use_balanced_binary_loss_for_linear_head:
             self.data_module.class_weights = self.data_module.compute_class_weights()
         return self.data_module

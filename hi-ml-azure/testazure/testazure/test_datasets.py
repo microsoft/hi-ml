@@ -68,26 +68,20 @@ def test_dataset_input() -> None:
     """
     workspace = DEFAULT_WORKSPACE.workspace
     # This dataset must exist in the workspace already, or at least in blob storage.
-    dataset_config = DatasetConfig(
-        name="hello_world", datastore=DEFAULT_DATASTORE)
-    aml_dataset = dataset_config.to_input_dataset(
-        workspace=workspace, dataset_index=1)
+    dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE)
+    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None
     assert aml_dataset.mode == "download"
     # Downloading or mounting to a given path
     target_folder = "/tmp/foo"
-    dataset_config = DatasetConfig(
-        name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
-    aml_dataset = dataset_config.to_input_dataset(
-        workspace=workspace, dataset_index=1)
+    dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
+    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute == target_folder
     # Use mounting instead of downloading
-    dataset_config = DatasetConfig(
-        name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=True)
-    aml_dataset = dataset_config.to_input_dataset(
-        workspace=workspace, dataset_index=1)
+    dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=True)
+    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.mode == "mount"
 
@@ -102,10 +96,8 @@ def test_dataset_input_target_empty(target_folder: PathOrString) -> None:
     """
     workspace = DEFAULT_WORKSPACE.workspace
     # This dataset must exist in the workspace already, or at least in blob storage.
-    dataset_config = DatasetConfig(
-        name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
-    aml_dataset = dataset_config.to_input_dataset(
-        workspace=workspace, dataset_index=1)
+    dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
+    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None
 
@@ -120,8 +112,7 @@ def test_dataset_invalid_target(target_folder: PathOrString) -> None:
     Passing in "." as a target_folder shouold raise an exception.
     """
     with pytest.raises(ValueError) as ex:
-        DatasetConfig(name="hello_world",
-                      datastore=DEFAULT_DATASTORE, target_folder=target_folder)
+        DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
     assert "current working directory" in str(ex)
 
 
@@ -132,24 +123,20 @@ def test_dataset_output() -> None:
     name = "new_dataset"
     workspace = DEFAULT_WORKSPACE.workspace
     dataset_config = DatasetConfig(name=name, datastore=DEFAULT_DATASTORE)
-    aml_dataset = dataset_config.to_output_dataset(
-        workspace=workspace, dataset_index=1)
+    aml_dataset = dataset_config.to_output_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, OutputFileDatasetConfig)
     assert isinstance(aml_dataset.destination, tuple)
     assert aml_dataset.destination[0].name == DEFAULT_DATASTORE
     assert aml_dataset.destination[1] == name + "/"
     assert aml_dataset.mode == "mount"
     # Use downloading instead of mounting
-    dataset_config = DatasetConfig(
-        name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=False)
-    aml_dataset = dataset_config.to_output_dataset(
-        workspace=workspace, dataset_index=1)
+    dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=False)
+    aml_dataset = dataset_config.to_output_dataset(workspace=workspace, dataset_index=1)
     assert isinstance(aml_dataset, OutputFileDatasetConfig)
     assert aml_dataset.mode == "upload"
     # Mounting at a fixed folder is not possible
     with pytest.raises(ValueError) as ex:
-        dataset_config = DatasetConfig(
-            name=name, datastore=DEFAULT_DATASTORE, target_folder="something")
+        dataset_config = DatasetConfig(name=name, datastore=DEFAULT_DATASTORE, target_folder="something")
         dataset_config.to_output_dataset(workspace=workspace, dataset_index=1)
     assert "Output datasets can't have a target_folder set" in str(ex)
 
@@ -162,10 +149,8 @@ def test_datasets_from_string() -> None:
     dataset2 = "bar"
     store = "store"
     default_store = "default"
-    original: List[Union[str, DatasetConfig]] = [
-        dataset1, DatasetConfig(name=dataset2, datastore=store)]
-    replaced = _replace_string_datasets(
-        original, default_datastore_name=default_store)
+    original: List[Union[str, DatasetConfig]] = [dataset1, DatasetConfig(name=dataset2, datastore=store)]
+    replaced = _replace_string_datasets(original, default_datastore_name=default_store)
     assert len(replaced) == len(original)
     for d in replaced:
         assert isinstance(d, DatasetConfig)

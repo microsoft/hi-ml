@@ -15,8 +15,7 @@ from azureml.core import Run
 
 from health_azure.utils import is_global_rank_zero
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import (
-    MODEL_WEIGHTS_DIR_NAME, find_recovery_checkpoint_on_disk_or_cloud)
+from health_ml.utils.checkpoint_utils import (MODEL_WEIGHTS_DIR_NAME, find_recovery_checkpoint_on_disk_or_cloud)
 
 
 class CheckpointHandler:
@@ -79,19 +78,15 @@ class CheckpointHandler:
             # If model was trained, look for the best checkpoint
             checkpoint_from_current_run = self.container.get_checkpoint_to_test()
             if checkpoint_from_current_run.is_file():
-                logging.info(
-                    f"Using checkpoint from current run: {checkpoint_from_current_run}")
+                logging.info(f"Using checkpoint from current run: {checkpoint_from_current_run}")
                 return checkpoint_from_current_run
             else:
-                raise FileNotFoundError(
-                    f"Checkpoint file does not exist: {checkpoint_from_current_run}")
+                raise FileNotFoundError(f"Checkpoint file does not exist: {checkpoint_from_current_run}")
         elif self.trained_weights_path:
             # Model was not trained, check if there is a local weight path.
-            logging.info(
-                f"Using pre-trained weights from {self.trained_weights_path}")
+            logging.info(f"Using pre-trained weights from {self.trained_weights_path}")
             return self.trained_weights_path
-        raise ValueError(
-            "Unable to determine which checkpoint should be used for testing.")
+        raise ValueError("Unable to determine which checkpoint should be used for testing.")
 
     @staticmethod
     def download_weights(url: str, download_folder: Path) -> Path:
@@ -105,13 +100,11 @@ class CheckpointHandler:
         """
         # assign the same filename as in the download url if possible, so that we can check for duplicates
         # If that fails, map to a random uuid
-        file_name = os.path.basename(
-            urlparse(url).path) or str(uuid.uuid4().hex)
+        file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
         checkpoint_path = download_folder / file_name
         # only download if hasn't already been downloaded
         if checkpoint_path.is_file():
-            logging.info(
-                f"File already exists, skipping download: {checkpoint_path}")
+            logging.info(f"File already exists, skipping download: {checkpoint_path}")
         else:
             logging.info(f"Downloading weights from URL {url}")
 
@@ -134,10 +127,8 @@ class CheckpointHandler:
             checkpoint_path = CheckpointHandler.download_weights(url=self.container.weights_url,
                                                                  download_folder=download_folder)
         else:
-            raise ValueError(
-                "Cannot download weights, neither local_weights_path or weights_url are set")
+            raise ValueError("Cannot download weights, neither local_weights_path or weights_url are set")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
-            raise FileNotFoundError(
-                f"Could not find the weights file at {checkpoint_path}")
+            raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
         return checkpoint_path

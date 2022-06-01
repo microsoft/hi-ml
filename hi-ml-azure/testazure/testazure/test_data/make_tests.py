@@ -29,8 +29,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
     :param extra_options: Extra options for template rendering, e.g. additional Conda channels and dependencies.
     :return: None
     """
-    environment_yaml_template = (
-        here / 'simple' / 'environment.yml.template').read_text()
+    environment_yaml_template = (here / 'simple' / 'environment.yml.template').read_text()
 
     t = Template(environment_yaml_template)
 
@@ -43,8 +42,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
         pip = """
   - pip:
 """
-        run_requirements_lines = (
-            himl_azure_root() / 'run_requirements.txt').read_text().splitlines()
+        run_requirements_lines = (himl_azure_root() / 'run_requirements.txt').read_text().splitlines()
         for line in run_requirements_lines:
             pip += f"    - {line}\n"
     else:
@@ -67,8 +65,7 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
             for dep in extra_options['conda_dependencies']:
                 conda_deps += f"  - {dep}\n"
 
-        options.update(
-            {'channels': channels, 'conda_dependencies': conda_deps, 'pip': pip})
+        options.update({'channels': channels, 'conda_dependencies': conda_deps, 'pip': pip})
 
     r = t.render(options)
     environment_yaml_path.write_text(r)
@@ -88,8 +85,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     argument.
     :return: None
     """
-    hello_world_template = (
-        here / 'simple' / 'hello_world_template.txt').read_text()
+    hello_world_template = (here / 'simple' / 'hello_world_template.txt').read_text()
 
     t = Template(hello_world_template)
 
@@ -128,8 +124,7 @@ if __name__ == '__main__':
     render_environment_yaml(test_folder / "environment2.yml", "", True)
     render_environment_yaml(test_folder / "environment3.yml", "", False)
 
-    render_test_script(test_folder / "test1.py", {},
-                       "demo_cluster", test_folder / "environment1.yml")
+    render_test_script(test_folder / "test1.py", {}, "demo_cluster", test_folder / "environment1.yml")
 
     from uuid import uuid4
     message_guid = uuid4().hex
@@ -166,5 +161,4 @@ import json
 import shutil"""
     }
 
-    render_test_script(test_folder / "test2.py", extra_options,
-                       "demo_cluster", test_folder / "environment2.yml")
+    render_test_script(test_folder / "test2.py", extra_options, "demo_cluster", test_folder / "environment2.yml")

@@ -18,8 +18,7 @@ def repository_root_directory() -> Path:
     """
     if is_himl_used_from_git_repo():
         return git_repo_root_folder()
-    raise ValueError(
-        "This function should not be used if hi-ml is used as an installed package.")
+    raise ValueError("This function should not be used if hi-ml is used as an installed package.")
 
 
 @dataclass(frozen=True)

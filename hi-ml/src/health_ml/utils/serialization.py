@@ -42,8 +42,7 @@ class ModelInfo:
     OTHER_DESCRIPTION = "other_description"
 
     def __init__(self,
-                 model: Optional[Union[torch.nn.Module,
-                                       torch.jit.ScriptModule]] = None,
+                 model: Optional[Union[torch.nn.Module, torch.jit.ScriptModule]] = None,
                  model_example_input: Optional[torch.Tensor] = None,
                  model_config: Any = None,
                  git_repository: str = "",
@@ -101,8 +100,7 @@ class ModelInfo:
             self.azure_ml_run_id = RUN_CONTEXT.id
         properties: Dict = RUN_CONTEXT.get_properties()
         if not self.git_repository:
-            self.git_repository = properties.get(
-                "azureml.git.repository_uri", "")
+            self.git_repository = properties.get("azureml.git.repository_uri", "")
         if not self.git_commit_hash:
             self.git_commit_hash = properties.get("azureml.git.commit", "")
 
@@ -115,22 +113,17 @@ class ModelInfo:
             return _dump_to_stream(o).getvalue() if o is not None else None
 
         if self.model is None or self.model_example_input is None:
-            raise ValueError(
-                "To generate a state dict, the model and model_example_input must be present.")
+            raise ValueError("To generate a state dict, the model and model_example_input must be present.")
         try:
-            traced_model = torch.jit.trace(
-                self.model, self.model_example_input, strict=strict)
+            traced_model = torch.jit.trace(self.model, self.model_example_input, strict=strict)
         except Exception as ex:
-            raise ValueError(
-                f"Unable to convert the model to torchscript: {ex}")
+            raise ValueError(f"Unable to convert the model to torchscript: {ex}")
         jit_stream = BytesIO()
         torch.jit.save(traced_model, jit_stream)
         try:
-            config_yaml = object_to_yaml(
-                self.model_config) if self.model_config is not None else None
+            config_yaml = object_to_yaml(self.model_config) if self.model_config is not None else None
         except Exception as ex:
-            raise ValueError(
-                f"Unable to convert the model configuration to YAML: {ex}")
+            raise ValueError(f"Unable to convert the model configuration to YAML: {ex}")
         return {
             ModelInfo.MODEL: jit_stream.getvalue(),
             ModelInfo.MODEL_EXAMPLE_INPUT: self.model_example_input,
@@ -154,8 +147,7 @@ class ModelInfo:
         """
         def unpickle_from_bytes(field: str) -> Any:
             if field not in state_dict:
-                raise KeyError(
-                    f"State_dict does not contain a field '{field}'")
+                raise KeyError(f"State_dict does not contain a field '{field}'")
             b = state_dict[field]
             if b is None:
                 return None
@@ -163,8 +155,7 @@ class ModelInfo:
             try:
                 o = pickle.load(stream)
             except Exception as ex:
-                raise ValueError(
-                    f"Failure when unpickling field '{field}': {ex}")
+                raise ValueError(f"Failure when unpickling field '{field}': {ex}")
             return o
 
         self.model = torch.jit.load(BytesIO(state_dict[ModelInfo.MODEL]))
@@ -176,8 +167,7 @@ class ModelInfo:
         self.azure_ml_workspace = state_dict[ModelInfo.AZURE_ML_WORKSPACE]
         self.azure_ml_run_id = state_dict[ModelInfo.AZURE_ML_RUN_ID]
         self.text_tokenizer = unpickle_from_bytes(ModelInfo.TEXT_TOKENIZER)
-        self.image_pre_processing = unpickle_from_bytes(
-            ModelInfo.IMAGE_PRE_PROCESSING)
+        self.image_pre_processing = unpickle_from_bytes(ModelInfo.IMAGE_PRE_PROCESSING)
         self.image_dimensions = state_dict[ModelInfo.IMAGE_DIMENSIONS]
         self.other_info = unpickle_from_bytes(ModelInfo.OTHER_INFO)
         self.other_description = state_dict[ModelInfo.OTHER_DESCRIPTION]

@@ -70,10 +70,8 @@ class HimlVisionDataModule(VisionDataModule):
         Initializes the dataset class, and in the case of CIFAR dataset, optionally downloads the data from URL to
         local data_dir.
         """
-        self.dataset_cls(self.data_dir, train=True,
-                         download=True, **self.EXTRA_ARGS)
-        self.dataset_cls(self.data_dir, train=False,
-                         download=True, **self.EXTRA_ARGS)
+        self.dataset_cls(self.data_dir, train=True, download=True, **self.EXTRA_ARGS)
+        self.dataset_cls(self.data_dir, train=False, download=True, **self.EXTRA_ARGS)
 
     def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
         """
@@ -138,15 +136,12 @@ class CombinedDataModule(LightningDataModule):
         len_encoder_train = len(self.encoder_module.train_dataloader())
         len_linear_head_train = len(self.linear_head_module.train_dataloader())
         logging.info(f"Length of encoder train dataloader {len_encoder_train}")
-        logging.info(
-            f"Length of linear head train dataloader {len_linear_head_train}")
-        logging.info(
-            f"Length of total train dataloader {len(self.train_dataloader())}")
+        logging.info(f"Length of linear head train dataloader {len_linear_head_train}")
+        logging.info(f"Length of total train dataloader {len(self.train_dataloader())}")
         # Workaround for a bug in PL: We can't use a CombinedLoader for the training data. Instead,
         # need to return a dictionary and set a cycle mode flag on the trainer. This flag can only be computed
         # once the data is prepared. We read this flag out later before we construct the Trainer object.
-        self.train_loader_cycle_mode = self._cycle_mode(
-            len_encoder_train, len_linear_head_train)
+        self.train_loader_cycle_mode = self._cycle_mode(len_encoder_train, len_linear_head_train)
         self._is_prepared = True
 
     def _cycle_mode(self, len_encoder: int, len_linear_head: int) -> str:
@@ -166,8 +161,7 @@ class CombinedDataModule(LightningDataModule):
         }
         return CombinedLoader(dataloaders, mode=mode)
 
-    # type: ignore
-    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:  # type: ignore
         """
         The train dataloaders
         """

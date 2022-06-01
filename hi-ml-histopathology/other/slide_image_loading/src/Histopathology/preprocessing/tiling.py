@@ -49,8 +49,7 @@ def tile_array_2d(array: np.ndarray, tile_size: int, channels_first: Optional[bo
         - `tiles`: A batch of tiles in NCHW layout.
         - `coords`: XY coordinates of each tile, in the same order.
     """
-    padded_array, (offset_w, offset_h) = pad_for_tiling_2d(
-        array, tile_size, channels_first, **pad_kwargs)
+    padded_array, (offset_w, offset_h) = pad_for_tiling_2d(array, tile_size, channels_first, **pad_kwargs)
     if channels_first:
         channels, height, width = padded_array.shape
     else:
@@ -59,20 +58,15 @@ def tile_array_2d(array: np.ndarray, tile_size: int, channels_first: Optional[bo
     n_tiles_w = width // tile_size
 
     if channels_first:
-        intermediate_shape = (channels, n_tiles_h,
-                              tile_size, n_tiles_w, tile_size)
-        # (n_tiles_h, n_tiles_w, channels, tile_size, tile_size)
-        axis_order = (1, 3, 0, 2, 4)
+        intermediate_shape = (channels, n_tiles_h, tile_size, n_tiles_w, tile_size)
+        axis_order = (1, 3, 0, 2, 4)  # (n_tiles_h, n_tiles_w, channels, tile_size, tile_size)
         output_shape = (n_tiles_h * n_tiles_w, channels, tile_size, tile_size)
     else:
-        intermediate_shape = (n_tiles_h, tile_size,
-                              n_tiles_w, tile_size, channels)
-        # (n_tiles_h, n_tiles_w, tile_size, tile_size, channels)
-        axis_order = (0, 2, 1, 3, 4)
+        intermediate_shape = (n_tiles_h, tile_size, n_tiles_w, tile_size, channels)
+        axis_order = (0, 2, 1, 3, 4)  # (n_tiles_h, n_tiles_w, tile_size, tile_size, channels)
         output_shape = (n_tiles_h * n_tiles_w, tile_size, tile_size, channels)
 
-    # Split width and height axes
-    tiles = padded_array.reshape(intermediate_shape)
+    tiles = padded_array.reshape(intermediate_shape)  # Split width and height axes
     tiles = tiles.transpose(axis_order)
     tiles = tiles.reshape(output_shape)  # Flatten tile batch dimension
 
@@ -114,8 +108,7 @@ def assemble_tiles_2d(tiles: np.ndarray, coords: np.ndarray, fill_value: Optiona
     y_min, y_max = min(tile_ys), max(tile_ys + tile_size)
     width = x_max - x_min
     height = y_max - y_min
-    output_shape = (channels, height, width) if channels_first else (
-        height, width, channels)
+    output_shape = (channels, height, width) if channels_first else (height, width, channels)
     array = np.full(output_shape, fill_value)
 
     offset = np.array([-x_min, -y_min])

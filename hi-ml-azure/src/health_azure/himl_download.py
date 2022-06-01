@@ -22,8 +22,7 @@ class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
                                                 "the code will try to locate a config.json file in any of the parent "
                                                 "folders of the current working directory")
 
-    prefix: str = param.String(
-        default=None, allow_None=True, doc="Optional prefix to filter Run files by")
+    prefix: str = param.String(default=None, allow_None=True, doc="Optional prefix to filter Run files by")
 
 
 def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
@@ -40,21 +39,17 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
         run_ids: List[str] = download_config.run
         runs = [azure_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
         if len(runs) == 0:
-            raise ValueError(
-                f"Did not find any runs with the given run id(s): {download_config.run}")
+            raise ValueError(f"Did not find any runs with the given run id(s): {download_config.run}")
     elif download_config.experiment is not None:
         runs = azure_util.get_latest_aml_runs_from_experiment(download_config.experiment,
                                                               download_config.num_runs,
                                                               download_config.tags,
                                                               workspace_config_path=download_config.config_file)
         if len(runs) == 0:
-            raise ValueError(
-                f"Did not find any runs under the given experiment name: {download_config.experiment}")
+            raise ValueError(f"Did not find any runs under the given experiment name: {download_config.experiment}")
     else:
-        most_recent_run_path = download_config.latest_run_file or Path(
-            RUN_RECOVERY_FILE)
-        run_or_recovery_id = azure_util.get_most_recent_run_id(
-            most_recent_run_path)
+        most_recent_run_path = download_config.latest_run_file or Path(RUN_RECOVERY_FILE)
+        run_or_recovery_id = azure_util.get_most_recent_run_id(most_recent_run_path)
         runs = [azure_util.get_aml_run_from_run_id(run_or_recovery_id,
                                                    workspace_config_path=download_config.config_file)]
         if len(runs) == 0:
@@ -66,8 +61,7 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
 def main() -> None:  # pragma: no cover
 
     download_config = HimlDownloadConfig()
-    download_config = azure_util.parse_args_and_update_config(
-        download_config, sys.argv[1:])
+    download_config = azure_util.parse_args_and_update_config(download_config, sys.argv[1:])
 
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
@@ -82,8 +76,7 @@ def main() -> None:  # pragma: no cover
                                                   workspace_config_path=download_config.config_file)
             print(f"Downloaded file(s) to '{output_folder}'")
         except Exception as e:  # pragma: no cover
-            raise ValueError(
-                f"Failed to download files from run {run.id}: {e}")
+            raise ValueError(f"Failed to download files from run {run.id}: {e}")
 
 
 if __name__ == "__main__":  # pragma: no cover

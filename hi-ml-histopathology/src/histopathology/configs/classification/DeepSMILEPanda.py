@@ -54,8 +54,7 @@ class BaseDeepSMILEPanda(BaseMIL):
             n_top_tiles=10)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
-        self.class_names = ["ISUP 0", "ISUP 1",
-                            "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
+        self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         if not is_running_in_azure_ml():
             self.max_epochs = 2
 
@@ -75,16 +74,14 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             is_caching=False,
             batch_size=8,
             # declared in DatasetParams:
-            local_datasets=[Path(PANDA_TILES_DATASET_DIR),
-                            Path(PANDA_DATASET_DIR)],
+            local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
             azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
-            self.downloader = self.download_ssl_checkpoint(
-                innereye_ssl_checkpoint_binary)
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILTiles.setup(self)
 
     def get_data_module(self) -> PandaTilesDataModule:
@@ -93,8 +90,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            transforms_dict=self.get_transforms_dict(
-                PandaTilesDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(PandaTilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
             precache_location=self.precache_location,
             cache_dir=self.cache_dir,
@@ -104,8 +100,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         )
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
-        # type: ignore
-        return PandaDataset(root=self.local_datasets[1])
+        return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):
@@ -151,8 +146,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
-            self.downloader = self.download_ssl_checkpoint(
-                innereye_ssl_checkpoint_binary)
+            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILSlides.setup(self)
 
     def get_dataloader_kwargs(self) -> dict:
@@ -174,16 +168,14 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
-            transforms_dict=self.get_transforms_dict(
-                PandaDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
         )
 
     def get_slides_dataset(self) -> PandaDataset:
-        # type: ignore
-        return PandaDataset(root=self.local_datasets[0])
+        return PandaDataset(root=self.local_datasets[0])                             # type: ignore
 
 
 class SlidesPandaImageNetMIL(DeepSMILESlidesPanda):

@@ -35,8 +35,7 @@ class TileEncoder(nn.Module):
         super().__init__()
         if input_dim is None:
             if tile_size == 0:
-                raise ValueError(
-                    "Either input_dim or tile_size must be specified")
+                raise ValueError("Either input_dim or tile_size must be specified")
             input_dim = (n_channels, tile_size, tile_size)
         self.input_dim = tuple(input_dim)
 
@@ -133,8 +132,7 @@ class HistoSSLEncoder(TileEncoder):
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         resnet18_model = resnet18(pretrained=False)
-        histossl_encoder = load_weights_to_model(
-            self.WEIGHTS_URL, resnet18_model)
+        histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
         return setup_feature_extractor(histossl_encoder, self.input_dim)
 
 

@@ -43,15 +43,13 @@ def test_load_tile() -> None:
     assert_dicts_equal(loaded_sample, input_sample, exclude_keys=[image_key])
 
     # Test that the MONAI Dataset applies the same transform
-    loaded_dataset = Dataset(
-        tiles_dataset, transform=load_transform)  # type:ignore
+    loaded_dataset = Dataset(tiles_dataset, transform=load_transform)  # type:ignore
     same_dataset_sample = loaded_dataset[index]
     assert_dicts_equal(same_dataset_sample, loaded_sample)
 
     # Test that loading another sample gives different results
     different_sample = loaded_dataset[index + 1]
-    assert not torch.allclose(
-        different_sample[image_key], loaded_sample[image_key])
+    assert not torch.allclose(different_sample[image_key], loaded_sample[image_key])
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
@@ -63,8 +61,7 @@ def test_load_tiles_batch() -> None:
     bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
                                 max_bag_size=max_bag_size)
     load_batch_transform = LoadTilesBatchd(image_key)
-    loaded_dataset = Dataset(
-        tiles_dataset, transform=LoadTiled(image_key))  # type:ignore
+    loaded_dataset = Dataset(tiles_dataset, transform=LoadTiled(image_key))  # type:ignore
     image_shape = loaded_dataset[0][image_key].shape
     index = 0
 
@@ -72,21 +69,17 @@ def test_load_tiles_batch() -> None:
     # and that the loaded images have the expected shape
     bagged_batch = bagged_dataset[index]
     manually_loaded_batch = load_batch_transform(bagged_batch)
-    assert_dicts_equal(manually_loaded_batch, bagged_batch,
-                       exclude_keys=[image_key])
-    assert manually_loaded_batch[image_key].shape == (
-        max_bag_size, *image_shape)
+    assert_dicts_equal(manually_loaded_batch, bagged_batch, exclude_keys=[image_key])
+    assert manually_loaded_batch[image_key].shape == (max_bag_size, *image_shape)
 
     # Test that the MONAI Dataset applies the same transform
-    loaded_bagged_dataset = Dataset(
-        bagged_dataset, transform=load_batch_transform)  # type:ignore
+    loaded_bagged_dataset = Dataset(bagged_dataset, transform=load_batch_transform)  # type:ignore
     loaded_bagged_batch = loaded_bagged_dataset[index]
     assert_dicts_equal(loaded_bagged_batch, manually_loaded_batch)
 
     # Test that loading another batch gives different results
     different_batch = loaded_bagged_dataset[index + 1]
-    assert not torch.allclose(
-        different_batch[image_key], manually_loaded_batch[image_key])
+    assert not torch.allclose(different_batch[image_key], manually_loaded_batch[image_key])
 
     # Test that loading and bagging commute
     bagged_loaded_dataset = BagDataset(loaded_dataset,  # type: ignore
@@ -100,10 +93,8 @@ def _test_cache_and_persistent_datasets(tmp_path: Path,
                                         base_dataset: TorchDataset,
                                         transform: Union[Sequence[Callable], Callable],
                                         cache_subdir: str) -> None:
-    default_dataset = Dataset(
-        base_dataset, transform=transform)  # type: ignore
-    cached_dataset = CacheDataset(
-        base_dataset, transform=transform)  # type: ignore
+    default_dataset = Dataset(base_dataset, transform=transform)  # type: ignore
+    cached_dataset = CacheDataset(base_dataset, transform=transform)  # type: ignore
     cache_dir = tmp_path / cache_subdir
     cache_dir.mkdir(exist_ok=True)
     persistent_dataset = PersistentDataset(base_dataset, transform=transform,  # type: ignore
@@ -155,8 +146,7 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     if use_gpu:
         encoder.cuda()
 
-    encode_transform = EncodeTilesBatchd(
-        image_key, encoder, chunk_size=chunk_size)
+    encode_transform = EncodeTilesBatchd(image_key, encoder, chunk_size=chunk_size)
     transform = Compose([LoadTilesBatchd(image_key), encode_transform])
     dataset = Dataset(bagged_dataset, transform=transform)  # type: ignore
     sample = dataset[0]
@@ -222,8 +212,7 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
     # Check that subsampling is random, i.e. subsequent calls shouldn't give identical results
     sub_data2 = subsampling(data)
     for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
-        assert not np.array_equal(
-            sub_data[key], sub_data2[key])  # type: ignore
+        assert not np.array_equal(sub_data[key], sub_data2[key])  # type: ignore
 
 
 def test_transform_dict_adaptor() -> None:
@@ -238,8 +227,7 @@ def test_transform_dict_adaptor() -> None:
     output_dict3 = transf3(input_dict)
 
     expected_output_dict2 = input_dict
-    expected_output_dict2[key] = torch.flip(
-        input_dict[key], [2])  # type: ignore
+    expected_output_dict2[key] = torch.flip(input_dict[key], [2])  # type: ignore
 
     assert output_dict1 == input_dict
     assert output_dict2 == expected_output_dict2

@@ -38,15 +38,12 @@ def main() -> None:
         wait_for_completion_show_output=True)
 
     parser = ArgumentParser()
-    parser.add_argument("-n", "--count", type=int, default=100,
-                        required=False, help="Maximum value (not included)")
-    parser.add_argument("-o", "--output", type=str,
-                        default="primes.txt", required=False, help="Output file name")
+    parser.add_argument("-n", "--count", type=int, default=100, required=False, help="Maximum value (not included)")
+    parser.add_argument("-o", "--output", type=str, default="primes.txt", required=False, help="Output file name")
     args = parser.parse_args()
 
     primes = sieve(args.count)
-    output_folder = run_info.output_datasets[0] or Path(
-        "outputs") / "himl_sample4_output"
+    output_folder = run_info.output_datasets[0] or Path("outputs") / "himl_sample4_output"
     output_folder.mkdir(parents=True, exist_ok=True)
     output = output_folder / args.output
     output.write_text("\n".join(map(str, primes)))

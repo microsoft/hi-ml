@@ -31,8 +31,7 @@ from SSL.data.transform_pipeline import ImageTransformationPipeline
 class DummyContainerWithDatasets(LightningContainer):
     def __init__(self, has_local_dataset: bool = False, has_azure_dataset: bool = False):
         super().__init__()
-        self.local_dataset = Path(
-            "test_data") / "lightning_module_data" if has_local_dataset else None
+        self.local_dataset = Path("test_data") / "lightning_module_data" if has_local_dataset else None
         self.azure_dataset_id = "azure_dataset" if has_azure_dataset else ""
 
     def create_model(self) -> LightningModule:
@@ -87,8 +86,7 @@ class DummyRegressionPlainLightning(LightningModuleWithOptimizer):
         self.l_rate = 1e-1
         activation = Identity()
         layers = [
-            torch.nn.Linear(in_features=in_features,
-                            out_features=1, bias=True),
+            torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
             activation
         ]
         self.model = torch.nn.Sequential(*layers)  # type: ignore
@@ -123,8 +121,7 @@ class DummyRegression(DummyRegressionPlainLightning):
         self.dataset_split = ModelExecutionMode.TRAIN
         activation = Identity()
         layers = [
-            torch.nn.Linear(in_features=in_features,
-                            out_features=1, bias=True),
+            torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
             activation
         ]
         self.model = torch.nn.Sequential(*layers)  # type: ignore
@@ -262,22 +259,17 @@ class DummyContainerWithHooks(LightningContainer):
         return FixedRegressionData()  # type: ignore
 
     def before_training_on_global_rank_zero(self) -> None:
-        assert not self.hook_global_zero.is_file(
-        ), "before_training_on_global_rank_zero should only be called once"
+        assert not self.hook_global_zero.is_file(), "before_training_on_global_rank_zero should only be called once"
         self.hook_global_zero.touch()
 
     def before_training_on_local_rank_zero(self) -> None:
-        assert self.hook_global_zero.is_file(
-        ), "before_training_on_global_rank_zero should have been called already"
-        assert not self.hook_local_zero.is_file(
-        ), "before_training_on_local_rank_zero should only be called once"
+        assert self.hook_global_zero.is_file(), "before_training_on_global_rank_zero should have been called already"
+        assert not self.hook_local_zero.is_file(), "before_training_on_local_rank_zero should only be called once"
         self.hook_local_zero.touch()
 
     def before_training_on_all_ranks(self) -> None:
-        assert self.hook_local_zero.is_file(
-        ), "before_training_on_local_rank_zero should have been called already"
-        assert not self.hook_all.is_file(
-        ), "before_training_on_all_ranks should only be called once"
+        assert self.hook_local_zero.is_file(), "before_training_on_local_rank_zero should have been called already"
+        assert not self.hook_all.is_file(), "before_training_on_all_ranks should only be called once"
         self.hook_all.touch()
 
 
@@ -338,8 +330,7 @@ class DummySimCLR(SSLContainer):
     """
     This module trains an SSL encoder using SimCLR on the DummySimCLRData and finetunes a linear head too.
     """
-    SSLContainer._SSLDataClassMappings.update(
-        {DummySimCLRSSLDatasetName.DUMMY.value: DummySimCLRHimlData})
+    SSLContainer._SSLDataClassMappings.update({DummySimCLRSSLDatasetName.DUMMY.value: DummySimCLRHimlData})
 
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
@@ -359,14 +350,10 @@ class DummySimCLR(SSLContainer):
                         is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
 
         # is_ssl_encoder_module will be True for ssl training, False for linear head training
-        train_transforms = ImageTransformationPipeline(
-            [Lambda(lambda x: x)])  # do nothing
-        val_transforms = ImageTransformationPipeline(
-            [Lambda(lambda x: x + 1)])  # add 1
+        train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])  # do nothing
+        val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])  # add 1
 
         if is_ssl_encoder_module:
-            train_transforms = DualViewTransformWrapper(
-                train_transforms)  # type: ignore
-            val_transforms = DualViewTransformWrapper(
-                val_transforms)  # type: ignore
+            train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
+            val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
         return train_transforms, val_transforms

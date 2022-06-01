@@ -8,8 +8,7 @@ from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelChec
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_trainer import (
-    create_lightning_trainer, write_experiment_summary_file, model_train)
+from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
@@ -83,8 +82,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     # and 2 ModelCheckpoints, plus any additional callbacks specified in get_trainer_arguments method
     kwarg_callbacks = kwargs.get("callbacks") or []
     expected_num_callbacks = len(kwarg_callbacks) + 5
-    assert len(
-        trainer.callbacks) == expected_num_callbacks, f"Found callbacks: {trainer.callbacks}"
+    assert len(trainer.callbacks) == expected_num_callbacks, f"Found callbacks: {trainer.callbacks}"
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
     assert isinstance(storing_logger, StoringLogger)
@@ -147,12 +145,9 @@ def test_create_lightning_trainer_limit_batches() -> None:
         trainer3.fit(lightning_model, data_module)
         trainer3.test(model=lightning_model, datamodule=data_module)
     # The number of batches should be a proportion of the full available set
-    assert trainer3.num_training_batches == int(
-        limit_train_batches_float * original_num_train_batches)
-    assert trainer3.num_val_batches[0] == int(
-        limit_val_batches_float * original_num_val_batches)
-    assert trainer3.num_test_batches[0] == int(
-        limit_test_batches_float * original_num_test_batches)
+    assert trainer3.num_training_batches == int(limit_train_batches_float * original_num_train_batches)
+    assert trainer3.num_val_batches[0] == int(limit_val_batches_float * original_num_val_batches)
+    assert trainer3.num_test_batches[0] == int(limit_test_batches_float * original_num_test_batches)
 
 
 def test_model_train() -> None:

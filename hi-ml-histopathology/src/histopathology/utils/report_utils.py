@@ -47,8 +47,7 @@ def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
     :return: `True` if all children have validation and test outputs, `False` if all children are
         legacy runs with only test outputs.
     """
-    have_val_and_test_outputs = [run_has_val_and_test_outputs(
-        child_run) for child_run in parent_run.get_children()]
+    have_val_and_test_outputs = [run_has_val_and_test_outputs(child_run) for child_run in parent_run.get_children()]
     if all(have_val_and_test_outputs):
         return True
     elif not any(have_val_and_test_outputs):
@@ -79,19 +78,16 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
 
     all_outputs_dfs = {}
     for child_run in parent_run.get_children():
-        child_run_index = get_tags_from_hyperdrive_run(
-            child_run, crossval_arg_name)
+        child_run_index = get_tags_from_hyperdrive_run(child_run, crossval_arg_name)
         if child_run_index is None:
-            raise ValueError(
-                f"Child run expected to have the tag '{crossval_arg_name}'")
+            raise ValueError(f"Child run expected to have the tag '{crossval_arg_name}'")
         child_dir = download_dir / str(child_run_index)
         try:
             child_csv = download_file_if_necessary(child_run, output_filename, child_dir / output_filename,
                                                    overwrite=overwrite)
             all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
         except Exception as e:
-            print(
-                f"Failed to download {output_filename} for run {child_run.id}: {e}")
+            print(f"Failed to download {output_filename} for run {child_run.id}: {e}")
     return dict(sorted(all_outputs_dfs.items()))  # type: ignore
 
 
@@ -136,15 +132,13 @@ def get_crossval_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[
     :return: A dataframe with the values of the selected metrics formatted as strings, including a
         header and a summary column.
     """
-    header = ["Metric"] + \
-        [f"Split {k}" for k in metrics_df.columns] + ["Mean ± Std"]
+    header = ["Metric"] + [f"Split {k}" for k in metrics_df.columns] + ["Mean ± Std"]
     metrics_rows = []
     for metric in metrics_list:
         values: pd.Series = metrics_df.loc[metric]
         mean = values.mean()
         std = values.std()
-        row = [metric] + [f"{v:.3f}" for v in values] + \
-            [f"{mean:.3f} ± {std:.3f}"]
+        row = [metric] + [f"{v:.3f}" for v in values] + [f"{mean:.3f} ± {std:.3f}"]
         metrics_rows.append(row)
     table = pd.DataFrame(metrics_rows, columns=header).set_index(header[0])
     return table
@@ -239,8 +233,6 @@ def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
         class_names = None
     else:
         # Remove [,], and quotation marks from the string of class names
-        class_names = [name.lstrip()
-                       for name in class_names[1:-1].replace("'", "").split(',')]
-    class_names = validate_class_names(
-        class_names=class_names, n_classes=num_classes)
+        class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
+    class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
     return (num_classes, list(class_names))

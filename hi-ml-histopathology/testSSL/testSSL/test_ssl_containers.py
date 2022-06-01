@@ -75,8 +75,7 @@ def create_cxr_test_dataset(path_to_test_dataset: Path,
     df = pd.DataFrame({"subject": np.repeat("1", num_labelled_images),
                        "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=num_labelled_images)})
     df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
-    write_test_dicom(array=np.ones(
-        [256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
+    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
 
 
 def default_runner() -> Runner:
@@ -96,18 +95,15 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
     """
     assert runner.ml_runner is not None
     assert runner.ml_runner.storing_logger is not None
-    print(
-        f"Actual metrics in epoch 0: {runner.ml_runner.storing_logger.results_per_epoch[0]}")
+    print(f"Actual metrics in epoch 0: {runner.ml_runner.storing_logger.results_per_epoch[0]}")
     print(f"Expected metrics: {expected_metrics}")
     for metric, expected in expected_metrics.items():
         actual = runner.ml_runner.storing_logger.results_per_epoch[0][metric]
         if isinstance(actual, float):
             if math.isnan(expected):
-                assert math.isnan(
-                    actual), f"Metric {metric}: Expected NaN, but got: {actual}"
+                assert math.isnan(actual), f"Metric {metric}: Expected NaN, but got: {actual}"
             else:
-                assert actual == pytest.approx(
-                    expected, abs=abs), f"Mismatch for metric {metric}"
+                assert actual == pytest.approx(expected, abs=abs), f"Mismatch for metric {metric}"
         else:
             assert actual == expected, f"Mismatch for metric {metric}"
 
@@ -251,8 +247,7 @@ def test_ssl_container_rsna() -> None:
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
-    checkpoint_path = loaded_config.checkpoint_folder / \
-        LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     model_namespace_cxr = "SSL.configs.CXRImageClassifier"
     args = common_test_args + [f"--model={model_namespace_cxr}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)}",
@@ -263,8 +258,7 @@ def test_ssl_container_rsna() -> None:
     assert loaded_config2 is not None
     assert isinstance(loaded_config2, CXRImageClassifier)
     assert loaded_config2.model.freeze_encoder
-    assert isinstance(loaded_config2.model.class_weights,
-                      torch.Tensor)  # for mypy
+    assert isinstance(loaded_config2.model.class_weights, torch.Tensor)  # for mypy
     assert torch.isclose(loaded_config2.model.class_weights,
                          torch.tensor([0.21, 0.79]),
                          atol=1e-6).all()  # type: ignore
@@ -312,11 +306,9 @@ def test_simclr_lr_scheduler() -> None:
     assert highest_lr == int(warmup_epochs * train_iters_per_epoch - 1)
 
     for i in range(0, highest_lr):
-        assert lr[i] < lr[i +
-                          1], f"Not strictly monotonically increasing at index {i}"
+        assert lr[i] < lr[i + 1], f"Not strictly monotonically increasing at index {i}"
     for i in range(highest_lr, len(lr) - 1):
-        assert lr[i] > lr[i +
-                          1], f"Not strictly monotonically decreasing at index {i}"
+        assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
@@ -342,8 +334,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
         # add logger
         logger = StoringLogger()
         progress = AzureMLProgressBar(refresh_rate=1)
-        checkpoint_folder = test_output_dirs.create_file_or_folder_path(
-            "checkpoints")
+        checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
         checkpoint_folder.mkdir(exist_ok=True)
         checkpoint = ModelCheckpoint(dirpath=checkpoint_folder,
                                      every_n_val_epochs=1,
@@ -367,8 +358,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
 
         return lrs, loss, checkpoint
 
-    small_encoder = torch.nn.Sequential(
-        torch.nn.Flatten(), torch.nn.Linear(3, 2))
+    small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
     with mock.patch("SSL.encoders.create_ssl_encoder", return_value=small_encoder):
         with mock.patch("SSL.encoders.get_encoder_output_dim", return_value=2):
             # Normal run
@@ -402,8 +392,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     container = DummyContainerWithModel()
     model = container.create_model()
     data = container.get_data_module()
-    checkpoint_folder = test_output_dirs.create_file_or_folder_path(
-        "checkpoints")
+    checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
     checkpoint_folder.mkdir(exist_ok=True)
     checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
                                   every_n_val_epochs=1,
@@ -450,8 +439,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
             trainer2.fit(model, datamodule=data)
             # Read the parameters and check if they are the same as what was stored in the first callback.
             parameters2_after_training = list(callback2.evaluator.parameters())
-            assert torch.allclose(
-                parameters2_after_training[0], parameters1[0])
+            assert torch.allclose(parameters2_after_training[0], parameters1[0])
 
     # It's somewhat obsolete, but we can now check that the checkpoint file really contained the optimizer and weights
     checkpoint = torch.load(last_checkpoint)
@@ -491,8 +479,7 @@ def test_online_evaluator_not_distributed() -> None:
         assert list(callback.evaluator.parameters())[0].device == cpu
         # Check that the evaluator is really moved to the right device
         gpu0 = torch.device("cuda:0")
-        callback.on_pretrain_routine_start(
-            trainer, mock.MagicMock(device=gpu0))
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=gpu0))
         assert list(callback.evaluator.parameters())[0].device == gpu0
 
 
@@ -525,8 +512,7 @@ def test_online_evaluator_distributed() -> None:
             mock_sync.assert_called_once()
             # Check that the evaluator has been turned into a DDP object
             # We still need to mock DDP here because the constructor relies on having a process group available
-            mock_ddp.assert_called_once_with(
-                mock_sync_result, device_ids=[device])
+            mock_ddp.assert_called_once_with(mock_sync_result, device_ids=[device])
             assert callback.evaluator == mock_ddp_result
 
 
@@ -542,8 +528,7 @@ def test_simclr_num_nodes() -> None:
             container = CIFAR10SimCLR()
             num_train_samples = 100
             batch_size = 10
-            container.data_module = mock.MagicMock(
-                num_train_samples=num_train_samples, batch_size=batch_size)
+            container.data_module = mock.MagicMock(num_train_samples=num_train_samples, batch_size=batch_size)
             assert container.num_nodes == 1
             model1 = container.create_model()
             old_iters_per_epoch = model1.train_iters_per_epoch
@@ -573,17 +558,14 @@ def test_simclr_num_gpus() -> None:
                 container.max_epochs = num_epochs
                 num_train_samples = 800
                 batch_size = 10
-                container.data_module = mock.MagicMock(
-                    num_train_samples=num_train_samples, batch_size=batch_size)
+                container.data_module = mock.MagicMock(num_train_samples=num_train_samples, batch_size=batch_size)
                 model1 = container.create_model()
-                assert model1.train_iters_per_epoch == num_train_samples // (
-                    batch_size * device_count)
+                assert model1.train_iters_per_epoch == num_train_samples // (batch_size * device_count)
                 # Reducing the number of GPUs should decrease effective batch size, and hence increase number of
                 # iterations per epoch
                 container.max_num_gpus = 4
                 model2 = container.create_model()
-                assert model2.train_iters_per_epoch == num_train_samples // (
-                    batch_size * container.max_num_gpus)
+                assert model2.train_iters_per_epoch == num_train_samples // (batch_size * container.max_num_gpus)
                 scheduler = model2.configure_optimizers()[1][0]["scheduler"]
 
     total_training_steps = model2.train_iters_per_epoch * num_epochs  # type: ignore
@@ -616,8 +598,7 @@ def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
         optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
         scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
-            linear_warmup_decay(warmup_steps=warmup_steps,
-                                total_steps=total_steps, cosine=True),
+            linear_warmup_decay(warmup_steps=warmup_steps, total_steps=total_steps, cosine=True),
         )
         return scheduler, optimizer
 
@@ -644,8 +625,7 @@ def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
     optimizer3.load_state_dict(optimizer_saved_state)
     scheduler3.load_state_dict(scheduler_saved_state)
 
-    resumed_lrs = enumerate_scheduler(
-        scheduler3, total_steps - interrupt_at_epoch)
+    resumed_lrs = enumerate_scheduler(scheduler3, total_steps - interrupt_at_epoch)
 
     resumed_lrs = short_lrs + resumed_lrs
     assert resumed_lrs == normal_lrs
@@ -675,19 +655,16 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
     container.setup()
     with mock.patch("SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
         model = container.create_model()
-        expected_num_train_iters = (
-            num_encoder_images * 0.9) // encoder_batch_size
+        expected_num_train_iters = (num_encoder_images * 0.9) // encoder_batch_size
         assert model.train_iters_per_epoch == expected_num_train_iters
         data_module = container.get_data_module()
         data_module.prepare_data()
         train_loaders_dict = data_module.train_dataloader()
         assert isinstance(train_loaders_dict, dict)
         assert data_module.train_loader_cycle_mode
-        train_loaders = CombinedLoader(
-            train_loaders_dict, mode=data_module.train_loader_cycle_mode)
+        train_loaders = CombinedLoader(train_loaders_dict, mode=data_module.train_loader_cycle_mode)
         assert len(train_loaders) == expected_num_train_iters
-        expected_num_val_iters = (
-            num_encoder_images * 0.1) // encoder_batch_size
+        expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size
         val_loaders = container.get_data_module().val_dataloader()
         assert isinstance(val_loaders, CombinedLoader)
         assert len(val_loaders) == expected_num_val_iters
@@ -718,18 +695,12 @@ def test_simclr_dataloader_type() -> None:
 
     def check_types_in_val_dataloader(dataloader: CombinedLoader) -> None:
         for i, batch in enumerate(dataloader):
-            assert isinstance(
-                batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
-            assert isinstance(
-                batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
-            assert isinstance(
-                batch[SSLDataModuleType.ENCODER][1], torch.Tensor)
-            assert isinstance(
-                batch[SSLDataModuleType.LINEAR_HEAD][0], torch.Tensor)
-            assert isinstance(
-                batch[SSLDataModuleType.LINEAR_HEAD][1], torch.Tensor)
-            assert isinstance(
-                batch[SSLDataModuleType.LINEAR_HEAD][2], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][0], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][2], torch.Tensor)
             if i == 1:
                 break
 

@@ -27,11 +27,9 @@ class Box:
 
     def __post_init__(self) -> None:
         if self.w <= 0:
-            raise ValueError(
-                f"Width must be strictly positive, received {self.w}")
+            raise ValueError(f"Width must be strictly positive, received {self.w}")
         if self.h <= 0:
-            raise ValueError(
-                f"Height must be strictly positive, received {self.w}")
+            raise ValueError(f"Height must be strictly positive, received {self.w}")
 
     def __add__(self, shift: Sequence[int]) -> 'Box':
         """Translates the box's location by a given shift.
@@ -135,8 +133,7 @@ def get_bounding_box(mask: np.ndarray) -> Box:
     :raises RuntimeError: When all elements in the mask are zero.
     """
     if mask.ndim != 2:
-        raise TypeError(
-            f"Expected a 2D array but got an array with shape {mask.shape}")
+        raise TypeError(f"Expected a 2D array but got an array with shape {mask.shape}")
 
     slices = ndimage.find_objects(mask > 0)
     if not slices:

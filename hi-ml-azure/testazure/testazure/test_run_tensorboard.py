@@ -44,8 +44,7 @@ def test_wrapped_tensorboard_local_logs(tmp_path: Path) -> None:
     mock_run.id = "id123"
     local_root = Path("test_data") / "dummy_summarywriter_logs"
     remote_root = tmp_path / "tensorboard_logs"
-    ts = WrappedTensorboard(remote_root=str(
-        remote_root), local_root=str(local_root), runs=[mock_run])
+    ts = WrappedTensorboard(remote_root=str(remote_root), local_root=str(local_root), runs=[mock_run])
     url = ts.start()
     assert url is not None
     assert ts.remote_root == str(remote_root)
@@ -103,8 +102,7 @@ from health_azure.utils import is_running_in_azure_ml
     }
 
     extra_args: List[str] = []
-    render_and_run_test_script(
-        tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
 
     run = azure_util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                                          workspace=ws)
@@ -115,8 +113,7 @@ from health_azure.utils import is_running_in_azure_ml
     local_root.mkdir(exist_ok=True)
     remote_root = str(local_root.relative_to(tmp_path)) + "/"
 
-    ts = WrappedTensorboard(remote_root=remote_root, local_root=str(
-        local_root), runs=[run], port=6006)
+    ts = WrappedTensorboard(remote_root=remote_root, local_root=str(local_root), runs=[run], port=6006)
     _ = ts.start()
     assert ts.remote_root == str(remote_root)
     assert ts._local_root == str(local_root)

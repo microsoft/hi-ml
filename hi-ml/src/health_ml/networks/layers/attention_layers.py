@@ -61,10 +61,8 @@ class AttentionLayer(nn.Module):
         features = features.view(-1, self.input_dims)            # N x L
         attention_weights = self.attention(features)             # N x K
         attention_weights = transpose(attention_weights, 1, 0)   # K x N
-        attention_weights = F.softmax(
-            attention_weights, dim=1)  # Softmax over N : K x N
-        # Matrix multiplication : K x L
-        pooled_features = mm(attention_weights, features)
+        attention_weights = F.softmax(attention_weights, dim=1)  # Softmax over N : K x N
+        pooled_features = mm(attention_weights, features)        # Matrix multiplication : K x L
         return(attention_weights, pooled_features)
 
 
@@ -90,20 +88,16 @@ class GatedAttentionLayer(nn.Module):
             nn.Linear(self.input_dims, self.hidden_dims),
             nn.Sigmoid()
         )
-        self.attention_weights = nn.Linear(
-            self.hidden_dims, self.attention_dims)
+        self.attention_weights = nn.Linear(self.hidden_dims, self.attention_dims)
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor]:
         features = features.view(-1, self.input_dims)            # N x L
         A_V = self.attention_V(features)                         # N x D
         A_U = self.attention_U(features)                         # N x D
-        attention_weights = self.attention_weights(
-            A_V * A_U)    # Element-wise multiplication : N x K
+        attention_weights = self.attention_weights(A_V * A_U)    # Element-wise multiplication : N x K
         attention_weights = transpose(attention_weights, 1, 0)   # K x N
-        attention_weights = F.softmax(
-            attention_weights, dim=1)  # Softmax over N : K x N
-        # Matrix multiplication : K x L
-        pooled_features = mm(attention_weights, features)
+        attention_weights = F.softmax(attention_weights, dim=1)  # Softmax over N : K x N
+        pooled_features = mm(attention_weights, features)        # Matrix multiplication : K x L
         return(attention_weights, pooled_features)
 
 
@@ -160,8 +154,7 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
 
         x = src
         if self.norm_first:
-            sa_block_out, a = self._sa_block(
-                self.norm1(x), src_mask, src_key_padding_mask)
+            sa_block_out, a = self._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
             x = x + sa_block_out
             x = x + self._ff_block(self.norm2(x))
         else:
@@ -213,16 +206,14 @@ class TransformerPooling(Module):
                                               dropout=0.1,
                                               activation=F.gelu,
                                               batch_first=True))
-        self.transformer_encoder_layers = torch.nn.ModuleList(
-            self.transformer_encoder_layers)  # type: ignore
+        self.transformer_encoder_layers = torch.nn.ModuleList(self.transformer_encoder_layers)  # type: ignore
 
     def forward(self, features: Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         # Append cls token
         features = torch.vstack([self.cls_token, features]).unsqueeze(0)
 
         for i in range(self.num_layers):
-            features, attention_weights = self.transformer_encoder_layers[i](
-                features)
+            features, attention_weights = self.transformer_encoder_layers[i](features)
 
         # Extract cls token
         pooled_features = features[:, 0]
@@ -233,8 +224,7 @@ class TransformerPooling(Module):
         attention_weights = attention_weights[:, 0, 1:]  # type: ignore
 
         # We want A to sum to one, simple hack: add self_attention_cls_token/num_tiles to each element
-        attention_weights += self_attention_cls_token / \
-            attention_weights.shape[-1]
+        attention_weights += self_attention_cls_token / attention_weights.shape[-1]
 
         return (attention_weights, pooled_features)
 
@@ -250,7 +240,6 @@ class TransformerPoolingBenchmark(Module):
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
     """
-
     def __init__(self, num_layers: int, num_heads: int, dim_representation: int, hidden_dim: int) -> None:
         super().__init__()
         self.num_layers = num_layers
@@ -261,8 +250,7 @@ class TransformerPoolingBenchmark(Module):
                                                        nhead=self.num_heads,
                                                        dropout=0.0,
                                                        batch_first=True)
-        self.transformer = nn.TransformerEncoder(
-            transformer_layer, num_layers=self.num_layers)
+        self.transformer = nn.TransformerEncoder(transformer_layer, num_layers=self.num_layers)
         self.attention = nn.Sequential(nn.Linear(self.dim_representation, self.hidden_dim),
                                        nn.Tanh(), nn.Linear(self.hidden_dim, 1))
 
@@ -270,16 +258,10 @@ class TransformerPoolingBenchmark(Module):
         """
         Input size is L, bag size N, hidden dimension is D, and attention layers K (default K=1).
         """
-        x = x.reshape(-1, x.shape[0], x.shape[1]
-                      )                       # 1 x N X L
-        # 1 x N X L
-        x = self.transformer(x)
-        # 1 x N X K
-        a = self.attention(x)
-        attention_weights = torch.softmax(
-            a, dim=1)                     # 1 x N x K
+        x = x.reshape(-1, x.shape[0], x.shape[1])                       # 1 x N X L
+        x = self.transformer(x)                                         # 1 x N X L
+        a = self.attention(x)                                           # 1 x N X K
+        attention_weights = torch.softmax(a, dim=1)                     # 1 x N x K
         pooled_features = torch.sum(x * attention_weights, dim=1)       # K X L
-        attention_weights = attention_weights.permute(
-            0, 2, 1)          # 1 x K X N
-        # K X N, K X L
-        return (attention_weights.squeeze(0), pooled_features)
+        attention_weights = attention_weights.permute(0, 2, 1)          # 1 x K X N
+        return (attention_weights.squeeze(0), pooled_features)          # K X N, K X L

@@ -35,8 +35,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         )
 
     def update_dest_data_path(self) -> None:
-        self.dest_data_path: Path = self.dest_data_path / \
-            PandaTilesDataset._RELATIVE_ROOT_FOLDER
+        self.dest_data_path: Path = self.dest_data_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
         self.dest_data_path.mkdir(parents=True, exist_ok=True)
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
@@ -60,20 +59,17 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         tiles_count = 0
 
         # This is to make sure that the dataset contains at least one sample from each isup grade class.
-        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys(
-        )), self.n_slides // PandaTilesDataset.N_CLASSES + 1,)
+        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaTilesDataset.N_CLASSES + 1,)
 
         for slide_id in range(self.n_slides):
 
             data_provider = np.random.choice(self.DATA_PROVIDERS_VALUES)
             isup_grade = isup_grades[slide_id]
-            gleason_score = np.random.choice(
-                self.ISUP_GRADE_MAPPING[isup_grade])
+            gleason_score = np.random.choice(self.ISUP_GRADE_MAPPING[isup_grade])
 
             # pick a random n_tiles for each slide without exceeding the max n_tiles allowed
             max_n_tiles = (self.img_size // self.tile_size) ** 2
-            n_tiles: int = min(np.random.randint(
-                self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), max_n_tiles)
+            n_tiles: int = min(np.random.randint(self.n_tiles // 2 + 1, 3 * self.n_tiles // 2), max_n_tiles)
 
             tiles_count += n_tiles
             coords = [
@@ -84,15 +80,12 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             for tile_id in range(n_tiles):
                 tile_x = coords[tile_id][0] * self.tile_size
                 tile_y = coords[tile_id][1] * self.tile_size
-                mock_metadata[PandaTilesDataset.SLIDE_ID_COLUMN].append(
-                    f"_{slide_id}")
-                mock_metadata[PandaTilesDataset.TILE_ID_COLUMN].append(
-                    f"_{slide_id}.{tile_x}x_{tile_y}y")
+                mock_metadata[PandaTilesDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
+                mock_metadata[PandaTilesDataset.TILE_ID_COLUMN].append(f"_{slide_id}.{tile_x}x_{tile_y}y")
                 mock_metadata[PandaTilesDataset.IMAGE_COLUMN].append(
                     f"_{slide_id}/train_images/{tile_x}x_{tile_y}y.png"
                 )
-                mock_metadata[self.MASK_COLUMN].append(
-                    f"_{slide_id}/train_label_masks/{tile_x}x_{tile_y}y_mask.png")
+                mock_metadata[self.MASK_COLUMN].append(f"_{slide_id}/train_label_masks/{tile_x}x_{tile_y}y_mask.png")
                 mock_metadata[PandaTilesDataset.TILE_X_COLUMN].append(tile_x)
                 mock_metadata[PandaTilesDataset.TILE_Y_COLUMN].append(tile_y)
                 mock_metadata[self.OCCUPANCY].append(1.0)
@@ -109,13 +102,10 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
     def generate_mock_histo_data(self) -> None:
         # we retrieve all tiles at once, n_tiles updated l.100 to be used as a global batch_size for the dataloader
         # to be able to create slide with different number of tiles.
-        tiles, _ = next(iter(self.dataloader)
-                        ) if self.dataloader else (None, None)
+        tiles, _ = next(iter(self.dataloader)) if self.dataloader else (None, None)
         for i, row in self.dataframe.iterrows():
-            slide_dir = self.dest_data_path / \
-                f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_images"
-            mask_dir = self.dest_data_path / \
-                f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_label_masks"
+            slide_dir = self.dest_data_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_images"
+            mask_dir = self.dest_data_path / f"{row[PandaTilesDataset.SLIDE_ID_COLUMN]}/train_label_masks"
             slide_dir.mkdir(parents=True, exist_ok=True)
             mask_dir.mkdir(parents=True, exist_ok=True)
 
@@ -128,10 +118,8 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             else:
                 raise NotImplementedError
 
-            tile_filename = self.dest_data_path / \
-                row[PandaTilesDataset.IMAGE_COLUMN]
+            tile_filename = self.dest_data_path / row[PandaTilesDataset.IMAGE_COLUMN]
             save_image(tile.float(), tile_filename)
-            random_mask = torch.randint(0, 256, size=(
-                self.n_channels, self.tile_size, self.tile_size))
+            random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
             mask_filename = self.dest_data_path / row[self.MASK_COLUMN]
             save_image(random_mask.float(), mask_filename)

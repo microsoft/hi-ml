@@ -38,8 +38,7 @@ def mock_runner(tmp_path: Path) -> Runner:
 def change_working_folder_and_add_environment(tmp_path: Path) -> Generator:
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
-    env_file = repository_root_directory() / "hi-ml" / "testhiml" / \
-        ENVIRONMENT_YAML_FILE_NAME
+    env_file = repository_root_directory() / "hi-ml" / "testhiml" / ENVIRONMENT_YAML_FILE_NAME
     shutil.copy(env_file, tmp_path)
     with change_working_directory(tmp_path):
         yield
@@ -82,8 +81,7 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
             assert parser_result.args.get("cluster") is None
             assert parser_result.args.get("num_nodes") is None
 
-            assert isinstance(mock_runner.lightning_container,
-                              LightningContainer)
+            assert isinstance(mock_runner.lightning_container, LightningContainer)
             assert mock_runner.lightning_container.initialized
             assert mock_runner.lightning_container.model_name == model_name
 
@@ -100,8 +98,7 @@ def test_run(mock_runner: Runner) -> None:
     assert model_config is not None  # for pyright
     assert model_config.model_name == model_name
     assert azure_run_info.run is None
-    assert len(azure_run_info.input_datasets) == len(
-        azure_run_info.output_datasets) == 0
+    assert len(azure_run_info.input_datasets) == len(azure_run_info.output_datasets) == 0
 
 
 @patch("health_ml.runner.get_all_environment_files")
@@ -114,8 +111,7 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                                      ) -> None:
     def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig], submit_to_azureml: bool  # type: ignore
                                  ) -> AzureRunInfo:
-        datasets_input = [
-            d.target_folder for d in input_datasets] if input_datasets else []
+        datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
                             output_datasets=[],
                             mount_contexts=[],
@@ -193,8 +189,7 @@ def test_crossval_argument_names() -> None:
     crossval_index = 5
     container.crossval_count = crossval_count
     container.crossval_index = crossval_index
-    assert getattr(
-        container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+    assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
 
 
 def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
@@ -203,8 +198,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     """
     model_name = "HelloWorld"
     crossval_count = 2
-    arguments = ["", f"--model={model_name}", "--cluster=foo",
-                 "--crossval_count", str(crossval_count)]
+    arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
@@ -223,8 +217,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
             parameter_space = hyperdrive_config._generator_config["parameter_space"]
-            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == [
-                "choice", [list(range(crossval_count))]]
+            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
 
 
 def test_submit_to_azure_docker(mock_runner: Runner) -> None:
@@ -233,8 +226,7 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     """
     model_name = "HelloWorld"
     docker_shm_size = "100k"
-    arguments = ["", f"--model={model_name}",
-                 "--cluster=foo", f"--docker_shm_size={docker_shm_size}"]
+    arguments = ["", f"--model={model_name}", "--cluster=foo", f"--docker_shm_size={docker_shm_size}"]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
@@ -276,11 +268,9 @@ def test_run_hello_world(mock_runner: Runner) -> None:
         # time-consuming auth
         mock_get_workspace.assert_not_called()
         # Summary.txt is written at start, the other files during inference
-        expected_files = ["experiment_summary.txt",
-                          "test_mae.txt", "test_mse.txt"]
+        expected_files = ["experiment_summary.txt", "test_mae.txt", "test_mse.txt"]
         for file in expected_files:
-            assert (mock_runner.lightning_container.outputs_folder /
-                    file).is_file(), f"Missing file: {file}"
+            assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
 
 
 def test_invalid_args(mock_runner: Runner) -> None:
@@ -302,8 +292,7 @@ def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
     container = HelloWorld()
     container.set_output_to(tmp_path)
     container.checkpoint_folder.mkdir(parents=True)
-    last_checkpoint = container.checkpoint_folder / \
-        LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last_checkpoint = container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     last_checkpoint.touch()
     checkpoint_handler = CheckpointHandler(container=container,
                                            project_root=tmp_path)

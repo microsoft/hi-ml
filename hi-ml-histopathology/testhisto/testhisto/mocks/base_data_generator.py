@@ -117,14 +117,11 @@ class MockHistoDataGenerator:
         :param split: The split subset. It takes values in ["train", "val", "test"]
         :return: A TensorDataset for pathmnist tiles.
         """
-        assert split in [
-            "train", "val", "test"], "Please choose a split string among [train, val, test]"
+        assert split in ["train", "val", "test"], "Please choose a split string among [train, val, test]"
         assert self.src_data_path is not None  # for mypy
-        npz_file = np.load(self.src_data_path /
-                           f"{self.mock_type.value.lower()}.npz")
+        npz_file = np.load(self.src_data_path / f"{self.mock_type.value.lower()}.npz")
 
-        imgs = torch.Tensor(npz_file[f"{split}_images"]).permute(
-            0, 3, 1, 2).int()
+        imgs = torch.Tensor(npz_file[f"{split}_images"]).permute(0, 3, 1, 2).int()
         labels = torch.Tensor(npz_file[f"{split}_labels"])
 
         return TensorDataset(imgs, labels)

@@ -45,14 +45,11 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
     from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
     from SSL.encoders import DenseNet121Encoder
     if encoder_name == 'resnet18':
-        encoder = resnet18(return_all_feature_maps=False,
-                           first_conv=use_7x7_first_conv_in_resnet)
+        encoder = resnet18(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'resnet50':
-        encoder = resnet50(return_all_feature_maps=False,
-                           first_conv=use_7x7_first_conv_in_resnet)
+        encoder = resnet50(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'resnet101':
-        encoder = resnet101(return_all_feature_maps=False,
-                            first_conv=use_7x7_first_conv_in_resnet)
+        encoder = resnet101(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'densenet121':
         if not use_7x7_first_conv_in_resnet:
             raise ValueError("You set use_7x7_first_conv_in_resnet to False (non-default) but you requested a "
@@ -77,17 +74,14 @@ def create_ssl_image_classifier(num_classes: int,
     from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 
     logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
-    loaded_params = torch.load(
-        pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]
+    loaded_params = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]
     ssl_type = loaded_params["ssl_type"]
 
     logging.info(f"Creating a {ssl_type} based image classifier")
-    logging.info(
-        f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
+    logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
-        byol_module = BootstrapYourOwnLatent.load_from_checkpoint(
-            pl_checkpoint_path)
+        byol_module = BootstrapYourOwnLatent.load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
         simclr_module = SimClrHiml.load_from_checkpoint(pl_checkpoint_path)

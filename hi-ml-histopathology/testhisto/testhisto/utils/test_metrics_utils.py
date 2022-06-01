@@ -56,11 +56,9 @@ def assert_equal_lists(pred: List, expected: List) -> None:
             elif isinstance(value, List):
                 for k, idx in enumerate(value):
                     if type(idx) in [int, float]:
-                        assert math.isclose(
-                            idx, expected[i][j][k], rel_tol=1e-06)
+                        assert math.isclose(idx, expected[i][j][k], rel_tol=1e-06)
                     elif type(idx) == Tensor:
-                        assert math.isclose(
-                            idx.item(), expected[i][j][k].item(), rel_tol=1e-06)
+                        assert math.isclose(idx.item(), expected[i][j][k].item(), rel_tol=1e-06)
             else:
                 raise TypeError("Unexpected list composition")
 
@@ -217,12 +215,10 @@ def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests
 
     fig = plot_normalized_confusion_matrix(cm=cm_n, class_names=class_names)
     assert isinstance(fig, matplotlib.figure.Figure)
-    file = Path(test_output_dirs.root_dir) / \
-        f"plot_confusion_matrix_{n_classes}.png"
+    file = Path(test_output_dirs.root_dir) / f"plot_confusion_matrix_{n_classes}.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path(
-        "histo_heatmaps") / f"confusion_matrix_{n_classes}.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_{n_classes}.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
@@ -237,11 +233,9 @@ def test_location_selected_tiles(level: int) -> None:
     slide_image = np.random.rand(3, 1000, 2000)
 
     coords_list = []
-    slide_ids = [item[0]
-                 for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
+    slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
     slide_idx = slide_ids.index(slide)
-    # type: ignore
-    for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):
+    for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):  # type: ignore
         tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
                                              test_dict[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
         coords_list.append(tile_coords)

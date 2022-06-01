@@ -66,8 +66,7 @@ def test_html_report_add_heading(html_report: HTMLReport) -> None:
     level = 2
     html_template_before = html_report._remove_html_end(html_report.template)
     html_report.add_heading(dummy_heading, level)
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     assert html_template_difference.count(f"<h{level}") == 1
 
 
@@ -79,14 +78,12 @@ def test_html_report_add_tables(html_report: HTMLReport, dummy_df: pd.DataFrame,
 
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
-    table_keys_before = [
-        k for k in render_kwargs_before.keys() if TABLE_KEY_HTML in k]
+    table_keys_before = [k for k in render_kwargs_before.keys() if TABLE_KEY_HTML in k]
     num_tables = len(table_keys_before)
 
     html_report.add_tables(tables=[dummy_df])
 
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
 
     assert html_template_difference.count("table.to_html") == 1
     assert f"{TABLE_KEY_HTML}_{num_tables}" in html_report.render_kwargs
@@ -97,8 +94,7 @@ def test_html_report_add_tables(html_report: HTMLReport, dummy_df: pd.DataFrame,
 def test_html_report_add_images(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
-    image_paths_before = [
-        k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
+    image_paths_before = [k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
     num_imgs_before = len(image_paths_before)
 
     dummy_df_cols = list(dummy_df.columns)
@@ -107,8 +103,7 @@ def test_html_report_add_images(html_report: HTMLReport, dummy_df: pd.DataFrame)
     plt.savefig(fig_path)
     html_report.add_images([fig_path])
 
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
 
     # the difference between the templates after calling add_image should be a single HTML <img> tag
     assert html_template_difference.count("<img src=") == 1
@@ -132,8 +127,7 @@ def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -
     html_template_before = html_report._remove_html_end(html_report.template)
     render_kwargs_before = html_report.render_kwargs
     # calling add_plot creates an image file and henceforth treats the plot as an image
-    image_paths_before = [
-        k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
+    image_paths_before = [k for k in render_kwargs_before.keys() if IMAGE_KEY_HTML in k]
     num_imgs_before = len(image_paths_before)
     dummy_df_cols = list(dummy_df.columns)
 
@@ -146,19 +140,16 @@ def test_html_report_add_plot(html_report: HTMLReport, dummy_df: pd.DataFrame) -
     # check for exact datetime since the seconds may not match between here and when the function is called
     # so instead we check for a file starting with today's date
     expected_figname_start_no_title = f"plot_{datetime.now().strftime('%Y%m%d%H')}"
-    assert len(list(html_report.report_folder.glob(
-        f"{expected_figname_start_no_title}*.png"))) == 0
+    assert len(list(html_report.report_folder.glob(f"{expected_figname_start_no_title}*.png"))) == 0
 
     # pass a matplotlib Figure object to add_plot and check the difference in the HTML report
     html_report.add_plot(fig=fig)
 
     # check that the figre file got created
-    assert len(list(html_report.report_folder.glob(
-        f"{expected_figname_start_no_title}*.png"))) == 1
+    assert len(list(html_report.report_folder.glob(f"{expected_figname_start_no_title}*.png"))) == 1
 
     # check that the template got updated correctly
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     # the difference between the templates after calling add_image should be a single HTML <img> tag
     assert html_template_difference.count("<img src=") == 1
     # Expect another keyword argument for imagepaths with num_imgs_before in the key (because starts at 0)
@@ -201,8 +192,7 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> 
 
     html_report.add_text("Area vs radius chart", tag_class="h3")
 
-    df3 = pd.DataFrame({"A": list(range(20)), "B": [
-                       3.14159 * (r ** 2) for r in range(20)]})
+    df3 = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
     fig, ax = plt.subplots(1, 1)
     ax.plot(df3[["A"]], df3[["B"]])
     ax.set_xlabel("Radius")
@@ -217,10 +207,8 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> 
     rendered_report = html_report.report_html
     assert rendered_report.count("<img") == 2
     assert rendered_report.count("<table") == 1
-    assert rendered_report.count(
-        "<body>") == rendered_report.count("</body>") == 1
-    assert rendered_report.count(
-        "<html lang") == rendered_report.count("</html>") == 1
+    assert rendered_report.count("<body>") == rendered_report.count("</body>") == 1
+    assert rendered_report.count("<html lang") == rendered_report.count("</html>") == 1
     assert html_report.report_path_html.exists()
     # validate the report to ensure it includes the minimum necessary tags
     html_report.validate()
@@ -253,8 +241,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     assert report_contents_first_entry[ReportComponentKey.VALUE.value] == table_path
 
     html_report.add_yaml_contents_to_report(report_config)
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     assert html_template_difference.count("table.to_html") == 1
     # validate the report to ensure it includes the minimum necessary tags
     html_report.validate()
@@ -296,8 +283,7 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_table
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_dir)
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     num_new_tables = len(list(mock_table_dir.iterdir()))
     assert html_template_difference.count(r"{% for table in") == num_new_tables
     html_template_before = html_report._remove_html_end(html_report.template)
@@ -310,8 +296,7 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_table
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_path)
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     num_new_tables = 1
     assert html_template_difference.count(r"{% for table in") == num_new_tables
 
@@ -327,11 +312,9 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
         ])})
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
-        html_report.add_yaml_contents_to_report(
-            yaml_contents_with_img_dir_gallery)
+        html_report.add_yaml_contents_to_report(yaml_contents_with_img_dir_gallery)
 
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     num_new_imgs = 1
     assert html_template_difference.count(r"<img src") == num_new_imgs
     html_template_before = html_report._remove_html_end(html_report.template)
@@ -346,8 +329,7 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
         html_report.add_yaml_contents_to_report(yaml_contents_with_img_dir)
 
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     num_new_imgs = len(list(dummy_fig_folder.iterdir()))
     assert html_template_difference.count(r"<img src") == num_new_imgs
     html_template_before = html_report._remove_html_end(html_report.template)
@@ -360,8 +342,7 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_img_path)
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     num_new_imgs = 1
     assert html_template_difference.count(r"<img src") == num_new_imgs
 
@@ -377,8 +358,7 @@ def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
         ])})
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_text)
-    html_template_difference = html_report.template.replace(
-        html_template_before, "")
+    html_template_difference = html_report.template.replace(html_template_before, "")
     num_existing_paragraphs += 1
     assert html_template_difference.count(r"<p") == num_existing_paragraphs
 
@@ -386,20 +366,17 @@ def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
 def test_load_imgs_onto_subplot(dummy_fig_folder: Path) -> None:
     num_imgs = len(list(dummy_fig_folder.glob("*.png")))
     num_plot_cols = 2
-    fig = HTMLReport.load_imgs_onto_subplot(
-        [dummy_fig_folder], num_plot_columns=num_plot_cols)
+    fig = HTMLReport.load_imgs_onto_subplot([dummy_fig_folder], num_plot_columns=num_plot_cols)
     # the number of axes on the plot should be the same as num_imgs
     assert len(fig.axes) == num_imgs
 
     # try with a number of columns greater than the number of images
-    fig = HTMLReport.load_imgs_onto_subplot(
-        [dummy_fig_folder], num_plot_columns=2 * num_imgs)
+    fig = HTMLReport.load_imgs_onto_subplot([dummy_fig_folder], num_plot_columns=2 * num_imgs)
     assert len(fig.axes) == num_imgs
 
     # expect error if zero cols requested
     with pytest.raises(ValueError) as e:
-        fig = HTMLReport.load_imgs_onto_subplot(
-            [dummy_fig_folder], num_plot_columns=0)
+        fig = HTMLReport.load_imgs_onto_subplot([dummy_fig_folder], num_plot_columns=0)
         assert "Can't have less than one column in your plot" in str(e)
 
 
@@ -440,8 +417,7 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
 
         with patch("health_ml.utils.reports.download_files_from_hyperdrive_children") as mock_download:
             # mock the behaviour of downloading a file for each of the child runs
-            mock_download.return_value = [
-                "dummy_path_{i}" for i in range(num_children)]
+            mock_download.return_value = ["dummy_path_{i}" for i in range(num_children)]
 
             updated_contents = html_report.download_report_contents_from_aml(run_id, report_contents,
                                                                              hyperdrive_hyperparam_name)
@@ -457,8 +433,7 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
             updated_contents_first_value = updated_contents[0][ReportComponentKey.VALUE.value]
             assert initial_contents_first_value != updated_contents_first_value
             assert len(updated_contents_first_value.split(",")) == num_children
-            assert updated_contents_first_value.split(
-                ",")[0] == str(mock_download.return_value[0])
+            assert updated_contents_first_value.split(",")[0] == str(mock_download.return_value[0])
 
 
 def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:

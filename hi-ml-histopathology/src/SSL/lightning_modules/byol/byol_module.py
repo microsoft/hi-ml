@@ -56,8 +56,7 @@ class BootstrapYourOwnLatent(pl.LightningModule):
         self.save_hyperparameters()
 
         self.min_learning_rate = 1e-4
-        self.online_network = SiameseArm(
-            encoder_name, use_7x7_first_conv_in_resnet)
+        self.online_network = SiameseArm(encoder_name, use_7x7_first_conv_in_resnet)
         self.target_network = deepcopy(self.online_network)
         self.weight_callback = ByolMovingAverageWeightUpdate()
 
@@ -87,8 +86,7 @@ class BootstrapYourOwnLatent(pl.LightningModule):
         :param batch_idx: index of the batch
         :return: BYOL loss
         """
-        batch = batch[SSLDataModuleType.ENCODER] if isinstance(
-            batch, dict) else batch
+        batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
         (img_1, img_2), _ = batch
 
         # Image 1 to image 2 loss
@@ -104,8 +102,7 @@ class BootstrapYourOwnLatent(pl.LightningModule):
 
     def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> torch.Tensor:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        log_on_epoch(self, metrics={
-                     'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
+        log_on_epoch(self, metrics={'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
         log_learning_rate(self, name="byol/learning_rate")
         return loss
 
@@ -115,8 +112,7 @@ class BootstrapYourOwnLatent(pl.LightningModule):
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
-        global_batch_size = self.trainer.world_size * \
-            self.hparams.batch_size  # type: ignore
+        global_batch_size = self.trainer.world_size * self.hparams.batch_size  # type: ignore
         self.train_iters_per_epoch = self.hparams.num_samples // global_batch_size  # type: ignore
 
     def configure_optimizers(self) -> Any:

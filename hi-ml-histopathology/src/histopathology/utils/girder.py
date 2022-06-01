@@ -63,8 +63,7 @@ class Color:
     def __post_init__(self) -> None:
         array = np.asarray(self)
         if (array < 0).any() or (array > 255).any():
-            raise ValueError(
-                f"All RGBA components must be between 0 and 255, but {astuple(self)} were passed")
+            raise ValueError(f"All RGBA components must be between 0 and 255, but {astuple(self)} were passed")
 
     def __array__(self) -> np.ndarray:
         return np.array(self.components, dtype=int)
@@ -104,8 +103,7 @@ class Coordinates:
             float(self.x)
             float(self.y)
         except ValueError as e:
-            raise TypeError(
-                f"Error converting coordinates to float: \"{asdict(self)}\"") from e
+            raise TypeError(f"Error converting coordinates to float: \"{asdict(self)}\"") from e
 
     def __array__(self) -> np.ndarray:
         return np.asarray(astuple(self))
@@ -125,11 +123,9 @@ class Rectangle(Element):
 
     def __post_init__(self) -> None:
         if self.left >= self.right:
-            raise ValueError(
-                f"The value for right ({self.right}) must be larger than the value for left ({self.left})")
+            raise ValueError(f"The value for right ({self.right}) must be larger than the value for left ({self.left})")
         if self.top >= self.bottom:
-            raise ValueError(
-                f"The value for bottom ({self.bottom}) must be larger than the value for top ({self.top})")
+            raise ValueError(f"The value for bottom ({self.bottom}) must be larger than the value for top ({self.top})")
 
     @property
     def width(self) -> float:
@@ -168,8 +164,7 @@ class Point(Element):
 
     def __post_init__(self) -> None:
         if not isinstance(self.center, Coordinates):
-            raise TypeError(
-                f"Center must be an instance of Coordinates, not {type(self.center)}")
+            raise TypeError(f"Center must be an instance of Coordinates, not {type(self.center)}")
 
     def as_json(self) -> TypePointJSON:
         data: TypePointJSON = {}
@@ -201,8 +196,7 @@ class Annotation:
         data: TypeAnnotationJSON = {}
         data["name"] = self.name
         data["description"] = self.description
-        data["elements"] = [element.as_json()
-                            for element in self.elements]  # type: ignore
+        data["elements"] = [element.as_json() for element in self.elements]  # type: ignore
         return data
 
 
@@ -283,8 +277,7 @@ class DigitalSlideArchive:
         if not items_jsons:
             raise RuntimeError(f"No items found for query \"{text}\"")
         elif len(items_jsons) > 1:
-            raise RuntimeError(
-                f"More than one item found for query \"{text}\":\n{items_jsons}")
+            raise RuntimeError(f"More than one item found for query \"{text}\":\n{items_jsons}")
         return Item(self, json=items_jsons[0])
 
 
@@ -343,8 +336,7 @@ class RunOutputs:
         overwrite_csv: bool = False,
     ):
         logging.info("Getting run \"%s\"...", run_id)
-        run = get_aml_run_from_run_id(
-            run_id, workspace_config_path=workspace_config_path)
+        run = get_aml_run_from_run_id(run_id, workspace_config_path=workspace_config_path)
         experiment = run.experiment
         workspace = experiment.workspace
 
@@ -376,8 +368,7 @@ class RunOutputs:
             try:
                 self.run.download_file(csv_filename, cached_csv_path)
             except aml_exceptions as e:
-                raise FileNotFoundError(
-                    "Error downloading outputs file from run") from e
+                raise FileNotFoundError("Error downloading outputs file from run") from e
         logging.info("Reading CSV file: %s ...", cached_csv_path)
         return self._read_csv(cached_csv_path)
 
@@ -439,8 +430,7 @@ class RunOutputs:
         :param annotation_name: Name of the generated annotation.
         :param annotation_kwargs: Additional kwargs to :meth:`get_annotation_from_slide_data_frame`.
         """
-        df = df_or_path if isinstance(
-            df_or_path, pd.DataFrame) else self._read_csv(df_or_path)
+        df = df_or_path if isinstance(df_or_path, pd.DataFrame) else self._read_csv(df_or_path)
         slide_mask = df[ResultsKey.SLIDE_ID] == slide_id
         df_slide = df[slide_mask]
         return self.get_annotation_from_slide_data_frame(df_slide, annotation_name, **annotation_kwargs)
@@ -470,8 +460,7 @@ class RunOutputs:
         if max_slides is not None:
             max_slides = min(max_slides, num_slides)
             percentage = 100 * max_slides / num_slides
-            logging.info("Using %s/%s slides (%s %% of total)",
-                         max_slides, num_slides, f"{percentage:.1f}")
+            logging.info("Using %s/%s slides (%s %% of total)", max_slides, num_slides, f"{percentage:.1f}")
             unique_slide_ids = unique_slide_ids[:max_slides]
 
         # I think "full" is more descriptive than "text" for our API

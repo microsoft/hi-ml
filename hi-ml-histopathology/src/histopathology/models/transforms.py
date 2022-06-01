@@ -110,8 +110,7 @@ class LoadTilesBatchd(MapTransform):
     def __call__(self, data: Mapping) -> Mapping:
         out_data = dict(data)  # create shallow copy
         for key in self.key_iterator(out_data):
-            out_data[key] = load_image_stack_as_tensor(
-                data[key], progress=self.progress)
+            out_data[key] = load_image_stack_as_tensor(data[key], progress=self.progress)
         return out_data
 
 

@@ -87,16 +87,13 @@ class ExperimentFolderHandler(Parameterized):
         given, the output folders will be created inside of the project root.
         """
         if not project_root.is_absolute():
-            raise ValueError(
-                f"The project root is required to be an absolute path, but got {project_root}")
+            raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
         if is_offline_run or output_to:
             if output_to:
-                logging.info(
-                    f"All results will be written to the specified output folder {output_to}")
+                logging.info(f"All results will be written to the specified output folder {output_to}")
                 root = Path(output_to).resolve()
             else:
-                logging.info(
-                    "All results will be written to a subfolder of the project root folder.")
+                logging.info("All results will be written to a subfolder of the project root folder.")
                 root = project_root.resolve() / DEFAULT_AML_UPLOAD_DIR
             if is_global_rank_zero():
                 timestamp = create_unique_timestamp_id()
@@ -110,8 +107,7 @@ class ExperimentFolderHandler(Parameterized):
             logs_folder = run_folder / DEFAULT_LOGS_DIR_NAME
         else:
             logging.info("Running inside AzureML.")
-            logging.info(
-                "All results will be written to a subfolder of the project root folder.")
+            logging.info("All results will be written to a subfolder of the project root folder.")
             run_folder = project_root
             outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
@@ -130,8 +126,7 @@ class WorkflowParams(param.Parameterized):
     """
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
-    random_seed: int = param.Integer(
-        42, doc="The seed to use for all random number generators.")
+    random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     weights_url: str = param.String(default="",
                                     doc="If provided, use this URL to download checkpoints for inference.")
     local_weights_path: Optional[Path] = \
@@ -163,13 +158,11 @@ class WorkflowParams(param.Parameterized):
 
     def validate(self) -> None:
         if self.weights_url and self.local_weights_path:
-            raise ValueError(
-                "Cannot specify more than one of local_weights_path, weights_url.")
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url.")
 
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
-                raise ValueError(
-                    f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
+                raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
     @property
     def is_running_in_aml(self) -> bool:
@@ -223,8 +216,7 @@ class DatasetParams(param.Parameterized):
 
     def validate(self) -> None:
         if (not self.azure_datasets) and (not self.local_datasets):
-            raise ValueError(
-                "Either local_datasets or azure_datasets must be set.")
+            raise ValueError("Either local_datasets or azure_datasets must be set.")
 
         if self.dataset_mountpoints and len(self.azure_datasets) != len(self.dataset_mountpoints):
             raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
@@ -261,8 +253,7 @@ class OutputParams(param.Parameterized):
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
         self.output_to = Path(output_to)
-        self.create_filesystem(
-            project_root=fixed_paths.repository_root_directory())
+        self.create_filesystem(project_root=fixed_paths.repository_root_directory())
 
     def create_filesystem(self, project_root: Path) -> None:
         """
@@ -295,8 +286,7 @@ class OutputParams(param.Parameterized):
 
 
 class OptimizerParams(param.Parameterized):
-    l_rate: float = param.Number(
-        1e-4, doc="The initial learning rate", bounds=(0, None))
+    l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
     _min_l_rate: float = param.Number(0.0,
                                       doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
                                       bounds=(0.0, None))
@@ -331,15 +321,12 @@ class OptimizerParams(param.Parameterized):
                                                   "will happen on epoch 150")
     optimizer_type: OptimizerType = param.ClassSelector(default=OptimizerType.Adam, class_=OptimizerType,
                                                         instantiate=False, doc="The optimizer_type to use")
-    opt_eps: float = param.Number(
-        1e-4, doc="The epsilon parameter of RMSprop or Adam")
+    opt_eps: float = param.Number(1e-4, doc="The epsilon parameter of RMSprop or Adam")
     rms_alpha: float = param.Number(0.9, doc="The alpha parameter of RMSprop")
     adam_betas: TupleFloat2 = param.NumericTuple((0.9, 0.999), length=2,
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
-    momentum: float = param.Number(
-        0.6, doc="The momentum parameter of the optimizers")
-    weight_decay: float = param.Number(
-        1e-4, doc="The weight decay used to control L2 regularization")
+    momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
+    weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
 
     def validate(self) -> None:
         if len(self.adam_betas) < 2:
@@ -349,14 +336,11 @@ class OptimizerParams(param.Parameterized):
 
         if self.l_rate_scheduler == LRSchedulerType.MultiStep:
             if not self.l_rate_multi_step_milestones:
-                raise ValueError(
-                    "Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
             if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
-                raise ValueError(
-                    "l_rate_multi_step_milestones must be a strictly increasing list")
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
             if self.l_rate_multi_step_milestones[0] <= 0:
-                raise ValueError(
-                    "l_rate_multi_step_milestones cannot be negative or 0.")
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
 
     @property
     def min_l_rate(self) -> float:
@@ -365,14 +349,12 @@ class OptimizerParams(param.Parameterized):
     @min_l_rate.setter
     def min_l_rate(self, value: float) -> None:
         if value > self.l_rate:
-            raise ValueError(
-                "l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
+            raise ValueError("l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
         self._min_l_rate = value
 
 
 class TrainerParams(param.Parameterized):
-    max_epochs: int = param.Integer(100, bounds=(
-        1, None), doc="Number of epochs to train.")
+    max_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
     autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
                                                      doc="Save epoch checkpoints every N validation epochs. "
                                                          "If pl_check_val_every_n_epoch > 1, this means that "
@@ -456,8 +438,7 @@ class TrainerParams(param.Parameterized):
         available_gpus = torch.cuda.device_count()  # type: ignore
         num_gpus = available_gpus if self.use_gpu else 0
         message_suffix = "" if self.use_gpu else ", but not using them because use_gpu == False"
-        logging.info(
-            f"Number of available GPUs: {available_gpus}{message_suffix}")
+        logging.info(f"Number of available GPUs: {available_gpus}{message_suffix}")
         if 0 <= self.max_num_gpus < num_gpus:
             num_gpus = self.max_num_gpus
             logging.info(f"Restricting the number of GPUs to {num_gpus}")

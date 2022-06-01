@@ -13,8 +13,7 @@ def main() -> None:
         script="pytorch_sample.py",
         compute_target="<name of compute target>"
     )
-    env = Environment.from_conda_specification(
-        "TensorboardTestEnv", "tensorboard_env.yml")
+    env = Environment.from_conda_specification("TensorboardTestEnv", "tensorboard_env.yml")
     config.run_config.environment = env
 
     run = experiment.submit(config)
