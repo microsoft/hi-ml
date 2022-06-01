@@ -318,7 +318,9 @@ class DatasetSplits:
             k_folds = GroupKFold(n_splits=n_splits)
             folds_gen = k_folds.split(subject_ids, groups=groups)
 
-        def ids_from_indices(indices): return [subject_ids[x] for x in indices]
+        def ids_from_indices(indices):
+            return [subject_ids[x] for x in indices]
+
         # create the number of requested splits of the dataset
         return [
             DatasetSplits(train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),

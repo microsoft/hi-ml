@@ -22,8 +22,12 @@ MAX_PATH_LENGTH = 260
 # convert string to None if an empty string or whitespace is provided
 
 
-def empty_string_to_none(x): return None if (x is None or len(x.strip()) == 0) else x
-def string_to_path(x): return None if (x is None or len(x.strip()) == 0) else Path(x)
+def empty_string_to_none(x):
+    return None if (x is None or len(x.strip()) == 0) else x
+
+
+def string_to_path(x):
+    return None if (x is None or len(x.strip()) == 0) else Path(x)
 
 
 # file and directory names
