@@ -46,6 +46,11 @@ class RunPytestConfig(param.Parameterized):
         doc="The file or folder of tests that should be run. This value is used as the first argument to start "
         "pytest, so it can also be a specific test like 'my_test.py::any_test'",
     )
+    module: str = param.String(
+        default="",
+        doc="The module of tests that should be run. This value is used as an argument to --cov of pytest to run it"
+        "with coverage on the specified module.",
+    )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
     conda_env: str = param.String(
         default="", doc="The path to the Conda environment file that should be used when starting pytest in AzureML."
@@ -63,7 +68,7 @@ class RunPytestConfig(param.Parameterized):
     )
 
 
-def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
+def run_pytest(folder_to_test: str, pytest_mark: str, module_to_test: str) -> None:
     """
     Runs pytest on a given folder, restricting to the tests that have the given PyTest mark.
     If pytest finds no tests, or any of the tests fail, this function raises a ValueError. When run inside
@@ -73,7 +78,7 @@ def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
     :param folder_to_test: The folder with tests that should be run.
     """
     results_file = Path(OUTPUT_FOLDER) / PYTEST_RESULTS_FILE
-    pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
+    pytest_args = [folder_to_test, f"--junitxml={str(results_file)}", f"--cov={module_to_test}"]
 
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
@@ -165,4 +170,4 @@ if __name__ == "__main__":
                 max_run_duration=config.max_run_duration,
                 after_submission=pytest_after_submission_hook
             )
-    run_pytest(folder_to_test=config.folder, pytest_mark=config.mark)
+    run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, module_to_test=config.module)
