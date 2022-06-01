@@ -77,8 +77,6 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
-        if self.is_finetune:
-            self.batch_size = 2
         BaseMILTiles.setup(self)
 
     def get_data_module(self) -> PandaTilesDataModule:
@@ -142,8 +140,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
     def setup(self) -> None:
         if self.encoder_type == SSLEncoder.__name__:
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
-        if self.is_finetune:
-            self.batch_size = 2
         BaseMILSlides.setup(self)
 
     def get_dataloader_kwargs(self) -> dict:
