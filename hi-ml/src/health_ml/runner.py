@@ -133,17 +133,20 @@ class Runner:
 
         self.experiment_config = experiment_config
         if not experiment_config.model:
-            raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
+            raise ValueError(
+                "Parameter 'model' needs to be set to specify which model to run.")
         model_config_loader: ModelConfigLoader = ModelConfigLoader()
         # Create the model as per the "model" commandline option. This is a LightningContainer.
-        container = model_config_loader.create_model_config_from_name(model_name=experiment_config.model)
+        container = model_config_loader.create_model_config_from_name(
+            model_name=experiment_config.model)
 
         # parse overrides and apply
         assert isinstance(container, param.Parameterized)
         parser2 = create_argparser(container)
         # For each parser, feed in the unknown settings from the previous parser. All commandline args should
         # be consumed by name, hence fail if there is something that is still unknown.
-        parser2_result = parse_arguments(parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
+        parser2_result = parse_arguments(
+            parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
         # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
         apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
@@ -166,7 +169,8 @@ class Runner:
                              "only be run in AzureML. We switched on submitting to AzureML.")
                 self.experiment_config.azureml = True
             if self.experiment_config.cluster:
-                logging.info("You have provided a compute cluster name, hence we switched on submitting to AzureML.")
+                logging.info(
+                    "You have provided a compute cluster name, hence we switched on submitting to AzureML.")
                 self.experiment_config.azureml = True
 
     def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
@@ -233,10 +237,12 @@ class Runner:
             except ValueError:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
-        default_datastore = workspace.get_default_datastore().name if workspace is not None else ""
+        default_datastore = workspace.get_default_datastore(
+        ).name if workspace is not None else ""
 
         local_datasets = self.lightning_container.local_datasets
-        all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
+        all_local_datasets = [Path(p) for p in local_datasets] if len(
+            local_datasets) > 0 else []
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
         use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.azureml else True
@@ -247,7 +253,8 @@ class Runner:
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
-            raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
+            raise ValueError(
+                "Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         temp_conda: Optional[Path] = None
         try:
@@ -261,8 +268,10 @@ class Runner:
 
                 # Merge the project-specific dependencies with the packages and write unified definition to temp file.
                 if len(conda_files) > 1 or len(pip_requirements_files) > 0:
-                    temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                    merge_conda_files(conda_files, temp_conda, pip_files=pip_requirements_files)
+                    temp_conda = root_folder / \
+                        f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+                    merge_conda_files(conda_files, temp_conda,
+                                      pip_files=pip_requirements_files)
 
                 if not self.experiment_config.cluster:
                     raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
@@ -347,7 +356,8 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
 
 
 def main() -> None:
-    run(project_root=fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd())
+    run(project_root=fixed_paths.repository_root_directory()
+        if is_himl_used_from_git_repo() else Path.cwd())
 
 
 if __name__ == '__main__':

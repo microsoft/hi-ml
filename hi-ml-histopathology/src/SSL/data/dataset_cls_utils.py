@@ -6,7 +6,8 @@ from typing import Any, Tuple, Union
 
 import torch
 
-OptionalIndexInputAndLabel = Union[Tuple[torch.Tensor, int], Tuple[int, torch.Tensor, int]]
+OptionalIndexInputAndLabel = Union[Tuple[torch.Tensor,
+                                         int], Tuple[int, torch.Tensor, int]]
 
 
 class DataClassBaseWithReturnIndex:

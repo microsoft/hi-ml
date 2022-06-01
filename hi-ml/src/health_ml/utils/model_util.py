@@ -33,4 +33,5 @@ def create_optimizer(config: OptimizerParams, parameters: Iterator[Parameter]) -
                        config.weight_decay,
                        config.momentum)
     else:
-        raise NotImplementedError(f"Optimizer type {config.optimizer_type.value} is not implemented")
+        raise NotImplementedError(
+            f"Optimizer type {config.optimizer_type.value} is not implemented")

@@ -23,7 +23,8 @@ environment = Environment.from_dockerfile(name='image_load_env',
                                           dockerfile='./Dockerfile',
                                           conda_specification='./environment.yml')
 
-compute_target = ComputeTarget(workspace=workspace, name=GPU_TESTING_INSTANCE_NAME)
+compute_target = ComputeTarget(
+    workspace=workspace, name=GPU_TESTING_INSTANCE_NAME)
 
 config = ScriptRunConfig(source_directory='./src',
                          script='profile_load_image.py',

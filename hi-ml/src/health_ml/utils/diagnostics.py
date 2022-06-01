@@ -94,7 +94,8 @@ class EpochTimers:
         # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
         # are spawned. Later, the load time should be zero.
         if batch_index == 0:
-            logging.info(f"{message_prefix}: Loaded the first minibatch of data in {item_load_time:0.2f} sec.")
+            logging.info(
+                f"{message_prefix}: Loaded the first minibatch of data in {item_load_time:0.2f} sec.")
         elif item_load_time > self.max_batch_load_time_seconds:
             self.load_time_warning_epochs.add(epoch)
             self.num_load_time_exceeded += 1
@@ -262,7 +263,8 @@ class BatchTimeCallback(Callback):
         assert self.module is not None
         epoch = self.module.current_epoch
         message_prefix = f"Epoch {epoch} {'training' if is_training else 'validation'}"
-        timers.batch_start(batch_index=batch_idx, epoch=epoch, message_prefix=message_prefix)
+        timers.batch_start(batch_index=batch_idx, epoch=epoch,
+                           message_prefix=message_prefix)
 
     @rank_zero_only
     def batch_end(self, is_training: bool) -> None:

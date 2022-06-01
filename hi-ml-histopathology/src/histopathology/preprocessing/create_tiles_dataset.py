@@ -39,7 +39,8 @@ def select_tiles(foreground_mask: np.ndarray, occupancy_threshold: float) \
     if occupancy_threshold < 0. or occupancy_threshold > 1.:
         raise ValueError("Tile occupancy threshold must be between 0 and 1")
     occupancy = foreground_mask.mean(axis=(-2, -1))
-    return (occupancy > occupancy_threshold).squeeze(), occupancy.squeeze()  # type: ignore
+    # type: ignore
+    return (occupancy > occupancy_threshold).squeeze(), occupancy.squeeze()
 
 
 def get_tile_descriptor(tile_location: Sequence[int]) -> str:
@@ -78,7 +79,8 @@ def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold
 
     selected, occupancies = select_tiles(foreground_mask, occupancy_threshold)
     n_discarded = (~selected).sum()
-    logging.info(f"Percentage tiles discarded: {n_discarded / len(selected) * 100:.2f}")
+    logging.info(
+        f"Percentage tiles discarded: {n_discarded / len(selected) * 100:.2f}")
 
     image_tiles = image_tiles[selected]
     tile_locations = tile_locations[selected]
@@ -151,7 +153,8 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
     slide_metadata: Dict[str, Any] = sample[SlideKey.METADATA]
     keys_to_save = (TileKey.SLIDE_ID, TileKey.TILE_ID, TileKey.IMAGE, TileKey.LABEL,
                     TileKey.TILE_X, TileKey.TILE_Y, TileKey.OCCUPANCY)
-    metadata_keys = tuple(TileKey.from_slide_metadata_key(key) for key in slide_metadata)
+    metadata_keys = tuple(TileKey.from_slide_metadata_key(key)
+                          for key in slide_metadata)
     csv_columns: Tuple[str, ...] = (*keys_to_save, *metadata_keys)
 
     slide_id: str = sample[SlideKey.SLIDE_ID]
@@ -167,7 +170,8 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
 
             dataset_csv_path = slide_dir / "dataset.csv"
             dataset_csv_file = dataset_csv_path.open('w')
-            dataset_csv_file.write(','.join(csv_columns) + '\n')  # write CSV header
+            dataset_csv_file.write(
+                ','.join(csv_columns) + '\n')  # write CSV header
 
             n_failed_tiles = 0
             failed_tiles_csv_path = slide_dir / "failed_tiles.csv"
@@ -193,9 +197,12 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
             logging.info(f"Saving tiles for slide {slide_id} ...")
             for i in tqdm(range(n_tiles), f"Tiles ({slide_id[:6]}…)", unit="img", disable=not tile_progress):
                 try:
-                    tile_info = get_tile_info(sample, occupancies[i], tile_locations[i], rel_slide_dir)
-                    save_image(image_tiles[i], output_dir / tile_info[TileKey.IMAGE])
-                    dataset_row = format_csv_row(tile_info, keys_to_save, metadata_keys)
+                    tile_info = get_tile_info(
+                        sample, occupancies[i], tile_locations[i], rel_slide_dir)
+                    save_image(image_tiles[i], output_dir /
+                               tile_info[TileKey.IMAGE])
+                    dataset_row = format_csv_row(
+                        tile_info, keys_to_save, metadata_keys)
                     dataset_csv_file.write(dataset_row + '\n')
                 except Exception as e:
                     n_failed_tiles += 1
@@ -209,11 +216,13 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
             failed_tiles_file.close()
             if n_failed_tiles > 0:
                 # TODO what we want to do with slides that have some failed tiles?
-                logging.warning(f"{slide_id} is incomplete. {n_failed_tiles} tiles failed.")
+                logging.warning(
+                    f"{slide_id} is incomplete. {n_failed_tiles} tiles failed.")
             logging.info(f"Finished processing slide {slide_id}")
         except Exception as e:
             traceback.print_exc()
-            warnings.warn(f"An error occurred while processing slide {slide_id}: {e}")
+            warnings.warn(
+                f"An error occurred while processing slide {slide_id}: {e}")
 
 
 def merge_dataset_csv_files(dataset_dir: Path) -> Path:
@@ -230,7 +239,8 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
             logging.info(f"Merging slide {slide_csv}")
             content = slide_csv.read_text()
             if not first_file:
-                content = content[content.index('\n') + 1:]  # discard header row for all but the first file
+                # discard header row for all but the first file
+                content = content[content.index('\n') + 1:]
             full_csv_file.write(content)
             first_file = False
     return full_csv
@@ -281,7 +291,8 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
     else:
         map_func = map  # type: ignore
 
-    list(tqdm(map_func(func, dataset), desc="Slides", unit="img", total=len(dataset)))  # type: ignore
+    list(tqdm(map_func(func, dataset), desc="Slides",
+         unit="img", total=len(dataset)))  # type: ignore
 
     if parallel:
         pool.close()

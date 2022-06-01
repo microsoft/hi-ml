@@ -53,7 +53,8 @@ class SimClrHiml(SimCLR):
         super().__init__(**kwargs)
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
-        self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+        self.projection = _Projection(
+            input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
@@ -70,7 +71,8 @@ class SimClrHiml(SimCLR):
         return loss
 
     def shared_step(self, batch: BatchType) -> torch.Tensor:
-        batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
+        batch = batch[SSLDataModuleType.ENCODER] if isinstance(
+            batch, dict) else batch
 
         (img1, img2), y = batch
 

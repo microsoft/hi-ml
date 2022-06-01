@@ -30,10 +30,12 @@ class RandomGamma:
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         gamma = random.uniform(*self.scale)
         if len(image.shape) != 4:
-            raise ValueError(f"Expected input of shape [Z, C, H, W], but only got {len(image.shape)} dimensions")
+            raise ValueError(
+                f"Expected input of shape [Z, C, H, W], but only got {len(image.shape)} dimensions")
         for z in range(image.shape[0]):
             for c in range(image.shape[1]):
-                image[z, c] = torchvision.transforms.functional.adjust_gamma(image[z, c], gamma=gamma)
+                image[z, c] = torchvision.transforms.functional.adjust_gamma(
+                    image[z, c], gamma=gamma)
         return image
 
 
@@ -50,7 +52,8 @@ class ExpandChannels:
         """
         shape = data.shape
         if len(shape) != 4 or shape[1] != 1:
-            raise ValueError(f"Expected input of shape [Z, 1, H, W], found {shape}")
+            raise ValueError(
+                f"Expected input of shape [Z, 1, H, W], found {shape}")
         return torch.repeat_interleave(data, 3, dim=1)
 
 
@@ -70,7 +73,8 @@ class AddGaussianNoise:
         if np.random.random(1) > self.p_apply:
             return data
         noise = torch.randn(size=data.shape[-2:]) * self.std
-        data = torch.clamp(data + noise, data.min(), data.max())  # type: ignore
+        data = torch.clamp(data + noise, data.min(),
+                           data.max())  # type: ignore
         return data
 
 
@@ -105,8 +109,10 @@ class ElasticTransform:
         data = data.cpu().numpy()
         shape = data.shape
 
-        dx = gaussian_filter((np.random.random(shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
-        dy = gaussian_filter((np.random.random(shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
+        dx = gaussian_filter((np.random.random(
+            shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
+        dy = gaussian_filter((np.random.random(
+            shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
         all_dimensions_axes = [np.arange(dim) for dim in shape]
         grid = np.meshgrid(*all_dimensions_axes, indexing='ij')
         grid[-2] = grid[-2] + dx

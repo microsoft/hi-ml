@@ -43,7 +43,8 @@ def test_regression_test() -> None:
     """
     container = HelloWorld()
     container.regression_test_folder = Path(str(uuid.uuid4().hex))
-    runner = MLRunner(container=container, experiment_config=ExperimentConfig())
+    runner = MLRunner(container=container,
+                      experiment_config=ExperimentConfig())
     runner.setup()
     with pytest.raises(ValueError) as ex:
         runner.run()
@@ -78,10 +79,14 @@ def test_compare_files_csv(tmp_path: Path) -> None:
         """foo,bar
 1.0001,10.001"""
     )
-    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=1e-2) == ""
-    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=1e-3) == ""
-    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=2e-4) == ""
-    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=9e-5) == CONTENTS_MISMATCH
+    assert compare_files(expected=expected, actual=actual,
+                         csv_relative_tolerance=1e-2) == ""
+    assert compare_files(expected=expected, actual=actual,
+                         csv_relative_tolerance=1e-3) == ""
+    assert compare_files(expected=expected, actual=actual,
+                         csv_relative_tolerance=2e-4) == ""
+    assert compare_files(expected=expected, actual=actual,
+                         csv_relative_tolerance=9e-5) == CONTENTS_MISMATCH
 
 
 def test_compare_files_empty_csv(tmp_path: Path) -> None:
@@ -96,7 +101,8 @@ def test_compare_files_empty_csv(tmp_path: Path) -> None:
     for expected_contents, actual_contents in [(empty_csv, empty_csv), (valid_csv, empty_csv), (empty_csv, valid_csv)]:
         expected.write_text(expected_contents)
         actual.write_text(actual_contents)
-        assert compare_files(expected=expected, actual=actual) == FILE_FORMAT_ERROR
+        assert compare_files(
+            expected=expected, actual=actual) == FILE_FORMAT_ERROR
     expected.write_text(valid_csv)
     actual.write_text(valid_csv)
     assert compare_files(expected=expected, actual=actual) == ""
@@ -136,7 +142,8 @@ def test_compare_folder(tmp_path: Path) -> None:
     subfolder = Path("folder")
     # This file exists in both expected and actual, should not raise any alerts because it contents matches
     # apart from linebreaks
-    create_folder_and_write_text(expected / subfolder / matching, "Line1\r\nLine2")
+    create_folder_and_write_text(
+        expected / subfolder / matching, "Line1\r\nLine2")
     create_folder_and_write_text(actual / subfolder / matching, "Line1\nLine2")
     # This file only exists in the expected results, and should create an error saying that it is missing
     # from the actual results
@@ -147,7 +154,8 @@ def test_compare_folder(tmp_path: Path) -> None:
     (expected / subfolder / mismatch).write_text("contents1")
     (actual / subfolder / mismatch).write_text("contents2")
 
-    messages = compare_folder_contents(expected_folder=expected, actual_folder=actual)
+    messages = compare_folder_contents(
+        expected_folder=expected, actual_folder=actual)
     all_messages = " ".join(messages)
     # No issues expected
     assert matching not in all_messages
@@ -215,7 +223,8 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     file_contents = "some file contents"
     file_name = "contents.txt"
     regression_test_folder = tmp_path / "expected"
-    run = create_aml_run_object(workspace=DEFAULT_WORKSPACE.workspace, experiment_name="test_regression_tests")
+    run = create_aml_run_object(
+        workspace=DEFAULT_WORKSPACE.workspace, experiment_name="test_regression_tests")
     # Upload a single file to the newly created run. When comparing the run output files,
     # and seeing this in the set of files that are expected to exist on the run, this should pass.
     file1 = tmp_path / file_name
@@ -227,15 +236,19 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
 
     with mock.patch("health_ml.utils.regression_test_utils." + run_to_mock, run):
         # First comparison only on the single file should pass. Value passed for the 'actual' argument is irrelevant.
-        compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())
+        compare_folders_and_run_outputs(
+            expected=regression_test_folder, actual=Path.cwd())
         # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
         no_such_file = "no_such_file.txt"
-        file2_expected = regression_test_folder / regression_test_subfolder / no_such_file
+        file2_expected = regression_test_folder / \
+            regression_test_subfolder / no_such_file
         create_folder_and_write_text(file2_expected, "foo")
         with pytest.raises(ValueError) as ex:
-            compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())
+            compare_folders_and_run_outputs(
+                expected=regression_test_folder, actual=Path.cwd())
         message = ex.value.args[0].splitlines()
         assert f"{MISSING_FILE}: {no_such_file}" in message
     # Now run the same comparison that failed previously, without mocking. This should now
     # realize that the present run is an offline run, and skip the comparison
-    compare_folders_and_run_outputs(expected=regression_test_folder, actual=Path.cwd())
+    compare_folders_and_run_outputs(
+        expected=regression_test_folder, actual=Path.cwd())

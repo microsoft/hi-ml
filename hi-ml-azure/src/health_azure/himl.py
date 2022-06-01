@@ -119,7 +119,8 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
     :param compute_cluster_name: The name of the specific compute cluster whose properties should be checked
     :param num_nodes: The number of nodes that the user has requested
     """
-    existing_compute_clusters: Dict[str, ComputeTarget] = workspace.compute_targets
+    existing_compute_clusters: Dict[str,
+                                    ComputeTarget] = workspace.compute_targets
     validate_compute_name(existing_compute_clusters, compute_cluster_name)
     compute_cluster = existing_compute_clusters[compute_cluster_name]
     validate_num_nodes(compute_cluster, num_nodes)
@@ -171,7 +172,8 @@ def create_run_configuration(workspace: Workspace,
     run_config = RunConfiguration()
 
     if aml_environment_name:
-        run_config.environment = Environment.get(workspace, aml_environment_name)
+        run_config.environment = Environment.get(
+            workspace, aml_environment_name)
     elif conda_environment_file:
         # Create an AzureML environment, then check if it exists already. If it exists, use the registered
         # environment, otherwise register the new environment.
@@ -183,24 +185,29 @@ def create_run_configuration(workspace: Workspace,
             docker_base_image=docker_base_image)
         conda_deps = new_environment.python.conda_dependencies
         if conda_deps.get_python_version() is None:
-            raise ValueError("If specifying a conda environment file, you must specify the python version within it")
+            raise ValueError(
+                "If specifying a conda environment file, you must specify the python version within it")
         registered_env = register_environment(workspace, new_environment)
         run_config.environment = registered_env
     else:
-        raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
+        raise ValueError(
+            "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
 
     # By default, include several environment variables that work around known issues in the software stack
-    run_config.environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
+    run_config.environment_variables = {
+        **DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
 
     if docker_shm_size:
-        run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
+        run_config.docker = DockerConfiguration(
+            use_docker=True, shm_size=docker_shm_size)
 
     validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
 
     run_config.target = compute_cluster_name
 
     if max_run_duration:
-        run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
+        run_config.max_run_duration_seconds = run_duration_string_to_seconds(
+            max_run_duration)
 
     # Create MPI configuration for distributed jobs (unless num_splits > 1, in which case
     # an AML HyperdriveConfig is instantiated instead
@@ -269,7 +276,8 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
         print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
         snapshot_root_directory = Path.cwd()
     else:
-        print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
+        print(
+            f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
     if entry_script is None:
         entry_script = Path(sys.argv[0])
         print("No entry script given. The current main Python file will be executed in AzureML.")
@@ -278,14 +286,16 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
     if entry_script.is_absolute():
         try:
             # The entry script always needs to use Linux path separators, even when submitting from Windows
-            entry_script_relative = entry_script.relative_to(snapshot_root_directory).as_posix()
+            entry_script_relative = entry_script.relative_to(
+                snapshot_root_directory).as_posix()
         except ValueError:
             raise ValueError("The entry script must be inside of the snapshot root directory. "
                              f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
     else:
         entry_script_relative = str(entry_script)
     script_params = _get_script_params(script_params)
-    print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
+    print(
+        f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
     return ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
         script=entry_script_relative,
@@ -326,15 +336,18 @@ def submit_run(workspace: Workspace,
                 hasattr(script_run_config.run_config, 'arguments') and \
                 script_run_config.run_config.arguments is not None:
             # It is probably a HyperDriveConfig
-            tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
+            tags = {"commandline_args": " ".join(
+                script_run_config.run_config.arguments)}
     run.set_tags(tags)
 
     _write_run_recovery_file(run)
 
     # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
-    print(f"Successfully queued run number {run.number} (ID {run.id}) in experiment {run.experiment.name}")
-    print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
+    print(
+        f"Successfully queued run number {run.number} (ID {run.id}) in experiment {run.experiment.name}")
+    print(
+        f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
     print(f"Experiment URL: {run.experiment.get_portal_url()}")
     print(f"Run URL: {run.get_portal_url()}")
     print("==============================================================================\n")
@@ -489,15 +502,18 @@ def submit_to_azure_if_needed(  # type: ignore
         )
 
     if snapshot_root_directory is None:
-        print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
+        print(
+            f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
     print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
-        conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
-        print(f"Using the Conda environment from this file: {conda_environment_file}")
+        conda_environment_file = find_file_in_parent_to_pythonpath(
+            CONDA_ENVIRONMENT_FILE)
+        print(
+            f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
     run_config = create_run_configuration(
@@ -521,12 +537,14 @@ def submit_to_azure_if_needed(  # type: ignore
     script_run_config.run_config = run_config
 
     if hyperdrive_config:
-        config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
+        config_to_submit: Union[ScriptRunConfig,
+                                HyperDriveConfig] = hyperdrive_config
         config_to_submit._run_config = script_run_config
     else:
         config_to_submit = script_run_config
 
-    effective_experiment_name = experiment_name or Path(script_run_config.script).stem
+    effective_experiment_name = experiment_name or Path(
+        script_run_config.script).stem
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
@@ -572,15 +590,18 @@ def convert_himl_to_azureml_datasets(
     """
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        consumption = d.to_input_dataset(
+            workspace=workspace, dataset_index=index)
         if consumption.name in inputs:
-            raise ValueError(f"There is already an input dataset with name '{consumption.name}' set up?")
+            raise ValueError(
+                f"There is already an input dataset with name '{consumption.name}' set up?")
         inputs[consumption.name] = consumption
     outputs = {}
     for index, d in enumerate(cleaned_output_datasets):
         out = d.to_output_dataset(workspace=workspace, dataset_index=index)
         if out.name in outputs:
-            raise ValueError(f"There is already an output dataset with name '{out.name}' set up?")
+            raise ValueError(
+                f"There is already an output dataset with name '{out.name}' set up?")
         outputs[out.name] = out
     return inputs, outputs
 
@@ -659,7 +680,8 @@ def _package_setup() -> None:
     # Azure core prints full HTTP requests even in INFO mode
     logging.getLogger('azure').setLevel(logging.WARNING)
     # PyJWT prints out warnings that are beyond our control
-    warnings.filterwarnings("ignore", category=DeprecationWarning, module="jwt")
+    warnings.filterwarnings(
+        "ignore", category=DeprecationWarning, module="jwt")
     # Urllib3 prints out connection information for each call to write metrics, etc
     logging.getLogger('urllib3').setLevel(logging.INFO)
     logging.getLogger('msrest').setLevel(logging.INFO)
@@ -672,13 +694,16 @@ def main() -> None:
     Handle submit_to_azure if called from the command line.
     """
     parser = ArgumentParser()
-    parser.add_argument("-p", "--workspace_config_file", type=str, required=False, help="AzureML workspace config file")
-    parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML cluster name")
+    parser.add_argument("-p", "--workspace_config_file", type=str,
+                        required=False, help="AzureML workspace config file")
+    parser.add_argument("-c", "--compute_cluster_name",
+                        type=str, required=True, help="AzureML cluster name")
     parser.add_argument("-y", "--snapshot_root_directory", type=str, required=True,
                         help="Root of snapshot to upload to AzureML")
     parser.add_argument("-t", "--entry_script", type=str, required=True,
                         help="The script to run in AzureML")
-    parser.add_argument("-d", "--conda_environment_file", type=str, required=True, help="The environment to use")
+    parser.add_argument("-d", "--conda_environment_file",
+                        type=str, required=True, help="The environment to use")
 
     args = parser.parse_args()
 

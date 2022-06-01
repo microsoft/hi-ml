@@ -67,7 +67,8 @@ class TilesDataset(Dataset):
         for this class
         """
         if self.SPLIT_COLUMN is None and train is not None:
-            raise ValueError("Train/test split was specified but dataset has no split column")
+            raise ValueError(
+                "Train/test split was specified but dataset has no split column")
 
         self.root_dir = Path(root)
 
@@ -100,7 +101,8 @@ class TilesDataset(Dataset):
             if column is not None and column not in self.dataset_df.columns:
                 columns_not_found.append(column)
         if len(columns_not_found) > 0:
-            raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
+            raise ValueError(
+                f"Expected columns '{columns_not_found}' not found in the dataframe")
 
     def __len__(self) -> int:
         return self.dataset_df.shape[0]
@@ -111,7 +113,8 @@ class TilesDataset(Dataset):
             self.TILE_ID_COLUMN: tile_id,
             **self.dataset_df.loc[tile_id].to_dict()
         }
-        sample[self.IMAGE_COLUMN] = str(self.root_dir / sample.pop(self.IMAGE_COLUMN))
+        sample[self.IMAGE_COLUMN] = str(
+            self.root_dir / sample.pop(self.IMAGE_COLUMN))
         # we're replicating this column because we want to propagate the path to the batch
         sample[self.PATH_COLUMN] = sample[self.IMAGE_COLUMN]
         return sample
@@ -126,7 +129,8 @@ class TilesDataset(Dataset):
     def get_class_weights(self) -> torch.Tensor:
         slide_labels = self.get_slide_labels()
         classes = np.unique(slide_labels)
-        class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=slide_labels)
+        class_weights = compute_class_weight(
+            class_weight='balanced', classes=classes, y=slide_labels)
         return torch.as_tensor(class_weights)
 
 
@@ -179,7 +183,8 @@ class SlidesDataset(Dataset):
         for this class
         """
         if self.SPLIT_COLUMN is None and train is not None:
-            raise ValueError("Train/test split was specified but dataset has no split column")
+            raise ValueError(
+                "Train/test split was specified but dataset has no split column")
 
         self.root_dir = Path(root)
 
@@ -212,7 +217,8 @@ class SlidesDataset(Dataset):
             if column is not None and column not in self.dataset_df.columns:
                 columns_not_found.append(column)
         if len(columns_not_found) > 0:
-            raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
+            raise ValueError(
+                f"Expected columns '{columns_not_found}' not found in the dataframe")
 
     def __len__(self) -> int:
         return self.dataset_df.shape[0]
@@ -233,7 +239,8 @@ class SlidesDataset(Dataset):
             sample[SlideKey.MASK_PATH] = sample[SlideKey.MASK]
 
         sample[SlideKey.LABEL] = slide_row[self.LABEL_COLUMN]
-        sample[SlideKey.METADATA] = {col: slide_row[col] for col in self.METADATA_COLUMNS}
+        sample[SlideKey.METADATA] = {col: slide_row[col]
+                                     for col in self.METADATA_COLUMNS}
         return sample
 
     @classmethod
@@ -246,5 +253,6 @@ class SlidesDataset(Dataset):
     def get_class_weights(self) -> torch.Tensor:
         slide_labels = self.get_slide_labels()
         classes = np.unique(slide_labels)
-        class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=slide_labels)
+        class_weights = compute_class_weight(
+            class_weight='balanced', classes=classes, y=slide_labels)
         return torch.as_tensor(class_weights)

@@ -46,8 +46,10 @@ class PandaDataset(SlidesDataset):
         super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
         # PANDA CSV does not come with paths for image and mask files
         slide_ids = self.dataset_df.index
-        self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + slide_ids + ".tiff"
-        self.dataset_df[self.MASK_COLUMN] = "train_label_masks/" + slide_ids + "_mask.tiff"
+        self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + \
+            slide_ids + ".tiff"
+        self.dataset_df[self.MASK_COLUMN] = "train_label_masks/" + \
+            slide_ids + "_mask.tiff"
         self.validate_columns()
 
 
@@ -100,9 +102,11 @@ class LoadPandaROId(MapTransform):
         # Estimate bounding box at the lowest resolution (i.e. highest level)
         highest_level = mask_obj.resolutions['level_count'] - 1
         scale = mask_obj.resolutions['level_downsamples'][highest_level]
-        mask, _ = self.reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
+        mask, _ = self.reader.get_data(
+            mask_obj, level=highest_level)  # loaded as RGB PIL image
 
-        foreground_mask = mask[0] > 0  # PANDA segmentation mask is in 'R' channel
+        # PANDA segmentation mask is in 'R' channel
+        foreground_mask = mask[0] > 0
 
         bbox = box_utils.get_bounding_box(foreground_mask)
         padded_bbox = bbox.add_margin(self.margin)
@@ -124,9 +128,12 @@ class LoadPandaROId(MapTransform):
             size=(scaled_bbox.h, scaled_bbox.w),
             level=self.level,
         )
-        mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
-        data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
-        data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
+        mask, _ = self.reader.get_data(
+            mask_obj, **get_data_kwargs)  # type: ignore
+        # PANDA segmentation mask is in 'R' channel
+        data[self.mask_key] = mask[:1]
+        data[self.image_key], _ = self.reader.get_data(
+            image_obj, **get_data_kwargs)  # type: ignore
         data.update(get_data_kwargs)
         data['scale'] = scale
 

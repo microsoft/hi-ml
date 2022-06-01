@@ -20,7 +20,8 @@ from histopathology.models.transforms import LoadTiled
 @pytest.mark.parametrize('train', [True, False])
 def test_dataset(train: bool) -> None:
     base_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR, train=train)
-    dataset = Dataset(base_dataset, transform=LoadTiled('image'))  # type: ignore
+    dataset = Dataset(base_dataset, transform=LoadTiled(
+        'image'))  # type: ignore
 
     expected_length = 93408 if train else 98904
     assert len(dataset) == expected_length
@@ -32,7 +33,8 @@ def test_dataset(train: bool) -> None:
     assert sample['image'].shape == (3, 224, 224)
 
     batch_size = 16
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)  # type: ignore
+    loader = DataLoader(dataset, batch_size=batch_size,
+                        shuffle=True)  # type: ignore
     batch = next(iter(loader))
     assert all(key in batch for key in expected_keys)
     assert isinstance(batch['image'], torch.Tensor)

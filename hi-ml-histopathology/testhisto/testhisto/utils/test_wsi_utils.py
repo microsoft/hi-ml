@@ -28,7 +28,8 @@ class MockTiledWSIDataset(Dataset):
         return self.n_slides
 
     def __getitem__(self, index: int) -> List[Dict[SlideKey, Any]]:
-        tile_count = np.random.randint(self.n_tiles) if self.random_n_tiles else self.n_tiles
+        tile_count = np.random.randint(
+            self.n_tiles) if self.random_n_tiles else self.n_tiles
         label = np.random.choice(self.n_classes)
         return [{SlideKey.SLIDE_ID: self.slide_ids[index],
                  SlideKey.IMAGE: np.random.randint(0, 255, size=self.tile_size),
@@ -60,6 +61,8 @@ def test_image_collate(random_n_tiles: bool) -> None:
         assert isinstance(value_list, List)
         assert len(value_list) == batch_size
         if key == SlideKey.IMAGE_PATH:
-            assert all((value_list[idx] == samples_list[idx][key]) for idx in range(batch_size))
+            assert all((value_list[idx] == samples_list[idx][key])
+                       for idx in range(batch_size))
         else:
-            assert all(torch.equal(value_list[idx], samples_list[idx][key]) for idx in range(batch_size))
+            assert all(torch.equal(
+                value_list[idx], samples_list[idx][key]) for idx in range(batch_size))

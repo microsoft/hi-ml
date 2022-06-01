@@ -47,7 +47,8 @@ def mock_panda_slides_root_dir(
         background_val=255,
         tiles_pos_type=TilesPositioningType.DIAGONAL,
     )
-    logging.info("Generating mock whole slide images that will be deleted at the end of the session.")
+    logging.info(
+        "Generating mock whole slide images that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
@@ -71,7 +72,8 @@ def mock_panda_slides_root_with_different_n_tiles(
         tiles_pos_type=TilesPositioningType.RANDOM,
         n_tiles_list=[4, 5, 6, 7, 8, 9],
     )
-    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
+    logging.info(
+        "Generating temporary mock slides that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
@@ -102,12 +104,14 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir: Path) -> None:
         # sanity check for expected shape
         tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
         assert len(tiles) == batch_size
-        assert tiles[assert_batch_index].shape == (tile_count, channels, tile_size, tile_size)
+        assert tiles[assert_batch_index].shape == (
+            tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly
         original_tile = get_original_tile(mock_panda_slides_root_dir, wsi_id)
         for i in range(tile_count):
-            assert (original_tile == tiles[assert_batch_index][i].numpy()).all()
+            assert (original_tile ==
+                    tiles[assert_batch_index][i].numpy()).all()
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
@@ -152,13 +156,15 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir: Path) -
     for sample in dataloader:
         # sanity check for expected shape
         tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
-        assert tiles[assert_batch_index].shape == (tile_count, channels, tile_size, tile_size)
+        assert tiles[assert_batch_index].shape == (
+            tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly at different resolutions
         original_tile = get_original_tile(mock_panda_slides_root_dir, wsi_id)
         for i in range(tile_count):
             # multi resolution mock data has been created via 2 factor downsampling
-            assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[assert_batch_index][i].numpy()).all()
+            assert (original_tile[:, :: 2 ** level, :: 2 ** level]
+                    == tiles[assert_batch_index][i].numpy()).all()
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
@@ -195,8 +201,10 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir: Path) ->
 @pytest.mark.gpu
 def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
     def get_transforms_dict() -> Dict[ModelKey, Union[Callable, None]]:
-        train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
-        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}   # type: ignore
+        train_transform = RandFlipd(
+            keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
+        # type: ignore
+        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}
 
     def retrieve_tiles(dataloader: torch.utils.data.DataLoader) -> Dict[str, torch.Tensor]:
         tiles_dict = {}
@@ -249,6 +257,7 @@ class MockPandaSlidesDataModule(SlidesDataModule):
     train/val and test to make sure train_dataloader returns a fixed n_tiles and test and validation dataloaders return
     all available tiles in the whole slide image for whole slide inference.
     """
+
     def get_splits(self) -> Tuple[PandaDataset, PandaDataset, PandaDataset]:
 
         return (PandaDataset(self.root_path), PandaDataset(self.root_path), PandaDataset(self.root_path))

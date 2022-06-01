@@ -76,7 +76,8 @@ CONDA_CHANNELS = "channels"
 CONDA_DEPENDENCIES = "dependencies"
 CONDA_PIP = "pip"
 
-VALID_LOG_FILE_PATHS = [Path("user_logs/std_log.txt"), Path("azureml-logs/70_driver_log.txt")]
+VALID_LOG_FILE_PATHS = [
+    Path("user_logs/std_log.txt"), Path("azureml-logs/70_driver_log.txt")]
 
 # By default, define several environment variables that work around known issues in the software stack
 DEFAULT_ENVIRONMENT_VARIABLES = {
@@ -127,7 +128,8 @@ class GenericConfig(param.Parameterized):
         # check if illegal arguments are passed in
         legal_params = self.get_overridable_parameters()
         current_param_names = self.param.values().keys()
-        illegal = [k for k, v in params.items() if (k in current_param_names) and (k not in legal_params)]
+        illegal = [k for k, v in params.items() if (
+            k in current_param_names) and (k not in legal_params)]
 
         if illegal:
             raise ValueError(
@@ -136,11 +138,14 @@ class GenericConfig(param.Parameterized):
             )
         if throw_if_unknown_param:
             # check if parameters not defined by the config class are passed in
-            unknown = [k for k, v in params.items() if (k not in current_param_names)]
+            unknown = [k for k, v in params.items() if (
+                k not in current_param_names)]
             if unknown:
-                raise ValueError(f"The following parameters do not exist: {unknown}")
+                raise ValueError(
+                    f"The following parameters do not exist: {unknown}")
         # set known arguments
-        super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
+        super().__init__(
+            **{k: v for k, v in params.items() if k in legal_params.keys()})
         if should_validate:
             self.validate()
 
@@ -220,7 +225,8 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
             return True
         if sx in ("off", "f", "false", "n", "no", "0"):
             return False
-        raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
+        raise ValueError(
+            f"Invalid value {x}, please supply one of True, true, false or False.")
 
     def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
         """
@@ -233,16 +239,19 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         if isinstance(_p, param.Boolean):
             p_type: Callable = parse_bool
         elif isinstance(_p, param.Integer):
-            p_type = lambda x: _p.default if x == "" else int(x)
+            def p_type(x): return _p.default if x == "" else int(x)
         elif isinstance(_p, param.Number):
-            p_type = lambda x: _p.default if x == "" else float(x)
+            def p_type(x): return _p.default if x == "" else float(x)
         elif isinstance(_p, param.String):
             p_type = str
         elif isinstance(_p, param.List):
-            p_type = lambda x: [_p.class_(item) for item in x.split(",") if item]
+            def p_type(x): return [_p.class_(item)
+                                   for item in x.split(",") if item]
         elif isinstance(_p, param.NumericTuple):
-            float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
-            p_type = lambda x: tuple([float_or_int(item) for item in x.split(",")])
+            def float_or_int(y): return int(
+                y) if isinstance(_p, IntTuple) else float(y)
+            def p_type(x): return tuple(
+                [float_or_int(item) for item in x.split(",")])
         elif isinstance(_p, param.ClassSelector):
             p_type = _p.class_
         elif isinstance(_p, CustomTypeParam):
@@ -268,7 +277,8 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
             # This means that the argument is optional.
             # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
             # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
-            parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False, nargs=OPTIONAL, const=True)
+            parser.add_argument("--" + k, help=p.doc, type=parse_bool,
+                                default=False, nargs=OPTIONAL, const=True)
         else:
             # If the parameter default is True then create an exclusive group of arguments.
             # Either --flag=value as usual
@@ -284,7 +294,8 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         if isinstance(p, param.Boolean):
             add_boolean_argument(parser, k, p)
         else:
-            parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
+            parser.add_argument("--" + k, help=p.doc,
+                                type=_get_basic_type(p), default=p.default)
 
     return parser
 
@@ -442,7 +453,8 @@ def apply_overrides(
 
     actual_overrides = _apply(overrides_to_apply)
     if keys_to_ignore is not None:
-        report_on_overrides(config, overrides_to_apply, keys_to_ignore)  # type: ignore
+        report_on_overrides(config, overrides_to_apply,
+                            keys_to_ignore)  # type: ignore
     if should_validate:
         config.validate()
     return actual_overrides
@@ -475,7 +487,8 @@ def report_on_overrides(config: Any, overrides_to_apply: Dict[str, Any], keys_to
             else:
                 reason = f"parameter is {reason}"
         # We could raise an error here instead - to be discussed.
-        logging.warning(f"Override {key}={desired} failed: {reason} in class {config.__class__.name}")
+        logging.warning(
+            f"Override {key}={desired} failed: {reason} in class {config.__class__.name}")
 
 
 def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T]) -> T:
@@ -490,7 +503,8 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     """
     c = cls_()
     if not isinstance(c, param.Parameterized):
-        raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
+        raise ValueError(
+            f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
     for param_name, p in c.param.params().items():  # type: ignore
         if not p.constant and not p.readonly:
             setattr(c, param_name, getattr(from_object, param_name))
@@ -536,7 +550,8 @@ class ListOrDictParam(CustomTypeParam):
             else:
                 return
         if not (isinstance(val, List) or isinstance(val, Dict)):
-            raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
+            raise ValueError(
+                f"{val} must be an instance of List or Dict, found {type(val)}")
         super()._validate(val)
 
     def from_string(self, x: str) -> Union[Dict, List]:
@@ -582,7 +597,8 @@ class RunIdOrListParam(CustomTypeParam):
             else:
                 return
         if len(val) == 0 or not (isinstance(val, str) or isinstance(val, list)):
-            raise ValueError(f"{val} must be an instance of List or string, found {type(val)}")
+            raise ValueError(
+                f"{val} must be an instance of List or string, found {type(val)}")
         super()._validate(val)
 
     def from_string(self, x: str) -> List[str]:
@@ -648,7 +664,8 @@ class CheckpointDownloader:
 
         :return: The local path to the downloaded checkpoint file.
         """
-        workspace = get_workspace(aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
+        workspace = get_workspace(
+            aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
 
         if not self.local_checkpoint_path.exists():
             self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
@@ -724,7 +741,8 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
     """
     pythonpaths: List[Path] = []
     if "PYTHONPATH" in os.environ:
-        pythonpaths = [Path(path_string) for path_string in os.environ["PYTHONPATH"].split(os.pathsep)]
+        pythonpaths = [Path(path_string)
+                       for path_string in os.environ["PYTHONPATH"].split(os.pathsep)]
     return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
 
 
@@ -751,17 +769,22 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         return aml_workspace
 
     if workspace_config_path is None:
-        workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
+        workspace_config_path = find_file_in_parent_to_pythonpath(
+            WORKSPACE_CONFIG_JSON)
         if workspace_config_path:
-            logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
+            logging.info(
+                f"Using the workspace config file {str(workspace_config_path.absolute())}")
         else:
-            raise ValueError("No workspace config file given, nor can we find one.")
+            raise ValueError(
+                "No workspace config file given, nor can we find one.")
 
     if not isinstance(workspace_config_path, Path):
-        raise ValueError("Workspace config path is not a path, check your input.")
+        raise ValueError(
+            "Workspace config path is not a path, check your input.")
     elif workspace_config_path.is_file():
         auth = get_authentication()
-        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        workspace = Workspace.from_config(
+            path=str(workspace_config_path), auth=auth)
         logging.info(f"Logged into AzureML workspace {workspace.name}")
         return workspace
 
@@ -790,14 +813,16 @@ def split_recovery_id(id_str: str) -> Tuple[str, str]:
     """
     components = id_str.strip().split(EXPERIMENT_RUN_SEPARATOR)
     if len(components) > 2:
-        raise ValueError(f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id_str}")
+        raise ValueError(
+            f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id_str}")
     elif len(components) == 2:
         return components[0], components[1]
     else:
         recovery_id_regex = r"^(\w+)_\d+_[0-9a-f]+$|^(\w+)_\d+$"
         match = re.match(recovery_id_regex, id_str)
         if not match:
-            raise ValueError(f"The recovery ID was not in the expected format: {id_str}")
+            raise ValueError(
+                f"The recovery ID was not in the expected format: {id_str}")
         return (match.group(1) or match.group(2)), id_str
 
 
@@ -815,9 +840,11 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     try:
         experiment_to_recover = Experiment(workspace, experiment)
     except Exception as ex:
-        raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
+        raise Exception(
+            f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
+    logging.info(
+        f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
     return run_to_recover
 
 
@@ -847,9 +874,11 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
         present
     """
-    service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
+    service_principal_id = get_secret_from_environment(
+        ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
-    service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
+    service_principal_password = get_secret_from_environment(
+        ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
@@ -875,7 +904,8 @@ def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optio
     name = name.upper()
     value = os.environ.get(name, None)
     if not value and not allow_missing:
-        raise ValueError(f"There is no value stored for the secret named '{name}'")
+        raise ValueError(
+            f"There is no value stored for the secret named '{name}'")
     return value
 
 
@@ -902,7 +932,8 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
     """
     conda_packages_count = len(list(conda.conda_packages))
     pip_packages_count = len(list(conda.pip_packages))
-    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
+    logging.info(
+        f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
     logging.debug("  Conda packages:")
     for p in conda.conda_packages:
         logging.debug(f"    {p}")
@@ -973,7 +1004,8 @@ def _resolve_package_clash(duplicate_dependencies: List[PackageDependency], pinn
             if not found_pinned_dependecy:
                 found_pinned_dependecy = dependency
             else:
-                raise ValueError(f"Found more than one pinned dependency for package: {dependency.package_name}")
+                raise ValueError(
+                    f"Found more than one pinned dependency for package: {dependency.package_name}")
     if found_pinned_dependecy:
         return found_pinned_dependecy
     else:
@@ -1030,7 +1062,8 @@ def _retrieve_unique_deps(dependencies: List[str], pinned_operator: PinnedOperat
         else:
             all_deps[dependency_name] = [dependency]
 
-    unique_deps: List[PackageDependency] = _resolve_dependencies(all_deps, pinned_operator)
+    unique_deps: List[PackageDependency] = _resolve_dependencies(
+        all_deps, pinned_operator)
 
     unique_deps_list = [dep.name_operator_version_str() for dep in unique_deps]
     return unique_deps_list
@@ -1074,13 +1107,15 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     pip_dep = _get_pip_dependencies(conda_yaml)
     if pip_dep is not None:
         pip_index, pip = pip_dep
-        pip_without_include = [package for package in pip if not is_pip_include_dependency(package)]
+        pip_without_include = [
+            package for package in pip if not is_pip_include_dependency(package)]
         if len(pip) != len(pip_without_include):
             if len(pip_without_include) == 0:
                 # Avoid empty PIP dependencies section, this causes a failure in conda_merge
                 conda_yaml.get(CONDA_DEPENDENCIES).pop(pip_index)
             else:
-                conda_yaml.get(CONDA_DEPENDENCIES)[pip_index] = {CONDA_PIP: pip_without_include}
+                conda_yaml.get(CONDA_DEPENDENCIES)[pip_index] = {
+                    CONDA_PIP: pip_without_include}
             return True, conda_yaml
     return False, conda_yaml
 
@@ -1106,15 +1141,18 @@ def merge_conda_files(
 
     extra_pip_deps = []
     for pip_file in pip_files or []:
-        additional_pip_deps = [d for d in pip_file.read_text().split("\n") if d and not is_pip_include_dependency(d)]
+        additional_pip_deps = [d for d in pip_file.read_text().split(
+            "\n") if d and not is_pip_include_dependency(d)]
         extra_pip_deps.extend(additional_pip_deps)
 
-    name = conda_merge.merge_names(env.get(CONDA_NAME) for env in env_definitions)
+    name = conda_merge.merge_names(env.get(CONDA_NAME)
+                                   for env in env_definitions)
     if name:
         unified_definition[CONDA_NAME] = name
 
     try:
-        channels = conda_merge.merge_channels(env.get(CONDA_CHANNELS) for env in env_definitions)
+        channels = conda_merge.merge_channels(
+            env.get(CONDA_CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
         logging.error("Failed to merge channel priorities.")
         raise
@@ -1122,15 +1160,18 @@ def merge_conda_files(
         unified_definition[CONDA_CHANNELS] = channels
 
     try:
-        deps_to_merge = [env.get(CONDA_DEPENDENCIES) for env in env_definitions]
+        deps_to_merge = [env.get(CONDA_DEPENDENCIES)
+                         for env in env_definitions]
         if len(extra_pip_deps) > 0:
             deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
         deps = conda_merge.merge_dependencies(deps_to_merge)
 
         # Get conda dependencies and pip dependencies from specification
-        pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
+        pip_deps_entries = [d for d in deps if isinstance(
+            d, dict) and CONDA_PIP in d]  # type: ignore
         if len(pip_deps_entries) == 0:
-            raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
+            raise ValueError(
+                "Didn't find a dictionary with the key 'pip' in the list of dependencies")
         pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
         pip_deps = pip_deps_entry[CONDA_PIP]
         # temporarily remove pip dependencies from deps to be added back after deduplicaton
@@ -1139,7 +1180,8 @@ def merge_conda_files(
         # remove all non-pip duplicates from the list of dependencies
         unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
 
-        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
+        unique_pip_deps = sorted(
+            _retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
 
         # finally add back the deduplicated list of dependencies
         unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
@@ -1153,8 +1195,10 @@ def merge_conda_files(
         raise ValueError("No dependencies found in any of the conda files.")
 
     with result_file.open("w") as f:
-        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
-    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
+        ruamel.yaml.dump(unified_definition, f, indent=2,
+                         default_flow_style=False)
+    _log_conda_dependencies_stats(CondaDependencies(
+        result_file), "Merged Conda environment")
 
 
 def create_python_environment(
@@ -1176,25 +1220,30 @@ def create_python_environment(
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML environment.
     :param conda_environment_file: The file that contains the Conda environment definition.
     """
-    conda_dependencies = CondaDependencies(conda_dependencies_file_path=conda_environment_file)
+    conda_dependencies = CondaDependencies(
+        conda_dependencies_file_path=conda_environment_file)
     yaml_contents = conda_environment_file.read_text()
     if pip_extra_index_url:
         # When an extra-index-url is supplied, swap the order in which packages are searched for.
         # This is necessary if we need to consume packages from extra-index that clash with names of packages on
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {pip_extra_index_url}")
-        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
+        conda_dependencies.set_pip_option(
+            "--extra-index-url https://pypi.org/simple")
     # See if this package as a whl exists, and if so, register it with AzureML environment.
     if private_pip_wheel_path is not None:
         if not private_pip_wheel_path.is_file():
-            raise FileNotFoundError(f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
+            raise FileNotFoundError(
+                f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
         if workspace is None:
-            raise ValueError("To use a private pip wheel, an AzureML workspace must be provided.")
+            raise ValueError(
+                "To use a private pip wheel, an AzureML workspace must be provided.")
         whl_url = Environment.add_private_pip_wheel(
             workspace=workspace, file_path=str(private_pip_wheel_path), exist_ok=True
         )
         conda_dependencies.add_pip_package(whl_url)
-        logging.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        logging.info(
+            f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
@@ -1235,8 +1284,10 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
         otherwise returns the newly registered environment.
     """
     try:
-        env = Environment.get(workspace, name=environment.name, version=environment.version)
-        logging.info(f"Using existing Python environment '{env.name}' with version '{env.version}'.")
+        env = Environment.get(
+            workspace, name=environment.name, version=environment.version)
+        logging.info(
+            f"Using existing Python environment '{env.name}' with version '{env.version}'.")
         return env
     # If environment doesn't exist, AML raises a generic Exception
     except Exception:  # type: ignore
@@ -1271,7 +1322,8 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     elif suffix == "d":
         multiplier = 24 * 60 * 60
     else:
-        raise ValueError("s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")  # type: ignore
+        raise ValueError(
+            "s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")  # type: ignore
     return int(float(s[:-1]) * multiplier)
 
 
@@ -1286,15 +1338,18 @@ def set_environment_variables_for_multi_node() -> None:
         # AKS
         os.environ[ENV_MASTER_ADDR] = os.environ[ENV_MASTER_IP]
     else:
-        logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
+        logging.info(
+            "No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
     if ENV_MASTER_PORT not in os.environ:
         os.environ[ENV_MASTER_PORT] = "6105"
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
-    env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
+        # node rank is the world_rank from mpi run
+        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]
+    env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [
+                         ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
     print(f"Distributed training: {env_vars}")
 
 
@@ -1311,7 +1366,8 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
         status = run_.get_status()
         if run_.status == RunStatus.COMPLETED:
             return True
-        logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
+        logging.info(
+            f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
         return False
 
     runs = list(run.get_children())
@@ -1363,7 +1419,8 @@ def get_aml_run_from_run_id(
     :return: An Azure ML Run object
     """
     run_id_ = determine_run_id_type(run_id)
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(
+        aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     return workspace.get_run(run_id_)
 
 
@@ -1389,7 +1446,8 @@ def get_latest_aml_runs_from_experiment(
     :param workspace_config_path: Optional config file containing settings for the AML Workspace
     :return: a list of one or more Azure ML Run objects
     """
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(
+        aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     experiment: Experiment = workspace.experiments[experiment_name]
     return list(islice(experiment.get_runs(tags=tags), num_runs))
 
@@ -1423,7 +1481,8 @@ def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", valid
 
     for run_path in run_paths:
         output_path = output_dir / run_path
-        _download_file_from_run(run, run_path, output_path, validate_checksum=validate_checksum)
+        _download_file_from_run(
+            run, run_path, output_path, validate_checksum=validate_checksum)
 
 
 def download_files_from_run_id(
@@ -1454,9 +1513,11 @@ def download_files_from_run_id(
     :param workspace_config_path: Optional path to settings for Azure ML Workspace
     :param validate_checksum: Whether to validate the content from HTTP response
     """
-    workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(aml_workspace=workspace,
+                              workspace_config_path=workspace_config_path)
     run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-    _download_files_from_run(run, output_folder, prefix=prefix, validate_checksum=validate_checksum)
+    _download_files_from_run(
+        run, output_folder, prefix=prefix, validate_checksum=validate_checksum)
     torch_barrier()
 
 
@@ -1481,7 +1542,8 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
             if tmp_log_file_path.is_file():
                 return tmp_log_file_path.read_text()
 
-    files_as_str = ', '.join(f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
+    files_as_str = ', '.join(
+        f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
     logging.warning(
         "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
         f"one of the following: {files_as_str}"
@@ -1507,7 +1569,8 @@ def _download_file_from_run(
     if not is_local_rank_zero():
         return None
 
-    run.download_file(filename, output_file_path=str(output_file), _validate_checksum=validate_checksum)
+    run.download_file(filename, output_file_path=str(
+        output_file), _validate_checksum=validate_checksum)
     return output_file
 
 
@@ -1525,7 +1588,8 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
         print("File already exists at", output_file)
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
-        _download_file_from_run(run, filename, output_file, validate_checksum=True)
+        _download_file_from_run(
+            run, filename, output_file, validate_checksum=True)
         assert output_file.exists()
         print("File is downloaded at", output_file)
     return output_file
@@ -1593,12 +1657,14 @@ def download_from_datastore(
         If False, will skip any duplicate file.
     :param show_progress: If True, will show the progress of the file download
     """
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(
+        aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     datastore = workspace.datastores[datastore_name]
     assert isinstance(
         datastore, AzureBlobDatastore
     ), "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
-    datastore.download(str(output_folder), prefix=file_prefix, overwrite=overwrite, show_progress=show_progress)
+    datastore.download(str(output_folder), prefix=file_prefix,
+                       overwrite=overwrite, show_progress=show_progress)
     logging.info(f"Downloaded data to {str(output_folder)}")
 
 
@@ -1634,7 +1700,8 @@ def upload_to_datastore(
     if not local_data_folder.is_dir():
         raise TypeError("local_path must be a directory")
 
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(
+        aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     datastore = workspace.datastores[datastore_name]
     assert isinstance(
         datastore, AzureBlobDatastore
@@ -1694,7 +1761,8 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
     if script_config.run is None:
         if script_config.experiment is None:
             # default to latest run file
-            latest_run_file = find_file_in_parent_to_pythonpath("most_recent_run.txt")
+            latest_run_file = find_file_in_parent_to_pythonpath(
+                "most_recent_run.txt")
             if latest_run_file is None:
                 raise ValueError("Could not find most_recent_run.txt")
             runs = [get_most_recent_run(latest_run_file, workspace)]
@@ -1708,8 +1776,10 @@ def _get_runs_from_script_config(script_config: AmlRunScriptConfig, workspace: W
             )
     else:
         run_ids: List[str]
-        run_ids = script_config.run if isinstance(script_config.run, list) else [script_config.run]  # type: ignore
-        runs = [get_aml_run_from_run_id(run_id, aml_workspace=workspace) for run_id in run_ids]
+        run_ids = script_config.run if isinstance(script_config.run, list) else [
+            script_config.run]  # type: ignore
+        runs = [get_aml_run_from_run_id(
+            run_id, aml_workspace=workspace) for run_id in run_ids]
     return runs
 
 
@@ -1734,7 +1804,8 @@ def download_checkpoints_from_run_id(
     :param aml_workspace: Optional AML workspace object
     :param workspace_config_path: Optional workspace config file
     """
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(
+        aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     download_files_from_run_id(
         run_id, output_folder, prefix=checkpoint_path_or_folder, workspace=workspace, validate_checksum=True
     )
@@ -1842,13 +1913,15 @@ def aggregate_hyperdrive_metrics(
         config
     :return: A Pandas DataFrame containing the aggregated metrics from each child run
     """
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    workspace = get_workspace(
+        aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     assert isinstance(run, HyperDriveRun)
     metrics: DefaultDict = defaultdict()
     for child_run in run.get_children():
         child_run_metrics = child_run.get_metrics()
-        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
+        child_run_tag = get_tags_from_hyperdrive_run(
+            child_run, child_run_arg_name)
         for k, v in child_run_metrics.items():
             if k not in metrics:
                 metrics[k] = {}
@@ -1885,16 +1958,20 @@ def download_files_from_hyperdrive_children(
     # hyperparam sampled for this child.
     downloaded_file_paths = []
     for child_run in run.get_children():
-        child_run_index = get_tags_from_hyperdrive_run(child_run, hyperparam_name)
+        child_run_index = get_tags_from_hyperdrive_run(
+            child_run, hyperparam_name)
         if child_run_index is None:
-            raise ValueError("Child run expected to have the tag {child_run_tag}")
+            raise ValueError(
+                "Child run expected to have the tag {child_run_tag}")
 
         # The artifact will be downloaded into a child folder within local_download_folder
         # strip any special characters from the hyperparam index name
-        local_folder_child_run = local_download_folder / re.sub("[^A-Za-z0-9]+", "", str(child_run_index))
+        local_folder_child_run = local_download_folder / \
+            re.sub("[^A-Za-z0-9]+", "", str(child_run_index))
         local_folder_child_run.mkdir(exist_ok=True)
         for remote_file_path in remote_file_paths.split(","):
-            download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
+            download_files_from_run_id(
+                child_run.id, local_folder_child_run, prefix=remote_file_path)
             downloaded_file_path = local_folder_child_run / remote_file_path
             if not downloaded_file_path.exists():
                 logging.warning(
@@ -1966,11 +2043,13 @@ def create_aml_run_object(
         code your experiment uses. You can use a file .amlignore to skip specific files or folders, akin to .gitignore
     :return: An AzureML Run object.
     """
-    actual_workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
+    actual_workspace = get_workspace(
+        aml_workspace=workspace, workspace_config_path=workspace_config_path)
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
     if snapshot_directory is None or snapshot_directory == "":
         snapshot_directory = tempfile.mkdtemp()
-    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+    # type: ignore
+    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))
 
 
 def aml_workspace_for_unittests() -> Workspace:
@@ -1984,9 +2063,12 @@ def aml_workspace_for_unittests() -> Workspace:
     if config_json is not None:
         return Workspace.from_config(path=str(config_json))
     else:
-        workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=False)
-        subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=False)
-        resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=False)
+        workspace_name = get_secret_from_environment(
+            ENV_WORKSPACE_NAME, allow_missing=False)
+        subscription_id = get_secret_from_environment(
+            ENV_SUBSCRIPTION_ID, allow_missing=False)
+        resource_group = get_secret_from_environment(
+            ENV_RESOURCE_GROUP, allow_missing=False)
         auth = get_authentication()
         return Workspace.get(
             name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
@@ -2034,7 +2116,8 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
         shutil.copy(shared_config_json, target_config_json)
     else:
         # This will execute on github agents
-        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        logging.info(
+            f"Creating {str(target_config_json)} from environment variables.")
         subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
         resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
         workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
@@ -2066,4 +2149,5 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
     """
     if actual not in valid:
         all_valid = ", ".join(["<None>" if v is None else v for v in valid])
-        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
+        raise ValueError("{} must be one of [{}], but got: {}".format(
+            message, all_valid, actual))

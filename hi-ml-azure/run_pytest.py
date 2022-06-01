@@ -16,7 +16,8 @@ def add_to_sys_path(folder: Path) -> None:
         sys.path.insert(0, str(folder))
 
 
-folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src"]
+folders_to_add = [himl_root / "hi-ml" /
+                  "src", himl_root / "hi-ml-azure" / "src"]
 for folder in folders_to_add:
     add_to_sys_path(folder)
 
@@ -36,13 +37,15 @@ PYTEST_RESULTS_FILE = "pytest_results.xml"
 
 
 class RunPytestConfig(param.Parameterized):
-    mark: str = param.String(default="", doc="The value to pass to pytest for the -m (mark) argument.")
+    mark: str = param.String(
+        default="", doc="The value to pass to pytest for the -m (mark) argument.")
     folder: str = param.String(
         default="",
         doc="The file or folder of tests that should be run. This value is used as the first argument to start "
         "pytest, so it can also be a specific test like 'my_test.py::any_test'",
     )
-    cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
+    cluster: str = param.String(
+        default="", doc="The name of the AzureML compute cluster where the script should run.")
     conda_env: str = param.String(
         default="", doc="The path to the Conda environment file that should be used when starting pytest in AzureML."
     )
@@ -76,7 +79,8 @@ def run_pytest(folder_to_test: str, pytest_mark: str) -> None:
     logging.info(f"Starting pytest with these args: {pytest_args}")
     status_code = pytest.main(pytest_args)
     if status_code == ExitCode.NO_TESTS_COLLECTED:
-        raise ValueError(f"PyTest did not find any tests to run, when restricting with this mark: {pytest_mark}")
+        raise ValueError(
+            f"PyTest did not find any tests to run, when restricting with this mark: {pytest_mark}")
     if status_code != ExitCode.OK:
         raise ValueError(f"PyTest failed with exit code: {status_code}")
 

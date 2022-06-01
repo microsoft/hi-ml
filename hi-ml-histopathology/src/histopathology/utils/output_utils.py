@@ -33,8 +33,10 @@ TEST_OUTPUTS_SUBDIR = "test"
 
 AML_OUTPUTS_DIR = "outputs"
 AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME])
-AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
-AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR,
+                               VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR,
+                                TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
 
 BatchResultsType = Dict[ResultsKey, Any]
 EpochResultsType = List[BatchResultsType]
@@ -139,7 +141,8 @@ def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
 
 def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
-    features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.FEATURES]]
+    features_list = [features.squeeze(0).cpu()
+                     for features in results[ResultsKey.FEATURES]]
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
@@ -153,26 +156,35 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
                               use_highest_pred=use_highest_pred, use_highest_att=use_highest_att)
 
     # Class 0
-    tn_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=True)
-    tn_bottom_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=False)
-    fp_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=False, use_highest_att=True)
-    fp_bottom_tiles = select_k_tiles_from_results(label=0, use_highest_pred=False, use_highest_att=False)
+    tn_top_tiles = select_k_tiles_from_results(
+        label=0, use_highest_pred=True, use_highest_att=True)
+    tn_bottom_tiles = select_k_tiles_from_results(
+        label=0, use_highest_pred=True, use_highest_att=False)
+    fp_top_tiles = select_k_tiles_from_results(
+        label=0, use_highest_pred=False, use_highest_att=True)
+    fp_bottom_tiles = select_k_tiles_from_results(
+        label=0, use_highest_pred=False, use_highest_att=False)
     report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles],
                     'FP': [fp_top_tiles, fp_bottom_tiles]}
 
     # Class 1 to n_classes-1
     n_classes_to_select = n_classes if n_classes > 1 else 2
     for i in range(1, n_classes_to_select):
-        fn_top_tiles = select_k_tiles_from_results(label=i, use_highest_pred=False, use_highest_att=True)
-        fn_bottom_tiles = select_k_tiles_from_results(label=i, use_highest_pred=False, use_highest_att=False)
-        tp_top_tiles = select_k_tiles_from_results(label=i, use_highest_pred=True, use_highest_att=True)
-        tp_bottom_tiles = select_k_tiles_from_results(label=i, use_highest_pred=True, use_highest_att=False)
+        fn_top_tiles = select_k_tiles_from_results(
+            label=i, use_highest_pred=False, use_highest_att=True)
+        fn_bottom_tiles = select_k_tiles_from_results(
+            label=i, use_highest_pred=False, use_highest_att=False)
+        tp_top_tiles = select_k_tiles_from_results(
+            label=i, use_highest_pred=True, use_highest_att=True)
+        tp_bottom_tiles = select_k_tiles_from_results(
+            label=i, use_highest_pred=True, use_highest_att=False)
         report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
                              'FN_' + str(i): [fn_top_tiles, fn_bottom_tiles]})
 
     selected_slide_ids: Dict[str, List[str]] = {}
     for key in report_cases.keys():
-        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
+        logging.info(
+            f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
         key_dir = figures_dir / key
         key_dir.mkdir(parents=True, exist_ok=True)
 
@@ -180,11 +192,13 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
         selected_slide_ids[key] = []
         for i in range(n_slides):
             slide_id, score, paths, top_attn = report_cases[key][0][i]
-            fig = plot_attention_tiles(slide_id, score, paths, top_attn, key + '_top', ncols=4)
+            fig = plot_attention_tiles(
+                slide_id, score, paths, top_attn, key + '_top', ncols=4)
             save_figure(fig=fig, figpath=key_dir / f'{slide_id}_top.png')
 
             _, _, paths, bottom_attn = report_cases[key][1][i]
-            fig = plot_attention_tiles(slide_id, score, paths, bottom_attn, key + '_bottom', ncols=4)
+            fig = plot_attention_tiles(
+                slide_id, score, paths, bottom_attn, key + '_bottom', ncols=4)
             save_figure(fig=fig, figpath=key_dir / f'{slide_id}_bottom.png')
 
             selected_slide_ids[key].append(slide_id)
@@ -195,7 +209,8 @@ def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir:
 def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
                                        level: int, slides_dataset: SlidesDataset, figures_dir: Path) -> None:
     for key in selected_slide_ids:
-        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
+        logging.info(
+            f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
         key_dir = figures_dir / key
         key_dir.mkdir(parents=True, exist_ok=True)
         for slide_id in selected_slide_ids[key]:
@@ -234,8 +249,10 @@ def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequ
     logging.info(cf_matrix)
     #  Save the normalized confusion matrix as a figure in outputs
     cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / 'normalized_confusion_matrix.png')
+    fig = plot_normalized_confusion_matrix(
+        cm=cf_matrix_n, class_names=(class_names))
+    save_figure(fig=fig, figpath=figures_dir /
+                'normalized_confusion_matrix.png')
 
 
 class OutputsPolicy:
@@ -275,7 +292,8 @@ class OutputsPolicy:
                                  f"'{contents[self._PRIMARY_METRIC_KEY]}' in {self.best_metric_file_path}")
         else:
             self._best_metric_epoch = 0
-            self._best_metric_value = float('-inf') if self.maximise else float('inf')
+            self._best_metric_value = float(
+                '-inf') if self.maximise else float('inf')
 
     def _save_best_metric(self) -> None:
         """Save best metric epoch, value, and name to disk, to allow recovery (e.g. in case of pre-emption)."""
@@ -435,7 +453,8 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
+            self._save_outputs(gathered_epoch_results,
+                               self.validation_outputs_dir)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
@@ -457,4 +476,5 @@ class DeepMILOutputsHandler:
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             logging.info("Selecting tiles ...")
             self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
-            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)
+            self._save_outputs(gathered_epoch_results,
+                               self.test_outputs_dir, stage=ModelKey.TEST)

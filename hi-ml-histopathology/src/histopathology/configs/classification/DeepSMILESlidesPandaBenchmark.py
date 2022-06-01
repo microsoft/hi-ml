@@ -34,6 +34,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
     batch_size = 2 runs on 8 GPUs with
     ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
+
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             pool_type=TransformerPoolingBenchmark.__name__,
@@ -91,7 +92,8 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
-            transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(
+                PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
@@ -125,14 +127,17 @@ class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
     Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
     Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
     """
+
     def __init__(self, n_epochs: int, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.save_hyperparameters()
         self.n_epochs = n_epochs
 
     def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
-        optimizer = optim.AdamW(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
+        optimizer = optim.AdamW(
+            self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 

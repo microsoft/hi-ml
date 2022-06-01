@@ -21,14 +21,16 @@ class NIH_COVID_BYOL(SSLContainer):
                          linear_head_dataset_name=SSLDatasetName.Covid,
                          random_seed=1,
                          max_epochs=500,
-                         ssl_training_batch_size=75,  # This runs  with 16 gpus (4 nodes)
+                         # This runs  with 16 gpus (4 nodes)
+                         ssl_training_batch_size=75,
                          num_workers=12,
                          ssl_encoder=EncoderName.densenet121,
                          ssl_training_type=SSLTrainingType.BYOL,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=path_encoder_augmentation_cxr,
                          # the first Azure dataset is for training, the second is for the linear head
-                         azure_datasets=[pretraining_dataset_id, covid_dataset_id],
+                         azure_datasets=[
+                             pretraining_dataset_id, covid_dataset_id],
                          linear_head_augmentation_config=path_linear_head_augmentation_cxr,
                          online_evaluator_lr=1e-5,
                          linear_head_batch_size=64,

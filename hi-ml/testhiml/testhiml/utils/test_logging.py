@@ -58,8 +58,10 @@ def test_log_on_epoch() -> None:
     actual_metrics = actual_args[0][0]
     for metric_name in ["foo", "bar"]:
         assert metric_name in actual_metrics, f"Metric missing: {metric_name}"
-        assert torch.is_tensor(actual_metrics[metric_name]), f"Metric {metric_name}: not a tensor"
-        assert actual_metrics[metric_name].dtype == torch.float, f"Metric {metric_name}: should be float tensor"
+        assert torch.is_tensor(
+            actual_metrics[metric_name]), f"Metric {metric_name}: not a tensor"
+        assert actual_metrics[
+            metric_name].dtype == torch.float, f"Metric {metric_name}: should be float tensor"
     assert actual_metrics["foo"].item() == float(foo_value)
     # Default arguments for the call to module.log
     assert actual_args[1] == {'on_epoch': True,
@@ -77,14 +79,16 @@ def test_log_on_epoch() -> None:
                                             'sync_dist_op': 'mean'}, "Failed for world_size==2"
     # Test if overrides for sync_dist and the other aggregation args are passed correctly
     module.trainer.world_size = 2
-    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False, sync_dist_op="nothing")  # type: ignore
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce",
+                 sync_dist=False, sync_dist_op="nothing")  # type: ignore
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'sync_dist': False,
                                             'reduce_fx': "reduce",
                                             'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
     module.trainer.world_size = 1
-    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True, sync_dist_op="nothing")  # type: ignore
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce",
+                 sync_dist=True, sync_dist_op="nothing")  # type: ignore
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'sync_dist': True,
@@ -109,7 +113,8 @@ def test_log_learning_rate_singleton() -> None:
     with mock.patch("health_ml.utils.logging.log_on_epoch") as mock_log_on_epoch:
         log_learning_rate(module)
         assert mock_log_on_epoch.call_args[0] == (module,)
-        assert mock_log_on_epoch.call_args[1] == {'metrics': {'learning_rate': lr}}
+        assert mock_log_on_epoch.call_args[1] == {
+            'metrics': {'learning_rate': lr}}
 
 
 def test_log_learning_rate_multiple() -> None:
@@ -123,7 +128,8 @@ def test_log_learning_rate_multiple() -> None:
     lr2 = [2, 3]
     scheduler2.get_last_lr = mock.MagicMock(return_value=lr2)
     module = mock.MagicMock()
-    module.lr_schedulers = mock.MagicMock(return_value=[scheduler1, scheduler2])
+    module.lr_schedulers = mock.MagicMock(
+        return_value=[scheduler1, scheduler2])
     with mock.patch("health_ml.utils.logging.log_on_epoch") as mock_log_on_epoch:
         log_learning_rate(module, name="foo")
         assert mock_log_on_epoch.call_args[0] == (module,)
@@ -180,7 +186,8 @@ def test_azureml_log_hyperparameters1() -> None:
     fake_params = {"foo": 1.0}
     logger.log_hyperparams(fake_params)
     # Dictionary should be logged as name/value pairs, one value per row
-    logger.run.log_table.assert_called_once_with("hyperparams", {'name': ['foo'], 'value': ["1.0"]})
+    logger.run.log_table.assert_called_once_with(
+        "hyperparams", {'name': ['foo'], 'value': ["1.0"]})
 
 
 def test_azureml_log_hyperparameters2() -> None:
@@ -197,7 +204,8 @@ def test_azureml_log_hyperparameters2() -> None:
     fake_namespace = Namespace(foo="bar", complex_object=Dummy())
     logger.log_hyperparams(fake_namespace)
     # Complex objects are converted to str
-    expected_dict: Dict[str, Any] = {'name': ['foo', 'complex_object'], 'value': ['bar', 'dummy']}
+    expected_dict: Dict[str, Any] = {
+        'name': ['foo', 'complex_object'], 'value': ['bar', 'dummy']}
     logger.run.log_table.assert_called_once_with("hyperparams", expected_dict)
 
 
@@ -208,9 +216,11 @@ def test_azureml_log_hyperparameters3() -> None:
     """
     logger = create_mock_logger()
     assert logger.run is not None
-    fake_namespace = Namespace(foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
+    fake_namespace = Namespace(
+        foo={"bar": 1, "baz": {"level3": Namespace(a="17")}})
     logger.log_hyperparams(fake_namespace)
-    expected_dict = {"name": ["foo/bar", "foo/baz/level3/a"], "value": ["1", "17"]}
+    expected_dict = {
+        "name": ["foo/bar", "foo/baz/level3/a"], "value": ["1", "17"]}
     logger.run.log_table.assert_called_once_with("hyperparams", expected_dict)
 
 
@@ -221,10 +231,12 @@ def test_azureml_logger_many_hyperparameters(tmpdir: Path) -> None:
     """
     many_hyperparams: Dict[str, Any] = {f"param{i}": i for i in range(0, 20)}
     many_hyperparams["A long list"] = ["foo", 1.0, "abc"]
-    expected_metrics = {key: str(value) for key, value in many_hyperparams.items()}
+    expected_metrics = {key: str(value)
+                        for key, value in many_hyperparams.items()}
     logger: Optional[AzureMLLogger] = None
     try:
-        logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
+        logger = AzureMLLogger(
+            enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
         assert logger.run is not None
         logger.log_hyperparams(many_hyperparams)
         logger.run.flush()
@@ -259,9 +271,11 @@ def test_azureml_logger_step() -> None:
     logger.log_metrics(metrics={"foo": 1.0, "epoch": 123}, step=78)
     assert logger.run.log.call_count == 2
     assert logger.run.log.call_args_list[0][0] == ("foo", 1.0)
-    assert logger.run.log.call_args_list[0][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
+    assert logger.run.log.call_args_list[0][1] == {
+        "step": None}, "For epoch-level metrics, no step should be provided"
     assert logger.run.log.call_args_list[1][0] == ("epoch", 123)
-    assert logger.run.log.call_args_list[1][1] == {"step": None}, "For epoch-level metrics, no step should be provided"
+    assert logger.run.log.call_args_list[1][1] == {
+        "step": None}, "For epoch-level metrics, no step should be provided"
     logger.run.reset_mock()  # type: ignore
     logger.log_metrics(metrics={"foo": 1.0}, step=78)
     logger.run.log.assert_called_once_with("foo", 1.0, step=78)
@@ -299,7 +313,8 @@ def test_azureml_logger_actual_run() -> None:
     """
     When running outside of AzureML, a new run should be created.
     """
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
+                           workspace=DEFAULT_WORKSPACE.workspace)
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT
@@ -360,7 +375,8 @@ def test_progress_bar_enable() -> None:
 def test_progress_bar(capsys: SysCapture) -> None:
     bar = AzureMLProgressBar(refresh_rate=1)
     mock_trainer = mock.MagicMock(current_epoch=12,
-                                  lightning_module=mock.MagicMock(global_step=34),
+                                  lightning_module=mock.MagicMock(
+                                      global_step=34),
                                   num_training_batches=10,
                                   emable_validation=False,
                                   num_test_batches=[20],
@@ -394,7 +410,8 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert bar.val_batch_idx == 0
     # Number of validation batches is difficult to fake, tweak the field where it is stored in the progress bar
     bar.total_num_batches = 5
-    bar.on_validation_batch_end(None, None, None, None, None, None)  # type: ignore
+    bar.on_validation_batch_end(
+        None, None, None, None, None, None)  # type: ignore
     assert bar.val_batch_idx == 1
     latest = latest_message()
     assert "Validation epoch 12: " in latest
@@ -404,7 +421,8 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TEST
     test_count = 2
     for _ in range(test_count):
-        bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
+        bar.on_test_batch_end(None, None, None, None,
+                              None, None)  # type: ignore
     assert bar.test_batch_idx == test_count
     latest = latest_message()
     assert "Testing:" in latest
@@ -414,7 +432,8 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_PREDICT
     predict_count = 3
     for _ in range(predict_count):
-        bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
+        bar.on_predict_batch_end(
+            None, None, None, None, None, None)  # type: ignore
     assert bar.predict_batch_idx == predict_count
     latest = latest_message()
     assert "Prediction:" in latest
@@ -422,7 +441,8 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert "since epoch start" in latest
     # Test behaviour when a batch count is infinity
     bar.total_num_batches = math.inf  # type: ignore
-    bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
+    bar.on_predict_batch_end(None, None, None, None,
+                             None, None)  # type: ignore
     assert bar.predict_batch_idx == 4
     latest = latest_message()
     assert "4 batches completed" in latest
@@ -447,7 +467,8 @@ def test_progress_bar_to_stdout(capsys: SysCapture, print_timestamp: bool) -> No
     """
     message = "A random message"
     today = datetime.utcnow().strftime("%Y-%m-%d")
-    to_stdout = AzureMLProgressBar(write_to_logging_info=False, print_timestamp=print_timestamp)
+    to_stdout = AzureMLProgressBar(
+        write_to_logging_info=False, print_timestamp=print_timestamp)
     to_stdout._print(message)
     stdout: str = capsys.readouterr().out  # type: ignore
     print(f"Output: {stdout}")

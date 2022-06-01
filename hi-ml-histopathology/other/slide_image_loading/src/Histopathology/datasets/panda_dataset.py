@@ -25,7 +25,8 @@ class PandaDataset(Dataset):
                  frac_slides: Optional[float] = None) -> None:
         super().__init__()
         self.root_dir = Path(root_dir)
-        self.train_df = pd.read_csv(self.root_dir / "train.csv", index_col='image_id')
+        self.train_df = pd.read_csv(
+            self.root_dir / "train.csv", index_col='image_id')
         if n_slides or frac_slides:
             self.train_df = self.train_df.sample(n=n_slides, frac=frac_slides, replace=False,
                                                  random_state=1234)
@@ -100,10 +101,13 @@ class LoadPandaROId(MapTransform):
         # Estimate bounding box at the lowest resolution (i.e. highest level)
         highest_level = mask_obj.level_count - 1
         scale = mask_obj.level_downsamples[highest_level]
-        mask, _ = self.mask_reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
+        mask, _ = self.mask_reader.get_data(
+            mask_obj, level=highest_level)  # loaded as RGB PIL image
 
-        foreground_mask = mask[0] > 0  # PANDA segmentation mask is in 'R' channel
-        bbox = scale * box_utils.get_bounding_box(foreground_mask).add_margin(self.margin)
+        # PANDA segmentation mask is in 'R' channel
+        foreground_mask = mask[0] > 0
+        bbox = scale * \
+            box_utils.get_bounding_box(foreground_mask).add_margin(self.margin)
         return bbox
 
     def __call__(self, data: Dict) -> Dict:
@@ -119,9 +123,12 @@ class LoadPandaROId(MapTransform):
         get_data_kwargs = dict(location=(level0_bbox.x, level0_bbox.y),
                                size=(scaled_bbox.w, scaled_bbox.h),
                                level=self.level)
-        mask, _ = self.mask_reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
-        data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
-        data[self.image_key], _ = self.image_reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
+        mask, _ = self.mask_reader.get_data(
+            mask_obj, **get_data_kwargs)  # type: ignore
+        # PANDA segmentation mask is in 'R' channel
+        data[self.mask_key] = mask[:1]
+        data[self.image_key], _ = self.image_reader.get_data(
+            image_obj, **get_data_kwargs)  # type: ignore
         data.update(get_data_kwargs)
         data['scale'] = scale
 

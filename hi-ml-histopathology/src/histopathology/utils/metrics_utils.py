@@ -43,7 +43,8 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     :return: tuple containing the slides id, the slide score, the tile ids, the tiles scores
     """
     # TODO: Refactor into separate functions to select slides by probabilities and tiles by attentions
-    tmp_s = [(results[prob_col][i][label], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
+    tmp_s = [(results[prob_col][i][label], i)
+             for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
 
     if len(tmp_s) == 0:
         return []
@@ -78,7 +79,8 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
     n_classes = len(results[prob_col][0])
     scores_class = []
     for j in range(n_classes):
-        scores = [results[prob_col][i][j].cpu().item() for i, gt in enumerate(results[gt_col]) if gt == j]
+        scores = [results[prob_col][i][j].cpu().item()
+                  for i, gt in enumerate(results[gt_col]) if gt == j]
         scores_class.append(scores)
     fig, ax = plt.subplots()
     ax.hist(scores_class, label=[str(i) for i in range(n_classes)], alpha=0.5)
@@ -161,13 +163,16 @@ def plot_heatmap_overlay(slide: str,
     coords = np.array(coords_list)
     attentions = np.array(attentions.cpu()).reshape(-1)
 
-    sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
+    sel_coords = location_selected_tiles(
+        tile_coords=coords, location_bbox=location_bbox, level=level)
     cmap = plt.cm.get_cmap('Reds')
 
     tile_xs, tile_ys = sel_coords.T
-    rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
+    rects = [patches.Rectangle(xy, tile_size, tile_size)
+             for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor='black')
+    pc = collection.PatchCollection(
+        rects, match_original=True, cmap=cmap, alpha=.5, edgecolor='black')
     pc.set_array(np.array(attentions))
     pc.set_clim([0, 1])
     ax.add_collection(pc)

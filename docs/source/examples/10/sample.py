@@ -47,7 +47,8 @@ def main() -> None:
                         help='Penalty parameter of the error term')
     parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
                                                                "run represents in k-fold cross-validation")
-    parser.add_argument("--num_splits", help="The total number of splits being used for k-fol cross validation")
+    parser.add_argument(
+        "--num_splits", help="The total number of splits being used for k-fol cross validation")
 
     args = parser.parse_args()
     run.log('Kernel type', args.kernel)
@@ -59,7 +60,8 @@ def main() -> None:
     targets_file = input_folder / "iris_targets.csv"
 
     X = np.loadtxt(fname=train_data_file, delimiter=',').astype(float)
-    y = np.loadtxt(fname=targets_file, dtype='str', delimiter=',').astype(float)
+    y = np.loadtxt(fname=targets_file, dtype='str',
+                   delimiter=',').astype(float)
 
     # training a linear SVM classifier
     from sklearn.svm import SVC
@@ -70,8 +72,10 @@ def main() -> None:
     train_splits_file = str(input_folder / "iris_data_splits.csv")
     test_splits_file = str(input_folder / "iris_target_splits.csv")
 
-    train_splits_indices = np.loadtxt(fname=train_splits_file, delimiter=",").astype(int)
-    test_splits_indices = np.loadtxt(fname=test_splits_file, delimiter=",").astype(int)
+    train_splits_indices = np.loadtxt(
+        fname=train_splits_file, delimiter=",").astype(int)
+    test_splits_indices = np.loadtxt(
+        fname=test_splits_file, delimiter=",").astype(int)
 
     fold = int(args.cross_validation_split_index)
     fold_train_idx = train_splits_indices[fold]
@@ -80,7 +84,8 @@ def main() -> None:
     X_train, X_test = X[fold_train_idx], X[fold_test_idx]
     y_train, y_test = y[fold_train_idx], y[fold_test_idx]
 
-    svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
+    svm_model_linear = SVC(
+        kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
     svm_predictions = svm_model_linear.predict(X_test)
     lb = LabelBinarizer()
     y_pred = lb.fit_transform(svm_predictions)
