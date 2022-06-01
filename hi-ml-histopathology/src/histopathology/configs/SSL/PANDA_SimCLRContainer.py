@@ -34,22 +34,17 @@ class PANDA_SimCLR(HistoSSLContainer):
     SSLContainer._SSLDataClassMappings.update({SSLDatasetNameHiml.PANDA.value: PandaTilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
-        if not is_running_in_azure_ml():
-            is_debug_model = True
-            num_workers = 0
-            max_epochs = 2
-
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
                          linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
                          azure_datasets=[PANDA_TILES_DATASET_ID],
                          random_seed=1,
-                         num_workers=num_workers,
-                         is_debug_model=is_debug_model,
+                         num_workers=5,
+                         is_debug_model=False,
                          model_checkpoint_save_interval=50,
                          model_checkpoints_save_last_k=3,
                          model_monitor_metric='ssl_online_evaluator/val/AccuracyAtThreshold05',
                          model_monitor_mode='max',
-                         max_epochs=max_epochs,
+                         max_epochs=200,
                          ssl_training_batch_size=128,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
@@ -60,3 +55,8 @@ class PANDA_SimCLR(HistoSSLContainer):
                          **kwargs)
         self.pl_check_val_every_n_epoch = 10
         PandaTilesDatasetWithReturnIndex.occupancy_threshold = 0
+        PandaTilesDatasetWithReturnIndex.random_selection = 0.5
+        if not is_running_in_azure_ml():
+            self.is_debug_model = True
+            self.num_workers = 0
+            self.max_epochs = 2
