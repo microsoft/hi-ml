@@ -48,8 +48,8 @@ class RunPytestConfig(param.Parameterized):
     )
     module: str = param.String(
         default="",
-        doc="The module of tests that should be run. This value is used as an argument to --cov of pytest to run it"
-        "with coverage on the specified module.",
+        doc="The module of tests that should be run. This value is used as an argument to --cov of pytest to run code"
+        "coverage of the specified module.",
     )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
     conda_env: str = param.String(
