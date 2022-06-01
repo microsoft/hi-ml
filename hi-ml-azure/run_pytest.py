@@ -7,7 +7,6 @@ import param
 from _pytest.main import ExitCode
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
-from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR
 
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
@@ -35,6 +34,7 @@ from health_azure.utils import (  # noqa: E402
     is_running_in_azure_ml,
     parse_arguments,
 )
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
 
