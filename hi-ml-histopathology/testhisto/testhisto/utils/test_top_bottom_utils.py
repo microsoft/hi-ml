@@ -158,8 +158,8 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
 
     if torch.distributed.is_initialized():
         if world_size > 1:
-            shallow_top_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
-            shallow_bottom_slides_heaps = handler.gather_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
+            shallow_top_slides_heaps = handler._aggregate_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
+            shallow_bottom_slides_heaps = handler._aggregate_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
 
     if rank == 0:
         for label in range(n_classes):
