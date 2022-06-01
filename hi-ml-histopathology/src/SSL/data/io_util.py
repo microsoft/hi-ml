@@ -35,7 +35,8 @@ def _file_matches_extension(file: PathOrString, valid_extensions: Iterable[str])
     :return: True if the file has any of the given extensions.
     """
     dot = "."
-    extensions_with_dot = tuple(e if e.startswith(dot) else dot + e for e in valid_extensions)
+    extensions_with_dot = tuple(e if e.startswith(
+        dot) else dot + e for e in valid_extensions)
     return str(file).lower().endswith(extensions_with_dot)
 
 
@@ -65,6 +66,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         elif pixel_repr == 1:  # signed
             pixels = -1 * (pixels + 1)
         else:
-            raise ValueError("Unknown value for DICOM tag 0028,0103 PixelRepresentation")
+            raise ValueError(
+                "Unknown value for DICOM tag 0028,0103 PixelRepresentation")
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
     return pixels.astype(np.float)  # type: ignore

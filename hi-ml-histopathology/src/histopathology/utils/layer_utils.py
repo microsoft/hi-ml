@@ -24,7 +24,8 @@ def setup_feature_extractor(pretrained_model: nn.Module,
     except AttributeError:
         # Otherwise fallback to sequence of child modules:
         layers = list(pretrained_model.children())[:-1]
-        layers.append(nn.Flatten())  # flatten non-batch dims in case of spatial feature maps
+        # flatten non-batch dims in case of spatial feature maps
+        layers.append(nn.Flatten())
         feature_extractor = nn.Sequential(*layers)
         with no_grad():
             feature_shape = feature_extractor(rand(1, *input_dim)).shape

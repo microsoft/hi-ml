@@ -48,7 +48,8 @@ def test_2d_padding(width: int, height: int, tile_size: int, channels_first: boo
     assert padded_height % tile_size == 0 and padded_width % tile_size == 0
     assert 0 <= offset_h < tile_size and 0 <= offset_w < tile_size
 
-    crop = padded_array[:, offset_h:offset_h + height, offset_w:offset_w + width]
+    crop = padded_array[:, offset_h:offset_h +
+                        height, offset_w:offset_w + width]
     assert np.array_equal(crop, array)
 
     # np.array_equiv() broadcasts the shapes
@@ -61,7 +62,8 @@ def test_2d_padding(width: int, height: int, tile_size: int, channels_first: boo
 def _get_2d_meshgrid(width: int, height: int, channels_first: bool = True) -> np.ndarray:
     array = np.stack(np.meshgrid(np.arange(width), np.arange(height)),
                      axis=0 if channels_first else -1)
-    assert array.shape == ((2, height, width) if channels_first else (height, width, 2))
+    assert array.shape == (
+        (2, height, width) if channels_first else (height, width, 2))
     return array
 
 
@@ -84,18 +86,22 @@ def test_tile_array_2d_both(width: int, height: int, tile_size: int, channels_fi
     expected_n_tiles = expected_n_tiles_w * expected_n_tiles_h
 
     if channels_first:
-        assert tiles.shape == (expected_n_tiles, channels, tile_size, tile_size)
+        assert tiles.shape == (
+            expected_n_tiles, channels, tile_size, tile_size)
     else:
-        assert tiles.shape == (expected_n_tiles, tile_size, tile_size, channels)
+        assert tiles.shape == (
+            expected_n_tiles, tile_size, tile_size, channels)
     assert coords.shape == (expected_n_tiles, 2)
 
     for idx in range(tiles.shape[0]):
         row = coords[idx, 1] + offset_h
         col = coords[idx, 0] + offset_w
         if channels_first:
-            expected_tile = padded_array[:, row:row + tile_size, col:col + tile_size]
+            expected_tile = padded_array[:,
+                                         row:row + tile_size, col:col + tile_size]
         else:
-            expected_tile = padded_array[row:row + tile_size, col:col + tile_size, :]
+            expected_tile = padded_array[row:row +
+                                         tile_size, col:col + tile_size, :]
         assert np.array_equal(tiles[idx], expected_tile)
 
         expected_x = tile_size * (idx % expected_n_tiles_w) - offset_w

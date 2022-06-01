@@ -20,8 +20,15 @@ from health_azure.utils import PathOrString, is_conda_file_with_pip_include
 MAX_PATH_LENGTH = 260
 
 # convert string to None if an empty string or whitespace is provided
-empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
-string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
+
+
+def empty_string_to_none(x): return None if (
+    x is None or len(x.strip()) == 0) else x
+
+
+def string_to_path(x): return None if (
+    x is None or len(x.strip()) == 0) else Path(x)
+
 
 # file and directory names
 CHECKPOINT_SUFFIX = ".ckpt"
@@ -73,9 +80,11 @@ def check_properties_are_not_none(obj: Any, ignore: Optional[List[str]] = None) 
     Checks to make sure the provided object has no properties that have a None value assigned.
     """
     if ignore is not None:
-        none_props = [k for k, v in vars(obj).items() if v is None and k not in ignore]
+        none_props = [k for k, v in vars(
+            obj).items() if v is None and k not in ignore]
         if len(none_props) > 0:
-            raise ValueError("Properties had None value: {}".format(none_props))
+            raise ValueError(
+                "Properties had None value: {}".format(none_props))
 
 
 @contextmanager
@@ -127,7 +136,8 @@ def get_all_environment_files(project_root: Path, additional_files: Optional[Lis
             # Searching for Conda file starts at current working directory, meaning it might not find
             # the file if cwd is outside the git repo
             env_file = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
-            assert env_file.is_file(), f"Didn't find an environment file at {env_file}"
+            assert env_file.is_file(
+            ), f"Didn't find an environment file at {env_file}"
 
         logging.info(f"Using Conda environment in {env_file}")
         env_files.append(env_file)
@@ -136,7 +146,8 @@ def get_all_environment_files(project_root: Path, additional_files: Optional[Lis
         project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
         print(f"Looking for project yaml: {project_yaml}")
         if project_yaml.exists():
-            logging.info(f"Using Conda environment in current folder: {project_yaml}")
+            logging.info(
+                f"Using Conda environment in current folder: {project_yaml}")
             env_files.append(project_yaml)
 
     if not env_files and not additional_files:

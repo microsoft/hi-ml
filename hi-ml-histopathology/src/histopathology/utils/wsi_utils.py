@@ -16,7 +16,8 @@ def image_collate(batch: List) -> Any:
 
     for i, item in enumerate(batch):
         data = item[0]
-        data[SlideKey.IMAGE] = torch.tensor(np.array([ix[SlideKey.IMAGE] for ix in item]))
+        data[SlideKey.IMAGE] = torch.tensor(
+            np.array([ix[SlideKey.IMAGE] for ix in item]))
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
     return multibag_collate(batch)

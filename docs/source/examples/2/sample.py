@@ -35,7 +35,8 @@ def main() -> None:
         wait_for_completion_show_output=True)
 
     parser = ArgumentParser()
-    parser.add_argument("-n", "--count", type=int, default=100, required=False, help="Maximum value (not included)")
+    parser.add_argument("-n", "--count", type=int, default=100,
+                        required=False, help="Maximum value (not included)")
     args = parser.parse_args()
 
     primes = sieve(args.count)

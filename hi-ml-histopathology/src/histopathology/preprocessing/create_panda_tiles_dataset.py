@@ -56,7 +56,8 @@ def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
     # mask_tile has shape (N, C, H, W)
     foreground_mask = mask_tile > 0
     occupancy = foreground_mask.mean(axis=(-2, -1))
-    selected = occupancy >= occupancy_threshold  # if the threshold is 0, all tiles should be selected
+    # if the threshold is 0, all tiles should be selected
+    selected = occupancy >= occupancy_threshold
     # selected has shape (N, 1)
     return selected[:, 0], occupancy[:, 0]
 
@@ -84,16 +85,19 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
     image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size,
                                                        constant_values=255)
     assert tile_locations.ndim == 2
-    mask_tiles, _ = tiling.tile_array_2d(sample['mask'], tile_size=tile_size, constant_values=0)
+    mask_tiles, _ = tiling.tile_array_2d(
+        sample['mask'], tile_size=tile_size, constant_values=0)
 
     selected: np.ndarray
     occupancies: np.ndarray
-    selected, occupancies = select_tile(mask_tiles, occupancy_threshold)  # type: ignore
+    selected, occupancies = select_tile(
+        mask_tiles, occupancy_threshold)  # type: ignore
     num_selected = selected.sum()
     num_tiles = len(image_tiles)
     num_discarded = num_tiles - num_selected
     percentage_discarded = 100 * num_discarded / num_tiles
-    logging.info(f"Discarded {num_discarded}/{num_tiles} tiles ({percentage_discarded:.2f} %)")
+    logging.info(
+        f"Discarded {num_discarded}/{num_tiles} tiles ({percentage_discarded:.2f} %)")
 
     image_tiles = image_tiles[selected]
     mask_tiles = mask_tiles[selected]
@@ -103,9 +107,11 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
     top, left = sample['location']
     offset = np.array((left, top))
 
-    abs_tile_locations = (sample['scale'] * tile_locations + offset).astype(int)
+    abs_tile_locations = (
+        sample['scale'] * tile_locations + offset).astype(int)
     tile_size_scaled = int(tile_size * sample['scale'])
-    tile_boxes = [Box(x, y, tile_size_scaled, tile_size_scaled) for x, y in abs_tile_locations]
+    tile_boxes = [Box(x, y, tile_size_scaled, tile_size_scaled)
+                  for x, y in abs_tile_locations]
 
     return image_tiles, mask_tiles, tile_boxes, occupancies, num_discarded
 
@@ -150,7 +156,8 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
         logging.info(f">>> Skipping {slide_dir} - already processed")
         return
     else:
-        mask_key = SlideKey.MASK  # it should be read from the dataset attribute instead, but we assume it's the same
+        # it should be read from the dataset attribute instead, but we assume it's the same
+        mask_key = SlideKey.MASK
         mask_path = Path(sample[mask_key])
         if not mask_path.is_file():
             logging.error(f'Mask for slide {slide_id} not found')
@@ -160,7 +167,8 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
 
         dataset_csv_path = slide_dir / "dataset.csv"
         dataset_csv_file = dataset_csv_path.open('w')
-        dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
+        dataset_csv_file.write(','.join(CSV_COLUMNS) +
+                               '\n')  # write CSV header
 
         logging.info(f"Loading slide {slide_id} ...")
         reader = WSIReader(backend="cucim")
@@ -169,7 +177,8 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
             sample = loader(sample)  # load 'image' and 'mask' from disk
             failed = False
         except RuntimeError as e:  # happens when masks are empty
-            logging.error(f'Error loading slide {slide_id}, maybe due to an empty mask:\n{e}')
+            logging.error(
+                f'Error loading slide {slide_id}, maybe due to an empty mask:\n{e}')
             failed = True
 
         if failed:
@@ -193,10 +202,13 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
             )
             relative_slide_dir = Path(slide_dir.name)
             tile_metadata[TileKey.OCCUPANCY] = occupancies[i]
-            tile_metadata[TileKey.IMAGE] = relative_slide_dir / tile_metadata[TileKey.IMAGE]
-            tile_metadata[TileKey.MASK] = relative_slide_dir / tile_metadata[TileKey.MASK]
+            tile_metadata[TileKey.IMAGE] = relative_slide_dir / \
+                tile_metadata[TileKey.IMAGE]
+            tile_metadata[TileKey.MASK] = relative_slide_dir / \
+                tile_metadata[TileKey.MASK]
             tile_metadata[TileKey.NUM_DISCARDED] = num_discarded
-            dataset_row = ','.join(str(tile_metadata[column]) for column in CSV_COLUMNS)
+            dataset_row = ','.join(
+                str(tile_metadata[column]) for column in CSV_COLUMNS)
             dataset_csv_file.write(dataset_row + '\n')
 
         dataset_csv_file.close()
@@ -215,7 +227,8 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
             logging.info(f"Merging slide {slide_csv}")
             content = slide_csv.read_text()
             if not first_file:
-                content = content[content.index('\n') + 1:]  # discard header row for all but the first file
+                # discard header row for all but the first file
+                content = content[content.index('\n') + 1:]
             full_csv_file.write(content)
             first_file = False
     return full_csv
@@ -229,7 +242,8 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
     # to select a subsample use keyword n_slides
     dataset = Dataset(PandaDataset(panda_dir))  # type: ignore
 
-    output_dir = Path(root_output_dir) / f"panda_tiles_level{level}_{tile_size}"
+    output_dir = Path(root_output_dir) / \
+        f"panda_tiles_level{level}_{tile_size}"
     if overwrite and output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
@@ -238,7 +252,8 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
     logfile = open(output_dir / f"{time_string}.log", 'w')
     coloredlogs.install(level=logging.DEBUG, stream=logfile)
     logging.info(f"Command: \"{' '.join(sys.argv)}\"")
-    logging.info(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
+    logging.info(
+        f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
 
     func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
                              occupancy_threshold=occupancy_threshold, output_dir=output_dir,
@@ -252,7 +267,8 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
     else:
         map_func = map  # type: ignore
 
-    list(tqdm(map_func(func, dataset), desc="Slides", unit="img", total=len(dataset)))  # type: ignore
+    list(tqdm(map_func(func, dataset), desc="Slides",
+         unit="img", total=len(dataset)))  # type: ignore
 
     if parallel:
         pool.close()

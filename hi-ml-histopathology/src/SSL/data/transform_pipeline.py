@@ -44,7 +44,8 @@ class ImageTransformationPipeline:
         for each channel. If False, applies the same transformation to each channel, separately.
         """
         self.use_different_transformation_per_channel = use_different_transformation_per_channel
-        self.pipeline = Compose(transforms) if isinstance(transforms, List) else transforms
+        self.pipeline = Compose(transforms) if isinstance(
+            transforms, List) else transforms
 
     def transform_image(self, image: ImageData) -> torch.Tensor:
         """
@@ -78,7 +79,8 @@ class ImageTransformationPipeline:
         else:
             channels = []
             for channel in range(image.shape[1]):
-                channels.append(_convert_to_tensor_if_necessary(self.pipeline(image[:, channel, :, :].unsqueeze(1))))
+                channels.append(_convert_to_tensor_if_necessary(
+                    self.pipeline(image[:, channel, :, :].unsqueeze(1))))
             image = torch.cat(channels, dim=1)
         # Back to [C, Z, H, W]
         image = torch.transpose(image, 1, 0)
@@ -122,9 +124,11 @@ def create_transforms_from_config(config: CfgNode,
         else:
             transforms.append(Resize(size=config.preprocess.resize))
         if config.augmentation.use_random_horizontal_flip:
-            transforms.append(RandomHorizontalFlip(p=config.augmentation.random_horizontal_flip.prob))
+            transforms.append(RandomHorizontalFlip(
+                p=config.augmentation.random_horizontal_flip.prob))
         if config.augmentation.use_gamma_transform:
-            transforms.append(RandomGamma(scale=config.augmentation.gamma.scale))
+            transforms.append(RandomGamma(
+                scale=config.augmentation.gamma.scale))
         if config.augmentation.use_random_color:
             transforms.append(ColorJitter(
                 brightness=config.augmentation.random_color.brightness,

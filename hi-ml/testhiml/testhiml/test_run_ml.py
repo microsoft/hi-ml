@@ -68,7 +68,8 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
 
     with patch("health_ml.run_ml.PARENT_RUN_CONTEXT") as mock_parent_run_context:
         with patch("health_ml.run_ml.RUN_CONTEXT") as mock_run_context:
-            mock_parent_run_context.get_tags.return_value = {"tag": "dummy_tag"}
+            mock_parent_run_context.get_tags.return_value = {
+                "tag": "dummy_tag"}
             ml_runner.set_run_tags_from_parent()
             mock_run_context.set_tags.assert_called()
 
@@ -110,7 +111,8 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     data_path = tmp_path / "hellocontainer.csv"
     np.savetxt(data_path, xy.numpy(), delimiter=",")
 
-    expected_ckpt_path = ml_runner_with_container.container.outputs_folder / "checkpoints" / "last.ckpt"
+    expected_ckpt_path = ml_runner_with_container.container.outputs_folder / \
+        "checkpoints" / "last.ckpt"
     assert not expected_ckpt_path.exists()
     # update the container to look for test data at this location
     ml_runner_with_container.container.local_dataset_dir = tmp_path

@@ -94,7 +94,8 @@ def profile_folder(mount_point: Path,
             profile_cucim(image_file, cucim_output_folder / output_filename)
         except Exception as ex:
             print(f"Error calling cuCIM: {str(ex)}")
-        profile_openslide(image_file, openslide_output_folder / output_filename)
+        profile_openslide(
+            image_file, openslide_output_folder / output_filename)
 
 
 def profile_folders(mount_point: Path,
@@ -217,7 +218,8 @@ def main() -> None:
 
     wrap_profile_folders(mount_point, output_folder)
 
-    labels = ['tile_cucim_no_save', 'tile_openslide_no_save', 'tile_cucim', 'tile_openslide']
+    labels = ['tile_cucim_no_save', 'tile_openslide_no_save',
+              'tile_cucim', 'tile_openslide']
 
     for i, process in enumerate([process_slide_cucim_no_save,
                                  process_slide_open_slide_no_save,

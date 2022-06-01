@@ -29,7 +29,8 @@ def main() -> None:
         wait_for_completion_show_output=True)
 
     parser = ArgumentParser()
-    parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")
+    parser.add_argument("-m", "--message", type=str,
+                        required=True, help="The message to print out")
     args = parser.parse_args()
 
     print(f"The message was: {args.message}")

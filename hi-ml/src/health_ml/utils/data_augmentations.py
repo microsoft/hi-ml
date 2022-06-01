@@ -74,7 +74,8 @@ class HEDJitter(object):
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         if img.shape[1] != 3:
-            raise ValueError("HED jitter can only be applied to images with 3 channels (RGB).")
+            raise ValueError(
+                "HED jitter can only be applied to images with 3 channels (RGB).")
         return self.adjust_hed(img, self.theta, self.hed_from_rgb, self.rgb_from_hed)
 
 
@@ -106,7 +107,8 @@ class StainNormalization(object):
         :param reference_mean: Mean per channel of a reference image.
         :param reference_std: STD per channel of a reference image.
         """
-        img = img.permute([0, 2, 3, 1]).squeeze().numpy() * 255  # only 3 channels, color channel last, range 0 - 255
+        img = img.permute([0, 2, 3, 1]).squeeze().numpy(
+        ) * 255  # only 3 channels, color channel last, range 0 - 255
         img = img.astype(np.uint8)  # type: ignore
 
         whitemask = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -114,19 +116,22 @@ class StainNormalization(object):
         whitemask = np.repeat(whitemask[:, :, np.newaxis], 3, axis=2)
 
         imagelab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-        imagelab_masked = np.ma.MaskedArray(imagelab, whitemask)  # type: np.ma.MaskedArray
+        imagelab_masked = np.ma.MaskedArray(
+            imagelab, whitemask)  # type: np.ma.MaskedArray
 
         epsilon = 1e-11  # Sometimes STD is near 0, add epsilon to avoid div by 0
         imagelab_masked_mean = imagelab_masked.mean(axis=(0, 1))
         imagelab_masked_std = imagelab_masked.std(axis=(0, 1)) + epsilon
 
         # Normalize and apply reference img statistics
-        imagelab = (imagelab - imagelab_masked_mean) / imagelab_masked_std * reference_std + reference_mean
+        imagelab = (imagelab - imagelab_masked_mean) / \
+            imagelab_masked_std * reference_std + reference_mean
         imagelab = np.clip(imagelab, 0, 255)
         imagelab = imagelab.astype(np.uint8)
         nimg = cv2.cvtColor(imagelab, cv2.COLOR_LAB2RGB)
         nimg[whitemask] = img[whitemask]  # add back white pixels
-        nimg = torch.Tensor(nimg).unsqueeze(0).permute(0, 3, 1, 2) / 255.  # back to pytorch format
+        nimg = torch.Tensor(nimg).unsqueeze(0).permute(
+            0, 3, 1, 2) / 255.  # back to pytorch format
 
         return nimg
 
@@ -162,9 +167,11 @@ class GaussianBlur(object):
         prob = np.random.random_sample()
 
         if prob < self.p:
-            sigma = (self.max - self.min) * np.random.random_sample() + self.min
+            sigma = (self.max - self.min) * \
+                np.random.random_sample() + self.min
             sample = np.array(sample.squeeze())  # type: ignore
-            sample = cv2.GaussianBlur(sample, (self.kernel_size, self.kernel_size), sigma)
+            sample = cv2.GaussianBlur(
+                sample, (self.kernel_size, self.kernel_size), sigma)
             sample = torch.Tensor(sample).unsqueeze(0)
 
         return sample

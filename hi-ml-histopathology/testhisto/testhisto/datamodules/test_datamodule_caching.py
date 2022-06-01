@@ -66,7 +66,8 @@ def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.
     df[MockTilesDataset.SLIDE_ID_COLUMN] = slide_ids
     df[MockTilesDataset.LABEL_COLUMN] = tile_labels
     df[MockTilesDataset.SPLIT_COLUMN] = tile_splits
-    df[MockTilesDataset.IMAGE_COLUMN] = [f"{tile_splits[i]}/{i:06d}.png" for i in range(n_tiles)]
+    df[MockTilesDataset.IMAGE_COLUMN] = [
+        f"{tile_splits[i]}/{i:06d}.png" for i in range(n_tiles)]
 
     return df
 
@@ -76,7 +77,8 @@ class MockTilesDataModule(TilesDataModule):
         df = MockTilesDataset(self.root_path).dataset_df
         df = df.reset_index()
         split_dfs = (df[df[MockTilesDataset.SPLIT_COLUMN] == MockTilesDataset.TRAIN_SPLIT_LABEL],
-                     df[df[MockTilesDataset.SPLIT_COLUMN] == MockTilesDataset.VAL_SPLIT_LABEL],
+                     df[df[MockTilesDataset.SPLIT_COLUMN] ==
+                         MockTilesDataset.VAL_SPLIT_LABEL],
                      df[df[MockTilesDataset.SPLIT_COLUMN] == MockTilesDataset.TEST_SPLIT_LABEL])
         return tuple(MockTilesDataset(self.root_path, dataset_df=split_df)  # type: ignore
                      for split_df in split_dfs)

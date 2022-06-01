@@ -52,7 +52,8 @@ def load_slide_at_level(reader: WSIReader, slide_obj: CuImage, level: int) -> np
     :return: The loaded image array in (C, H, W) format.
     """
     size = slide_obj.resolutions['level_dimensions'][level][::-1]
-    slide, _ = reader.get_data(slide_obj, size=size, level=level)  # loaded as RGB PIL image
+    # loaded as RGB PIL image
+    slide, _ = reader.get_data(slide_obj, size=size, level=level)
     return slide
 
 
@@ -87,10 +88,13 @@ class LoadROId(MapTransform):
         # Estimate bounding box at the lowest resolution (i.e. highest level)
         highest_level = slide_obj.resolutions['level_count'] - 1
         scale = slide_obj.resolutions['level_downsamples'][highest_level]
-        slide = load_slide_at_level(self.reader, slide_obj, level=highest_level)
+        slide = load_slide_at_level(
+            self.reader, slide_obj, level=highest_level)
 
-        foreground_mask, threshold = segment_foreground(slide, self.foreground_threshold)
-        bbox = scale * box_utils.get_bounding_box(foreground_mask).add_margin(self.margin)
+        foreground_mask, threshold = segment_foreground(
+            slide, self.foreground_threshold)
+        bbox = scale * \
+            box_utils.get_bounding_box(foreground_mask).add_margin(self.margin)
         return bbox, threshold
 
     def __call__(self, data: Dict) -> Dict:

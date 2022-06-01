@@ -10,7 +10,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
-from health_azure.utils import (UnitTestWorkspaceWrapper, WORKSPACE_CONFIG_JSON)
+from health_azure.utils import (
+    UnitTestWorkspaceWrapper, WORKSPACE_CONFIG_JSON)
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"

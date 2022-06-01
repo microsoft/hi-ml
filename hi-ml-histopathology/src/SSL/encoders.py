@@ -80,7 +80,8 @@ def get_encoder_output_dim(
             SslOnlineEvaluatorHiml,
         )
         loaders = dm.train_dataloader()
-        loader = loaders[SSLDataModuleType.LINEAR_HEAD] if isinstance(loaders, dict) else loaders  # type: ignore
+        loader = loaders[SSLDataModuleType.LINEAR_HEAD] if isinstance(
+            loaders, dict) else loaders  # type: ignore
         iterator = iter(loader)
         batch = next(iterator)
         x, _ = SslOnlineEvaluatorHiml.to_device(batch, device)

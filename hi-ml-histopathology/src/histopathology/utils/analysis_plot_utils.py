@@ -152,7 +152,8 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     elif plot_type == 'roc':
         xlabel, ylabel = "False positive rate", "True positive rate"
     else:
-        raise ValueError(f"Plot type must be either 'pr' or 'roc' (received '{plot_type}')")
+        raise ValueError(
+            f"Plot type must be either 'pr' or 'roc' (received '{plot_type}')")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_aspect(1)
@@ -177,7 +178,8 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
 
         tile_labels = slides_groupby[ResultsKey.TRUE_LABEL]
         # True slide label is guaranteed unique
-        assert all(len(unique_slide_label) == 1 for unique_slide_label in tile_labels.unique())
+        assert all(len(unique_slide_label) ==
+                   1 for unique_slide_label in tile_labels.unique())
         labels = tile_labels.first()
 
         tile_scores = slides_groupby[scores_column]
@@ -210,7 +212,8 @@ def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame],
     :return: The created `Figure` object.
     """
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
-    _plot_crossval_roc_and_pr_curves(crossval_dfs, scores_column=scores_column, roc_ax=axs[0], pr_ax=axs[1])
+    _plot_crossval_roc_and_pr_curves(
+        crossval_dfs, scores_column=scores_column, roc_ax=axs[0], pr_ax=axs[1])
     return fig
 
 
@@ -234,8 +237,10 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
         ax.plot(val_values, color=color, **VAL_STYLE)
         if best_epochs is not None:
             best_epoch = best_epochs[k]
-            ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
-            ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
+            ax.plot(best_epoch, train_values[best_epoch],
+                    color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
+            ax.plot(best_epoch, val_values[best_epoch],
+                    color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
             ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
     ax.grid(color='0.9')
     ax.set_xlabel("Epoch")
@@ -284,7 +289,8 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
         # True slide label is guaranteed unique
-        assert all(len(unique_slide_label) == 1 for unique_slide_label in tile_labels_true.unique())
+        assert all(len(unique_slide_label) ==
+                   1 for unique_slide_label in tile_labels_true.unique())
         labels_true = tile_labels_true.first()
 
         tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
@@ -295,7 +301,8 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
                           f"{sorted(non_unique_slides)}")
         labels_pred = tile_labels_pred.first()
 
-        cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
+        cf_matrix_n = confusion_matrix(
+            y_true=labels_true, y_pred=labels_pred, normalize='true')
         sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k],
                     xticklabels=class_names, yticklabels=class_names)
         axs[k].set_xlabel('Predicted')

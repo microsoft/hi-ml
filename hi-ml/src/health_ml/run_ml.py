@@ -38,8 +38,10 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     """
     expected_dir = Path(local_dataset)
     if not expected_dir.is_dir():
-        raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
-    logging.info(f"Model training will use the local dataset provided in {expected_dir}")
+        raise FileNotFoundError(
+            f"The model uses a dataset in {expected_dir}, but that does not exist.")
+    logging.info(
+        f"Model training will use the local dataset provided in {expected_dir}")
     return expected_dir
 
 
@@ -86,7 +88,8 @@ class MLRunner:
                 local_datasets: List[Path] = []
                 for i, dataset in enumerate(input_datasets):
                     if dataset is None:
-                        raise ValueError(f"Invalid setup: The dataset at index {i} is None")
+                        raise ValueError(
+                            f"Invalid setup: The dataset at index {i} is None")
                     local_datasets.append(check_dataset_folder_exists(dataset))
                 self.container.local_datasets = local_datasets  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
@@ -121,7 +124,8 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
+        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(
+            self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
@@ -154,13 +158,15 @@ class MLRunner:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
             # has usually already downloaded the results for the other runs, and uploaded files to the parent
             # run context.
-            logging.info("Comparing the current results against stored results")
+            logging.info(
+                "Comparing the current results against stored results")
             if self.is_crossval_disabled_or_child_0():
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                 actual=self.container.outputs_folder,
                                                 csv_relative_tolerance=self.container.regression_test_csv_tolerance)
             else:
-                logging.info("Skipping as this is not cross-validation child run 0")
+                logging.info(
+                    "Skipping as this is not cross-validation child run 0")
 
     def is_crossval_disabled_or_child_0(self) -> bool:
         """
@@ -179,7 +185,8 @@ class MLRunner:
         lightning_model = self.container.model
         if type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
-            logging.info("Running inference via the LightningModule.test_step method")
+            logging.info(
+                "Running inference via the LightningModule.test_step method")
             # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
             # now, restrict number of GPUs to 1, meaning that it will not start DDP.
             self.container.max_num_gpus = 1
@@ -194,7 +201,8 @@ class MLRunner:
 
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
-            self.container.load_model_checkpoint(checkpoint_path=checkpoint_path)
+            self.container.load_model_checkpoint(
+                checkpoint_path=checkpoint_path)
             data_module = self.container.get_data_module()
 
             # Change to the outputs folder so that the model can write to current working directory, and still
@@ -204,4 +212,5 @@ class MLRunner:
                 _ = trainer.test(self.container.model, datamodule=data_module)
 
         else:
-            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
+            logging.warning(
+                "None of the suitable test methods is overridden. Skipping inference completely.")

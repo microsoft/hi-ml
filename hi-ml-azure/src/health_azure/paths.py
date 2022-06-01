@@ -25,7 +25,8 @@ def is_himl_used_from_git_repo() -> bool:
     himl_root = health_ml_root.parent.parent
     # These two folder are present in the top-level folder of the git repo
     expected_folders = [REPO_HIML_FOLDER, REPO_HIML_AZURE_FOLDER]
-    all_folders_exist = all((himl_root / folder).is_dir() for folder in expected_folders)
+    all_folders_exist = all((himl_root / folder).is_dir()
+                            for folder in expected_folders)
     if all_folders_exist:
         return True
     raise ValueError(
@@ -43,7 +44,8 @@ def git_repo_root_folder() -> Path:
     :return: Path to the himl root dir if it exists
     """
     if not is_himl_used_from_git_repo():
-        raise ValueError("This function should not be used if hi-ml is used as an installed package.")
+        raise ValueError(
+            "This function should not be used if hi-ml is used as an installed package.")
     current_file = Path(__file__).resolve()
     return current_file.parent.parent.parent.parent
 

@@ -43,7 +43,8 @@ class StoringLogger(LightningLoggerBase):
             current_results = self.results_per_epoch[epoch]
             for key, value in metrics.items():
                 if key in current_results:
-                    logging.debug(f"StoringLogger: appending results for metric {key}")
+                    logging.debug(
+                        f"StoringLogger: appending results for metric {key}")
                     current_metrics = current_results[key]
                     if isinstance(current_metrics, list):
                         current_metrics.append(value)
@@ -90,7 +91,8 @@ class StoringLogger(LightningLoggerBase):
             raise KeyError(f"No results are stored for epoch {epoch}")
         filtered = {}
         for key, value in epoch_results.items():
-            assert isinstance(key, str), f"All dictionary keys should be strings, but got: {type(key)}"
+            assert isinstance(
+                key, str), f"All dictionary keys should be strings, but got: {type(key)}"
             # Add the metric if either there is no prefix filter (prefix does not matter), or if the prefix
             # filter is supplied and really matches the metric name
             if (not prefix_filter) or key.startswith(prefix_filter):
