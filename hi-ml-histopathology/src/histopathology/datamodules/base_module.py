@@ -23,6 +23,7 @@ from histopathology.utils.naming import ModelKey
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
 from monai.apps.pathology.transforms import TileOnGridd
+from monai.transforms import RandGridPatchd
 from monai.data.image_reader import WSIReader
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -295,21 +296,29 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     level=self.level,
                     image_only=True,
                 ),
-                TileOnGridd(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
-                    tile_size=self.tile_size,
-                    step=self.step,
-                    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                    pad_full=self.pad_full,
-                    background_val=self.background_val,
-                    filter_mode=self.filter_mode,
-                    return_list_of_dicts=True,
+                RandGridPatchd(
+                    keys=[slides_dataset.IMAGE_COLUMN],
+                    patch_size=(self.tile_size, self.tile_size),
+                    num_patches=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
+                    sort_fn=self.filter_mode,
+                    pad_mode="constant",
+                    constant_values=self.background_val,
                 ),
+                #TileOnGridd(
+                #    keys=slides_dataset.IMAGE_COLUMN,
+                #    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
+                #    tile_size=self.tile_size,
+                #    step=self.step,
+                #    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
+                #    pad_full=self.pad_full,
+                #    background_val=self.background_val,
+                #    filter_mode=self.filter_mode,
+                #    return_list_of_dicts=True,
+                #),
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
-            transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
+            transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()  # type: ignore
         else:
             transforms = base_transform
         return Dataset(slides_dataset, transforms)
