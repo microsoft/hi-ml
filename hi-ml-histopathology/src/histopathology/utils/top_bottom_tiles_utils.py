@@ -313,11 +313,15 @@ class TopBottomTilesHandler:
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
 
-                shallow_top_slides_heaps = self._shallow_copy_slides_heaps(slides_heaps=self.top_slides_heaps)
-                shallow_bottom_slides_heaps = self._shallow_copy_slides_heaps(slides_heaps=self.bottom_slides_heaps)
+                shallow_top_slides_heaps = self._shallow_copy_slides_heaps(
+                    slides_heaps=self.top_slides_heaps)
+                shallow_bottom_slides_heaps = self._shallow_copy_slides_heaps(
+                    slides_heaps=self.bottom_slides_heaps)
 
-                agg_top_slides_heaps = self._aggregate_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
-                agg_bottom_slides_heaps = self._aggregate_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
+                agg_top_slides_heaps = self._aggregate_shallow_slides_heaps(
+                    world_size, shallow_top_slides_heaps)
+                agg_bottom_slides_heaps = self._aggregate_shallow_slides_heaps(
+                    world_size, shallow_bottom_slides_heaps)
 
                 top_slides_top_tiles, top_slides_bottom_tiles = self._collect_tiles_for_selected_slides_on_device(
                     new_slides_heaps=agg_top_slides_heaps, slides_heaps=self.top_slides_heaps
@@ -330,12 +334,17 @@ class TopBottomTilesHandler:
                     new_top_slides_heaps=agg_top_slides_heaps, new_bottom_slides_heaps=agg_bottom_slides_heaps
                 )
 
-                top_tiles: TileDict = self._gather_dictionaries(world_size, top_slides_top_tiles)  # type: ignore
-                bottom_tiles: TileDict = self._gather_dictionaries(world_size, top_slides_bottom_tiles)  # type: ignore
-                self._update_shallow_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, top_tiles, bottom_tiles)
+                top_tiles: TileDict = self._gather_dictionaries(
+                    world_size, top_slides_top_tiles)  # type: ignore
+                bottom_tiles: TileDict = self._gather_dictionaries(
+                    world_size, top_slides_bottom_tiles)  # type: ignore
+                self._update_shallow_slides_heaps_with_top_bottom_tiles(
+                    self.top_slides_heaps, top_tiles, bottom_tiles)
 
-                top_tiles: TileDict = self._gather_dictionaries(world_size, bot_slides_top_tiles)  # type: ignore
-                bottom_tiles: TileDict = self._gather_dictionaries(world_size, bot_slides_bottom_tiles)  # type: ignore
+                top_tiles: TileDict = self._gather_dictionaries(
+                    world_size, bot_slides_top_tiles)  # type: ignore
+                bottom_tiles: TileDict = self._gather_dictionaries(
+                    world_size, bot_slides_bottom_tiles)  # type: ignore
                 self._update_shallow_slides_heaps_with_top_bottom_tiles(
                     self.bottom_slides_heaps, top_tiles, bottom_tiles
                 )
