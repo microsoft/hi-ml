@@ -48,8 +48,9 @@ class PandaTilesDataset(TilesDataset):
         :param dataset_df: A potentially pre-processed dataframe in the same format as would be read
         from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         :occupancy_threshold: A value between 0-1 such that only tiles with occupancy > occupancy_threshold
-        will be selected.
-        :random_selection: A value between 0-1 such that this proportion of tiles will be randomly selected.
+        will be selected. If this is 0, all tiles are selected.
+        :random_selection: A value > 0 and <=1 such that this proportion of tiles will be randomly selected.
+        If this is 1, all tiles are selected.
         """
         super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
                          dataset_csv=dataset_csv,
@@ -60,16 +61,14 @@ class PandaTilesDataset(TilesDataset):
         if occupancy_threshold is not None:
             if (occupancy_threshold < 0) or (occupancy_threshold > 1):
                 raise ValueError(f"Occupancy threshold value {occupancy_threshold} should be in range 0-1.")
-            self.dataset_df: pd.DataFrame
             dataset_df_filtered = self.dataset_df.loc[
                 self.dataset_df['occupancy'] > occupancy_threshold
             ]
             self.dataset_df = dataset_df_filtered
 
         if random_selection is not None:
-            if (random_selection < 0) or (random_selection > 1):
-                raise ValueError(f"Random selection value {random_selection} should be in range 0-1.")
-            self.dataset_df: pd.DataFrame
+            if (random_selection <= 0) or (random_selection > 1):
+                raise ValueError(f"Random selection value {random_selection} should be > 0 and < = 1.")
             df_length_random_selection = round(len(self.dataset_df) * random_selection)
             dataset_df_filtered = self.dataset_df.sample(n=df_length_random_selection)
             self.dataset_df = dataset_df_filtered
