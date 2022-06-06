@@ -22,7 +22,7 @@ update to documentation.
 
 During the initiation phase, the following steps are carried out:
 
-- Collection of a set of requirements
+- Collection of a set of requirements.
 - Creating a suggested design for the change
 - Review of the design with member of the core team
 
