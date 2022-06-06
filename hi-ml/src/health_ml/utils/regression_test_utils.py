@@ -36,15 +36,15 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
     :param actual: The second dictionary to compare
     :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5
     """
-    def _check_values_match(expected_value: Any, actual_value: Any, tolerance: float = 1e-5) -> None:
-        if type(actual_value) in [float, int] and type(expected_value) in [float, int]:
-            if not isclose(actual_value, expected_value, rel_tol=tolerance):
-                raise ValueError(f"Expected: {expected_value} does not match actual {actual_value}")
+    def _check_values_match(expected_v: Any, actual_v: Any, tolerance: float = 1e-5) -> None:
+        if type(actual_v) in [float, int] and type(expected_v) in [float, int]:
+            if not isclose(actual_v, expected_v, rel_tol=tolerance):
+                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
             else:
                 return
         else:
-            if expected_value != actual_value:
-                raise ValueError(f"Expected: {expected_value} does not match actual {actual_value}")
+            if expected_v != actual_v:
+                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
         return
 
     for expected_key, expected_val in expected.items():
@@ -58,7 +58,9 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
                 logging.warning(f"Actual value has type {actual_type} but we expected {expected_type}")
             if actual_type in [float, int]:
                 _check_values_match(expected_val, actual_val, tolerance=tolerance)
-            elif actual_type in [dict, list, set, str]:
+            elif actual_type is dict:
+                compare_dictionaries(expected_val, actual_val, tolerance=tolerance)
+            elif actual_type in [list, set, str]:
                 expected_len = len(expected_val)
                 actual_len = len(actual_val)
                 if expected_len != actual_len:

@@ -59,27 +59,36 @@ pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
-pandaimagenetmil_regression_test:
+tilespandaimagenetmil_regression_test:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
 	--cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml-histopathology/environment.yml \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
-	HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 \
+	TilesPANDAImageNetMIL/HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 \
 	--regression_test_csv_tolerance=0.5 --is_finetune \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
 	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
 
+slidespandaimagenetmil_regression_test:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMIL \
+	--cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml-histopathology/environment.yml \
+	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
+	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 --is_finetune \
+	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
+	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
+	}
 
 tcgacrcksslmil_regression_test:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --azureml \
-	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --pl_limit_train_batches=2 \
-	--pl_limit_val_batches=2 --pl_limit_test_batches=2 --max_epochs=2 --max_bag_size=3 --max_bag_size_inf=3 \
+	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --max_epochs=50 \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
-	HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
+	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics=test/auroc,test/f1score,test/precision,test/recall;\
 	}
 
@@ -88,10 +97,10 @@ crck_simclr_regression_test:
 	cd ../; \
 	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR  --azureml \
 	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml \
-	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR_1653673515_42d53d78 \
-	--regression_test_csv_tolerance=0.5 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
+	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR/\
+	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5\
+	 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
 	}
 
-regression tests:
-	pandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test
+regression tests: tilespandaimagenetmil_regression_test slidespandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test

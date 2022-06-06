@@ -1,0 +1,1002 @@
+{
+    "0": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.4849787354,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.4901023805,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.498437494
+    },
+    "1": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.5136698484,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.5055223703,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.4968749881
+    },
+    "2": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.5117297173,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.5083503723,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5034375191
+    },
+    "3": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.5604996085,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.550493598,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5209375024
+    },
+    "4": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.5816192031,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.5871499777,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5062500238
+    },
+    "5": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6033380032,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6233510971,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5703125
+    },
+    "6": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6257728934,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6453518867,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.515625
+    },
+    "7": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6502517462,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6655870676,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5734375119
+    },
+    "8": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6539252996,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6675615907,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5993750095
+    },
+    "9": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6587514877,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.676610589,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.5662500262
+    },
+    "10": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6761162281,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6837652922,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6281250119
+    },
+    "11": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.6869627237,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6960880756,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6259375215
+    },
+    "12": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7031942606,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7107518911,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6200000048
+    },
+    "13": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7001681924,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.6927320957,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6365625262
+    },
+    "14": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7212543488,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7244126797,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6243749857
+    },
+    "15": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7294831872,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.735091567,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6546875238
+    },
+    "16": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7387670875,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7446917295,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6478124857
+    },
+    "17": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7399183512,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7467520237,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6190624833
+    },
+    "18": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7543903589,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.762753427,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6543750167
+    },
+    "19": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7629944086,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7676659822,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6912500262
+    },
+    "20": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7734473944,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7772786021,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6993749738
+    },
+    "21": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7780210376,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7862679958,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7040625215
+    },
+    "22": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7788968086,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7878214121,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.6806250215
+    },
+    "23": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7863129377,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.7952296734,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7093750238
+    },
+    "24": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.7952380776,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8040015101,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7178124785
+    },
+    "25": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.788567543,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.794298172,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7062500119
+    },
+    "26": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8060349822,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8136449456,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7287499905
+    },
+    "27": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8020899296,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8133614659,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7137500048
+    },
+    "28": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.812531352,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.819152236,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7190625072
+    },
+    "29": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8149161935,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8231452107,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7334374785
+    },
+    "30": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8232536316,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8321338296,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7275000215
+    },
+    "31": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8209750056,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.827401042,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7334374785
+    },
+    "32": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8257951736,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8363284469,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7434375286
+    },
+    "33": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.827321589,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8325897455,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7412499785
+    },
+    "34": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8296351433,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8351422548,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7496874928
+    },
+    "35": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8344575763,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8433788419,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7440624833
+    },
+    "36": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8310113549,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8375023603,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7456250191
+    },
+    "37": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.831043005,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8341270685,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7250000238
+    },
+    "38": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8349786997,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8441791534,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7521874905
+    },
+    "39": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8446279168,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8526090384,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7571874857
+    },
+    "40": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8450314403,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8520449996,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7528125048
+    },
+    "41": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8517289758,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8592108488,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7618749738
+    },
+    "42": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.856325984,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8608174324,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7615625262
+    },
+    "43": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8580729961,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8635300994,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7674999833
+    },
+    "44": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8529641628,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8608173132,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7350000143
+    },
+    "45": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.864962697,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.872541368,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7787500024
+    },
+    "46": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8587038517,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8674826622,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7687500119
+    },
+    "47": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8633614779,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8744021654,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7731249928
+    },
+    "48": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8655021191,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8737770319,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7768750191
+    },
+    "49": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8604863286,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.865926981,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7684375048
+    },
+    "50": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8729536533,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8825551867,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7731249928
+    },
+    "51": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8695105314,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8741306067,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7715625167
+    },
+    "52": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8685546517,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8774142265,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7774999738
+    },
+    "53": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8768959641,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8861916661,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7837499976
+    },
+    "54": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8751451373,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8842967749,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7821875215
+    },
+    "55": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8779018521,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8853892088,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7887499928
+    },
+    "56": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8764292002,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8839636445,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7850000262
+    },
+    "57": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8792382479,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8875392675,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7890625
+    },
+    "58": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8828876019,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8889155984,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8025000095
+    },
+    "59": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8898546696,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8967039585,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8009374738
+    },
+    "60": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8862397075,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8940982223,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8034374714
+    },
+    "61": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8868569136,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8916047812,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7934374809
+    },
+    "62": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8836032748,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8916532993,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7953125238
+    },
+    "63": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8937219977,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9005059004,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8087499738
+    },
+    "64": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8904711008,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8959102035,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8000000119
+    },
+    "65": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8873725533,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8917345405,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8025000095
+    },
+    "66": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8880159855,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8945817947,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7893750072
+    },
+    "67": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8925914764,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8980283737,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7950000167
+    },
+    "68": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8972760439,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9042841196,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8075000048
+    },
+    "69": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8938879967,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9002119899,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7990624905
+    },
+    "70": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8854701519,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.8935827017,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.7921875119
+    },
+    "71": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9017746449,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9077101946,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8084375262
+    },
+    "72": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.8991046548,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9061437249,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8006250262
+    },
+    "73": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9025660753,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9104090929,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8137500286
+    },
+    "74": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9063107967,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9120954275,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8168749809
+    },
+    "75": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9014368057,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9070982933,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8165624738
+    },
+    "76": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9049317837,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9130639434,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8181250095
+    },
+    "77": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9006766081,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.907597363,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8178125024
+    },
+    "78": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9050657749,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9102194309,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8128125072
+    },
+    "79": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9112773538,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9174474478,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8253124952
+    },
+    "80": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9101261497,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9150609374,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8187500238
+    },
+    "81": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9145103693,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9209760427,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8234375119
+    },
+    "82": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.907974124,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9131000042,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8149999976
+    },
+    "83": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9127645493,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9169639945,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8181250095
+    },
+    "84": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9141993523,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9191664457,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8299999833
+    },
+    "85": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9153056741,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9205573797,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8324999809
+    },
+    "86": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9186905622,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9243374467,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8337500095
+    },
+    "87": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9161455631,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9213985205,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8378124833
+    },
+    "88": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9187749624,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9237490892,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8318750262
+    },
+    "89": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9194476604,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9242620468,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8393750191
+    },
+    "90": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9200199246,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9251579046,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8221874833
+    },
+    "91": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9190558195,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9245718122,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8249999881
+    },
+    "92": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9239829779,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9279266596,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8374999762
+    },
+    "93": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9220578671,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9255285859,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8293750286
+    },
+    "94": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9212090373,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9271341562,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8368750215
+    },
+    "95": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9183776379,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9216464758,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8287500143
+    },
+    "96": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9259130955,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9293071032,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8418750167
+    },
+    "97": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9199457169,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9243477583,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8274999857
+    },
+    "98": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9269803762,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9310807586,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.84375
+    },
+    "99": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9262660742,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9307550788,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8356249928
+    },
+    "100": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9249494076,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9295122623,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8412500024
+    },
+    "101": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9277573228,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9307813644,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8387500048
+    },
+    "102": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9277510643,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9324817061,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8334375024
+    },
+    "103": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9259721041,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9298501611,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8431249857
+    },
+    "104": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9295019507,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.934523344,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8462499976
+    },
+    "105": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9333345294,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9375752211,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8500000238
+    },
+    "106": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9308714867,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9348611832,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.84375
+    },
+    "107": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9314793348,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9362598658,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8493750095
+    },
+    "108": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9333372116,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9377285242,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8496875167
+    },
+    "109": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9312797785,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9356045723,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8487499952
+    },
+    "110": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9338583946,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9381114244,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8546875119
+    },
+    "111": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9350277185,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.939542532,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8525000215
+    },
+    "112": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9382210374,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9425525665,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8562499881
+    },
+    "113": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9382795691,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9425990582,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8571875095
+    },
+    "114": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9368565679,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.941080451,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8515625
+    },
+    "115": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9356834292,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9392678142,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8540624976
+    },
+    "116": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9376702309,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9414005876,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8528125286
+    },
+    "117": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9385769367,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9418972731,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8606250286
+    },
+    "118": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9283065796,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9313485026,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8353124857
+    },
+    "119": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9399187565,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9427946806,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8637499809
+    },
+    "120": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.93841362,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9412567616,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8575000167
+    },
+    "121": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9409246445,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9436391592,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8584374785
+    },
+    "122": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.939303875,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9423722029,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8596875072
+    },
+    "123": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9435396194,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9458161592,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8678125143
+    },
+    "124": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9443525076,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9464725256,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8675000072
+    },
+    "125": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9489566088,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9513573647,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8740624785
+    },
+    "126": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9455404282,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9475573897,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8715624809
+    },
+    "127": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9481765032,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9506987929,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8706250191
+    },
+    "128": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9478096962,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9501115084,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8768749833
+    },
+    "129": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9467365742,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9490039349,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8700000048
+    },
+    "130": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9491968751,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9515023232,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8721874952
+    },
+    "131": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9472580552,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9496771097,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8696874976
+    },
+    "132": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9456979036,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9473773241,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8640624881
+    },
+    "133": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.948250711,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9509868622,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8762500286
+    },
+    "134": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9502054453,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9523891211,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.875
+    },
+    "135": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9494646788,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9520571232,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8759375215
+    },
+    "136": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9488046169,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9508924484,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8681250215
+    },
+    "137": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9501882792,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.952712059,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8753125072
+    },
+    "138": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9495792985,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9521391988,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8765624762
+    },
+    "139": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9512118101,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9535528421,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8756250143
+    },
+    "140": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9474995136,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9497189522,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.875
+    },
+    "141": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9491398335,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9516359568,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8734375238
+    },
+    "142": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9493413568,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9508727789,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8728125095
+    },
+    "143": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9514364004,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9532328844,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8740624785
+    },
+    "144": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9507898688,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9527977705,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8737499714
+    },
+    "145": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9503203034,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9525489211,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8725000024
+    },
+    "146": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9502566457,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9526333809,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8734375238
+    },
+    "147": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9520879984,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9539813995,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8762500286
+    },
+    "148": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9510074854,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9528268576,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8790624738
+    },
+    "149": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9520133734,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9541646242,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8737499714
+    },
+    "150": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9544372559,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9562106133,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8796874881
+    },
+    "151": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9531607032,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9552556276,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8803125024
+    },
+    "152": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9542794228,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9562168121,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8787500262
+    },
+    "153": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9530262947,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9554220438,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8762500286
+    },
+    "154": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9521793723,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9543024302,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8759375215
+    },
+    "155": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9547744393,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9568392038,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8799999952
+    },
+    "156": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9529114962,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9543720484,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8768749833
+    },
+    "157": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.955717802,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9572515488,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8787500262
+    },
+    "158": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9553658366,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9575350285,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8793749809
+    },
+    "159": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9552654028,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9572301507,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8806250095
+    },
+    "160": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9563260078,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9585680962,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8796874881
+    },
+    "161": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9562877417,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.957775116,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8818749785
+    },
+    "162": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9553181529,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9569973946,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8821874857
+    },
+    "163": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9558875561,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9582050443,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8831250072
+    },
+    "164": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9554287195,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9574734569,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8790624738
+    },
+    "165": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9559862018,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9578671455,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8818749785
+    },
+    "166": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.956777215,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9588804245,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8824999928
+    },
+    "167": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9569400549,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9588353038,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8828125
+    },
+    "168": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9568838477,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9586132765,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8862500191
+    },
+    "169": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9558432102,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9574246407,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8793749809
+    },
+    "170": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9577811956,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9597997665,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8837500215
+    },
+    "171": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9577854276,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9595590234,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8840625286
+    },
+    "172": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.957993269,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9598866701,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8806250095
+    },
+    "173": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9574196339,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9594795704,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8837500215
+    },
+    "174": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9579956532,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9600224495,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8831250072
+    },
+    "175": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9589390159,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9606984854,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8837500215
+    },
+    "176": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.958835125,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9605643749,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8834375143
+    },
+    "177": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9591948986,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9608339667,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8846874833
+    },
+    "178": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9593397975,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9611947536,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8859375119
+    },
+    "179": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9603152275,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9619874358,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8887500167
+    },
+    "180": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9588057995,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9604418874,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8846874833
+    },
+    "181": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9595817924,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9614642859,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8893749714
+    },
+    "182": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9595409632,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9611848593,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8868749738
+    },
+    "183": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9600566626,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9617219567,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8884375095
+    },
+    "184": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9590546489,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9606078863,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8859375119
+    },
+    "185": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9595765471,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9611295462,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8865625262
+    },
+    "186": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9593741894,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9609038234,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8843749762
+    },
+    "187": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.959944129,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9615380764,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8862500191
+    },
+    "188": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9594483972,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9609677196,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8849999905
+    },
+    "189": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9599308372,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9614718556,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8868749738
+    },
+    "190": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9597835541,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9613461494,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8846874833
+    },
+    "191": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9598320127,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9613403082,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8849999905
+    },
+    "192": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9594910145,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9610792994,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8843749762
+    },
+    "193": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9592589736,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9609057307,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8843749762
+    },
+    "194": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9594125152,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.96102947,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8846874833
+    },
+    "195": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9594194889,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9611511827,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8859375119
+    },
+    "196": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9597694874,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.961427927,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8856250048
+    },
+    "197": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9592239857,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9609504938,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8865625262
+    },
+    "198": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9599832296,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9615471959,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8874999881
+    },
+    "199": {
+        "ssl_online_evaluator/val/AreaUnderRocCurve": 0.9591511488,
+        "ssl_online_evaluator/val/AreaUnderPRCurve": 0.9607425928,
+        "ssl_online_evaluator/val/AccuracyAtThreshold05": 0.8853124976
+    }
+}

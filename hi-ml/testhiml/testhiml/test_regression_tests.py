@@ -273,8 +273,9 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     ({"a": [1.0, 2.0, 3.0], "b": 4}, {"c": [1.0, 2.0, 3.0]}, False,
      ["Key a is expected but not found in actual", "Key b is expected but not found in actual"]),
     ({"c": "hello"}, {"c": "hello"}, True, ""),
-    ({"d": {"a": [1, 2, 3]}}, {"d": {"a": [1, 2, 3]}}, True, "")
-
+    ({"d": {"a": [1, 2, 3]}}, {"d": {"a": [1, 2, 3]}}, True, ""),
+    ({"0": {"a": 0.1, "b": 0.5}}, {"0": {"a": 0.1}}, False, "Key b is expected but not found in actual"),
+    ({"0": {"a": 0.1}}, {"0": {"a": 0.1, "b": 0.5}}, True, "")
 ])
 def test_compare_dictionaries(
     dict1: Dict[str, Any], dict2: Dict[str, Any], should_pass: bool,
