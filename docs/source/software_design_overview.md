@@ -95,7 +95,7 @@ When an Issue is created, the team members will get notified. Open Issues are ke
 example, [this is the list for all of the InnerEye-related Issues](https://github.com/orgs/microsoft/projects/320).
 Priorities are re-assesed regularly, at least once a week.
 
-The Issue(s) with highest priority are assigned to an engineer. The engineer would then analyze the problem, and
+The Issue(s) with highest priority are assigned to an engineer. The engineer will then analyze the problem, and
 possibly request more information to reproduce the problem. Requesting more information is also handled in the GitHub
 Issue. Once the problem is clearly reproduced, the engineer will start to write a fix for the Issue as well as a test that
 ensures that the fix does indeed solve the reported problem.
