@@ -2,12 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
+import json
 import logging
 import os
-from pathlib import Path
 import shutil
 import tempfile
-from typing import List, Optional
+from math import isclose
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from azureml.core import Run
 import pandas as pd
@@ -23,6 +25,48 @@ FILE_FORMAT_ERROR = "File format error"
 MISSING_FILE = "Missing"
 CSV_SUFFIX = ".csv"
 TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
+REGRESSION_TEST_METRICS_FILENAME = "regression_metrics.json"
+
+
+def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], tolerance: float = 1e-5) -> None:
+    """
+    Function to give more clarity on the difference between two dictionaries.
+
+    :param expected: The first dictionary to compare
+    :param actual: The second dictionary to compare
+    :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5
+    """
+    def _check_values_match(expected_v: Any, actual_v: Any, tolerance: float = 1e-5) -> None:
+        if type(actual_v) in [float, int] and type(expected_v) in [float, int]:
+            if not isclose(actual_v, expected_v, rel_tol=tolerance):
+                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
+            else:
+                return
+        else:
+            if expected_v != actual_v:
+                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
+        return
+
+    for expected_key, expected_val in expected.items():
+        if expected_key not in actual:
+            logging.warning(f"Key {expected_key} is expected but not found in actual dictionary: {actual}")
+        else:
+            actual_val = actual[expected_key]
+            expected_type = type(expected_val)
+            actual_type = type(actual_val)
+            if expected_type is not actual_type:
+                logging.warning(f"Actual value has type {actual_type} but we expected {expected_type}")
+            if actual_type in [float, int]:
+                _check_values_match(expected_val, actual_val, tolerance=tolerance)
+            elif actual_type is dict:
+                compare_dictionaries(expected_val, actual_val, tolerance=tolerance)
+            elif actual_type in [list, set, str]:
+                expected_len = len(expected_val)
+                actual_len = len(actual_val)
+                if expected_len != actual_len:
+                    logging.warning(f"Expected value to have length {expected_len} but found {actual_len}")
+                for expected_value, actual_value in zip(expected_val, actual_val):
+                    _check_values_match(expected_value, actual_value, tolerance=tolerance)
 
 
 def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
@@ -54,6 +98,9 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
             logging.warning(f"{prefix} file can't be read as CSV: {str(ex)}")
             return None
 
+    def _load_json_from_text_lines(lines: List[str]) -> Dict[str, Any]:
+        return json.loads('\n'.join(lines))
+
     if expected.suffix == CSV_SUFFIX:
         expected_df = try_read_csv("Expected", expected)
         actual_df = try_read_csv("Actual", actual)
@@ -71,6 +118,13 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         if expected_lines != actual_lines:
             print_lines("Expected", expected_lines)
             print_lines("Actual", actual_lines)
+            # Add additional context for json file mismatches
+            if expected.suffix == ".json":
+                compare_dictionaries(
+                    _load_json_from_text_lines(expected_lines),
+                    _load_json_from_text_lines(actual_lines),
+                    tolerance=csv_relative_tolerance
+                )
             return CONTENTS_MISMATCH
     else:
         expected_binary = expected.read_bytes()
