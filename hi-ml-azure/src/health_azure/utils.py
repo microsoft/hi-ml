@@ -231,34 +231,38 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         :return: Type
         """
         if isinstance(_p, param.Boolean):
-            p_type: Callable = parse_bool
+            get_type = parse_bool
         elif isinstance(_p, param.Integer):
-            def p_type(x: str) -> int:
+            def to_int(x: str) -> int:
                 return _p.default if x == "" else int(x)
+            get_type = to_int
         elif isinstance(_p, param.Number):
-            def p_type(x: str) -> float:
+            def to_float(x: str) -> float:
                 return _p.default if x == "" else float(x)
+            get_type = to_float
         elif isinstance(_p, param.String):
-            p_type = str
+            get_type = str
         elif isinstance(_p, param.List):
-            def p_type(x: str) -> List[Any]:
+            def to_list(x: str) -> List[Any]:
                 return [_p.class_(item) for item in x.split(",") if item]
+            get_type = to_list
         elif isinstance(_p, param.NumericTuple):
 
             def float_or_int(y: str) -> Union[int, float]:
                 return int(y) if isinstance(_p, IntTuple) else float(y)
 
-            def p_type(x: str) -> Tuple:
+            def to_tuple(x: str) -> Tuple:
                 return tuple([float_or_int(item) for item in x.split(",")])
+            get_type = to_tuple
         elif isinstance(_p, param.ClassSelector):
-            p_type = _p.class_
+            get_type = _p.class_
         elif isinstance(_p, CustomTypeParam):
-            p_type = _p.from_string
+            get_type = _p.from_string
 
         else:
             raise TypeError(f"Parameter of type {_p} is not supported")
 
-        return p_type
+        return get_type
 
     def add_boolean_argument(parser: ArgumentParser, k: str, p: param.Parameter) -> None:
         """
