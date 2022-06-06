@@ -24,7 +24,7 @@ During the initiation phase, the following steps are carried out:
 
 - Collection of a set of requirements.
 - Creating a suggested design for the change
-- Review of the design with member of the core team
+- Review of the design with member of the core team.
 
 The deliverables of this phase are a detailed design of the proposed change in a GitHub Issue or a separate document.
 
