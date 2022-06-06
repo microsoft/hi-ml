@@ -48,7 +48,7 @@ codebase. They will now initiate a Pull Request process that consists of the fol
 - The code will be reviewed by at least 2 engineers. Both need to provide their explicit approval before the proposed
   change can be integrated in the "main" branch.
 - All unit and integration tests will start.
-- All automatic code checks will start. These checks will verify
+- All automatic code checks will start. These checks will verify the following:
 
   - Consistency with static typing rules.
   - Ensure that no passwords or other types of credentials are revealed.
