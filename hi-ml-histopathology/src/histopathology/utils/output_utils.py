@@ -20,9 +20,8 @@ from torchmetrics.metric import Metric
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
-from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
-                                                plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
-                                                select_k_tiles)
+from histopathology.utils.metrics_utils import (plot_heatmap_overlay, plot_normalized_confusion_matrix,
+                                                plot_scores_hist, plot_slide)
 from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
@@ -141,55 +140,6 @@ def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
     features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.FEATURES]]
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
-
-
-def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path, k_tiles: int = 10) \
-        -> Dict[str, List[str]]:
-    logging.info("Selecting tiles ...")
-
-    def select_k_tiles_from_results(label: int, use_highest_pred: bool, use_highest_att: bool) \
-            -> List[Tuple[Any, Any, List, List]]:
-        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles,
-                              use_highest_pred=use_highest_pred, use_highest_att=use_highest_att)
-
-    # Class 0
-    tn_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=True)
-    tn_bottom_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=False)
-    fp_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=False, use_highest_att=True)
-    fp_bottom_tiles = select_k_tiles_from_results(label=0, use_highest_pred=False, use_highest_att=False)
-    report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles],
-                    'FP': [fp_top_tiles, fp_bottom_tiles]}
-
-    # Class 1 to n_classes-1
-    n_classes_to_select = n_classes if n_classes > 1 else 2
-    for i in range(1, n_classes_to_select):
-        fn_top_tiles = select_k_tiles_from_results(label=i, use_highest_pred=False, use_highest_att=True)
-        fn_bottom_tiles = select_k_tiles_from_results(label=i, use_highest_pred=False, use_highest_att=False)
-        tp_top_tiles = select_k_tiles_from_results(label=i, use_highest_pred=True, use_highest_att=True)
-        tp_bottom_tiles = select_k_tiles_from_results(label=i, use_highest_pred=True, use_highest_att=False)
-        report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
-                             'FN_' + str(i): [fn_top_tiles, fn_bottom_tiles]})
-
-    selected_slide_ids: Dict[str, List[str]] = {}
-    for key in report_cases.keys():
-        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
-        key_dir = figures_dir / key
-        key_dir.mkdir(parents=True, exist_ok=True)
-
-        n_slides = len(report_cases[key][0])
-        selected_slide_ids[key] = []
-        for i in range(n_slides):
-            slide_id, score, paths, top_attn = report_cases[key][0][i]
-            fig = plot_attention_tiles(slide_id, score, paths, top_attn, key + '_top', ncols=4)
-            save_figure(fig=fig, figpath=key_dir / f'{slide_id}_top.png')
-
-            _, _, paths, bottom_attn = report_cases[key][1][i]
-            fig = plot_attention_tiles(slide_id, score, paths, bottom_attn, key + '_bottom', ncols=4)
-            save_figure(fig=fig, figpath=key_dir / f'{slide_id}_bottom.png')
-
-            selected_slide_ids[key].append(slide_id)
-
-    return selected_slide_ids
 
 
 def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
