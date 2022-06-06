@@ -88,7 +88,7 @@ class SlideNode:
 
         :param tile_nodes: A list of top or bottom tiles nodes.
         :param case: The report case (e.g., TP, FN, ...)
-        :param ncols: Number of columns to create the subfigures grid, defaults to 5
+        :param n_columns: Number of columns to create the subfigures grid, defaults to 4
         :param size: The figure size , defaults to (10, 10)
         """
         nrows = int(ceil(len(tile_nodes) / n_columns))
