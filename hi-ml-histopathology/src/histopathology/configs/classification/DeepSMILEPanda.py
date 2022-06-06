@@ -36,8 +36,6 @@ class BaseDeepSMILEPanda(BaseMIL):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             is_finetune=False,
-            max_bag_size=56,
-            max_bag_size_inf=0,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             max_bag_size=56,
