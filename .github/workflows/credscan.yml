@@ -8,7 +8,7 @@ on:
 
 jobs:
   CredScan:
-    runs-on: ubuntu-22.04
+    runs-on: windows-latest
     steps:
       - name: Credential Scanning
         id: credscan
