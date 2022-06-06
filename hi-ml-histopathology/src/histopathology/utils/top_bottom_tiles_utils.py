@@ -83,7 +83,7 @@ class SlideNode:
 
     def plot_attention_tiles(
         self, tile_nodes: List[TileNode], case: str, n_columns: int = 5, size: Tuple[int, int] = (10, 10)
-    ) -> plt.Figure:
+    ) -> Optional[plt.Figure]:
         """Plot and save top or bottom tiles figures with their attention scores.
 
         :param tile_nodes: A tensor of top or bottom tiles nodes.
@@ -92,14 +92,20 @@ class SlideNode:
         :param size: The figure size , defaults to (10, 10)
         """
         nrows = int(ceil(len(tile_nodes) / n_columns))
-        if nrows > 0:
-            fig, axs = plt.subplots(nrows=nrows, ncols=n_columns, figsize=size)
-            fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score)}:.2f")
+        assert (
+            nrows > 0
+        ), "The number of selected top and bottom tiles is too low. Try debugging with a higher n_top_tiles or a higher"
+        "number of batches!"
 
-            for ax, tile_node in zip(axs.flat, tile_nodes):
-                ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-                ax.set_title("%.6f" % tile_node.attn)
-                ax.set_axis_off()
+        fig, axs = plt.subplots(nrows=nrows, ncols=n_columns, figsize=size)
+        fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score):.2f}")
+
+        for i, tile_node in enumerate(tile_nodes):
+            axs.ravel()[i].imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+            axs.ravel()[i].set_title("%.6f" % tile_node.attn)
+
+        for i in range(len(axs.ravel())):
+            axs.ravel()[i].set_axis_off()
         return fig
 
 
