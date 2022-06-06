@@ -84,7 +84,7 @@ def run_pytest(folder_to_test: str, pytest_mark: str, module_to_test: str) -> No
 
     if module_to_test:
         pytest_args += [f"--cov={module_to_test}", "--cov-branch", "--cov-report=html",
-                        "--cov-report=xml::{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
+                        "--cov-report=xml:{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
                         "--cov-report=term-missing", "--cov-config=.coveragerc"]
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
