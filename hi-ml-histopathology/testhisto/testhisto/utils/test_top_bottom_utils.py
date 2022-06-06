@@ -300,13 +300,13 @@ def slide_node() -> SlideNode:
     """Fixture to create a mock slide node with corresponding top and bottom tiles."""
     torch.manual_seed(42)
     tile_size = (3, 224, 224)
-    num_top_tiles = 10
+    num_top_tiles = 12
     slide_node = SlideNode(slide_id="slide_0", prob_score=0.5)
-    top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90]
+    top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.89, 0.88]
     slide_node.top_tiles = [
         TileNode(attn=top_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(num_top_tiles)
     ]
-    bottom_attn_scores = [0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01, 0.009]
+    bottom_attn_scores = [0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01, 0.009, 0.008, 0.007]
     slide_node.bottom_tiles = [
         TileNode(attn=bottom_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(num_top_tiles)
     ]
