@@ -22,9 +22,9 @@ update to documentation.
 
 During the initiation phase, the following steps are carried out:
 
-- Collection of a set of requirements
-- Creating a suggested design for the change
-- Review of the design with member of the core team
+- Collection of a set of requirements.
+- Creating a suggested design for the change.
+- Review of the design with member of the core team.
 
 The deliverables of this phase are a detailed design of the proposed change in a GitHub Issue or a separate document.
 
@@ -35,7 +35,7 @@ the released (main) branch to not affect any current functionality. In this bran
 changes as proposed in the design document.
 
 The engineer will also add additional software tests at different levels (unit tests, integration tests) as appropriate
-for the design. These tests ensure that the proposed functionality will be maintained also in future.
+for the design. These tests ensure that the proposed functionality will be maintained in the future.
 
 The deliverable of this phase is a branch in the version control system that contains all proposed changes and a set of
 software tests.
@@ -43,15 +43,15 @@ software tests.
 ### Finalization
 
 At this point, the engineering owner of the proposed change has carried out all necessary changes in a branch of the
-codebase. They would now initiate a Pull Request process that consists of the following steps:
+codebase. They will now initiate a Pull Request process that consists of the following steps:
 
 - The code will be reviewed by at least 2 engineers. Both need to provide their explicit approval before the proposed
   change can be integrated in the "main" branch.
 - All unit and integration tests will start.
 - All automatic code checks will start. These checks will verify
 
-  - Consistency with static typing rules
-  - Ensure that no passwords or other types of credentials are revealed
+  - Consistency with static typing rules.
+  - Ensure that no passwords or other types of credentials are revealed.
   - Ensure that none of the used third-party libraries contains high severity software vulnerabilities that could affect
     the proposed functionality.
 
@@ -74,7 +74,7 @@ package management systems:
 - Conda
 - PyPi
 
-Both of those package management systems maintain strict versioning: Once a version of a package is published, it
+Both of those package management systems maintain strict versioning: once a version of a package is published, it
 cannot be modified in place. Rather, a new version needs to be released.
 
 Our training and deployment code uses Conda environment files that specify an explicit version of a dependent package to
@@ -95,9 +95,9 @@ When an Issue is created, the team members will get notified. Open Issues are ke
 example, [this is the list for all of the InnerEye-related Issues](https://github.com/orgs/microsoft/projects/320).
 Priorities are re-assesed regularly, at least once a week.
 
-The Issue(s) with highest priority are assigned to an engineer. The engineer would then analyze the problem, and
+The Issue(s) with highest priority are assigned to an engineer. The engineer will then analyze the problem, and
 possibly request more information to reproduce the problem. Requesting more information is also handled in the GitHub
-Issue. Once the problem is clearly reproduced, the engineer will start to write a fix for the Issue, and a test that
+Issue. Once the problem is clearly reproduced, the engineer will start to write a fix for the Issue as well as a test that
 ensures that the fix does indeed solve the reported problem.
 
 Writing the fix and test will follow the process outlined above in the [Prototyping](#prototyping) and
