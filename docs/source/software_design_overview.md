@@ -74,7 +74,7 @@ package management systems:
 - Conda
 - PyPi
 
-Both of those package management systems maintain strict versioning: Once a version of a package is published, it
+Both of those package management systems maintain strict versioning: once a version of a package is published, it
 cannot be modified in place. Rather, a new version needs to be released.
 
 Our training and deployment code uses Conda environment files that specify an explicit version of a dependent package to
