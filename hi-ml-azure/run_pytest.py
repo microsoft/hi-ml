@@ -76,6 +76,7 @@ def run_pytest(folder_to_test: str, pytest_mark: str, module_to_test: str) -> No
 
     :param pytest_mark: The PyTest mark to use for filtering out the tests to run.
     :param folder_to_test: The folder with tests that should be run.
+    :param module_to_test: The module for which test code coverage should be run.
     """
     results_file = Path(OUTPUT_FOLDER) / PYTEST_RESULTS_FILE
     pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
