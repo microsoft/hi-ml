@@ -305,7 +305,7 @@ def test_split_dependency() -> None:
     assert util._split_dependency("foo.bar<=1.0") == ("foo.bar", "<=", "1.0")
     assert util._split_dependency("foo.bar=1.0") == ("foo.bar", "=", "1.0")
     assert util._split_dependency("foo=1.0; platform_system=='Linux'") ==\
-           ("foo", "=", "1.0", ";", "platform_system", "==", "'Linux'")
+        ("foo", "=", "1.0", ";", "platform_system", "==", "'Linux'")
 
 
 @pytest.fixture
@@ -607,10 +607,10 @@ def test_merge_conda_with_pip_requirements(random_folder: Path) -> None:
     merged_file, merged_file_txt = _merge_conda_files_and_read_text([file1, file2], random_folder, pip_files=[pip_file])
 
     assert merged_file_txt.splitlines() ==\
-           _generate_conda_env_lines(channels=["defaults", "pytorch"],
-                                     conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-                                     pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0",
-                                                   "package1==0.0.1", "package2==0.0.1"])
+        _generate_conda_env_lines(channels=["defaults", "pytorch"],
+                                  conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
+                                  pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0",
+                                                "package1==0.0.1", "package2==0.0.1"])
 
     # Are names merged correctly?
     assert "name:" not in merged_file_txt
@@ -703,9 +703,9 @@ def test_merge_conda_two_pinned(random_folder: Path) -> None:
 
     merged_path, merged_contents = _merge_conda_files_and_read_text([file3, file4], random_folder)
     assert merged_contents.splitlines() ==\
-           _generate_conda_env_lines(channels=["defaults"],
-                                     conda_packages=["conda_both=1.0"],
-                                     pip_packages=["foo==2.0"])
+        _generate_conda_env_lines(channels=["defaults"],
+                                  conda_packages=["conda_both=1.0"],
+                                  pip_packages=["foo==2.0"])
 
 
 @pytest.mark.fast
@@ -751,9 +751,9 @@ def test_merge_conda_pip_include(random_folder: Path) -> None:
     merged_file2, merged_contents2 = _merge_conda_files_and_read_text([file1], random_folder, pip_files=[file2])
 
     assert merged_contents2.splitlines() ==\
-           _generate_conda_env_lines(channels=["default"],
-                                     conda_packages=["conda_both=3.0"],
-                                     pip_packages=["foo==1.0", "package==1.0.0"])
+        _generate_conda_env_lines(channels=["default"],
+                                  conda_packages=["conda_both=3.0"],
+                                  pip_packages=["foo==1.0", "package==1.0.0"])
 
 
 def test_merge_conda_pip_include2(random_folder: Path) -> None:
@@ -2155,7 +2155,8 @@ def test_parse_args_and_apply_overrides() -> None:
         util.parse_args_and_update_config(config, args=["--even_number", f"{none_number}"])
 
     # Mock from_string to check test _validate
-    mock_from_string_none = lambda a, b: None  # type: ignore
+    def mock_from_string_none(a: Any, b: Any) -> None:
+        return None  # type: ignore
     with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
         # Check that _validate fails with None value
         with pytest.raises(ValueError) as e:
