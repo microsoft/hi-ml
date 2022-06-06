@@ -40,6 +40,7 @@ The `hi-ml` toolbox provides
    :caption: Histopathology
 
    histopathology.md
+   dsa.md
 
 .. toctree::
    :maxdepth: 1
