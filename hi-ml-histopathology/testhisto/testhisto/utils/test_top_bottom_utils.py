@@ -52,12 +52,12 @@ def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, d
     return mock_results
 
 
-def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Generator:
+def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Dict:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
         batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
-    yield batch
+    return batch
 
 
 def _create_and_update_top_bottom_tiles_handler(
@@ -87,8 +87,8 @@ def _create_and_update_top_bottom_tiles_handler(
     handler = TopBottomTilesHandler(n_classes, n_top_slides=n_top_slides, n_top_tiles=n_top_tiles)
 
     for i in range(rank * n_batches, (rank + 1) * n_batches):
-        batch_data = next(_batch_data(data, batch_idx=i, batch_size=batch_size))
-        batch_results = next(_batch_data(results, batch_idx=i, batch_size=batch_size))
+        batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)
+        batch_results = _batch_data(results, batch_idx=i, batch_size=batch_size)
         handler.update_slides_selection(batch_data, batch_results)
 
     return handler
