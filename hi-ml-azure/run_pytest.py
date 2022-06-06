@@ -37,7 +37,7 @@ from health_azure.utils import (  # noqa: E402
 from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR  # noqa: E402
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
-PYTEST_GPU_COVERAGE_FILE = "gpu_coverage.xml"
+PYTEST_GPU_COVERAGE_FILE = "pytest_gpu_coverage.xml"
 
 
 class RunPytestConfig(param.Parameterized):
