@@ -330,7 +330,7 @@ class DeepMILOutputsHandler:
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, save_output_slides: bool = True, n_top_slides: int = 10, n_top_tiles: int = 10,
-                 ncols: int = 4) -> None:
+                 num_columns: int = 4) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -346,7 +346,7 @@ class DeepMILOutputsHandler:
         :param n_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
             Defaults to 10.
         :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
-        :param ncols: Number of columnds to use to plot top and bottom tiles.
+        :param num_columns: Number of columnds to use to plot top and bottom tiles.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -362,7 +362,7 @@ class DeepMILOutputsHandler:
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
         self.tiles_handler = TopBottomTilesHandler(self.n_classes, n_top_tiles=self.n_top_tiles,
-                                                   n_top_slides=self.n_top_slides, n_columns=ncols)
+                                                   n_top_slides=self.n_top_slides, num_columns=num_columns)
 
     @property
     def validation_outputs_dir(self) -> Path:

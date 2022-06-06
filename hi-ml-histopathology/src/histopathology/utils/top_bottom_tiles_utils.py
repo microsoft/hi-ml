@@ -82,22 +82,21 @@ class SlideNode:
         return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
-        self, tile_nodes: List[TileNode], case: str, n_columns: int = 4, size: Tuple[int, int] = (10, 10)
+        self, tile_nodes: List[TileNode], case: str, num_columns: int = 4, size: Tuple[int, int] = (10, 10)
     ) -> plt.Figure:
         """Plot and save top or bottom tiles figures with their attention scores.
 
         :param tile_nodes: A list of top or bottom tiles nodes.
         :param case: The report case (e.g., TP, FN, ...)
-        :param n_columns: Number of columns to create the subfigures grid, defaults to 4
+        :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param size: The figure size , defaults to (10, 10)
         """
-        nrows = int(ceil(len(tile_nodes) / n_columns))
+        num_rows = int(ceil(len(tile_nodes) / num_columns))
         assert (
-            nrows > 0
-        ), "The number of selected top and bottom tiles is too low. Try debugging with a higher n_top_tiles or a higher"
-        "number of batches."
+            num_rows > 0
+        ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a higher number of batches."
 
-        fig, axs = plt.subplots(nrows=nrows, ncols=n_columns, figsize=size)
+        fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=size)
         fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score):.2f}")
 
         for i, tile_node in enumerate(tile_nodes):
@@ -117,18 +116,18 @@ TileDict = Dict[str, List[TileNode]]
 class TopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation or test of DeepMIL models."""
 
-    def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, n_columns: int = 4) -> None:
+    def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, num_columns: int = 4) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param n_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
             prediction scores. Defaults to 10.
         :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
-        :param n_columns: Number of columns to use to plot top and bottom tiles.
+        :param num_columns: Number of columns to use to plot top and bottom tiles.
         """
         self.n_classes = n_classes if n_classes > 1 else 2
         self.n_top_slides = n_top_slides
         self.n_top_tiles = n_top_tiles
-        self.n_columns = n_columns
+        self.num_columns = num_columns
         self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
@@ -348,12 +347,12 @@ class TopBottomTilesHandler:
         case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
 
         top_tiles_fig = slide_node.plot_attention_tiles(
-            tile_nodes=slide_node.top_tiles, case=case, n_columns=self.n_columns
+            tile_nodes=slide_node.top_tiles, case=case, num_columns=self.num_columns
         )
         save_figure(fig=top_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_top.png")
 
         bottom_tiles_fig = slide_node.plot_attention_tiles(
-            tile_nodes=slide_node.bottom_tiles, case=case, n_columns=self.n_columns
+            tile_nodes=slide_node.bottom_tiles, case=case, num_columns=self.num_columns
         )
         save_figure(fig=bottom_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_bottom.png")
 
