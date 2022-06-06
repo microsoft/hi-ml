@@ -97,7 +97,7 @@ Priorities are re-assesed regularly, at least once a week.
 
 The Issue(s) with highest priority are assigned to an engineer. The engineer would then analyze the problem, and
 possibly request more information to reproduce the problem. Requesting more information is also handled in the GitHub
-Issue. Once the problem is clearly reproduced, the engineer will start to write a fix for the Issue, and a test that
+Issue. Once the problem is clearly reproduced, the engineer will start to write a fix for the Issue as well as a test that
 ensures that the fix does indeed solve the reported problem.
 
 Writing the fix and test will follow the process outlined above in the [Prototyping](#prototyping) and
