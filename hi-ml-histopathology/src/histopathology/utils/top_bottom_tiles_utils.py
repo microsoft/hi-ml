@@ -82,8 +82,8 @@ class SlideNode:
         return SlideNode(self.slide_id, self.prob_score)
 
     def plot_attention_tiles(
-        self, tile_nodes: List[TileNode], case: str, n_columns: int = 5, size: Tuple[int, int] = (10, 10)
-    ) -> Optional[plt.Figure]:
+        self, tile_nodes: List[TileNode], case: str, n_columns: int = 4, size: Tuple[int, int] = (10, 10)
+    ) -> plt.Figure:
         """Plot and save top or bottom tiles figures with their attention scores.
 
         :param tile_nodes: A tensor of top or bottom tiles nodes.
