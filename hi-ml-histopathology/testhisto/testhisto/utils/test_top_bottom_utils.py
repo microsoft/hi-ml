@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from typing import Dict, Generator, List, Any
+from typing import Dict, List, Any
 
 from health_ml.utils.common_utils import is_windows
 from histopathology.utils.viz_utils import save_figure
