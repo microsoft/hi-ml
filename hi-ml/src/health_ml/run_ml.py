@@ -13,7 +13,8 @@ from pytorch_lightning import LightningModule, seed_everything
 from health_azure import AzureRunInfo
 from health_azure.logging import logging_section
 from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
-                                is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT)
+                                is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT,
+                                aggregate_hyperdrive_metrics, get_metrics_for_childless_run)
 
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -24,7 +25,7 @@ from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory,
     RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
 from health_ml.utils.lightning_loggers import StoringLogger
-from health_ml.utils.regression_test_utils import compare_folders_and_run_outputs
+from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
 
 
@@ -154,8 +155,29 @@ class MLRunner:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
             # has usually already downloaded the results for the other runs, and uploaded files to the parent
             # run context.
+            regression_metrics_str = self.container.regression_metrics
+            regression_metrics = regression_metrics_str.split(',') if regression_metrics_str else None
+            # TODO: user should be able to override this value
+            crossval_arg_name = self.container.CROSSVAL_INDEX_ARG_NAME
+
             logging.info("Comparing the current results against stored results")
             if self.is_crossval_disabled_or_child_0():
+                if is_running_in_azure_ml:
+                    if PARENT_RUN_CONTEXT is not None:
+                        df = aggregate_hyperdrive_metrics(
+                            child_run_arg_name=crossval_arg_name,
+                            run=PARENT_RUN_CONTEXT,
+                            keep_metrics=regression_metrics)
+                    else:
+                        df = get_metrics_for_childless_run(
+                            run=RUN_CONTEXT,
+                            keep_metrics=regression_metrics)
+
+                    if not df.empty:
+                        metrics_filename = str(self.container.outputs_folder / REGRESSION_TEST_METRICS_FILENAME)
+                        logging.info(f"Saving metrics to {metrics_filename}")
+                        df.to_json(metrics_filename)
+
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                 actual=self.container.outputs_folder,
                                                 csv_relative_tolerance=self.container.regression_test_csv_tolerance)
