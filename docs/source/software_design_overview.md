@@ -35,7 +35,7 @@ the released (main) branch to not affect any current functionality. In this bran
 changes as proposed in the design document.
 
 The engineer will also add additional software tests at different levels (unit tests, integration tests) as appropriate
-for the design. These tests ensure that the proposed functionality will be maintained also in future.
+for the design. These tests ensure that the proposed functionality will be maintained in the future.
 
 The deliverable of this phase is a branch in the version control system that contains all proposed changes and a set of
 software tests.
