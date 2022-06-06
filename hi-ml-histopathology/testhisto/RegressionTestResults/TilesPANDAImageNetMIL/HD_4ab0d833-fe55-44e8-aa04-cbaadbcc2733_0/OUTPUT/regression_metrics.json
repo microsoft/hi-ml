@@ -1,0 +1,11 @@
+{
+    "0": {
+        "test/macro_accuracy": 0.7384915948,
+        "test/weighted_accuracy": 0.7749762535,
+        "test/auroc": 0.93946141,
+        "test/ISUP 0": null,
+        "test/ISUP 1": 0.7781407237,
+        "test/ISUP 2": 0.6177520752,
+        "test/ISUP 3": null
+    }
+}
