@@ -39,7 +39,7 @@ class PandaTilesDataset(TilesDataset):
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  occupancy_threshold: Optional[float] = None,
-                 random_selection: Optional[float] = None) -> None:
+                 random_subset_fraction: Optional[float] = None) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -48,9 +48,9 @@ class PandaTilesDataset(TilesDataset):
         :param dataset_df: A potentially pre-processed dataframe in the same format as would be read
         from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         :occupancy_threshold: A value between 0-1 such that only tiles with occupancy > occupancy_threshold
-        will be selected. If this is 0, all tiles are selected.
-        :random_selection: A value > 0 and <=1 such that this proportion of tiles will be randomly selected.
-        If this is 1, all tiles are selected.
+        will be selected. If 0, all tiles are selected. If `None` (default), all tiles are selected.
+        :random_subset_fraction: A value > 0 and <=1 such that this proportion of tiles will be randomly selected.
+        If 1, all tiles are selected. If `None` (default), all tiles are selected.
         """
         super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
                          dataset_csv=dataset_csv,
@@ -66,11 +66,11 @@ class PandaTilesDataset(TilesDataset):
             ]
             self.dataset_df = dataset_df_filtered
 
-        if random_selection is not None:
-            if (random_selection <= 0) or (random_selection > 1):
-                raise ValueError(f"Random selection value {random_selection} should be > 0 and < = 1.")
-            df_length_random_selection = round(len(self.dataset_df) * random_selection)
-            dataset_df_filtered = self.dataset_df.sample(n=df_length_random_selection)
+        if random_subset_fraction is not None:
+            if (random_subset_fraction <= 0) or (random_subset_fraction > 1):
+                raise ValueError(f"Random subset fraction value {random_subset_fraction} should be > 0 and < = 1.")
+            df_length_random_subset_fraction = round(len(self.dataset_df) * random_subset_fraction)
+            dataset_df_filtered = self.dataset_df.sample(n=df_length_random_subset_fraction)
             self.dataset_df = dataset_df_filtered
 
         # Copy columns "left" --> "tile_x" and "top" --> "tile_y"
@@ -88,7 +88,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
     class label.
     """
     occupancy_threshold = 0
-    random_selection = 1
+    random_subset_fraction = 1
 
     def __init__(self,
                  root: Path,
@@ -102,7 +102,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
                                               dataset_csv=dataset_csv,
                                               dataset_df=dataset_df,
                                               occupancy_threshold=self.occupancy_threshold,
-                                              random_selection=self.random_selection)
+                                              random_subset_fraction=self.random_subset_fraction)
 
     def __getitem__(self, index: int) -> Tuple:  # type: ignore
         sample = self.base_dataset[index]
