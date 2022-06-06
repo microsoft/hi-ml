@@ -40,6 +40,8 @@ class BaseDeepSMILEPanda(BaseMIL):
             max_bag_size_inf=0,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
+            max_bag_size=56,
+            max_bag_size_inf=0,
             # declared in TrainerParams:
             max_epochs=200,
             # use_mixed_precision = True,
@@ -63,9 +65,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeepSMILEPanda to inherit common behaviors from both
     tiles basemil and panda specific configuration.
 
-    `is_finetune` sets the fine-tuning mode. `is_finetune` sets the fine-tuning mode. For fine-tuning,
-    max_bag_size_inf=max_bag_size and batch_size = 2 runs on multiple GPUs with
-    ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
+    `is_finetune` sets the fine-tuning mode. `is_finetune` sets the fine-tuning mode. For fine-tuning, batch_size = 2
+    runs on multiple GPUs with ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -132,8 +133,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         default_kwargs = dict(
             # declared in BaseMILSlides:
             level=1,
-            max_bag_size=56,
-            max_bag_size_inf=0,
             tile_size=224,
             random_offset=True,
             background_val=255,
