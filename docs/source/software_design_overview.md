@@ -51,7 +51,7 @@ codebase. They will now initiate a Pull Request process that consists of the fol
 - All automatic code checks will start. These checks will verify
 
   - Consistency with static typing rules
-  - Ensure that no passwords or other types of credentials are revealed
+  - Ensure that no passwords or other types of credentials are revealed.
   - Ensure that none of the used third-party libraries contains high severity software vulnerabilities that could affect
     the proposed functionality.
 
