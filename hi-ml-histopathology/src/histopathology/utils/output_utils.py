@@ -329,7 +329,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_slides: bool = True, n_top_slides: int = 10, n_top_tiles: int = 10,
+                 maximise: bool, save_output_slides: bool = True, num_top_slides: int = 10, num_top_tiles: int = 12,
                  num_columns: int = 4) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
@@ -343,9 +343,9 @@ class DeepMILOutputsHandler:
         :param save_output_slides: A parameter to whether 'save_slide_thumbnails_and_heatmaps' for slides datasets.
             This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
             tiles coordinates due to the current tiling on the fly strategy.
-        :param n_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
+        :param num_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
             Defaults to 10.
-        :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
+        :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
         :param num_columns: Number of columnds to use to plot top and bottom tiles.
         """
         self.outputs_root = outputs_root
@@ -355,14 +355,12 @@ class DeepMILOutputsHandler:
         self.save_output_slides = save_output_slides
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
-        self.n_top_tiles = n_top_tiles
-        self.n_top_slides = n_top_slides
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.tiles_handler = TopBottomTilesHandler(self.n_classes, n_top_tiles=self.n_top_tiles,
-                                                   n_top_slides=self.n_top_slides, num_columns=num_columns)
+        self.tiles_handler = TopBottomTilesHandler(self.n_classes, num_top_tiles=num_top_tiles,
+                                                   num_top_slides=num_top_slides, num_columns=num_columns)
 
     @property
     def validation_outputs_dir(self) -> Path:

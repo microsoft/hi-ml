@@ -48,8 +48,8 @@
                 "--pl_limit_batches=2",
                 "--crossval_count=0",
                 "--batch_size=2",
-                "--n_top_slides=2",
-                "--n_top_tiles=2"
+                "--num_top_slides=2",
+                "--num_top_tiles=2"
             ],
             "console": "integratedTerminal",
         },
@@ -65,8 +65,8 @@
                 "--batch_size=2",
                 "--max_bag_size=4",
                 "--max_bag_size_inf=4",
-                "--n_top_slides=2",
-                "--n_top_tiles=2"
+                "--num_top_slides=2",
+                "--num_top_tiles=2"
             ],
             "console": "integratedTerminal",
         },

@@ -62,19 +62,19 @@ class SlideNode:
     def __lt__(self, other: "SlideNode") -> bool:
         return self.prob_score < other.prob_score
 
-    def update_selected_tiles(self, tiles: Tensor, attn_scores: Tensor, n_top_tiles: int) -> None:
+    def update_selected_tiles(self, tiles: Tensor, attn_scores: Tensor, num_top_tiles: int) -> None:
         """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
 
         :param tiles: A stack of tiles with shape (n_tiles, channels, height, width).
         :param attn_scores: A tensor of attention scores assigned by the deepmil model to tiles of shape (n_tiles, 1).
-        :param n_top_tiles: The number of tiles to select as top and bottom tiles.
+        :param num_top_tiles: The number of tiles to select as top and bottom tiles.
         """
-        n_top_tiles = min(n_top_tiles, len(attn_scores))
+        num_top_tiles = min(num_top_tiles, len(attn_scores))
 
-        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=n_top_tiles, largest=True, sorted=True)
+        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=num_top_tiles, largest=True, sorted=True)
         self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in top_k_indices]
 
-        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=n_top_tiles, largest=False, sorted=True)
+        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=num_top_tiles, largest=False, sorted=True)
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in bottom_k_indices]
 
     def _shallow_copy(self) -> "SlideNode":
@@ -94,7 +94,8 @@ class SlideNode:
         num_rows = int(ceil(len(tile_nodes) / num_columns))
         assert (
             num_rows > 0
-        ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a higher number of batches."
+        ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a "
+        "higher number of batches."
 
         fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=size)
         fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score):.2f}")
@@ -116,17 +117,17 @@ TileDict = Dict[str, List[TileNode]]
 class TopBottomTilesHandler:
     """Class that manages selecting top and bottom tiles on the fly during validation or test of DeepMIL models."""
 
-    def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, num_columns: int = 4) -> None:
+    def __init__(self, n_classes: int, num_top_slides: int = 10, num_top_tiles: int = 12, num_columns: int = 4) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
-        :param n_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
+        :param num_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
             prediction scores. Defaults to 10.
-        :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
+        :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
         :param num_columns: Number of columns to use to plot top and bottom tiles.
         """
         self.n_classes = n_classes if n_classes > 1 else 2
-        self.n_top_slides = n_top_slides
-        self.n_top_tiles = n_top_tiles
+        self.num_top_slides = num_top_slides
+        self.num_top_tiles = num_top_tiles
         self.num_columns = num_columns
         self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
@@ -155,7 +156,7 @@ class TopBottomTilesHandler:
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
         defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
         bottom_slides_heaps nodes.
-        Second, we check if we exceeded self.n_top_slides to be selected.
+        Second, we check if we exceeded self.num_top_slides to be selected.
             If so, we update the slides_node top and bottom tiles only if it has been kept in the heap.
             Else, we haven't reached the heaps max_capacity so we save the top and bottom tiles.
 
@@ -167,12 +168,12 @@ class TopBottomTilesHandler:
         :param slide_node: A shallow version of slide_node that contains only slide_id and its assigned prob_score.
         """
         heapq.heappush(class_slides_heap, slide_node)
-        if len(class_slides_heap) == self.n_top_slides + 1:
+        if len(class_slides_heap) == self.num_top_slides + 1:
             old_slide_node = heapq.heappop(class_slides_heap)
             if old_slide_node.slide_id != slide_node.slide_id:
-                slide_node.update_selected_tiles(tiles, attn_scores, self.n_top_tiles)
+                slide_node.update_selected_tiles(tiles, attn_scores, self.num_top_tiles)
         else:
-            slide_node.update_selected_tiles(tiles, attn_scores, self.n_top_tiles)
+            slide_node.update_selected_tiles(tiles, attn_scores, self.num_top_tiles)
 
     def update_slides_selection(self, batch: Dict[SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
         """Updates top and bottom slides heaps on the fly during validation or test.
@@ -225,7 +226,7 @@ class TopBottomTilesHandler:
             for rank in range(world_size):
                 for slide_node in slides_heaps_list[rank][class_id]:
                     heapq.heappush(slides_heaps[class_id], slide_node)
-                    if len(slides_heaps[class_id]) == self.n_top_slides + 1:
+                    if len(slides_heaps[class_id]) == self.num_top_slides + 1:
                         heapq.heappop(slides_heaps[class_id])
         return slides_heaps
 
@@ -363,7 +364,7 @@ class TopBottomTilesHandler:
 
         :param figures_dir: The path to the directory where to save the attention tiles figure.
         """
-        logging.info(f"Plotting {self.n_top_tiles} top and bottom tiles of {self.n_top_slides} top and slides...")
+        logging.info(f"Plotting {self.num_top_tiles} top and bottom tiles of {self.num_top_slides} top and slides...")
         for class_id in range(self.n_classes):
             for slide_node in self.top_slides_heaps[class_id]:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
