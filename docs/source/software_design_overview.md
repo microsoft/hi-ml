@@ -58,7 +58,9 @@ codebase. They would now initiate a Pull Request process that consists of the fo
 For code to be accepted into the "main" branch, the following criteria need to be satisfied:
 
 - All unit and integration tests pass.
-- The code has been reviewed by at least 2 engineers who are members of the core development team.
+- The code has been reviewed by at least 2 engineers who are members of the core development team. This review will
+  also assess non-quantifiable aspects of the proposed change, such as clarity and readability of the code and quality
+  of the documentation.
 - Any comments that have been added throughout the review process need to be resolved.
 - All automated checks pass.
 
