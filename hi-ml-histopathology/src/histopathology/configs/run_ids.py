@@ -1,6 +1,6 @@
 # TODO: remove innereye references
 innereye_ssl_checkpoint = "hsharma_panda_explore:hsharma_panda_explore_1638437076_357167ae"
-innereye_ssl_checkpoint_binary = "hsharma_panda_tiles_ssl:hsharma_panda_tiles_ssl_1639766433_161e03b9"
+innereye_ssl_checkpoint_binary = "PANDA_SimCLR:PANDA_SimCLR_1654023538_7a0f1d00"
 innereye_ssl_checkpoint_crck_4ws = "simclr_8_gpus:CRCK_SimCLR_1647951559_d2a19df5"
 innereye_ssl_checkpoint_crck_radiomics = "ModifyOldSSLCheckpoint:704b1af8-7c75-46ed-8460-d80a0e603194"
 
