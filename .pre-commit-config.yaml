@@ -44,7 +44,7 @@ repos:
     args: [--config, hi-ml-histopathology/.flake8]
 
 - repo: https://github.com/pre-commit/mirrors-autopep8
-  rev: v1.5.7
+  rev: v1.6.0
   hooks:
   - id: autopep8
     args: [--in-place, --max-line-length, "120"]
