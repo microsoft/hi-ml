@@ -2154,7 +2154,7 @@ def test_parse_args_and_apply_overrides() -> None:
         util.parse_args_and_update_config(config, args=["--even_number", f"{none_number}"])
 
     # Mock from_string to check test _validate
-    def mock_from_string_none(a, b):
+    def mock_from_string_none(a: Any, b: Any) -> None:
         return None  # type: ignore
     with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
         # Check that _validate fails with None value

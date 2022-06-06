@@ -233,22 +233,22 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         if isinstance(_p, param.Boolean):
             p_type: Callable = parse_bool
         elif isinstance(_p, param.Integer):
-            def p_type(x):
+            def p_type(x: str) -> int:
                 return _p.default if x == "" else int(x)
         elif isinstance(_p, param.Number):
-            def p_type(x):
+            def p_type(x: str) -> float:
                 return _p.default if x == "" else float(x)
         elif isinstance(_p, param.String):
             p_type = str
         elif isinstance(_p, param.List):
-            def p_type(x):
+            def p_type(x: str) -> List[Any]:
                 return [_p.class_(item) for item in x.split(",") if item]
         elif isinstance(_p, param.NumericTuple):
 
-            def float_or_int(y):
+            def float_or_int(y: str) -> Union[int, float]:
                 return int(y) if isinstance(_p, IntTuple) else float(y)
 
-            def p_type(x):
+            def p_type(x: str) -> Tuple:
                 return tuple([float_or_int(item) for item in x.split(",")])
         elif isinstance(_p, param.ClassSelector):
             p_type = _p.class_
