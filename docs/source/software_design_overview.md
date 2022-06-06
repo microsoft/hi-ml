@@ -43,7 +43,7 @@ software tests.
 ### Finalization
 
 At this point, the engineering owner of the proposed change has carried out all necessary changes in a branch of the
-codebase. They would now initiate a Pull Request process that consists of the following steps:
+codebase. They will now initiate a Pull Request process that consists of the following steps:
 
 - The code will be reviewed by at least 2 engineers. Both need to provide their explicit approval before the proposed
   change can be integrated in the "main" branch.
