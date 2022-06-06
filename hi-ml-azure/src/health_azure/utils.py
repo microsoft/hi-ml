@@ -230,6 +230,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         :param _p: parameter to get type and nargs for.
         :return: Type
         """
+        get_type: Callable
         if isinstance(_p, param.Boolean):
             get_type = parse_bool
         elif isinstance(_p, param.Integer):
