@@ -133,7 +133,7 @@ def get_expected_bottom_slides_by_probability(
     return _get_expected_slides_by_probability(results, n_top_slides, label, top=False)
 
 
-@pytest.mark.parametrize("n_classes", [2, 3])
+@pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
     """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
     n_tiles = 3
@@ -225,7 +225,7 @@ def assert_equal_top_bottom_attention_tiles(
             assert expected_bottom_attns[j].item() == bottom_tiles[j].attn
 
 
-@pytest.mark.parametrize("n_classes", [2, 3])
+@pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_select_k_top_bottom_tiles_on_the_fly(
     n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
@@ -312,7 +312,6 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
     assert isinstance(tiles_fig, plt.Figure)
     file = Path(test_output_dirs.root_dir) / fig_name
     save_figure(fig=tiles_fig, figpath=file)
-
     assert file.exists()
     expected = full_ml_test_data_path("top_bottom_tiles") / fig_name
     assert_binary_files_match(file, expected)
@@ -320,9 +319,7 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
-
     top_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.top_tiles, case="TP")
     bottom_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.bottom_tiles, case="FN")
-
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
     assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)

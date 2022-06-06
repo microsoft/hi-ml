@@ -89,9 +89,9 @@ class SlideNode:
         nrows = int(ceil(len(tile_nodes) / n_columns))
         if nrows > 0:
             fig, axs = plt.subplots(nrows=nrows, ncols=n_columns, figsize=size)
-            fig.suptitle(f"{case}: {self.slide_id} P=%.2f" % abs(self.prob_score))
+            fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score)}:.2f")
 
-            for ax, tile_node in zip(axs.flat(), tile_nodes):
+            for ax, tile_node in zip(axs.flat, tile_nodes):
                 ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
                 ax.set_title("%.6f" % tile_node.attn)
                 ax.set_axis_off()
