@@ -72,7 +72,6 @@ class MetricsKey(str, Enum):
     PRECISION = 'precision'
     RECALL = 'recall'
     F1 = 'f1score'
-    COHENKAPPA = 'cohenskappa'
 
 
 class ModelKey(str, Enum):
