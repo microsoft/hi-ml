@@ -95,7 +95,7 @@ class SlideNode:
         assert (
             nrows > 0
         ), "The number of selected top and bottom tiles is too low. Try debugging with a higher n_top_tiles or a higher"
-        "number of batches!"
+        "number of batches."
 
         fig, axs = plt.subplots(nrows=nrows, ncols=n_columns, figsize=size)
         fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score):.2f}")
