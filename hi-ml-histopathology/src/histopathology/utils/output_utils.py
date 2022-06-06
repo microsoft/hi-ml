@@ -400,12 +400,11 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_output_slides and stage == ModelKey.TEST:
-            if self.slides_dataset is not None:
-                save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
-                                                   tile_size=self.tile_size,
-                                                   level=self.level, slides_dataset=self.slides_dataset,
-                                                   figures_dir=figures_dir)
+        if self.save_output_slides and stage == ModelKey.TEST and self.slides_dataset:
+            save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
+                                               tile_size=self.tile_size,
+                                               level=self.level, slides_dataset=self.slides_dataset,
+                                               figures_dir=figures_dir)
 
         save_scores_histogram(results, figures_dir=figures_dir)
 
