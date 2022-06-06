@@ -134,7 +134,7 @@ def get_expected_bottom_slides_by_probability(
 
 
 @pytest.mark.parametrize("n_classes", [2, 3])
-def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
+def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
     """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
     n_tiles = 3
     batch_size = 2
@@ -153,8 +153,8 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
         data, results, n_top_slides, n_top_tiles, n_classes, rank, batch_size, n_batches
     )
 
-    shallow_top_slides_heaps = handler.shallow_copy_top_slides_heaps()
-    shallow_bottom_slides_heaps = handler.shallow_copy_bottom_slides_heaps()
+    shallow_top_slides_heaps = handler._shallow_copy_slides_heaps(handler.top_slides_heaps)
+    shallow_bottom_slides_heaps = handler._shallow_copy_slides_heaps(handler.bottom_slides_heaps)
 
     if torch.distributed.is_initialized():
         if world_size > 1:
@@ -177,14 +177,14 @@ def test_gather_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: i
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu
-def test_gather_shallow_slide_nodes_distributed() -> None:
+def test_aggregate_shallow_slide_nodes_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel."""
     # test with n_classes = 2
-    run_distributed(test_gather_shallow_slide_nodes, [2], world_size=1)
-    run_distributed(test_gather_shallow_slide_nodes, [2], world_size=2)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2], world_size=2)
     # test with n_classes = 3
-    run_distributed(test_gather_shallow_slide_nodes, [3], world_size=1)
-    run_distributed(test_gather_shallow_slide_nodes, [3], world_size=2)
+    run_distributed(test_aggregate_shallow_slide_nodes, [3], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [3], world_size=2)
 
 
 def assert_equal_top_bottom_attention_tiles(
@@ -258,7 +258,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     handler = _create_and_update_top_bottom_tiles_handler(
         data, results, n_top_slides, n_top_tiles, n_classes, rank, batch_size, n_batches
     )
-    handler.gather_top_bottom_tiles_for_top_bottom_slides()
+    handler.gather_selected_tiles_across_devices()
 
     if rank == 0:
         for label in range(n_classes):

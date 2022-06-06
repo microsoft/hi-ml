@@ -175,23 +175,22 @@ class TopBottomTilesHandler:
             batch[SlideKey.SLIDE_ID], return_index=True
         )  # to account for repetitions in tiles pipeline
         slide_ids = slide_ids[np.sort(idx)]
-
-        for label in range(self.n_classes):
-            class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
-            for i in class_indices:
-                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-                self._update_class_slides(
-                    slides_heaps=self.top_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
-                )
-                self._update_class_slides(
-                    slides_heaps=self.bottom_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
-                )
+        batch_size = len(batch[SlideKey.IMAGE])
+        for i in range(batch_size):
+            label = results[ResultsKey.TRUE_LABEL][i].item()
+            probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
+            self._update_class_slides(
+                class_slides_heap=self.top_slides_heaps[label],
+                tiles=batch[SlideKey.IMAGE][i],
+                attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
+            )
+            self._update_class_slides(
+                class_slides_heap=self.bottom_slides_heaps[label],
+                tiles=batch[SlideKey.IMAGE][i],
+                attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
+            )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
         """Returns a shallow copy of slides heaps to be synchronised across devices.
@@ -284,7 +283,7 @@ class TopBottomTilesHandler:
                 slide_node.top_tiles = top_tiles[slide_node.slide_id]
                 slide_node.bottom_tiles = bottom_tiles[slide_node.slide_id]
 
-    def gather_top_bottom_tiles_for_top_bottom_slides(self) -> None:
+    def gather_selected_tiles_across_devices(self) -> None:
         """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
             1- make a shallow copy of top and bottom slides_heaps
             2- gather best shallow slides across gpus
