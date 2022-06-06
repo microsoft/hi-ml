@@ -17,8 +17,7 @@ from torch.functional import Tensor
 
 from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
-
-from histopathology.utils.metrics_utils import plot_scores_hist, resize_and_save, select_k_tiles, plot_slide, \
+from histopathology.utils.metrics_utils import plot_scores_hist, resize_and_save, plot_slide, \
     plot_heatmap_overlay, plot_normalized_confusion_matrix
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
