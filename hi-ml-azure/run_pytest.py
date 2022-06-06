@@ -83,9 +83,9 @@ def run_pytest(folder_to_test: str, pytest_mark: str, module_to_test: str) -> No
     pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
 
     if module_to_test:
-        pytest_args += [f"--cov={module_to_test}", "--cov-branch",
-                        f"--cov-report=html:{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
-                        "--cov-report=xml", "--cov-report=term-missing", "--cov-config=.coveragerc"]
+        pytest_args += [f"--cov={module_to_test}", "--cov-branch", "--cov-report=html",
+                        "--cov-report=xml::{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
+                        "--cov-report=term-missing", "--cov-config=.coveragerc"]
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
     logging.info(f"Starting pytest with these args: {pytest_args}")
