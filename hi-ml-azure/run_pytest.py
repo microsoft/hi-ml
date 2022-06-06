@@ -49,8 +49,9 @@ class RunPytestConfig(param.Parameterized):
     )
     module: str = param.String(
         default="",
-        doc="The module of tests that should be run. This value is used as an argument to --cov of pytest to run code"
-        "coverage of the specified module.",
+        doc="The module of tests that should be run. This value is used as an argument to --cov of pytest to run code "
+        "coverage of the specified pyhton module. For example, in the subfolder hi-ml-histopathology, one can run code "
+        "coverage for the histopathology module (or SSL module) by setting `module=histopathology`.",
     )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
     conda_env: str = param.String(
@@ -71,11 +72,11 @@ class RunPytestConfig(param.Parameterized):
 
 def run_pytest(folder_to_test: str, pytest_mark: str, module_to_test: str) -> None:
     """
-    Runs pytest on a given folder, restricting to the tests that have the given PyTest mark.
+    Runs pytest on a given folder, restricting to the tests that have the given pytest mark.
     If pytest finds no tests, or any of the tests fail, this function raises a ValueError. When run inside
     AzureML, this will make the job fail.
 
-    :param pytest_mark: The PyTest mark to use for filtering out the tests to run.
+    :param pytest_mark: The pytest mark to use for filtering out the tests to run.
     :param folder_to_test: The folder with tests that should be run.
     :param module_to_test: The module for which test code coverage should be run.
     """
@@ -84,7 +85,7 @@ def run_pytest(folder_to_test: str, pytest_mark: str, module_to_test: str) -> No
 
     if module_to_test:
         pytest_args += [f"--cov={module_to_test}", "--cov-branch", "--cov-report=html",
-                        "--cov-report=xml:{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
+                        f"--cov-report=xml:{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
                         "--cov-report=term-missing", "--cov-config=.coveragerc"]
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
@@ -102,7 +103,7 @@ def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Pa
     For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
     to <destination>/bar.csv (the directory will be stripped off).
     :param blob_path: The name of the file to download.
-    :param run: The AzureML run to download the files from
+    :param run: The AzureML run to download the files from.
     :param destination: Local path to save the downloaded blob to.
     :return: Destination path to the downloaded file(s)
     """
@@ -121,7 +122,7 @@ def download_pytest_coverage_result(run: Run, destination_folder: Path = Path.cw
     Downloads the pytest result file that is stored in the output folder of the given AzureML run.
     If there is no pytest result file, throw an Exception.
     :param run: The run from which the files should be read.
-    :param destination_folder: The folder into which the PyTest result file is downloaded.
+    :param destination_folder: The folder into which the pytest result file is downloaded.
     :return: The path (folder and filename) of the downloaded file.
     """
     logging.info(f"Downloading pytest gpu coverage file: {PYTEST_GPU_COVERAGE_FILE}")
@@ -132,9 +133,7 @@ def download_pytest_coverage_result(run: Run, destination_folder: Path = Path.cw
 
 
 def pytest_after_submission_hook(azure_run: Run) -> None:
-    """
-    A function that will be called right after pytest gpu tests submission.
-    """
+    """A hook that will be called right after pytest gpu tests submission."""
     # We want the job output to be visible on the console. Do not exit yet if the job fails, because we
     # may need to download the pytest result file.
     azure_run.wait_for_completion(show_output=True, raise_on_error=False)
@@ -174,6 +173,6 @@ if __name__ == "__main__":
                 conda_environment_file=config.conda_env,
                 experiment_name=config.experiment,
                 max_run_duration=config.max_run_duration,
-                after_submission=pytest_after_submission_hook
+                after_submission=pytest_after_submission_hook,
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, module_to_test=config.module)
