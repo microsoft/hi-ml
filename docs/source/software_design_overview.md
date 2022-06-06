@@ -81,13 +81,26 @@ change to a version of a third party library will need to be carried out via the
 change, with Pull Request, review, and all tests passing.
 
 The list of third party software is maintained in GitHub in the Conda configuration file, that is `environment.yml` for
-Linux environments and `environment_win.yml` for Windows environments.
+Linux environments and `environment_win.yml` for Windows environments. For example, [this is the latest version of the
+environment file for the InnerEye-DeepLearning
+repository](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/environment.yml).
 
 ## Defect Handling
 
 The handling of any bugs or defects discovered is done via GitHub Issues.
 
-The defects are triaged and assigned during regular meetings to the appropriate team member.
+When an Issue is created, the team members will get notified. Open Issues are kept in a list sorted by priority. For
+example, [this is the list for all of the InnerEye-related Issues](https://github.com/orgs/microsoft/projects/320).
+Priorities are re-assesed regularly, at least once a week.
+
+The Issue(s) with highest priority are assigned to an engineer. The engineer would then analyze the problem, and
+possibly request more information to reproduce the problem. Requesting more information is also handled in the GitHub
+Issue. Once the problem is clearly reproduced, the engineer will start to write a fix for the Issue, and a test that
+ensures that the fix does indeed solve the reported problem.
+
+Writing the fix and test will follow the process outlined above in the [Prototyping](#prototyping) and
+[Finalization](#finalization) sections. In particular, the fix and test will undergo the Pull Request review process
+before they are merged into the main branch.
 
 ## Updates to the Development Process
 
