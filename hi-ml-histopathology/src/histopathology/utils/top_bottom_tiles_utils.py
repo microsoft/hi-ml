@@ -72,7 +72,7 @@ class SlideNode:
         _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=n_top_tiles, largest=False, sorted=True)
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in bottom_k_indices]
 
-    def shallow_copy(self) -> "SlideNode":
+    def _shallow_copy(self) -> "SlideNode":
         """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
         return SlideNode(self.slide_id, self.prob_score)
 
@@ -104,13 +104,13 @@ TileDict = Dict[str, List[TileNode]]
 
 
 class TopBottomTilesHandler:
-    """Class that manages selecting top and bottom tiles on the fly during validation and test of DeepMIL models."""
+    """Class that manages selecting top and bottom tiles on the fly during validation or test of DeepMIL models."""
 
     def __init__(self, n_classes: int, n_top_slides: int = 10, n_top_tiles: int = 10, n_columns: int = 4) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param n_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
-            prediction scores.Defaults to 10.
+            prediction scores. Defaults to 10.
         :param n_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 10.
         :param n_columns: Number of columns to use to plot top and bottom tiles.
         """
@@ -138,10 +138,10 @@ class TopBottomTilesHandler:
         self.top_slides_heaps = new_top_slides_heaps
         self.bottom_slides_heaps = new_bottom_slides_heaps
 
-    def _update_class_slides(
+    def _update_label_slides(
         self, class_slides_heap: List[SlideNode], tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode,
     ) -> None:
-        """Update the content of a class_slides_heap.
+        """Update the selected slides of a given class label on the fly by updating the content of class_slides_heap.
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
         defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
         bottom_slides_heaps nodes.
@@ -179,13 +179,13 @@ class TopBottomTilesHandler:
         for i in range(batch_size):
             label = results[ResultsKey.TRUE_LABEL][i].item()
             probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-            self._update_class_slides(
+            self._update_label_slides(
                 class_slides_heap=self.top_slides_heaps[label],
                 tiles=batch[SlideKey.IMAGE][i],
                 attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
                 slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
             )
-            self._update_class_slides(
+            self._update_label_slides(
                 class_slides_heap=self.bottom_slides_heaps[label],
                 tiles=batch[SlideKey.IMAGE][i],
                 attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
@@ -200,7 +200,7 @@ class TopBottomTilesHandler:
         """
         shallow_slides_heaps_copy: SlideDict = {}
         for class_id, slide_nodes in slides_heaps.items():
-            shallow_slides_heaps_copy[class_id] = [slide_node.shallow_copy() for slide_node in slide_nodes]
+            shallow_slides_heaps_copy[class_id] = [slide_node._shallow_copy() for slide_node in slide_nodes]
         return shallow_slides_heaps_copy
 
     def _reduce_slides_heaps_list(self, world_size: int, slides_heaps_list: List[SlideDict]) -> SlideDict:
