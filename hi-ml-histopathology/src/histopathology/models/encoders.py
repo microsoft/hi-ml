@@ -120,6 +120,10 @@ class SSLEncoder(TileEncoder):
         assert isinstance(model.encoder, encoders.SSLEncoder)
         return setup_feature_extractor(model.encoder.cnn_model, self.input_dim)
 
+    def forward(self, x):
+        x = super().forward(x)
+        return x[-1] if isinstance(x, list) else x
+
 
 class HistoSSLEncoder(TileEncoder):
     """HistoSSL encoder pretrained on multiple histological datasets
