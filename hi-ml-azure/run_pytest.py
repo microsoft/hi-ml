@@ -131,7 +131,7 @@ def download_pytest_coverage_result(run: Run, destination_folder: Path = None) -
     logging.info(f"Downloading pytest gpu coverage file: {PYTEST_GPU_COVERAGE_FILE}")
     try:
         return download_run_output_file(Path(PYTEST_GPU_COVERAGE_FILE), destination=destination_folder, run=run)
-    except ValueError as ex:
+    except Exception as ex:
         raise ValueError(f"No pytest result file {PYTEST_GPU_COVERAGE_FILE} was found for run {run.id}") from ex
 
 
