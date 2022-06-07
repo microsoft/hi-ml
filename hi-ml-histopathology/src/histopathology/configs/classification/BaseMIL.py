@@ -91,11 +91,14 @@ class BaseMIL(LightningContainer):
                                                         "at level 1.")
 
     # Outputs Handler parameters:
-    save_output_tiles: bool = param.Boolean(True, doc="a boolean parameter to enable 'save_top_and_bottom_tiles' and "
-                                                      "'save_slide_thumbnails_and_heatmaps'. This is a temporary "
-                                                      "solution to disable tiles visualisation when running the slides "
-                                                      "pipeline that lacks tiles coordinates due to the current tiling "
-                                                      "on the fly strategy.")
+    save_output_slides: bool = param.Boolean(True, doc="a boolean parameter to enable saving heatmaps and thumbnails.")
+    num_top_slides: int = param.Integer(10, bounds=(0, None), doc="Number of slides to select when saving top and "
+                                                                  "bottom tiles. If set to 10 (default), it selects 10 "
+                                                                  "top and 10 bottom slides. To disable tiles plots "
+                                                                  "saving, set `num_top_slides=0`")
+    num_top_tiles: int = param.Integer(12, bounds=(1, None), doc="Number of tiles to select when saving top and bottom"
+                                                                 "tiles. If set to 12 (default), it saves 12 top and 12"
+                                                                 "bottom tiles.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -185,7 +188,9 @@ class BaseMIL(LightningContainer):
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
-                                     save_output_tiles=self.save_output_tiles)
+                                     save_output_slides=self.save_output_slides,
+                                     num_top_slides=self.num_top_slides,
+                                     num_top_tiles=self.num_top_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder
