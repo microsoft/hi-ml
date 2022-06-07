@@ -106,7 +106,7 @@ def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Pa
     (the directory will be stripped off).
     :param run: The AzureML run to download the files from.
     :param destination: Local path to save the downloaded blob to.
-    :return: Destination path to the downloaded file(s)
+    :return: Destination path to the downloaded file(s).
     """
     blobs_prefix = str((DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
     destination = destination / blob_path.name
