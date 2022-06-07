@@ -20,8 +20,15 @@ from health_azure.utils import PathOrString, is_conda_file_with_pip_include
 MAX_PATH_LENGTH = 260
 
 # convert string to None if an empty string or whitespace is provided
-empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
-string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
+
+
+def empty_string_to_none(x: Optional[str]) -> Optional[str]:
+    return None if (x is None or len(x.strip()) == 0) else x
+
+
+def string_to_path(x: Optional[str]) -> Optional[Path]:
+    return None if (x is None or len(x.strip()) == 0) else Path(x)
+
 
 # file and directory names
 CHECKPOINT_SUFFIX = ".ckpt"

@@ -8,22 +8,23 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
 import logging
+
 from ruamel.yaml import YAML
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
+from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
 from histopathology.utils.metrics_utils import (plot_attention_tiles, plot_heatmap_overlay,
                                                 plot_normalized_confusion_matrix, plot_scores_hist, plot_slide,
                                                 select_k_tiles)
-from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
-from histopathology.utils.viz_utils import load_image_dict
+from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
+from histopathology.utils.viz_utils import load_image_dict, save_figure
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
@@ -54,11 +55,6 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
         raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
                          f"of classes ({effective_n_classes})")
     return tuple(class_names)
-
-
-def save_figure(fig: plt.figure, figpath: Path) -> None:
-    fig.savefig(figpath, bbox_inches='tight')
-    plt.close(fig)
 
 
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
@@ -147,29 +143,30 @@ def save_features(results: ResultsType, outputs_dir: Path) -> None:
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
-def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path) \
+def save_top_and_bottom_tiles(results: ResultsType, n_classes: int, figures_dir: Path, k_tiles: int = 10) \
         -> Dict[str, List[str]]:
     logging.info("Selecting tiles ...")
 
-    def select_k_tiles_from_results(label: int, select: Tuple[str, str]) \
+    def select_k_tiles_from_results(label: int, use_highest_pred: bool, use_highest_att: bool) \
             -> List[Tuple[Any, Any, List, List]]:
-        return select_k_tiles(results, n_slides=10, label=label, n_tiles=10, select=select)
+        return select_k_tiles(results, n_slides=k_tiles, label=label, n_tiles=k_tiles,
+                              use_highest_pred=use_highest_pred, use_highest_att=use_highest_att)
 
     # Class 0
-    tn_top_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'highest_att'))
-    tn_bottom_tiles = select_k_tiles_from_results(label=0, select=('highest_pred', 'lowest_att'))
-    fp_top_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'highest_att'))
-    fp_bottom_tiles = select_k_tiles_from_results(label=0, select=('lowest_pred', 'lowest_att'))
+    tn_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=True)
+    tn_bottom_tiles = select_k_tiles_from_results(label=0, use_highest_pred=True, use_highest_att=False)
+    fp_top_tiles = select_k_tiles_from_results(label=0, use_highest_pred=False, use_highest_att=True)
+    fp_bottom_tiles = select_k_tiles_from_results(label=0, use_highest_pred=False, use_highest_att=False)
     report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles],
                     'FP': [fp_top_tiles, fp_bottom_tiles]}
 
     # Class 1 to n_classes-1
     n_classes_to_select = n_classes if n_classes > 1 else 2
     for i in range(1, n_classes_to_select):
-        fn_top_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles_from_results(label=i, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'highest_att'))
-        tp_bottom_tiles = select_k_tiles_from_results(label=i, select=('highest_pred', 'lowest_att'))
+        fn_top_tiles = select_k_tiles_from_results(label=i, use_highest_pred=False, use_highest_att=True)
+        fn_bottom_tiles = select_k_tiles_from_results(label=i, use_highest_pred=False, use_highest_att=False)
+        tp_top_tiles = select_k_tiles_from_results(label=i, use_highest_pred=True, use_highest_att=True)
+        tp_bottom_tiles = select_k_tiles_from_results(label=i, use_highest_pred=True, use_highest_att=False)
         report_cases.update({'TP_' + str(i): [tp_top_tiles, tp_bottom_tiles],
                              'FN_' + str(i): [fn_top_tiles, fn_bottom_tiles]})
 
@@ -332,7 +329,8 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_tiles: bool = True) -> None:
+                 maximise: bool, save_output_slides: bool = True, num_top_slides: int = 10, num_top_tiles: int = 12,
+                 num_columns: int = 4) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -342,22 +340,27 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_output_tiles: a boolean parameter to enable 'save_top_and_bottom_tiles' and
-            'save_slide_thumbnails_and_heatmaps'. This is a temporary solution to disable tiles visualisation when
-            running the slides pipeline that lacks tiles coordinates due to the current tiling on the fly strategy.
+        :param save_output_slides: A parameter to whether 'save_slide_thumbnails_and_heatmaps' for slides datasets.
+            This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
+            tiles coordinates due to the current tiling on the fly strategy.
+        :param num_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
+            Defaults to 10.
+        :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
+        :param num_columns: Number of columnds to use to plot top and bottom tiles.
         """
         self.outputs_root = outputs_root
-
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.save_output_tiles = save_output_tiles
+        self.save_output_slides = save_output_slides
         self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
+        self.tiles_handler = TopBottomTilesHandler(self.n_classes, num_top_tiles=num_top_tiles,
+                                                   num_top_slides=num_top_slides, num_columns=num_columns)
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -374,7 +377,7 @@ class DeepMILOutputsHandler:
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
         self.slides_dataset = slides_dataset
 
-    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
@@ -395,14 +398,11 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_output_tiles:
-            logging.info("Selecting tiles ...")
-            selected_slide_ids = save_top_and_bottom_tiles(results, n_classes=self.n_classes, figures_dir=figures_dir)
-
-            if self.slides_dataset is not None:
-                save_slide_thumbnails_and_heatmaps(results, selected_slide_ids, tile_size=self.tile_size,
-                                                   level=self.level, slides_dataset=self.slides_dataset,
-                                                   figures_dir=figures_dir)
+        if self.save_output_slides and stage == ModelKey.TEST and self.slides_dataset:
+            save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
+                                               tile_size=self.tile_size,
+                                               level=self.level, slides_dataset=self.slides_dataset,
+                                               figures_dir=figures_dir)
 
         save_scores_histogram(results, figures_dir=figures_dir)
 
@@ -448,7 +448,10 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
+        self.tiles_handler.gather_selected_tiles_across_devices()
 
-        # Only global rank-0 process should actually render and save the outputs
+        # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
-            self._save_outputs(gathered_epoch_results, self.test_outputs_dir)
+            logging.info("Selecting tiles ...")
+            self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)

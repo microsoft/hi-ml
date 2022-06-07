@@ -102,11 +102,15 @@ jobs:
           make pytest_coverage
 
       - name: Upload coverage report to Codecov
+        # Coverage should also be uploaded if tests still fail
+        if: always()
         uses: codecov/codecov-action@v2
         with:
             flags: ${{ env.folder }}
 
       - name: Run GPU tests
+        # GPU tests should be run even if other tests fail
+        if: always()
         run: |
           branch_prefix="refs/heads/"
           full_branch_name=$GITHUB_REF

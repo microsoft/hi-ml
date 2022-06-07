@@ -108,9 +108,9 @@ def test_select_k_tiles() -> None:
     ntiles = 2
     # TP
     top_tp = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
-                            select=('highest_pred', 'highest_att'))
+                            use_highest_pred=True, use_highest_att=True)
     bottom_tp = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
-                               select=('highest_pred', 'lowest_att'))
+                               use_highest_pred=True, use_highest_att=False)
     print(top_tp)
     assert_equal_lists(top_tp, [(4, Tensor([0.0, 1.0]), [3, 4], [Tensor([0.37]), Tensor([0.35])]),
                                 (2, Tensor([0.3, 0.7]), [2, 3], [Tensor([0.18]), Tensor([0.15])])])
@@ -119,9 +119,9 @@ def test_select_k_tiles() -> None:
 
     # FN
     top_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
-                            select=('lowest_pred', 'highest_att'))
+                            use_highest_pred=False, use_highest_att=True)
     bottom_fn = select_k_tiles(test_dict, n_slides=nslides, label=1, n_tiles=ntiles,
-                               select=('lowest_pred', 'lowest_att'))
+                               use_highest_pred=False, use_highest_att=False)
     assert_equal_lists(top_fn, [(5, Tensor([0.7, 0.3]), [1, 4], [Tensor([0.43]), Tensor([0.25])]),
                                 (3, Tensor([0.6, 0.4]), [1, 2], [Tensor([0.25]), Tensor([0.23])])])
     assert_equal_lists(bottom_fn, [(5, Tensor([0.7, 0.3]), [2, 3], [Tensor([0.01]), Tensor([0.07])]),
@@ -129,9 +129,9 @@ def test_select_k_tiles() -> None:
 
     # TN
     top_tn = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
-                            select=('highest_pred', 'highest_att'))
+                            use_highest_pred=True, use_highest_att=True)
     bottom_tn = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
-                               select=('highest_pred', 'lowest_att'))
+                               use_highest_pred=True, use_highest_att=False)
     assert_equal_lists(top_tn, [(6, Tensor([0.8, 0.2]), [4, 1], [Tensor([0.55]), Tensor([0.53])]),
                                 (1, Tensor([0.6, 0.4]), [3, 4], [Tensor([0.2]), Tensor([0.15])])])
     assert_equal_lists(bottom_tn, [(6, Tensor([0.8, 0.2]), [2, 3], [Tensor([0.11]), Tensor([0.17])]),
@@ -139,9 +139,9 @@ def test_select_k_tiles() -> None:
 
     # FP
     top_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
-                            select=('lowest_pred', 'highest_att'))
+                            use_highest_pred=False, use_highest_att=True)
     bottom_fp = select_k_tiles(test_dict, n_slides=nslides, label=0, n_tiles=ntiles,
-                               select=('lowest_pred', 'lowest_att'))
+                               use_highest_pred=False, use_highest_att=False)
     assert_equal_lists(top_fp, [(8, Tensor([0.01, 0.99]), [1, 3], [Tensor([0.73]), Tensor([0.37])]),
                                 (7, Tensor([0.1, 0.9]), [1, 3], [Tensor([0.63]), Tensor([0.27])])])
     assert_equal_lists(bottom_fp, [(8, Tensor([0.01, 0.99]), [4, 2], [Tensor([0.15]), Tensor([0.31])]),

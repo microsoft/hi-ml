@@ -20,7 +20,7 @@ from histopathology.utils.heatmap_utils import location_selected_tiles
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
-                   select: Tuple = ('lowest_pred', 'highest_att'),
+                   use_highest_pred: bool = False, use_highest_att: bool = True,
                    slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
                    attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROBS,
                    return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
@@ -29,7 +29,12 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     :param n_tiles: number of tiles to be selected for each slide
     :param n_slides: number of slides to be selected
     :param label: which label to use to select slides
-    :param select: criteria to be used to sort the slides (select[0]) and the tiles (select[1])
+    :param use_highest_pred: criteria to be used to sort the slides by highest prediction score. If `True`, it will
+        select slides with the highest probability scores. Analogously, `use_highest_pred=False`, it selects slides with
+        the lowest probaility scores.
+    :param use_highest_att: criteria to be used to sort the tiles by highest attention score. If `True`, it will select
+        tiles with the highest attention scores. Analogously, `use_highest_att=False`, it selects slides with the
+        lowest attention scores.
     :param slide_col: column name that contains slide identifiers
     :param gt_col: column name that contains labels
     :param attn_col: column name that contains scores used to sort tiles
@@ -39,23 +44,17 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     """
     # TODO: Refactor into separate functions to select slides by probabilities and tiles by attentions
     tmp_s = [(results[prob_col][i][label], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
+
     if len(tmp_s) == 0:
         return []
-    if select[0] == 'lowest_pred':
-        tmp_s.sort(reverse=False)
-    elif select[0] == 'highest_pred':
-        tmp_s.sort(reverse=True)
-    else:
-        ValueError('select value not recognised')
+
+    tmp_s.sort(reverse=use_highest_pred)
     _, sorted_idx = zip(*tmp_s)
+
     k_idx = []
-    if select[1] == 'highest_att':
-        descending = True
-    elif select[1] == 'lowest_att':
-        descending = False
     for _, slide_idx in enumerate(sorted_idx[:n_slides]):
         tmp = results[attn_col][slide_idx]
-        _, t_indices = torch.sort(tmp, descending=descending)
+        _, t_indices = torch.sort(tmp, descending=use_highest_att)
         k_tiles = []
         scores = []
         for t_idx in t_indices[0][:n_tiles]:

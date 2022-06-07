@@ -2,33 +2,35 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
 import os
 import torch
 import param
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from torch import nn
 from pathlib import Path
 from monai.transforms import Compose
-from torchvision.models import resnet18
 from pytorch_lightning.callbacks import Callback
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from health_azure.utils import CheckpointDownloader, get_workspace
+from torchvision.models.resnet import resnet18, resnet50
 
+from health_azure.utils import CheckpointDownloader, get_workspace
 
 from health_ml.utils import fixed_paths
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
-                                                        MeanPoolingLayer, TransformerPooling)
+                                                        MeanPoolingLayer, TransformerPooling,
+                                                        TransformerPoolingBenchmark)
 from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
-from histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
-                                            SSLEncoder, TileEncoder)
+from histopathology.models.encoders import (
+    HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
+    SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
@@ -89,11 +91,14 @@ class BaseMIL(LightningContainer):
                                                         "at level 1.")
 
     # Outputs Handler parameters:
-    save_output_tiles: bool = param.Boolean(True, doc="a boolean parameter to enable 'save_top_and_bottom_tiles' and "
-                                                      "'save_slide_thumbnails_and_heatmaps'. This is a temporary "
-                                                      "solution to disable tiles visualisation when running the slides "
-                                                      "pipeline that lacks tiles coordinates due to the current tiling "
-                                                      "on the fly strategy.")
+    save_output_slides: bool = param.Boolean(True, doc="a boolean parameter to enable saving heatmaps and thumbnails.")
+    num_top_slides: int = param.Integer(10, bounds=(0, None), doc="Number of slides to select when saving top and "
+                                                                  "bottom tiles. If set to 10 (default), it selects 10 "
+                                                                  "top and 10 bottom slides. To disable tiles plots "
+                                                                  "saving, set `num_top_slides=0`")
+    num_top_tiles: int = param.Integer(12, bounds=(1, None), doc="Number of tiles to select when saving top and bottom"
+                                                                 "tiles. If set to 12 (default), it saves 12 top and 12"
+                                                                 "bottom tiles.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -124,6 +129,10 @@ class BaseMIL(LightningContainer):
         if self.encoder_type == ImageNetEncoder.__name__:
             return ImageNetEncoder(feature_extraction_model=resnet18,
                                    tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
+            # Myronenko et al. 2021 uses Resnet50 CNN encoder
+            return ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
+                                            tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             return ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
@@ -159,6 +168,12 @@ class BaseMIL(LightningContainer):
                                                self.num_transformer_pool_heads,
                                                num_encoding)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
+        elif self.pool_type == TransformerPoolingBenchmark.__name__:
+            pooling_layer = TransformerPoolingBenchmark(self.num_transformer_pool_layers,
+                                                        self.num_transformer_pool_heads,
+                                                        num_encoding,
+                                                        self.pool_hidden_dim)
+            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 
@@ -173,7 +188,9 @@ class BaseMIL(LightningContainer):
                                      class_names=self.class_names,
                                      primary_val_metric=self.primary_val_metric,
                                      maximise=self.maximise_primary_metric,
-                                     save_output_tiles=self.save_output_tiles)
+                                     save_output_slides=self.save_output_slides,
+                                     num_top_slides=self.num_top_slides,
+                                     num_top_tiles=self.num_top_tiles)
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder

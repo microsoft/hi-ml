@@ -78,3 +78,11 @@ class ModelKey(str, Enum):
     TRAIN = 'train'
     VAL = 'val'
     TEST = 'test'
+
+
+class AMLMetricsJsonKey(str, Enum):
+    HYPERPARAMS = 'hyperparams'
+    NAME = 'name'
+    VALUE = 'value'
+    N_CLASSES = 'n_classes'
+    CLASS_NAMES = 'class_names'
