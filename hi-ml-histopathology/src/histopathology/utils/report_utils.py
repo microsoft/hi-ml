@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from azureml.core import Experiment, Run, Workspace
 
+from health_ml.utils.common_utils import df_to_json
 from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
 from histopathology.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
@@ -116,7 +117,7 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspa
                                                   aml_workspace=aml_workspace)
         metrics_json.parent.mkdir(parents=True, exist_ok=True)
         print(f"Writing AML metrics file to {metrics_json}")
-        metrics_df.to_json(metrics_json)
+        df_to_json(metrics_df, metrics_json)
     return metrics_df.sort_index(axis='columns')
 
 

@@ -13,6 +13,7 @@ from typing import Any, Generator, List, Optional
 
 import torch
 from torch.nn import Module
+import pandas as pd
 from health_azure import paths
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
@@ -237,3 +238,16 @@ def is_long_path(path: PathOrString) -> bool:
     :return: True if the length of the path is greater than MAX_PATH_LENGTH, else False
     """
     return len(str(path)) > MAX_PATH_LENGTH
+
+
+def df_to_json(df: pd.DataFrame, json_path: Path, add_newline: bool = True) -> None:
+    """Save data in a data frame in a JSON file.
+
+    :param df: Input data frame.
+    :param json_path: Path to output JSON file.
+    :param add_newline: If ``True``, add newline at the end of the JSON file for POSIX compliance.
+    """
+    text = df.to_json()
+    if add_newline:
+        text += '\n'
+    json_path.write_text(text)
