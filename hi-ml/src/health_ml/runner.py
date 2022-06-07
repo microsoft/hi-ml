@@ -159,10 +159,10 @@ class Runner:
         if not self.experiment_config.cluster:
             if self.lightning_container.hyperdrive:
                 raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
-                                 "AzureML. Specify a compute cluster to submit your job with the wrgument --cluster.")
+                                 "AzureML. Specify a compute cluster to submit your job with the argument --cluster.")
             if self.lightning_container.is_crossvalidation_enabled:
                 raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
-                                 "Specify a compute cluster to submit your job with the wrgument --cluster.")
+                                 "Specify a compute cluster to submit your job with the argument --cluster.")
 
     def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
         """
