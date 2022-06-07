@@ -65,7 +65,7 @@ def test_choose_conda_env_file1(tmp_path: Path) -> None:
 
 
 @pytest.mark.fast
-def test_get_all_environment_files(tmp_path: Path) -> None:
+def test_choose_conda_env_file2(tmp_path: Path) -> None:
     folder1 = tmp_path / "folder1"
     folder2 = folder1 / "folder2"
     folder3 = folder2 / "folder3"
