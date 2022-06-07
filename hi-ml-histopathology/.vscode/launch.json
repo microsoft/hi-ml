@@ -48,10 +48,8 @@
                 "--pl_limit_batches=2",
                 "--crossval_count=0",
                 "--batch_size=2",
-<<<<<<< HEAD
                 "--max_bag_size=10",
-                "--max_bag_size_inf=10"
-=======
+                "--max_bag_size_inf=10",
                 "--num_top_slides=2",
                 "--num_top_tiles=2"
             ],
@@ -71,7 +69,6 @@
                 "--max_bag_size_inf=4",
                 "--num_top_slides=2",
                 "--num_top_tiles=2"
->>>>>>> main
             ],
             "console": "integratedTerminal",
         },
