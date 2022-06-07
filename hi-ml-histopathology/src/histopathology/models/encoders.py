@@ -9,7 +9,7 @@ from typing import Callable, Optional, Sequence, Tuple
 import numpy as np
 import torch
 from pl_bolts.models.self_supervised import SimCLR
-from torch import nn
+from torch import Tensor as T, nn
 from torchvision.models import resnet18
 from torchvision.transforms import Compose
 
@@ -120,7 +120,7 @@ class SSLEncoder(TileEncoder):
         assert isinstance(model.encoder, encoders.SSLEncoder)
         return setup_feature_extractor(model.encoder.cnn_model, self.input_dim)
 
-    def forward(self, x):
+    def forward(self, x: T) -> T:
         x = super().forward(x)
         return x[-1] if isinstance(x, list) else x
 
