@@ -249,20 +249,20 @@ class Runner:
         if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
             raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        temp_conda: Optional[Path] = None
+        temp_conda_file: Optional[Path] = None
         try:
             if self.experiment_config.azureml:
-                conda_env = choose_conda_env_file(conda_env=self.experiment_config.conda_env)
-                logging.info(f"Using this Conda environment definition: {conda_env}")
-                check_conda_environment(conda_env)
+                env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
+                logging.info(f"Using this Conda environment definition: {env_file}")
+                check_conda_environment(env_file)
                 # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from
                 # source (submodule) rather than installed as a package.
                 pip_requirements_files = get_all_pip_requirements_files()
 
                 # Merge the project-specific dependencies with the packages and write unified definition to temp file.
                 if len(pip_requirements_files) > 0:
-                    temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                    merge_conda_files([conda_env], temp_conda, pip_files=pip_requirements_files)
+                    temp_conda_file = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+                    merge_conda_files([env_file], temp_conda_file, pip_files=pip_requirements_files)
 
                 if not self.experiment_config.cluster:
                     raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
@@ -271,7 +271,7 @@ class Runner:
                     entry_script=entry_script,
                     snapshot_root_directory=root_folder,
                     script_params=script_params,
-                    conda_environment_file=temp_conda or conda_env,
+                    conda_environment_file=temp_conda_file or env_file,
                     aml_workspace=workspace,
                     compute_cluster_name=self.experiment_config.cluster,
                     environment_variables=environment_variables,
@@ -302,8 +302,8 @@ class Runner:
                     input_datasets=input_datasets,  # type: ignore
                     submit_to_azureml=False)
         finally:
-            if temp_conda and temp_conda.is_file():
-                temp_conda.unlink()
+            if temp_conda_file and temp_conda_file.is_file():
+                temp_conda_file.unlink()
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info

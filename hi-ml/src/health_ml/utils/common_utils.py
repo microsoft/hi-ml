@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 import os
 from contextlib import contextmanager
 from datetime import datetime
@@ -116,20 +115,20 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
     return generator
 
 
-def choose_conda_env_file(conda_env: Optional[Path] = None) -> Path:
+def choose_conda_env_file(env_file: Optional[Path] = None) -> Path:
     """
     Chooses the Conda environment file that should be used when submitting the present run to AzureML. If a Conda
     file is given explicitly on the commandline, return that. Otherwise, look in the current folder and its parents for
     a file called `environment.yml`.
 
-    :param conda_env: The Conda environment file that was specified on the commandline when starting the run.
+    :param env_file: The Conda environment file that was specified on the commandline when starting the run.
     :return: The Conda environment files to use.
     :raises FileNotFoundError: If the specified Conda file does not exist, or none could be found at all.
     """
-    if conda_env is not None:
-        if conda_env.is_file():
-            return conda_env
-        raise FileNotFoundError(f"The Conda file specified on the commandline could not be found: {conda_env}")
+    if env_file is not None:
+        if env_file.is_file():
+            return env_file
+        raise FileNotFoundError(f"The Conda file specified on the commandline could not be found: {env_file}")
     # When running from the Git repo, then stop search for environment file at repository root. Otherwise,
     # search from current folder all the way up
     stop_at = [paths.git_repo_root_folder()] if paths.is_himl_used_from_git_repo() else []
@@ -157,9 +156,9 @@ def check_conda_environment(env_file: Path) -> None:
     # are manually adding the included files in get_all_pip_requirements_files
     if has_pip_include and env_file != repo_root_yaml:
         raise ValueError(
-        f"The Conda environment definition in {env_file} uses '-r' to reference pip requirements "
-        "files. This does not work in AzureML. Please add the pip dependencies directly."
-    )
+            f"The Conda environment definition in {env_file} uses '-r' to reference pip requirements "
+            "files. This does not work in AzureML. Please add the pip dependencies directly."
+        )
 
 
 def get_all_pip_requirements_files() -> List[Path]:

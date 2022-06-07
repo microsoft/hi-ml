@@ -8,9 +8,9 @@ from pathlib import Path
 from torch.nn import Module
 from unittest.mock import patch
 
-from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
+from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
 from health_ml.utils import set_model_to_eval_mode
-from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file
+from health_ml.utils.common_utils import change_working_directory, check_conda_environment, choose_conda_env_file
 
 
 @pytest.mark.fast
@@ -53,78 +53,77 @@ def empty_temp_dir(temp_project_root: Path) -> Generator:
 
 
 @pytest.mark.fast
-def test_get_all_environment_files(temp_project_root: Path, temp_env_path: Path, empty_temp_dir: Path) -> None:
+def test_choose_conda_env_file1(tmp_path: Path) -> None:
+    """Test if a fixed conda file is correctly handled in choose_conda_env_file"""
+    env_file = tmp_path / "some_file.txt"
+    assert not env_file.is_file()
+    with pytest.raises(FileNotFoundError) as ex:
+        choose_conda_env_file(env_file)
+    assert "The Conda file specified on the commandline could not be found" in str(ex)
+    env_file.touch()
+    assert choose_conda_env_file(env_file) == env_file
+
+
+@pytest.mark.fast
+def test_get_all_environment_files(tmp_path: Path) -> None:
+    folder1 = tmp_path / "folder1"
+    folder2 = folder1 / "folder2"
+    folder3 = folder2 / "folder3"
+    folder3.mkdir(parents=True)
+    # A mock environment file that lives in folder 1. When later setting the current working directory to a folder
+    # below this file, this file should be picked up
+    env_file = folder1 / ENVIRONMENT_YAML_FILE_NAME
+    env_file.touch()
     # Firstly check the cases when is_himl_used_from_git_repo returns True
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=True):
-        assert is_himl_used_from_git_repo()
-        # If we don't patch git_repo_root_folder it will return top-level hi-ml folder
-        himl_root = git_repo_root_folder()
-        # Separate workspaces means the environment.yml file is located in 'hi-ml/hi-ml'
-        # As an initial sanity check, ensure this file exists
-        env_file_root = himl_root / "hi-ml"
-        expected_env_path = env_file_root / ENVIRONMENT_YAML_FILE_NAME
-        assert expected_env_path.is_file()
-        # Now check that get_all_environment_files returns this path
-        assert choose_conda_env_file(project_root=himl_root) == [expected_env_path]
-
-        # If we patch the git_repo_root_folder to return a different folder, we should be able
-        # to pick up an env file there
-        with patch("health_azure.paths.git_repo_root_folder", return_value=temp_project_root):
-            assert choose_conda_env_file(project_root=temp_project_root) == [temp_env_path]
-
-        # If we patch git_repo_root_folder to return a different folder that does not contain an env
-        # file, an error should be raised
-        with patch("health_azure.paths.git_repo_root_folder", return_value=empty_temp_dir):
-            with pytest.raises(AssertionError) as e1:
-                choose_conda_env_file(project_root=empty_temp_dir)
-            assert "Didn't find an environment file at" in str(e1)
-
-    # Now check the case where is_himl_used_from_git_repo returns False. In this case, the project root repo
-    # won't be hi-ml, so we replace it here with temp_path (which has no concept of the hi-ml directory)
+        # Work directory is folder3, but the repo root is set to folder2 above it: The environment file that lives
+        # in folder1 should not be found.
+        with patch("health_azure.paths.git_repo_root_folder", return_value=folder2):
+            with change_working_directory(folder3):
+                with pytest.raises(FileNotFoundError) as ex:
+                    choose_conda_env_file(env_file=None)
+                assert f"No Conda environment file '{ENVIRONMENT_YAML_FILE_NAME}' was found" in str(ex)
+        # Work directory is folder3, the repo root is set to folder1 where environment file lives
+        with patch("health_azure.paths.git_repo_root_folder", return_value=folder1):
+            with change_working_directory(folder3):
+                assert choose_conda_env_file(env_file=None) == env_file
+    # Check use when hi-ml is not used from git repo
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=False):
-        with patch("health_azure.paths.git_repo_root_folder", return_value=temp_project_root):
-            assert choose_conda_env_file(project_root=temp_project_root) == [temp_env_path]
-
-        # Now pass a directory that doesn't have an env file and check that an error is raised
-        with patch("health_azure.paths.git_repo_root_folder", return_value=empty_temp_dir):
-            with pytest.raises(ValueError) as e2:
-                choose_conda_env_file(project_root=empty_temp_dir)
-            assert "No Conda environment files were found in the repository" in str(e2)
+        # Work directory is folder3, environment file 2 levels up should be found
+        with change_working_directory(folder3):
+            assert choose_conda_env_file(env_file=None) == env_file
 
 
 @pytest.mark.fast
 def test_check_conda_environments(temp_env_path: Path) -> None:
+    some_path = Path("some_path")
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=True):
         with patch("health_azure.paths.shared_himl_conda_env_file", return_value=temp_env_path):
-            # Calling check_conda_environments on an empty list should do nothing
-            check_conda_environment([])
-
             # Pass a non-empty list and mock the rturn value of is_conda_file_with_pip_include
             with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(True, None)):
                 with pytest.raises(ValueError) as e:
-                    check_conda_environment([Path('some_path')])
+                    check_conda_environment(some_path)
                 assert "uses '-r' to reference pip requirements" in str(e)
 
         # If the file that we pass is the same as the return value of shared_himl_conda_env_file
         # an error will not be raised
-        with patch("health_azure.paths.shared_himl_conda_env_file", return_value=Path('some_path')):
+        with patch("health_azure.paths.shared_himl_conda_env_file", return_value=some_path):
             with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(True, None)):
-                check_conda_environment([Path('some_path')])
+                check_conda_environment(some_path)
 
-        # If not is_conda_is_conda_file_with_pip_include, excpect nothing to happen
+        # If not is_conda_file_with_pip_include, excpect nothing to happen
         with patch("health_azure.paths.shared_himl_conda_env_file", return_value=temp_env_path):
             with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(False, None)):
-                check_conda_environment([Path('some_path')])
+                check_conda_environment(some_path)
 
     # Now check cases where is_himl_used_from_git_repo is False:
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=False):
         # If not is_conda_is_conda_file_with_pip_include, excpect nothing to happen
         with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(False, None)):
-            check_conda_environment([])
-            check_conda_environment([Path('some_path')])
+            check_conda_environment(some_path)
 
         # If is_conda_is_conda_file_with_pip_include=True, expect a ValueError to be raised
         with patch("health_ml.utils.common_utils.is_conda_file_with_pip_include", return_value=(True, None)):
             with pytest.raises(ValueError) as e:
-                check_conda_environment([Path('some_path')])
+                check_conda_environment(some_path)
             assert "uses '-r' to reference pip requirements" in str(e)
