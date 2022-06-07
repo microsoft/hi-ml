@@ -241,7 +241,7 @@ def is_long_path(path: PathOrString) -> bool:
 
 
 def df_to_json(df: pd.DataFrame, json_path: Path, add_newline: bool = True) -> None:
-    """Save data in a data frame in a JSON file.
+    """Save a data frame to a JSON file.
 
     :param df: Input data frame.
     :param json_path: Path to output JSON file.
