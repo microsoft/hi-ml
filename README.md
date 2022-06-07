@@ -113,7 +113,7 @@ Examples of contributions are
 * Tools to analyze and/or visualize data
 * ...
 
-Please check the [detailed page about contributions](./CONTRIBUTING.md).
+Please check the [detailed page about contributions](.github/CONTRIBUTING.md).
 
 ## Licensing
 
