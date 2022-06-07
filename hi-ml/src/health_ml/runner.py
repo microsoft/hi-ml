@@ -158,13 +158,11 @@ class Runner:
         """
         if not self.experiment_config.cluster:
             if self.lightning_container.hyperdrive:
-                logging.info("You have turned on HyperDrive for parameter tuning. This can "
-                             "only be run in AzureML. We switched on submitting to AzureML.")
-                self.experiment_config.cluster = True
+                raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
+                                 "AzureML. Specify a compute cluster to submit your job with the wrgument --cluster.")
             if self.lightning_container.is_crossvalidation_enabled:
-                logging.info("You have turned on cross-validation. This can "
-                             "only be run in AzureML. We switched on submitting to AzureML.")
-                self.experiment_config.cluster = True
+                raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
+                                 "Specify a compute cluster to submit your job with the wrgument --cluster.")
 
     def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
         """
@@ -243,8 +241,6 @@ class Runner:
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
-        if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.cluster:
-            raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         temp_conda: Optional[Path] = None
         try:
