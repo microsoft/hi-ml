@@ -249,6 +249,7 @@ class MockPandaSlidesDataModule(SlidesDataModule):
     train/val and test to make sure train_dataloader returns a fixed n_tiles and test and validation dataloaders return
     all available tiles in the whole slide image for whole slide inference.
     """
+
     def get_splits(self) -> Tuple[PandaDataset, PandaDataset, PandaDataset]:
 
         return (PandaDataset(self.root_path), PandaDataset(self.root_path), PandaDataset(self.root_path))

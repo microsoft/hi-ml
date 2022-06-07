@@ -100,12 +100,12 @@ class SlideNode:
         fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=size)
         fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score):.2f}")
 
-        for i, tile_node in enumerate(tile_nodes):
-            axs.ravel()[i].imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-            axs.ravel()[i].set_title("%.6f" % tile_node.attn)
+        for ax, tile_node in zip(axs.flat, tile_nodes):
+            ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+            ax.set_title("%.6f" % tile_node.attn)
 
-        for i in range(len(axs.ravel())):
-            axs.ravel()[i].set_axis_off()
+        for ax in axs.flat:
+            ax.set_axis_off()
         return fig
 
 

@@ -5,16 +5,13 @@
 
 import sys
 from pathlib import Path
-from typing import Sequence, Tuple, List, Any, Dict, Union
+from typing import Sequence, List, Any, Dict, Union
 
-import torch
 import matplotlib.pyplot as plt
-from math import ceil
 import numpy as np
 import matplotlib.patches as patches
 import matplotlib.collections as collection
 
-from histopathology.models.transforms import load_pil_image
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
 

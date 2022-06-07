@@ -240,6 +240,7 @@ class TransformerPoolingBenchmark(Module):
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
     """
+
     def __init__(self, num_layers: int, num_heads: int, dim_representation: int, hidden_dim: int) -> None:
         super().__init__()
         self.num_layers = num_layers
