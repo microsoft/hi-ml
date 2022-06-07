@@ -103,7 +103,8 @@ def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Pa
     Downloads a single file from the run's default output directory: ("outputs").
 
     :param blob_path: The relative path to the file to download. For example, if blobs_path = "foo/bar.csv", then the
-        run result file "outputs/foo/bar.csv" will be downloaded to <destination>/bar.csv (the directory will be stripped off).
+        run result file "outputs/foo/bar.csv" will be downloaded to <destination>/bar.csv (the directory will be
+        stripped off).
     :param run: The AzureML run to download the files from.
     :param destination: Local path to save the downloaded blob to.
     :return: Destination path to the downloaded file(s).
