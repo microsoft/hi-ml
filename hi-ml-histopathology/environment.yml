@@ -68,3 +68,4 @@ dependencies:
       - yacs==0.1.8
       # Test requirements
       - pytest==6.2.2
+      - pytest-cov==2.11.1
