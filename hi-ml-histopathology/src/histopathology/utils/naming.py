@@ -19,6 +19,8 @@ class SlideKey(str, Enum):
     FOREGROUND_THRESHOLD = 'foreground_threshold'
     METADATA = 'metadata'
     LOCATION = 'location'
+    OFFSET = 'offset'
+    PATCH_SIZE = 'patch_size'
 
 
 class TileKey(str, Enum):

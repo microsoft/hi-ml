@@ -337,6 +337,10 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
+        # batch returns ['image', <SlideKey.MASK_PATH: 'mask_path'>, <SlideKey.METADATA: 'metadata'>,
+        # <SlideKey.SLIDE_ID: 'slide_id'>, <SlideKey.MASK: 'mask'>, <SlideKey.IMAGE_PATH: 'image_path'>,
+        # <SlideKey.LABEL: 'label'>, 'original_spatial_shape', 'slices', 'patch_size', 'num_patches', 'offset']
+        # import pdb; pdb.set_trace()
         bag_sizes = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
         results.update(
             {
@@ -352,3 +356,25 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                 ],
             }
         )
+        if all(key in batch.keys() for key in [SlideKey.OFFSET, SlideKey.PATCH_SIZE]):
+            results.update(
+                {
+                    ResultsKey.TILE_TOP: [
+                        [batch[SlideKey.OFFSET][i][0]] for i, _ in enumerate(batch[SlideKey.OFFSET])
+                    ],
+                    ResultsKey.TILE_LEFT: [
+                        [batch[SlideKey.OFFSET][i][1]] for i, _ in enumerate(batch[SlideKey.OFFSET])
+                    ],
+                    ResultsKey.TILE_RIGHT: [
+                        [batch[SlideKey.OFFSET][i][1]] + batch[SlideKey.PATCH_SIZE][i][1]
+                        for i, _ in enumerate(batch[SlideKey.OFFSET])
+                    ],
+                    ResultsKey.TILE_BOTTOM: [
+                        [batch[SlideKey.OFFSET][i][0]] + batch[SlideKey.PATCH_SIZE][i][0]
+                        for i, _ in enumerate(batch[SlideKey.OFFSET])
+                    ],
+
+                }
+            )
+        else:
+            rank_zero_warn(message="Offset and patch size not found in the batch, make sure to use RandGridPatch.")
