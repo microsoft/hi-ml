@@ -319,6 +319,8 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
     save_figure(fig=tiles_fig, figpath=file)
     assert file.exists()
     expected = full_ml_test_data_path("top_bottom_tiles") / fig_name
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
