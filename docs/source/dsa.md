@@ -33,6 +33,11 @@ An app must be [registered][16] so that [Azure Active Directory][17] (Azure AD) 
 
 User [permissions][18] can be set to different data collections in an assetstore, to maximize protection of sensitive data.
 
+## Visualizing Azre Machine Learning results
+
+The [Girder RESTful API][19] may be used to upload annotations to DSA items programmatically.
+A usage case is creating annotations
+
 [1]: https://digitalslidearchive.github.io/digital_slide_archive/
 [2]: https://azure.microsoft.com/
 [3]: https://azure.microsoft.com/services/storage/blobs/
@@ -51,3 +56,4 @@ User [permissions][18] can be set to different data collections in an assetstore
 [16]: https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app
 [17]: https://azure.microsoft.com/en-us/services/active-directory/
 [18]: https://girder.readthedocs.io/en/stable/user-guide.html#permissions
+[19]: https://girder.readthedocs.io/en/latest/api-docs.html
