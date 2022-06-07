@@ -304,7 +304,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     pad_mode="constant",
                     constant_values=self.background_val,
                 ),
-                #TileOnGridd(
+                # TileOnGridd(
                 #    keys=slides_dataset.IMAGE_COLUMN,
                 #    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
                 #    tile_size=self.tile_size,
@@ -314,7 +314,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 #    background_val=self.background_val,
                 #    filter_mode=self.filter_mode,
                 #    return_list_of_dicts=True,
-                #),
+                # ),
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
