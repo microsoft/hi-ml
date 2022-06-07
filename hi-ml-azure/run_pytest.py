@@ -118,7 +118,7 @@ def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Pa
     return destination
 
 
-def download_pytest_coverage_result(run: Run, destination_folder: Path = Path.cwd()) -> Path:
+def download_pytest_coverage_result(run: Run, destination_folder: Path = None) -> Path:
     """
     Downloads the pytest result file that is stored in the output folder of the given AzureML run.
     If there is no pytest result file, throw an Exception.
@@ -126,11 +126,13 @@ def download_pytest_coverage_result(run: Run, destination_folder: Path = Path.cw
     :param destination_folder: The folder into which the pytest result file is downloaded.
     :return: The path (folder and filename) of the downloaded file.
     """
+    if not destination_folder:
+        destination_folder = Path.cwd()
     logging.info(f"Downloading pytest gpu coverage file: {PYTEST_GPU_COVERAGE_FILE}")
     try:
         return download_run_output_file(Path(PYTEST_GPU_COVERAGE_FILE), destination=destination_folder, run=run)
-    except ValueError:
-        raise ValueError(f"No pytest result file {PYTEST_GPU_COVERAGE_FILE} was found for run {run.id}")
+    except ValueError as ex:
+        raise ValueError(f"No pytest result file {PYTEST_GPU_COVERAGE_FILE} was found for run {run.id}") from ex
 
 
 def pytest_after_submission_hook(azure_run: Run) -> None:
