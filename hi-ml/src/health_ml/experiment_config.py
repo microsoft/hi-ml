@@ -9,7 +9,6 @@ class ExperimentConfig(param.Parameterized):
                                                   "job in AzureML.")
     model: str = param.String(doc="The fully qualified name of the model to train/test -e.g."
                                   "mymodule.configs.MyConfig.")
-    azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
     mount_in_azureml: bool = param.Boolean(False,
                                            doc="If False (default), consume datasets in AzureML by downloading at "
