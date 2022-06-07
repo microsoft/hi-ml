@@ -33,13 +33,11 @@ def get_simclr_imagenet_encoder() -> TileEncoder:
 
 
 def get_ssl_encoder(download_dir: Path) -> TileEncoder:
-    downloader = CheckpointDownloader(
-        aml_workspace=get_workspace(),
-        run_id=TEST_SSL_RUN_ID,
-        download_dir=download_dir,
-        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-        remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
-        )
+    downloader = CheckpointDownloader(aml_workspace=get_workspace(),
+                                      run_id=TEST_SSL_RUN_ID,
+                                      download_dir=download_dir,
+                                      checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                                      remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"))
     downloader.download_checkpoint_if_necessary()
     return SSLEncoder(pl_checkpoint_path=downloader.local_checkpoint_path, tile_size=TILE_SIZE)
 
