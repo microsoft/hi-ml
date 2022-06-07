@@ -23,16 +23,8 @@ def setup_feature_extractor(pretrained_model: nn.Module,
         feature_extractor = pretrained_model
     except AttributeError:
         # Otherwise fallback to sequence of child modules:
-        layers = list(pretrained_model.children())
-        if len(layers) <= 1:
-            # If `layers` contains only one element (the entire model)
-            # Fetch the model and find its children (individual layers)
-            # Remove the last classification layer
-            layers = list(list(pretrained_model.children())[0].children())[:-1]
-        else:
-            # If `layers` contains multiple elements, these are the individual model layers
-            # Remove the last classification layer
-            layers = list(pretrained_model.children())[:-1]
+        # Remove the last fully connected layer
+        layers = list(pretrained_model.children())[:-1]
         layers.append(nn.Flatten())  # flatten non-batch dims in case of spatial feature maps
         feature_extractor = nn.Sequential(*layers)
         with no_grad():

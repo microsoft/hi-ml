@@ -18,6 +18,7 @@ from histopathology.utils.layer_utils import (get_imagenet_preprocessing,
                                               setup_feature_extractor)
 from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from SSL.utils import create_ssl_image_classifier
+from SSL import encoders
 
 
 class TileEncoder(nn.Module):
@@ -116,7 +117,8 @@ class SSLEncoder(TileEncoder):
             freeze_encoder=True,
             pl_checkpoint_path=str(self.pl_checkpoint_path)
         )
-        return setup_feature_extractor(model.encoder, self.input_dim)
+        assert isinstance(model.encoder, encoders.SSLEncoder)
+        return setup_feature_extractor(model.encoder.cnn_model, self.input_dim)
 
 
 class HistoSSLEncoder(TileEncoder):
