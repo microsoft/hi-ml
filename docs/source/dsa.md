@@ -1,6 +1,6 @@
 # Digital Slide Archive
 
-The [Digital Slide Archive][1] (DSA) is "A containerized web-based platform for the analysis, visualization, management and
+The [Digital Slide Archive][1] (DSA) is "a containerized web-based platform for the analysis, visualization, management and
 annotation of whole-slide digital pathology imaging data".
 It is an open-source project based on [Kitware][11]'s data management platform [Girder][10].
 
@@ -21,7 +21,17 @@ Ports in a VM can be opened using [network security group rules][7].
 
 ### Storage
 
-The datasets we use are securely stored in [Azure Blob Storage][3].
+The datasets we use are securely stored in [Azure Blob Storage][3] containers.
+Containers can be mounted on the host machine using [BlobFuse][13] and connected to Girder using [assetstores].
+
+### Authentication
+
+We have [added][14] Microsoft as a provider in the [OAuth2 Login][15] plugin for Girder.
+An app must be [registered][16] so that [Azure Active Directory][17] (Azure AD) can be used for authentication.
+
+### Authorization
+
+User [permissions][18] can be set to different data collections in an assetstore, to maximize protection of sensitive data.
 
 [1]: https://digitalslidearchive.github.io/digital_slide_archive/
 [2]: https://azure.microsoft.com/
@@ -34,3 +44,10 @@ The datasets we use are securely stored in [Azure Blob Storage][3].
 [9]: https://docs.cherrypy.dev/en/latest/deploy.html#ssl-support
 [10]: https://girder.readthedocs.io/
 [11]: https://www.kitware.com/
+[12]: https://girder.readthedocs.io/en/latest/user-guide.html#assetstores
+[13]: https://github.com/Azure/azure-storage-fuse
+[14]: https://github.com/girder/girder/pull/3393
+[15]: https://girder.readthedocs.io/en/latest/plugins.html#oauth2-login
+[16]: https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app
+[17]: https://azure.microsoft.com/en-us/services/active-directory/
+[18]: https://girder.readthedocs.io/en/stable/user-guide.html#permissions
