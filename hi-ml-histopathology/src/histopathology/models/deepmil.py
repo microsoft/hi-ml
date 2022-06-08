@@ -211,7 +211,7 @@ class BaseDeepMILModule(LightningModule):
         bag_labels = torch.stack(bag_labels_list).view(-1)
         return bag_logits, bag_labels, bag_attn_list
 
-    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+    def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
 
@@ -253,6 +253,8 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
+        if stage == ModelKey.TEST and self.outputs_handler:
+            self.outputs_handler.tiles_handler.update_slides_selection(batch, results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -306,7 +308,7 @@ class TilesDeepMILModule(BaseDeepMILModule):
         bag_label = mode(labels).values
         return bag_label.view(1)
 
-    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+    def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN]})
@@ -334,7 +336,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         # SlidesDataModule attributes a single label to a bag of tiles already no need to do majority voting
         return labels
 
-    def update_results_with_data_specific_info(self, batch: dict, results: dict) -> None:
+    def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
         # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
         bag_sizes = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
         results.update(

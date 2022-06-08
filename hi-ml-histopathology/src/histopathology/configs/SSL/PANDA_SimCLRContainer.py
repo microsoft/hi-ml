@@ -55,7 +55,7 @@ class PANDA_SimCLR(HistoSSLContainer):
                          **kwargs)
         self.pl_check_val_every_n_epoch = 10
         PandaTilesDatasetWithReturnIndex.occupancy_threshold = 0
-        PandaTilesDatasetWithReturnIndex.random_selection = 0.5
+        PandaTilesDatasetWithReturnIndex.random_subset_fraction = 1
         if not is_running_in_azure_ml():
             self.is_debug_model = True
             self.num_workers = 0

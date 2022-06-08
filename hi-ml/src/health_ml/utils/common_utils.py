@@ -13,6 +13,7 @@ from typing import Any, Generator, List, Optional
 
 import torch
 from torch.nn import Module
+import pandas as pd
 from health_azure import paths
 
 from health_azure.utils import PathOrString, is_conda_file_with_pip_include
@@ -20,8 +21,15 @@ from health_azure.utils import PathOrString, is_conda_file_with_pip_include
 MAX_PATH_LENGTH = 260
 
 # convert string to None if an empty string or whitespace is provided
-empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
-string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
+
+
+def empty_string_to_none(x: Optional[str]) -> Optional[str]:
+    return None if (x is None or len(x.strip()) == 0) else x
+
+
+def string_to_path(x: Optional[str]) -> Optional[Path]:
+    return None if (x is None or len(x.strip()) == 0) else Path(x)
+
 
 # file and directory names
 CHECKPOINT_SUFFIX = ".ckpt"
@@ -230,3 +238,16 @@ def is_long_path(path: PathOrString) -> bool:
     :return: True if the length of the path is greater than MAX_PATH_LENGTH, else False
     """
     return len(str(path)) > MAX_PATH_LENGTH
+
+
+def df_to_json(df: pd.DataFrame, json_path: Path, add_newline: bool = True) -> None:
+    """Save a data frame to a JSON file.
+
+    :param df: Input data frame.
+    :param json_path: Path to output JSON file.
+    :param add_newline: If ``True``, add newline at the end of the JSON file for POSIX compliance.
+    """
+    text = df.to_json()
+    if add_newline:
+        text += '\n'
+    json_path.write_text(text)

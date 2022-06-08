@@ -20,6 +20,7 @@ print(f"Inserting into sys path: {health_azure_root}")
 sys.path.insert(0, str(health_ml_root))
 sys.path.insert(0, str(health_azure_root))
 
+from health_ml.utils.common_utils import df_to_json  # noqa: E402
 from health_azure import aggregate_hyperdrive_metrics  # NOQA: E402
 from health_azure.utils import get_aml_run_from_run_id, get_metrics_for_childless_run  # NOQA: E402
 
@@ -79,7 +80,7 @@ def upload_regression_metrics_file_to_run(metrics_df: pd.DataFrame, run: Run) ->
     regression_results_dir.mkdir(exist_ok=True)
     metrics_json_output = regression_results_dir / "metrics.json"
 
-    metrics_df.to_json(metrics_json_output)
+    df_to_json(metrics_df, metrics_json_output)
     print("Uploading metrics file to AML Run")
     run.upload_file("outputs/regression_metrics.json", str(metrics_json_output))
     metrics_json_output.unlink()

@@ -22,8 +22,12 @@ from health_ml.model_trainer import create_lightning_trainer, model_train
 from health_ml.utils import fixed_paths
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, change_working_directory,
-    RUN_RECOVERY_ID_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME)
+    EFFECTIVE_RANDOM_SEED_KEY_NAME,
+    change_working_directory,
+    RUN_RECOVERY_ID_KEY,
+    RUN_RECOVERY_FROM_ID_KEY_NAME,
+    df_to_json,
+)
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
@@ -174,9 +178,9 @@ class MLRunner:
                             keep_metrics=regression_metrics)
 
                     if not df.empty:
-                        metrics_filename = str(self.container.outputs_folder / REGRESSION_TEST_METRICS_FILENAME)
+                        metrics_filename = self.container.outputs_folder / REGRESSION_TEST_METRICS_FILENAME
                         logging.info(f"Saving metrics to {metrics_filename}")
-                        df.to_json(metrics_filename)
+                        df_to_json(df, metrics_filename)
 
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                 actual=self.container.outputs_folder,
