@@ -23,6 +23,7 @@ def setup_feature_extractor(pretrained_model: nn.Module,
         feature_extractor = pretrained_model
     except AttributeError:
         # Otherwise fallback to sequence of child modules:
+        # Remove the last fully connected layer
         layers = list(pretrained_model.children())[:-1]
         layers.append(nn.Flatten())  # flatten non-batch dims in case of spatial feature maps
         feature_extractor = nn.Sequential(*layers)
