@@ -43,7 +43,7 @@ For example:
 
 ```shell
 SCRIPT="hi-ml-histopathology/src/histopathology/utils/girder.py"
-python $SCRIPT --run-id Experiment_transformer_Gleason_run_0 --rescale
+python $SCRIPT --run-id "Experiment_transformer_Gleason_run_0" --rescale
 ```
 
 This script uses the [Azure SDK][20] and the [Python client for the Girder API][21] to:
@@ -53,7 +53,9 @@ This script uses the [Azure SDK][20] and the [Python client for the Girder API][
 3. Generate JSON annotations for each slide
 4. Upload the annotations to the deployed DSA
 
-[Show a screenshot here]
+Below is an example of an attention map overlaid on a slide from the [PANDA][22] dataset:
+
+![Attention map on slide from PANDA](./dsa_heatmap.png)
 
 [1]: https://digitalslidearchive.github.io/digital_slide_archive/
 [2]: https://azure.microsoft.com/
