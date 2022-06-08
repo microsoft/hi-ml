@@ -124,11 +124,10 @@ def _test_lightningmodule(
     for metric_name, metric_object in module.train_metrics.items():
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
+        score = metric_object(probs, bag_labels.view(batch_size,))
         if metric_name == MetricsKey.COHENKAPPA:
-            score = metric_object(predlabels, bag_labels.view(batch_size,))
             assert torch.all(score >= -1)
         else:
-            score = metric_object(probs, bag_labels.view(batch_size,))
             assert torch.all(score >= 0)
         assert torch.all(score <= 1)
 
