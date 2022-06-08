@@ -47,7 +47,26 @@
                 "--model=histopathology.SlidesPandaImageNetMIL",
                 "--pl_limit_batches=2",
                 "--crossval_count=0",
-                "--batch_size=2"
+                "--batch_size=2",
+                "--num_top_slides=2",
+                "--num_top_tiles=2"
+            ],
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Python: Run TilesPandaImageNetMIL locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=histopathology.TilesPandaImageNetMIL",
+                "--pl_limit_batches=2",
+                "--crossval_count=0",
+                "--batch_size=2",
+                "--max_bag_size=4",
+                "--max_bag_size_inf=4",
+                "--num_top_slides=2",
+                "--num_top_tiles=2"
             ],
             "console": "integratedTerminal",
         },

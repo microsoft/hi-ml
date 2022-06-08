@@ -293,6 +293,7 @@ class DatasetSplits:
         If a group_column has been specified, the folds will be split such that
         subjects in a group will not be separated. In this case, the splits are
         fully deterministic, and random_seed is ignored.
+
         :param n_splits: number of folds to perform.
         :param random_seed: random seed to be used for shuffle 0 is default.
         :return: List of K dataset splits
@@ -317,7 +318,10 @@ class DatasetSplits:
             # that tries to balance the group sizes in all folds
             k_folds = GroupKFold(n_splits=n_splits)
             folds_gen = k_folds.split(subject_ids, groups=groups)
-        ids_from_indices = lambda indices: [subject_ids[x] for x in indices]
+
+        def ids_from_indices(indices: Sequence[int]) -> List[str]:
+            return [subject_ids[x] for x in indices]
+
         # create the number of requested splits of the dataset
         return [
             DatasetSplits(train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),

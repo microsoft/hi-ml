@@ -34,6 +34,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
     batch_size = 2 runs on 8 GPUs with
     ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
+
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             pool_type=TransformerPoolingBenchmark.__name__,
@@ -124,6 +125,7 @@ class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
     Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
     Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
     """
+
     def __init__(self, n_epochs: int, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.save_hyperparameters()

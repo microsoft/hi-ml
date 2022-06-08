@@ -228,6 +228,7 @@ def test_metrics(n_classes: int) -> None:
     # Patching to enable running the module without a Trainer object
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
+    module.outputs_handler = MagicMock()
 
     batch_size = 20
     bag_size = 5
@@ -363,6 +364,7 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     module = container.create_model()
 
     module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.outputs_handler = MagicMock()
     module.log = MagicMock()  # type: ignore
     if use_gpu:
         module.cuda()

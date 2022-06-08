@@ -16,6 +16,7 @@ on:
 env:
   pythonVersion: 3.7
   folder: hi-ml-histopathology
+  module_for_coverage_reporting: histopathology
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -115,4 +116,11 @@ jobs:
           branch_prefix="refs/heads/"
           full_branch_name=$GITHUB_REF
           branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --experiment="$branch_name_without_prefix"
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
+
+      - name: Upload gpu tests coverage report to Codecov
+        # Coverage should also be uploaded if tests still fail
+        if: always()
+        uses: codecov/codecov-action@v2
+        with:
+            flags: ${{ env.folder }}

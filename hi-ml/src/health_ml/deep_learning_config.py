@@ -152,6 +152,7 @@ class WorkflowParams(param.Parameterized):
         param.Number(default=0.0, allow_None=False,
                      doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
+    regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
