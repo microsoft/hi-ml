@@ -21,7 +21,7 @@ from testazure.utils_testazure import get_shared_config_json
 
 TILE_SIZE = 224
 INPUT_DIMS = (3, TILE_SIZE, TILE_SIZE)
-TEST_SSL_RUN_ID = "PANDA_SimCLR_1654502430_26e7f9ef"
+TEST_SSL_RUN_ID = "CRCK_SimCLR_1654677598_49a66020"
 
 
 def get_supervised_imagenet_encoder() -> TileEncoder:
