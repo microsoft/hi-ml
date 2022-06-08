@@ -85,7 +85,7 @@ slidespandaimagenetmil_regression_test:
 tcgacrcksslmil_regression_test:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --azureml \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL \
 	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --max_epochs=50 \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
@@ -95,7 +95,7 @@ tcgacrcksslmil_regression_test:
 crck_simclr_regression_test:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR  --azureml \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
 	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5\

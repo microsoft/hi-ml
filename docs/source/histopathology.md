@@ -32,5 +32,5 @@ Examples within the folder `histopathology.configs` can be run using the hi-ml r
 For example, DeepSMILECrck is the container for experiments relating to DeepSMILE using the TCGA-CRCk dataset. Run using
 
 ```bash
-himl-runner --model=hi-ml-histopathology.histopathology.configs.classification.TcgaCrckImageNetMIL [--azureml] [--cluster=<cluster name>]
+himl-runner --model=hi-ml-histopathology.histopathology.configs.classification.TcgaCrckImageNetMIL [--cluster=<cluster name>]
 ```
