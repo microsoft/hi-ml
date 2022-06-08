@@ -57,8 +57,8 @@ class HistoSSLContainer(SSLContainer):
             transforms = [RandomResizedCrop(size=224),
                           RandomHorizontalFlip(p=0.5),
                           RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8),
-                          RandomGrayscale(p=0.2)]
-                          # GaussianBlur(int(224 * 0.1) + 1)]
+                          RandomGrayscale(p=0.2),
+                          GaussianBlur(int(224 * 0.1) + 1)]
         else:
             # TODO Are there some transformations that we want to apply anyway?
             # not sure it will work without, DualViewTransformWrapper will call
