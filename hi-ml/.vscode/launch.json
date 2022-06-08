@@ -21,7 +21,6 @@
             "program": "${workspaceFolder}/src/health_ml/runner.py",
             "args": [
                 "--model=HelloWorld",
-                "--azureml",
                 "--cluster=lite-testing-ds2",
             ],
             "console": "integratedTerminal"
@@ -33,7 +32,6 @@
             "program": "${workspaceFolder}/src/health_ml/runner.py",
             "args": [
                 "--model=HelloWorld",
-                "--azureml",
                 "--cluster=lite-testing-ds2",
                 "--crossval_count=2"
             ],
