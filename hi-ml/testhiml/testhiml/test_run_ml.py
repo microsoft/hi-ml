@@ -13,7 +13,7 @@ from health_ml.run_ml import MLRunner
 
 @pytest.fixture(scope="module")
 def ml_runner_no_setup() -> MLRunner:
-    experiment_config = ExperimentConfig(model="HelloContainer")
+    experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
     runner = MLRunner(experiment_config=experiment_config, container=container)
     return runner
@@ -21,7 +21,7 @@ def ml_runner_no_setup() -> MLRunner:
 
 @pytest.fixture(scope="module")
 def ml_runner() -> Generator:
-    experiment_config = ExperimentConfig(model="HelloContainer")
+    experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
@@ -33,7 +33,7 @@ def ml_runner() -> Generator:
 
 @pytest.fixture(scope="module")
 def ml_runner_with_container() -> Generator:
-    experiment_config = ExperimentConfig(model="HelloContainer")
+    experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
