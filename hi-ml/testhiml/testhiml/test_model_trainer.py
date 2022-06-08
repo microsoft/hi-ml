@@ -18,7 +18,7 @@ def test_write_experiment_summary_file(tmp_path: Path) -> None:
     config = {
         "Container": {
             "_min_l_rate": 0.0,
-            "_model_name": "HelloContainer",
+            "_model_name": "HelloWorld",
             "adam_betas": "(0.9, 0.999)",
             "azure_datasets": "[]"}
     }
@@ -71,7 +71,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     container = model_config_loader.create_model_config_from_name(model_name)
     container.monitor_gpu = False
     container.monitor_loading = False
-    # mock get_trainer_arguments method, since default HelloContainer class doesn't specify any additional callbacks
+    # mock get_trainer_arguments method, since default HelloWorld class doesn't specify any additional callbacks
     container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
 
     kwargs = container.get_trainer_arguments()

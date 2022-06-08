@@ -11,7 +11,7 @@ use of these features:
 This can be used by invoking the hi-ml runner and providing the name of the container class, like this:
 `himl-runner --model=MyContainer`.
 
-There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/hello_world.py), that
+There is a fully working example [HelloWorld](../../hi-ml/src/health-ml/configs/hello_world.py), that
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `himl-runner --model=HelloWorld`.
 
@@ -32,7 +32,7 @@ for example, `--model histopathology.PandaImageNetMIL` is effectively telling th
 
 To train in AzureML, add a `--azureml` flag. Use the flag `--cluster` to specify the name of the cluster
 in your Workspace that you want to submit the job to. So the whole command would look like:
-`himl-runner --model=HelloContainer --cluster=my_cluster_name --azureml`. You can also specify `--num_nodes` if
+`himl-runner --model=HelloWorld --cluster=my_cluster_name --azureml`. You can also specify `--num_nodes` if
 you wish to distribute the model training.
 
 When starting the runner, you need to do that from a directory that contains all the code that your experiment needs:
