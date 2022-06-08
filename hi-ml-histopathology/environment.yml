@@ -25,6 +25,7 @@ dependencies:
       # Run requirements for hi-ml-azure
       - azureml-sdk==1.36.0
       - azureml-tensorboard==1.36.0
+      - msrest==0.6.21
       - conda-merge==0.1.5
       - param==1.12
       - pysocks==1.6.0
