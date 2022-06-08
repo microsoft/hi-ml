@@ -243,8 +243,11 @@ class BaseDeepMILModule(LightningModule):
         bag_labels = bag_labels.view(-1, 1)
 
         results = dict()
-        for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
+        for metric_name, metric_object in self.get_metrics_dict(stage).items():
+            if metric_name == MetricsKey.COHENKAPPA:
+                metric_object.update(predicted_labels, bag_labels.view(batch_size,).int())
+            else:
+                metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
         results.update({ResultsKey.LOSS: loss,
                         ResultsKey.PROB: predicted_probs,
                         ResultsKey.CLASS_PROBS: probs_perclass,
