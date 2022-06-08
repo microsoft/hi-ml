@@ -126,10 +126,11 @@ def _test_lightningmodule(
             continue
         score = metric_object(probs, bag_labels.view(batch_size,))
         if metric_name == MetricsKey.COHENKAPPA:
-            assert torch.all(score >= -1)
+            assert torch.all(score[~score.isnan()] >= -1)
+            assert torch.all(score[~score.isnan()] <= 1)
         else:
             assert torch.all(score >= 0)
-        assert torch.all(score <= 1)
+            assert torch.all(score <= 1)
 
 
 @pytest.fixture(scope="session")
