@@ -212,7 +212,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # call_args is a tuple of (args, kwargs)
             call_kwargs = mock_submit_to_aml.call_args[1]
             # Submission to AzureML should have been turned on because a cluster name was supplied
-            assert mock_runner.experiment_config.azureml
+            assert mock_runner.experiment_config.cluster == "foo"
             assert call_kwargs["submit_to_azureml"]
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
