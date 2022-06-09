@@ -11,25 +11,34 @@ from the hi-ml root folder with the HimlHisto conda enviroment activated.
 The model class [```CRCK_SimCLR```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L24) is the config used to train a SSL model on TCGA-CRCk. It houses everything, e.g., the model, the dataset, checkpointing, etc. Here, we need to define some important parameters:
 
 1. The type of image encoder we want to train, the type of SSL (SimCLR or BYOL) we want to use, and the batch_size.
-[```ssl_encoder=EncoderName.resnet50```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L52)
-[```ssl_training_type=SSLTrainingType.SimCLR```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L53)
-[```ssl_training_batch_size=48```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L51)
 
-2. The dataset we want to use for training the image encoder and the linear model we only use for evaluation of the image encoder. In theory, they could be two different datasets. 
-[```ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
-[```linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
++ [```ssl_encoder=EncoderName.resnet50```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L52)
+
++ [```ssl_training_type=SSLTrainingType.SimCLR```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L53)
+
++ [```ssl_training_batch_size=48```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L51)
+
+2. The dataset we want to use for training the image encoder and the linear model we only use for evaluation of the image encoder. In theory, they could be two different datasets.
+
++ [```ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
+
++ [```linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
 
 3. Model checkpointing: We use [PyTorch lightning checkpointing](https://pytorch-lightning.readthedocs.io/en/stable/common/checkpointing.html). Among others, we define the validation metric, where the ```online_evaluator``` is the same as the ```linear_head```. In the case of TCGA_CRCK, we use AUC ROC as the validation metric. 
 
-[```model_monitor_metric='ssl_online_evaluator/val/AreaUnderRocCurve'```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L48)
++ [```model_monitor_metric='ssl_online_evaluator/val/AreaUnderRocCurve'```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L48)
 
 In the parent class of ```CRCK_SimCLR```, ```HistoSSLContainer``` the data augmentations are defined. Data augmentation is one of the most important components of SSL training. Currently, we have hardcoded the data augmentation used in the [SimCLR paper](https://arxiv.org/abs/2002.05709). These are the following:
 
-[```RandomResizedCrop(size=224)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L57)
-[```RandomHorizontalFlip(p=0.5)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L58)
-[```RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L59)
-[```RandomGrayscale(p=0.2)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L60)
-[```GaussianBlur(int(224 * 0.1) + 1)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L61)
++ [```RandomResizedCrop(size=224)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L57)
+
++ [```RandomHorizontalFlip(p=0.5)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L58)
+
++ [```RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L59)
+
++ [```RandomGrayscale(p=0.2)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L60)
+
++ [```GaussianBlur(int(224 * 0.1) + 1)```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/SSL/HistoSimCLRContainer.py#L61)
 
 While not optimized for WSI we observe good performance using these augmentations. The data augmentations are wrapped by [```DualViewTransformWrapper```](https://github.com/microsoft/hi-ml/blob/ff24cc34c85b1f4f1692419cbbb3a9818127c9c6/hi-ml-histopathology/src/SSL/data/transforms_utils.py#L74) to return two augmented versions per tile, as required by the majority of SSL methods.
 
@@ -45,7 +54,7 @@ Let's have a look at the training behavior.
  
 As mentioned previously, using the WSI label for each tile of the same slide and a linear head on the outputs of the image encoder to monitor training works quite well. We see a smooth and steady increase of the validation metric.
 
-![Online evaluation](./doc_images/online_eval.png)
+![Online evaluation](./doc_images/online_eval.png =200x)
 
 In addition, we are using a cosine learning rate schedule with a fixed warm up of 10 epochs. Note: The SSL code in hi-ml automatically scales the learning rate to the number of GPUs used during training, as described [here](https://arxiv.org/abs/1706.02677).
 
@@ -65,6 +74,4 @@ For scripts that help you tile your own dataset please see [```histopathology/pr
 
 Subsequently, the TCGA-CRCk dataset is wrapped in [```TcgaCrck_TilesDatasetReturnImageLabel```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/histopathology/datasets/tcga_crck_tiles_dataset.py). Here the data augmentations are applied and the ```__getitem__``` method is defined. 
 
-The dataset is then wrapped one last time in [```TcgaCrck_TilesDatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/histopathology/datasets/tcga_crck_tiles_dataset.py), where we inherit the ability to return the tile index from [```DataClassBaseWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py). Your personal config will have to look like this: 
-
-![Example config](./doc_images/example_config.png)
+The dataset is then wrapped one last time in [```TcgaCrck_TilesDatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/histopathology/datasets/tcga_crck_tiles_dataset.py), where we inherit the ability to return the tile index from [```DataClassBaseWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).
