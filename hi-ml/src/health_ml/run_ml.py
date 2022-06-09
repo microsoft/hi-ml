@@ -196,6 +196,12 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
+    def run_additional_val_epoch(self) -> None:
+        if self.container.additional_val_epoch:
+            trainer, _ = create_lightning_trainer(self.container)
+            self.container.model.additional_val_epoch = True
+            _ = trainer.validate(self.container.model, datamodule=self.container.get_data_module())
+
     def run_inference(self, checkpoint_path: Path) -> None:
         """
         Run inference on the test set for all models.

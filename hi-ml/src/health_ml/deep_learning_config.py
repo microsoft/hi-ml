@@ -419,6 +419,12 @@ class TrainerParams(param.Parameterized):
     additional_env_files: List[Path] = param.List(class_=Path, default=[],
                                                   doc="Additional conda environment (.yml) files to merge into the"
                                                       " overall environment definition")
+    additional_val_epoch: bool = param.Boolean(default=False,
+                                               doc="If True, run an additional validation epoch to produce "
+                                                   "vizualization outputs on the validation set. This is to reduce any "
+                                                   "validation overheads during training time and produce additional "
+                                                   "time or memory consuming outputs only once after training is "
+                                                   "finished on the validation set.")
 
     @property
     def use_gpu(self) -> bool:

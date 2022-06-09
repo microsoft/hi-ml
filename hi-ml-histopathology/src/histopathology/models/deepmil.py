@@ -96,6 +96,10 @@ class BaseDeepMILModule(LightningModule):
         self.outputs_handler = outputs_handler
         self.chunk_size = chunk_size
 
+        # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
+        # consuming validation outputs
+        self.additional_val_epoch = False
+
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
@@ -252,7 +256,7 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
-        if stage == ModelKey.TEST and self.outputs_handler:
+        if (stage == ModelKey.TEST or self.additional_val_epoch) and self.outputs_handler:
             self.outputs_handler.tiles_handler.update_slides_selection(batch, results)
         return results
 
@@ -286,7 +290,8 @@ class BaseDeepMILModule(LightningModule):
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
-                is_global_rank_zero=self.global_rank == 0
+                is_global_rank_zero=self.global_rank == 0,
+                save_plots=self.additional_val_epoch
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore

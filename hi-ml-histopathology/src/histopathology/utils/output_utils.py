@@ -22,7 +22,7 @@ from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
 from histopathology.utils.metrics_utils import (plot_heatmap_overlay, plot_normalized_confusion_matrix,
                                                 plot_scores_hist, plot_slide)
-from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
+from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
@@ -327,7 +327,7 @@ class DeepMILOutputsHandler:
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
         self.slides_dataset = slides_dataset
 
-    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, save_plots: bool = False) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
@@ -348,11 +348,17 @@ class DeepMILOutputsHandler:
 
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_output_slides and stage == ModelKey.TEST and self.slides_dataset:
-            save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
-                                               tile_size=self.tile_size,
-                                               level=self.level, slides_dataset=self.slides_dataset,
-                                               figures_dir=figures_dir)
+        if save_plots:
+
+            logging.info("Saving top and bottom tiles...")
+            self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
+
+            if self.save_output_slides and self.slides_dataset:
+                logging.info("Saving slide thumbnails and heatmaps...")
+                save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
+                                                   tile_size=self.tile_size,
+                                                   level=self.level, slides_dataset=self.slides_dataset,
+                                                   figures_dir=figures_dir)
 
         save_scores_histogram(results, figures_dir=figures_dir)
 
@@ -361,7 +367,7 @@ class DeepMILOutputsHandler:
         # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True) -> None:
+                                epoch: int, is_global_rank_zero: bool = True, save_plots: bool = False) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
@@ -373,6 +379,8 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
+        if save_plots:
+            self.tiles_handler.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
@@ -382,7 +390,7 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, save_plots)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
@@ -402,6 +410,4 @@ class DeepMILOutputsHandler:
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
-            logging.info("Selecting tiles ...")
-            self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
-            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, save_plots=True)
