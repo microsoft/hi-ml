@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
 
-from histopathology.utils.wsi_utils import image_collate
+from histopathology.utils.wsi_utils import array_collate
 from histopathology.models.transforms import LoadTilesBatchd
 from histopathology.datasets.base_dataset import SlidesDataset, TilesDataset
 from histopathology.utils.naming import ModelKey
@@ -99,13 +99,13 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
+        return self.train_dataloader(self.train_dataset, shuffle=True, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, shuffle=False, stage=ModelKey.VAL, **self.dataloader_kwargs)
+        return self.validation_dataloader(self.val_dataset, shuffle=False, **self.dataloader_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, shuffle=False, stage=ModelKey.TEST, **self.dataloader_kwargs)
+        return self.test_dataloader(self.test_dataset, shuffle=False, **self.dataloader_kwargs)
 
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
@@ -330,7 +330,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         return DataLoader(
             transformed_slides_dataset,
             batch_size=self.batch_size,
-            collate_fn=image_collate,
+            collate_fn=array_collate,
             shuffle=shuffle,
             generator=generator,
             **dataloader_kwargs,

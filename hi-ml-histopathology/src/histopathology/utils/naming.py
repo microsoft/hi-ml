@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from enum import Enum
+from monai.utils import WSIPatchKeys
 
 
 class SlideKey(str, Enum):
@@ -19,8 +20,10 @@ class SlideKey(str, Enum):
     FOREGROUND_THRESHOLD = 'foreground_threshold'
     METADATA = 'metadata'
     LOCATION = 'location'
+    PATCH_SIZE = WSIPatchKeys.SIZE = 'patch_size'
+    PATCH_LOCATION = WSIPatchKeys.LOCATION = 'patch_location'
     OFFSET = 'offset'
-    PATCH_SIZE = 'patch_size'
+    SHAPE = 'original_spatial_shape'
 
 
 class TileKey(str, Enum):

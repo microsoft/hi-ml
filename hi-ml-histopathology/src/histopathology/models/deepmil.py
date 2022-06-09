@@ -340,8 +340,8 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         # batch returns ['image', <SlideKey.MASK_PATH: 'mask_path'>, <SlideKey.METADATA: 'metadata'>,
         # <SlideKey.SLIDE_ID: 'slide_id'>, <SlideKey.MASK: 'mask'>, <SlideKey.IMAGE_PATH: 'image_path'>,
         # <SlideKey.LABEL: 'label'>, 'original_spatial_shape', 'slices', 'patch_size', 'num_patches', 'offset']
-        # import pdb; pdb.set_trace()
         bag_sizes = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
+
         results.update(
             {
                 ResultsKey.SLIDE_ID: [
@@ -366,11 +366,11 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                         [batch[SlideKey.OFFSET][i][1]] for i, _ in enumerate(batch[SlideKey.OFFSET])
                     ],
                     ResultsKey.TILE_RIGHT: [
-                        [batch[SlideKey.OFFSET][i][1]] + batch[SlideKey.PATCH_SIZE][i][1]
+                        [batch[SlideKey.OFFSET][i][1] + batch[SlideKey.PATCH_SIZE][i][1]]
                         for i, _ in enumerate(batch[SlideKey.OFFSET])
                     ],
                     ResultsKey.TILE_BOTTOM: [
-                        [batch[SlideKey.OFFSET][i][0]] + batch[SlideKey.PATCH_SIZE][i][0]
+                        [batch[SlideKey.OFFSET][i][0] + batch[SlideKey.PATCH_SIZE][i][0]]
                         for i, _ in enumerate(batch[SlideKey.OFFSET])
                     ],
 
