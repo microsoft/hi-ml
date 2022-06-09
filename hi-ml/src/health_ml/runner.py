@@ -276,7 +276,7 @@ class Runner:
                     num_nodes=self.experiment_config.num_nodes,
                     wait_for_completion=self.experiment_config.wait_for_completion,
                     ignored_folders=[],
-                    submit_to_azureml=True if self.experiment_config.cluster else False,
+                    submit_to_azureml=bool(self.experiment_config.cluster),
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                     docker_shm_size=self.experiment_config.docker_shm_size,
                     hyperdrive_config=hyperdrive_config,
