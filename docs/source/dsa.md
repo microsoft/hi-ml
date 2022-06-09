@@ -28,7 +28,16 @@ Then, Girder [assetstores][12] can be created and fed data from the mounted cont
 ### Authentication
 
 We have [added][14] Microsoft as a provider in the [OAuth2 Login][15] plugin for Girder.
-An app must be [registered][16] so that [Azure Active Directory][17] (Azure AD) can be used for authentication.
+The authentication settings widget describes the steps needed to generate the provider credentials.
+
+First, our deployed DSA must be [registered][16] in [Azure Active Directory][17] (Azure AD) as an application.
+
+[![Registering an app on Azure AD](https://docs.microsoft.com/en-us/azure/active-directory/develop/media/app-objects-and-service-principals/app-registrations-blade.png)][16]
+
+Once the DSA app has been registered, a client ID (also called _application ID_) will be generated.
+Then, a client secret (also called _application password_) must also be generated.
+Finally, the _tenant ID_ (the Azure ID of your organization) _may_ be specified so that access is restricted to users belonging to your tenant.
+These three strings will be used to configure authentication in the OAuth2 Login plugin settings.
 
 ### Authorization
 
