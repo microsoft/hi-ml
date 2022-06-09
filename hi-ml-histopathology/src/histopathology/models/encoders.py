@@ -9,7 +9,7 @@ from typing import Callable, Optional, Sequence, Tuple
 import numpy as np
 import torch
 from pl_bolts.models.self_supervised import SimCLR
-from torch import nn
+from torch import Tensor as T, nn
 from torchvision.models import resnet18
 from torchvision.transforms import Compose
 
@@ -18,6 +18,7 @@ from histopathology.utils.layer_utils import (get_imagenet_preprocessing,
                                               setup_feature_extractor)
 from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from SSL.utils import create_ssl_image_classifier
+from SSL import encoders
 
 
 class TileEncoder(nn.Module):
@@ -116,7 +117,12 @@ class SSLEncoder(TileEncoder):
             freeze_encoder=True,
             pl_checkpoint_path=str(self.pl_checkpoint_path)
         )
-        return setup_feature_extractor(model.encoder, self.input_dim)
+        assert isinstance(model.encoder, encoders.SSLEncoder)
+        return setup_feature_extractor(model.encoder.cnn_model, self.input_dim)
+
+    def forward(self, x: T) -> T:
+        x = super().forward(x)
+        return x[-1] if isinstance(x, list) else x
 
 
 class HistoSSLEncoder(TileEncoder):

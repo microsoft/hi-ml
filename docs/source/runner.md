@@ -11,7 +11,7 @@ use of these features:
 This can be used by invoking the hi-ml runner and providing the name of the container class, like this:
 `himl-runner --model=MyContainer`.
 
-There is a fully working example [HelloContainer](../../hi-ml/src/health-ml/configs/hello_world.py), that
+There is a fully working example [HelloWorld](../../hi-ml/src/health-ml/configs/hello_world.py), that
 implements a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `himl-runner --model=HelloWorld`.
 
