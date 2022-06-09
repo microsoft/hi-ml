@@ -31,10 +31,13 @@ for example, `--model histopathology.PandaImageNetMIL` is effectively telling th
 
 ## Running ML experiments in Azure ML
 
-To train in AzureML, add a `--azureml` flag. Use the flag `--cluster` to specify the name of the cluster
+To train in AzureML, use the flag `--cluster` to specify the name of the cluster
 in your Workspace that you want to submit the job to. So the whole command would look like:
-`himl-runner --model=HelloContainer --cluster=my_cluster_name --azureml`. You can also specify `--num_nodes` if
-you wish to distribute the model training.
+
+```
+himl-runner --model=HelloWorld --cluster=my_cluster_name
+```
+You can also specify `--num_nodes` if you wish to distribute the model training.
 
 When starting the runner, you need to do that from a directory that contains all the code that your experiment needs:
 The current working directory will be used as the root of all data that will be copied to AzureML to run your experiment.

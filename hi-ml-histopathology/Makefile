@@ -59,18 +59,6 @@ pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
-tilespandaimagenetmil_regression_test:
-	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
-	--cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml-histopathology/environment.yml \
-	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
-	TilesPANDAImageNetMIL/HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 \
-	--regression_test_csv_tolerance=0.5 --is_finetune \
-	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
-	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
-	}
-
 slidespandaimagenetmil_regression_test:
 	{ \
 	cd ../ ;\
@@ -85,7 +73,7 @@ slidespandaimagenetmil_regression_test:
 tcgacrcksslmil_regression_test:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --azureml \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL \
 	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --max_epochs=50 \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
@@ -95,7 +83,7 @@ tcgacrcksslmil_regression_test:
 crck_simclr_regression_test:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR  --azureml \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
 	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5\
@@ -103,4 +91,4 @@ crck_simclr_regression_test:
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
 	}
 
-regression tests: tilespandaimagenetmil_regression_test slidespandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test
+regression tests: slidespandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test

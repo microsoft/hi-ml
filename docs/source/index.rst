@@ -59,6 +59,7 @@ The `hi-ml` toolbox provides
    CONTRIBUTING.md
    coding_guidelines.md
    developers.md
+   software_design_overview.md
 
 .. toctree::
    :maxdepth: 1
