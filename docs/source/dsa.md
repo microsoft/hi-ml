@@ -22,7 +22,8 @@ Ports in a VM can be opened using [network security group rules][7].
 ### Storage
 
 The datasets we use are securely stored in [Azure Blob Storage][3] containers.
-Containers can be mounted on the host machine using [BlobFuse][13] and connected to Girder using [assetstores][12].
+Containers can be mounted on the host machine using [BlobFuse][13].
+Then, Girder [assetstores][12] can be created and fed data from the mounted containers.
 
 ### Authentication
 
