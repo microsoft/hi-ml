@@ -54,16 +54,16 @@ Let's have a look at the training behavior.
  
 As mentioned previously, using the WSI label for each tile of the same slide and a linear head on the outputs of the image encoder to monitor training works quite well. We see a smooth and steady increase of the validation metric.
 
-![Online evaluation](./doc_images/online_eval.png =100x)
+![Online evaluation](./doc_images/online_eval.png)
 
 In addition, we are using a cosine learning rate schedule with a fixed warm up of 10 epochs. Note: The SSL code in hi-ml automatically scales the learning rate to the number of GPUs used during training, as described [here](https://arxiv.org/abs/1706.02677).
 
-![Learning rate](./doc_images/learning_rate.png =100x)
+![Learning rate](./doc_images/learning_rate.png)
 
 Last, the training and validation loss curves are expected to look like this. 
 
-![Train loss](./doc_images/train_loss.png =100x)
-![Val loss](./doc_images/val_loss.png =100x)
+![Train loss](./doc_images/train_loss.png)
+![Val loss](./doc_images/val_loss.png)
 
 After training, we can use the pre-trained image encoder on downstream tasks like microsatellite stable/instable prediction on TCGA-CRCk. You only have to specify the path to the checkpoint of the SSL image encoder in the setup function of [```DeepSMILECrck```](https://github.com/microsoft/hi-ml/blob/341afee5869d0d8d5db99283c06959d73517d8b7/hi-ml-histopathology/src/histopathology/configs/classification/DeepSMILECrck.py#L60).
 
