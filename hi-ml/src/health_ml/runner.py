@@ -156,18 +156,15 @@ class Runner:
         """
         Runs sanity checks on the whole experiment.
         """
-        if not self.experiment_config.azureml:
+        if not self.experiment_config.cluster:
             if self.lightning_container.hyperdrive:
-                logging.info("You have turned on HyperDrive for parameter tuning. This can "
-                             "only be run in AzureML. We switched on submitting to AzureML.")
-                self.experiment_config.azureml = True
+                raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
+                                 "AzureML. You need to specify a computer cluster to submit your job to with the "
+                                 "argument --cluster.")
             if self.lightning_container.is_crossvalidation_enabled:
-                logging.info("You have turned on cross-validation. This can "
-                             "only be run in AzureML. We switched on submitting to AzureML.")
-                self.experiment_config.azureml = True
-            if self.experiment_config.cluster:
-                logging.info("You have provided a compute cluster name, hence we switched on submitting to AzureML.")
-                self.experiment_config.azureml = True
+                raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
+                                 "You need to specify a computer cluster to submit your job to with the argument "
+                                 "--cluster.")
 
     def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
         """
@@ -227,7 +224,7 @@ class Runner:
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
-        if self.experiment_config.azureml:
+        if self.experiment_config.cluster:
             try:
                 workspace = get_workspace()
             except ValueError:
@@ -239,19 +236,17 @@ class Runner:
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
-        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.azureml else True
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.cluster else True
         input_datasets = \
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
-        if self.lightning_container.is_crossvalidation_enabled and not self.experiment_config.azureml:
-            raise ValueError("Cross-validation is only supported when submitting the job to AzureML.")
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         temp_conda_file: Optional[Path] = None
         try:
-            if self.experiment_config.azureml:
+            if self.experiment_config.cluster:
                 env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
                 logging.info(f"Using this Conda environment definition: {env_file}")
                 check_conda_environment(env_file)
@@ -281,7 +276,7 @@ class Runner:
                     num_nodes=self.experiment_config.num_nodes,
                     wait_for_completion=self.experiment_config.wait_for_completion,
                     ignored_folders=[],
-                    submit_to_azureml=self.experiment_config.azureml,
+                    submit_to_azureml=bool(self.experiment_config.cluster),
                     docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                     docker_shm_size=self.experiment_config.docker_shm_size,
                     hyperdrive_config=hyperdrive_config,
