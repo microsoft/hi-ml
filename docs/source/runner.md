@@ -33,7 +33,7 @@ for example, `--model histopathology.PandaImageNetMIL` is effectively telling th
 To train in AzureML, use the flag `--cluster` to specify the name of the cluster
 in your Workspace that you want to submit the job to. So the whole command would look like:
 ```
-himl-runner --model=HelloContainer --cluster=my_cluster_name
+himl-runner --model=HelloWorld --cluster=my_cluster_name
 ```
 You can also specify `--num_nodes` if you wish to distribute the model training.
 
