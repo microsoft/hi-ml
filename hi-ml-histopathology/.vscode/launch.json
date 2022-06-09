@@ -47,7 +47,9 @@
                 "--model=histopathology.SlidesPandaImageNetMIL",
                 "--pl_fast_dev_run=2",
                 "--crossval_count=0",
-                "--batch_size=2",
+                "--pl_limit_train_batches=2",
+                "--pl_limit_val_batches=4",
+                "--pl_limit_test_batches=4",
                 "--num_top_slides=2",
                 "--num_top_tiles=2"
             ],

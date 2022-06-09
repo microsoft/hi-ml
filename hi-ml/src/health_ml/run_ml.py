@@ -152,6 +152,9 @@ class MLRunner:
         self.checkpoint_handler.additional_training_done()
         checkpoint_path_for_testing = self.checkpoint_handler.get_checkpoint_to_test()
 
+        with logging_section("Model validation"):
+            self.run
+
         with logging_section("Model inference"):
             self.run_inference(checkpoint_path_for_testing)
 
@@ -196,11 +199,17 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def run_additional_val_epoch(self) -> None:
+    def run_additional_val_epoch(self, checkpoint_path: Path) -> None:
         if self.container.additional_val_epoch:
             trainer, _ = create_lightning_trainer(self.container)
+            # Switch on flag to run 
             self.container.model.additional_val_epoch = True
-            _ = trainer.validate(self.container.model, datamodule=self.container.get_data_module())
+
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_path)
+            data_module = self.container.get_data_module()
+            with change_working_directory(self.container.outputs_folder):
+                _ = trainer.validate(self.container.model, datamodule=self.container.get_data_module())
+
 
     def run_inference(self, checkpoint_path: Path) -> None:
         """
