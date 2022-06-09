@@ -36,14 +36,14 @@ etc. Here, we need to define some important parameters:
 
 + [```ssl_training_batch_size=48```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L51)
 
-2. The dataset we want to use for training the image encoder and the linear model we only use for evaluation of the
+1. The dataset we want to use for training the image encoder and the linear model we only use for evaluation of the
    image encoder. In theory, they could be two different datasets.
 
 + [```ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
 
 + [```linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
 
-3. Model checkpointing: We use [PyTorch lightning
+1. Model checkpointing: We use [PyTorch lightning
    checkpointing](https://pytorch-lightning.readthedocs.io/en/stable/common/checkpointing.html). Among others, we define
    the validation metric, where the ```online_evaluator``` is the same as the ```linear_head```. In the case of
    TCGA_CRCK, we use AUC ROC as the validation metric.
@@ -87,18 +87,18 @@ Let's have a look at the training behavior.
 As mentioned previously, using the WSI label for each tile of the same slide and a linear head on the outputs of the
 image encoder to monitor training works quite well. We see a smooth and steady increase of the validation metric.
 
-![Online evaluation](./doc_images/online_eval.png)
+![Online evaluation](images/online_eval.png)
 
 In addition, we are using a cosine learning rate schedule with a fixed warm up of 10 epochs. Note: The SSL code in hi-ml
 automatically scales the learning rate to the number of GPUs used during training, as described
 [here](https://arxiv.org/abs/1706.02677).
 
-![Learning rate](./doc_images/learning_rate.png)
+![Learning rate](images/learning_rate.png)
 
 Last, the training and validation loss curves are expected to look like this.
 
-![Train loss](./doc_images/train_loss.png)
-![Val loss](./doc_images/val_loss.png)
+![Train loss](images/train_loss.png)
+![Val loss](images/val_loss.png)
 
 After training, we can use the pre-trained image encoder on downstream tasks like microsatellite stable/instable
 prediction on TCGA-CRCk. You only have to specify the path to the checkpoint of the SSL image encoder in the setup

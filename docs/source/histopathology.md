@@ -20,19 +20,15 @@ In our example models, we are working with two public datasets, [PANDA](https://
 
 Please follow the [detailed instructions](public_datasets.md) to download and prepare these datasets in Azure.
 
-## Training a model
+## Training models
 
-* [Train a DeepMIL model with an ImageNet encoder on the PANDA dataset (whole slides)](panda_model.md)
-* [Train a DeepMIL model with an ImageNet encoder on the TCGA-Crck dataset (tiles)](tcga-crck_model.md)
-
-## Training an SSL encoder
-
-[Train an SSL encoder on the TCGA-Crck dataset (tiles)](ssl_on_tile_dataset.md)
+- [Train a DeepMIL model with an ImageNet encoder on the PANDA dataset (whole slides)](panda_model.md)
+- [Train an SSL encoder on the TCGA-Crck dataset (tiles)](ssl_on_tile_dataset.md)
 
 ## Visualizing data and results in Digital Slide Archive DSA
 
-* [Setting up DSA](./dsa.md#azure-deployment)
-* [Using DSA to look at data and model results](./dsa.md#visualizing-azure-machine-learning-results)
+- [Setting up DSA](./dsa.md#azure-deployment)
+- [Using DSA to look at data and model results](./dsa.md#visualizing-azure-machine-learning-results)
 
 ## New Model configurations
 
