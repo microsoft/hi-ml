@@ -247,11 +247,11 @@ def read_image_torch2(input_filename: Path) -> torch.Tensor:
     return torch_tensor
 ```
 
-# Results
+## Results
 
 All the above methods were ran against 122 small test images, repeated 10 times. So in total there were 1220 calls to each of the functions.
 
-## RGB Images
+### RGB Images
 
 For 61 RGB images of size 224 x 224 pixels and 61 of size 180 x 224 pixels, repeated 10 times, there are the following timings:
 
@@ -268,7 +268,7 @@ For 61 RGB images of size 224 x 224 pixels and 61 of size 180 x 224 pixels, repe
 | read_image_numpy       | 7.29741        |
 | read_image_torch2      | **7.07304**    |
 
-## Greyscale Images
+### Greyscale Images
 
 Similarly, with greyscale versions of the RGB images:
 
@@ -287,7 +287,7 @@ Similarly, with greyscale versions of the RGB images:
 
 The recommendation therefore is to use matplotlib `mpimg.imread` to load the image and `TF.to_tensor` to transform the numpy array to a torch tensor. This is almost as fast as loading the data directly in a native numpy or torch format.
 
-# Loading Images as Numpy Arrays
+## Loading Images as Numpy Arrays
 
 Alternatively, a numpy array may be required with an equivalent form to PIL:
 
@@ -295,7 +295,7 @@ Alternatively, a numpy array may be required with an equivalent form to PIL:
 * dtype float;
 * range between 0.0 and 255.0.
 
-## Pillow
+### Pillow
 
 If the image is known to be a png then a shortcut can be taken, which is quicker:
 
@@ -329,7 +329,7 @@ def read_image_pillow3(input_filename: Path) -> np.array:  # type: ignore
         return np.asarray(pil_png, np.float)
 ```
 
-## SciPy
+### SciPy
 
 Similarly, using SciPy:
 
@@ -351,11 +351,11 @@ def read_image_scipy2(input_filename: Path) -> np.array:  # type: ignore
     return numpy_array
 ```
 
-# Results
+## Results
 
 The three above methods were tested against the same images as above.
 
-## RGB Images
+### RGB Images
 
 For 61 RGB images of size 224 x 224 pixels and 61 of size 180 x 224 pixels, repeated 10 times, there are the following timings:
 
@@ -365,7 +365,7 @@ For 61 RGB images of size 224 x 224 pixels and 61 of size 180 x 224 pixels, repe
 | read_image_pillow3     | 18.1665        |
 | read_image_scipy2      | 51.8801        |
 
-## Greyscale Images
+### Greyscale Images
 
 Similarly, with greyscale versions of the RGB images:
 
