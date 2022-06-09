@@ -53,15 +53,37 @@ For example:
 
 ```shell
 SCRIPT="hi-ml-histopathology/src/histopathology/utils/girder.py"
-python $SCRIPT --run-id "Experiment_transformer_Gleason_run_0" --rescale
+python $SCRIPT \
+    --run-id "Experiment_transformer_Gleason_run_0" \
+    --dsa-url "https://my-deployed-dsa.azure.com/" \
+    --dsa-key "AHKZ42Ks24kSH5Fxt3354ryKzCxamjqM" \
+    --workspace-config "config.json" \
+    --rescale
 ```
 
-This script uses the [Azure SDK][20] and the [Python client for the Girder API][21] to:
+The DSA URL and API key may be specified in environment variables `DSA_URL` and `DSA_API_KEY` instead.
+The workspace configuration file contains information related to the [Azure Machine Learning workspace][22]:
+
+```json
+{
+    "subscription_id": "22f7beb4-1b54-9ee7-5255-6dbcc8da000b",
+    "resource_group": "myresourcegroup",
+    "workspace_name": "myworkspace"
+}
+```
+
+It can be downloaded from the workspace website:
+
+[![Download config.json from Azure ML workspace](https://docs.microsoft.com/en-us/azure/machine-learning/media/how-to-configure-environment/configure.png)](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment#workspace)
+
+The script uses the [Azure SDK][20] and the [Python client for the Girder API][21] to:
 
 1. Log into Azure ML
 2. Download training results
 3. Generate JSON annotations for each slide
 4. Upload the annotations to the deployed DSA
+
+For a full description of all the options, add `--help` to the arguments.
 
 Below is an example of an attention map overlaid on a slide from the [PANDA][22] dataset:
 
@@ -88,3 +110,4 @@ Below is an example of an attention map overlaid on a slide from the [PANDA][22]
 [19]: https://girder.readthedocs.io/en/latest/api-docs.html
 [20]: https://docs.microsoft.com/en-us/azure/developer/python/sdk/azure-sdk-overview
 [21]: https://girder.readthedocs.io/en/latest/python-client.html#python-client
+[22]: https://docs.microsoft.com/en-us/azure/machine-learning/concept-workspace
