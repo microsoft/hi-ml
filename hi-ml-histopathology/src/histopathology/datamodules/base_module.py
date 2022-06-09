@@ -22,8 +22,7 @@ from histopathology.utils.naming import ModelKey
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
-from monai.apps.pathology.transforms import TileOnGridd
-from monai.transforms import RandGridPatchd
+from monai.transforms import RandGridPatchd, GridPatchd
 from monai.data.image_reader import WSIReader
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -99,14 +98,13 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
-        return self.train_dataloader(self.train_dataset, shuffle=True, **self.dataloader_kwargs)
+        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
-        return self.validation_dataloader(self.val_dataset, shuffle=False, **self.dataloader_kwargs)
+        return self._get_dataloader(self.val_dataset, shuffle=False, stage=ModelKey.VAL, **self.dataloader_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        return self.test_dataloader(self.test_dataset, shuffle=False, **self.dataloader_kwargs)
-
+        return self._get_dataloader(self.test_dataset, shuffle=False, stage=ModelKey.TEST, **self.dataloader_kwargs)
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
     """Base class to load the tiles of a dataset as train, val, test sets"""
@@ -251,6 +249,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         pad_full: Optional[bool] = False,
         background_val: Optional[int] = 255,
         filter_mode: Optional[str] = "min",
+        overlap: Optional[float] = 0,
+        intensity_threshold: Optional[float] = 0,
         **kwargs: Any,
     ) -> None:
         """
@@ -258,19 +258,20 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend
         :param tile_size: size of the square tile, defaults to 224
         this param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
-        Use a step < tile_size to create overlapping tiles, analogousely a step > tile_size will skip some chunks in
-        the wsi. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
         defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
-        This param is passed to TileOnGridd monai transform for tiling on the fly.
+        This param is passed to monai transform for tiling on the fly.
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
         defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
+        random) subset, defaults to "min" (which assumes background is high value). This param is passed to
         monai transform for tiling on the fly.
+        : param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        : param intensity_threshold: a value to keep only the patches whose sum of intensities are less than the
+            threshold. Defaults to no filtering.
         """
         super().__init__(**kwargs)
         self.level = level
@@ -280,43 +281,37 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
+        # Tiling transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
         self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size  # type: ignore
         self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
+        self.overlap = overlap
+        self.intensity_threshold = intensity_threshold
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
-        base_transform = Compose(
-            [
-                LoadImaged(
+        load_image_transform = LoadImaged(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    reader=WSIReader,
+                    reader=WSIReader,  # type: ignore
                     backend="cuCIM",
                     dtype=np.uint8,
                     level=self.level,
                     image_only=True,
-                ),
-                RandGridPatchd(
+                )
+        max_offset = None if (self.random_offset and stage == ModelKey.TRAIN) else 0
+        random_grid_transform = RandGridPatchd(
                     keys=[slides_dataset.IMAGE_COLUMN],
-                    patch_size=(self.tile_size, self.tile_size),
+                    patch_size=[self.tile_size, self.tile_size],  # type: ignore
                     num_patches=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
                     sort_fn=self.filter_mode,
                     pad_mode="constant",
                     constant_values=self.background_val,
-                ),
-                # TileOnGridd(
-                #    keys=slides_dataset.IMAGE_COLUMN,
-                #    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
-                #    tile_size=self.tile_size,
-                #    step=self.step,
-                #    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                #    pad_full=self.pad_full,
-                #    background_val=self.background_val,
-                #    filter_mode=self.filter_mode,
-                #    return_list_of_dicts=True,
-                # ),
-            ]
-        )
+                    overlap=self.overlap,
+                    threshold=self.intensity_threshold,
+                    max_offset = max_offset,
+                    pad_full = self.pad_full
+                )
+        base_transform = Compose([load_image_transform, random_grid_transform])
+
         if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()  # type: ignore
         else:

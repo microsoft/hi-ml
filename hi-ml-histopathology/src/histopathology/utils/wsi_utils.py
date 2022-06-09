@@ -15,6 +15,7 @@ slide_metadata_keys = [
     SlideKey.SLIDE_ID,
     SlideKey.MASK_PATH,
     WSIPatchKeys.COUNT,
+    SlideKey.PATCH_SIZE,  #TODO: remove in case we want to allow patches of different sizes from the same slide
     SlideKey.SHAPE,
     SlideKey.OFFSET
 ]
@@ -36,7 +37,7 @@ def array_collate(batch: List) -> Any:
             else:
                 logging.warning(f'Only np.ndarray are collated - {key} value will be taken from first patch')
                 constant_keys.append(key)
-    tensor_keys = collate_keys + ['SlideKey.LABEL']
+    tensor_keys = collate_keys + [SlideKey.LABEL]
 
     for i, patch_data in enumerate(batch):
         data = patch_data[0]
