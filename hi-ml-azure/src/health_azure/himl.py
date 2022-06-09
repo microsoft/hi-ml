@@ -38,7 +38,7 @@ logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
 
 AML_IGNORE_FILE = ".amlignore"
-AZUREML_COMMANDLINE_FLAG = "--cluster"
+AZUREML_COMMANDLINE_FLAG = "--azureml"
 CONDA_ENVIRONMENT_FILE = "environment.yml"
 LOGS_FOLDER = "logs"
 OUTPUT_FOLDER = "outputs"
@@ -262,7 +262,7 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv.
+        default) these will be copied over from sys.argv, omitting the --azureml flag.
     :return:
     """
     if snapshot_root_directory is None:
@@ -387,7 +387,7 @@ def submit_to_azure_if_needed(  # type: ignore
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
-    Use the commandline flag --cluster=<cluster name> to submit to AzureML, and leave it out to run locally.
+    Use the commandline flag --azureml to submit to AzureML, and leave it out to run locally.
 
     :param after_submission: A function that will be called directly after submitting the job to AzureML. The only
         argument to this function is the run that was just submitted. Use this to, for example, add additional tags
@@ -413,7 +413,7 @@ def submit_to_azure_if_needed(  # type: ignore
         All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv.
+        default) these will be copied over from sys.argv, omitting the --azureml flag.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
@@ -434,7 +434,7 @@ def submit_to_azure_if_needed(  # type: ignore
         run output on sys.stdout.
     :param submit_to_azureml: If True, the codepath to create an AzureML run will be executed. If False, the codepath
         for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
-        will be triggered if the commandline flag '--cluster=<cluster name>' is present in sys.argv
+        will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
@@ -448,7 +448,8 @@ def submit_to_azure_if_needed(  # type: ignore
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
     # The present function will most likely be called from the script once it is running in AzureML.
-    # From Run.get_context we can infer if the present code is running in AzureML.
+    # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
+    # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure_ml(RUN_CONTEXT)
     if in_azure:
         return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
@@ -593,7 +594,7 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     """
     if script_params:
         return script_params
-    return sys.argv[1:]
+    return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
 
 
 def _generate_azure_datasets(

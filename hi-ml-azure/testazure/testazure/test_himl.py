@@ -72,7 +72,7 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
-    with mock.patch("sys.argv", ["", "--cluster=foo"]):
+    with mock.patch("sys.argv", ["", "--azureml"]):
         with pytest.raises(Exception) as ex:
             himl.submit_to_azure_if_needed(
                 aml_workspace=None,
@@ -519,8 +519,8 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
 def test_get_script_params() -> None:
     expected_params = ["a string"]
     assert expected_params == himl._get_script_params(expected_params)
-    with mock.patch("sys.argv", ["", "a string", "--cluster=foo"]):
-        assert [*expected_params, "cluster=foo"] == himl._get_script_params()
+    with mock.patch("sys.argv", ["", "a string", "--azureml"]):
+        assert expected_params == himl._get_script_params()
     with mock.patch("sys.argv", ["", "a string"]):
         assert expected_params == himl._get_script_params()
 
@@ -537,7 +537,7 @@ def test_get_workspace_no_config(
     mock_is_running_in_azure.return_value = False
     with change_working_directory(tmp_path):
         with pytest.raises(ValueError) as ex:
-            with mock.patch("sys.argv", ["", "--cluster=foo"]):
+            with mock.patch("sys.argv", ["", "--azureml"]):
                 himl.submit_to_azure_if_needed(compute_cluster_name="foo")
         assert "No workspace config file given" in str(ex)
 
@@ -568,7 +568,7 @@ def test_submit_to_azure_if_needed_azure_return(
         output_folder=Path.cwd(),
         logs_folder=Path.cwd())
     mock_generate_azure_datasets.return_value = expected_run_info
-    with mock.patch("sys.argv", ["", "cluster=foo"]):
+    with mock.patch("sys.argv", ["", "--azureml"]):
         run_info = himl.submit_to_azure_if_needed(
             aml_workspace=mock_workspace,
             entry_script=Path(__file__),
@@ -841,7 +841,7 @@ def render_and_run_test_script(path: Path,
 
     score_args = [str(entry_script_path)]
     if run_target == RunTarget.AZUREML:
-        score_args.append("--cluster=foo")
+        score_args.append("--azureml")
     score_args.extend(extra_args)
 
     env = dict(os.environ.items())
@@ -1303,7 +1303,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
-    mock_sys_args.return_value = ["", "--cluster=foo"]
+    mock_sys_args.return_value = ["", "--azureml"]
     with patch.object(Environment, "get", return_value="dummy_env"):
         with patch("azureml.core.Workspace") as mock_workspace:
             mock_workspace.compute_targets = {"foo": mock_compute_cluster}
