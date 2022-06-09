@@ -51,7 +51,7 @@ saved to AzureML already (for example, metrics written by a call like `Run.log("
 Those metrics are already stored in AzureML, and will still be there when the job restarts. The re-started job will
 then **append** to the metrics that had been written in the previous run. This typically shows as sudden jumps in
 metrics, as illustrated here:
-![lowpriority_interrupted_lr.png](lowpriority_interrupted_lr.png)
+![lowpriority_interrupted_lr.png](images/lowpriority_interrupted_lr.png)
 In this example, the learning rate was increasing for the first 6 or so epochs. Then the job got preempted, and started
 training from scratch, with the initial learning rate and schedule. Note that this behaviour is only an artifact of how
 the metrics are stored in AzureML, the actual training is doing the right thing.

@@ -87,7 +87,7 @@ For a full description of all the options, add `--help` to the arguments.
 
 Below is an example of an attention map overlaid on a slide from the [PANDA][22] dataset:
 
-![Attention map on slide from PANDA](./dsa_heatmap.png)
+![Attention map on slide from PANDA](./images/dsa_heatmap.png)
 
 [1]: https://digitalslidearchive.github.io/digital_slide_archive/
 [2]: https://azure.microsoft.com/
