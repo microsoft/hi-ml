@@ -235,7 +235,7 @@ class HelloWorld(LightningContainer):
     to generate the actual Lightning model, and read out the datamodule that will be used for training.
     The number of training epochs is controlled at container level.
     You can train this model by running `python health_ml/runner.py --model=HelloWorld` on the local box,
-    or via `python health_ml/runner.py --model=HelloWorld --azureml=True` in AzureML
+    or via `python health_ml/runner.py --model=HelloWorld --cluster=<cluster name>` in AzureML
     """
 
     def __init__(self) -> None:

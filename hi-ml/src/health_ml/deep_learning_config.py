@@ -416,9 +416,6 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
-    additional_env_files: List[Path] = param.List(class_=Path, default=[],
-                                                  doc="Additional conda environment (.yml) files to merge into the"
-                                                      " overall environment definition")
     additional_val_epoch: bool = param.Boolean(default=False,
                                                doc="If True, run an additional validation epoch to produce "
                                                    "vizualization outputs on the validation set. This is to reduce any "
