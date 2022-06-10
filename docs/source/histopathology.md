@@ -1,36 +1,41 @@
-# Microsoft Health Intelligence Machine Learning Toolbox
+# HI-ML Tools for Computational Pathology
 
-## Overview
+The directory [`hi-ml-histopathology`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology) contains code
+for runnning experiments in Computational Pathology.
 
-The directory `hi-ml-histopathology` contains code for runnning experiments in Computational Pathology.
+## Setting up your computer
 
-## Datasets
+The tools for computational pathology cannot be as a Python package, but rather directly from the Git repository. Please
+follow the instructions in [README](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/README.md) to set
+up your local Python environment.
 
-There are classes for handling various histopathology datasets including:
-- The [PANDA Challenge](https://www.computationalpathologygroup.eu/projects/panda-challenge/)
-- [TGCA-PRAD](https://wiki.cancerimagingarchive.net/display/Public/TCGA-PRAD)
-- [TGCA-Crck](https://zenodo.org/record/2530835#.YgE_IJbP1mM) (see <sup>1</sup>)
+## Onboarding to Azure
 
-## Configs
-This directory contains built-in configs for:
+Please follow the [instructions here](azure_setup.md).
 
-- DeepSMILE<sup>1</sup> and encoder specific variants, e.g.TcgaCrckImageNetMIL
+## Creating datasets
 
-To define your own config, it should be placed in the directory `histopathology.configs` and it should inherit from a [LightningContainer]() - see an example in `histopathology.configs.classification.BaseMIL.py`
+In our example models, we are working with two public datasets, [PANDA](https://panda.grand-challenge.org/) and
+[TCGA-Crck](https://zenodo.org/record/2530835).
 
-1 Schirris (2021). DeepSMILE: Self-supervised heterogeneity-aware multiple instance learning for DNA
-damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
+Please follow the [detailed instructions](public_datasets.md) to download and prepare these datasets in Azure.
 
-## Creating tiles datasets
+## Training models
 
-There is a script in `histopathology/preprocessing/tiling.py` for creating a tiles dataset from a slide dataset. This will load and process a slide, save tile images and save relevant information to a CSV file.
+- [Train a DeepMIL model with an ImageNet encoder on the PANDA dataset (whole slides)](panda_model.md)
+- [Train an SSL encoder on the TCGA-Crck dataset (tiles)](ssl_on_tile_dataset.md)
 
-## Experiments with the himl-runner
+## Visualizing data and results in Digital Slide Archive DSA
 
-Examples within the folder `histopathology.configs` can be run using the hi-ml runner.
+- [Setting up DSA](./dsa.md#azure-deployment)
+- [Using DSA to look at data and model results](./dsa.md#visualizing-azure-machine-learning-results)
 
-For example, DeepSMILECrck is the container for experiments relating to DeepSMILE using the TCGA-CRCk dataset. Run using
+## New Model configurations
 
-```bash
-himl-runner --model=hi-ml-histopathology.histopathology.configs.classification.TcgaCrckImageNetMIL [--cluster=<cluster name>]
-```
+To define your own model configuration, place a class definition in the directory `histopathology.configs`. The class should
+inherit from a
+[LightningContainer](https://github.com/microsoft/hi-ml/blob/39911d217c919d8213ad36c9c776f69369d98509/hi-ml/src/health_ml/lightning_container.py#L24).
+As an example, please check the [HelloWorld
+model](https://github.com/microsoft/hi-ml/blob/0793cbd1a874920d04b0a8f1298a7a112cfd712c/hi-ml/src/health_ml/configs/hello_world.py#L232)
+or the [base class for the MIL
+models](https://github.com/microsoft/hi-ml/blob/1d96c9bcdb326ad4d145ab082f45a2116d776a76/hi-ml-histopathology/src/histopathology/configs/classification/BaseMIL.py#L39).
