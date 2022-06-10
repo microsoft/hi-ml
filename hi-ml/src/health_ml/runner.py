@@ -245,7 +245,13 @@ class Runner:
         temp_conda_file: Optional[Path] = None
         try:
             if self.experiment_config.cluster:
-                env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
+                # Enable spawned processes to find relative env file regardless of CWD
+                conda_env_file = self.experiment_config.conda_env
+                if conda_env_file is not None:
+                    if str(self.project_root) not in str(conda_env_file):
+                        conda_env_file = self.project_root / conda_env_file
+
+                env_file = choose_conda_env_file(env_file=conda_env_file)
                 logging.info(f"Using this Conda environment definition: {env_file}")
                 check_conda_environment(env_file)
                 # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from
