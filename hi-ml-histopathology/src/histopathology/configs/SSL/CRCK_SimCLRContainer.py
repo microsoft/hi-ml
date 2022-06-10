@@ -12,10 +12,6 @@ from SSL.utils import SSLTrainingType
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatasetWithReturnIndex
 from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 
-current_file = Path(__file__)
-print(f"Running container from {current_file}")
-print(f"Sys path container level {sys.path}")
-
 
 class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
     TCGA_CRCK = "CRCKTilesDataset"

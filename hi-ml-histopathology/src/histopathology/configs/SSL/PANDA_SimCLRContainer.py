@@ -15,11 +15,6 @@ from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_ID
 
 
-current_file = Path(__file__)
-print(f"Running container from {current_file}")
-print(f"Sys path container level {sys.path}")
-
-
 class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
     PANDA = "PandaTilesDataset"
 
