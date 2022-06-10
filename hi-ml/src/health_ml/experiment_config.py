@@ -1,3 +1,5 @@
+from pathlib import Path
+from typing import Optional
 import param
 
 
@@ -20,3 +22,8 @@ class ExperimentConfig(param.Parameterized):
     wait_for_completion: bool = param.Boolean(default=False,
                                               doc="If True, wait for AML Run to complete before proceeding. "
                                                   "If False, submit the run to AML and exit")
+    conda_env: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="The Conda environment file that should be used when submitting the present run to "
+                                "AzureML. If not specified, the environment file in the current folder or one of its "
+                                "parents will be used.")

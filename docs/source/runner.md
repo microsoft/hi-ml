@@ -43,8 +43,13 @@ When starting the runner, you need to do that from a directory that contains all
 The current working directory will be used as the root of all data that will be copied to AzureML to run your experiment.
 (the only exception to this rule is if you start the runner from within an enlistment of the HI-ML GitHub repository).
 
-AzureML needs to know which Python/Conda environment it should use. For that, the runner expects a file `environment.yml`
-in the current working directory, that contains a Conda environment definition.
+AzureML needs to know which Python/Conda environment it should use. For that, the runner needs a file `environment.yml`
+that contains a Conda environment definition. This file needs to be present either in the current working directory or
+one of its parents. To specify a Conda environment that is located elsewhere, you can use
+
+```shell
+himl-runner --model=HelloWorld --cluster=my_cluster_name --conda_env=/my/folder/to/special_environment.yml
+```
 
 ## Setup - creating your model config file
 

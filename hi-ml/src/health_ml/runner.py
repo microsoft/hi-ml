@@ -35,7 +35,7 @@ from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (check_conda_environments, get_all_environment_files,  # noqa: E402
+from health_ml.utils.common_utils import (check_conda_environment, choose_conda_env_file,  # noqa: E402
                                           get_all_pip_requirements_files,
                                           is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
@@ -242,20 +242,20 @@ class Runner:
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        temp_conda: Optional[Path] = None
+        temp_conda_file: Optional[Path] = None
         try:
             if self.experiment_config.cluster:
-                conda_files = get_all_environment_files(root_folder,
-                                                        additional_files=self.lightning_container.additional_env_files)
-                check_conda_environments(conda_files)
+                env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
+                logging.info(f"Using this Conda environment definition: {env_file}")
+                check_conda_environment(env_file)
                 # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from
                 # source (submodule) rather than installed as a package.
                 pip_requirements_files = get_all_pip_requirements_files()
 
                 # Merge the project-specific dependencies with the packages and write unified definition to temp file.
-                if len(conda_files) > 1 or len(pip_requirements_files) > 0:
-                    temp_conda = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                    merge_conda_files(conda_files, temp_conda, pip_files=pip_requirements_files)
+                if len(pip_requirements_files) > 0:
+                    temp_conda_file = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+                    merge_conda_files([env_file], temp_conda_file, pip_files=pip_requirements_files)
 
                 if not self.experiment_config.cluster:
                     raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
@@ -264,7 +264,7 @@ class Runner:
                     entry_script=entry_script,
                     snapshot_root_directory=root_folder,
                     script_params=script_params,
-                    conda_environment_file=temp_conda or conda_files[0],
+                    conda_environment_file=temp_conda_file or env_file,
                     aml_workspace=workspace,
                     compute_cluster_name=self.experiment_config.cluster,
                     environment_variables=environment_variables,
@@ -295,8 +295,8 @@ class Runner:
                     input_datasets=input_datasets,  # type: ignore
                     submit_to_azureml=False)
         finally:
-            if temp_conda and temp_conda.is_file():
-                temp_conda.unlink()
+            if temp_conda_file and temp_conda_file.is_file():
+                temp_conda_file.unlink()
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info
