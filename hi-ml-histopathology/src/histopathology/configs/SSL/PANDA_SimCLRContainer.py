@@ -3,9 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
-from pathlib import Path
 from typing import Any
-import sys
 
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
@@ -13,11 +11,6 @@ from health_azure.utils import is_running_in_azure_ml
 from histopathology.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
 from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_ID
-
-
-current_file = Path(__file__)
-print(f"Running container from {current_file}")
-print(f"Sys path container level {sys.path}")
 
 
 class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
