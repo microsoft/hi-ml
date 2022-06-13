@@ -5,6 +5,8 @@ channels:
 dependencies:
   - pip=20.1.1
   - python=3.7.3
+  - cudatoolkit=11.1
+  - pytorch=1.9.0
   - pip:
     # This file should contain pinned versions of all packages in requirements_run.txt
     # and requirements_test.txt.
@@ -15,6 +17,7 @@ dependencies:
     - black==22.1.0
     - coverage==6.3.2
     - flake8==4.0.1
+    - lightning-bolts==0.3.4
     - mypy==0.931
     - pylint==2.12.2
     - pycobertura==2.0.1

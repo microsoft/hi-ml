@@ -3,11 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+from typing import Callable, Optional, Union
 
 import torch
 import torch.nn as nn
 
-from typing import Optional, Union, Callable
 
 class MLP(nn.Module):
     """

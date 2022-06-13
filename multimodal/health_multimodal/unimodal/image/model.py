@@ -3,11 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Tuple, Union
 
-import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -31,14 +29,12 @@ class ImageModel(nn.Module):
     def __init__(self,
                  img_model_type: str,
                  joint_feature_size: int,
-                 pretrained_encoder_path: Optional[str] = None,
                  freeze_encoder: bool = False,
                  **downstream_classifier_kwargs: Any):
         super().__init__()
 
         # Initiate encoder, projector, and classifier
-        self.encoder = ImageEncoder(img_model_type) \
-            if not pretrained_encoder_path else self.load_pretrained_image_encoder(pretrained_encoder_path, img_model_type)
+        self.encoder = ImageEncoder(img_model_type)
         self.feature_size = get_encoder_output_dim(self.encoder)
         self.projector = MLP(self.feature_size, output_dim=joint_feature_size, hidden_dim=joint_feature_size, use_1x1_convs=True)
         self.downstream_classifier_kwargs = downstream_classifier_kwargs
@@ -147,21 +143,20 @@ class ImageEncoder(nn.Module):
         self.encoder = new_encoder
 
 
-def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]) -> int:
+def get_encoder_output_dim(module: torch.nn.Module) -> int:
     """
     Calculates the output dimension of ssl encoder by making a single forward pass.
     :param pl_module: pl encoder module
     :param dm: pl datamodule
     """
     # Target device
-    device = pl_module.device if isinstance(pl_module, pl.LightningDataModule) else \
-        next(pl_module.parameters()).device  # type: ignore
+    device = next(pl_module.parameters()).device  # type: ignore
     assert (isinstance(device, torch.device))
 
     x = torch.rand((1, 3, 448, 448)).to(device)
 
     # Extract the number of output feature dimensions
     with torch.no_grad():
-        representations = pl_module(x)
+        representations = module(x)
 
     return representations.shape[1]
