@@ -248,7 +248,7 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
     :param tile_size: Lateral dimensions of each tile, in pixels.
     :param margin: Margin around the foreground bounding box, in pixels at lowest resolution.
     :param foreground_threshold: Luminance threshold (0 to 255) to determine tile occupancy.
-    If `None` (default), an optimal threshold will be estimated automatically.
+        If `None` (default), an optimal threshold will be estimated automatically.
     :param occupancy_threshold: Threshold (between 0 and 1) to determine empty tiles to discard.
     :param parallel: Whether slides should be processed in parallel with multiprocessing.
     :param overwrite: Whether to overwrite an existing output tiles dataset. If `True`, will delete
@@ -296,10 +296,10 @@ if __name__ == '__main__':
     # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD"),
          root_output_dir="/datadrive/TCGA-PRAD_tiles",
-         n_slides=5,
+         n_slides=None,
          level=3,
          tile_size=224,
-         margin=64,
+         margin=0,
          foreground_threshold=None,
          occupancy_threshold=0.05,
          parallel=False,
