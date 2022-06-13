@@ -260,8 +260,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         this param is passed to TileOnGridd monai transform for tiling on the fly.
         :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
         defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
-        This param is passed to monai transform for tiling on the fly.
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
         defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
@@ -278,7 +276,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.tile_size = tile_size
         self.step = step
         self.random_offset = random_offset
-        self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
         # Tiling transform expects None to select all foreground tile so we hardcode max_bag_size and
@@ -305,10 +302,9 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     sort_fn=self.filter_mode,
                     pad_mode="constant",
                     constant_values=self.background_val,
-                    overlap=self.overlap,
+                    overlap=self.overlap,  #type: ignore
                     threshold=self.intensity_threshold,
-                    max_offset = max_offset,
-                    pad_full = self.pad_full
+                    max_offset=max_offset,
                 )
         base_transform = Compose([load_image_transform, random_grid_transform])
 
