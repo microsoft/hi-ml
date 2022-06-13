@@ -9,7 +9,7 @@ from pytorch_lightning.utilities.warnings import rank_zero_warn
 import torch
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
-from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
+from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
 
 from health_ml.utils import log_on_epoch
 from histopathology.datasets.base_dataset import TilesDataset
@@ -144,6 +144,10 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
                                   MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted'),
                                   MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
+                                  # Quadratic Weighted Kappa (QWK) used in PANDA challenge
+                                  # is calculated using Cohen's Kappa with quadratic weights
+                                  # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
+                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes)})
         else:
             threshold = 0.5
