@@ -27,9 +27,9 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (get_workspace, is_local_rank_zero, merge_conda_files,  # noqa: E402
-                                set_environment_variables_for_multi_node, create_argparser, parse_arguments,
-                                ParserResult, apply_overrides)
+from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
+                                merge_conda_files, set_environment_variables_for_multi_node,
+                                create_argparser, parse_arguments, ParserResult, apply_overrides)
 
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
@@ -244,7 +244,7 @@ class Runner:
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         temp_conda_file: Optional[Path] = None
         try:
-            if self.experiment_config.cluster:
+            if self.experiment_config.cluster and not is_running_in_azure_ml():
                 env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
                 logging.info(f"Using this Conda environment definition: {env_file}")
                 check_conda_environment(env_file)
