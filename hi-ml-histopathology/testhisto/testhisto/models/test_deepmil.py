@@ -126,8 +126,7 @@ def _test_lightningmodule(
             continue
         score = metric_object(probs, bag_labels.view(batch_size,))
         if metric_name == MetricsKey.COHENKAPPA:
-            # A NaN value could be a result of a division-by-zero error
-            # https://stats.stackexchange.com/questions/157832/cohens-kappa-using-irr-and-kappa2-outputs-nan
+            # A NaN value could result due to a division-by-zero error
             assert torch.all(score[~score.isnan()] >= -1)
             assert torch.all(score[~score.isnan()] <= 1)
         else:
