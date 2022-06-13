@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
 
@@ -6,6 +5,8 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
 from torch import Tensor as T
 
 from .modules import ClassifierHeadType, MLP, MTModel
@@ -93,48 +94,6 @@ class ImageModel(nn.Module):
         return projected_embeddings
 
 
-class TemporalImageModel(ImageModel):
-    def __init__(self,
-                 img_model_type: str,
-                 joint_feature_size: int,
-                 pretrained_encoder_path: str,
-                 freeze_encoder: bool,
-                 **downstream_classifier_kwargs: Any) -> None:
-        """
-        Because this is an ImageModel, we will already have initialised:
-            encoder, feature size, classifier, projector
-        But we need to explicitly override some of these as our feature size is doubled.
-        """
-        super().__init__(img_model_type=img_model_type,
-                         joint_feature_size=joint_feature_size,
-                         pretrained_encoder_path=pretrained_encoder_path,
-                         freeze_encoder=freeze_encoder)
-
-        # We are concatenating the embeddings of two images so our classifier needs to handle these
-        # In future we may have other classifiers and ways of combining.
-        self.feature_size = 2 * get_encoder_output_dim(self.encoder)
-        self.downstream_classifier_kwargs = downstream_classifier_kwargs
-        self.classifier = self.create_downstream_classifier() if downstream_classifier_kwargs else None
-
-    def forward(self, x: torch.Tensor, previous_img: torch.Tensor = None, *args, **kwargs) -> torch.Tensor:     # type: ignore
-        """
-        x is actually the current image, but to match (as much as we can) the signature of the parent
-        class, we will call it x.
-
-        Note that if we give a return type here mypy will be unhappy. It expects ImageModelOutput.
-        """
-        assert previous_img is not None
-        current_img_embedding = self.encoder(x, return_patch_embeddings=False)
-        previous_img_embedding = self.encoder(previous_img, return_patch_embeddings=False)
-
-        # Get embeddings from these outputs and combine
-        logits = self.classifier(torch.cat([current_img_embedding,
-                                            previous_img_embedding], dim=1))
-        return logits
-
-    def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
-        raise NotImplementedError()
-
 class ImageEncoder(nn.Module):
     def __init__(self, img_model_type: str):
         super().__init__()
@@ -143,10 +102,8 @@ class ImageEncoder(nn.Module):
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
         if self.img_model_type == 'resnet18':
-            from pl_bolts.models.self_supervised.resnets import resnet18
             encoder = resnet18(return_all_feature_maps=True, pretrained=True, **kwargs)
         elif self.img_model_type == 'resnet50':
-            from pl_bolts.models.self_supervised.resnets import resnet50
             encoder = resnet50(return_all_feature_maps=True, pretrained=True, **kwargs)
         else:
             raise NotImplementedError
