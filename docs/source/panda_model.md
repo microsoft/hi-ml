@@ -57,7 +57,7 @@ addition, you can turn on fine-tuning of the encoder, which will improve the res
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --is_finetune --additional_env_files environment.yml --cluster=<your_cluster_name>
+python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --is_finetune --cluster=<your_cluster_name>
 ```
 
 After a few seconds, this may bring up a browser to authenticate you in Azure, and let you access the AzureML
@@ -105,7 +105,7 @@ This will mean that the job starts faster, but may not run at maximum speed beca
 To use cross-validation, supply the additional commandline flag `--crossval_count=5` for 5-fold cross-validation, like:
 
 ```shell
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --additional_env_files environment.yml --crossval_count=5 --cluster=<your_cluster_name>
+python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --crossval_count=5 --cluster=<your_cluster_name>
 ```
 
 Cross-validation will start 5 training runs in parallel. For this reason, cross-validation can only be used in AzureML.

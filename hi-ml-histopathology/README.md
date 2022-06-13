@@ -40,7 +40,7 @@ the compute cluster (`training-nd24` in the above example).
 ### Conda environment
 
 If you start your jobs in the `hi-ml-histopathology` folder, they will automatically pick up the Conda environment file that is present in that folder.
-If you start your jobs in a different folder, you need to add the `--additional_env_files` option to point to the file `<repo_root>/hi-ml-histopathology/environment.yml`.
+If you start your jobs in a different folder, you need to add the `--conda_env` option to point to the file `<repo_root>/hi-ml-histopathology/environment.yml`.
 
 ## Running histopathology tests
 
