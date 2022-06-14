@@ -128,7 +128,7 @@ class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
 
     def __init__(self, n_epochs: int, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["encoder", "pooling_layer"])
         self.n_epochs = n_epochs
 
     def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
