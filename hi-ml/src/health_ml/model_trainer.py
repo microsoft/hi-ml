@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
-from pytorch_lightning import Callback, Trainer, seed_everything
+from pytorch_lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
@@ -169,6 +169,15 @@ def create_lightning_trainer(container: LightningContainer,
     return trainer, storing_logger
 
 
+def model_validate(trainer: Trainer,
+                   lightning_model: LightningModule,
+                   data_module: LightningDataModule) -> None:
+    with logging_section("Addition model validation epoch"):
+        # Switch on additional_val_epoch flag to save extra outputs on validation set
+        lightning_model.additional_val_epoch = True
+        _ = trainer.validate(lightning_model, datamodule=data_module)
+
+
 def model_train(checkpoint_path: Optional[Path],
                 container: LightningContainer,
                 num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
@@ -233,10 +242,7 @@ def model_train(checkpoint_path: Optional[Path],
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
         if container.additional_val_epoch:
-            with logging_section("Addition model validation epoch"):
-                # Switch on additional_val_epoch flag to save extra outputs on validation set
-                lightning_model.additional_val_epoch = True
-                _ = trainer.validate(lightning_model, datamodule=data_module)
+            model_validate(trainer, lightning_model, data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 
