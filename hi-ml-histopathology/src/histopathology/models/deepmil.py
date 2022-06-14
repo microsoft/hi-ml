@@ -337,8 +337,8 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return labels
 
     @staticmethod
-    def get_empty_lists(shape: int) -> List:
-        return [None] * shape
+    def get_empty_lists(shape: int, n: int) -> List:
+        return [[None] * shape] * n
 
     @staticmethod
     def get_patch_coordinate(slide_offset: List, patch_location: List, patch_size: List) -> Tuple[int, int, int, int]:
@@ -351,21 +351,21 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return top, bottom, left, right
 
     @staticmethod
-    def expand_slide_constant_metadata(id, path, n_patches):
+    def expand_slide_constant_metadata(id: str, path: str, n_patches: int) -> Tuple[List, List, List]:
         """Duplicate metadata that is patch invariant to match the shape of other arrays"""
-        slide_id = id * n_patches
-        image_paths = path * n_patches
+        slide_id = [id] * n_patches
+        image_paths = [path] * n_patches
         tile_id = [f"{id}_{tile_id}" for tile_id in range(n_patches)]
         return slide_id, image_paths, tile_id
 
     def get_slide_patch_coordinates(
         self, slide_offset: List, patches_location: List, patch_size: List
-    ) -> List[List, List, List, List]:
+    ) -> Tuple[List, List, List, List]:
         """ computing absolute coordinates for all patches in a slide"""
-        top, bottom, left, right = self.get_empty_lists(len(patches_location))
+        top, bottom, left, right = self.get_empty_lists(len(patches_location), 4)
         for i, location in enumerate(patches_location):
             top[i], bottom[i], left[i], right[i] = self.get_patch_coordinate(slide_offset, location, patch_size)
-        return top, bottom, left, right
+        return (top, bottom, left, right)
 
     def compute_slide_metadata(self, batch: Dict, index: int, metadata_dict: Dict) -> Dict:
         """compute patch-dependent and patch-invariante metadata for a single slide """
@@ -389,7 +389,6 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return metadata_dict
 
     def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
-        import pdb; pdb.set_trace()
         if all(key in batch.keys() for key in [SlideKey.OFFSET, SlideKey.PATCH_LOCATION, SlideKey.PATCH_SIZE]):
             n_slides = len(batch[SlideKey.PATCH_LOCATION])
             metadata_dict = {

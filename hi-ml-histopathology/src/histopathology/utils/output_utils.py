@@ -68,6 +68,8 @@ def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
                 value = value.squeeze(0).cpu().numpy()
                 if value.ndim == 0:
                     value = np.full(bag_size, fill_value=value)
+            if isinstance(value, List) and isinstance(value[0], torch.Tensor):
+                value = [value[i].item() for i in range(len(value))]
             dict_new[key] = value
         elif key == ResultsKey.CLASS_PROBS:
             if isinstance(value, torch.Tensor):
