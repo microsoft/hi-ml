@@ -382,6 +382,7 @@ class DeepMILOutputsHandler:
         if save_plots:
             logging.info(f"save_plots {save_plots}")
             self.tiles_handler.gather_selected_tiles_across_devices()
+            logging.info("tiles gathered across GPUs")
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
@@ -390,7 +391,7 @@ class DeepMILOutputsHandler:
             if self.validation_outputs_dir.exists():
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
-
+            logging.info("_save_outputs call")
             self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, save_plots)
 
             # Writing completed successfully; delete temporary back-up
