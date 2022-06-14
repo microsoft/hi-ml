@@ -26,6 +26,10 @@ class ImageModelOutput():
 
 
 class ImageModel(nn.Module):
+    """
+    Image encoder module
+    """
+
     def __init__(self,
                  img_model_type: str,
                  joint_feature_size: int,

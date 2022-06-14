@@ -1,6 +1,7 @@
 name: multimodal
 channels:
   - defaults
+  - conda-forge
   - pytorch
 dependencies:
   - pip=20.1.1
@@ -17,11 +18,17 @@ dependencies:
     - black==22.1.0
     - coverage==6.3.2
     - flake8==4.0.1
+    - huggingface-hub==0.6.0
     - lightning-bolts==0.3.4
     - mypy==0.931
+    - pillow==9.0.0
     - pylint==2.12.2
     - pycobertura==2.0.1
+    - pydicom==2.2.2
     - pytest==6.2.2
     - pytest-cov==2.11.1
     - pytest-rerunfailures==10.2
     - pytest-timeout==2.0.1
+    - scikit-image==0.18.1
+    - SimpleITK==2.1.1
+    - transformers==4.17.0

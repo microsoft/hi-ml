@@ -1,0 +1,41 @@
+import logging
+from typing import Any, List, Union
+
+from transformers import BertTokenizer
+
+class TextInput:
+    """
+    Text input class that can be used for inference and deployment.
+    Implements tokenizer related operations and ensure that input strings
+    conform with the standards expected from a BERT model.
+
+    :param tokenizer: A BertTokenizer object.
+    """
+
+    def __init__(self, tokenizer: BertTokenizer) -> None:
+        self.tokenizer = tokenizer
+
+    def tokenize_input_prompts(self, prompts: Union[str, List[str]], verbose: bool) -> Any:
+        prompts = [prompts] if isinstance(prompts, str) else prompts
+        self.assert_special_tokens_not_present(" ".join(prompts))
+
+        prompts = [prompt.rstrip("!?.") for prompt in prompts]  # removes punctuation from end of prompt
+        tokenizer_output = self.tokenizer.batch_encode_plus(batch_text_or_text_pairs=prompts,
+                                                            add_special_tokens=True,
+                                                            padding='longest',
+                                                            return_tensors='pt')
+        if verbose:
+            for prompt in tokenizer_output.input_ids:
+                input_tokens = self.tokenizer.convert_ids_to_tokens(prompt.tolist())
+                logging.info(f"Input tokens: {input_tokens}")
+
+        return tokenizer_output
+
+    def assert_special_tokens_not_present(self, prompt: str) -> None:
+        """
+        Check if the input prompts contain special tokens.
+        """
+        if self.tokenizer.cls_token in prompt or \
+           self.tokenizer.pad_token in prompt or \
+           self.tokenizer.sep_token in prompt:
+            raise ValueError("The input should not contain any special tokens such as [CLS], [SEP], [PAD]")
