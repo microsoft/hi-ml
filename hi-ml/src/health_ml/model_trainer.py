@@ -231,6 +231,11 @@ def model_train(checkpoint_path: Optional[Path],
     # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
+        if container.additional_val_epoch:
+            logging.info("Addition model validation epoch")
+            # Switch on additional_val_epoch flag to save extra outputs on validation set
+            container.model.additional_val_epoch = True
+            _ = trainer.validate(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 

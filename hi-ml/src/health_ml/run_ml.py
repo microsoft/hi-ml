@@ -153,8 +153,8 @@ class MLRunner:
         checkpoint_path_for_testing = self.checkpoint_handler.get_checkpoint_to_test()
         self.container.load_model_checkpoint(checkpoint_path=checkpoint_path_for_testing)
 
-        with logging_section("Addition model validation epoch"):
-            self.run_additional_val_epoch()
+        # with logging_section("Addition model validation epoch"):
+        #     self.run_additional_val_epoch()
 
         with logging_section("Model inference"):
             self.run_inference()
