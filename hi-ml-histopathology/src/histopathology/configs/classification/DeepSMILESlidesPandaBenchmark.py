@@ -88,6 +88,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             tile_size=self.tile_size,
             step=self.step,
             random_offset=self.random_offset,
+            seed=self.get_effective_random_seed(),
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
