@@ -125,8 +125,13 @@ def _test_lightningmodule(
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
         score = metric_object(probs, bag_labels.view(batch_size,))
-        assert torch.all(score >= 0)
-        assert torch.all(score <= 1)
+        if metric_name == MetricsKey.COHENKAPPA:
+            # A NaN value could result due to a division-by-zero error
+            assert torch.all(score[~score.isnan()] >= -1)
+            assert torch.all(score[~score.isnan()] <= 1)
+        else:
+            assert torch.all(score >= 0)
+            assert torch.all(score <= 1)
 
 
 @pytest.fixture(scope="session")
