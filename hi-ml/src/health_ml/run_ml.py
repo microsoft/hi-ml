@@ -151,13 +151,9 @@ class MLRunner:
         # checkpoints correctly.
         self.checkpoint_handler.additional_training_done()
         checkpoint_path_for_testing = self.checkpoint_handler.get_checkpoint_to_test()
-        self.container.load_model_checkpoint(checkpoint_path=checkpoint_path_for_testing)
-
-        # with logging_section("Addition model validation epoch"):
-        #     self.run_additional_val_epoch()
 
         with logging_section("Model inference"):
-            self.run_inference()
+            self.run_inference(checkpoint_path_for_testing)
 
         if self.container.regression_test_folder:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
@@ -200,15 +196,7 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def run_additional_val_epoch(self) -> None:
-        if self.container.additional_val_epoch:
-            trainer, _ = create_lightning_trainer(self.container)
-            # Switch on additional_val_epoch flag to save extra outputs on validation set
-            self.container.model.additional_val_epoch = True
-            with change_working_directory(self.container.outputs_folder):
-                _ = trainer.validate(self.container.model, datamodule=self.container.get_data_module())
-
-    def run_inference(self) -> None:
+    def run_inference(self, checkpoint_path: Path) -> None:
         """
         Run inference on the test set for all models.
 
@@ -232,11 +220,14 @@ class MLRunner:
 
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
 
+            self.container.load_model_checkpoint(checkpoint_path=checkpoint_path)
+            data_module = self.container.get_data_module()
+
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
             # retained)
             with change_working_directory(self.container.outputs_folder):
-                _ = trainer.test(self.container.model, datamodule=self.container.get_data_module())
+                _ = trainer.test(self.container.model, datamodule=data_module)
 
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")

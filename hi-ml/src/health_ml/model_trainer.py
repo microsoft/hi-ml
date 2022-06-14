@@ -22,6 +22,7 @@ from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
                                           change_working_directory)
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_azure.logging import logging_section
 
 T = TypeVar('T')
 
@@ -232,10 +233,10 @@ def model_train(checkpoint_path: Optional[Path],
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
         if container.additional_val_epoch:
-            logging.info("Addition model validation epoch")
-            # Switch on additional_val_epoch flag to save extra outputs on validation set
-            container.model.additional_val_epoch = True
-            _ = trainer.validate(lightning_model, datamodule=data_module)
+            with logging_section("Addition model validation epoch"):
+                # Switch on additional_val_epoch flag to save extra outputs on validation set
+                lightning_model.additional_val_epoch = True
+                _ = trainer.validate(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 
