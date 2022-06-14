@@ -380,6 +380,7 @@ class DeepMILOutputsHandler:
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
         if save_plots:
+            logging.info(f"save_plots {self.additional_val_epoch}")
             self.tiles_handler.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs

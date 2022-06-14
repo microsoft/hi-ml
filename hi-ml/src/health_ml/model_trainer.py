@@ -242,6 +242,8 @@ def model_train(checkpoint_path: Optional[Path],
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
         if container.additional_val_epoch:
+            trainer, storing_logger = create_lightning_trainer(container, checkpoint_path, num_nodes=num_nodes,
+                                                               multiple_trainloader_mode=multiple_trainloader_mode)
             model_validate(trainer, lightning_model, data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
