@@ -40,7 +40,8 @@ class ImageModel(nn.Module):
         # Initiate encoder, projector, and classifier
         self.encoder = ImageEncoder(img_model_type)
         self.feature_size = get_encoder_output_dim(self.encoder)
-        self.projector = MLP(self.feature_size, output_dim=joint_feature_size, hidden_dim=joint_feature_size, use_1x1_convs=True)
+        self.projector = MLP(self.feature_size, output_dim=joint_feature_size,
+                             hidden_dim=joint_feature_size, use_1x1_convs=True)
         self.downstream_classifier_kwargs = downstream_classifier_kwargs
         self.classifier = self.create_downstream_classifier() if downstream_classifier_kwargs else None
 

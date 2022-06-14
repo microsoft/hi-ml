@@ -8,6 +8,7 @@ from typing import Any, List, Union
 
 from transformers import BertTokenizer
 
+
 class TextInput:
     """
     Text input class that can be used for inference and deployment.

@@ -24,8 +24,10 @@ class MLP(nn.Module):
         super().__init__()
 
         if use_1x1_convs:
-            linear_projection_1_args = {'in_channels': input_dim, 'out_channels': hidden_dim, 'kernel_size': 1, 'bias': False}
-            linear_projection_2_args = {'in_channels': hidden_dim, 'out_channels': output_dim, 'kernel_size': 1, 'bias': True}
+            linear_projection_1_args = {'in_channels': input_dim,
+                                        'out_channels': hidden_dim, 'kernel_size': 1, 'bias': False}
+            linear_projection_2_args = {'in_channels': hidden_dim,
+                                        'out_channels': output_dim, 'kernel_size': 1, 'bias': True}
             normalisation_layer: Callable = nn.BatchNorm2d
             projection_layer: Callable = nn.Conv2d
         else:
