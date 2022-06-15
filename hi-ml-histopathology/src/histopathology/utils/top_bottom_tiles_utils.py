@@ -133,6 +133,10 @@ class TopBottomTilesHandler:
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
 
+        assert (num_top_slides >= 0 and num_top_tiles > 0) or (num_top_slides == 0), "You should use `num_top_tiles>0` "
+        "to be able to select top bottom tiles for `num_top_slides>0`. You can set `num_top_slides=0` to disable top "
+        "bottom tiles plotting"
+
     def init_report_cases(self) -> Dict[str, List[str]]:
         """ Initializes the report cases dictionary to store slide_ids per case.
         Possible cases are set such as class 0 is considered to be the negative class.
@@ -182,25 +186,26 @@ class TopBottomTilesHandler:
             additional metadata.
         :param results: Batch results that contain attention scores, probability scores and the true labels.
         """
-        slide_ids = batch[SlideKey.SLIDE_ID]
-        if isinstance(slide_ids[0], list):
-            slide_ids = [slide_id[0] for slide_id in slide_ids]  # to account for repetitions in tiles pipeline
-        batch_size = len(batch[SlideKey.IMAGE])
-        for i in range(batch_size):
-            label = results[ResultsKey.TRUE_LABEL][i].item()
-            probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-            self._update_label_slides(
-                class_slides_heap=self.top_slides_heaps[label],
-                tiles=batch[SlideKey.IMAGE][i],
-                attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
-            )
-            self._update_label_slides(
-                class_slides_heap=self.bottom_slides_heaps[label],
-                tiles=batch[SlideKey.IMAGE][i],
-                attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
-            )
+        if self.num_top_slides > 0:
+            slide_ids = batch[SlideKey.SLIDE_ID]
+            if isinstance(slide_ids[0], list):
+                slide_ids = [slide_id[0] for slide_id in slide_ids]  # to account for repetitions in tiles pipeline
+            batch_size = len(batch[SlideKey.IMAGE])
+            for i in range(batch_size):
+                label = results[ResultsKey.TRUE_LABEL][i].item()
+                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
+                self._update_label_slides(
+                    class_slides_heap=self.top_slides_heaps[label],
+                    tiles=batch[SlideKey.IMAGE][i],
+                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
+                )
+                self._update_label_slides(
+                    class_slides_heap=self.bottom_slides_heaps[label],
+                    tiles=batch[SlideKey.IMAGE][i],
+                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                    slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
+                )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
         """Returns a shallow copy of slides heaps to be synchronised across devices.
@@ -301,7 +306,7 @@ class TopBottomTilesHandler:
             4- gather these tiles across devices
             5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
         """
-        if torch.distributed.is_initialized():
+        if torch.distributed.is_initialized() and self.num_top_slides > 0:
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
 
@@ -364,12 +369,15 @@ class TopBottomTilesHandler:
 
         :param figures_dir: The path to the directory where to save the attention tiles figure.
         """
-        logging.info(f"Plotting {self.num_top_tiles} top and bottom tiles of {self.num_top_slides} top and slides...")
-        for class_id in range(self.n_classes):
-            for slide_node in self.top_slides_heaps[class_id]:
-                case = "TN" if class_id == 0 else f"TP_{class_id}"
-                self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
+        if self.num_top_slides > 0:
+            logging.info(
+                f"Plotting {self.num_top_tiles} top and bottom tiles of {self.num_top_slides} top and slides..."
+            )
+            for class_id in range(self.n_classes):
+                for slide_node in self.top_slides_heaps[class_id]:
+                    case = "TN" if class_id == 0 else f"TP_{class_id}"
+                    self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
 
-            for slide_node in self.bottom_slides_heaps[class_id]:
-                case = "FP" if class_id == 0 else f"FN_{class_id}"
-                self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
+                for slide_node in self.bottom_slides_heaps[class_id]:
+                    case = "FP" if class_id == 0 else f"FN_{class_id}"
+                    self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)

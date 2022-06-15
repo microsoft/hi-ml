@@ -7,6 +7,7 @@ import torch
 import pytest
 import numpy as np
 import matplotlib.pyplot as plt
+from unittest.mock import patch
 
 from pathlib import Path
 from typing import Dict, List, Any
@@ -61,7 +62,7 @@ def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Dict:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
     return batch
 
 
@@ -330,3 +331,55 @@ def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFo
     bottom_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.bottom_tiles, case="FN")
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
     assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)
+
+
+@pytest.mark.parametrize("num_top_slides, num_top_tiles", [(0, 0), (0, 1), (2, 0)])
+def test_disable_top_bottom_tiles_handler(num_top_slides: int, num_top_tiles: int) -> None:
+    try:
+        _ = TopBottomTilesHandler(n_classes=2, num_top_slides=num_top_slides, num_top_tiles=num_top_tiles)
+    except Exception as err:
+        assert num_top_slides > 0 and num_top_tiles == 0
+        assert isinstance(err, AssertionError)
+
+
+def test_tiles_are_selected_only_with_non_zero_num_top_slides(
+    rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
+    n_tiles = 3
+    batch_size = 1
+    n_batches = 2
+    total_batches = n_batches * world_size
+    num_top_tiles = 2
+    num_top_slides = 0
+    n_classes = 2
+
+    torch.manual_seed(42)
+    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(
+        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
+    )
+
+    handler = TopBottomTilesHandler(n_classes, num_top_slides=num_top_slides, num_top_tiles=num_top_tiles)
+
+    with patch.object(handler, "_update_label_slides") as mock_update_label_slides:
+        for i in range(rank * n_batches, (rank + 1) * n_batches):
+            batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)
+            batch_results = _batch_data(results, batch_idx=i, batch_size=batch_size)
+            handler.update_slides_selection(batch_data, batch_results)
+    mock_update_label_slides.assert_not_called()
+
+    for class_id in range(n_classes):
+        assert len(handler.top_slides_heaps[class_id]) == 0
+
+    with patch.object(handler, "_shallow_copy_slides_heaps") as mock_shallow_copy_slides_heaps:
+        handler.gather_selected_tiles_across_devices()
+    mock_shallow_copy_slides_heaps.assert_not_called()
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_tiles_are_selected_only_with_non_zero_num_top_slides_distributed() -> None:
+    """These tests need to be called sequentially to prevent them to be run in parallel"""
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, world_size=1)
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, world_size=2)
