@@ -137,7 +137,7 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     slide = 1
     tile_size = 224
     level = 0
-    fig = plot_heatmap_overlay(slide=slide,  # type: ignore
+    fig = plot_heatmap_overlay(slide_node=slide,  # type: ignore
                                slide_image=slide_image,
                                results=test_dict,  # type: ignore
                                location_bbox=location_bbox,

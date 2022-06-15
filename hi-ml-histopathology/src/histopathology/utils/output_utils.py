@@ -164,7 +164,7 @@ def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_s
     fig = plot_slide(slide_image=slide_image, scale=1.0)
     save_figure(fig=fig, figpath=key_dir / f'{slide_id}_thumbnail.png')
 
-    fig = plot_heatmap_overlay(slide=slide_id, slide_image=slide_image, results=results,
+    fig = plot_heatmap_overlay(slide_node=slide_id, slide_image=slide_image, results=results,
                                location_bbox=location_bbox, tile_size=tile_size, level=level)
     save_figure(fig=fig, figpath=key_dir / f'{slide_id}_heatmap.png')
 

@@ -4,20 +4,23 @@
 #  ------------------------------------------------------------------------------------------
 
 import sys
-from pathlib import Path
-from typing import Sequence, List, Any, Dict, Union
-
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.collections as collection
 
+from math import ceil
+from pathlib import Path
+from typing import Sequence, List, Any, Dict, Union, Tuple
+
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
+from histopathology.utils.tiles_selection_utils import SlideNode
 
 
-def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
-                     gt_col: str = ResultsKey.TRUE_LABEL) -> plt.Figure:
+def plot_scores_hist(
+    results: Dict, prob_col: str = ResultsKey.CLASS_PROBS, gt_col: str = ResultsKey.TRUE_LABEL
+) -> plt.Figure:
     """
     :param results: List that contains slide_level dicts
     :param prob_col: column name that contains the scores
@@ -36,6 +39,39 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROBS,
     return fig
 
 
+def plot_attention_tiles(
+    slide_node: SlideNode, top: bool, case: str, num_columns: int, figsize: Tuple[int, int]
+) -> plt.Figure:
+    """Plot top or bottom tiles figures along with their attention scores.
+
+    :param slide_node: The slide node for which we would like to plot attention tiles.
+    :param top: Decides which tiles to plot. If True, plots top tile nodes of the slide_node. Otherwise, plots bottom
+        tile nodes.
+    :param case: The report case (e.g., TP, FN, ...)
+    :param num_columns: Number of columns to create the subfigures grid, defaults to 4
+    :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
+    """
+    tile_nodes = slide_node.top_tiles if top else slide_node.bottom_tiles
+    num_rows = int(ceil(len(tile_nodes) / num_columns))
+    assert (
+        num_rows > 0
+    ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a "
+    "higher number of batches."
+
+    fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
+    fig.suptitle(
+        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n True label: {slide_node.true_label}"
+    )
+
+    for ax, tile_node in zip(axs.flat, tile_nodes):
+        ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+        ax.set_title("%.6f" % tile_node.attn)
+
+    for ax in axs.flat:
+        ax.set_axis_off()
+    return fig
+
+
 def plot_slide(slide_image: np.ndarray, scale: float) -> plt.Figure:
     """Plots a slide thumbnail from a given slide image and scale.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
@@ -50,14 +86,16 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.Figure:
     return fig
 
 
-def plot_heatmap_overlay(slide: str,
-                         slide_image: np.ndarray,
-                         results: Dict[ResultsKey, List[Any]],
-                         location_bbox: List[int],
-                         tile_size: int = 224,
-                         level: int = 1) -> plt.Figure:
+def plot_heatmap_overlay(
+    slide_node: SlideNode,
+    slide_image: np.ndarray,
+    results: Dict[ResultsKey, List[Any]],
+    location_bbox: List[int],
+    tile_size: int = 224,
+    level: int = 1,
+) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
-    :param slide: slide identifier.
+    :param slide_node: The slide node that encapsulates the slide metadata.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
@@ -74,25 +112,31 @@ def plot_heatmap_overlay(slide: str,
 
     coords_list = []
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
-    slide_idx = slide_ids.index(slide)
+    slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
 
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
-        tile_coords = np.transpose(np.array([results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
-                                             results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
+        tile_coords = np.transpose(
+            np.array(
+                [
+                    results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
+                    results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy(),
+                ]
+            )
+        )
         coords_list.append(tile_coords)
 
     coords = np.array(coords_list)
     attentions = np.array(attentions.cpu()).reshape(-1)
 
     sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
-    cmap = plt.cm.get_cmap('Reds')
+    cmap = plt.cm.get_cmap("Reds")
 
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor='black')
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, edgecolor="black")
     pc.set_array(np.array(attentions))
     pc.set_clim([0, 1])
     ax.add_collection(pc)
@@ -108,9 +152,9 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str])
     import seaborn as sns
 
     fig, ax = plt.subplots()
-    ax = sns.heatmap(cm, annot=True, cmap='Blues', fmt=".2%")
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('True')
+    ax = sns.heatmap(cm, annot=True, cmap="Blues", fmt=".2%")
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
     ax.xaxis.set_ticklabels(class_names)
     ax.yaxis.set_ticklabels(class_names)
     return fig
@@ -128,4 +172,4 @@ def resize_and_save(width_inch: int, height_inch: int, filename: Union[Path, str
     fig.set_size_inches(width_inch, height_inch)
     # Workaround for Exception in Tkinter callback
     fig.canvas.start_event_loop(sys.float_info.min)
-    plt.savefig(filename, dpi=dpi, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig(filename, dpi=dpi, bbox_inches="tight", pad_inches=0.1)

@@ -13,9 +13,9 @@ from typing import List, Sequence, Tuple
 from prometheus_client import Metric
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 
-
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.metrics_utils import (
+    plot_attention_tiles,
     plot_heatmap_overlay,
     plot_normalized_confusion_matrix,
     plot_scores_hist,
@@ -48,57 +48,47 @@ def save_confusion_matrix(
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
 
-def plot_attention_tiles(
-    slide_node: SlideNode, top: bool, case: str, num_columns: int, figsize: Tuple[int, int]
-) -> plt.Figure:
-    """Plot top or bottom tiles figures with their attention scores.
+def save_top_and_bottom_tiles(slide_node: SlideNode, case: str, figures_dir: Path) -> None:
+    """Plots and saves the top and bottom attention tiles of a given slide_node
 
-    :param slide_node: The slide node for which we would like to plot attention tiles.
-    :param top: Decide which tiles to plot. If True, plots top tile nodes of the slide_node. Otherwise, plots bottom
-        tile nodes.
+    :param slide_node: the slide_node for which we plot top and bottom tiles.
     :param case: The report case (e.g., TP, FN, ...)
+    :param figures_dir: The path to the directory where to save the attention tiles figure.
     """
-    tile_nodes = slide_node.top_tiles if top else slide_node.bottom_tiles
-    num_rows = int(ceil(len(tile_nodes) / num_columns))
-    assert (
-        num_rows > 0
-    ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a "
-    "higher number of batches."
+    top_tiles_fig = plot_attention_tiles(top=True, slide_node=slide_node, case=case)
+    save_figure(fig=top_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_top.png")
 
-    fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
-    fig.suptitle(f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f}")
-
-    for ax, tile_node in zip(axs.flat, tile_nodes):
-        ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-        ax.set_title("%.6f" % tile_node.attn)
-
-    for ax in axs.flat:
-        ax.set_axis_off()
-    return fig
+    bottom_tiles_fig = plot_attention_tiles(top=False, slide_node=slide_node, case=case)
+    save_figure(fig=bottom_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_bottom.png")
 
 
 def save_slide_thumbnail_and_heatmap(
-    results: ResultsType, slide_id: str, tile_size: int, level: int, slides_dataset: SlidesDataset, figures_dir: Path
+    results: ResultsType,
+    slide_node: SlideNode,
+    tile_size: int,
+    level: int,
+    slides_dataset: SlidesDataset,
+    figures_dir: Path,
 ) -> None:
-    slide_index = slides_dataset.dataset_df.index.get_loc(slide_id)
-    assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_id}"
+    slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
+    assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
     slide_dict = slides_dataset[slide_index]
     slide_dict = load_image_dict(slide_dict, level=level, margin=0)
     slide_image = slide_dict[SlideKey.IMAGE]
     location_bbox = slide_dict[SlideKey.LOCATION]
 
     fig = plot_slide(slide_image=slide_image, scale=1.0)
-    save_figure(fig=fig, figpath=figures_dir / f"{slide_id}_thumbnail.png")
+    save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_thumbnail.png")
 
     fig = plot_heatmap_overlay(
-        slide=slide_id,
+        slide_node=slide_node.slide_id,
         slide_image=slide_image,
         results=results,
         location_bbox=location_bbox,
         tile_size=tile_size,
         level=level,
     )
-    save_figure(fig=fig, figpath=figures_dir / f"{slide_id}_heatmap.png")
+    save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_heatmap.png")
 
 
 PLOTS_PRINT_STATEMENTS = {
@@ -137,19 +127,6 @@ class DeepMILPlotsHandler:
         case_dir.mkdir(parents=True, exist_ok=True)
         return case_dir
 
-    def save_top_and_bottom_tiles(self, slide_node: SlideNode, case: str, figures_dir: Path) -> None:
-        """Plots and saves the top and bottom attention tiles of a given slide_node
-
-        :param slide_node: the slide_node for which we plot top and bottom tiles.
-        :param case: The report case (e.g., TP, FN, ...)
-        :param figures_dir: The path to the directory where to save the attention tiles figure.
-        """
-        top_tiles_fig = self._plot_attention_tiles(top=True, slide_node=slide_node, case=case)
-        save_figure(fig=top_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_top.png")
-
-        bottom_tiles_fig = self._plot_attention_tiles(top=False, slide_node=slide_node, case=case)
-        save_figure(fig=bottom_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_bottom.png")
-
     def plot(
         self,
         figures_dir: Path,
@@ -173,7 +150,7 @@ class DeepMILPlotsHandler:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
                 case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
                 if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
-                    self.save_top_and_bottom_tiles(slide_node, case, case_dir)
+                    save_top_and_bottom_tiles(slide_node, case, case_dir)
                 if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
                     save_slide_thumbnail_and_heatmap(
                         results,
