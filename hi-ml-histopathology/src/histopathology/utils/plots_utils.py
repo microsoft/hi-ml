@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from math import ceil
 from pathlib import Path
-from typing import Callable, List, Sequence, Tuple, Dict, Any
+from typing import List, Sequence, Tuple
 from prometheus_client import Metric
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 
@@ -158,7 +158,7 @@ class DeepMILPlotsHandler:
         slides_dataset: SlidesDataset,
         class_names: Tuple[str, ...],
         metrics_dict: Mapping[MetricsKey, Metric],
-    ) -> Any:
+    ) -> None:
 
         if PlotOptionsKey.HISTOGRAM in self.plot_options:
             save_scores_histogram(results, figures_dir)
