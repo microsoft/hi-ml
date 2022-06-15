@@ -24,7 +24,7 @@ from histopathology.utils.metrics_utils import (
 
 from histopathology.utils.naming import ModelKey, PlotOptionsKey, SlideKey, MetricsKey
 from histopathology.utils.output_utils import ResultsType
-from histopathology.utils.top_bottom_tiles_utils import SlideNode, TilesSelector
+from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
 
