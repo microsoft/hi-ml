@@ -50,20 +50,23 @@ class MLP(nn.Module):
             self.model = nn.Linear(input_dim, output_dim)  # type: ignore
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """forward pass of the multi-layer perceptron"""
         x = self.model(x)
         return x
 
 
 class MTModel(nn.Module):
+    """
+    Multi-task classification heads
+    :param input_dim: Input feature dim
+    :param classifier_hidden_dim: If MLP is used, hidden feature dim
+    :param num_classes: Number of output classes per task
+    :param num_tasks: Number of classification tasks or heads required
+    """
+
     def __init__(self, input_dim: int, classifier_hidden_dim: Optional[int], num_classes: int, num_tasks: int):
-        """
-        Multi-task classification heads
-        :param input_dim: Input feature dim
-        :param classifier_hidden_dim: If MLP is used, hidden feature dim
-        :param num_classes: Number of output classes per task
-        :param num_tasks: Number of classification tasks or heads required
-        """
-        super(MTModel, self).__init__()
+
+        super().__init__()
 
         self.num_classes = num_classes
         self.num_tasks = num_tasks

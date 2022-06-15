@@ -29,6 +29,8 @@ dependencies:
     - pytest-cov==2.11.1
     - pytest-rerunfailures==10.2
     - pytest-timeout==2.0.1
+    - pytorch-lightning==1.5.5
     - scikit-image==0.18.1
     - SimpleITK==2.1.1
     - transformers==4.17.0
+    - setuptools==59.5.0
