@@ -19,10 +19,7 @@ from torchmetrics.metric import Metric
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
-from histopathology.utils.metrics_utils import (plot_heatmap_overlay, plot_normalized_confusion_matrix,
-                                                plot_scores_hist, plot_slide)
-from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
-from histopathology.utils.viz_utils import load_image_dict, save_figure
+from histopathology.utils.naming import MetricsKey, ModelKey, PlotOptionsKey, ResultsKey
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
@@ -141,34 +138,6 @@ def save_features(results: ResultsType, outputs_dir: Path) -> None:
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
 
 
-def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
-                                       level: int, slides_dataset: SlidesDataset, figures_dir: Path) -> None:
-    for key in selected_slide_ids:
-        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
-        key_dir = figures_dir / key
-        key_dir.mkdir(parents=True, exist_ok=True)
-        for slide_id in selected_slide_ids[key]:
-            save_slide_thumbnail_and_heatmap(results, slide_id=slide_id, tile_size=tile_size, level=level,
-                                             slides_dataset=slides_dataset, key_dir=key_dir)
-
-
-def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_size: int, level: int,
-                                     slides_dataset: SlidesDataset, key_dir: Path) -> None:
-    slide_index = slides_dataset.dataset_df.index.get_loc(slide_id)
-    assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_id}"
-    slide_dict = slides_dataset[slide_index]
-    slide_dict = load_image_dict(slide_dict, level=level, margin=0)
-    slide_image = slide_dict[SlideKey.IMAGE]
-    location_bbox = slide_dict[SlideKey.LOCATION]
-
-    fig = plot_slide(slide_image=slide_image, scale=1.0)
-    save_figure(fig=fig, figpath=key_dir / f'{slide_id}_thumbnail.png')
-
-    fig = plot_heatmap_overlay(slide_node=slide_id, slide_image=slide_image, results=results,
-                               location_bbox=location_bbox, tile_size=tile_size, level=level)
-    save_figure(fig=fig, figpath=key_dir / f'{slide_id}_heatmap.png')
-
-
 class OutputsPolicy:
     """Utility class that defines when to save validation epoch outputs."""
 
@@ -260,8 +229,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_slides: bool = True, num_top_slides: int = 10, num_top_tiles: int = 12,
-                 num_columns: int = 4) -> None:
+                 maximise: bool, save_output_slides: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -284,14 +252,16 @@ class DeepMILOutputsHandler:
         self.tile_size = tile_size
         self.level = level
         self.save_output_slides = save_output_slides
-        self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.tiles_selector = TilesSelector(self.n_classes, num_tiles=num_top_tiles, num_slides=num_top_slides)
-        self.plots_handler = DeepMILPlotsHandler(tiles_selector=self.tiles_selector, num_columns=num_columns)
+
+        self.slides_dataset: Optional[SlidesDataset] = None
+        self.tiles_selector: TilesSelector
+        self.val_plots_handler: DeepMILPlotsHandler
+        self.test_plots_handler: DeepMILPlotsHandler
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -322,22 +292,11 @@ class DeepMILOutputsHandler:
         # contains the tile value
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results_on_cpu(epoch_results)
-        figures_dir = outputs_dir / "fig"
-
-        outputs_dir.mkdir(exist_ok=True, parents=True)
-        figures_dir.mkdir(exist_ok=True, parents=True)
-
         save_outputs_csv(results, outputs_dir)
-
-        if self.save_output_slides and stage == ModelKey.TEST and self.slides_dataset:
-            save_slide_thumbnails_and_heatmaps(results, self.tiles_selector.report_cases_slide_ids,
-                                               tile_size=self.tile_size,
-                                               level=self.level, slides_dataset=self.slides_dataset,
-                                               figures_dir=figures_dir)
-
-        # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
-        # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
-        # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
+        if stage == ModelKey.VAL:
+            self.val_plots_handler.plot(outputs_dir=outputs_dir, tiles_selector=self.tiles_selector, results=results)
+        if stage == ModelKey.TEST:
+            self.test_plots_handler.plot(outputs_dir=outputs_dir, tiles_selector=self.tiles_selector, results=results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                                 epoch: int, is_global_rank_zero: bool = True) -> None:
@@ -352,6 +311,9 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options:
+            logging.info("Selecting tiles ...")
+            self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
@@ -361,7 +323,7 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, stage=ModelKey.VAL)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
@@ -377,10 +339,10 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        self.tiles_selector.gather_selected_tiles_across_devices()
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options:
+            logging.info("Selecting tiles ...")
+            self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
-            logging.info("Selecting tiles ...")
-            self.plots_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)

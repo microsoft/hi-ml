@@ -3,18 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from importlib_metadata import Mapping
-import numpy as np
-import matplotlib.pyplot as plt
 
-from math import ceil
 from pathlib import Path
-from typing import List, Sequence, Tuple
-from prometheus_client import Metric
+from typing import Optional, Sequence, Set, Tuple
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.utils.metrics_utils import (
+from histopathology.utils.viz_utils import (
     plot_attention_tiles,
     plot_heatmap_overlay,
     plot_normalized_confusion_matrix,
@@ -22,10 +17,19 @@ from histopathology.utils.metrics_utils import (
     plot_slide,
 )
 
-from histopathology.utils.naming import ModelKey, PlotOptionsKey, SlideKey, MetricsKey
+from histopathology.utils.naming import ModelKey, PlotOptionsKey, SlideKey
 from histopathology.utils.output_utils import ResultsType
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from histopathology.utils.viz_utils import load_image_dict, save_figure
+
+
+def validate_plot_options(self, plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsKey]:
+    for opt in self.plot_options:
+        if not isinstance(opt, PlotOptionsKey):
+            raise ValueError("The select plot option")
+    if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options and not self.slides_dataset:
+        raise ValueError("You can not plot slide thumbnails and heatmaps with a slides_dataset = None.")
+    return plot_options
 
 
 def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
@@ -48,11 +52,11 @@ def save_confusion_matrix(
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
 
-def save_top_and_bottom_tiles(slide_node: SlideNode, case: str, figures_dir: Path) -> None:
+def save_top_and_bottom_tiles(case: str, slide_node: SlideNode, figures_dir: Path) -> None:
     """Plots and saves the top and bottom attention tiles of a given slide_node
 
-    :param slide_node: the slide_node for which we plot top and bottom tiles.
     :param case: The report case (e.g., TP, FN, ...)
+    :param slide_node: the slide_node for which we plot top and bottom tiles.
     :param figures_dir: The path to the directory where to save the attention tiles figure.
     """
     top_tiles_fig = plot_attention_tiles(top=True, slide_node=slide_node, case=case)
@@ -63,13 +67,25 @@ def save_top_and_bottom_tiles(slide_node: SlideNode, case: str, figures_dir: Pat
 
 
 def save_slide_thumbnail_and_heatmap(
-    results: ResultsType,
+    case: str,
     slide_node: SlideNode,
-    tile_size: int,
-    level: int,
-    slides_dataset: SlidesDataset,
     figures_dir: Path,
+    results: ResultsType,
+    slides_dataset: SlidesDataset,
+    tile_size: int = 224,
+    level: int = 1,
 ) -> None:
+    """Plots and saves a slide thumbnail and attention heatmap
+
+    :param case: The report case (e.g., TP, FN, ...)
+    :param slide_node: The slide node that encapsulates the slide metadata.
+    :param figures_dir: The path to the directory where to save the plots.
+    :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
+    :param tile_size: Size of each tile. Default 224.
+    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
+    1 for 4x downsampled, 2 for 16x downsampled). Default 1.
+    :param slides_dataset: The slides dataset from where to pick the slide.
+    """
     slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
     assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
     slide_dict = slides_dataset[slide_index]
@@ -77,11 +93,12 @@ def save_slide_thumbnail_and_heatmap(
     slide_image = slide_dict[SlideKey.IMAGE]
     location_bbox = slide_dict[SlideKey.LOCATION]
 
-    fig = plot_slide(slide_image=slide_image, scale=1.0)
+    fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=1.0)
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_thumbnail.png")
 
     fig = plot_heatmap_overlay(
-        slide_node=slide_node.slide_id,
+        case=case,
+        slide_node=slide_node,
         slide_image=slide_image,
         results=results,
         location_bbox=location_bbox,
@@ -91,76 +108,77 @@ def save_slide_thumbnail_and_heatmap(
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_heatmap.png")
 
 
-PLOTS_PRINT_STATEMENTS = {
-    PlotOptionsKey.TOP_BOTTOM_TILES: "Plotting top and bottom tiles ...",
-    PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP: "Plotting slide thumbnails and heatmaps ...",
-    PlotOptionsKey.HISTOGRAM: "Plotting histogram scores ...",
-    PlotOptionsKey.CONFUSION_MATRIX: "Plotting confusion matrix ...",
-}
+def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
+    """Create the figure directory"""
+    figures_dir = parent_dir / subfolder
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    return figures_dir
 
 
 class DeepMILPlotsHandler:
     def __init__(
         self,
-        plot_options: List[PlotOptionsKey],
-        tile_size: int = 224,
+        plot_options: Set[PlotOptionsKey],
         level: int = 1,
+        tile_size: int = 224,
         num_columns: int = 4,
         figsize: Tuple[int, int] = (10, 10),
+        conf_matrix: Optional[ConfusionMatrix] = None,
+        class_names: Optional[Tuple[str, ...]] = None,
+        slides_dataset: Optional[SlidesDataset] = None,
     ) -> None:
         """
-        :param tiles_selector: The tiles selector that embeds top and bottom slides and their respective top and bottom
-            tiles to be plotted and saved.
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         """
-        self.plot_options = plot_options
+        self.plot_options = validate_plot_options(plot_options)
         self.figsize = figsize
         self.level = level
         self.tile_size = tile_size
         self.num_columns = num_columns
+        self.slides_dataset = slides_dataset
+        self.conf_matrix: ConfusionMatrix = conf_matrix
+        self.class_names = class_names
 
-    @staticmethod
-    def make_figure_dirs(case: str, figures_dir: Path) -> Path:
-        """Create the figure directory"""
-        case_dir = figures_dir / case
-        case_dir.mkdir(parents=True, exist_ok=True)
-        return case_dir
+    def plot_slide_figures(self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType) -> None:
 
-    def plot(
-        self,
-        figures_dir: Path,
-        tiles_selector: TilesSelector,
-        results: ResultsType,
-        slides_dataset: SlidesDataset,
-        class_names: Tuple[str, ...],
-        metrics_dict: Mapping[MetricsKey, Metric],
-    ) -> None:
+        case_dir = make_figure_dirs(subfolder=case, parent_dir=outputs_dir)
+
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
+            logging.info("Plotting top and bottom tiles ...")
+            save_top_and_bottom_tiles(case=case, slide_node=slide_node, figures_dir=case_dir)
+        if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
+            logging.info("Plotting slide thumbnails and heatmaps ...")
+            save_slide_thumbnail_and_heatmap(
+                case=case,
+                slide_node=slide_node,
+                figures_dir=case_dir,
+                results=results,
+                slides_dataset=self.slides_dataset,
+                tile_size=self.tile_size,
+                level=self.level,
+            )
+
+    def plot(self, outputs_dir: Path, tiles_selector: TilesSelector, results: ResultsType) -> None:
+
+        logging.info(f"Start plotting all figure outputs in {outputs_dir}")
+        figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
         if PlotOptionsKey.HISTOGRAM in self.plot_options:
-            save_scores_histogram(results, figures_dir)
+            logging.info("Plotting histogram scores ...")
+            save_scores_histogram(results=results, figures_dir=figures_dir)
 
         if PlotOptionsKey.CONFUSION_MATRIX in self.plot_options:
             # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
-            conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
-            save_confusion_matrix(conf_matrix, class_names=class_names, figures_dir=figures_dir)
+            logging.info("Plotting confusion matrix ...")
+            save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
         for class_id in range(tiles_selector.n_classes):
+
             for slide_node in tiles_selector.top_slides_heaps[class_id]:
                 case = "TN" if class_id == 0 else f"TP_{class_id}"
-                case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
-                if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
-                    save_top_and_bottom_tiles(slide_node, case, case_dir)
-                if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
-                    save_slide_thumbnail_and_heatmap(
-                        results,
-                        slide_id=slide_id,
-                        tile_size=tile_size,
-                        level=level,
-                        slides_dataset=slides_dataset,
-                        figures_dir=key_dir,
-                    )
+                self.plot_slide_figures(case, slide_node, outputs_dir, results)
 
             for slide_node in tiles_selector.bottom_slides_heaps[class_id]:
                 case = "FP" if class_id == 0 else f"FN_{class_id}"
-                case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
+                self.plot_slide_figures(case, slide_node, outputs_dir, results)
