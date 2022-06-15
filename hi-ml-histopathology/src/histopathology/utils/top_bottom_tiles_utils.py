@@ -134,8 +134,8 @@ class TopBottomTilesHandler:
         self.report_cases_slide_ids = self.init_report_cases()
 
         assert (num_top_slides >= 0 and num_top_tiles > 0) or (num_top_slides == 0), "You should use `num_top_tiles>0` "
-        "to be able to select top bottom tiles for `num_top_slides>0`. You can set `num_top_slides=0` to disable top "
-        "bottom tiles plotting"
+        "to be able to select top and bottom tiles for `num_top_slides>0`. You can set `num_top_slides=0` to disable "
+        "top bottom tiles plotting."
 
     def init_report_cases(self) -> Dict[str, List[str]]:
         """ Initializes the report cases dictionary to store slide_ids per case.
