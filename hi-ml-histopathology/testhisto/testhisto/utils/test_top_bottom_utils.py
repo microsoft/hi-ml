@@ -376,7 +376,7 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
     mock_shallow_copy_slides_heaps.assert_not_called()
 
     with patch.object(handler, "plot_slide_node_attention_tiles") as mock_plot_slide_node_attention_tiles:
-        handler.save_top_and_bottom_tiles(figures_dir="foo")
+        handler.save_top_and_bottom_tiles(figures_dir=Path("foo"))
     mock_plot_slide_node_attention_tiles.assert_not_called()
 
 
