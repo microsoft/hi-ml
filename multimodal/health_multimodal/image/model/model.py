@@ -40,7 +40,8 @@ class ImageModel(nn.Module):
         # Initiate encoder, projector, and classifier
         self.encoder = ImageEncoder(img_model_type)
         self.feature_size = get_encoder_output_dim(self.encoder)
-        self.projector = MLP(self.feature_size, output_dim=joint_feature_size, hidden_dim=joint_feature_size, use_1x1_convs=True)
+        self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
+                             hidden_dim=joint_feature_size, use_1x1_convs=True)
         self.downstream_classifier_kwargs = downstream_classifier_kwargs
         self.classifier = self.create_downstream_classifier() if downstream_classifier_kwargs else None
 
@@ -132,7 +133,7 @@ class ImageEncoder(nn.Module):
         :param replace_stride_with_dilation: for each layer to replace the 2x2 stride with a dilated convolution
         """
         if self.img_model_type == 'resnet18':
-            # resnet18 uses BasicBlock implementation, which does not support dilated convolutions. See resnets.py in pl_bolts.
+            # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
             raise NotImplementedError("resnet18 does not support dilated convolutions")
 
         device = next(self.encoder.parameters()).device
@@ -154,7 +155,7 @@ def get_encoder_output_dim(module: torch.nn.Module) -> int:
     :param dm: pl datamodule
     """
     # Target device
-    device = next(pl_module.parameters()).device  # type: ignore
+    device = next(module.parameters()).device  # type: ignore
     assert (isinstance(device, torch.device))
 
     x = torch.rand((1, 3, 448, 448)).to(device)

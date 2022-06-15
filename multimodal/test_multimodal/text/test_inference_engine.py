@@ -23,6 +23,7 @@ def test_text_inference_init_model_type() -> None:
         TextInferenceEngine(tokenizer=tokenizer, text_model=false_model)
     assert f"Expected a BertForMaskedLM, got {type(false_model)}" in str(ex)
 
+
 def test_l2_normalization() -> None:
     """
     Test that the text embeddings (CLS token) are l2 normalized.
@@ -34,6 +35,7 @@ def test_l2_normalization() -> None:
     embedding = text_inference.get_embeddings_from_prompt(prompts=input_query)
     norm = torch.norm(embedding, p=2, dim=-1)
     assert torch.allclose(norm, torch.ones_like(norm))
+
 
 def test_sentence_semantic_similarity() -> None:
     """
@@ -71,16 +73,16 @@ def test_triplet_similarities_with_inference_engine() -> None:
 
     reference = \
         ["Heart size is top normal.", "There is no pneumothorax or pleural effusion",
-        "The patient has been extubated.", "The lungs are clear bilaterally.",
-        "No pleural effusions."]
+         "The patient has been extubated.", "The lungs are clear bilaterally.",
+         "No pleural effusions."]
     synonyms = \
         ["The cardiac silhouette is normal in size.", "No pleural effusion or pneumothorax is seen",
-        "There has been interval extubation.", "The lungs are unremarkable.",
-        "Also, the lateral pleural sinuses are free, which excludes major pleural effusion."]
+         "There has been interval extubation.", "The lungs are unremarkable.",
+         "Also, the lateral pleural sinuses are free, which excludes major pleural effusion."]
     contradictions = \
         ["The heart is largely enlarged.", "The extent of the pleural effusion is constant.",
-        "The patient is intubated", "The lungs are mostly clear aside from lower lung atelectasis.",
-        "The loculated right pleural effusion has increased, and is now moderate in size."]
+         "The patient is intubated", "The lungs are mostly clear aside from lower lung atelectasis.",
+         "The loculated right pleural effusion has increased, and is now moderate in size."]
 
     synonym_score = text_inference.get_pairwise_similarities(reference, synonyms)
     contradictory_score = text_inference.get_pairwise_similarities(reference, contradictions)
@@ -93,6 +95,7 @@ def test_triplet_similarities_with_inference_engine() -> None:
     assert torch.all(1.0 >= synonym_score)
     assert torch.all(contradictory_score < 0.5)
     assert torch.all(contradictory_score >= -1.0)
+
 
 def test_mlm_with_inference_engine_with_hf_hub() -> None:
     """
