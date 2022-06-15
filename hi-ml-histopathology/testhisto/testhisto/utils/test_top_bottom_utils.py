@@ -375,6 +375,10 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
         handler.gather_selected_tiles_across_devices()
     mock_shallow_copy_slides_heaps.assert_not_called()
 
+    with patch.object(handler, "plot_slide_node_attention_tiles") as mock_plot_slide_node_attention_tiles:
+        handler.save_top_and_bottom_tiles(figures_dir="foo")
+    mock_plot_slide_node_attention_tiles.assert_not_called()
+
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
