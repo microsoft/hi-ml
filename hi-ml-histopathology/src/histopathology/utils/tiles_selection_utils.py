@@ -95,6 +95,12 @@ class TilesSelector:
             prediction scores. Defaults to 10.
         :param num_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
         """
+        if num_slides > 0 and num_tiles == 0:
+            raise ValueError(
+                "You should use `num_top_tiles>0` to be able to select top and bottom tiles for `num_top_slides>0`. "
+                "You can set `num_top_slides=0` to disable top and bottom tiles plotting."
+            )
+
         self.n_classes = n_classes if n_classes > 1 else 2
         self.num_top_slides = num_slides
         self.num_top_tiles = num_tiles
@@ -280,7 +286,7 @@ class TilesSelector:
             4- gather these tiles across devices
             5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
         """
-        if torch.distributed.is_initialized():
+        if torch.distributed.is_initialized() and self.num_top_slides > 0:
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
 
