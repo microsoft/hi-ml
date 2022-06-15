@@ -84,11 +84,10 @@ class ImageModel(nn.Module):
     def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
         """
         Get patchwise projected embeddings from the CNN model.
-        Args:
-            input_img: input tensor image [B, C, H, W]
-            normalize: If set to True, the embeddings are l2-normalized.
-        Returns:
-            projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size]
+
+        :param input_img: input tensor image [B, C, H, W]
+        :param normalize: If set to True, the embeddings are l2-normalized.
+        :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size]
         """
         assert self.training is False, "This function is only implemented for evaluation mode"
         outputs = self.forward(input_img)
