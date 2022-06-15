@@ -26,9 +26,7 @@ class ImageModelOutput():
 
 
 class ImageModel(nn.Module):
-    """
-    Image encoder module
-    """
+    """Image encoder module"""
 
     def __init__(self,
                  img_model_type: str,
@@ -102,6 +100,11 @@ class ImageModel(nn.Module):
 
 
 class ImageEncoder(nn.Module):
+    """
+    Image encoder trunk module for the ImageModel class.
+    :param img_model_type: Type of image model to use {"resnet18", "resnet50"}
+    """
+
     def __init__(self, img_model_type: str):
         super().__init__()
         self.img_model_type = img_model_type
@@ -118,13 +121,15 @@ class ImageEncoder(nn.Module):
         return encoder
 
     def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> Union[T, Tuple[T, T]]:
+        """Image encoder forward pass."""
+
         x = self.encoder(x)
         x = x[-1] if isinstance(x, list) else x
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)), 1)
         if return_patch_embeddings:
             return x, avg_pooled_emb
-        else:
-            return avg_pooled_emb
+
+        return avg_pooled_emb
 
     def reload_encoder_with_dilation(self, replace_stride_with_dilation: List[bool] = [False, False, True]) -> None:
         """
@@ -156,7 +161,7 @@ def get_encoder_output_dim(module: torch.nn.Module) -> int:
     """
     # Target device
     device = next(module.parameters()).device  # type: ignore
-    assert (isinstance(device, torch.device))
+    assert isinstance(device, torch.device)
 
     x = torch.rand((1, 3, 448, 448)).to(device)
 
