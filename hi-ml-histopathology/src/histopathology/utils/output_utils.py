@@ -258,8 +258,8 @@ class DeepMILOutputsHandler:
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
 
-        self.slides_dataset: Optional[SlidesDataset] = None
-        self.tiles_selector: TilesSelector
+        self.slides_dataset: Optional[SlidesDataset]
+        self.tiles_selector: Optional[TilesSelector]
         self.val_plots_handler: DeepMILPlotsHandler
         self.test_plots_handler: DeepMILPlotsHandler
 
@@ -277,6 +277,15 @@ class DeepMILOutputsHandler:
 
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
         self.slides_dataset = slides_dataset
+
+    def set_val_plots_handler(self, val_plots_handler: Optional[DeepMILPlotsHandler]) -> None:
+        self.val_plots_handler = val_plots_handler
+
+    def set_test_plots_handler(self, test_plots_handler: Optional[DeepMILPlotsHandler]) -> None:
+        self.test_plots_handler = test_plots_handler
+
+    def set_tiles_selector(self, tiles_selector) -> None:
+        self.tiles_selector = tiles_selector
 
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
