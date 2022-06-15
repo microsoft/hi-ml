@@ -119,9 +119,11 @@ def test_reload_resnet_with_dilation() -> None:
     with torch.no_grad():
         outputs_dilation, _ = model_with_dilation(image, return_patch_embeddings=True)
         outputs_original, _ = original_model(image, return_patch_embeddings=True)
-        assert outputs_original.shape[2] * 2 == outputs_dilation.shape[2], "The dilation model should return larger feature maps."
+        assert outputs_original.shape[2] * \
+            2 == outputs_dilation.shape[2], "The dilation model should return larger feature maps."
 
-    expected_model = resnet50(return_all_feature_maps=True, pretrained=True, replace_stride_with_dilation=replace_stride_with_dilation)
+    expected_model = resnet50(return_all_feature_maps=True, pretrained=True,
+                              replace_stride_with_dilation=replace_stride_with_dilation)
 
     expected_model.eval()
     with torch.no_grad():

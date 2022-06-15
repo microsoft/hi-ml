@@ -8,6 +8,7 @@ dependencies:
   - python=3.7.3
   - cudatoolkit=11.1
   - pytorch=1.9.0
+  - torchvision=0.10.0
   - pip:
     # This file should contain pinned versions of all packages in requirements_run.txt
     # and requirements_test.txt.
