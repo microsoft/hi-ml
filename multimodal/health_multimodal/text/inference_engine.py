@@ -10,7 +10,6 @@ import torch
 from transformers import BertTokenizer, BertForMaskedLM
 
 from health_multimodal.text.data.io import TextInput
-from health_multimodal.text.model.modelling_cxrbert import CXRBertModel
 
 
 class TextInferenceEngine(TextInput):
@@ -59,10 +58,10 @@ class TextInferenceEngine(TextInput):
         :return torch Tensor of shape (batch_size, embedding_size)
         """
         assert self.is_in_eval()
-        assert isinstance(self.model, CXRBertModel)
         tokenizer_output = self.tokenize_input_prompts(prompts=prompts, verbose=verbose)
-        txt_emb = self.model.get_projected_text_embeddings(input_ids=tokenizer_output.input_ids,
-                                                           attention_mask=tokenizer_output.attention_mask)
+        txt_emb = self.model.get_projected_text_embeddings(  # type: ignore
+            input_ids=tokenizer_output.input_ids,
+            attention_mask=tokenizer_output.attention_mask)
 
         return txt_emb
 
