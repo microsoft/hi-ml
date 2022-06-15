@@ -58,7 +58,7 @@ class CXRBertModel(BertForMaskedLM):
     used to align the latent vectors of image and text modalities.
     """
 
-    config_class = CXRBertConfig
+    config_class = CXRBertConfig  # type: ignore
 
     def __init__(self, config: CXRBertConfig):
         super().__init__(config)
