@@ -6,7 +6,7 @@
 import os
 import torch
 import param
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from torch import nn
 from pathlib import Path
@@ -33,7 +33,9 @@ from histopathology.models.encoders import (
     SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
-from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
+from histopathology.utils.naming import MetricsKey, PlotOptionsKey, SlideKey, ModelKey
+from histopathology.utils.plots_utils import DeepMILPlotsHandler
+from histopathology.utils.tiles_selection_utils import TilesSelector
 
 
 class BaseMIL(LightningContainer):
@@ -180,17 +182,44 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
+    @property
+    def test_plot_options(self) -> Set(PlotOptionsKey):
+        if self.num_top_slides > 0:
+            return set(PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES)
+        else:
+            return set(PlotOptionsKey.HISTOGRAM)
+
+    @property
+    def val_plot_options(self) -> Set(PlotOptionsKey):
+        return set(PlotOptionsKey.HISTOGRAM)
+
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
-        return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
-                                     n_classes=self.data_module.train_dataset.N_CLASSES,
-                                     tile_size=self.tile_size,
-                                     level=self.level,
-                                     class_names=self.class_names,
-                                     primary_val_metric=self.primary_val_metric,
-                                     maximise=self.maximise_primary_metric,
-                                     save_output_slides=self.save_output_slides,
-                                     num_top_slides=self.num_top_slides,
-                                     num_top_tiles=self.num_top_tiles)
+        n_classes = self.data_module.train_dataset.N_CLASSES
+        outputs_handler = DeepMILOutputsHandler(
+            outputs_root=self.outputs_folder,
+            n_classes=n_classes,
+            tile_size=self.tile_size,
+            level=self.level,
+            class_names=self.class_names,
+            primary_val_metric=self.primary_val_metric,
+            maximise=self.maximise_primary_metric,
+            save_output_slides=self.save_output_slides
+        )
+        if self.num_top_slides > 0:
+            outputs_handler.tiles_selector = TilesSelector(
+                n_classes=n_classes, num_slides=self.num_top_slides, num_tiles=self.num_top_tiles
+            )
+        outputs_handler.val_plots_handler = DeepMILPlotsHandler(
+            plot_options=self.test_plot_options,
+            level=self.level,
+            tile_size=self.tile_size,
+            class_names=self.class_names)
+        outputs_handler.val_plots_handler = DeepMILPlotsHandler(
+            plot_options=self.val_plot_options,
+            level=self.level,
+            tile_size=self.tile_size,
+            class_names=self.class_names)
+        return outputs_handler
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder

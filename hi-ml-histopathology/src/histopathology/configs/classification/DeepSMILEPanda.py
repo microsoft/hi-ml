@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 from health_azure.utils import is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
@@ -24,6 +24,7 @@ from histopathology.datasets.default_paths import (
     PANDA_DATASET_ID,
     PANDA_TILES_DATASET_DIR,
     PANDA_TILES_DATASET_ID)
+from histopathology.utils.naming import PlotOptionsKey
 
 
 class BaseDeepSMILEPanda(BaseMIL):
@@ -95,6 +96,11 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
+
+    @property
+    def test_plot_options(self) -> Set(PlotOptionsKey):
+        plot_options = super().test_plot_options
+        return plot_options.add(PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP)
 
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):

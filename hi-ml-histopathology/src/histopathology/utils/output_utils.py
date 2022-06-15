@@ -229,7 +229,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_slides: bool = True) -> None:
+                 maximise: bool) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -239,19 +239,11 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_output_slides: A parameter to whether 'save_slide_thumbnails_and_heatmaps' for slides datasets.
-            This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
-            tiles coordinates due to the current tiling on the fly strategy.
-        :param num_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
-            Defaults to 10.
-        :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
-        :param num_columns: Number of columnds to use to plot top and bottom tiles.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.save_output_slides = save_output_slides
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
@@ -278,15 +270,6 @@ class DeepMILOutputsHandler:
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
         self.slides_dataset = slides_dataset
 
-    def set_val_plots_handler(self, val_plots_handler: Optional[DeepMILPlotsHandler]) -> None:
-        self.val_plots_handler = val_plots_handler
-
-    def set_test_plots_handler(self, test_plots_handler: Optional[DeepMILPlotsHandler]) -> None:
-        self.test_plots_handler = test_plots_handler
-
-    def set_tiles_selector(self, tiles_selector) -> None:
-        self.tiles_selector = tiles_selector
-
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
@@ -302,6 +285,7 @@ class DeepMILOutputsHandler:
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results_on_cpu(epoch_results)
         save_outputs_csv(results, outputs_dir)
+
         if stage == ModelKey.VAL:
             self.val_plots_handler.plot(outputs_dir=outputs_dir, tiles_selector=self.tiles_selector, results=results)
         if stage == ModelKey.TEST:
@@ -320,7 +304,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
@@ -348,7 +332,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
