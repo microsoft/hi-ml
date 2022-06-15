@@ -14,12 +14,11 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
-from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
+from histopathology.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
 from histopathology.utils.metrics_utils import (plot_heatmap_overlay, plot_normalized_confusion_matrix,
                                                 plot_scores_hist, plot_slide)
 from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
@@ -170,24 +169,6 @@ def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_s
     save_figure(fig=fig, figpath=key_dir / f'{slide_id}_heatmap.png')
 
 
-def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
-    logging.info("Plotting histogram ...")
-    fig = plot_scores_hist(results)
-    save_figure(fig=fig, figpath=figures_dir / 'hist_scores.png')
-
-
-def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequence[str], figures_dir: Path) -> None:
-    logging.info("Computing and saving confusion matrix...")
-    cf_matrix = conf_matrix_metric.compute().cpu().numpy()
-    #  We can't log tensors in the normal way - just print it to console
-    logging.info('test/confusion matrix:')
-    logging.info(cf_matrix)
-    #  Save the normalized confusion matrix as a figure in outputs
-    cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / 'normalized_confusion_matrix.png')
-
-
 class OutputsPolicy:
     """Utility class that defines when to save validation epoch outputs."""
 
@@ -309,8 +290,8 @@ class DeepMILOutputsHandler:
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.tiles_handler = TopBottomTilesHandler(self.n_classes, num_top_tiles=num_top_tiles,
-                                                   num_top_slides=num_top_slides, num_columns=num_columns)
+        self.tiles_selector = TilesSelector(self.n_classes, num_tiles=num_top_tiles, num_slides=num_top_slides)
+        self.plots_handler = DeepMILPlotsHandler(tiles_selector=self.tiles_selector, num_columns=num_columns)
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -349,12 +330,10 @@ class DeepMILOutputsHandler:
         save_outputs_csv(results, outputs_dir)
 
         if self.save_output_slides and stage == ModelKey.TEST and self.slides_dataset:
-            save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
+            save_slide_thumbnails_and_heatmaps(results, self.tiles_selector.report_cases_slide_ids,
                                                tile_size=self.tile_size,
                                                level=self.level, slides_dataset=self.slides_dataset,
                                                figures_dir=figures_dir)
-
-        save_scores_histogram(results, figures_dir=figures_dir)
 
         # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
         # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
@@ -398,10 +377,10 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        self.tiles_handler.gather_selected_tiles_across_devices()
+        self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
             logging.info("Selecting tiles ...")
-            self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
+            self.plots_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
             self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)

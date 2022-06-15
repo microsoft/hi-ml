@@ -17,7 +17,7 @@ from testhisto.utils.utils_testhisto import run_distributed
 from histopathology.utils.naming import ResultsKey, SlideKey
 from health_ml.utils.fixed_paths import OutputFolderForTests
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
-from histopathology.utils.top_bottom_tiles_utils import TileNode, TopBottomTilesHandler, SlideNode
+from histopathology.utils.plots_utils import TileNode, TilesSelector, SlideNode
 
 
 def _create_mock_data(n_samples: int, n_tiles: int = 3, device: str = "cpu") -> Dict:
@@ -74,7 +74,7 @@ def _create_and_update_top_bottom_tiles_handler(
     rank: int = 0,
     batch_size: int = 2,
     n_batches: int = 10,
-) -> TopBottomTilesHandler:
+) -> TilesSelector:
     """Create a top and bottom tiles handler and update its top and bottom slides/tiles while looping through the data
     available for the current rank
 
@@ -89,7 +89,7 @@ def _create_and_update_top_bottom_tiles_handler(
     :return: A top bottom tiles handler with selected top and bottom slides and corresponding top and bottom slides.
     """
 
-    handler = TopBottomTilesHandler(n_classes, num_top_slides=num_top_slides, num_top_tiles=num_top_tiles)
+    handler = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
 
     for i in range(rank * n_batches, (rank + 1) * n_batches):
         batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)

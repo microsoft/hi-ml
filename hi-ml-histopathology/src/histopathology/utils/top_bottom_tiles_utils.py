@@ -3,20 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 import torch
 import heapq
-import numpy as np
-import matplotlib.pyplot as plt
 
-from math import ceil
 from torch import Tensor
-from pathlib import Path
 from typing import Optional, List, Tuple, Dict, Union, Any
 from collections import ChainMap
 
 from histopathology.utils.naming import ResultsKey, SlideKey, TileKey
-from histopathology.utils.viz_utils import save_figure
 
 
 class TileNode:
@@ -48,14 +42,18 @@ class SlideNode:
     """Data structure class for slide nodes used by `TopBottomTilesHandler` to store top and bottom slides by
     probability score. """
 
-    def __init__(self, slide_id: str, prob_score: float,) -> None:
+    def __init__(self, slide_id: str, prob_score: float, true_label: int, pred_label: int) -> None:
         """
         :param prob_score: The probability score assigned to the slide node. This scalar defines the order of the
             slide_node among the nodes in the max/min heap.
         :param slide_id: The slide id in the data cohort.
+        :param true_label: The ground truth label of the slide node.
+        :param pred_label: The label predicted by the model.
         """
         self.slide_id = slide_id
         self.prob_score = prob_score
+        self.true_label = true_label
+        self.pred_label = pred_label
         self.top_tiles: List[TileNode] = []
         self.bottom_tiles: List[TileNode] = []
 
@@ -79,34 +77,7 @@ class SlideNode:
 
     def _shallow_copy(self) -> "SlideNode":
         """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
-        return SlideNode(self.slide_id, self.prob_score)
-
-    def plot_attention_tiles(
-        self, tile_nodes: List[TileNode], case: str, num_columns: int = 4, size: Tuple[int, int] = (10, 10)
-    ) -> plt.Figure:
-        """Plot and save top or bottom tiles figures with their attention scores.
-
-        :param tile_nodes: A list of top or bottom tiles nodes.
-        :param case: The report case (e.g., TP, FN, ...)
-        :param num_columns: Number of columns to create the subfigures grid, defaults to 4
-        :param size: The figure size , defaults to (10, 10)
-        """
-        num_rows = int(ceil(len(tile_nodes) / num_columns))
-        assert (
-            num_rows > 0
-        ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a "
-        "higher number of batches."
-
-        fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=size)
-        fig.suptitle(f"{case}: {self.slide_id} P={abs(self.prob_score):.2f}")
-
-        for ax, tile_node in zip(axs.flat, tile_nodes):
-            ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
-            ax.set_title("%.6f" % tile_node.attn)
-
-        for ax in axs.flat:
-            ax.set_axis_off()
-        return fig
+        return SlideNode(self.slide_id, self.prob_score, self.true_label, self.pred_label)
 
 
 SlideOrTileKey = Union[SlideKey, TileKey]
@@ -114,21 +85,19 @@ SlideDict = Dict[int, List[SlideNode]]
 TileDict = Dict[str, List[TileNode]]
 
 
-class TopBottomTilesHandler:
+class TilesSelector:
     """Class that manages selecting top and bottom tiles on the fly during validation or test of DeepMIL models."""
 
-    def __init__(self, n_classes: int, num_top_slides: int = 10, num_top_tiles: int = 12, num_columns: int = 4) -> None:
+    def __init__(self, n_classes: int, num_slides: int = 10, num_tiles: int = 12) -> None:
         """
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
-        :param num_top_slides: Number of top and bottom slides to select to define top and bottom tiles based of
+        :param num_slides: Number of top and bottom slides to select to define top and bottom tiles based of
             prediction scores. Defaults to 10.
-        :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
-        :param num_columns: Number of columns to use to plot top and bottom tiles.
+        :param num_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
         """
         self.n_classes = n_classes if n_classes > 1 else 2
-        self.num_top_slides = num_top_slides
-        self.num_top_tiles = num_top_tiles
-        self.num_columns = num_columns
+        self.num_top_slides = num_slides
+        self.num_top_tiles = num_tiles
         self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
@@ -193,13 +162,23 @@ class TopBottomTilesHandler:
                 class_slides_heap=self.top_slides_heaps[label],
                 tiles=batch[SlideKey.IMAGE][i],
                 attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                slide_node=SlideNode(slide_id=slide_ids[i], prob_score=probs_gt_label[i].item()),
+                slide_node=SlideNode(
+                    slide_id=slide_ids[i],
+                    prob_score=probs_gt_label[i].item(),
+                    true_label=label,
+                    pred_label=results[ResultsKey.PRED_LABEL][i].item(),
+                ),
             )
             self._update_label_slides(
                 class_slides_heap=self.bottom_slides_heaps[label],
                 tiles=batch[SlideKey.IMAGE][i],
                 attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                slide_node=SlideNode(slide_id=slide_ids[i], prob_score=-probs_gt_label[i].item()),
+                slide_node=SlideNode(
+                    slide_id=slide_ids[i],
+                    prob_score=-probs_gt_label[i].item(),
+                    true_label=label,
+                    pred_label=results[ResultsKey.PRED_LABEL][i].item(),
+                ),
             )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
@@ -331,45 +310,3 @@ class TopBottomTilesHandler:
                 self._update_shallow_slides_heaps_with_top_bottom_tiles(
                     self.bottom_slides_heaps, top_tiles, bottom_tiles
                 )
-
-    def make_figure_dirs(self, case: str, figures_dir: Path) -> Path:
-        """Create the figure directory"""
-        case_dir = figures_dir / case
-        case_dir.mkdir(parents=True, exist_ok=True)
-        return case_dir
-
-    def plot_slide_node_attention_tiles(self, case: str, figures_dir: Path, slide_node: SlideNode) -> None:
-        """Plots the top and bottom attention tiles of a given slide_node
-
-        :param case: The report case (e.g., TP, FN, ...)
-        :param figures_dir: The path to the directory where to save the attention tiles figure.
-        :param slide_node: the slide_node for which we plot top and bottom tiles.
-        """
-        case_dir = self.make_figure_dirs(case=case, figures_dir=figures_dir)
-
-        top_tiles_fig = slide_node.plot_attention_tiles(
-            tile_nodes=slide_node.top_tiles, case=case, num_columns=self.num_columns
-        )
-        save_figure(fig=top_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_top.png")
-
-        bottom_tiles_fig = slide_node.plot_attention_tiles(
-            tile_nodes=slide_node.bottom_tiles, case=case, num_columns=self.num_columns
-        )
-        save_figure(fig=bottom_tiles_fig, figpath=case_dir / f"{slide_node.slide_id}_bottom.png")
-
-        self.report_cases_slide_ids[case].append(slide_node.slide_id)
-
-    def save_top_and_bottom_tiles(self, figures_dir: Path) -> None:
-        """Save top and bottom tiles figures.
-
-        :param figures_dir: The path to the directory where to save the attention tiles figure.
-        """
-        logging.info(f"Plotting {self.num_top_tiles} top and bottom tiles of {self.num_top_slides} top and slides...")
-        for class_id in range(self.n_classes):
-            for slide_node in self.top_slides_heaps[class_id]:
-                case = "TN" if class_id == 0 else f"TP_{class_id}"
-                self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
-
-            for slide_node in self.bottom_slides_heaps[class_id]:
-                case = "FP" if class_id == 0 else f"FN_{class_id}"
-                self.plot_slide_node_attention_tiles(case, figures_dir, slide_node)
