@@ -125,6 +125,12 @@ class TopBottomTilesHandler:
         :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
         :param num_columns: Number of columns to use to plot top and bottom tiles.
         """
+        if num_top_slides > 0 and num_top_tiles == 0:
+            raise ValueError(
+                "You should use `num_top_tiles>0` to be able to select top and bottom tiles for `num_top_slides>0`. "
+                "You can set `num_top_slides=0` to disable top and bottom tiles plotting."
+            )
+
         self.n_classes = n_classes if n_classes > 1 else 2
         self.num_top_slides = num_top_slides
         self.num_top_tiles = num_top_tiles
@@ -132,10 +138,6 @@ class TopBottomTilesHandler:
         self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
         self.report_cases_slide_ids = self.init_report_cases()
-
-        assert (num_top_slides >= 0 and num_top_tiles > 0) or (num_top_slides == 0), "You should use `num_top_tiles>0` "
-        "to be able to select top and bottom tiles for `num_top_slides>0`. You can set `num_top_slides=0` to disable "
-        "top bottom tiles plotting."
 
     def init_report_cases(self) -> Dict[str, List[str]]:
         """ Initializes the report cases dictionary to store slide_ids per case.

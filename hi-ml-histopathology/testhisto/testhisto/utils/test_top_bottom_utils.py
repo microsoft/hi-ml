@@ -339,7 +339,7 @@ def test_disable_top_bottom_tiles_handler(num_top_slides: int, num_top_tiles: in
         _ = TopBottomTilesHandler(n_classes=2, num_top_slides=num_top_slides, num_top_tiles=num_top_tiles)
     except Exception as err:
         assert num_top_slides > 0 and num_top_tiles == 0
-        assert isinstance(err, AssertionError)
+        assert isinstance(err, ValueError)
 
 
 def test_tiles_are_selected_only_with_non_zero_num_top_slides(
@@ -370,6 +370,7 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
 
     for class_id in range(n_classes):
         assert len(handler.top_slides_heaps[class_id]) == 0
+        assert len(handler.bottom_slides_heaps[class_id]) == 0
 
     with patch.object(handler, "_shallow_copy_slides_heaps") as mock_shallow_copy_slides_heaps:
         handler.gather_selected_tiles_across_devices()
