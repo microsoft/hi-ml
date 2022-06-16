@@ -56,14 +56,18 @@ def save_confusion_matrix(
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
 
-def save_top_and_bottom_tiles(case: str, slide_node: SlideNode, figures_dir: Path) -> None:
+def save_top_and_bottom_tiles(
+    case: str, slide_node: SlideNode, figures_dir: Path, num_columns: int = 4, figsize: Tuple[int, int] = (10, 10)
+) -> None:
     """Plots and saves the top and bottom attention tiles of a given slide_node
 
     :param case: The report case (e.g., TP, FN, ...)
     :param slide_node: the slide_node for which we plot top and bottom tiles.
     :param figures_dir: The path to the directory where to save the attention tiles figure.
     """
-    top_tiles_fig = plot_attention_tiles(top=True, slide_node=slide_node, case=case)
+    top_tiles_fig = plot_attention_tiles(
+        slide_node=slide_node, case=case, top=True, num_columns=num_columns, figsize=figsize
+    )
     save_figure(fig=top_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_top.png")
 
     bottom_tiles_fig = plot_attention_tiles(top=False, slide_node=slide_node, case=case)
@@ -150,7 +154,13 @@ class DeepMILPlotsHandler:
 
         if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
             logging.info("Plotting top and bottom tiles ...")
-            save_top_and_bottom_tiles(case=case, slide_node=slide_node, figures_dir=case_dir)
+            save_top_and_bottom_tiles(
+                case=case,
+                slide_node=slide_node,
+                figures_dir=case_dir,
+                num_columns=self.num_columns,
+                figsize=self.figsize,
+            )
         if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
             logging.info("Plotting slide thumbnails and heatmaps ...")
             save_slide_thumbnail_and_heatmap(
