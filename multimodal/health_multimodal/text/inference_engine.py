@@ -26,6 +26,7 @@ class TextInferenceEngine(TextInput):
         :param config: Config object containing the file path to Huggingface tokenizer.
         :param model: Text model
         """
+
         super().__init__(tokenizer=tokenizer)
 
         assert isinstance(text_model, BertForMaskedLM), f"Expected a BertForMaskedLM, got {type(text_model)}"
@@ -35,6 +36,7 @@ class TextInferenceEngine(TextInput):
         self.max_allowed_input_length = self.model.config.max_position_embeddings
 
     def is_in_eval(self) -> bool:
+        """Returns True if the model is in eval mode."""
         return not self.model.training
 
     def tokenize_input_prompts(self, prompts: Union[str, List[str]], verbose: bool = True) -> Any:
@@ -57,6 +59,7 @@ class TextInferenceEngine(TextInput):
         :param verbose: If set to True, tokenized words are displayed in the console.
         :return torch Tensor of shape (batch_size, embedding_size)
         """
+
         assert self.is_in_eval()
         tokenizer_output = self.tokenize_input_prompts(prompts=prompts, verbose=verbose)
         txt_emb = self.model.get_projected_text_embeddings(  # type: ignore
@@ -81,6 +84,13 @@ class TextInferenceEngine(TextInput):
 
     @torch.no_grad()
     def predict_masked_tokens(self, prompts: Union[str, List[str]]) -> List[List[str]]:
+        """
+        Predict masked tokens for a single or list of input text prompts.
+        Requires models to be trained with a MLM prediction head.
+        :param prompts: Input text prompt(s) either in string or list of string format.
+        :return: Predicted token candidates (Top-1) at masked position.
+        """
+
         assert self.is_in_eval()
 
         # Tokenize the input prompts

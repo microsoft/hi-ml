@@ -1,9 +1,16 @@
+#  -------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  -------------------------------------------------------------------------------------------
+
+
 from typing import Callable, Union, Tuple
 
 import torch
 
 from health_multimodal.image.model.model import ImageModel
 from health_multimodal.image.data.io import load_image
+from health_multimodal.image.data.transforms import infer_resize_params
 
 
 class ImageInferenceEngine:
@@ -25,10 +32,12 @@ class ImageInferenceEngine:
         self.device = next(self.model.parameters()).device
 
         self.model.eval()
-        self.resize_size, self.crop_size = 512, 480  # infer_resize_params(self.transforms)
+        self.resize_size, self.crop_size = infer_resize_params(self.transforms)
 
-    def load_and_transform_input_image(self, image_path: str,
-                                       return_original_shape: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, Tuple[int, int]]]:
+    def load_and_transform_input_image(self,
+                                       image_path: str,
+                                       return_original_shape: bool = False) -> \
+            Union[torch.Tensor, Tuple[torch.Tensor, Tuple[int, int]]]:
         """
         1. Read the image from the given path
         2. Apply transforms
