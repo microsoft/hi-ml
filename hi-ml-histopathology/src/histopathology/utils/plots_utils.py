@@ -24,7 +24,7 @@ from histopathology.utils.viz_utils import load_image_dict, save_figure
 ResultsType = Dict[ResultsKey, List[Any]]
 
 
-def validate_plot_options(plot_options: Set[PlotOptionsKey], slides_dataset: SlidesDataset) -> Set[PlotOptionsKey]:
+def validate_plot_options(plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsKey]:
     for opt in plot_options:
         if opt not in PlotOptionsKey.__members__.values():
             raise ValueError(
@@ -139,7 +139,7 @@ class DeepMILPlotsHandler:
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         """
-        self.plot_options = validate_plot_options(plot_options, slides_dataset)
+        self.plot_options = validate_plot_options(plot_options)
         self.figsize = figsize
         self.level = level
         self.tile_size = tile_size
