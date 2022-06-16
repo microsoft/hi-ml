@@ -59,7 +59,7 @@ pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
-tilespandaimagenetmil_regression_test:
+regression_test_tilespandaimagenetmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
@@ -70,7 +70,7 @@ tilespandaimagenetmil_regression_test:
 	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
 
-slidespandaimagenetmil_regression_test:
+regression_test_slidespandaimagenetmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMIL \
@@ -81,7 +81,7 @@ slidespandaimagenetmil_regression_test:
 	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
 
-tcgacrcksslmil_regression_test:
+regression_test_tcgacrcksslmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --is_caching=True \
@@ -91,7 +91,7 @@ tcgacrcksslmil_regression_test:
 	--regression_metrics=test/auroc,test/f1score,test/precision,test/recall;\
 	}
 
-crck_simclr_regression_test:
+regression_test_crck_simclr:
 	{ \
 	cd ../; \
 	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
@@ -102,7 +102,7 @@ crck_simclr_regression_test:
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
 	}
 
-regression tests: slidespandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test
+regression tests: regression_test_tilespandaimagenetmil regression_test_slidespandaimagenetmil regression_test_tcgacrcksslmil regression_test_crck_simclr
 
 # Smoke tests (smaller tests that run end to end to check integration)
 smoke_test_slidespandaimagenetmil:
