@@ -160,13 +160,12 @@ class DeepMILPlotsHandler:
         self.slides_dataset = slides_dataset
 
     def save_slide_node_figures(
-        self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType
+        self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType, log: bool
     ) -> None:
 
         case_dir = make_figure_dirs(subfolder=case, parent_dir=outputs_dir)
 
         if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
-            logging.info("Plotting top and bottom tiles ...")
             save_top_and_bottom_tiles(
                 case=case,
                 slide_node=slide_node,
@@ -175,7 +174,6 @@ class DeepMILPlotsHandler:
                 figsize=self.figsize,
             )
         if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
-            logging.info("Plotting slide thumbnails and heatmaps ...")
             assert self.slides_dataset
             save_slide_thumbnail_and_heatmap(
                 case=case,
@@ -186,6 +184,13 @@ class DeepMILPlotsHandler:
                 tile_size=self.tile_size,
                 level=self.level,
             )
+
+    def log_slide_plot_options(self) -> None:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
+            logging.info("Plotting top and bottom tiles ...")
+
+        if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
+            logging.info("Plotting slide thumbnails and heatmaps ...")
 
     def save_all_plot_options(
         self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType, stage: ModelKey
@@ -206,6 +211,7 @@ class DeepMILPlotsHandler:
             save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir, stage=stage)
 
         if tiles_selector:
+            self.log_slide_plot_options()
             for class_id in range(tiles_selector.n_classes):
 
                 for slide_node in tiles_selector.top_slides_heaps[class_id]:
