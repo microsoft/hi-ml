@@ -27,7 +27,9 @@ from health_ml.utils.common_utils import (
     RUN_RECOVERY_ID_KEY,
     RUN_RECOVERY_FROM_ID_KEY_NAME,
     df_to_json,
+    seed_monai_if_available,
 )
+
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
@@ -96,6 +98,8 @@ class MLRunner:
                 self.container.local_datasets = local_datasets  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
+        # MONAI needs a separate method to make all transforms deterministic by default
+        seed_monai_if_available(self.container.get_effective_random_seed())
 
         # Creating the folder structure must happen before the LightningModule is created, because the output
         # parameters of the container will be copied into the module.

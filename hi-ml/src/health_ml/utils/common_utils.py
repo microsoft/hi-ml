@@ -234,3 +234,15 @@ def df_to_json(df: pd.DataFrame, json_path: Path, add_newline: bool = True) -> N
     if add_newline:
         text += '\n'
     json_path.write_text(text)
+
+
+def seed_monai_if_available(seed: int) -> None:
+    """If the MONAI package is available, set its shared seed to make all MONAI operations deterministic.
+    If MONAI is not available, nothing will happen.
+
+    :param seed: The random seed to use for MONAI."""
+    try:
+        from monai.utils import set_determinism
+        set_determinism(seed=seed)
+    except ImportError:
+        pass

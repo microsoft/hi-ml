@@ -70,6 +70,9 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             RandRotate90d(keys=image_key, prob=0.5),
             ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
         ])
+        # The training transforms are randomized. Make them deterministic. This call needs to be
+        # done on the final Compose, not at the level of the individual randomized transforms.
+        transform_train.set_random_state(seed=self.get_effective_random_seed())
         transform_inf = Compose([
             ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
         ])
