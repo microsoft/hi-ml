@@ -280,8 +280,20 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
+    def validate_slide_datasets_and_plot_options(
+        self,
+        plot_options: Set[PlotOptionsKey],
+        slides_dataset: Optional[SlidesDataset]
+    ) -> None:
+        if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
+            raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset.")
+
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
+        self.validate_slide_datasets_and_plot_options(self.test_plot_options, slides_dataset)
+        self.validate_slide_datasets_and_plot_options(self.val_plot_options, slides_dataset)
         self.slides_dataset = slides_dataset
+        self.test_plots_handler.slides_dataset = slides_dataset
+        self.val_plots_handler.slides_dataset = slides_dataset
 
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.

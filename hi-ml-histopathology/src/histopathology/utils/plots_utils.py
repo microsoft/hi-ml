@@ -31,8 +31,6 @@ def validate_plot_options(plot_options: Set[PlotOptionsKey], slides_dataset: Sli
                 "The selected plot option is not a valid option, choose among the options available in "
                 "histopathology.utils.naming.PlotOptionsKey"
             )
-    if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
-        raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset.")
     return plot_options
 
 
