@@ -5,7 +5,7 @@
 import logging
 
 from pathlib import Path
-from typing import Optional, Sequence, Set, Tuple
+from typing import Any, List, Optional, Sequence, Set, Tuple, Dict
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 
 from histopathology.datasets.base_dataset import SlidesDataset
@@ -16,19 +16,23 @@ from histopathology.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
-
-from histopathology.utils.naming import ModelKey, PlotOptionsKey, SlideKey
-from histopathology.utils.output_utils import ResultsType
+from histopathology.utils.naming import ModelKey, PlotOptionsKey, ResultsKey, SlideKey
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
 
-def validate_plot_options(self, plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsKey]:
-    for opt in self.plot_options:
-        if not isinstance(opt, PlotOptionsKey):
-            raise ValueError("The select plot option")
-    if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options and not self.slides_dataset:
-        raise ValueError("You can not plot slide thumbnails and heatmaps with a slides_dataset = None.")
+ResultsType = Dict[ResultsKey, List[Any]]
+
+
+def validate_plot_options(plot_options: Set[PlotOptionsKey], slides_dataset: SlidesDataset) -> Set[PlotOptionsKey]:
+    for opt in plot_options:
+        if opt not in PlotOptionsKey.__members__.values():
+            raise ValueError(
+                "The selected plot option is not a valid option, choose among the options available in "
+                "histopathology.utils.naming.PlotOptionsKey"
+            )
+    if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
+        raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset.")
     return plot_options
 
 
@@ -131,7 +135,7 @@ class DeepMILPlotsHandler:
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         """
-        self.plot_options = validate_plot_options(plot_options)
+        self.plot_options = validate_plot_options(plot_options, slides_dataset)
         self.figsize = figsize
         self.level = level
         self.tile_size = tile_size

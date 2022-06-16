@@ -98,7 +98,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
     @property
-    def test_plot_options(self) -> Set(PlotOptionsKey):
+    def test_plot_options(self) -> Set[PlotOptionsKey]:
         plot_options = super().test_plot_options
         return plot_options.add(PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP)
 

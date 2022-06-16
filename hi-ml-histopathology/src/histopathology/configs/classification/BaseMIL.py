@@ -183,15 +183,15 @@ class BaseMIL(LightningContainer):
         return pooling_layer, num_features
 
     @property
-    def test_plot_options(self) -> Set(PlotOptionsKey):
+    def test_plot_options(self) -> Set[PlotOptionsKey]:
         if self.num_top_slides > 0:
-            return set(PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES)
+            return set([PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES])
         else:
-            return set(PlotOptionsKey.HISTOGRAM)
+            return set([PlotOptionsKey.HISTOGRAM])
 
     @property
-    def val_plot_options(self) -> Set(PlotOptionsKey):
-        return set(PlotOptionsKey.HISTOGRAM)
+    def val_plot_options(self) -> Set[PlotOptionsKey]:
+        return set([PlotOptionsKey.HISTOGRAM])
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
         n_classes = self.data_module.train_dataset.N_CLASSES
@@ -202,20 +202,19 @@ class BaseMIL(LightningContainer):
             level=self.level,
             class_names=self.class_names,
             primary_val_metric=self.primary_val_metric,
-            maximise=self.maximise_primary_metric,
-            save_output_slides=self.save_output_slides
+            maximise=self.maximise_primary_metric
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
                 n_classes=n_classes, num_slides=self.num_top_slides, num_tiles=self.num_top_tiles
             )
         outputs_handler.val_plots_handler = DeepMILPlotsHandler(
-            plot_options=self.test_plot_options,
+            plot_options=self.val_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names)
-        outputs_handler.val_plots_handler = DeepMILPlotsHandler(
-            plot_options=self.val_plot_options,
+        outputs_handler.test_plots_handler = DeepMILPlotsHandler(
+            plot_options=self.test_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names)

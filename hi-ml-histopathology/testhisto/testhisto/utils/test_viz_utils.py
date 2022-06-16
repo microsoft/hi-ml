@@ -18,7 +18,7 @@ from torch.functional import Tensor
 
 from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
-from histopathology.utils.viz_utils import plot_scores_hist, resize_and_save, plot_slide, \
+from histopathology.utils.viz_utils import plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide, \
     plot_heatmap_overlay, plot_normalized_confusion_matrix
 from histopathology.utils.naming import ResultsKey
 from histopathology.utils.heatmap_utils import location_selected_tiles
@@ -120,10 +120,10 @@ def test_plot_scores_hist(test_output_dirs: OutputFolderForTests) -> None:
 @pytest.fixture
 def slide_node() -> SlideNode:
     """Fixture to create a mock slide node with corresponding top and bottom tiles."""
-    torch.manual_seed(42)
+    set_random_seed(0)
     tile_size = (3, 224, 224)
     num_top_tiles = 12
-    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=0)
+    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=1)
     top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.89, 0.88]
     slide_node.top_tiles = [
         TileNode(attn=top_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(num_top_tiles)
@@ -148,8 +148,12 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
-    top_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.top_tiles, case="TP")
-    bottom_tiles_fig = slide_node.plot_attention_tiles(tile_nodes=slide_node.bottom_tiles, case="FN")
+    top_tiles_fig = plot_attention_tiles(
+        case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+    )
+    bottom_tiles_fig = plot_attention_tiles(
+        case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+    )
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
     assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)
 
@@ -158,14 +162,15 @@ def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFo
 def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    fig = plot_slide(slide_image=slide_image, scale=scale)
+    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=1)
+    fig = plot_slide(case="TP", slide_node=slide_node, slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_slide.png"
     resize_and_save(5, 5, file)
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
@@ -173,11 +178,12 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
 def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
+    slide_node = SlideNode(slide_id=1, prob_score=0.5, true_label=1, pred_label=1)
     location_bbox = [100, 100]
-    slide = 1
     tile_size = 224
     level = 0
-    fig = plot_heatmap_overlay(slide_node=slide,  # type: ignore
+    fig = plot_heatmap_overlay(case="TP",
+                               slide_node=slide_node,
                                slide_image=slide_image,
                                results=test_dict,  # type: ignore
                                location_bbox=location_bbox,

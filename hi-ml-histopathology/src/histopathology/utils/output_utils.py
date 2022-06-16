@@ -284,6 +284,7 @@ class DeepMILOutputsHandler:
         # contains the tile value
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results_on_cpu(epoch_results)
+        outputs_dir.mkdir(exist_ok=True, parents=True)
         save_outputs_csv(results, outputs_dir)
 
         if stage == ModelKey.VAL:
