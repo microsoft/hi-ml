@@ -10,8 +10,8 @@ from transformers import BertTokenizer
 
 
 class TextInput:
-    """
-    Text input class that can be used for inference and deployment.
+    """Text input class that can be used for inference and deployment.
+
     Implements tokenizer related operations and ensure that input strings
     conform with the standards expected from a BERT model.
 
