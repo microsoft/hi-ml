@@ -173,7 +173,9 @@ class DeepMILPlotsHandler:
                 level=self.level,
             )
 
-    def plot(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
+    def plot_all_options(
+        self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType
+    ) -> None:
 
         logging.info(f"Start plotting all figure outputs in {outputs_dir}")
         figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
