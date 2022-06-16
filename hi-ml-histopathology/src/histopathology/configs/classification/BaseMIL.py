@@ -201,7 +201,9 @@ class BaseMIL(LightningContainer):
             level=self.level,
             class_names=self.class_names,
             primary_val_metric=self.primary_val_metric,
-            maximise=self.maximise_primary_metric
+            maximise=self.maximise_primary_metric,
+            val_plot_options=self.val_plot_options,
+            test_plot_options=self.test_plot_options,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
