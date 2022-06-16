@@ -9,12 +9,12 @@ from typing import Optional, Tuple
 import numpy as np
 import pydicom as dicom
 from PIL import Image
-from SimpleITK import GetArrayFromImage, ReadImage
+import SimpleITK as sitk
 from skimage import io
 
 
 def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]] = None) -> np.ndarray:
-    """Remap values in input so the output range is ``[0, 255]``.
+    """Remap values in input so the output range is :math:`[0, 255]`.
 
     :param: array: Input array.
     :param: percentiles: Percentiles of the input values that will be mapped to ``0`` and ``255``.
@@ -44,20 +44,22 @@ def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]]
 
 
 def load_image(img_path: str) -> Image.Image:
-    """
-    Load an image.
+    """Load an image from disk.
+
+    The image values are remapped to :math:`[0, 255]` and cast to 8-bit unsigned integers.
 
     :param: img_path: path to image
     :returns: image as PIL Image
     """
-    if Path(img_path).suffix in [".jpg", ".png"]:
+    img_path = Path(img_path)
+    if img_path.suffix in [".jpg", ".png"]:
         image = io.imread(img_path)
-    elif Path(img_path).suffixes == [".nii", ".gz"]:
-        image = GetArrayFromImage(ReadImage(str(img_path)))
+    elif img_path.suffixes == [".nii", ".gz"]:
+        image = sitk.GetArrayFromImage(sitk.ReadImage(str(img_path)))
         if image.shape[0] == 1:
             image = np.squeeze(image, axis=0)
         assert image.ndim == 2
-    elif Path(img_path).suffix == ".dcm":
+    elif img_path.suffix == ".dcm":
         image = dicom.dcmread(img_path).pixel_array
     else:
         raise ValueError(f"Image type not supported, filename was: {img_path}")
