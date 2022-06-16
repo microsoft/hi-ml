@@ -36,7 +36,7 @@ def validate_plot_options(plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsK
 
 def validate_class_names_for_plot_options(
     class_names: Optional[Sequence[str]], plot_options: Set[PlotOptionsKey]
-) -> None:
+) -> Optional[Sequence[str]]:
     if PlotOptionsKey.CONFUSION_MATRIX in plot_options and not class_names:
         raise ValueError(
             "No class_names were provided while activating confusion matrix plotting. You need to specify the class "
@@ -176,6 +176,7 @@ class DeepMILPlotsHandler:
             )
         if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
             logging.info("Plotting slide thumbnails and heatmaps ...")
+            assert self.slides_dataset
             save_slide_thumbnail_and_heatmap(
                 case=case,
                 slide_node=slide_node,
