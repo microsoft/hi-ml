@@ -70,7 +70,9 @@ def save_top_and_bottom_tiles(
     )
     save_figure(fig=top_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_top.png")
 
-    bottom_tiles_fig = plot_attention_tiles(top=False, slide_node=slide_node, case=case)
+    bottom_tiles_fig = plot_attention_tiles(
+        slide_node=slide_node, case=case, top=False, num_columns=num_columns, figsize=figsize
+    )
     save_figure(fig=bottom_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_bottom.png")
 
 
