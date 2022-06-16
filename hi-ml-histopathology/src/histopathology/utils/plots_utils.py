@@ -173,7 +173,7 @@ class DeepMILPlotsHandler:
                 level=self.level,
             )
 
-    def plot_all_options(
+    def save_all_plot_options(
         self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType
     ) -> None:
 
