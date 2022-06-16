@@ -43,7 +43,7 @@ def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]]
     return array.astype(np.uint8)
 
 
-def load_image(img_path: str) -> Image.Image:
+def load_image(img_path_string: str) -> Image.Image:
     """Load an image from disk.
 
     The image values are remapped to :math:`[0, 255]` and cast to 8-bit unsigned integers.
@@ -51,7 +51,7 @@ def load_image(img_path: str) -> Image.Image:
     :param: img_path: path to image
     :returns: image as PIL Image
     """
-    img_path = Path(img_path)
+    img_path = Path(img_path_string)
     if img_path.suffix in [".jpg", ".png"]:
         image = io.imread(img_path)
     elif img_path.suffixes == [".nii", ".gz"]:
