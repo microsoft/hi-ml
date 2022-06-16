@@ -59,11 +59,22 @@ pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
+tilespandaimagenetmil_regression_test:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
+	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
+	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 --is_finetune \
+	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
+	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
+	}
+
 slidespandaimagenetmil_regression_test:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMIL \
-	--cluster innereye4cl --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
 	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
 	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 --is_finetune \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
@@ -73,8 +84,8 @@ slidespandaimagenetmil_regression_test:
 tcgacrcksslmil_regression_test:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL \
-	--cluster innereye4cl --conda_env hi-ml-histopathology/environment.yml --max_epochs=50 \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --is_caching=True \
+	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml --max_epochs=50 \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics=test/auroc,test/f1score,test/precision,test/recall;\
@@ -84,11 +95,52 @@ crck_simclr_regression_test:
 	{ \
 	cd ../; \
 	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
-	--cluster innereye4cl --conda_env hi-ml-histopathology/environment.yml \
+	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR/\
-	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5\
+	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
 	 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
 	}
 
 regression tests: slidespandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test
+
+# Smoke tests (smaller tests that run end to end to check integration)
+smoke_test_slidespandaimagenetmil:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMILBenchmark \
+	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml --is_finetune \
+	--conda_env hi-ml-histopathology/environment.yml \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+smoke_test_tilespandaimagenetmil:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
+	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--is_finetune --batch_size=2 \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+smoke_test_tcgacrcksslmil:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --is_caching=True \
+	--conda_env hi-ml-histopathology/environment.yml --crossval_count=1 \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+smoke_test_crck_simclr:
+	{ \
+	cd ../; \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
+	--conda_env hi-ml-histopathology/environment.yml \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--is_debug_model=True --num_workers=0 --max_epochs=2; \
+	}
+
+smoke tests: smoke_test_slidespandaimagenetmil smoke_test_tilespandaimagenetmil smoke_test_tcgacrcksslmil smoke_test_crck_simclr
