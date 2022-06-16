@@ -170,7 +170,7 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
     # To update the stored results, uncomment this line:
-    expected.write_bytes(file.read_bytes())
+    # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 

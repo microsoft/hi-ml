@@ -114,8 +114,8 @@ def plot_attention_tiles(
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
     fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label}"
-        f"\n True label: {slide_node.true_label}"
+        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
+        f"True label: {slide_node.true_label}"
     )
 
     for ax, tile_node in zip(axs.flat, tile_nodes):
@@ -139,8 +139,8 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
     fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label}"
-        f"\n True label: {slide_node.true_label}"
+        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
+        f"True label: {slide_node.true_label}"
     )
     ax.set_axis_off()
     original_size = fig.get_size_inches()
@@ -171,8 +171,8 @@ def plot_heatmap_overlay(
     """
     fig, ax = plt.subplots()
     fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label}"
-        f"\n True label: {slide_node.true_label}"
+        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
+        f"True label: {slide_node.true_label}"
     )
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
