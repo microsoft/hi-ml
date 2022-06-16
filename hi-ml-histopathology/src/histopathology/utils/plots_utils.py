@@ -2,8 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 
+import logging
 from pathlib import Path
 from typing import Any, List, Optional, Sequence, Set, Tuple, Dict
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
@@ -32,6 +32,17 @@ def validate_plot_options(plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsK
                 "histopathology.utils.naming.PlotOptionsKey"
             )
     return plot_options
+
+
+def validate_class_names_for_plot_options(
+    class_names: Optional[Sequence[str]], plot_options: Set[PlotOptionsKey]
+) -> None:
+    if PlotOptionsKey.CONFUSION_MATRIX in plot_options and not class_names:
+        raise ValueError(
+            "No class_names were provided while activating confusion matrix plotting. You need to specify the class "
+            "names to use the `PlotOptionsKey.CONFUSION_MATRIX`"
+        )
+    return class_names
 
 
 def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
@@ -132,7 +143,7 @@ class DeepMILPlotsHandler:
         num_columns: int = 4,
         figsize: Tuple[int, int] = (10, 10),
         conf_matrix: Optional[ConfusionMatrix] = None,
-        class_names: Optional[Tuple[str, ...]] = None,
+        class_names: Optional[Sequence[str]] = None,
         slides_dataset: Optional[SlidesDataset] = None,
     ) -> None:
         """
@@ -140,15 +151,17 @@ class DeepMILPlotsHandler:
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         """
         self.plot_options = validate_plot_options(plot_options)
-        self.figsize = figsize
+        self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
         self.level = level
         self.tile_size = tile_size
         self.num_columns = num_columns
-        self.slides_dataset = slides_dataset
+        self.figsize = figsize
         self.conf_matrix: ConfusionMatrix = conf_matrix
-        self.class_names = class_names
+        self.slides_dataset = slides_dataset
 
-    def plot_slide_figures(self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType) -> None:
+    def save_slide_node_figures(
+        self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType
+    ) -> None:
 
         case_dir = make_figure_dirs(subfolder=case, parent_dir=outputs_dir)
 
@@ -174,7 +187,7 @@ class DeepMILPlotsHandler:
             )
 
     def save_all_plot_options(
-        self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType
+        self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType, stage: ModelKey
     ) -> None:
 
         logging.info(f"Start plotting all figure outputs in {outputs_dir}")
@@ -188,15 +201,16 @@ class DeepMILPlotsHandler:
             # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
             # will be adressed in a seperate PR
             logging.info("Plotting confusion matrix ...")
-            save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
+            assert self.class_names
+            save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir, stage=stage)
 
         if tiles_selector:
             for class_id in range(tiles_selector.n_classes):
 
                 for slide_node in tiles_selector.top_slides_heaps[class_id]:
                     case = "TN" if class_id == 0 else f"TP_{class_id}"
-                    self.plot_slide_figures(case, slide_node, outputs_dir, results)
+                    self.save_slide_node_figures(case, slide_node, outputs_dir, results)
 
                 for slide_node in tiles_selector.bottom_slides_heaps[class_id]:
                     case = "FP" if class_id == 0 else f"FN_{class_id}"
-                    self.plot_slide_figures(case, slide_node, outputs_dir, results)
+                    self.save_slide_node_figures(case, slide_node, outputs_dir, results)
