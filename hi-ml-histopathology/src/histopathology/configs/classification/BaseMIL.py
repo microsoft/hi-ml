@@ -34,7 +34,6 @@ from histopathology.models.encoders import (
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, PlotOptionsKey, SlideKey, ModelKey
-from histopathology.utils.plots_utils import DeepMILPlotsHandler
 from histopathology.utils.tiles_selection_utils import TilesSelector
 
 
@@ -208,16 +207,6 @@ class BaseMIL(LightningContainer):
             outputs_handler.tiles_selector = TilesSelector(
                 n_classes=n_classes, num_slides=self.num_top_slides, num_tiles=self.num_top_tiles
             )
-        outputs_handler.val_plots_handler = DeepMILPlotsHandler(
-            plot_options=self.val_plot_options,
-            level=self.level,
-            tile_size=self.tile_size,
-            class_names=self.class_names)
-        outputs_handler.test_plots_handler = DeepMILPlotsHandler(
-            plot_options=self.test_plot_options,
-            level=self.level,
-            tile_size=self.tile_size,
-            class_names=self.class_names)
         return outputs_handler
 
     def get_model_encoder(self) -> TileEncoder:

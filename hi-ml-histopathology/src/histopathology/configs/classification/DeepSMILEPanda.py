@@ -100,8 +100,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     @property
     def test_plot_options(self) -> Set[PlotOptionsKey]:
         plot_options = super().test_plot_options
-        return plot_options.add(PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP)
-
+        plot_options.add(PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP)
+        return plot_options
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):
     def __init__(self, **kwargs: Any) -> None:

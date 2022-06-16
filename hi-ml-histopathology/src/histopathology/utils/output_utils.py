@@ -6,7 +6,7 @@
 import shutil
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -229,7 +229,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool) -> None:
+                 maximise: bool, val_plot_options: Set[PlotOptionsKey], test_plot_options: Set[PlotOptionsKey]) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -249,11 +249,24 @@ class DeepMILOutputsHandler:
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
+        self.val_plot_options = val_plot_options
+        self.test_plot_options = test_plot_options
 
         self.slides_dataset: Optional[SlidesDataset]
         self.tiles_selector: Optional[TilesSelector]
-        self.val_plots_handler: DeepMILPlotsHandler
-        self.test_plots_handler: DeepMILPlotsHandler
+
+        self.val_plots_handler = DeepMILPlotsHandler(
+            plot_options=self.val_plot_options,
+            level=self.level,
+            tile_size=self.tile_size,
+            class_names=self.class_names
+        )
+        self.test_plots_handler = DeepMILPlotsHandler(
+            plot_options=self.test_plot_options,
+            level=self.level,
+            tile_size=self.tile_size,
+            class_names=self.class_names
+        )
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -305,7 +318,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
@@ -333,7 +346,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 

@@ -173,7 +173,7 @@ class DeepMILPlotsHandler:
                 level=self.level,
             )
 
-    def plot(self, outputs_dir: Path, tiles_selector: TilesSelector, results: ResultsType) -> None:
+    def plot(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
 
         logging.info(f"Start plotting all figure outputs in {outputs_dir}")
         figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
@@ -184,15 +184,17 @@ class DeepMILPlotsHandler:
 
         if PlotOptionsKey.CONFUSION_MATRIX in self.plot_options:
             # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
+            # will be adressed in a seperate PR
             logging.info("Plotting confusion matrix ...")
             save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
 
-        for class_id in range(tiles_selector.n_classes):
+        if tiles_selector:
+            for class_id in range(tiles_selector.n_classes):
 
-            for slide_node in tiles_selector.top_slides_heaps[class_id]:
-                case = "TN" if class_id == 0 else f"TP_{class_id}"
-                self.plot_slide_figures(case, slide_node, outputs_dir, results)
+                for slide_node in tiles_selector.top_slides_heaps[class_id]:
+                    case = "TN" if class_id == 0 else f"TP_{class_id}"
+                    self.plot_slide_figures(case, slide_node, outputs_dir, results)
 
-            for slide_node in tiles_selector.bottom_slides_heaps[class_id]:
-                case = "FP" if class_id == 0 else f"FN_{class_id}"
-                self.plot_slide_figures(case, slide_node, outputs_dir, results)
+                for slide_node in tiles_selector.bottom_slides_heaps[class_id]:
+                    case = "FP" if class_id == 0 else f"FN_{class_id}"
+                    self.plot_slide_figures(case, slide_node, outputs_dir, results)
