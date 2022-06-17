@@ -27,7 +27,7 @@ def assert_plot_func_called_if_among_plot_options(
         calls_count += 1
     else:
         mock_plot_func.assert_not_called()
-    return
+    return calls_count
 
 
 @pytest.mark.parametrize(
