@@ -44,7 +44,7 @@ def test_remap_to_uint8() -> None:
     """
     array = np.arange(10).astype(np.uint16)  # mimic DICOM data type
     with pytest.raises(ValueError):
-        remap_to_uint8(array, (1, 2, 3))
+        remap_to_uint8(array, (1, 2, 3))  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         remap_to_uint8(array, (-1, 50))
     with pytest.raises(ValueError):

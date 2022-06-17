@@ -1,3 +1,7 @@
+from typing import Union, Optional
+
+import numpy as np
+from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -5,7 +9,16 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from health_multimodal.image.data.io import load_image
 
 
-def plot_image(image, axis=None, title=None):
+TypeArrayImage = Union[np.ndarray, Image.Image]
+TypeOptionalAxis = Optional[plt.Axes]
+TypeOptionalString = Optional[str]
+
+
+def plot_image(
+    image: TypeArrayImage,
+    axis: plt.Axes,
+    title: Optional[str] = None,
+) -> None:
     """
     """
     axis.imshow(image)
@@ -14,7 +27,14 @@ def plot_image(image, axis=None, title=None):
         axis.set_title(title)
 
 
-def plot_isolines(image, similarity, axis=None, title=None, colormap='RdBu_r', step=0.25):
+def plot_isolines(
+        image: TypeArrayImage,
+        similarity: np.ndarray,
+        axis: plt.Axes,
+        title: Optional[str] = None,
+        colormap: str = 'RdBu_r',
+        step: float = 0.25,
+) -> None:
     """
     """
     axis.imshow(image)
@@ -33,7 +53,15 @@ def plot_isolines(image, similarity, axis=None, title=None, colormap='RdBu_r', s
         axis.set_title(title)
 
 
-def plot_heatmap(image, similarity, figure=None, axis=None, colormap='RdBu_r', title=None, alpha=0.5):
+def plot_heatmap(
+        image: TypeArrayImage,
+        similarity: np.ndarray,
+        figure: plt.Figure,
+        axis: plt.Axes,
+        colormap: str = 'RdBu_r',
+        title: Optional[str] = None,
+        alpha: float = 0.5,
+) -> None:
     """
     """
     axis.imshow(image)
