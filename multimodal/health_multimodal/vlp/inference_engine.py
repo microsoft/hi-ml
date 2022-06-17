@@ -85,6 +85,7 @@ class ImageTextInferenceEngine:
         taking into account whether the image has been resized and/or cropped prior to entering the network.
         """
         n_patches_h, n_patches_w = similarity_map.shape[0], similarity_map.shape[1]
+        target_shape = 1, 1, n_patches_h, n_patches_w
         smallest_dimension = min(height, width)
 
         # TODO:
@@ -93,15 +94,18 @@ class ImageTextInferenceEngine:
         if crop_size is not None:
             if resize_size is not None:
                 cropped_size_orig_space = int(crop_size * smallest_dimension / resize_size)
-                target_size = (cropped_size_orig_space, cropped_size_orig_space)
+                target_size = cropped_size_orig_space, cropped_size_orig_space
             else:
-                target_size = (crop_size, crop_size)
+                target_size = crop_size, crop_size
             similarity_map = F.interpolate(
-                similarity_map.reshape((1, 1, n_patches_h, n_patches_w)), size=target_size)[0, 0]
+                similarity_map.reshape(target_shape),
+                size=target_size,
+                mode='bilinear',
+            )
             margin_w, margin_h = (width - target_size[0]), (height - target_size[1])
             margins_for_pad = (floor(margin_w / 2), ceil(margin_w / 2), floor(margin_h / 2), ceil(margin_h / 2))
-            similarity_map = F.pad(similarity_map, margins_for_pad, value=float("NaN"))
+            similarity_map = F.pad(similarity_map[0, 0], margins_for_pad, value=float("NaN"))
         else:
-            similarity_map = F.interpolate(
-                similarity_map.reshape((1, 1, n_patches_h, n_patches_w)), size=(height, width))[0, 0]
-        return similarity_map.numpy()
+            similarity_map = F.interpolate(similarity_map.reshape(target_shape),
+                                           size=(height, width), mode='bilinear')[0, 0]
+        return similarity_map[0, 0].numpy()
