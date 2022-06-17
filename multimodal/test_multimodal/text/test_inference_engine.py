@@ -20,7 +20,7 @@ def test_text_inference_init_model_type() -> None:
     tokenizer, _ = _get_cxr_bert()
     false_model = torch.nn.Linear(4, 4)
     with pytest.raises(AssertionError) as ex:
-        TextInferenceEngine(tokenizer=tokenizer, text_model=false_model)
+        TextInferenceEngine(tokenizer=tokenizer, text_model=false_model)  # type: ignore[arg-type]
     assert f"Expected a BertForMaskedLM, got {type(false_model)}" in str(ex)
 
 
