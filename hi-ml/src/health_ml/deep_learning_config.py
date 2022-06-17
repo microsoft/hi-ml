@@ -183,9 +183,10 @@ class WorkflowParams(param.Parameterized):
         """
         seed = self.random_seed
         if self.is_crossvalidation_enabled:
-            # offset the random seed based on the cross validation split index so each
-            # fold has a different initial random state.
-            seed += self.crossval_index
+            # Offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state. Cross validation index 0 will have
+            # a different seed from a non cross validation run.
+            seed += self.crossval_index + 1
         return seed
 
     @property
