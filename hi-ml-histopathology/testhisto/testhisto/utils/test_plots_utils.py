@@ -20,11 +20,14 @@ def test_plots_handler_wrong_plot_options(plot_options: Set[PlotOptionsKey]) -> 
 
 def assert_plot_func_called_if_among_plot_options(
     mock_plot_func: MagicMock, plot_option: PlotOptionsKey, plot_options: Set[PlotOptionsKey]
-) -> None:
+) -> int:
+    calls_count = 0
     if plot_option in plot_options:
         mock_plot_func.assert_called_once()
+        calls_count += 1
     else:
         mock_plot_func.assert_not_called()
+    return
 
 
 @pytest.mark.parametrize(
@@ -57,8 +60,15 @@ def test_plots_handler_plots_only_desired_plot_options(
     plots_handler.save_all_plot_options(
         outputs_dir=MagicMock(), tiles_selector=MagicMock(), results=MagicMock(), stage=ModelKey.VAL
     )
-
-    assert_plot_func_called_if_among_plot_options(mock_slide, PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP, plot_options)
-    assert_plot_func_called_if_among_plot_options(mock_tile, PlotOptionsKey.TOP_BOTTOM_TILES, plot_options)
-    assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options)
-    assert_plot_func_called_if_among_plot_options(mock_conf, PlotOptionsKey.CONFUSION_MATRIX, plot_options)
+    calls_count = 0
+    calls_count += assert_plot_func_called_if_among_plot_options(
+        mock_slide, PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP, plot_options
+    )
+    calls_count += assert_plot_func_called_if_among_plot_options(
+        mock_tile, PlotOptionsKey.TOP_BOTTOM_TILES, plot_options
+    )
+    calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options)
+    calls_count += assert_plot_func_called_if_among_plot_options(
+        mock_conf, PlotOptionsKey.CONFUSION_MATRIX, plot_options
+    )
+    assert calls_count == len(plot_options)
