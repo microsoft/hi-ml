@@ -3,13 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPanda
 from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
+from histopathology.utils.naming import PlotOptionsKey
 
 
 class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
@@ -49,6 +50,9 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return None
 
+    def test_plot_options(self) -> Set[PlotOptionsKey]:
+        return self.val_plot_options
+
 
 class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
     def __init__(self, tmp_path: Path, **kwargs: Any) -> None:
@@ -82,3 +86,6 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
     @property
     def cache_dir(self) -> Path:
         return Path(self.tmp_path / f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
+
+    def test_plot_options(self) -> Set[PlotOptionsKey]:
+        return self.val_plot_options
