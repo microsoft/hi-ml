@@ -160,7 +160,7 @@ class DeepMILPlotsHandler:
         self.slides_dataset = slides_dataset
 
     def save_slide_node_figures(
-        self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType, log: bool
+        self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType
     ) -> None:
 
         case_dir = make_figure_dirs(subfolder=case, parent_dir=outputs_dir)
