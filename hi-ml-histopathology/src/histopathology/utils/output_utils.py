@@ -281,9 +281,7 @@ class DeepMILOutputsHandler:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
     def validate_slide_datasets_for_plot_options(
-        self,
-        plot_options: Set[PlotOptionsKey],
-        slides_dataset: Optional[SlidesDataset]
+        self, plot_options: Set[PlotOptionsKey], slides_dataset: Optional[SlidesDataset]
     ) -> None:
         if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
             raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
@@ -330,7 +328,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plot_options and self.tiles_selector:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
@@ -358,7 +356,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plot_options and self.tiles_selector:
+        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
