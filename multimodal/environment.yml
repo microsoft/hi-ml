@@ -20,6 +20,8 @@ dependencies:
     - coverage==6.3.2
     - flake8==4.0.1
     - huggingface-hub==0.6.0
+    - ipython==7.34.0
+    - ipykernel==6.15.0
     - lightning-bolts==0.3.4
     - mypy==0.931
     - pillow==9.0.0
