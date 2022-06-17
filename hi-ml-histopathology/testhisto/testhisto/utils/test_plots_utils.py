@@ -67,7 +67,9 @@ def test_plots_handler_plots_only_desired_plot_options(
     calls_count += assert_plot_func_called_if_among_plot_options(
         mock_tile, PlotOptionsKey.TOP_BOTTOM_TILES, plot_options
     )
-    calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options)
+    calls_count += assert_plot_func_called_if_among_plot_options(
+        mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options
+    )
     calls_count += assert_plot_func_called_if_among_plot_options(
         mock_conf, PlotOptionsKey.CONFUSION_MATRIX, plot_options
     )

@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from multiprocessing.sharedctypes import Value
 from pathlib import Path
 from typing import Any, List, Optional, Sequence, Set, Tuple, Dict
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
