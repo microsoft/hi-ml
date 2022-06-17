@@ -48,6 +48,13 @@ The `hi-ml` toolbox provides
 
 .. toctree::
    :maxdepth: 1
+   :caption: Multimodal learning
+
+   multimodal.md
+   api/multimodal.rst
+
+.. toctree::
+   :maxdepth: 1
    :caption: Self supervised learning
 
    self_supervised_models.md
