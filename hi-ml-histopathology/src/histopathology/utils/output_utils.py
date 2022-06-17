@@ -340,7 +340,7 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, stage=ModelKey.VAL)
+            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, ModelKey.VAL)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
@@ -362,4 +362,4 @@ class DeepMILOutputsHandler:
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
-            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, ModelKey.TEST)

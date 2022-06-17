@@ -5,7 +5,7 @@
 from typing import Set
 from unittest.mock import MagicMock, patch
 import pytest
-from histopathology.utils.naming import PlotOptionsKey
+from histopathology.utils.naming import ModelKey, PlotOptionsKey
 
 from histopathology.utils.plots_utils import DeepMILPlotsHandler
 
@@ -19,7 +19,7 @@ def test_plots_handler_wrong_plot_options(plot_options: Set[PlotOptionsKey]) -> 
 
 
 def assert_plot_func_called_if_among_plot_options(
-    mock_plot_func: MagicMock, plot_option: Set[PlotOptionsKey], plot_options: Set[PlotOptionsKey]
+    mock_plot_func: MagicMock, plot_option: PlotOptionsKey, plot_options: Set[PlotOptionsKey]
 ) -> None:
     if plot_option in plot_options:
         mock_plot_func.assert_called_once()
@@ -54,7 +54,9 @@ def test_plots_handler_plots_only_desired_plot_options(
     plot_options: Set[PlotOptionsKey],
 ) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options)
-    plots_handler.save_all_plot_options(outputs_dir=MagicMock(), tiles_selector=MagicMock(), results=MagicMock())
+    plots_handler.save_all_plot_options(
+        outputs_dir=MagicMock(), tiles_selector=MagicMock(), results=MagicMock(), stage=ModelKey.VAL
+    )
 
     assert_plot_func_called_if_among_plot_options(mock_slide, PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP, plot_options)
     assert_plot_func_called_if_among_plot_options(mock_tile, PlotOptionsKey.TOP_BOTTOM_TILES, plot_options)
