@@ -309,6 +309,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
+
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
             transforms = base_transform

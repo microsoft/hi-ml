@@ -73,6 +73,7 @@ class DeepSMILECrck(BaseMILTiles):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
+            seed=self.get_effective_random_seed(),
         )
 
 

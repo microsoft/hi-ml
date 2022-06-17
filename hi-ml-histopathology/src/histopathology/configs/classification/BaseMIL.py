@@ -243,6 +243,10 @@ class BaseMIL(LightningContainer):
         return dataloader_kwargs
 
     def get_transforms_dict(self, image_key: str) -> Optional[Dict[ModelKey, Union[Callable, None]]]:
+        """Returns the image transforms that the training, validation, and test dataloaders should use.
+
+        For reproducible results, those need to use a fixed random see. See `SlidesDataModule`
+        for an example how to achieve that."""
         return None
 
     def create_model(self) -> BaseDeepMILModule:
