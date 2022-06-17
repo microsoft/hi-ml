@@ -1,8 +1,7 @@
 from typing import Callable, Optional, Tuple
 
 import torch
-from torchvision.transforms import Compose, Resize, ToTensor
-from torchvision.transforms.transforms import CenterCrop
+from torchvision.transforms import Compose, Resize, ToTensor, CenterCrop
 
 
 class ExpandChannels:

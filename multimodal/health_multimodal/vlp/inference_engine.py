@@ -41,15 +41,19 @@ class ImageTextInferenceEngine:
 
         # TODO: Add checks in here regarding the text query and etc.
 
-        image_embedding, (W, H) = self.image_inference_engine.get_patch_embeddings_from_image(image_path)
+        image_embedding, (width, height) = self.image_inference_engine.get_patch_embeddings_from_image(image_path)
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
 
         sim = self._get_similarity_map_from_embeddings(image_embedding, text_embedding)
 
-        resized_sim_map = self.convert_similarity_to_image_size(sim, width=W, height=H,
-                                                                resize_size=self.image_inference_engine.resize_size,
-                                                                crop_size=self.image_inference_engine.crop_size,
-                                                                val_img_transforms=self.image_inference_engine.transforms)
+        resized_sim_map = self.convert_similarity_to_image_size(
+            sim,
+            width=width,
+            height=height,
+            resize_size=self.image_inference_engine.resize_size,
+            crop_size=self.image_inference_engine.crop_size,
+            val_img_transforms=self.image_inference_engine.transforms,
+        )
         return resized_sim_map
 
     @staticmethod
@@ -77,8 +81,8 @@ class ImageTextInferenceEngine:
             similarity_map: torch.Tensor, width: int, height: int, resize_size: Optional[int],
             crop_size: Optional[int], val_img_transforms: Optional[Callable]) -> np.ndarray:
         """
-        Converts similarity map from raw patch grid to original image size, taking into account whether the image has been
-        resized and/or cropped prior to entering the network.
+        Convert similarity map from raw patch grid to original image size,
+        taking into account whether the image has been resized and/or cropped prior to entering the network.
         """
         n_patches_h, n_patches_w = similarity_map.shape[0], similarity_map.shape[1]
         smallest_dimension = min(height, width)
