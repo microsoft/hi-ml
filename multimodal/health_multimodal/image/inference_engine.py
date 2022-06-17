@@ -44,8 +44,8 @@ class ImageInferenceEngine:
         3. Add the batch dimension
         4. Move to the correct device.
 
-        :param return_original_shape: Whether to return an extra tuple that has the original shape of the image before the transforms.
-                                      The tuple returned contains (width, height).
+        :param return_original_shape: Whether to return an extra tuple that has the original shape of the image
+            before the transforms. The tuple returned contains (width, height).
         """
         image = load_image(image_path)
         transformed_image = self.transforms(image).unsqueeze(0).to(self.device)
