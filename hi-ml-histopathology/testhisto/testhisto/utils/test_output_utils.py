@@ -11,7 +11,7 @@ from testhisto.utils.utils_testhisto import run_distributed
 from torch.testing import assert_close
 from torchmetrics.metric import Metric
 
-from histopathology.utils.naming import MetricsKey, ResultsKey
+from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
                                                collate_results_on_cpu, gather_results)
 
@@ -88,7 +88,7 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
     mock_output_filename = "mock_output.txt"
     is_rank_zero = (rank == 0)
 
-    def mock_save_outputs(epoch_results: List, outputs_dir: Path) -> None:
+    def mock_save_outputs(epoch_results: List, outputs_dir: Path, stage: ModelKey) -> None:
         assert rank == 0, f"Expected to save only on rank 0, got rank {rank}"
         assert len(epoch_results) == world_size, f"Expected {world_size} results, got {len(epoch_results)}"
         assert [batch_results[_RANK_KEY] for batch_results in epoch_results] == list(range(world_size))
