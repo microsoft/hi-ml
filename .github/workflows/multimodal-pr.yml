@@ -95,11 +95,3 @@ jobs:
 
           # Run tests
           make pip_test
-          make pytest_coverage
-
-      - name: Upload coverage report to Codecov
-        # Coverage should also be uploaded if tests still fail
-        if: always()
-        uses: codecov/codecov-action@v2
-        with:
-            flags: ${{ env.folder }}
