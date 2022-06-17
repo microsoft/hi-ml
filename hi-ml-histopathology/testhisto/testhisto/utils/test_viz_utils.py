@@ -178,7 +178,7 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
 def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id=1, prob_score=0.5, true_label=1, pred_label=1)
+    slide_node = SlideNode(slide_id=1, prob_score=0.5, true_label=1, pred_label=1)  # type: ignore
     location_bbox = [100, 100]
     tile_size = 224
     level = 0
