@@ -293,7 +293,7 @@ def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
 @pytest.mark.parametrize("num_top_slides, num_top_tiles", [(0, 0), (0, 1), (2, 0)])
 def test_disable_top_bottom_tiles_handler(num_top_slides: int, num_top_tiles: int) -> None:
     try:
-        _ = TilesSelector(n_classes=2, num_top_slides=num_top_slides, num_top_tiles=num_top_tiles)
+        _ = TilesSelector(n_classes=2,  num_slides=num_top_slides, num_tiles=num_top_tiles)
     except Exception as err:
         assert num_top_slides > 0 and num_top_tiles == 0
         assert isinstance(err, ValueError)
@@ -316,7 +316,7 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
         n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
     )
 
-    handler = TilesSelector(n_classes, num_top_slides=num_top_slides, num_top_tiles=num_top_tiles)
+    handler = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
 
     with patch.object(handler, "_update_label_slides") as mock_update_label_slides:
         for i in range(rank * n_batches, (rank + 1) * n_batches):
