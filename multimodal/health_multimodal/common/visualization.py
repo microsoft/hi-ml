@@ -1,6 +1,8 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from health_multimodal.image.data.io import load_image
 
 
 def plot_image(image, axis=None, title=None):
@@ -46,3 +48,13 @@ def plot_heatmap(image, similarity, figure=None, axis=None, colormap='RdBu_r', t
     axis.axis('off')
     if title is not None:
         axis.set_title(title)
+
+
+def plot_phrase_grounding_similarity_map(image_path, similarity_map):
+    """
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+    image = load_image(image_path).convert('RGB')
+    plot_image(image, axis=axes[0], title='Input image')
+    plot_isolines(image, similarity_map, axis=axes[1], title='Similarity isolines')
+    plot_heatmap(image, similarity_map, figure=fig, axis=axes[2], title='Similarity heatmap')
