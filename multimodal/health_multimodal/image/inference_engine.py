@@ -4,13 +4,13 @@
 #  -------------------------------------------------------------------------------------------
 
 
-from typing import Callable, Union, Tuple
+from typing import Callable, Tuple, Union
 
 import torch
 
-from health_multimodal.image.model.model import ImageModel
 from health_multimodal.image.data.io import load_image
 from health_multimodal.image.data.transforms import infer_resize_params
+from health_multimodal.image.model.model import ImageModel
 
 
 class ImageInferenceEngine:

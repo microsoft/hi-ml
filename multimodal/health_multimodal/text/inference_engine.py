@@ -7,7 +7,7 @@
 from typing import Any, List, Union
 
 import torch
-from transformers import BertTokenizer, BertForMaskedLM
+from transformers import BertForMaskedLM, BertTokenizer
 
 from health_multimodal.text.data.io import TextInput
 

@@ -4,14 +4,13 @@
 #  -------------------------------------------------------------------------------------------
 
 
-import numpy as np
-import torch
 from math import ceil, floor
-
-from scipy import ndimage
 from typing import Callable, Optional
 
+import numpy as np
+import torch
 import torch.nn.functional as F
+from scipy import ndimage
 
 from health_multimodal.image.inference_engine import ImageInferenceEngine
 from health_multimodal.text.inference_engine import TextInferenceEngine

@@ -9,11 +9,10 @@ from typing import Any, List, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
 from torch import Tensor as T
 
-from .modules import ClassifierHeadType, MLP, MTModel
+from .modules import MLP, ClassifierHeadType, MTModel
 
 
 @dataclass
