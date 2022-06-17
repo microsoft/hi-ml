@@ -32,7 +32,7 @@ class ImageTextInferenceEngine:
         self.image_inference_engine = image_inference_engine
         self.text_inference_engine = text_inference_engine
 
-    def get_similarity_map_from_raw_data(self, image_path: str, query_text: str, verbose: bool = False) -> np.ndarray:
+    def get_similarity_map_from_raw_data(self, image_path: str, query_text: str) -> np.ndarray:
         """
         Return a heatmap of the similarities between each patch embedding from the image and the text embedding.
         """
