@@ -50,7 +50,7 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return None
 
-    def test_plot_options(self) -> Set[PlotOptionsKey]:
+    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
         return {PlotOptionsKey.HISTOGRAM}
 
 
@@ -87,5 +87,5 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
     def cache_dir(self) -> Path:
         return Path(self.tmp_path / f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
-    def test_plot_options(self) -> Set[PlotOptionsKey]:
+    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
         return {PlotOptionsKey.HISTOGRAM}

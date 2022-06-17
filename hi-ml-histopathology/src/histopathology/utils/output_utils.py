@@ -239,6 +239,8 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
+        :param val_plot_options: The desired plot options for validation time.
+        :param test_plot_options: The desired plot options for test time.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -249,20 +251,18 @@ class DeepMILOutputsHandler:
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.val_plot_options = val_plot_options
-        self.test_plot_options = test_plot_options
 
         self.slides_dataset: Optional[SlidesDataset]
         self.tiles_selector: Optional[TilesSelector]
 
         self.val_plots_handler = DeepMILPlotsHandler(
-            plot_options=self.val_plot_options,
+            plot_options=val_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names
         )
         self.test_plots_handler = DeepMILPlotsHandler(
-            plot_options=self.test_plot_options,
+            plot_options=test_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names
@@ -280,17 +280,19 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
-    def validate_slide_datasets_and_plot_options(
+    def validate_slide_datasets_for_plot_options(
         self,
         plot_options: Set[PlotOptionsKey],
         slides_dataset: Optional[SlidesDataset]
     ) -> None:
         if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
-            raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset.")
+            raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
+                             "Please remove PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP from your plot options or provide "
+                             "a slide dataset.")
 
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
-        self.validate_slide_datasets_and_plot_options(self.test_plot_options, slides_dataset)
-        self.validate_slide_datasets_and_plot_options(self.val_plot_options, slides_dataset)
+        self.validate_slide_datasets_for_plot_options(self.test_plots_handler.plot_options, slides_dataset)
+        self.validate_slide_datasets_for_plot_options(self.val_plots_handler.plot_options, slides_dataset)
         self.slides_dataset = slides_dataset
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
