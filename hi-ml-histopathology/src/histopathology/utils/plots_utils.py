@@ -158,7 +158,6 @@ class DeepMILPlotsHandler:
         figsize: Tuple[int, int] = (10, 10),
         conf_matrix: Optional[ConfusionMatrix] = None,
         class_names: Optional[Sequence[str]] = None,
-        slides_dataset: Optional[SlidesDataset] = None,
     ) -> None:
         """_summary_
 
@@ -179,7 +178,7 @@ class DeepMILPlotsHandler:
         self.num_columns = num_columns
         self.figsize = figsize
         self.conf_matrix: ConfusionMatrix = conf_matrix
-        self.slides_dataset = slides_dataset
+        self.slides_dataset: Optional[SlidesDataset]
 
     def save_slide_node_figures(
         self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType

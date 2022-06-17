@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from histopathology.utils.naming import ModelKey, PlotOptionsKey
 from histopathology.utils.plots_utils import DeepMILPlotsHandler
+from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 
 
 def test_plots_handler_wrong_plot_options() -> None:
@@ -28,7 +29,7 @@ def assert_plot_func_called_if_among_plot_options(
 ) -> int:
     calls_count = 0
     if plot_option in plot_options:
-        mock_plot_func.assert_called_once()
+        mock_plot_func.assert_called()
         calls_count += 1
     else:
         mock_plot_func.assert_not_called()
@@ -62,8 +63,14 @@ def test_plots_handler_plots_only_desired_plot_options(
     plot_options: Set[PlotOptionsKey],
 ) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
+    plots_handler.slides_dataset = MagicMock()
+
+    slide_node = SlideNode(slide_id="1", prob_score=0.5, true_label=1, pred_label=0)
+    tiles_selector = TilesSelector(n_classes=2, num_slides=4, num_tiles=2)
+    tiles_selector.top_slides_heaps = {0: [slide_node] * 4, 1: [slide_node] * 4}
+
     plots_handler.save_all_plot_options(
-        outputs_dir=MagicMock(), tiles_selector=MagicMock(), results=MagicMock(), stage=ModelKey.VAL
+        outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock(), stage=ModelKey.VAL
     )
     calls_count = 0
     calls_count += assert_plot_func_called_if_among_plot_options(
@@ -72,9 +79,7 @@ def test_plots_handler_plots_only_desired_plot_options(
     calls_count += assert_plot_func_called_if_among_plot_options(
         mock_tile, PlotOptionsKey.TOP_BOTTOM_TILES, plot_options
     )
-    calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options
-    )
+    calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options)
     calls_count += assert_plot_func_called_if_among_plot_options(
         mock_conf, PlotOptionsKey.CONFUSION_MATRIX, plot_options
     )

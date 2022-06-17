@@ -60,7 +60,7 @@ def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Dict:
     return batch
 
 
-def _create_and_update_top_bottom_tiles_handler(
+def _create_and_update_top_bottom_tiles_selector(
     data: Dict,
     results: Dict,
     num_top_slides: int,
@@ -70,7 +70,7 @@ def _create_and_update_top_bottom_tiles_handler(
     batch_size: int = 2,
     n_batches: int = 10,
 ) -> TilesSelector:
-    """Create a top and bottom tiles handler and update its top and bottom slides/tiles while looping through the data
+    """Create a top and bottom tiles selector and update its top and bottom slides/tiles while looping through the data
     available for the current rank
 
     :param data: The data dictionary containing the entire small dataset.
@@ -81,17 +81,17 @@ def _create_and_update_top_bottom_tiles_handler(
     :param rank: The identifier of the current process within the ddp context, defaults to 0
     :param batch_size: The number of samples in a batch, defaults to 2
     :param n_batches: The number of batches, defaults to 10
-    :return: A top bottom tiles handler with selected top and bottom slides and corresponding top and bottom slides.
+    :return: A top bottom tiles selector with selected top and bottom slides and corresponding top and bottom slides.
     """
 
-    handler = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
+    tiles_selector = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
 
     for i in range(rank * n_batches, (rank + 1) * n_batches):
         batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)
         batch_results = _batch_data(results, batch_idx=i, batch_size=batch_size)
-        handler.update_slides_selection(batch_data, batch_results)
+        tiles_selector.update_slides_selection(batch_data, batch_results)
 
-    return handler
+    return tiles_selector
 
 
 def _get_expected_slides_by_probability(
@@ -149,17 +149,19 @@ def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size
         n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
     )
 
-    handler = _create_and_update_top_bottom_tiles_handler(
+    tiles_selector = _create_and_update_top_bottom_tiles_selector(
         data, results, num_top_slides, num_top_tiles, n_classes, rank, batch_size, n_batches
     )
 
-    shallow_top_slides_heaps = handler._shallow_copy_slides_heaps(handler.top_slides_heaps)
-    shallow_bottom_slides_heaps = handler._shallow_copy_slides_heaps(handler.bottom_slides_heaps)
+    shallow_top_slides_heaps = tiles_selector._shallow_copy_slides_heaps(tiles_selector.top_slides_heaps)
+    shallow_bottom_slides_heaps = tiles_selector._shallow_copy_slides_heaps(tiles_selector.bottom_slides_heaps)
 
     if torch.distributed.is_initialized():
         if world_size > 1:
-            shallow_top_slides_heaps = handler._aggregate_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
-            shallow_bottom_slides_heaps = handler._aggregate_shallow_slides_heaps(
+            shallow_top_slides_heaps = tiles_selector._aggregate_shallow_slides_heaps(
+                world_size, shallow_top_slides_heaps
+            )
+            shallow_bottom_slides_heaps = tiles_selector._aggregate_shallow_slides_heaps(
                 world_size, shallow_bottom_slides_heaps
             )
 
@@ -190,14 +192,14 @@ def test_aggregate_shallow_slide_nodes_distributed() -> None:
 def assert_equal_top_bottom_attention_tiles(
     slide_ids: List[str], data: Dict, results: Dict, num_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
-    """Asserts that top and bottom tiles selected on the fly by the top bottom tiles handler are equal to the expected
+    """Asserts that top and bottom tiles selected on the fly by the top bottom tiles selector are equal to the expected
     top and bottom tiles in the mock dataset.
 
     :param slide_ids: A list of expected slide ids0
     :param data: A dictionary containing the entire dataset.
     :param results: A dictionary of data results.
     :param num_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
-    :param slide_nodes: The top or bottom slide nodes selected on the fly by the handler.
+    :param slide_nodes: The top or bottom slide nodes selected on the fly by the selector.
     """
     for i, slide_id in enumerate(slide_ids):
         slide_batch_idx = int(slide_id.split("_")[1])
@@ -231,8 +233,8 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 ) -> None:
     """This tests checks that k top and bottom tiles are selected properly `on the fly`:
         1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
-        2- Create a handler that is only exposed to a subset of the data distributed across devices. This handler
-           updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
+        2- Create a tiles selector that is only exposed to a subset of the data distributed across devices. This
+           selector updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
         3- Gather top and bottom tiles if ddp context
         4- Select expected top slides from the entire dataset using torch.topk given that it's a small set that fits
            entirely in memory.
@@ -255,25 +257,27 @@ def test_select_k_top_bottom_tiles_on_the_fly(
         n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
     )
 
-    handler = _create_and_update_top_bottom_tiles_handler(
+    tiles_selector = _create_and_update_top_bottom_tiles_selector(
         data, results, num_top_slides, num_top_tiles, n_classes, rank, batch_size, n_batches
     )
-    handler.gather_selected_tiles_across_devices()
+    tiles_selector.gather_selected_tiles_across_devices()
 
     if rank == 0:
         for label in range(n_classes):
             expected_top_slides_ids = get_expected_top_slides_by_probability(results, num_top_slides, label)
-            assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]]
+            assert expected_top_slides_ids == [
+                slide_node.slide_id for slide_node in tiles_selector.top_slides_heaps[label]
+            ]
             assert_equal_top_bottom_attention_tiles(
-                expected_top_slides_ids, data, results, num_top_tiles, handler.top_slides_heaps[label]
+                expected_top_slides_ids, data, results, num_top_tiles, tiles_selector.top_slides_heaps[label]
             )
 
             expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, num_top_slides, label)
             assert expected_bottom_slides_ids == [
-                slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]
+                slide_node.slide_id for slide_node in tiles_selector.bottom_slides_heaps[label]
             ]
             assert_equal_top_bottom_attention_tiles(
-                expected_bottom_slides_ids, data, results, num_top_tiles, handler.bottom_slides_heaps[label]
+                expected_bottom_slides_ids, data, results, num_top_tiles, tiles_selector.bottom_slides_heaps[label]
             )
 
 
@@ -290,7 +294,7 @@ def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
 
 
-def test_disable_top_bottom_tiles_handler() -> None:
+def test_disable_top_bottom_tiles_selector() -> None:
     with pytest.raises(ValueError) as ex:
         _ = TilesSelector(n_classes=2, num_slides=2, num_tiles=0)
     assert "You should use `num_top_tiles>0` to be able to select top and bottom tiles" in str(ex)
@@ -312,22 +316,21 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
     results = _create_mock_results(
         n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
     )
+    tiles_selector = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
 
-    handler = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
-
-    with patch.object(handler, "_update_label_slides") as mock_update_label_slides:
+    with patch.object(tiles_selector, "_update_label_slides") as mock_update_label_slides:
         for i in range(rank * n_batches, (rank + 1) * n_batches):
             batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)
             batch_results = _batch_data(results, batch_idx=i, batch_size=batch_size)
-            handler.update_slides_selection(batch_data, batch_results)
+            tiles_selector.update_slides_selection(batch_data, batch_results)
     mock_update_label_slides.assert_not_called()
 
     for class_id in range(n_classes):
-        assert len(handler.top_slides_heaps[class_id]) == 0
-        assert len(handler.bottom_slides_heaps[class_id]) == 0
+        assert len(tiles_selector.top_slides_heaps[class_id]) == 0
+        assert len(tiles_selector.bottom_slides_heaps[class_id]) == 0
 
-    with patch.object(handler, "_shallow_copy_slides_heaps") as mock_shallow_copy_slides_heaps:
-        handler.gather_selected_tiles_across_devices()
+    with patch.object(tiles_selector, "_shallow_copy_slides_heaps") as mock_shallow_copy_slides_heaps:
+        tiles_selector.gather_selected_tiles_across_devices()
     mock_shallow_copy_slides_heaps.assert_not_called()
 
 
