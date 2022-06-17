@@ -108,4 +108,4 @@ class ImageTextInferenceEngine:
         else:
             similarity_map = F.interpolate(similarity_map.reshape(target_shape),
                                            size=(height, width), mode='bilinear')[0, 0]
-        return similarity_map[0, 0].numpy()
+        return similarity_map.numpy()
