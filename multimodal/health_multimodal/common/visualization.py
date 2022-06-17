@@ -4,6 +4,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def plot_image(image, axis=None, title=None):
+    """
+    """
     axis.imshow(image)
     axis.axis('off')
     if title is not None:
@@ -11,6 +13,8 @@ def plot_image(image, axis=None, title=None):
 
 
 def plot_isolines(image, similarity, axis=None, title=None, colormap='RdBu_r', step=0.25):
+    """
+    """
     axis.imshow(image)
     num_steps = int(round(1 / step))
     levels = np.linspace(step, 1, num_steps)
@@ -28,6 +32,8 @@ def plot_isolines(image, similarity, axis=None, title=None, colormap='RdBu_r', s
 
 
 def plot_heatmap(image, similarity, figure=None, axis=None, colormap='RdBu_r', title=None, alpha=0.5):
+    """
+    """
     axis.imshow(image)
     axes_image = axis.matshow(similarity, alpha=alpha, cmap=colormap, vmin=-1, vmax=1)
     # https://www.geeksforgeeks.org/how-to-change-matplotlib-color-bar-size-in-python/
