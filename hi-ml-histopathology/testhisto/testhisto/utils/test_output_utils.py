@@ -90,6 +90,7 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
 
     def mock_save_outputs(epoch_results: List, outputs_dir: Path, stage: ModelKey) -> None:
         assert rank == 0, f"Expected to save only on rank 0, got rank {rank}"
+        assert stage == ModelKey.VAL, "Wrong model stage. Expected ModelKey.VAL"
         assert len(epoch_results) == world_size, f"Expected {world_size} results, got {len(epoch_results)}"
         assert [batch_results[_RANK_KEY] for batch_results in epoch_results] == list(range(world_size))
 
