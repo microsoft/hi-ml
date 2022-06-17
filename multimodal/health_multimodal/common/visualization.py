@@ -3,7 +3,6 @@ from typing import Union, Optional
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
-import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from health_multimodal.image.data.io import load_image
@@ -78,7 +77,7 @@ def plot_heatmap(
         axis.set_title(title)
 
 
-def plot_phrase_grounding_similarity_map(image_path, similarity_map):
+def plot_phrase_grounding_similarity_map(image_path: str, similarity_map: np.ndarray) -> None:
     """
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 6))
