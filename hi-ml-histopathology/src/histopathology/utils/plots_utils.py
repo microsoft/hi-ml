@@ -32,11 +32,6 @@ def validate_plot_options(plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsK
                 "The selected plot option is not a valid option, choose among the options available in "
                 "histopathology.utils.naming.PlotOptionsKey"
             )
-    if PlotOptionsKey.CONFUSION_MATRIX in plot_options:
-        raise ValueError(
-            "We don't support plotting confusion matrices at the moment. It is planned for the next "
-            "iteration, stay tuned!"
-        )
     return plot_options
 
 

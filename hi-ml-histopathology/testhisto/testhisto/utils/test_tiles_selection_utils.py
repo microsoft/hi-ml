@@ -4,316 +4,337 @@
 #  ------------------------------------------------------------------------------------------
 
 import torch
-import heapq
+import pytest
+import numpy as np
 
-from torch import Tensor
-from typing import Optional, List, Tuple, Dict, Union, Any
-from collections import ChainMap
-
-from histopathology.utils.naming import ResultsKey, SlideKey, TileKey
-
-
-class TileNode:
-    """Data structure class for tile nodes used by `SlideNode` to store top and bottom tiles by attention scores."""
-
-    def __init__(
-        self,
-        data: Tensor,
-        attn: float,
-        id: Optional[int] = None,
-        left: Optional[float] = None,
-        top: Optional[float] = None,
-    ) -> None:
-        """
-        :param data: A tensor of tile data of shape (channels, height, width), e.g (3, 224, 224).
-        :param attn: The attention score assigned to the tile.
-        :param id: An optional tile id, defaults to None
-        :param left: An optional tile coordinate at the LEFT (e.g. x_coor), defaults to None
-        :param top: An optional tile coordinate at the TOP (e.g. y_coor), defaults to None
-        """
-        self.data = data.cpu()
-        self.attn = attn
-        self.id = id
-        self.left = left
-        self.top = top
+from unittest.mock import patch
+from typing import Dict, List, Any
+from testhisto.utils.utils_testhisto import run_distributed
+from histopathology.utils.naming import ResultsKey, SlideKey
+from histopathology.utils.plots_utils import TilesSelector, SlideNode
 
 
-class SlideNode:
-    """Data structure class for slide nodes used by `TopBottomTilesHandler` to store top and bottom slides by
-    probability score. """
+def _create_mock_data(n_samples: int, n_tiles: int = 3, device: str = "cpu") -> Dict:
+    """Generates a mock pretiled slides data dictionary.
 
-    def __init__(self, slide_id: str, prob_score: float, true_label: int, pred_label: int) -> None:
-        """
-        :param prob_score: The probability score assigned to the slide node. This scalar defines the order of the
-            slide_node among the nodes in the max/min heap.
-        :param slide_id: The slide id in the data cohort.
-        :param true_label: The ground truth label of the slide node.
-        :param pred_label: The label predicted by the model.
-        """
-        self.slide_id = slide_id
-        self.prob_score = prob_score
-        self.true_label = true_label
-        self.pred_label = pred_label
-        self.top_tiles: List[TileNode] = []
-        self.bottom_tiles: List[TileNode] = []
-
-    def __lt__(self, other: "SlideNode") -> bool:
-        return self.prob_score < other.prob_score
-
-    def update_selected_tiles(self, tiles: Tensor, attn_scores: Tensor, num_top_tiles: int) -> None:
-        """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
-
-        :param tiles: A stack of tiles with shape (n_tiles, channels, height, width).
-        :param attn_scores: A tensor of attention scores assigned by the deepmil model to tiles of shape (n_tiles, 1).
-        :param num_top_tiles: The number of tiles to select as top and bottom tiles.
-        """
-        num_top_tiles = min(num_top_tiles, len(attn_scores))
-
-        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=num_top_tiles, largest=True, sorted=True)
-        self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in top_k_indices]
-
-        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=num_top_tiles, largest=False, sorted=True)
-        self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in bottom_k_indices]
-
-    def _shallow_copy(self) -> "SlideNode":
-        """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
-        return SlideNode(self.slide_id, self.prob_score, self.true_label, self.pred_label)
+    :param n_samples: The number of whole slide images to generate.
+    :param n_tiles: The minimum number of tiles in each slide, defaults to 3
+    :param device: torch device where tensors should be created, defaults to "cpu"
+    :return: A dictioanry containing randomly generated mock data.
+    """
+    n_tiles = 3
+    tile_size = (1, 4, 4)
+    diff_n_tiles = [n_tiles + i for i in range(n_samples)]
+    mock_data = {
+        SlideKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
+        SlideKey.IMAGE: [torch.randint(0, 255, (diff_n_tiles[i], *tile_size), device=device) for i in range(n_samples)],
+    }
+    return mock_data
 
 
-SlideOrTileKey = Union[SlideKey, TileKey]
-SlideDict = Dict[int, List[SlideNode]]
-TileDict = Dict[str, List[TileNode]]
+def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, device: str = "cpu") -> Dict:
+    """Generates mock results data dictionary.
+
+    :param n_samples: The number of whole slide images.
+    :param n_tiles: The minimum number of tiles in each slide, defaults to 3
+    :param n_classes: the number of class labels in the dataset, defaults to 2
+    :param device: torch device where tensors should be created, defaults to "cpu"
+    :return: A dictioanry containing randomly generated mock results.
+    """
+    diff_n_tiles = [n_tiles + i for i in range(n_samples)]
+    mock_results = {
+        ResultsKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
+        ResultsKey.TRUE_LABEL: torch.randint(2, size=(n_samples,), device=device),
+        ResultsKey.PRED_LABEL: torch.randint(2, size=(n_samples,), device=device),
+        ResultsKey.BAG_ATTN: [torch.rand(size=(1, diff_n_tiles[i]), device=device) for i in range(n_samples)],
+        ResultsKey.CLASS_PROBS: torch.rand((n_samples, n_classes), device=device),
+    }
+    return mock_results
 
 
-class TilesSelector:
-    """Class that manages selecting top and bottom tiles on the fly during validation or test of DeepMIL models."""
+def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Dict:
+    """Helper function to generate smaller batches from a dictionary."""
+    batch = {}
+    for k in data:
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
+    return batch
 
-    def __init__(self, n_classes: int, num_slides: int = 10, num_tiles: int = 12) -> None:
-        """
-        :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
-        :param num_slides: Number of top and bottom slides to select to define top and bottom tiles based of
-            prediction scores. Defaults to 10.
-        :param num_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
-        """
-        if num_slides > 0 and num_tiles == 0:
-            raise ValueError(
-                "You should use `num_top_tiles>0` to be able to select top and bottom tiles for `num_top_slides>0`. "
-                "You can set `num_top_slides=0` to disable top and bottom tiles plotting."
+
+def _create_and_update_top_bottom_tiles_handler(
+    data: Dict,
+    results: Dict,
+    num_top_slides: int,
+    num_top_tiles: int,
+    n_classes: int,
+    rank: int = 0,
+    batch_size: int = 2,
+    n_batches: int = 10,
+) -> TilesSelector:
+    """Create a top and bottom tiles handler and update its top and bottom slides/tiles while looping through the data
+    available for the current rank
+
+    :param data: The data dictionary containing the entire small dataset.
+    :param results: The results dictionary containing mock resulst for all data.
+    :param num_top_slides: The number of slides to use to select top and bottom slides.
+    :param num_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
+    :param n_classes: The number of class labels.
+    :param rank: The identifier of the current process within the ddp context, defaults to 0
+    :param batch_size: The number of samples in a batch, defaults to 2
+    :param n_batches: The number of batches, defaults to 10
+    :return: A top bottom tiles handler with selected top and bottom slides and corresponding top and bottom slides.
+    """
+
+    handler = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
+
+    for i in range(rank * n_batches, (rank + 1) * n_batches):
+        batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)
+        batch_results = _batch_data(results, batch_idx=i, batch_size=batch_size)
+        handler.update_slides_selection(batch_data, batch_results)
+
+    return handler
+
+
+def _get_expected_slides_by_probability(
+    results: Dict[ResultsKey, Any], num_top_slides: int = 2, label: int = 1, top: bool = True
+) -> List[str]:
+    """Select top or bottom slides according to their probability scores from the entire dataset.
+
+    :param results: The results dictionary for the entire dataset.
+    :param num_top_slides: The number of slides to use to select top and bottom slides, defaults to 5
+    :param label: The current label to process given that top and bottom are grouped by class label, defaults to 1
+    :param top: A flag to select top or bottom slides with highest (respetively, lowest) prob scores, defaults to True
+    :return: A list of selected slide ids.
+    """
+
+    class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
+    class_prob = results[ResultsKey.CLASS_PROBS][class_indices, label]
+    assert class_prob.shape == (len(class_indices),)
+    num_top_slides = min(num_top_slides, len(class_prob))
+
+    _, sorting_indices = class_prob.topk(num_top_slides, largest=top, sorted=True)
+    sorted_class_indices = class_indices[sorting_indices]
+
+    return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices][::-1]  # the order is inversed in the heaps
+
+
+def get_expected_top_slides_by_probability(
+    results: Dict[ResultsKey, Any], num_top_slides: int = 5, label: int = 1
+) -> List[str]:
+    """Calls `_get_expected_slides_by_probability` with `top=True` to select expected top slides for the entire dataset
+    in one go. """
+    return _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
+
+
+def get_expected_bottom_slides_by_probability(
+    results: Dict[ResultsKey, Any], num_top_slides: int = 5, label: int = 1
+) -> List[str]:
+    """Calls `_get_expected_slides_by_probability` with `top=False` to select expected bottom slides for the entire
+    dataset in one go. """
+    return _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
+
+
+@pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
+def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
+    """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
+    n_tiles = 3
+    batch_size = 2
+    n_batches = 10
+    total_batches = n_batches * world_size
+    num_top_tiles = 2
+    num_top_slides = 2
+
+    torch.manual_seed(42)
+    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(
+        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
+    )
+
+    handler = _create_and_update_top_bottom_tiles_handler(
+        data, results, num_top_slides, num_top_tiles, n_classes, rank, batch_size, n_batches
+    )
+
+    shallow_top_slides_heaps = handler._shallow_copy_slides_heaps(handler.top_slides_heaps)
+    shallow_bottom_slides_heaps = handler._shallow_copy_slides_heaps(handler.bottom_slides_heaps)
+
+    if torch.distributed.is_initialized():
+        if world_size > 1:
+            shallow_top_slides_heaps = handler._aggregate_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
+            shallow_bottom_slides_heaps = handler._aggregate_shallow_slides_heaps(
+                world_size, shallow_bottom_slides_heaps
             )
 
-        self.n_classes = n_classes if n_classes > 1 else 2
-        self.num_slides = num_slides
-        self.num_tiles = num_tiles
-        self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
-        self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
-        self.report_cases_slide_ids = self.init_report_cases()
+    if rank == 0:
+        for label in range(n_classes):
+            expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
+            assert expected_top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]]
 
-    def init_report_cases(self) -> Dict[str, List[str]]:
-        """ Initializes the report cases dictionary to store slide_ids per case.
-        Possible cases are set such as class 0 is considered to be the negative class.
+            expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
+            assert expected_bottom_slides_ids == [
+                slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]
+            ]
 
-        :return: A dictionary that maps TN/FP TP_{i}/FN_{i}, i={1,..., self.n_classes+1} cases to an empty list to be
-            filled with corresponding slide ids.
-        """
-        report_cases: Dict[str, List[str]] = {"TN": [], "FP": []}
-        report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes)})
-        report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
-        return report_cases
 
-    def _reset_slides_heaps(self, new_top_slides_heaps: SlideDict, new_bottom_slides_heaps: SlideDict) -> None:
-        self.top_slides_heaps = new_top_slides_heaps
-        self.bottom_slides_heaps = new_bottom_slides_heaps
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_aggregate_shallow_slide_nodes_distributed() -> None:
+    """These tests need to be called sequentially to prevent them to be run in parallel."""
+    # test with n_classes = 2
+    run_distributed(test_aggregate_shallow_slide_nodes, [2], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2], world_size=2)
+    # test with n_classes = 3
+    run_distributed(test_aggregate_shallow_slide_nodes, [3], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [3], world_size=2)
 
-    def _update_label_slides(
-        self, class_slides_heap: List[SlideNode], tiles: Tensor, attn_scores: Tensor, slide_node: SlideNode,
-    ) -> None:
-        """Update the selected slides of a given class label on the fly by updating the content of class_slides_heap.
-        First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
-        defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
-        bottom_slides_heaps nodes.
-        Second, we check if we exceeded self.num_top_slides to be selected.
-            If so, we update the slides_node top and bottom tiles only if it has been kept in the heap.
-            Else, we haven't reached the heaps max_capacity so we save the top and bottom tiles.
 
-        :param class_slides_heap: The class_slides_heap dict to be updated. Either self.top_slides_heaps or
-            self.bottom_slides_heaps.
-        :param tiles: Tiles of a given whole slide retrieved from the current validation or test batch.
-            (n_tiles, channels, height, width)
-        :param attn_scores: The tiles attention scores to determine top and bottom tiles. (n_tiles, )
-        :param slide_node: A shallow version of slide_node that contains only slide_id and its assigned prob_score.
-        """
-        heapq.heappush(class_slides_heap, slide_node)
-        if len(class_slides_heap) == self.num_slides + 1:
-            old_slide_node = heapq.heappop(class_slides_heap)
-            if old_slide_node.slide_id != slide_node.slide_id:
-                slide_node.update_selected_tiles(tiles, attn_scores, self.num_tiles)
-        else:
-            slide_node.update_selected_tiles(tiles, attn_scores, self.num_tiles)
+def assert_equal_top_bottom_attention_tiles(
+    slide_ids: List[str], data: Dict, results: Dict, num_top_tiles: int, slide_nodes: List[SlideNode]
+) -> None:
+    """Asserts that top and bottom tiles selected on the fly by the top bottom tiles handler are equal to the expected
+    top and bottom tiles in the mock dataset.
 
-    def update_slides_selection(self, batch: Dict[SlideOrTileKey, Any], results: Dict[ResultsKey, Any]) -> None:
-        """Updates top and bottom slides heaps on the fly during validation or test.
+    :param slide_ids: A list of expected slide ids0
+    :param data: A dictionary containing the entire dataset.
+    :param results: A dictionary of data results.
+    :param num_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
+    :param slide_nodes: The top or bottom slide nodes selected on the fly by the handler.
+    """
+    for i, slide_id in enumerate(slide_ids):
+        slide_batch_idx = int(slide_id.split("_")[1])
+        tiles = data[SlideKey.IMAGE][slide_batch_idx]
 
-        :param batch: The current validation/test batch that contains the slides info, corresponding tiles and
-            additional metadata.
-        :param results: Batch results that contain attention scores, probability scores and the true labels.
-        """
-        if self.num_slides:
-            slide_ids = batch[SlideKey.SLIDE_ID]
-            if isinstance(slide_ids[0], list):
-                slide_ids = [slide_id[0] for slide_id in slide_ids]  # to account for repetitions in tiles pipeline
-            batch_size = len(batch[SlideKey.IMAGE])
-            for i in range(batch_size):
-                label = results[ResultsKey.TRUE_LABEL][i].item()
-                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-                self._update_label_slides(
-                    class_slides_heap=self.top_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(
-                        slide_id=slide_ids[i],
-                        prob_score=probs_gt_label[i].item(),
-                        true_label=label,
-                        pred_label=results[ResultsKey.PRED_LABEL][i].item(),
-                    ),
-                )
-                self._update_label_slides(
-                    class_slides_heap=self.bottom_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(
-                        slide_id=slide_ids[i],
-                        prob_score=-probs_gt_label[i].item(),
-                        true_label=label,
-                        pred_label=results[ResultsKey.PRED_LABEL][i].item(),
-                    ),
-                )
-
-    def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
-        """Returns a shallow copy of slides heaps to be synchronised across devices.
-
-        :param slides_heaps: The slides_heaps dict to be shallow copied. Either self.top_slides_heaps or
-            self.bottom_slides_heaps.
-        """
-        shallow_slides_heaps_copy: SlideDict = {}
-        for class_id, slide_nodes in slides_heaps.items():
-            shallow_slides_heaps_copy[class_id] = [slide_node._shallow_copy() for slide_node in slide_nodes]
-        return shallow_slides_heaps_copy
-
-    def _reduce_slides_heaps_list(self, world_size: int, slides_heaps_list: List[SlideDict]) -> SlideDict:
-        """Reduces the list of slides_heaps gathered across devices into a single slides_heaps that contain top or
-        bottom shallow slide nodes.
-
-        :param world_size: The number of devices in the ddp context.
-        :param slides_heaps_list: A list of slides heaps gathered across devices.
-        :return: A reduced version of slides_heaps_list to a single slides_heaps containing only top or bottom slides.
-        """
-        slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
-        for class_id in range(self.n_classes):
-            for rank in range(world_size):
-                for slide_node in slides_heaps_list[rank][class_id]:
-                    heapq.heappush(slides_heaps[class_id], slide_node)
-                    if len(slides_heaps[class_id]) == self.num_slides + 1:
-                        heapq.heappop(slides_heaps[class_id])
-        return slides_heaps
-
-    @staticmethod
-    def _gather_dictionaries(world_size: int, dicts: Dict, return_list: bool = False) -> Union[List[Dict], Dict]:
-        """Gathers python dictionaries accross devices.
-
-        :param world_size: The number of devices in the ddp context.
-        :param dicts: The dictionaries to be gathered across devices.
-        :param return_list: Flag to return the gathered dictionaries as a list, defaults to False
-        :return: Either a list of dictionaries or a reduced version of this list as a single dictionary.
-        """
-        dicts_list = [None] * world_size  # type: ignore
-        torch.distributed.all_gather_object(dicts_list, dicts)
-        if return_list:
-            return dicts_list  # type: ignore
-        return dict(ChainMap(*dicts_list))  # type: ignore
-
-    def _aggregate_shallow_slides_heaps(self, world_size: int, shallow_slides_heaps: SlideDict) -> SlideDict:
-        """Gathers shallow slides heaps across devices and reduces the gathered slides_heaps_list into the new select
-        slides across devices.
-
-        :param world_size: The number of devices in the ddp context.
-        :param shallow_slides_heaps: Reference to shallow slides heaps to be gathered across devices.
-        :return: A reduced slides_heaps conatining only the best slide nodes across all devices.
-        """
-        slides_heaps_list: List[SlideDict] = self._gather_dictionaries(  # type: ignore
-            world_size, shallow_slides_heaps, return_list=True
+        expected_top_attns, top_tiles_ids = torch.topk(
+            results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=num_top_tiles, largest=True, sorted=True
         )
-        return self._reduce_slides_heaps_list(world_size=world_size, slides_heaps_list=slides_heaps_list)
+        expected_bottom_attns, bottom_tiles_ids = torch.topk(
+            results[ResultsKey.BAG_ATTN][slide_batch_idx].squeeze(), k=num_top_tiles, largest=False, sorted=True
+        )
 
-    def _collect_tiles_for_selected_slides_on_device(
-        self, new_slides_heaps: SlideDict, slides_heaps: SlideDict
-    ) -> Tuple[TileDict, TileDict]:
-        """Select top and bottom tiles from top or bottom slides_heaps in current device.
+        expected_top_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in top_tiles_ids]
+        expected_bottom_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in bottom_tiles_ids]
 
-        :param new_slides_heaps: Selected top or bottom slides_heaps that contains shallow slide nodes.
-        :param slides_heaps: The slides_heaps dict from where to select tiles. Either self.top_slides_heaps or
-            self.bottom_slides_heaps.
-        :return: Two dictionaries containing slide_ids and their corresponding top and bottom tiles.
-        """
-        top_tiles = {}
-        bottom_tiles = {}
-        for class_id in range(self.n_classes):
-            for new_slide_node in new_slides_heaps[class_id]:
-                for slide_node in slides_heaps[class_id]:
-                    if slide_node.slide_id == new_slide_node.slide_id:
-                        top_tiles[new_slide_node.slide_id] = slide_node.top_tiles
-                        bottom_tiles[new_slide_node.slide_id] = slide_node.bottom_tiles
-                        break
-        return top_tiles, bottom_tiles
+        top_tiles = slide_nodes[i].top_tiles
+        bottom_tiles = slide_nodes[i].bottom_tiles
 
-    def _update_shallow_slides_heaps_with_top_bottom_tiles(
-        self, slides_heaps: SlideDict, top_tiles: TileDict, bottom_tiles: TileDict,
-    ) -> None:
-        """Update shallow version of slides heaps with top and bottom tiles gathered across devices.
+        for j, expected_top_tile in enumerate(expected_top_tiles):
+            assert torch.equal(expected_top_tile.cpu(), top_tiles[j].data)
+            assert expected_top_attns[j].item() == top_tiles[j].attn
 
-        :param slides_heaps: The slides_heaps to update. Either self.top_slides_heaps or self.bottom_slides_heaps.
-        :param top_tiles: Top tiles dictionary with slide_ids as keys.
-        :param bottom_tiles: Bottom tiles dictionary with slide_ids as keys.
-        """
-        for class_id in range(self.n_classes):
-            for slide_node in slides_heaps[class_id]:
-                slide_node.top_tiles = top_tiles[slide_node.slide_id]
-                slide_node.bottom_tiles = bottom_tiles[slide_node.slide_id]
+        for j, expected_bottom_tile in enumerate(expected_bottom_tiles):
+            assert torch.equal(expected_bottom_tile.cpu(), bottom_tiles[j].data)
+            assert expected_bottom_attns[j].item() == bottom_tiles[j].attn
 
-    def gather_selected_tiles_across_devices(self) -> None:
-        """Gathers top and bottom tiles across devices in ddp context. For each of top and bottom slides heaps:
-            1- make a shallow copy of top and bottom slides_heaps
-            2- gather best shallow slides across gpus
-            3- select top and bottom tiles available in each device
-            4- gather these tiles across devices
-            5- update the synchronized shallow slide nodes across devices with their top and bottom tiles
-        """
-        if torch.distributed.is_initialized() and self.num_slides > 0:
-            world_size = torch.distributed.get_world_size()
-            if world_size > 1:
 
-                shallow_top_slides_heaps = self._shallow_copy_slides_heaps(slides_heaps=self.top_slides_heaps)
-                shallow_bottom_slides_heaps = self._shallow_copy_slides_heaps(slides_heaps=self.bottom_slides_heaps)
+@pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
+def test_select_k_top_bottom_tiles_on_the_fly(
+    n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
+    """This tests checks that k top and bottom tiles are selected properly `on the fly`:
+        1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
+        2- Create a handler that is only exposed to a subset of the data distributed across devices. This handler
+           updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
+        3- Gather top and bottom tiles if ddp context
+        4- Select expected top slides from the entire dataset using torch.topk given that it's a small set that fits
+           entirely in memory.
+        5- Assert that the top slides selected on the fly are equal to the expected top slides selected from the entire
+           dataset for both ddp and single device runs.
+        6- Assert that corresponding top and bottom tiles are equal as well
+        7- Repeat steps 4, 5 and 6 for bottom slides.
+    """
 
-                agg_top_slides_heaps = self._aggregate_shallow_slides_heaps(world_size, shallow_top_slides_heaps)
-                agg_bottom_slides_heaps = self._aggregate_shallow_slides_heaps(world_size, shallow_bottom_slides_heaps)
+    n_tiles = 3
+    batch_size = 2
+    n_batches = 10
+    total_batches = n_batches * world_size
+    num_top_tiles = 2
+    num_top_slides = 2
 
-                top_slides_top_tiles, top_slides_bottom_tiles = self._collect_tiles_for_selected_slides_on_device(
-                    new_slides_heaps=agg_top_slides_heaps, slides_heaps=self.top_slides_heaps
-                )
-                bot_slides_top_tiles, bot_slides_bottom_tiles = self._collect_tiles_for_selected_slides_on_device(
-                    new_slides_heaps=agg_bottom_slides_heaps, slides_heaps=self.bottom_slides_heaps
-                )
+    torch.manual_seed(42)
+    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(
+        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
+    )
 
-                self._reset_slides_heaps(
-                    new_top_slides_heaps=agg_top_slides_heaps, new_bottom_slides_heaps=agg_bottom_slides_heaps
-                )
+    handler = _create_and_update_top_bottom_tiles_handler(
+        data, results, num_top_slides, num_top_tiles, n_classes, rank, batch_size, n_batches
+    )
+    handler.gather_selected_tiles_across_devices()
 
-                top_tiles: TileDict = self._gather_dictionaries(world_size, top_slides_top_tiles)  # type: ignore
-                bottom_tiles: TileDict = self._gather_dictionaries(world_size, top_slides_bottom_tiles)  # type: ignore
-                self._update_shallow_slides_heaps_with_top_bottom_tiles(self.top_slides_heaps, top_tiles, bottom_tiles)
+    if rank == 0:
+        for label in range(n_classes):
+            expected_top_slides_ids = get_expected_top_slides_by_probability(results, num_top_slides, label)
+            assert expected_top_slides_ids == [slide_node.slide_id for slide_node in handler.top_slides_heaps[label]]
+            assert_equal_top_bottom_attention_tiles(
+                expected_top_slides_ids, data, results, num_top_tiles, handler.top_slides_heaps[label]
+            )
 
-                top_tiles: TileDict = self._gather_dictionaries(world_size, bot_slides_top_tiles)  # type: ignore
-                bottom_tiles: TileDict = self._gather_dictionaries(world_size, bot_slides_bottom_tiles)  # type: ignore
-                self._update_shallow_slides_heaps_with_top_bottom_tiles(
-                    self.bottom_slides_heaps, top_tiles, bottom_tiles
-                )
+            expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, num_top_slides, label)
+            assert expected_bottom_slides_ids == [
+                slide_node.slide_id for slide_node in handler.bottom_slides_heaps[label]
+            ]
+            assert_equal_top_bottom_attention_tiles(
+                expected_bottom_slides_ids, data, results, num_top_tiles, handler.bottom_slides_heaps[label]
+            )
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
+    """These tests need to be called sequentially to prevent them to be run in parallel"""
+    # test with n_classes = 2
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
+    # test with n_classes = 3
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
+
+
+def test_disable_top_bottom_tiles_handler() -> None:
+    with pytest.raises(ValueError) as ex:
+        _ = TilesSelector(n_classes=2, num_slides=2, num_tiles=0)
+    assert "You should use `num_top_tiles>0` to be able to select top and bottom tiles" in str(ex)
+
+
+def test_tiles_are_selected_only_with_non_zero_num_top_slides(
+    rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
+    n_tiles = 3
+    batch_size = 1
+    n_batches = 2
+    total_batches = n_batches * world_size
+    num_top_tiles = 2
+    num_top_slides = 0
+    n_classes = 2
+
+    torch.manual_seed(42)
+    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(
+        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
+    )
+
+    handler = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
+
+    with patch.object(handler, "_update_label_slides") as mock_update_label_slides:
+        for i in range(rank * n_batches, (rank + 1) * n_batches):
+            batch_data = _batch_data(data, batch_idx=i, batch_size=batch_size)
+            batch_results = _batch_data(results, batch_idx=i, batch_size=batch_size)
+            handler.update_slides_selection(batch_data, batch_results)
+    mock_update_label_slides.assert_not_called()
+
+    for class_id in range(n_classes):
+        assert len(handler.top_slides_heaps[class_id]) == 0
+        assert len(handler.bottom_slides_heaps[class_id]) == 0
+
+    with patch.object(handler, "_shallow_copy_slides_heaps") as mock_shallow_copy_slides_heaps:
+        handler.gather_selected_tiles_across_devices()
+    mock_shallow_copy_slides_heaps.assert_not_called()
+
+
+@pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.gpu
+def test_tiles_are_selected_only_with_non_zero_num_top_slides_distributed() -> None:
+    """These tests need to be called sequentially to prevent them to be run in parallel"""
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, world_size=1)
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, world_size=2)

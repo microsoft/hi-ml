@@ -6,16 +6,21 @@ from typing import Set
 from unittest.mock import MagicMock, patch
 import pytest
 from histopathology.utils.naming import ModelKey, PlotOptionsKey
-
 from histopathology.utils.plots_utils import DeepMILPlotsHandler
 
 
-@pytest.mark.parametrize("plot_options", [{PlotOptionsKey.HISTOGRAM}, {PlotOptionsKey.HISTOGRAM, "foo"}])
-def test_plots_handler_wrong_plot_options(plot_options: Set[PlotOptionsKey]) -> None:
-    try:
+def test_plots_handler_wrong_plot_options() -> None:
+    plot_options = {PlotOptionsKey.HISTOGRAM, "foo"}
+    with pytest.raises(ValueError) as ex:
         _ = DeepMILPlotsHandler(plot_options)
-    except Exception as err:
-        assert isinstance(err, ValueError)
+    assert "The selected plot option is not a valid option" in str(ex)
+
+
+def test_plots_handler_wrong_class_names() -> None:
+    plot_options = {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.CONFUSION_MATRIX}
+    with pytest.raises(ValueError) as ex:
+        _ = DeepMILPlotsHandler(plot_options, class_names=[])
+    assert "No class_names were provided while activating confusion matrix plotting." in str(ex)
 
 
 def assert_plot_func_called_if_among_plot_options(
