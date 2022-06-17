@@ -1,6 +1,8 @@
 black==22.1.0
 coverage==6.3.2
 flake8==4.0.1
+ipykernel==6.15.0
+ipython==7.34.0
 mypy==0.931
 pylint==2.12.2
 pycobertura==2.0.1
