@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 import torch
+from unittest import mock
 from pytorch_lightning import seed_everything
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
@@ -79,12 +80,12 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
                     assert False, "Something is wrong here, image2 only has a single value"
                 assert torch.allclose(image1, image2), "Images don't match"
 
-    # If no fixed random seed is set, the data items should not match in subsequent calls to the loader
-    container.get_effective_random_seed = MagicMock(return_value=None)
-    with pytest.raises(AssertionError):
-        test_data_items_are_equal(["train_dataloader"])
+    # If no fixed random seed is set, the data items should not match in subsequent calls to the loader,
+    # and hence raise an AssertionError
+    with mock.patch.object(container, "get_effective_random_seed", MagicMock(return_value=None)):
+        with pytest.raises(AssertionError):
+            test_data_items_are_equal(["train_dataloader"])
 
     # When using a fixed see, all 3 dataloaders should return idential items. Validation and test dataloader
     # are at present not randomized, but checking those as well just in case.
-    container.get_effective_random_seed = MagicMock(return_value=123)
     test_data_items_are_equal(["train_dataloader", "val_dataloader", "test_dataloader"])
