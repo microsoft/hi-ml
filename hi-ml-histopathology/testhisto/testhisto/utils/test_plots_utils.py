@@ -12,7 +12,7 @@ from histopathology.utils.plots_utils import DeepMILPlotsHandler
 def test_plots_handler_wrong_plot_options() -> None:
     plot_options = {PlotOptionsKey.HISTOGRAM, "foo"}
     with pytest.raises(ValueError) as ex:
-        _ = DeepMILPlotsHandler(plot_options)
+        _ = DeepMILPlotsHandler(plot_options)  # type: ignore
     assert "The selected plot option is not a valid option" in str(ex)
 
 
