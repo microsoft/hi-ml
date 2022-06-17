@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import torch
+import pytest
 from transformers.file_utils import CONFIG_NAME, WEIGHTS_NAME
 
 from health_multimodal.text.model.configuration_cxrbert import CXRBertConfig
@@ -22,7 +23,8 @@ def test_model_instantiation() -> None:
 
         projected_embeddings = model.get_projected_text_embeddings(input_ids, attention_mask)
         assert projected_embeddings.shape == (batch_size, config.projection_size)
-        assert torch.norm(projected_embeddings[0], p=2) == 1.00
+        norm = torch.norm(projected_embeddings[0], p=2).item()
+        assert pytest.approx(norm) == 1
 
         outputs = model(input_ids, attention_mask, output_hidden_states=False)
         assert outputs.hidden_states is None
