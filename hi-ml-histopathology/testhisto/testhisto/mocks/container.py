@@ -51,7 +51,7 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
         return None
 
     def test_plot_options(self) -> Set[PlotOptionsKey]:
-        return self.val_plot_options
+        return {PlotOptionsKey.HISTOGRAM}
 
 
 class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
@@ -88,4 +88,4 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
         return Path(self.tmp_path / f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def test_plot_options(self) -> Set[PlotOptionsKey]:
-        return self.val_plot_options
+        return {PlotOptionsKey.HISTOGRAM}

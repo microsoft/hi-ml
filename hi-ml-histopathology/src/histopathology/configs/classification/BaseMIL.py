@@ -184,13 +184,13 @@ class BaseMIL(LightningContainer):
     @property
     def test_plot_options(self) -> Set[PlotOptionsKey]:
         if self.num_top_slides > 0:
-            return set([PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES])
+            return {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES}
         else:
-            return set([PlotOptionsKey.HISTOGRAM])
+            return {PlotOptionsKey.HISTOGRAM}
 
     @property
     def val_plot_options(self) -> Set[PlotOptionsKey]:
-        return set([PlotOptionsKey.HISTOGRAM])
+        return {PlotOptionsKey.HISTOGRAM}
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
         n_classes = self.data_module.train_dataset.N_CLASSES
