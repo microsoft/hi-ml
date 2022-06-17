@@ -181,15 +181,13 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    @property
-    def test_plot_options(self) -> Set[PlotOptionsKey]:
+    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
         if self.num_top_slides > 0:
             return {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES}
         else:
             return {PlotOptionsKey.HISTOGRAM}
 
-    @property
-    def val_plot_options(self) -> Set[PlotOptionsKey]:
+    def get_val_plot_options(self) -> Set[PlotOptionsKey]:
         return {PlotOptionsKey.HISTOGRAM}
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
@@ -202,8 +200,8 @@ class BaseMIL(LightningContainer):
             class_names=self.class_names,
             primary_val_metric=self.primary_val_metric,
             maximise=self.maximise_primary_metric,
-            val_plot_options=self.val_plot_options,
-            test_plot_options=self.test_plot_options,
+            val_plot_options=self.get_val_plot_options(),
+            test_plot_options=self.get_test_plot_options(),
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
