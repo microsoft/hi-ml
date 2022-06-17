@@ -88,7 +88,7 @@ regression_test_tcgacrcksslmil:
 	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml --max_epochs=50 \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
-	--regression_metrics=test/auroc,test/f1score,test/precision,test/recall;\
+	--regression_metrics=test/accuracy,test/auroc,test/f1score,test/precision,test/recall;\
 	}
 
 regression_test_crck_simclr:
