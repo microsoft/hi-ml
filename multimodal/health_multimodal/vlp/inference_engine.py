@@ -101,11 +101,16 @@ class ImageTextInferenceEngine:
                 similarity_map.reshape(target_shape),
                 size=target_size,
                 mode='bilinear',
+                align_corners=False,
             )
             margin_w, margin_h = (width - target_size[0]), (height - target_size[1])
             margins_for_pad = (floor(margin_w / 2), ceil(margin_w / 2), floor(margin_h / 2), ceil(margin_h / 2))
             similarity_map = F.pad(similarity_map[0, 0], margins_for_pad, value=float("NaN"))
         else:
-            similarity_map = F.interpolate(similarity_map.reshape(target_shape),
-                                           size=(height, width), mode='bilinear')[0, 0]
+            similarity_map = F.interpolate(
+                similarity_map.reshape(target_shape),
+                size=(height, width),
+                mode='bilinear',
+                align_corners=False,
+            )[0, 0]
         return similarity_map.numpy()
