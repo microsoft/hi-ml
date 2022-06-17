@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
 from torch import Tensor as T
 
-from .modules import MLP, ClassifierHeadType, MTModel
+from .modules import MLP, MTModel
 
 
 @dataclass
@@ -77,7 +77,7 @@ class ImageModel(nn.Module):
                                 projected_patch_embeddings=projected_patch_embeddings,
                                 projected_global_embedding=projected_global_embedding)
 
-    def create_downstream_classifier(self, **kwargs: Any) -> ClassifierHeadType:
+    def create_downstream_classifier(self, **kwargs: Any) -> MTModel:
         """
         Creates the classification module for the downstream task
         """

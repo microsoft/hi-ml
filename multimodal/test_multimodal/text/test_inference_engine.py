@@ -8,9 +8,10 @@ from typing import Tuple
 
 import pytest
 import torch
-from transformers import AutoModel, AutoTokenizer, BertTokenizer
 
 from health_multimodal.text.inference_engine import TextInferenceEngine
+from health_multimodal.text.model.modelling_cxrbert import CXRBertModel
+from health_multimodal.text.model.configuration_cxrbert import CXRBertTokenizer
 
 
 def test_text_inference_init_model_type() -> None:
@@ -54,11 +55,11 @@ def test_sentence_semantic_similarity() -> None:
     assert pos_sim > neg_sim_2
 
 
-def _get_cxr_bert() -> Tuple[BertTokenizer, AutoModel]:
+def _get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
     # Load the model and tokenizer
     url = "microsoft/BiomedVLP-CXR-BERT-specialized"
-    tokenizer = AutoTokenizer.from_pretrained(url, trust_remote_code=True)
-    text_model = AutoModel.from_pretrained(url, trust_remote_code=True)
+    tokenizer = CXRBertTokenizer.from_pretrained(url)
+    text_model = CXRBertModel.from_pretrained(url)
 
     return tokenizer, text_model
 

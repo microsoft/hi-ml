@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
@@ -85,6 +85,3 @@ class MTModel(nn.Module):
             classifier = getattr(self, "fc_" + str(task))
             out[:, :, task] = classifier(x)
         return out
-
-
-ClassifierHeadType = Union[MTModel, MLP]
