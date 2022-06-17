@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-import torch
 from transformers import AutoModel, AutoTokenizer
 
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
@@ -19,8 +18,8 @@ text_inference = TextInferenceEngine(
     text_model=AutoModel.from_pretrained(URL, trust_remote_code=True))
 
 # Load the image inference engine
-image_model = ImageModel(img_model_type="resnet50", joint_feature_size=128)
-image_model.load_state_dict(torch.load("health_multimodal/checkpoints/biovil_image_resnet50_proj_size_128.pt"))
+PRETRAINED_RESNET = "health_multimodal/checkpoints/biovil_image_resnet50_proj_size_128.pt"
+image_model = ImageModel(img_model_type="resnet50", joint_feature_size=128, pretrained_model_path=PRETRAINED_RESNET)
 image_inference = ImageInferenceEngine(
     image_model=image_model,
     transforms=create_chest_xray_transform_for_inference(resize=512, center_crop_size=480))
@@ -38,3 +37,4 @@ IMAGE_PATH = IMAGE_DIR + "5aea5877-40b40fee-5bccd163-ca1bf0ce-a95c213d.nii.gz"
 # JPG compression artefacts may impact the predictions.
 
 sim_map = image_text_inference.get_similarity_map_from_raw_data(image_path=IMAGE_PATH, query_text=text_prompts[0])
+print(sim_map.shape)

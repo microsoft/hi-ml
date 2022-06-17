@@ -4,7 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 from dataclasses import dataclass
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -31,6 +31,7 @@ class ImageModel(nn.Module):
                  img_model_type: str,
                  joint_feature_size: int,
                  freeze_encoder: bool = False,
+                 pretrained_model_path: Optional[str] = None,
                  **downstream_classifier_kwargs: Any):
         super().__init__()
 
@@ -45,6 +46,10 @@ class ImageModel(nn.Module):
         # Initialise the mode of modules
         self.freeze_encoder = freeze_encoder
         self.train()
+
+        if pretrained_model_path is not None:
+            assert isinstance(pretrained_model_path, str), f"Expected a string, got {type(pretrained_model_path)}"
+            self.load_state_dict(torch.load(pretrained_model_path))
 
     def train(self, mode: bool = True) -> Any:
         super().train(mode=mode)
