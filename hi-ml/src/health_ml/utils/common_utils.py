@@ -242,7 +242,8 @@ def seed_monai_if_available(seed: int) -> None:
 
     :param seed: The random seed to use for MONAI."""
     try:
-        from monai.utils import set_determinism
+        # MONAI is not part of the core hi-ml requirements, this import can fail.
+        from monai.utils import set_determinism  # type: ignore
         set_determinism(seed=seed)
     except ImportError:
         pass
