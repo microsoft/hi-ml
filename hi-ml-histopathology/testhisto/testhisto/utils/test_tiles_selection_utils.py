@@ -45,6 +45,7 @@ def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, d
     mock_results = {
         ResultsKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
         ResultsKey.TRUE_LABEL: torch.randint(2, size=(n_samples,), device=device),
+        ResultsKey.PRED_LABEL: torch.randint(2, size=(n_samples,), device=device),
         ResultsKey.BAG_ATTN: [torch.rand(size=(1, diff_n_tiles[i]), device=device) for i in range(n_samples)],
         ResultsKey.CLASS_PROBS: torch.rand((n_samples, n_classes), device=device),
     }

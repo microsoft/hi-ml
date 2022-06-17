@@ -34,6 +34,8 @@ def _create_outputs_handler(outputs_root: Path) -> DeepMILOutputsHandler:
         class_names=None,
         primary_val_metric=_PRIMARY_METRIC_KEY,
         maximise=True,
+        val_plot_options=MagicMock(),
+        test_plot_options=MagicMock(),
     )
 
 
