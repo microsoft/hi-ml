@@ -14,10 +14,15 @@ from pytorch_lightning import seed_everything
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 
+from health_ml.utils.common_utils import is_gpu_available
 from histopathology.configs.classification.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
 from histopathology.utils.naming import SlideKey
 
+no_gpu = not is_gpu_available()
 
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
 def test_panda_reproducibility(tmp_path: Path) -> None:
     """Check if subsequent enumerations of the Panda dataset produce identical sequences of tiles."""
     seed_everything(seed=123, workers=True)
