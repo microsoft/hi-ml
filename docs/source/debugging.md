@@ -177,6 +177,7 @@ Finally, the plugin also supports distributed view on profiling DDP with NCCL/GL
 ![DDP](./images/tensorboard/distributed.png)
 
 ## Learn More
+
 * [Pytorch Profiler with Tensorboard](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html)
 * [Pytorch TensorBoard Profiler github](https://github.com/pytorch/kineto/tree/main/tb_plugin)
 * [Torch profiler API](https://pytorch.org/docs/master/profiler.html)
