@@ -109,16 +109,74 @@ python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageN
 [Pytorch Profiler](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html) can effectively be interpreted via
 the TensorBoard dashbord interface that is integrated in [VS
 Code](https://code.visualstudio.com/docs/datascience/pytorch-support#_tensorboard-integration) as part of the Python
-extension. Once you have the outputs of the Pytorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourContainerName`, you can
+extension. Once you have the outputs of the Pytorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourContainerName/pytorch_profiler`, you can
 open the TensorBoard Profiler plugin by launching the Command Palette using the keyboard shortcut CTRL + SHIFT + P (CMD
-+ SHIFT + P on a Mac) and typing the “Launch TensorBoard” command.
+\+ SHIFT + P on a Mac) and typing the “Launch TensorBoard” command.
 
+![Launch Tensorboard in VS Code](./images/tensorboard/palette.png)
 
+Next, you will be asked to select the path where the profiler traces are saved. Select another folder and navigate to `outputs/YYYY-MM-DDTHHmmssZ_YourContainerName/pytorch_profiler`.
 
-### Memory profiling with PytorchProfiler
+![Select directory](./images/tensorboard/select_dir.png)
 
-In some scenarios
+You can see Profiler plugin page as shown below. The overview shows a high-level summary of model performance.
+
+![Overview](./images/tensorboard/overview.png)
+
+You can change the view page in the left dropdown list.
+
+![Views](./images/tensorboard/change_views.png)
+
+The operator view displays the performance of every PyTorch operator that is executed either on the host or device.
+
+![Views](./images/tensorboard/operator.png)
+
+The GPU Kernel panel shows the GPU configuration, GPU usage and Tensor Cores usage. We can see below all kernels’ time spent on GPU.
+
+![GPU Kernel](./images/tensorboard/gpu_kernel.png)
+
+The trace view shows timeline of profiled operators and GPU kernels. You can select it to see details as below.
+
+![Trace](./images/tensorboard/trace.png)
+
+For more details on how to interpret and analyze these views, refer to the [pytorch official
+documentation](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html#use-tensorboard-to-view-results-and-analyze-model-performance)
 
 ### Advanced profiling arguments
 
-You can specify additional profiling arguments t
+In some scenarios, you might be interested in profiling the memory usage by setting
+`profile_memory=True` or any of [these custom arguments](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html).
+You can specify additional profiling arguments by overriding
+[get_trainer_arguments](https://github.com/microsoft/hi-ml/blob/e31236d709384a294bb71b096dcd9369afce4dba/hi-ml/src/health_ml/lightning_container.py#L70)
+in your LightningContainer as shown below. Please make sure to specify all profiler custom arguments under the
+`profiler` key.
+
+```python
+class YourCustomContainer(LightningContainer):
+
+  def __init__(custom_param: Any) -> None:
+    self.custom_param = custom_param
+
+  def get_trainer_arguments(self) -> Dict[str, Any]:
+    trainer_arguments = {
+      "profiler": {
+          "with_stack"=True,
+          "profile_memory"=True"
+      }
+    }
+    return dict()
+```
+
+The profiler will record all memory allocation/release events and allocator’s internal state during profiling. The
+memory view consists of three components as shown in the following.
+
+![Memory](./images/tensorboard/memory.png)
+
+Finally, the plugin now supports distributed view on profiling DDP with NCCL/GLOO as backend.
+
+![DDP](./images/tensorboard/distributed.png)
+
+Learn More:
+* [Pytorch Profiler with Tensorboard](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html)
+* [Pytorch TensorBoard Profiler github](https://github.com/pytorch/kineto/tree/main/tb_plugin)
+* [Torch profiler API](https://pytorch.org/docs/master/profiler.html)

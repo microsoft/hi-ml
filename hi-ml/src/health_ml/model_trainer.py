@@ -8,7 +8,6 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
-from cv2 import add
 
 from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
@@ -54,7 +53,7 @@ def get_pl_profiler(pl_profiler: str, outputs_folder: Path, profiler_args: Dict)
     pl_profilers = {"simple": SimpleProfiler, "advanced": AdvancedProfiler, "pytorch": PyTorchProfiler}
     if pl_profiler not in set(pl_profilers.keys()):
         raise ValueError("Unsipported profiler. Please choose among the following profilers: simple, advanced, pytorch")
-    profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / "profiler", **profiler_args)
+    profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / f"{pl_profiler}_profiler", **profiler_args)
     return profiler
 
 
