@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, Generator, List, Optional
+from typing import Generator, List, Optional
 from unittest import mock
 from unittest.mock import patch, MagicMock
 
