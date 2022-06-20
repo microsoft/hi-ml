@@ -2,12 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from ast import Dict
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, TypeVar
+from typing import Any, List, Optional, Tuple, TypeVar, Dict
 
 from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
@@ -39,7 +38,7 @@ def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
-def get_pl_profiler(pl_profiler: str, outputs_folder: Path, profiler_args: Dict) -> Optional[BaseProfiler]:
+def get_pl_profiler(pl_profiler: Optional[str], outputs_folder: Path, profiler_args: Dict) -> Optional[BaseProfiler]:
     if pl_profiler:
         pl_profilers = {"simple": SimpleProfiler, "advanced": AdvancedProfiler, "pytorch": PyTorchProfiler}
         if pl_profiler not in pl_profilers:
