@@ -1,7 +1,8 @@
 # Debugging and Profiling
 
 While using the hi-ml toolbox modules, you might encounter some errors that require running the code step by step in
-order to track down their sources. Here's some guidelines to help you debug and/or profile training pipelines.
+order to track down the source of these errors. Here are some guidelines to help you debug and/or profile hi-ml deep
+learning training pipelines.
 
 ## Debugging within VS Code
 
@@ -11,18 +12,19 @@ to debug hi-ml toolbox modules built in Python.
 
 ### Debugging configs
 
-The hi-ml repository is organised as
+The hi-ml repository is organised in
 [Multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces#_multiroot-workspaces) to account
 for environment differences among the modules and offer flexibility to configure each module seperatly.
 
-We provide a set of custom debugging configs for each of hi-ml modules:
-[hi-ml](https://github.com/microsoft/hi-ml/tree/main/hi-ml/.vscode/lanch.json),
-[hi-ml-azure](https://github.com/microsoft/hi-ml/tree/main/hi-ml-azure/.vscode/lanch.json),
-[hi-ml-histopathology](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/.vscode/lanch.json), and
-[multimodal](https://github.com/microsoft/hi-ml/tree/main/multimodal/.vscode/lanch.json)
+We provide a set of example debugging configs for each of hi-ml module:
 
-Vs Code restricts debugging to user-written code only by default. If you want to step through external code and
+* [launch.json in hi-ml](https://github.com/microsoft/hi-ml/tree/main/hi-ml/.vscode/lanch.json)
+* [launch.json in hi-ml-azure](https://github.com/microsoft/hi-ml/tree/main/hi-ml-azure/.vscode/lanch.json)
+* [launch.json in hi-ml-histopathology](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/.vscode/lanch.json)
+
+VS Code restricts debugging to user-written code only by default. If you want to step through external code and
 standard libraries functions, set `"justMyCode": false` inside the debugging config block in the `launch.json` file.
+
 In particular, if you would like to debug the current file while breaking through `pytorch` code, navigate to
 `himl-projects.code-workspace` in the repo root and edit the "launch" block as follow:
 
@@ -65,27 +67,25 @@ runner](https://github.com/microsoft/hi-ml/blob/746c8b58c1af71f71eeaaac2a8584be1
 * `pl-limit-val-batches`: Limits the validation dataset to the given number of batches `n`.
 * `pl-limit-train-batches`: Limits the test dataset to the given number of batches `n`.
 
-In general, it is very useful to run the following two steps as part of the developement cycle. Let's take the example
-of `SlidesPandaImageNetMIL` model:
+In general, it is very useful to run the following two steps as part of the developement cycle:
 
 1. Make sure all training, validation and test loops complete properly:
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMIL --crossval-count=0 --bach-size=2 --pl-fast-dev-run=4
+python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-count=0 --bach-size=2 --pl-fast-dev-run=4
 ```
 
 2. Make sure the whole pipeline runs properly, including checkpoints callbacks and hyperparameter serialization:
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMIL --crossval-count=0 --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
+python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-count=0 --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
 ```
 
 Note: Under the hood, setting `pl-fast-dev-run=n` overrides
 `pl-limit-train-batches=n`, `pl-limit-val-batches=n`, `pl-limit-train-batches=n`, `max_epochs=1` and disables all
-callbacks. Please keep in mind that all the above is useful for efficient and quick debugging purposes only and is in no
-way a performance indicator.
+callbacks. Please keep in mind that all the above is useful for efficient and quick debugging purposes only.
 
 ## Profiling Machine Learning Pipelines
 
@@ -101,13 +101,13 @@ The profiler outputs will be saved in a subfolder `profiler` inside the outputs 
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMIL --crossval-count=0 --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
+python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-count=0 --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
 ```
 
 ### Interpret Pytorch Profiling outputs via Tensorboard
 
 [Pytorch Profiler](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html) can effectively be interpreted via
-the TensorBoard dashbord interface that is integrated in [VS
+TensorBoard dashbord interface that is integrated in [VS
 Code](https://code.visualstudio.com/docs/datascience/pytorch-support#_tensorboard-integration) as part of the Python
 extension. Once you have the outputs of the Pytorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourContainerName/pytorch_profiler`, you can
 open the TensorBoard Profiler plugin by launching the Command Palette using the keyboard shortcut CTRL + SHIFT + P (CMD
@@ -115,7 +115,7 @@ open the TensorBoard Profiler plugin by launching the Command Palette using the 
 
 ![Launch Tensorboard in VS Code](./images/tensorboard/palette.png)
 
-Next, you will be asked to select the path where the profiler traces are saved. Select another folder and navigate to `outputs/YYYY-MM-DDTHHmmssZ_YourContainerName/pytorch_profiler`.
+Next, you will be asked to select the path where the profiler traces are saved. Select another folder and navigate to `outputs/YYYY-MM-DDTHHmmssZ_YourCustomContainer/pytorch_profiler`.
 
 ![Select directory](./images/tensorboard/select_dir.png)
 
@@ -145,7 +145,7 @@ documentation](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_t
 ### Advanced profiling arguments
 
 In some scenarios, you might be interested in profiling the memory usage by setting
-`profile_memory=True` or any of [these custom arguments](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html).
+`profile_memory=True` or any of [these additional arguments](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html).
 You can specify additional profiling arguments by overriding
 [get_trainer_arguments](https://github.com/microsoft/hi-ml/blob/e31236d709384a294bb71b096dcd9369afce4dba/hi-ml/src/health_ml/lightning_container.py#L70)
 in your LightningContainer as shown below. Please make sure to specify all profiler custom arguments under the
@@ -172,11 +172,11 @@ memory view consists of three components as shown in the following.
 
 ![Memory](./images/tensorboard/memory.png)
 
-Finally, the plugin now supports distributed view on profiling DDP with NCCL/GLOO as backend.
+Finally, the plugin also supports distributed view on profiling DDP with NCCL/GLOO as backend.
 
 ![DDP](./images/tensorboard/distributed.png)
 
-Learn More:
+## Learn More
 * [Pytorch Profiler with Tensorboard](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html)
 * [Pytorch TensorBoard Profiler github](https://github.com/pytorch/kineto/tree/main/tb_plugin)
 * [Torch profiler API](https://pytorch.org/docs/master/profiler.html)
