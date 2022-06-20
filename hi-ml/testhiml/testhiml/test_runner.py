@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import shutil
 import sys
 from pathlib import Path
-from typing import Generator, List, Optional
+from typing import Dict, Generator, List, Optional
 from unittest import mock
 from unittest.mock import patch, MagicMock
 
@@ -284,6 +284,17 @@ def test_invalid_args(mock_runner: Runner) -> None:
             mock_runner.run()
         assert "Unknown arguments" in str(ex)
         assert invalid_arg in str(ex)
+
+
+def test_invalid_profiler(mock_runner: Runner) -> None:
+    """Test if invalid profiler commandline arguments raise an error.
+    """
+    invalid_profile = "--pl_profiler=foo"
+    arguments = ["", "--model=HelloWorld", invalid_profile]
+    with patch.object(sys, "argv", arguments):
+        with pytest.raises(ValueError) as ex:
+            mock_runner.run()
+        assert "Unsupported profiler." in str(ex)
 
 
 def test_custom_checkpoint_for_test(tmp_path: Path) -> None:

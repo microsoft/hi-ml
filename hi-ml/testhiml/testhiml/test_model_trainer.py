@@ -5,10 +5,11 @@ from unittest.mock import MagicMock, patch, Mock
 from numpy import random
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
+from pytorch_lightning.profiler import PyTorchProfiler, PassThroughProfiler
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
+from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file, model_train
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
@@ -62,6 +63,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     """
     Test that create_lightning_trainer picks up on additional Container callbacks
     """
+
     def _get_trainer_arguments() -> Dict[str, Any]:
         callbacks = [MyCallback()]
         return {"callbacks": callbacks}
@@ -86,6 +88,30 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
     assert isinstance(storing_logger, StoringLogger)
+
+
+def test_profiler_with_custom_arguments() -> None:
+    """Test that create_lightning_trainer picks up on additional arguments for
+    """
+
+    def _get_trainer_arguments() -> Dict[str, Any]:
+        return {"profiler": {"with_stack": True, "profile_memory": True}}
+
+    container = LightningContainer()
+    container.pl_profiler = "pytorch"
+    container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, PyTorchProfiler)
+    assert trainer.profiler._profiler_kwargs["profile_memory"]
+    assert trainer.profiler._profiler_kwargs["with_stack"]
+
+
+def test_none_profiler() -> None:
+    """Test that create_lightning_trainer picks up on additional arguments for
+    """
+    container = LightningContainer()
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, PassThroughProfiler)
 
 
 def test_create_lightning_trainer_limit_batches() -> None:

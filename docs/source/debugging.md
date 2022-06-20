@@ -160,8 +160,8 @@ class YourCustomContainer(LightningContainer):
   def get_trainer_arguments(self) -> Dict[str, Any]:
     trainer_arguments = {
       "profiler": {
-          "with_stack"=True,
-          "profile_memory"=True"
+          "with_stack": True,
+          "profile_memory": True
       }
     }
     return dict()
