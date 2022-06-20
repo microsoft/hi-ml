@@ -96,11 +96,11 @@ class MLRunner:
                         raise ValueError(f"Invalid setup: The dataset at index {i} is None")
                     local_datasets.append(check_dataset_folder_exists(dataset))
                 self.container.local_datasets = local_datasets  # type: ignore
-        # Ensure that we use fixed seeds before initializing the PyTorch models
-        seed = self.container.get_effective_random_seed()
-        seed_everything(seed)
+        # Ensure that we use fixed seeds before initializing the PyTorch models.
         # MONAI needs a separate method to make all transforms deterministic by default
+        seed = self.container.get_effective_random_seed()
         seed_monai_if_available(seed)
+        seed_everything(seed)
 
         # Creating the folder structure must happen before the LightningModule is created, because the output
         # parameters of the container will be copied into the module.

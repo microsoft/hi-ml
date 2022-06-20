@@ -5,18 +5,18 @@
 
 from pathlib import Path
 from typing import Any, List
+from unittest import mock
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 import torch
-from unittest import mock
 from pytorch_lightning import seed_everything
-from testhisto.mocks.base_data_generator import MockHistoDataType
-from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 
 from histopathology.configs.classification.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
 from histopathology.utils.naming import SlideKey
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 
 try:
     from cucim import CuImage  # noqa: F401
