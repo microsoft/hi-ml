@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from ast import Dict
 import logging
 import os
 import sys
@@ -12,6 +13,7 @@ from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
                                 is_local_rank_zero, is_running_in_azure_ml)
@@ -35,6 +37,22 @@ def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
     dst = outputs_folder / EXPERIMENT_SUMMARY_FILE
     dst.write_text(output)
     logging.info(output)
+
+
+def get_pl_profiler(pl_profiler: str, outputs_folder: Path, profiler_args: Dict) -> Optional[BaseProfiler]:
+    if pl_profiler:
+        pl_profilers = {"simple": SimpleProfiler, "advanced": AdvancedProfiler, "pytorch": PyTorchProfiler}
+        if pl_profiler not in pl_profilers:
+            raise ValueError("Unsupported profiler. Please choose one of the following options: simple, advanced, "
+                             "pytorch. You can refer to https://pytorch-lightning.readthedocs.io/en/stable/advanced/"
+                             "profiler.html to learn more about each profiler. You can specify additional arguments by "
+                             "overriding the default behavior of get_trainer_arguments() in your lightning container. "
+                             "You can find an example here https://github.com/microsoft/hi-ml/tree/main/docs/source/"
+                             "debugging.md#L145")
+        profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / f"{pl_profiler}_profiler", **profiler_args)
+        return profiler
+    else:
+        return None
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -123,6 +141,9 @@ def create_lightning_trainer(container: LightningContainer,
         else:
             callbacks.append(more_callbacks)  # type: ignore
     callbacks.extend(container.get_callbacks())
+    profiler_args = {}
+    if "profiler" in additional_args:
+        profiler_args = additional_args.pop("profiler")
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if progress_bar_refresh_rate is None:
@@ -161,7 +182,7 @@ def create_lightning_trainer(container: LightningContainer,
                       precision=precision,
                       sync_batchnorm=True,
                       detect_anomaly=container.detect_anomaly,
-                      profiler=container.pl_profiler,
+                      profiler=get_pl_profiler(container.pl_profiler, container.outputs_folder, profiler_args),
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
                       **additional_args)
