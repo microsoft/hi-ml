@@ -2,28 +2,41 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from ast import Dict
 import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
+from cv2 import add
 
 from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
-from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
-                                is_local_rank_zero, is_running_in_azure_ml)
+from health_azure.utils import (
+    ENV_GLOBAL_RANK,
+    ENV_LOCAL_RANK,
+    ENV_NODE_RANK,
+    RUN_CONTEXT,
+    is_global_rank_zero,
+    is_local_rank_zero,
+    is_running_in_azure_ml,
+)
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
-                                          change_working_directory)
+from health_ml.utils.common_utils import (
+    AUTOSAVE_CHECKPOINT_FILE_NAME,
+    EXPERIMENT_SUMMARY_FILE,
+    change_working_directory,
+)
 from health_ml.utils.lightning_loggers import StoringLogger
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
@@ -37,11 +50,20 @@ def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
-def create_lightning_trainer(container: LightningContainer,
-                             resume_from_checkpoint: Optional[Path] = None,
-                             num_nodes: int = 1,
-                             multiple_trainloader_mode: str = "max_size_cycle") -> \
-        Tuple[Trainer, StoringLogger]:
+def get_pl_profiler(pl_profiler: str, outputs_folder: Path, profiler_args: Dict) -> BaseProfiler:
+    pl_profilers = {"simple": SimpleProfiler, "advanced": AdvancedProfiler, "pytorch": PyTorchProfiler}
+    if pl_profiler not in set(pl_profilers.keys()):
+        raise ValueError("Unsipported profiler. Please choose among the following profilers: simple, advanced, pytorch")
+    profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / "profiler", **profiler_args)
+    return profiler
+
+
+def create_lightning_trainer(
+    container: LightningContainer,
+    resume_from_checkpoint: Optional[Path] = None,
+    num_nodes: int = 1,
+    multiple_trainloader_mode: str = "max_size_cycle",
+) -> Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -95,13 +117,13 @@ def create_lightning_trainer(container: LightningContainer,
     # Note that "last" is somehow a misnomer, it should rather be "latest". There is a "last" checkpoint written in
     # every epoch. We could use that for recovery too, but it could happen that the job gets preempted right during
     # writing that file, and we would end up with an invalid file.
-    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                               save_last=True,
-                                               save_top_k=0)
-    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                                   filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
-                                                   every_n_val_epochs=container.autosave_every_n_val_epochs,
-                                                   save_last=False)
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
+    recovery_checkpoint_callback = ModelCheckpoint(
+        dirpath=str(container.checkpoint_folder),
+        filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
+        every_n_val_epochs=container.autosave_every_n_val_epochs,
+        save_last=False,
+    )
     callbacks: List[Callback] = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
@@ -123,54 +145,64 @@ def create_lightning_trainer(container: LightningContainer,
         else:
             callbacks.append(more_callbacks)  # type: ignore
     callbacks.extend(container.get_callbacks())
+    profiler_args = None
+    if "profiler_args" in additional_args:
+        profiler_args = additional_args.pop("profiler_args")
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if progress_bar_refresh_rate is None:
         progress_bar_refresh_rate = 50
-        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
+        logging.info(
+            f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+            f"To change, modify the pl_progress_bar_refresh_rate field of the container."
+        )
     if is_azureml_run:
-        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
-                                            write_to_logging_info=True,
-                                            print_timestamp=False))
+        callbacks.append(
+            AzureMLProgressBar(
+                refresh_rate=progress_bar_refresh_rate, write_to_logging_info=True, print_timestamp=False
+            )
+        )
     else:
         # Use a local import here to be able to support older PL versions
         from pytorch_lightning.callbacks import TQDMProgressBar
+
         callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
-    trainer = Trainer(default_root_dir=str(container.outputs_folder),
-                      deterministic=deterministic,
-                      benchmark=benchmark,
-                      accelerator=accelerator,
-                      strategy=strategy,
-                      max_epochs=container.max_epochs,
-                      # All of the following limit_batches  arguments can be integers or floats.
-                      # If integers, it is the number of batches.
-                      # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
-                      limit_train_batches=container.pl_limit_train_batches or 1.0,
-                      limit_val_batches=container.pl_limit_val_batches or 1.0,
-                      limit_test_batches=container.pl_limit_test_batches or 1.0,
-                      fast_dev_run=container.pl_fast_dev_run,
-                      num_sanity_val_steps=container.pl_num_sanity_val_steps,
-                      # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
-                      callbacks=callbacks,
-                      logger=loggers,
-                      num_nodes=num_nodes,
-                      devices=devices,
-                      precision=precision,
-                      sync_batchnorm=True,
-                      detect_anomaly=container.detect_anomaly,
-                      profiler=container.pl_profiler,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      multiple_trainloader_mode=multiple_trainloader_mode,
-                      **additional_args)
+    trainer = Trainer(
+        default_root_dir=str(container.outputs_folder),
+        deterministic=deterministic,
+        benchmark=benchmark,
+        accelerator=accelerator,
+        strategy=strategy,
+        max_epochs=container.max_epochs,
+        # All of the following limit_batches  arguments can be integers or floats.
+        # If integers, it is the number of batches.
+        # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
+        limit_train_batches=container.pl_limit_train_batches or 1.0,
+        limit_val_batches=container.pl_limit_val_batches or 1.0,
+        limit_test_batches=container.pl_limit_test_batches or 1.0,
+        fast_dev_run=container.pl_fast_dev_run,
+        num_sanity_val_steps=container.pl_num_sanity_val_steps,
+        # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
+        callbacks=callbacks,
+        logger=loggers,
+        num_nodes=num_nodes,
+        devices=devices,
+        precision=precision,
+        sync_batchnorm=True,
+        detect_anomaly=container.detect_anomaly,
+        profiler=get_pl_profiler(container.pl_profiler, container.outputs_folder, profiler_args),
+        resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+        multiple_trainloader_mode=multiple_trainloader_mode,
+        **additional_args,
+    )
     return trainer, storing_logger
 
 
-def model_train(checkpoint_path: Optional[Path],
-                container: LightningContainer,
-                num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
+def model_train(
+    checkpoint_path: Optional[Path], container: LightningContainer, num_nodes: int = 1
+) -> Tuple[Trainer, StoringLogger]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
@@ -189,8 +221,7 @@ def model_train(checkpoint_path: Optional[Path],
     # Execute some bookkeeping tasks only once if running distributed:
     if is_global_rank_zero():
         logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
-        write_experiment_summary_file(container,
-                                      outputs_folder=container.outputs_folder)
+        write_experiment_summary_file(container, outputs_folder=container.outputs_folder)
 
     data_module = container.get_data_module()
     if is_global_rank_zero():
@@ -205,6 +236,7 @@ def model_train(checkpoint_path: Optional[Path],
     multiple_trainloader_mode = "max_size_cycle"
     try:
         from SSL.data.datamodules import CombinedDataModule  # type: ignore
+
         if isinstance(data_module, CombinedDataModule):
             data_module.prepare_data()
             multiple_trainloader_mode = data_module.train_loader_cycle_mode  # type: ignore
@@ -217,12 +249,10 @@ def model_train(checkpoint_path: Optional[Path],
     old_environ = dict(os.environ)
     # Set random seeds just before training
     seed_everything(container.get_effective_random_seed())
-    trainer, storing_logger = create_lightning_trainer(container,
-                                                       checkpoint_path,
-                                                       num_nodes=num_nodes,
-                                                       multiple_trainloader_mode=multiple_trainloader_mode)
-    rank_info = ", ".join(f"{env}: {os.getenv(env)}"
-                          for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
+    trainer, storing_logger = create_lightning_trainer(
+        container, checkpoint_path, num_nodes=num_nodes, multiple_trainloader_mode=multiple_trainloader_mode
+    )
+    rank_info = ", ".join(f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
 
     # get recovery checkpoint if it exists
@@ -232,7 +262,7 @@ def model_train(checkpoint_path: Optional[Path],
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
-    trainer.logger.finalize('success')
+    trainer.logger.finalize("success")
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
