@@ -152,7 +152,7 @@ def create_lightning_trainer(
         else:
             callbacks.append(more_callbacks)  # type: ignore
     callbacks.extend(container.get_callbacks())
-    profiler_args = None
+    profiler_args = {}
     if "profiler" in additional_args:
         profiler_args = additional_args.pop("profiler")
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)

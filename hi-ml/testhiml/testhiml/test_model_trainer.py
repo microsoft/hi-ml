@@ -3,9 +3,10 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, patch, Mock
 
 from numpy import random
+import pytest
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
-from pytorch_lightning.profiler import PyTorchProfiler, PassThroughProfiler
+from pytorch_lightning.profiler import PyTorchProfiler, PassThroughProfiler, AdvancedProfiler, SimpleProfiler
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
@@ -21,7 +22,8 @@ def test_write_experiment_summary_file(tmp_path: Path) -> None:
             "_min_l_rate": 0.0,
             "_model_name": "HelloWorld",
             "adam_betas": "(0.9, 0.999)",
-            "azure_datasets": "[]"}
+            "azure_datasets": "[]",
+        }
     }
     expected_args_path = tmp_path / EXPERIMENT_SUMMARY_FILE
     write_experiment_summary_file(config, tmp_path)
@@ -106,12 +108,20 @@ def test_profiler_with_custom_arguments() -> None:
     assert trainer.profiler._profiler_kwargs["with_stack"]
 
 
-def test_none_profiler() -> None:
+@pytest.mark.parametrize("pl_profiler", ["", "simple", "advanced", "pytorch"])
+def test_pl_profiler_properly_instantiated(pl_profiler: str) -> None:
     """Test that create_lightning_trainer picks up on additional arguments for
     """
+    pl_profilers = {
+        "": PassThroughProfiler,
+        "simple": SimpleProfiler,
+        "advanced": AdvancedProfiler,
+        "pytorch": PyTorchProfiler,
+    }
     container = LightningContainer()
+    container.pl_profiler = pl_profiler
     trainer, _ = create_lightning_trainer(container)
-    assert isinstance(trainer.profiler, PassThroughProfiler)
+    assert isinstance(trainer.profiler, pl_profilers[pl_profiler])
 
 
 def test_create_lightning_trainer_limit_batches() -> None:
