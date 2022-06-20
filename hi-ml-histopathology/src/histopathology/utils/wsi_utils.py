@@ -21,6 +21,26 @@ slide_metadata_keys = [
 ]
 
 
+def check_patch_location_format(batch):
+    faulty_slides_idx = []
+    for i, slide_data in enumerate(batch):
+        # TODO check dimension of faulty slide id here
+        for patch in slide_data:
+            #if patch[SlideKey.SLIDE_ID] == '8d5860e10e09ee25e066ee7fb699453d':
+            #    print(patch[WSIPatchKeys.LOCATION])
+            #    print(len(patch[WSIPatchKeys.LOCATION]))
+            location = patch[WSIPatchKeys.LOCATION]
+            if len(location) < 3:
+                print(f'Slide {patch[SlideKey.SLIDE_ID]} '
+                      f'will be skipped as its patches contained unexpected values in patch_location {location}')
+                faulty_slides_idx.append(patch[SlideKey.SLIDE_ID])
+                break
+    n = len(faulty_slides_idx)
+    if n > 0:
+        print(f'{n} slides will be skipped because somethign was wrong in the patch location')
+    return faulty_slides_idx
+
+
 def array_collate(batch: List) -> Any:
     """
         Combine instances from a list of dicts into a single dict, by stacking arrays along first dim
@@ -39,12 +59,15 @@ def array_collate(batch: List) -> Any:
                 constant_keys.append(key)
     tensor_keys = collate_keys + [SlideKey.LABEL]
 
-    print("collate keys")
+    skip_idx = check_patch_location_format(batch)
     for i, patch_data in enumerate(batch):
         data = patch_data[0]
-        for key in collate_keys:
-            data[key] = np.array([ix[key] for ix in patch_data])
-        for key in tensor_keys:
-            data[key] = torch.tensor(data[key])
-        batch[i] = data
+        if data[SlideKey.SLIDE_ID] not in skip_idx:
+            for key in collate_keys:
+                # if not forcing a type, dtpe will be inferred as np.object in cases where the input image is
+                # anomalous (eg. nan values). This will raise an error when converting to tensor.
+                data[key] = np.array([ix[key] for ix in patch_data])
+            for key in tensor_keys:
+                data[key] = torch.tensor(data[key])
+            batch[i] = data
     return multibag_collate(batch)

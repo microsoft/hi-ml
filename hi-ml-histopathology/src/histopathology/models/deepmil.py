@@ -358,6 +358,22 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         tile_id = [f"{id}_{tile_id}" for tile_id in range(n_patches)]
         return slide_id, image_paths, tile_id
 
+    @staticmethod
+    def check_patch_location_format(batch):
+        faulty_slides_idx = []
+        for i, locations in enumerate(batch['patch_location']):
+            for location in locations:
+                if len(location) != 3:
+                    print(f'Slide {batch[SlideKey.SLIDE_ID][i]} '
+                            f'will be skipped as its patches contained unexpected values in patch_location {location}')
+                    faulty_slides_idx.append(batch[SlideKey.SLIDE_ID][i])
+                break
+        n = len(faulty_slides_idx)
+        if n > 0:
+            print(f'{n} slides will be skipped because somethign was wrong in the patch location')
+            import pdb; pdb.set_trace()
+        return faulty_slides_idx
+
     def get_slide_patch_coordinates(
         self, slide_offset: List, patches_location: List, patch_size: List
     ) -> Tuple[List, List, List, List]:
@@ -375,6 +391,8 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         n_patches = len(patches_location)
         id = batch[SlideKey.SLIDE_ID][index]
         path = batch[SlideKey.IMAGE_PATH][index]
+
+        self.check_patch_location_format(batch)
 
         top, bottom, left, right = self.get_slide_patch_coordinates(offset, patches_location, patch_size)
         slide_id, image_paths, tile_id = self.expand_slide_constant_metadata(id, path, n_patches)
