@@ -1,6 +1,7 @@
 huggingface-hub==0.6.0
 lightning-bolts==0.3.4
 pillow==9.0.0
+pydicom==2.2.2
 pytorch-lightning==1.5.5
 scikit-image==0.18.1
 SimpleITK==2.1.1
