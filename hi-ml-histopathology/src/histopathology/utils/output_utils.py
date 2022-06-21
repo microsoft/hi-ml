@@ -312,7 +312,7 @@ class DeepMILOutputsHandler:
         outputs_dir.mkdir(exist_ok=True, parents=True)
         save_outputs_csv(results, outputs_dir)
 
-        plots_hanlder = self.val_plots_handler if stage == ModelKey.VAL else self.test_plots_handler
+        plots_handler = self.val_plots_handler if stage == ModelKey.VAL else self.test_plots_handler
         plots_hanlder.save_all_plot_options(outputs_dir, self.tiles_selector, results, stage)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
