@@ -22,6 +22,14 @@ class TextInput:
         self.tokenizer = tokenizer
 
     def tokenize_input_prompts(self, prompts: Union[str, List[str]], verbose: bool) -> Any:
+        """
+        Tokenizes the input sentence(s) and adds special tokens as defined by the tokenizer.
+        :param prompts: Either a string containing a single sentence, or a list of strings each containing
+            a single sentence. Note that this method will not correctly tokenize multiple sentences if they
+            are input as a single string.
+        :param verbose: If set to True, will log the sentence after tokenization.
+        :return: A 2D tensor containing the tokenized sentences
+        """
         prompts = [prompts] if isinstance(prompts, str) else prompts
         self.assert_special_tokens_not_present(" ".join(prompts))
 
