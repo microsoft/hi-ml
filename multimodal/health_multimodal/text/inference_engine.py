@@ -22,11 +22,6 @@ class TextInferenceEngine(TextInput):
     """
 
     def __init__(self, tokenizer: BertTokenizer, text_model: BertForMaskedLM) -> None:
-        """
-        :param config: Config object containing the file path to Huggingface tokenizer.
-        :param model: Text model
-        """
-
         super().__init__(tokenizer=tokenizer)
 
         assert isinstance(text_model, BertForMaskedLM), f"Expected a BertForMaskedLM, got {type(text_model)}"
@@ -53,11 +48,11 @@ class TextInferenceEngine(TextInput):
 
     @torch.no_grad()
     def get_embeddings_from_prompt(self, prompts: Union[str, List[str]], verbose: bool = True) -> torch.Tensor:
-        """
-        Generate l2-normalised embeddings for a list of input text prompts.
+        """Generate L2-normalised embeddings for a list of input text prompts.
+
         :param prompts: Input text prompt(s) either in string or list of string format.
         :param verbose: If set to True, tokenized words are displayed in the console.
-        :return torch Tensor of shape (batch_size, embedding_size)
+        :return: Tensor of shape (batch_size, embedding_size).
         """
 
         assert self.is_in_eval()
@@ -72,9 +67,7 @@ class TextInferenceEngine(TextInput):
     def get_pairwise_similarities(self,
                                   prompt_set_1: Union[str, List[str]],
                                   prompt_set_2: Union[str, List[str]]) -> torch.Tensor:
-        """
-        Computes pairwise cosine similarities between the embeddings of the given prompts.
-        """
+        """Compute pairwise cosine similarities between the embeddings of the given prompts."""
 
         emb_1 = self.get_embeddings_from_prompt(prompts=prompt_set_1, verbose=False)
         emb_2 = self.get_embeddings_from_prompt(prompts=prompt_set_2, verbose=False)
@@ -84,9 +77,10 @@ class TextInferenceEngine(TextInput):
 
     @torch.no_grad()
     def predict_masked_tokens(self, prompts: Union[str, List[str]]) -> List[List[str]]:
-        """
-        Predict masked tokens for a single or list of input text prompts.
+        """Predict masked tokens for a single or list of input text prompts.
+
         Requires models to be trained with a MLM prediction head.
+
         :param prompts: Input text prompt(s) either in string or list of string format.
         :return: Predicted token candidates (Top-1) at masked position.
         """
