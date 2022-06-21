@@ -11,7 +11,7 @@ on:
       - ".github/workflows/multimodal-pr.yml"
 
 env:
-  pythonVersion: 3.10.5
+  pythonVersion: 3.10.4
   folder: multimodal
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}

@@ -14,7 +14,7 @@ on:
       - "hi-ml/**"
 
 env:
-  pythonVersion: 3.10.5
+  pythonVersion: 3.10.4
   folder: hi-ml-histopathology
   module_for_coverage_reporting: histopathology
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
