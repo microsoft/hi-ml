@@ -116,7 +116,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
                                                            outputs_handler=outputs_handler,
                                                            chunk_size=self.encoding_chunk_size,
                                                            n_epochs=self.max_epochs)
-        outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
 
