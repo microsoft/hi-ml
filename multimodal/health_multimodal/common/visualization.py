@@ -12,12 +12,16 @@ from health_multimodal.image.data.io import load_image
 TypeArrayImage = Union[np.ndarray, Image.Image]
 
 
-def plot_image(
+def _plot_image(
     image: TypeArrayImage,
     axis: plt.Axes,
     title: Optional[str] = None,
 ) -> None:
-    """
+    """Plot an image on a given axis, deleting the axis ticks and axis labels.
+
+    :param image: Input image.
+    :param axis: Axis to plot the image on.
+    :param title: Title used for the axis.
     """
     axis.imshow(image)
     axis.axis('off')
@@ -25,21 +29,34 @@ def plot_image(
         axis.set_title(title)
 
 
-def plot_isolines(
+def _get_isolines_levels(step_size: float) -> np.ndarray:
+    num_steps = np.floor(round(1 / step_size)).astype(int)
+    levels = np.linspace(step_size, 1, num_steps)
+    return levels
+
+
+def _plot_isolines(
         image: TypeArrayImage,
-        similarity: np.ndarray,
+        heatmap: np.ndarray,
         axis: plt.Axes,
         title: Optional[str] = None,
         colormap: str = 'RdBu_r',
         step: float = 0.25,
 ) -> None:
-    """
+    """Plot an image and overlay heatmap isolines on it.
+
+    :param image: Input image.
+    :param heatmap: Heatmap of the same size as the image.
+    :param axis: Axis to plot the image on.
+    :param title: Title used for the axis.
+    :param colormap: Name of the Matplotlib colormap used for the isolines.
+    :param step: Step size between the isolines levels. The levels are in :math:`(0, 1]`.
+        For example, a step size of 0.25 will result in isolines levels of 0.25, 0.5, 0.75 and 1.
     """
     axis.imshow(image)
-    num_steps = int(round(1 / step))
-    levels = np.linspace(step, 1, num_steps)
+    levels = _get_isolines_levels(step)
     contours = axis.contour(
-        similarity,
+        heatmap,
         cmap=colormap,
         vmin=-1,
         vmax=1,
@@ -51,19 +68,27 @@ def plot_isolines(
         axis.set_title(title)
 
 
-def plot_heatmap(
+def _plot_heatmap(
         image: TypeArrayImage,
-        similarity: np.ndarray,
+        heatmap: np.ndarray,
         figure: plt.Figure,
         axis: plt.Axes,
         colormap: str = 'RdBu_r',
         title: Optional[str] = None,
         alpha: float = 0.5,
 ) -> None:
-    """
+    """Plot a heatmap overlaid on an image.
+
+    :param image: Input image.
+    :param heatmap: Input heatmap of the same size as the image.
+    :param figure: Figure to plot the images on.
+    :param axis: Axis to plot the images on.
+    :param colormap: Name of the Matplotlib colormap for the heatmap.
+    :param title: Title used for the axis.
+    :param alpha: Heatmap opacity. Must be in :math:`[0, 1]`.
     """
     axis.imshow(image)
-    axes_image = axis.matshow(similarity, alpha=alpha, cmap=colormap, vmin=-1, vmax=1)
+    axes_image = axis.matshow(heatmap, alpha=alpha, cmap=colormap, vmin=-1, vmax=1)
     # https://www.geeksforgeeks.org/how-to-change-matplotlib-color-bar-size-in-python/
     divider = make_axes_locatable(axis)
     colorbar_axes = divider.append_axes('right', size='10%', pad=0.1)
@@ -77,10 +102,13 @@ def plot_heatmap(
 
 
 def plot_phrase_grounding_similarity_map(image_path: Path, similarity_map: np.ndarray) -> None:
-    """
+    """Plot visualization of the input image, the similarity heatmap and the heatmap isolines.
+
+    :param image_path: Path to the input image.
+    :param similarity_map: Phase grounding similarity map of the same size as the image.
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 6))
     image = load_image(image_path).convert('RGB')
-    plot_image(image, axis=axes[0], title='Input image')
-    plot_isolines(image, similarity_map, axis=axes[1], title='Similarity isolines')
-    plot_heatmap(image, similarity_map, figure=fig, axis=axes[2], title='Similarity heatmap')
+    _plot_image(image, axis=axes[0], title='Input image')
+    _plot_isolines(image, similarity_map, axis=axes[1], title='Similarity isolines')
+    _plot_heatmap(image, similarity_map, figure=fig, axis=axes[2], title='Similarity heatmap')
