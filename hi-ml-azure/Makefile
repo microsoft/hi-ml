@@ -54,9 +54,9 @@ flake8: pip_test call_flake8
 
 # run mypy, assuming test requirements already installed
 call_mypy:
-	mypy --install-types --non-interactive setup.py
-	mypy --install-types --non-interactive -p health_azure
-	mypy --install-types --non-interactive -p testazure
+	mypy --install-types --show-error-codes --non-interactive setup.py
+	mypy --install-types --show-error-codes --non-interactive --package health_azure
+	mypy --install-types --show-error-codes --non-interactive --package testazure
 
 # pip install test requirements and run mypy
 mypy: pip_test call_mypy

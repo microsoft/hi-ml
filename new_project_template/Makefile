@@ -39,9 +39,9 @@ flake8:
 
 # run mypy, assuming test requirements already installed
 mypy:
-	mypy --install-types --non-interactive setup.py
-	mypy --install-types --non-interactive -p health_newproject
-	mypy --install-types --non-interactive -p test_newproject
+	mypy --install-types --show-error-codes --non-interactive setup.py
+	mypy --install-types --show-error-codes --non-interactive --package health_newproject
+	mypy --install-types --show-error-codes --non-interactive --package test_newproject
 
 # run pytest on package, assuming test requirements already installed
 pytest:
