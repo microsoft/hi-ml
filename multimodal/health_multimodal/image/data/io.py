@@ -16,6 +16,9 @@ from skimage import io
 def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]] = None) -> np.ndarray:
     """Remap values in input so the output range is :math:`[0, 255]`.
 
+    Percentiles can be used to specify the range of values to remap.
+    This is useful to discard outliers in the input data.
+
     :param: array: Input array.
     :param: percentiles: Percentiles of the input values that will be mapped to ``0`` and ``255``.
         Passing ``None`` is equivalent to using percentiles ``(0, 100)`` (but faster).
