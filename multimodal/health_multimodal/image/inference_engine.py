@@ -58,6 +58,8 @@ class ImageInferenceEngine:
         """Compute image embeddings in the joint latent space, preserving the image grid.
 
         :param image_path: Path to the image to compute embeddings for.
+        :return: A tuple containing the image patch embeddings (a torch tensor) and
+                 the shape of the original image (width, height) before applying transforms.
         """
         input_image, img_shape = self.load_and_transform_input_image(image_path, self.transform)
         projected_img_emb = self.model.get_patchwise_projected_embeddings(input_image, normalize=True)
