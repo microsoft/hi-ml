@@ -10,13 +10,6 @@ from histopathology.utils.plots_utils import DeepMILPlotsHandler
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 
 
-def test_plots_handler_wrong_plot_options() -> None:
-    plot_options = {PlotOption.HISTOGRAM, "foo"}
-    with pytest.raises(ValueError) as ex:
-        _ = DeepMILPlotsHandler(plot_options)  # type: ignore
-    assert "The selected plot option is not a valid option" in str(ex)
-
-
 def test_plots_handler_wrong_class_names() -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     with pytest.raises(ValueError) as ex:
@@ -76,11 +69,7 @@ def test_plots_handler_plots_only_desired_plot_options(
     calls_count += assert_plot_func_called_if_among_plot_options(
         mock_slide, PlotOption.SLIDE_THUMBNAIL_HEATMAP, plot_options
     )
-    calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_tile, PlotOption.TOP_BOTTOM_TILES, plot_options
-    )
+    calls_count += assert_plot_func_called_if_among_plot_options(mock_tile, PlotOption.TOP_BOTTOM_TILES, plot_options)
     calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOption.HISTOGRAM, plot_options)
-    calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_conf, PlotOption.CONFUSION_MATRIX, plot_options
-    )
+    calls_count += assert_plot_func_called_if_among_plot_options(mock_conf, PlotOption.CONFUSION_MATRIX, plot_options)
     assert calls_count == len(plot_options)

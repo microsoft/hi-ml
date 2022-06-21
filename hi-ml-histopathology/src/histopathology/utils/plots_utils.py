@@ -24,17 +24,6 @@ from histopathology.utils.viz_utils import load_image_dict, save_figure
 ResultsType = Dict[ResultsKey, List[Any]]
 
 
-def validate_plot_options(plot_options: Set[PlotOption]) -> Set[PlotOption]:
-    """Validate that the plot_options are restricted to `PlotOption.__members__.values()` only."""
-    for opt in plot_options:
-        if opt not in PlotOption.__members__.values():
-            raise ValueError(
-                "The selected plot option is not a valid option, choose among the options available in "
-                "histopathology.utils.naming.PlotOption"
-            )
-    return plot_options
-
-
 def validate_class_names_for_plot_options(
     class_names: Optional[Sequence[str]], plot_options: Set[PlotOption]
 ) -> Optional[Sequence[str]]:
@@ -171,7 +160,7 @@ class DeepMILPlotsHandler:
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
         """
-        self.plot_options = validate_plot_options(plot_options)
+        self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
         self.level = level
         self.tile_size = tile_size
