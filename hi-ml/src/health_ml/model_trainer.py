@@ -12,8 +12,8 @@ from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
-from pytorch_lightning.profiler import (BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler,
-                                        PassThroughProfiler)
+from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
+
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
                                 is_local_rank_zero, is_running_in_azure_ml)
 
@@ -51,7 +51,7 @@ def get_pl_profiler(pl_profiler: Optional[str], outputs_folder: Path) -> Optiona
         profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / "profiler")
         return profiler
     else:
-        return PassThroughProfiler()
+        return None
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -141,9 +141,9 @@ def create_lightning_trainer(container: LightningContainer,
             callbacks.append(more_callbacks)  # type: ignore
     callbacks.extend(container.get_callbacks())
     # Set profiler: if --pl_profiler=profiler is specified, it overrides any custom profiler defined in the container
-    custom_profiler = additional_args.pop("profiler", PassThroughProfiler())
+    custom_profiler = additional_args.pop("profiler", None)
     profiler = get_pl_profiler(container.pl_profiler, container.outputs_folder)
-    profiler = profiler if not isinstance(profiler, PassThroughProfiler) else custom_profiler
+    profiler = profiler if profiler else custom_profiler
     is_azureml_run = is_running_in_azure_ml(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if progress_bar_refresh_rate is None:
