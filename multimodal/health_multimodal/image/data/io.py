@@ -54,6 +54,7 @@ def load_image(path: Path) -> Image.Image:
     :param: path: Path to image.
     :returns: Image as ``Pillow`` ``Image``.
     """
+    # Although ITK supports JPEG and PNG, we use Pillow for consistency with older trained models
     if path.suffix in [".jpg", ".jpeg", ".png"]:
         image = io.imread(path)
     elif path.suffixes == [".nii", ".gz"]:
