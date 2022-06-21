@@ -52,10 +52,8 @@ class ImageModel(nn.Module):
             self.load_state_dict(torch.load(pretrained_model_path))
 
     def train(self, mode: bool = True) -> Any:
+        """Switch the model between training and evaluation modes."""
         super().train(mode=mode)
-        """
-        Called to switch the model between training and evaluation modes.
-        """
         if self.freeze_encoder:
             self.encoder.train(mode=False)
             self.projector.train(mode=False)
