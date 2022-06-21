@@ -30,13 +30,13 @@ def check_patch_location_format(batch):
         for patch in slide_data:
             location = patch[WSIPatchKeys.LOCATION]
             if len(location) < 3:
-                print(f'Slide {patch[SlideKey.SLIDE_ID]} '
-                      f'will be skipped as its patches contained unexpected patch_location values: {location}')
+                # print(f'Slide {patch[SlideKey.SLIDE_ID]} '
+                #      f'will be skipped as its patches contained unexpected patch_location values: {location}')
                 faulty_slides_idx.append(patch[SlideKey.SLIDE_ID])
                 break
     n = len(faulty_slides_idx)
     if n > 0:
-        print(f'{n} slides will be skipped because somethign was wrong in the patch location')
+        logging.warning(f'{n} slides will be skipped because somethign was wrong in the patch location')
     return faulty_slides_idx
 
 
