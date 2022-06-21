@@ -148,8 +148,9 @@ In some scenarios, you might be interested in profiling the memory usage by sett
 `profile_memory=True` or any of [these additional arguments](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html).
 You can specify additional profiling arguments by overriding
 [get_trainer_arguments](https://github.com/microsoft/hi-ml/blob/e31236d709384a294bb71b096dcd9369afce4dba/hi-ml/src/health_ml/lightning_container.py#L70)
-in your LightningContainer as shown below. Please make sure to specify all profiler custom arguments under the
-`profiler` key.
+in your LightningContainer as shown below. Please make sure to specify your custom profiler under the
+`profiler` key and properly set `dirpath=self.outputs_folder/"profiler"` so that the profiler's outputs are saved in the
+right output folder.
 
 ```python
 class YourCustomContainer(LightningContainer):
@@ -158,13 +159,7 @@ class YourCustomContainer(LightningContainer):
     self.custom_param = custom_param
 
   def get_trainer_arguments(self) -> Dict[str, Any]:
-    trainer_arguments = {
-      "profiler": {
-          "with_stack": True,
-          "profile_memory": True
-      }
-    }
-    return dict()
+    return {"profiler": PyTorchProfiler(dirpath=self.outputs_folder/"profiler", with_memory=True, with_stack=True)}
 ```
 
 The profiler will record all memory allocation/release events and allocator’s internal state during profiling. The

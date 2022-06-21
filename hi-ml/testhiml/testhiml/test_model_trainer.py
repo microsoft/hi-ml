@@ -92,25 +92,36 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert isinstance(storing_logger, StoringLogger)
 
 
-def test_profiler_with_custom_arguments() -> None:
-    """Test that profiler is properly instantiated for all supported options with additional arguments
+def _get_trainer_arguments_custom_profiler() -> Dict[str, Any]:
+    return {"profiler": PyTorchProfiler(profile_memory=True, with_stack=True)}
+
+
+def test_custom_profiler() -> None:
+    """Test that we can specify a custom profiler.
     """
 
-    def _get_trainer_arguments() -> Dict[str, Any]:
-        return {"profiler": {"with_stack": True, "profile_memory": True}}
-
     container = LightningContainer()
-    container.pl_profiler = "pytorch"
-    container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
+    container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
     trainer, _ = create_lightning_trainer(container)
     assert isinstance(trainer.profiler, PyTorchProfiler)
     assert trainer.profiler._profiler_kwargs["profile_memory"]
     assert trainer.profiler._profiler_kwargs["with_stack"]
 
 
+def test_pl_profiler_argument_overrides_custom_profiler() -> None:
+    """Test that pl_profiler argument overrides any custom profiler ser in get_trainer_arguments of the container.
+    """
+
+    container = LightningContainer()
+    container.pl_profiler = "advanced"
+    container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, AdvancedProfiler)
+
+
 @pytest.mark.parametrize("pl_profiler", ["", "simple", "advanced", "pytorch"])
 def test_pl_profiler_properly_instantiated(pl_profiler: str) -> None:
-    """Test that profiler is properly instantiated for all supported options
+    """Test that profiler is properly instantiated for all supported options.
     """
 
     pl_profilers = {
