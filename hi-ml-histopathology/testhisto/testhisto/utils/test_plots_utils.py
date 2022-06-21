@@ -2,12 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 from typing import Collection
 from unittest.mock import MagicMock, patch
 import pytest
 from histopathology.utils.naming import ModelKey, PlotOption
 from histopathology.utils.plots_utils import DeepMILPlotsHandler
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
+from testhisto.mocks.container import MockDeepSMILETilesPanda
 
 
 def test_plots_handler_wrong_class_names() -> None:
@@ -15,6 +17,18 @@ def test_plots_handler_wrong_class_names() -> None:
     with pytest.raises(ValueError) as ex:
         _ = DeepMILPlotsHandler(plot_options, class_names=[])
     assert "No class_names were provided while activating confusion matrix plotting." in str(ex)
+
+
+def test_plots_handler_slide_thumbnails_without_slide_dataset() -> None:
+    with pytest.raises(ValueError) as ex:
+        container = MockDeepSMILETilesPanda(tmp_path=Path("foo"))
+        container.setup()
+        container.data_module = MagicMock()
+        container.data_module.train_dataset.N_CLASSES = 6
+        outputs_handler = container.get_outputs_handler()
+        outputs_handler.test_plots_handler.plot_options = {PlotOption.SLIDE_THUMBNAIL_HEATMAP}
+        outputs_handler.set_slides_dataset_for_plots_handlers(container.get_slides_dataset())
+    assert "You can not plot slide thumbnails and heatmaps without setting a slides_dataset." in str(ex)
 
 
 def assert_plot_func_called_if_among_plot_options(
