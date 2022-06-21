@@ -27,8 +27,6 @@ class ImageTextInferenceEngine:
                  text_inference_engine: TextInferenceEngine) -> None:
         """
         This class takes an ImageTextModel as well as an ImageInferenceEngine and TextInferenceEngine.
-        The primary reason for this is our inability to use the inference engines in `get_image_to_text_similarity_map`
-        without refactoring the code.
         """
         self.image_inference_engine = image_inference_engine
         self.text_inference_engine = text_inference_engine
