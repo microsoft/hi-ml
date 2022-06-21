@@ -22,10 +22,9 @@ class ImageInferenceEngine:
 
     def __init__(self, image_model: ImageModel, transform: Compose):
         """
-        :param img_model: Pretrained model
-        :param transforms: Transforms to apply to the image after loading. Must return a torch.Tensor that can be
-                           input directly to the image model.
-        :param pretrained_model_path: Path to the pretrained image encoder model.
+        :param img_model: Trained image model
+        :param transform: Transform to apply to the image after loading. Must return a torch.Tensor that can be
+            input directly to the image model.
         """
 
         assert isinstance(image_model, ImageModel), f"Expected an ImageModel, got {type(image_model)}"
