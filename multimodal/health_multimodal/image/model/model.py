@@ -59,10 +59,7 @@ class ImageModel(nn.Module):
             self.projector.train(mode=False)
         return self
 
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> ImageModelOutput:    # type: ignore
-        """
-        :param x: Input image tensor
-        """
+    def forward(self, x: torch.Tensor) -> ImageModelOutput:
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
             projected_patch_embeddings = self.projector(patch_x)
@@ -76,20 +73,17 @@ class ImageModel(nn.Module):
                                 projected_global_embedding=projected_global_embedding)
 
     def create_downstream_classifier(self, **kwargs: Any) -> MultiTaskModel:
-        """
-        Creates the classification module for the downstream task
-        """
+        """Create the classification module for the downstream task."""
         downstream_classifier_kwargs = kwargs if kwargs else self.downstream_classifier_kwargs
         return MultiTaskModel(self.feature_size, **downstream_classifier_kwargs)
 
     @torch.no_grad()
     def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
-        """
-        Get patchwise projected embeddings from the CNN model.
+        """Get patch-wise projected embeddings from the CNN model.
 
-        :param input_img: input tensor image [B, C, H, W]
-        :param normalize: If set to True, the embeddings are l2-normalized.
-        :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size]
+        :param input_img: input tensor image [B, C, H, W].
+        :param normalize: If ``True``, the embeddings are L2-normalized.
+        :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size].
         """
         assert self.training is False, "This function is only implemented for evaluation mode"
         outputs = self.forward(input_img)
