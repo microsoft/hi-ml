@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+import enum
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union, Sequence
 
@@ -14,6 +15,12 @@ from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
 from .modules import MLP, MultiTaskModel
 
 TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+
+
+@enum.unique
+class ResnetType(str, enum.Enum):
+    RESNET18 = "resnet18"
+    RESNET50 = "resnet50"
 
 
 @dataclass
@@ -107,13 +114,11 @@ class ImageEncoder(nn.Module):
         self.encoder = self._create_encoder()
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        if self.img_model_type == "resnet18":
-            encoder = resnet18(return_all_feature_maps=True, pretrained=True, **kwargs)
-        elif self.img_model_type == "resnet50":
-            encoder = resnet50(return_all_feature_maps=True, pretrained=True, **kwargs)
-        else:
-            raise NotImplementedError
-
+        supported = ResnetType.RESNET18, ResnetType.RESNET50
+        if self.img_model_type not in supported:
+            raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
+        encoder_class = resnet18 if self.img_model_type == ResnetType.RESNET18 else resnet50
+        encoder = encoder_class(return_all_feature_maps=True, pretrained=True, **kwargs)
         return encoder
 
     def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> TypeImageEncoder:
