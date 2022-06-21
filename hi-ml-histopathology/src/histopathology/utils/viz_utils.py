@@ -75,7 +75,8 @@ def plot_panda_data_sample(
 def plot_scores_hist(
     results: Dict, prob_col: str = ResultsKey.CLASS_PROBS, gt_col: str = ResultsKey.TRUE_LABEL
 ) -> plt.Figure:
-    """
+    """Plot scores as a historgram.
+
     :param results: List that contains slide_level dicts
     :param prob_col: column name that contains the scores
     :param gt_col: column name that contains the true label

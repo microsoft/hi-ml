@@ -207,7 +207,7 @@ class DeepMILPlotsHandler:
         :param stage: The model stage: validation or test.
         """
 
-        logging.info(f"Start plotting all figure outputs in {outputs_dir}")
+        logging.info(f"Plotting {[opt.value for opt in self.plot_options]}. All figures will be saved in {outputs_dir}")
         figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
         if PlotOption.HISTOGRAM in self.plot_options:
