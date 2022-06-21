@@ -256,8 +256,8 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
-        if stage == ModelKey.TEST and self.outputs_handler:
-            self.outputs_handler.tiles_handler.update_slides_selection(batch, results)
+        if stage == ModelKey.TEST and self.outputs_handler and self.outputs_handler.tiles_selector:
+            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore

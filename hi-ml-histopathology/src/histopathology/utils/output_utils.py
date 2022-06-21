@@ -6,7 +6,7 @@
 import shutil
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -14,16 +14,12 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
-from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
-from histopathology.utils.top_bottom_tiles_utils import TopBottomTilesHandler
-from histopathology.utils.metrics_utils import (plot_heatmap_overlay, plot_normalized_confusion_matrix,
-                                                plot_scores_hist, plot_slide)
-from histopathology.utils.naming import MetricsKey, ModelKey, ResultsKey, SlideKey
-from histopathology.utils.viz_utils import load_image_dict, save_figure
+from histopathology.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
+from histopathology.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
@@ -54,6 +50,15 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
         raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
                          f"of classes ({effective_n_classes})")
     return tuple(class_names)
+
+
+def validate_slide_datasets_for_plot_options(
+    plot_options: Collection[PlotOption], slides_dataset: Optional[SlidesDataset]
+) -> None:
+    if PlotOption.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
+        raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
+                         "Please remove `PlotOption.SLIDE_THUMBNAIL_HEATMAP` from your plot options or provide "
+                         "a slide dataset.")
 
 
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
@@ -140,52 +145,6 @@ def save_features(results: ResultsType, outputs_dir: Path) -> None:
     # Collect all features in a list and save
     features_list = [features.squeeze(0).cpu() for features in results[ResultsKey.FEATURES]]
     torch.save(features_list, outputs_dir / 'test_encoded_features.pickle')
-
-
-def save_slide_thumbnails_and_heatmaps(results: ResultsType, selected_slide_ids: Dict[str, List[str]], tile_size: int,
-                                       level: int, slides_dataset: SlidesDataset, figures_dir: Path) -> None:
-    for key in selected_slide_ids:
-        logging.info(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
-        key_dir = figures_dir / key
-        key_dir.mkdir(parents=True, exist_ok=True)
-        for slide_id in selected_slide_ids[key]:
-            save_slide_thumbnail_and_heatmap(results, slide_id=slide_id, tile_size=tile_size, level=level,
-                                             slides_dataset=slides_dataset, key_dir=key_dir)
-
-
-def save_slide_thumbnail_and_heatmap(results: ResultsType, slide_id: str, tile_size: int, level: int,
-                                     slides_dataset: SlidesDataset, key_dir: Path) -> None:
-    slide_index = slides_dataset.dataset_df.index.get_loc(slide_id)
-    assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_id}"
-    slide_dict = slides_dataset[slide_index]
-    slide_dict = load_image_dict(slide_dict, level=level, margin=0)
-    slide_image = slide_dict[SlideKey.IMAGE]
-    location_bbox = slide_dict[SlideKey.LOCATION]
-
-    fig = plot_slide(slide_image=slide_image, scale=1.0)
-    save_figure(fig=fig, figpath=key_dir / f'{slide_id}_thumbnail.png')
-
-    fig = plot_heatmap_overlay(slide=slide_id, slide_image=slide_image, results=results,
-                               location_bbox=location_bbox, tile_size=tile_size, level=level)
-    save_figure(fig=fig, figpath=key_dir / f'{slide_id}_heatmap.png')
-
-
-def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
-    logging.info("Plotting histogram ...")
-    fig = plot_scores_hist(results)
-    save_figure(fig=fig, figpath=figures_dir / 'hist_scores.png')
-
-
-def save_confusion_matrix(conf_matrix_metric: ConfusionMatrix, class_names: Sequence[str], figures_dir: Path) -> None:
-    logging.info("Computing and saving confusion matrix...")
-    cf_matrix = conf_matrix_metric.compute().cpu().numpy()
-    #  We can't log tensors in the normal way - just print it to console
-    logging.info('test/confusion matrix:')
-    logging.info(cf_matrix)
-    #  Save the normalized confusion matrix as a figure in outputs
-    cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
-    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / 'normalized_confusion_matrix.png')
 
 
 class OutputsPolicy:
@@ -279,8 +238,8 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, save_output_slides: bool = True, num_top_slides: int = 10, num_top_tiles: int = 12,
-                 num_columns: int = 4) -> None:
+                 maximise: bool, val_plot_options: Collection[PlotOption],
+                 test_plot_options: Collection[PlotOption]) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -290,27 +249,33 @@ class DeepMILOutputsHandler:
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
-        :param save_output_slides: A parameter to whether 'save_slide_thumbnails_and_heatmaps' for slides datasets.
-            This is a temporary solution to disable tiles visualisation when running the slides pipeline that lacks
-            tiles coordinates due to the current tiling on the fly strategy.
-        :param num_top_slides: Number of slides to select to define top and bottom tiles based of pred scores.
-            Defaults to 10.
-        :param num_top_tiles: Number of tiles to select as top and bottom tiles based on attn scores. Defaults to 12.
-        :param num_columns: Number of columnds to use to plot top and bottom tiles.
+        :param val_plot_options: The desired plot options for validation time.
+        :param test_plot_options: The desired plot options for test time.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
         self.tile_size = tile_size
         self.level = level
-        self.save_output_slides = save_output_slides
-        self.slides_dataset: Optional[SlidesDataset] = None
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-        self.tiles_handler = TopBottomTilesHandler(self.n_classes, num_top_tiles=num_top_tiles,
-                                                   num_top_slides=num_top_slides, num_columns=num_columns)
+
+        self.tiles_selector: Optional[TilesSelector] = None
+
+        self.val_plots_handler = DeepMILPlotsHandler(
+            plot_options=val_plot_options,
+            level=self.level,
+            tile_size=self.tile_size,
+            class_names=self.class_names
+        )
+        self.test_plots_handler = DeepMILPlotsHandler(
+            plot_options=test_plot_options,
+            level=self.level,
+            tile_size=self.tile_size,
+            class_names=self.class_names
+        )
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -324,8 +289,11 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
-    def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
-        self.slides_dataset = slides_dataset
+    def set_slides_dataset_for_plots_handlers(self, slides_dataset: Optional[SlidesDataset]) -> None:
+        validate_slide_datasets_for_plot_options(self.test_plots_handler.plot_options, slides_dataset)
+        validate_slide_datasets_for_plot_options(self.val_plots_handler.plot_options, slides_dataset)
+        self.test_plots_handler.slides_dataset = slides_dataset
+        self.val_plots_handler.slides_dataset = slides_dataset
 
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
@@ -341,24 +309,11 @@ class DeepMILOutputsHandler:
         # contains the tile value
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results_on_cpu(epoch_results)
-        figures_dir = outputs_dir / "fig"
-
         outputs_dir.mkdir(exist_ok=True, parents=True)
-        figures_dir.mkdir(exist_ok=True, parents=True)
-
         save_outputs_csv(results, outputs_dir)
 
-        if self.save_output_slides and stage == ModelKey.TEST and self.slides_dataset:
-            save_slide_thumbnails_and_heatmaps(results, self.tiles_handler.report_cases_slide_ids,
-                                               tile_size=self.tile_size,
-                                               level=self.level, slides_dataset=self.slides_dataset,
-                                               figures_dir=figures_dir)
-
-        save_scores_histogram(results, figures_dir=figures_dir)
-
-        # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
-        # conf_matrix: ConfusionMatrix = metrics_dict[MetricsKey.CONF_MATRIX]  # type: ignore
-        # save_confusion_matrix(conf_matrix, class_names=self.class_names, figures_dir=figures_dir)
+        plots_handler = self.val_plots_handler if stage == ModelKey.VAL else self.test_plots_handler
+        plots_handler.save_plots(outputs_dir, self.tiles_selector, results, stage)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
                                 epoch: int, is_global_rank_zero: bool = True) -> None:
@@ -373,6 +328,9 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
+        if PlotOption.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
+            logging.info("Selecting tiles ...")
+            self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs
         if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
@@ -382,7 +340,7 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir)
+            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, ModelKey.VAL)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
@@ -398,10 +356,10 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        self.tiles_handler.gather_selected_tiles_across_devices()
+        if PlotOption.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
+            logging.info("Selecting tiles ...")
+            self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
-            logging.info("Selecting tiles ...")
-            self.tiles_handler.save_top_and_bottom_tiles(self.test_outputs_dir)
-            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, stage=ModelKey.TEST)
+            self._save_outputs(gathered_epoch_results, self.test_outputs_dir, ModelKey.TEST)
