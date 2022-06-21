@@ -1010,7 +1010,23 @@ import sys""",
     assert expected_output in output
 
 
-@pytest.mark.timeout(300)
+def _assert_hello_world_files_exist(folder: Path) -> None:
+    """Check if the .csv files in the hello_world dataset exist in the given folder."""
+    files = []
+    for file in folder.rglob("*.csv"):
+        file_relative = file.relative_to(folder)
+        logging.info(f"File {file_relative}: size: {file.stat().st_size}")
+        files.append(str(file_relative))
+    assert set(files) == {
+        "dataset.csv",
+        "train_and_test_data/metrics.csv",
+        "train_and_test_data/metrics_aggregates.csv",
+        "train_and_test_data/scalar_epoch_metrics.csv",
+        "train_and_test_data/scalar_prediction_target_metrics.csv"
+    }
+
+
+@pytest.mark.timeout(120)
 def test_mounting_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
     with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
@@ -1018,21 +1034,16 @@ def test_mounting_dataset(tmp_path: Path) -> None:
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
         logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_mount" / "panda"
+        dataset = Dataset.get_by_name(workspace, name='hello_world')
+        target_path = tmp_path / "test_mount"
         target_path.mkdir(parents=True)
         existing_mounted = os.listdir(target_path)
         assert len(existing_mounted) == 0
         logging.info("ready to mount")
         with dataset.mount(str(target_path)) as mount_context:
             mount_point = Path(mount_context.mount_point)
-            logging.info("mount done, run listdir")
-            mounted = os.listdir(mount_point)
-            logging.info(f"mounted: {mounted}")
-            assert len(mounted) > 1
-            for image_file in (mount_point / subfolder).glob("*.tiff"):
-                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+            logging.info("mount done")
+            _assert_hello_world_files_exist(mount_point)
 
 
 @pytest.mark.timeout(60)
@@ -1043,20 +1054,14 @@ def test_downloading_dataset(tmp_path: Path) -> None:
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
         logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_download" / "panda"
+        dataset = Dataset.get_by_name(workspace, name='hello_world')
+        target_path = tmp_path / "test_download"
         target_path.mkdir(parents=True)
         existing_downloaded = os.listdir(target_path)
         assert len(existing_downloaded) == 0
         logging.info("ready to download")
         dataset.download(target_path=str(target_path), overwrite=False)
-        logging.info("download done, run listdir")
-        downloaded = os.listdir(target_path)
-        logging.info(f"downloaded: {downloaded}")
-        assert len(downloaded) > 1
-        for image_file in (target_path / subfolder).glob("*.tiff"):
-            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+        _assert_hello_world_files_exist(target_path)
 
 
 def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
