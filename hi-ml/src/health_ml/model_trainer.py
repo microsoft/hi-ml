@@ -140,7 +140,7 @@ def create_lightning_trainer(container: LightningContainer,
         else:
             callbacks.append(more_callbacks)  # type: ignore
     callbacks.extend(container.get_callbacks())
-    # Set profiler: if a --pl_profiler=profiler is specified, it overrides any custom profiler defined in the container
+    # Set profiler: if --pl_profiler=profiler is specified, it overrides any custom profiler defined in the container
     custom_profiler = additional_args.pop("profiler", PassThroughProfiler())
     profiler = get_pl_profiler(container.pl_profiler, container.outputs_folder)
     profiler = profiler if not isinstance(profiler, PassThroughProfiler) else custom_profiler
