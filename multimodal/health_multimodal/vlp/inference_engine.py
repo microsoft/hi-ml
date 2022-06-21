@@ -53,7 +53,7 @@ class ImageTextInferenceEngine:
             height=height,
             resize_size=self.image_inference_engine.resize_size,
             crop_size=self.image_inference_engine.crop_size,
-            val_img_transforms=self.image_inference_engine.transforms,
+            val_img_transform=self.image_inference_engine.transform,
         )
         return resized_sim_map
 
@@ -80,7 +80,7 @@ class ImageTextInferenceEngine:
     @staticmethod
     def convert_similarity_to_image_size(
             similarity_map: torch.Tensor, width: int, height: int, resize_size: Optional[int],
-            crop_size: Optional[int], val_img_transforms: Optional[Callable]) -> np.ndarray:
+            crop_size: Optional[int], val_img_transform: Optional[Callable] = None) -> np.ndarray:
         """
         Convert similarity map from raw patch grid to original image size,
         taking into account whether the image has been resized and/or cropped prior to entering the network.
