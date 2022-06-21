@@ -1,6 +1,6 @@
 name: iris-env
 dependencies:
-  - pip=20.1.1
+  - pip=21.2.4
   - python=3.10.4
   - scikit-learn
   - pip:

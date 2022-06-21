@@ -403,7 +403,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
     conda_env_spec = OrderedDict({"name": "dummy_env",
                                   "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.10.4"])})
+                                  "dependencies": OrderedList(["- pip=21.2.4", "- python=3.10.4"])})
 
     conda_env_path = tmp_path / "dummy_conda_env.yml"
     with open(conda_env_path, "w+") as f_path:
@@ -443,7 +443,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
     # Assert that a Conda env spec with no python version raises an exception
     conda_env_spec = OrderedDict({"name": "dummy_env",
                                   "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1"])})
+                                  "dependencies": OrderedList(["- pip=21.2.4"])})
 
     conda_env_path = tmp_path / "dummy_conda_env_no_python.yml"
     with open(conda_env_path, "w+") as f_path:

@@ -80,7 +80,7 @@ pip install --extra-index-url https://test.pypi.org/simple/ hi-ml==0.1.0.post165
 ```yaml
 name: foo
 dependencies:
-  - pip=20.1.1
+  - pip=21.2.4
   - python=3.10.4
   - pip:
       - --extra-index-url https://test.pypi.org/simple/

@@ -2,7 +2,7 @@ name: image_loader
 channels:
   - defaults
 dependencies:
-  - pip=20.1.1
+  - pip=21.2.4
   - python=3.10.4
   - pip:
       - line_profiler==3.3.1

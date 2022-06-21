@@ -2,7 +2,7 @@ name: slide_image_loader
 channels:
   - defaults
 dependencies:
-  - pip=20.1.1
+  - pip=21.2.4
   - python=3.10.4
   - pip:
       - azureml-defaults==1.32.0

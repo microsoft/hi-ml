@@ -2,7 +2,7 @@ name: simple-env
 channels:
   - defaults
 dependencies:
-  - pip=20.1.1
+  - pip=21.2.4
   - python=3.10.4
   - pip:
       - hi-ml-azure>=0.1.8
