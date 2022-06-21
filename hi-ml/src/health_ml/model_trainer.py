@@ -48,7 +48,7 @@ def get_pl_profiler(pl_profiler: Optional[str], outputs_folder: Path, profiler_a
                              "overriding the default behavior of get_trainer_arguments() in your lightning container. "
                              "You can find an example here https://github.com/microsoft/hi-ml/tree/main/docs/source/"
                              "debugging.md#L145")
-        profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / f"{pl_profiler}_profiler", **profiler_args)
+        profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / "profiler", **profiler_args)
         return profiler
     else:
         return None

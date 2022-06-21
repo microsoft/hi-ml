@@ -18,14 +18,14 @@ for environment differences among the modules and offer flexibility to configure
 
 We provide a set of example debugging configs for each of hi-ml module:
 
-* [launch.json in hi-ml](https://github.com/microsoft/hi-ml/tree/main/hi-ml/.vscode/lanch.json)
-* [launch.json in hi-ml-azure](https://github.com/microsoft/hi-ml/tree/main/hi-ml-azure/.vscode/lanch.json)
-* [launch.json in hi-ml-histopathology](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/.vscode/lanch.json)
+* [launch.json in hi-ml](https://github.com/microsoft/hi-ml/tree/main/hi-ml/.vscode/launch.json)
+* [launch.json in hi-ml-azure](https://github.com/microsoft/hi-ml/tree/main/hi-ml-azure/.vscode/launch.json)
+* [launch.json in hi-ml-histopathology](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/.vscode/launch.json)
 
 VS Code restricts debugging to user-written code only by default. If you want to step through external code and
 standard libraries functions, set `"justMyCode": false` inside the debugging config block in the `launch.json` file.
 
-In particular, if you would like to debug the current file while breaking through `pytorch` code, navigate to
+In particular, if you would like to debug the current file while breaking through external libraries, navigate to
 `himl-projects.code-workspace` in the repo root and edit the "launch" block as follow:
 
 ```json
@@ -59,13 +59,13 @@ These are available as part of the
 and can be used as extra command line arguments with the [hi-ml
 runner](https://github.com/microsoft/hi-ml/blob/746c8b58c1af71f71eeaaac2a8584be1d9a5386f/hi-ml/src/health_ml/runner.py#L107).
 
-* `pl-fast-dev-run`: If set to `n`, runs the pipeline for only `n` batch(es) of train, val and test for only a single
+* `pl_fast_dev_run`: If set to `n`, runs the pipeline for only `n` batch(es) of train, val and test for only a single
   epoch. Additionally [this flag](https://pytorch-lightning.readthedocs.io/en/stable/common/debugging.html#fast-dev-run)
   disables all callbacks and hyperparameters serialization which makes the debugging process very quick. This must be
   used for debugging purposes only.
-* `pl-limit-train-batches`: Limits the training dataset to the given number of batches `n`.
-* `pl-limit-val-batches`: Limits the validation dataset to the given number of batches `n`.
-* `pl-limit-train-batches`: Limits the test dataset to the given number of batches `n`.
+* `pl_limit_train_batches`: Limits the training dataset to the given number of batches `n`.
+* `pl_limit_val_batches`: Limits the validation dataset to the given number of batches `n`.
+* `pl_limit_train_batches`: Limits the test dataset to the given number of batches `n`.
 
 In general, it is very useful to run the following two steps as part of the developement cycle:
 
@@ -73,14 +73,14 @@ In general, it is very useful to run the following two steps as part of the deve
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-count=0 --bach-size=2 --pl-fast-dev-run=4
+python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-fast-dev-run=4
 ```
 
 2. Make sure the whole pipeline runs properly, including checkpoints callbacks and hyperparameter serialization:
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-count=0 --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
+python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
 ```
 
 Note: Under the hood, setting `pl-fast-dev-run=n` overrides
@@ -101,7 +101,7 @@ The profiler outputs will be saved in a subfolder `profiler` inside the outputs 
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-count=0 --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
+python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
 ```
 
 ### Interpret Pytorch Profiling outputs via Tensorboard
