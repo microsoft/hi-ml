@@ -16,9 +16,8 @@ def _assert_min_max_dtype(array: np.ndarray) -> None:
 
 
 def test_load_image() -> None:
-    """
-    Tests the image loading function using dummy NIFTI and JPG files.
-    """
+    """Test the image loading function using dummy files."""
+    size = 4, 4
 
     def _assertions(path: Path) -> None:
         img = load_image(path)
@@ -26,12 +25,12 @@ def test_load_image() -> None:
         array = np.asarray(img)
         _assert_min_max_dtype(array)
 
-    size = 4, 4
-    array = np.arange(16, dtype=np.uint8).reshape(*size)
+    array = np.arange(np.prod(size), dtype=np.uint8).reshape(*size)
     image = Image.fromarray(array).convert('RGB')
-    with NamedTemporaryFile(suffix='.jpg') as file:
-        image.save(file)
-        _assertions(Path(file.name))
+    for suffix in '.jpg', '.jpeg', '.png':
+        with NamedTemporaryFile(suffix=suffix) as file:
+            image.save(file)
+            _assertions(Path(file.name))
 
     nifti_img = sitk.GetImageFromArray(np.arange(16, dtype=np.uint16).reshape(*size) + 100)
     with NamedTemporaryFile(suffix='.nii.gz') as file:
@@ -40,9 +39,7 @@ def test_load_image() -> None:
 
 
 def test_remap_to_uint8() -> None:
-    """
-    Tests the intensity casting function using different percentiles.
-    """
+    """Test the intensity casting function using different percentiles."""
     array = np.arange(10).astype(np.uint16)  # mimic DICOM data type
     with pytest.raises(ValueError):
         remap_to_uint8(array, (1, 2, 3))  # type: ignore[arg-type]
