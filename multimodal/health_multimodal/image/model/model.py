@@ -96,9 +96,9 @@ class ImageModel(nn.Module):
 
 
 class ImageEncoder(nn.Module):
-    """
-    Image encoder trunk module for the ImageModel class.
-    :param img_model_type: Type of image model to use {"resnet18", "resnet50"}
+    """Image encoder trunk module for the ``ImageModel`` class.
+
+    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
     """
 
     def __init__(self, img_model_type: str):
