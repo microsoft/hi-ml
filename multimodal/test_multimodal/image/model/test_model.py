@@ -49,7 +49,7 @@ def test_frozen_cnn_model() -> None:
                        num_tasks=1)
     assert model.encoder.training
     assert model.projector.training
-    assert model.classifier.training
+    assert model.classifier.training  # type: ignore
 
 
 def test_image_get_patchwise_projected_embeddings() -> None:
