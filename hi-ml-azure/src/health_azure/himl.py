@@ -46,6 +46,7 @@ RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
 
+
 @dataclass
 class AzureRunInfo:
     """
