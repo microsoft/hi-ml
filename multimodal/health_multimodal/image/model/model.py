@@ -107,9 +107,9 @@ class ImageEncoder(nn.Module):
         self.encoder = self._create_encoder()
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        if self.img_model_type == 'resnet18':
+        if self.img_model_type == "resnet18":
             encoder = resnet18(return_all_feature_maps=True, pretrained=True, **kwargs)
-        elif self.img_model_type == 'resnet50':
+        elif self.img_model_type == "resnet50":
             encoder = resnet50(return_all_feature_maps=True, pretrained=True, **kwargs)
         else:
             raise NotImplementedError
@@ -132,7 +132,7 @@ class ImageEncoder(nn.Module):
 
         :param replace_stride_with_dilation: for each layer to replace the 2x2 stride with a dilated convolution
         """
-        if self.img_model_type == 'resnet18':
+        if self.img_model_type == "resnet18":
             # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
             raise NotImplementedError("resnet18 does not support dilated convolutions")
 
