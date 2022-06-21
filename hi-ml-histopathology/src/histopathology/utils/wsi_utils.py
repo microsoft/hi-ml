@@ -22,17 +22,16 @@ slide_metadata_keys = [
 
 
 def check_patch_location_format(batch):
+    """
+    check locations returned by transform have expected size [z, y, x]
+    """
     faulty_slides_idx = []
-    for i, slide_data in enumerate(batch):
-        # TODO check dimension of faulty slide id here
+    for slide_data in batch:
         for patch in slide_data:
-            #if patch[SlideKey.SLIDE_ID] == '8d5860e10e09ee25e066ee7fb699453d':
-            #    print(patch[WSIPatchKeys.LOCATION])
-            #    print(len(patch[WSIPatchKeys.LOCATION]))
             location = patch[WSIPatchKeys.LOCATION]
             if len(location) < 3:
                 print(f'Slide {patch[SlideKey.SLIDE_ID]} '
-                      f'will be skipped as its patches contained unexpected values in patch_location {location}')
+                      f'will be skipped as its patches contained unexpected patch_location values: {location}')
                 faulty_slides_idx.append(patch[SlideKey.SLIDE_ID])
                 break
     n = len(faulty_slides_idx)
@@ -60,14 +59,15 @@ def array_collate(batch: List) -> Any:
     tensor_keys = collate_keys + [SlideKey.LABEL]
 
     skip_idx = check_patch_location_format(batch)
-    for i, patch_data in enumerate(batch):
+    new_batch: List[dict] = []
+    for patch_data in batch:
+        # we assume all patches are dictionaries with the same keys
         data = patch_data[0]
+        # this is necesseary to overcome bug in RandGRidPatch, if one patch has faulty location the all slide is skipped
         if data[SlideKey.SLIDE_ID] not in skip_idx:
             for key in collate_keys:
-                # if not forcing a type, dtpe will be inferred as np.object in cases where the input image is
-                # anomalous (eg. nan values). This will raise an error when converting to tensor.
                 data[key] = np.array([ix[key] for ix in patch_data])
             for key in tensor_keys:
                 data[key] = torch.tensor(data[key])
-            batch[i] = data
-    return multibag_collate(batch)
+            new_batch.append(data)
+    return multibag_collate(new_batch)
