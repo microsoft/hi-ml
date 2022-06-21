@@ -70,15 +70,10 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: PIP upgrade
+      - name: Upgrade PIP
         run: |
           cd ${{ env.folder }}
           make pip_upgrade
-
-      - name: Install hi-ml-azure locally
-        run: |
-          cd hi-ml-azure
-          make pip_local
 
       - name: Install required packages
         run: |
