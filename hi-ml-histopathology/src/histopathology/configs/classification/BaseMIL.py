@@ -6,7 +6,7 @@
 import os
 import torch
 import param
-from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from torch import nn
 from pathlib import Path
@@ -181,13 +181,13 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    def get_test_plot_options(self) -> Collection[PlotOption]:
+    def get_test_plot_options(self) -> Set[PlotOption]:
         if self.num_top_slides > 0:
             return {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES}
         else:
             return {PlotOption.HISTOGRAM}
 
-    def get_val_plot_options(self) -> Collection[PlotOption]:
+    def get_val_plot_options(self) -> Set[PlotOption]:
         return {PlotOption.HISTOGRAM}
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:

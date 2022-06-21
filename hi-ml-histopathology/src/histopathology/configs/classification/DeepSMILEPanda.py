@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, Collection, Optional
+from typing import Any, Optional, Set
 
 from health_azure.utils import is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
@@ -97,8 +97,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
-    def get_test_plot_options(self) -> Collection[PlotOption]:
-        plot_options = super().get_test_plot_options()
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options: Set = super().get_test_plot_options()
         plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
         return plot_options
 
