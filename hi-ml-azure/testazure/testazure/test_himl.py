@@ -35,7 +35,8 @@ from health_azure.datasets import (
     DatasetConfig,
     _input_dataset_key,
     _output_dataset_key,
-    get_datastore
+    get_datastore,
+    setup_local_datasets
 )
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
@@ -1027,41 +1028,28 @@ def _assert_hello_world_files_exist(folder: Path) -> None:
 
 
 @pytest.mark.timeout(120)
-def test_mounting_dataset(tmp_path: Path) -> None:
+def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
     with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='hello_world')
-        target_path = tmp_path / "test_mount"
-        target_path.mkdir(parents=True)
-        existing_mounted = os.listdir(target_path)
-        assert len(existing_mounted) == 0
-        logging.info("ready to mount")
-        with dataset.mount(str(target_path)) as mount_context:
-            mount_point = Path(mount_context.mount_point)
-            logging.info("mount done")
-            _assert_hello_world_files_exist(mount_point)
-
-
-@pytest.mark.timeout(60)
-def test_downloading_dataset(tmp_path: Path) -> None:
-    logging.info("creating config.json")
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        logging.info("get_workspace")
-        workspace = get_workspace(aml_workspace=None,
-                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='hello_world')
-        target_path = tmp_path / "test_download"
-        target_path.mkdir(parents=True)
-        existing_downloaded = os.listdir(target_path)
-        assert len(existing_downloaded) == 0
-        logging.info("ready to download")
-        dataset.download(target_path=str(target_path), overwrite=False)
-        _assert_hello_world_files_exist(target_path)
+        # Loop inside the test because getting the workspace is quite time-consuming
+        for use_mounting in [True, False]:
+            logging.info(f"use_mounting={use_mounting}")
+            action = "mount" if use_mounting else "download"
+            target_path = tmp_path / action
+            dataset_config = DatasetConfig(name="hello_world",
+                                           use_mounting=use_mounting,
+                                           target_folder=target_path)
+            logging.info(f"ready to {action}")
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], aml_workspace=workspace)
+            logging.info(f"{action} done")
+            path = paths[0]
+            assert path is not None
+            _assert_hello_world_files_exist(path)
+            for mount_context in mount_contexts:
+                mount_context.stop()
 
 
 def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
