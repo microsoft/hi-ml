@@ -69,18 +69,19 @@ runner](https://github.com/microsoft/hi-ml/blob/746c8b58c1af71f71eeaaac2a8584be1
 
 In general, it is very useful to run the following two steps as part of the developement cycle:
 
-1. Make sure all training, validation and test loops complete properly:
+1. Make sure all training, validation and test loops complete properly by running the pipeline with a smaller batch
+   size and `pl_fast_dev_run` argument. Add the following to the hi-ml runner command line:
 
 ```shell
-conda activate YourEnvName
-python hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-fast-dev-run=4
+--bach-size=2 --pl-fast-dev-run=4
 ```
 
-2. Make sure the whole pipeline runs properly, including checkpoints callbacks and hyperparameter serialization:
+2. Make sure the whole pipeline runs properly end to end, including checkpoints callbacks and hyperparameter
+   serialization by running it with a smaller batch size once again while limiting train/val/test batches for few epochs.
+   Add the following arguments to the hi-ml runner command line:
 
 ```shell
-conda activate YourEnvName
-python hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
+--bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
 ```
 
 Note: Under the hood, setting `pl-fast-dev-run=n` overrides
@@ -97,11 +98,11 @@ argument `--pl_profiler` that you can set to either
 [`advanced`](https://pytorch-lightning.readthedocs.io/en/stable/advanced/profiler.html#simple-profiler), or
 [`pytorch`](https://pytorch-lightning.readthedocs.io/en/stable/advanced/profiler.html#pytorch-profiler).
 
-The profiler outputs will be saved in a subfolder `profiler` inside the outputs folder of the run.
+The profiler outputs will be saved in a subfolder `profiler` inside the outputs folder of the run. Give it a try by
+adding the following arguments to the hi-ml runner:
 
 ```shell
-conda activate YourEnvName
-python hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
+--max_epochs=4 --pl-profiler=pytorch
 ```
 
 ### Interpret PyTorch Profiling outputs via Tensorboard
