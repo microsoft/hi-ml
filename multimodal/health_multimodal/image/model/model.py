@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
 from torch import Tensor as T
 
-from .modules import MLP, MTModel
+from .modules import MLP, MultiTaskModel
 
 
 @dataclass
@@ -53,9 +53,9 @@ class ImageModel(nn.Module):
 
     def train(self, mode: bool = True) -> Any:
         super().train(mode=mode)
-        '''
+        """
         Called to switch the model between training and evaluation modes.
-        '''
+        """
         if self.freeze_encoder:
             self.encoder.train(mode=False)
             self.projector.train(mode=False)
@@ -77,12 +77,12 @@ class ImageModel(nn.Module):
                                 projected_patch_embeddings=projected_patch_embeddings,
                                 projected_global_embedding=projected_global_embedding)
 
-    def create_downstream_classifier(self, **kwargs: Any) -> MTModel:
+    def create_downstream_classifier(self, **kwargs: Any) -> MultiTaskModel:
         """
         Creates the classification module for the downstream task
         """
         downstream_classifier_kwargs = kwargs if kwargs else self.downstream_classifier_kwargs
-        return MTModel(self.feature_size, **downstream_classifier_kwargs)
+        return MultiTaskModel(self.feature_size, **downstream_classifier_kwargs)
 
     @torch.no_grad()
     def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:

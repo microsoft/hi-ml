@@ -9,7 +9,7 @@ import torch
 from pl_bolts.models.self_supervised.resnets import resnet50
 
 from health_multimodal.image.model.model import ImageEncoder, ImageModel
-from health_multimodal.image.model.modules import MTModel
+from health_multimodal.image.model.modules import MultiTaskModel
 
 
 def test_frozen_cnn_model() -> None:
@@ -26,19 +26,19 @@ def test_frozen_cnn_model() -> None:
 
     assert not model.encoder.training
     assert not model.projector.training
-    assert isinstance(model.classifier, MTModel)
+    assert isinstance(model.classifier, MultiTaskModel)
     assert model.classifier.training
 
     model.train()
     assert not model.encoder.training
     assert not model.projector.training
-    assert isinstance(model.classifier, MTModel)
+    assert isinstance(model.classifier, MultiTaskModel)
     assert model.classifier.training
 
     model.eval()
     assert not model.encoder.training
     assert not model.projector.training
-    assert isinstance(model.classifier, MTModel)
+    assert isinstance(model.classifier, MultiTaskModel)
     assert not model.classifier.training
 
     model = ImageModel(img_model_type='resnet18',

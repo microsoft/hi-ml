@@ -12,6 +12,11 @@ import torch.nn as nn
 class MLP(nn.Module):
     """
     Fully connected layers to map between image embeddings and projection space where pairs of images are compared.
+
+    :param input_dim: Input embedding feature size
+    :param hidden_dim: Hidden layer size in MLP
+    :param output_dim: Output projection size
+    :param use_1x1_convs: Use 1x1 conv kernels instead of 2D linear transformations for speed and memory efficiency.
     """
 
     def __init__(self,
@@ -19,12 +24,6 @@ class MLP(nn.Module):
                  output_dim: int,
                  hidden_dim: Optional[int] = None,
                  use_1x1_convs: bool = False) -> None:
-        """
-        :param input_dim: Input embedding feature size
-        :param hidden_dim: Hidden layer size in MLP
-        :param output_dim: Output projection size
-        :param use_1x1_convs: Use 1x1 conv kernels instead of 2D linear transformations for speed and memory efficiency.
-        """
         super().__init__()
 
         if use_1x1_convs:
@@ -55,13 +54,13 @@ class MLP(nn.Module):
         return x
 
 
-class MTModel(nn.Module):
-    """
-    Multi-task classification heads
-    :param input_dim: Input feature dim
-    :param classifier_hidden_dim: If MLP is used, hidden feature dim
-    :param num_classes: Number of output classes per task
-    :param num_tasks: Number of classification tasks or heads required
+class MultiTaskModel(nn.Module):
+    """Multi-task classification heads.
+
+    :param input_dim: Number of dimensions of the input feature map.
+    :param classifier_hidden_dim: If MLP is used, number of dimensions of hidden features.
+    :param num_classes: Number of output classes per task.
+    :param num_tasks: Number of classification tasks or heads required.
     """
 
     def __init__(self, input_dim: int, classifier_hidden_dim: Optional[int], num_classes: int, num_tasks: int):
@@ -76,9 +75,7 @@ class MTModel(nn.Module):
             setattr(self, "fc_" + str(task), MLP(input_dim, output_dim=num_classes, hidden_dim=classifier_hidden_dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        '''
-        Returns [batch_size, num_tasks, num_classes] tensor of logits
-        '''
+        """Returns [batch_size, num_tasks, num_classes] tensor of logits."""
         batch_size = x.shape[0]
         out = torch.zeros((batch_size, self.num_classes, self.num_tasks), dtype=x.dtype, device=x.device)
         for task in range(self.num_tasks):
