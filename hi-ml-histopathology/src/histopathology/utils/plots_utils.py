@@ -214,10 +214,16 @@ class DeepMILPlotsHandler:
             save_scores_histogram(results=results, figures_dir=figures_dir)
 
         if PlotOption.CONFUSION_MATRIX in self.plot_options:
-            # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
-            # will be adressed in a seperate PR
-            assert self.class_names
-            save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir, stage=stage)
+            if self.conf_matrix:
+                assert self.class_names
+                save_confusion_matrix(
+                    self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir, stage=stage
+                )
+            else:
+                raise ValueError(
+                    "Missing Confusion Matrix (CM) metric. Please set a CM metric or remove "
+                    "`PlotOption.CONFUSION_MATRIX` from plot_options"
+                )
 
         if tiles_selector:
             for class_id in range(tiles_selector.n_classes):
