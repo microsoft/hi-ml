@@ -151,11 +151,11 @@ class ImageEncoder(nn.Module):
         self.encoder = new_encoder
 
 
+@torch.no_grad()
 def get_encoder_output_dim(module: torch.nn.Module) -> int:
-    """
-    Calculates the output dimension of ssl encoder by making a single forward pass.
-    :param pl_module: pl encoder module
-    :param dm: pl datamodule
+    """Calculate the output dimension of ssl encoder by making a single forward pass.
+
+    :param module: Encoder module.
     """
     # Target device
     device = next(module.parameters()).device  # type: ignore
@@ -164,7 +164,5 @@ def get_encoder_output_dim(module: torch.nn.Module) -> int:
     x = torch.rand((1, 3, 448, 448)).to(device)
 
     # Extract the number of output feature dimensions
-    with torch.no_grad():
-        representations = module(x)
-
+    representations = module(x)
     return representations.shape[1]
