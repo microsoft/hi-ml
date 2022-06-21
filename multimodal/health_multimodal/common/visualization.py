@@ -10,8 +10,6 @@ from health_multimodal.image.data.io import load_image
 
 
 TypeArrayImage = Union[np.ndarray, Image.Image]
-TypeOptionalAxis = Optional[plt.Axes]
-TypeOptionalString = Optional[str]
 
 
 def plot_image(
