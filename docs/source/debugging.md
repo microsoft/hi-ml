@@ -109,7 +109,7 @@ python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --crossval-c
 [Pytorch Profiler](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html) can effectively be interpreted via
 TensorBoard dashbord interface that is integrated in [VS
 Code](https://code.visualstudio.com/docs/datascience/pytorch-support#_tensorboard-integration) as part of the Python
-extension. Once you have the outputs of the Pytorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourContainerName/pytorch_profiler`, you can
+extension. Once you have the outputs of the Pytorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourCustomContainer/pytorch_profiler`, you can
 open the TensorBoard Profiler plugin by launching the Command Palette using the keyboard shortcut CTRL + SHIFT + P (CMD
 \+ SHIFT + P on a Mac) and typing the “Launch TensorBoard” command.
 
