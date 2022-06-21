@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Tuple, TypeVar
 from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.strategies import DDPStrategy
 
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
                                 is_local_rank_zero, is_running_in_azure_ml)
@@ -69,7 +69,7 @@ def create_lightning_trainer(container: LightningContainer,
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            strategy = DDPStrategy(find_unused_parameters=container.pl_find_unused_parameters)
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
