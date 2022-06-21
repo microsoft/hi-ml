@@ -78,9 +78,7 @@ jobs:
       - name: Install required packages
         run: |
           cd ${{ env.folder }}
-
-          # Install local package in editable mode
-          make pip_local
+          make pip
 
       - name: Test with pytest
         run: |
