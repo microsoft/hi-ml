@@ -1,3 +1,4 @@
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import numpy as np
@@ -19,7 +20,7 @@ def test_load_image() -> None:
     Tests the image loading function using dummy NIFTI and JPG files.
     """
 
-    def _assertions(path: str) -> None:
+    def _assertions(path: Path) -> None:
         img = load_image(path)
         assert img.size == size
         array = np.asarray(img)
@@ -30,12 +31,12 @@ def test_load_image() -> None:
     image = Image.fromarray(array).convert('RGB')
     with NamedTemporaryFile(suffix='.jpg') as file:
         image.save(file)
-        _assertions(file.name)
+        _assertions(Path(file.name))
 
     nifti_img = sitk.GetImageFromArray(np.arange(16, dtype=np.uint16).reshape(*size) + 100)
     with NamedTemporaryFile(suffix='.nii.gz') as file:
         sitk.WriteImage(nifti_img, file.name)
-        _assertions(file.name)
+        _assertions(Path(file.name))
 
 
 def test_remap_to_uint8() -> None:

@@ -4,6 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 
+from pathlib import Path
 from typing import Callable, Tuple, Union
 
 import torch
@@ -36,7 +37,7 @@ class ImageInferenceEngine:
         self.resize_size, self.crop_size = infer_resize_params(self.transforms)
 
     def load_and_transform_input_image(self,
-                                       image_path: str,
+                                       image_path: Path,
                                        return_original_shape: bool = False) -> \
             Union[torch.Tensor, Tuple[torch.Tensor, Tuple[int, int]]]:
         """

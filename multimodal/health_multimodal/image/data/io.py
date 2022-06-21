@@ -46,26 +46,25 @@ def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]]
     return array.astype(np.uint8)
 
 
-def load_image(img_path_string: str) -> Image.Image:
+def load_image(path: Path) -> Image.Image:
     """Load an image from disk.
 
     The image values are remapped to :math:`[0, 255]` and cast to 8-bit unsigned integers.
 
-    :param: img_path: path to image
-    :returns: image as PIL Image
+    :param: path: Path to image.
+    :returns: Image as ``Pillow`` ``Image``.
     """
-    img_path = Path(img_path_string)
-    if img_path.suffix in [".jpg", ".png"]:
-        image = io.imread(img_path)
-    elif img_path.suffixes == [".nii", ".gz"]:
-        image = sitk.GetArrayFromImage(sitk.ReadImage(str(img_path)))
+    if path.suffix in [".jpg", ".jpeg", ".png"]:
+        image = io.imread(path)
+    elif path.suffixes == [".nii", ".gz"]:
+        image = sitk.GetArrayFromImage(sitk.ReadImage(str(path)))
         if image.shape[0] == 1:
             image = np.squeeze(image, axis=0)
         assert image.ndim == 2
-    elif img_path.suffix == ".dcm":
-        image = dicom.dcmread(img_path).pixel_array
+    elif path.suffix == ".dcm":
+        image = dicom.dcmread(path).pixel_array
     else:
-        raise ValueError(f"Image type not supported, filename was: {img_path}")
+        raise ValueError(f"Image type not supported, filename was: {path}")
 
     image = remap_to_uint8(image)
     return Image.fromarray(image).convert("L")

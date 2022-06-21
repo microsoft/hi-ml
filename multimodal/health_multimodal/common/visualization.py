@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Union, Optional
 
 import numpy as np
@@ -77,7 +78,7 @@ def plot_heatmap(
         axis.set_title(title)
 
 
-def plot_phrase_grounding_similarity_map(image_path: str, similarity_map: np.ndarray) -> None:
+def plot_phrase_grounding_similarity_map(image_path: Path, similarity_map: np.ndarray) -> None:
     """
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 6))
