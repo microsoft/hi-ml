@@ -24,7 +24,7 @@ from histopathology.datasets.default_paths import (
     PANDA_DATASET_ID,
     PANDA_TILES_DATASET_DIR,
     PANDA_TILES_DATASET_ID)
-from histopathology.utils.naming import PlotOptionsKey
+from histopathology.utils.naming import PlotOption
 
 
 class BaseDeepSMILEPanda(BaseMIL):
@@ -97,9 +97,9 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
-    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
+    def get_test_plot_options(self) -> Set[PlotOption]:
         plot_options = super().get_test_plot_options()
-        plot_options.add(PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP)
+        plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
         return plot_options
 
 

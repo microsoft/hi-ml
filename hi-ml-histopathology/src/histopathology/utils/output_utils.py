@@ -19,7 +19,7 @@ from torchmetrics.metric import Metric
 from health_azure.utils import replace_directory
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
-from histopathology.utils.naming import MetricsKey, ModelKey, PlotOptionsKey, ResultsKey
+from histopathology.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
@@ -229,7 +229,7 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, val_plot_options: Set[PlotOptionsKey], test_plot_options: Set[PlotOptionsKey]) -> None:
+                 maximise: bool, val_plot_options: Set[PlotOption], test_plot_options: Set[PlotOption]) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -281,11 +281,11 @@ class DeepMILOutputsHandler:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
     def validate_slide_datasets_for_plot_options(
-        self, plot_options: Set[PlotOptionsKey], slides_dataset: Optional[SlidesDataset]
+        self, plot_options: Set[PlotOption], slides_dataset: Optional[SlidesDataset]
     ) -> None:
-        if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
+        if PlotOption.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
             raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
-                             "Please remove PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP from your plot options or provide "
+                             "Please remove PlotOption.SLIDE_THUMBNAIL_HEATMAP from your plot options or provide "
                              "a slide dataset.")
 
     def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
@@ -328,7 +328,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
+        if PlotOption.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
@@ -356,7 +356,7 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
+        if PlotOption.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
             logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 

@@ -5,27 +5,27 @@
 from typing import Set
 from unittest.mock import MagicMock, patch
 import pytest
-from histopathology.utils.naming import ModelKey, PlotOptionsKey
+from histopathology.utils.naming import ModelKey, PlotOption
 from histopathology.utils.plots_utils import DeepMILPlotsHandler
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 
 
 def test_plots_handler_wrong_plot_options() -> None:
-    plot_options = {PlotOptionsKey.HISTOGRAM, "foo"}
+    plot_options = {PlotOption.HISTOGRAM, "foo"}
     with pytest.raises(ValueError) as ex:
         _ = DeepMILPlotsHandler(plot_options)  # type: ignore
     assert "The selected plot option is not a valid option" in str(ex)
 
 
 def test_plots_handler_wrong_class_names() -> None:
-    plot_options = {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.CONFUSION_MATRIX}
+    plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     with pytest.raises(ValueError) as ex:
         _ = DeepMILPlotsHandler(plot_options, class_names=[])
     assert "No class_names were provided while activating confusion matrix plotting." in str(ex)
 
 
 def assert_plot_func_called_if_among_plot_options(
-    mock_plot_func: MagicMock, plot_option: PlotOptionsKey, plot_options: Set[PlotOptionsKey]
+    mock_plot_func: MagicMock, plot_option: PlotOption, plot_options: Set[PlotOption]
 ) -> int:
     calls_count = 0
     if plot_option in plot_options:
@@ -40,14 +40,14 @@ def assert_plot_func_called_if_among_plot_options(
     "plot_options",
     [
         {},
-        {PlotOptionsKey.HISTOGRAM},
-        {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.CONFUSION_MATRIX},
-        {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES, PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP},
+        {PlotOption.HISTOGRAM},
+        {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX},
+        {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES, PlotOption.SLIDE_THUMBNAIL_HEATMAP},
         {
-            PlotOptionsKey.HISTOGRAM,
-            PlotOptionsKey.CONFUSION_MATRIX,
-            PlotOptionsKey.TOP_BOTTOM_TILES,
-            PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP,
+            PlotOption.HISTOGRAM,
+            PlotOption.CONFUSION_MATRIX,
+            PlotOption.TOP_BOTTOM_TILES,
+            PlotOption.SLIDE_THUMBNAIL_HEATMAP,
         },
     ],
 )
@@ -60,7 +60,7 @@ def test_plots_handler_plots_only_desired_plot_options(
     mock_tile: MagicMock,
     mock_histogram: MagicMock,
     mock_conf: MagicMock,
-    plot_options: Set[PlotOptionsKey],
+    plot_options: Set[PlotOption],
 ) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
     plots_handler.slides_dataset = MagicMock()
@@ -74,13 +74,13 @@ def test_plots_handler_plots_only_desired_plot_options(
     )
     calls_count = 0
     calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_slide, PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP, plot_options
+        mock_slide, PlotOption.SLIDE_THUMBNAIL_HEATMAP, plot_options
     )
     calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_tile, PlotOptionsKey.TOP_BOTTOM_TILES, plot_options
+        mock_tile, PlotOption.TOP_BOTTOM_TILES, plot_options
     )
-    calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOptionsKey.HISTOGRAM, plot_options)
+    calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOption.HISTOGRAM, plot_options)
     calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_conf, PlotOptionsKey.CONFUSION_MATRIX, plot_options
+        mock_conf, PlotOption.CONFUSION_MATRIX, plot_options
     )
     assert calls_count == len(plot_options)

@@ -89,7 +89,7 @@ class AMLMetricsJsonKey(str, Enum):
     CLASS_NAMES = 'class_names'
 
 
-class PlotOptionsKey(str, Enum):
+class PlotOption(str, Enum):
     TOP_BOTTOM_TILES = "top_bottom_tiles"
     SLIDE_THUMBNAIL_HEATMAP = "slide_thumbnail_heatmap"
     CONFUSION_MATRIX = "confusion_matrix"

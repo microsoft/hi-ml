@@ -16,7 +16,7 @@ from histopathology.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
-from histopathology.utils.naming import ModelKey, PlotOptionsKey, ResultsKey, SlideKey
+from histopathology.utils.naming import ModelKey, PlotOption, ResultsKey, SlideKey
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
@@ -24,25 +24,25 @@ from histopathology.utils.viz_utils import load_image_dict, save_figure
 ResultsType = Dict[ResultsKey, List[Any]]
 
 
-def validate_plot_options(plot_options: Set[PlotOptionsKey]) -> Set[PlotOptionsKey]:
-    """Validate that the plot_options are restricted to `PlotOptionsKey.__members__.values()` only."""
+def validate_plot_options(plot_options: Set[PlotOption]) -> Set[PlotOption]:
+    """Validate that the plot_options are restricted to `PlotOption.__members__.values()` only."""
     for opt in plot_options:
-        if opt not in PlotOptionsKey.__members__.values():
+        if opt not in PlotOption.__members__.values():
             raise ValueError(
                 "The selected plot option is not a valid option, choose among the options available in "
-                "histopathology.utils.naming.PlotOptionsKey"
+                "histopathology.utils.naming.PlotOption"
             )
     return plot_options
 
 
 def validate_class_names_for_plot_options(
-    class_names: Optional[Sequence[str]], plot_options: Set[PlotOptionsKey]
+    class_names: Optional[Sequence[str]], plot_options: Set[PlotOption]
 ) -> Optional[Sequence[str]]:
-    """Make sure that class names are provided if `PlotOptionsKey.CONFUSION_MATRIX` is among the chosen plot_options."""
-    if PlotOptionsKey.CONFUSION_MATRIX in plot_options and not class_names:
+    """Make sure that class names are provided if `PlotOption.CONFUSION_MATRIX` is among the chosen plot_options."""
+    if PlotOption.CONFUSION_MATRIX in plot_options and not class_names:
         raise ValueError(
             "No class_names were provided while activating confusion matrix plotting. You need to specify the class "
-            "names to use the `PlotOptionsKey.CONFUSION_MATRIX`"
+            "names to use the `PlotOption.CONFUSION_MATRIX`"
         )
     return class_names
 
@@ -151,7 +151,7 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
 class DeepMILPlotsHandler:
     def __init__(
         self,
-        plot_options: Set[PlotOptionsKey],
+        plot_options: Set[PlotOption],
         level: int = 1,
         tile_size: int = 224,
         num_columns: int = 4,
@@ -187,7 +187,7 @@ class DeepMILPlotsHandler:
 
         case_dir = make_figure_dirs(subfolder=case, parent_dir=outputs_dir)
 
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
+        if PlotOption.TOP_BOTTOM_TILES in self.plot_options:
             save_top_and_bottom_tiles(
                 case=case,
                 slide_node=slide_node,
@@ -195,7 +195,7 @@ class DeepMILPlotsHandler:
                 num_columns=self.num_columns,
                 figsize=self.figsize,
             )
-        if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
+        if PlotOption.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
             assert self.slides_dataset
             save_slide_thumbnail_and_heatmap(
                 case=case,
@@ -209,10 +209,10 @@ class DeepMILPlotsHandler:
 
     def log_slide_plot_options(self) -> None:
         """Log info for slide plot options."""
-        if PlotOptionsKey.TOP_BOTTOM_TILES in self.plot_options:
+        if PlotOption.TOP_BOTTOM_TILES in self.plot_options:
             logging.info("Plotting top and bottom tiles ...")
 
-        if PlotOptionsKey.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
+        if PlotOption.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
             logging.info("Plotting slide thumbnails and heatmaps ...")
 
     def save_all_plot_options(
@@ -229,11 +229,11 @@ class DeepMILPlotsHandler:
         logging.info(f"Start plotting all figure outputs in {outputs_dir}")
         figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
-        if PlotOptionsKey.HISTOGRAM in self.plot_options:
+        if PlotOption.HISTOGRAM in self.plot_options:
             logging.info("Plotting histogram scores ...")
             save_scores_histogram(results=results, figures_dir=figures_dir)
 
-        if PlotOptionsKey.CONFUSION_MATRIX in self.plot_options:
+        if PlotOption.CONFUSION_MATRIX in self.plot_options:
             # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
             # will be adressed in a seperate PR
             logging.info("Plotting confusion matrix ...")

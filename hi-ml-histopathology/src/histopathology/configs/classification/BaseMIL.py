@@ -33,7 +33,7 @@ from histopathology.models.encoders import (
     SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
-from histopathology.utils.naming import MetricsKey, PlotOptionsKey, SlideKey, ModelKey
+from histopathology.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from histopathology.utils.tiles_selection_utils import TilesSelector
 
 
@@ -181,14 +181,14 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
+    def get_test_plot_options(self) -> Set[PlotOption]:
         if self.num_top_slides > 0:
-            return {PlotOptionsKey.HISTOGRAM, PlotOptionsKey.TOP_BOTTOM_TILES}
+            return {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES}
         else:
-            return {PlotOptionsKey.HISTOGRAM}
+            return {PlotOption.HISTOGRAM}
 
-    def get_val_plot_options(self) -> Set[PlotOptionsKey]:
-        return {PlotOptionsKey.HISTOGRAM}
+    def get_val_plot_options(self) -> Set[PlotOption]:
+        return {PlotOption.HISTOGRAM}
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
         n_classes = self.data_module.train_dataset.N_CLASSES

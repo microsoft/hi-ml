@@ -10,7 +10,7 @@ from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlides
 from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.models.encoders import ImageNetEncoder
 from histopathology.datamodules.base_module import CacheMode, CacheLocation
-from histopathology.utils.naming import PlotOptionsKey
+from histopathology.utils.naming import PlotOption
 
 
 class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
@@ -50,8 +50,8 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return None
 
-    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
-        return {PlotOptionsKey.HISTOGRAM}
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        return {PlotOption.HISTOGRAM}
 
 
 class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
@@ -87,5 +87,5 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
     def cache_dir(self) -> Path:
         return Path(self.tmp_path / f"himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
-    def get_test_plot_options(self) -> Set[PlotOptionsKey]:
-        return {PlotOptionsKey.HISTOGRAM}
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        return {PlotOption.HISTOGRAM}
