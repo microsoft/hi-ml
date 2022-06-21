@@ -25,7 +25,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import ComputeTarget, Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
