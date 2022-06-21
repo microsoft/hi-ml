@@ -5,9 +5,10 @@
 
 
 from pathlib import Path
-from typing import Callable, Tuple, Union
+from typing import Tuple, Union
 
 import torch
+from torchvision.transforms import Compose
 
 from health_multimodal.image.data.io import load_image
 from health_multimodal.image.data.transforms import infer_resize_params
@@ -19,7 +20,7 @@ class ImageInferenceEngine:
     Encapsulate inference-time operations on an image model.
     """
 
-    def __init__(self, image_model: ImageModel, transforms: Callable):
+    def __init__(self, image_model: ImageModel, transform: Compose):
         """
         :param img_model: Pretrained model
         :param transforms: Transforms to apply to the image after loading. Must return a torch.Tensor that can be
@@ -30,11 +31,11 @@ class ImageInferenceEngine:
         assert isinstance(image_model, ImageModel), f"Expected an ImageModel, got {type(image_model)}"
 
         self.model = image_model
-        self.transforms = transforms
+        self.transform = transform
         self.device = next(self.model.parameters()).device
 
         self.model.eval()
-        self.resize_size, self.crop_size = infer_resize_params(self.transforms)
+        self.resize_size, self.crop_size = infer_resize_params(self.transform.transforms)
 
     def load_and_transform_input_image(self,
                                        image_path: Path,
@@ -50,7 +51,7 @@ class ImageInferenceEngine:
             before the transforms. The tuple returned contains (width, height).
         """
         image = load_image(image_path)
-        transformed_image = self.transforms(image).unsqueeze(0).to(self.device)
+        transformed_image = self.transform(image).unsqueeze(0).to(self.device)
         if return_original_shape:
             return transformed_image, image.size
         else:
