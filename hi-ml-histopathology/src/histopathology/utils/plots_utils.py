@@ -166,8 +166,8 @@ class DeepMILPlotsHandler:
         self.tile_size = tile_size
         self.num_columns = num_columns
         self.figsize = figsize
-        self.conf_matrix: ConfusionMatrix = conf_matrix
-        self.slides_dataset: Optional[SlidesDataset]
+        self.conf_matrix: Optional[ConfusionMatrix] = conf_matrix
+        self.slides_dataset: Optional[SlidesDataset] = None
 
     def save_slide_node_figures(
         self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType
@@ -196,15 +196,7 @@ class DeepMILPlotsHandler:
                 level=self.level,
             )
 
-    def log_slide_plot_options(self) -> None:
-        """Log info for slide plot options."""
-        if PlotOption.TOP_BOTTOM_TILES in self.plot_options:
-            logging.info("Plotting top and bottom tiles ...")
-
-        if PlotOption.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
-            logging.info("Plotting slide thumbnails and heatmaps ...")
-
-    def save_all_plot_options(
+    def save_plots(
         self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType, stage: ModelKey
     ) -> None:
         """Plots and saves all selected plot options during inference (validation or test) time.
@@ -219,18 +211,15 @@ class DeepMILPlotsHandler:
         figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
         if PlotOption.HISTOGRAM in self.plot_options:
-            logging.info("Plotting histogram scores ...")
             save_scores_histogram(results=results, figures_dir=figures_dir)
 
         if PlotOption.CONFUSION_MATRIX in self.plot_options:
             # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
             # will be adressed in a seperate PR
-            logging.info("Plotting confusion matrix ...")
             assert self.class_names
             save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir, stage=stage)
 
         if tiles_selector:
-            self.log_slide_plot_options()
             for class_id in range(tiles_selector.n_classes):
 
                 for slide_node in tiles_selector.top_slides_heaps[class_id]:

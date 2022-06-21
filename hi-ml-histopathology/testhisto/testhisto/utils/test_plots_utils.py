@@ -62,7 +62,7 @@ def test_plots_handler_plots_only_desired_plot_options(
     tiles_selector = TilesSelector(n_classes=2, num_slides=4, num_tiles=2)
     tiles_selector.top_slides_heaps = {0: [slide_node] * 4, 1: [slide_node] * 4}
 
-    plots_handler.save_all_plot_options(
+    plots_handler.save_plots(
         outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock(), stage=ModelKey.VAL
     )
     calls_count = 0
