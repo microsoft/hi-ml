@@ -6,7 +6,7 @@
 import shutil
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -50,6 +50,15 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
         raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
                          f"of classes ({effective_n_classes})")
     return tuple(class_names)
+
+
+def validate_slide_datasets_for_plot_options(
+    plot_options: Collection[PlotOption], slides_dataset: Optional[SlidesDataset]
+) -> None:
+    if PlotOption.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
+        raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
+                         "Please remove `PlotOption.SLIDE_THUMBNAIL_HEATMAP` from your plot options or provide "
+                         "a slide dataset.")
 
 
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
@@ -229,7 +238,8 @@ class DeepMILOutputsHandler:
 
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, val_plot_options: Set[PlotOption], test_plot_options: Set[PlotOption]) -> None:
+                 maximise: bool, val_plot_options: Collection[PlotOption],
+                 test_plot_options: Collection[PlotOption]) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -252,8 +262,7 @@ class DeepMILOutputsHandler:
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
 
-        self.slides_dataset: Optional[SlidesDataset]
-        self.tiles_selector: Optional[TilesSelector]
+        self.tiles_selector: Optional[TilesSelector] = None
 
         self.val_plots_handler = DeepMILPlotsHandler(
             plot_options=val_plot_options,
@@ -280,18 +289,9 @@ class DeepMILOutputsHandler:
     def test_outputs_dir(self) -> Path:
         return self.outputs_root / TEST_OUTPUTS_SUBDIR
 
-    def validate_slide_datasets_for_plot_options(
-        self, plot_options: Set[PlotOption], slides_dataset: Optional[SlidesDataset]
-    ) -> None:
-        if PlotOption.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
-            raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
-                             "Please remove PlotOption.SLIDE_THUMBNAIL_HEATMAP from your plot options or provide "
-                             "a slide dataset.")
-
-    def set_slides_dataset(self, slides_dataset: Optional[SlidesDataset]) -> None:
-        self.validate_slide_datasets_for_plot_options(self.test_plots_handler.plot_options, slides_dataset)
-        self.validate_slide_datasets_for_plot_options(self.val_plots_handler.plot_options, slides_dataset)
-        self.slides_dataset = slides_dataset
+    def set_slides_dataset_for_plots_handlers(self, slides_dataset: Optional[SlidesDataset]) -> None:
+        validate_slide_datasets_for_plot_options(self.test_plots_handler.plot_options, slides_dataset)
+        validate_slide_datasets_for_plot_options(self.val_plots_handler.plot_options, slides_dataset)
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
 

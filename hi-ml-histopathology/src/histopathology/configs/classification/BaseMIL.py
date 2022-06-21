@@ -6,7 +6,7 @@
 import os
 import torch
 import param
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, Tuple, Union
 
 from torch import nn
 from pathlib import Path
@@ -181,13 +181,13 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
-    def get_test_plot_options(self) -> Set[PlotOption]:
+    def get_test_plot_options(self) -> Collection[PlotOption]:
         if self.num_top_slides > 0:
             return {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES}
         else:
             return {PlotOption.HISTOGRAM}
 
-    def get_val_plot_options(self) -> Set[PlotOption]:
+    def get_val_plot_options(self) -> Collection[PlotOption]:
         return {PlotOption.HISTOGRAM}
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
@@ -344,7 +344,7 @@ class BaseMILTiles(BaseMIL):
                                             class_names=self.class_names,
                                             outputs_handler=outputs_handler,
                                             chunk_size=self.encoding_chunk_size)
-        outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
 
@@ -387,5 +387,5 @@ class BaseMILSlides(BaseMIL):
                                              is_finetune=self.is_finetune,
                                              class_names=self.class_names,
                                              outputs_handler=outputs_handler)
-        outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module

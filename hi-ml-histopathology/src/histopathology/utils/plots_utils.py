@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Set, Tuple, Dict
+from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
 from torchmetrics.classification.confusion_matrix import ConfusionMatrix
 
 from histopathology.datasets.base_dataset import SlidesDataset
@@ -25,7 +25,7 @@ ResultsType = Dict[ResultsKey, List[Any]]
 
 
 def validate_class_names_for_plot_options(
-    class_names: Optional[Sequence[str]], plot_options: Set[PlotOption]
+    class_names: Optional[Sequence[str]], plot_options: Collection[PlotOption]
 ) -> Optional[Sequence[str]]:
     """Make sure that class names are provided if `PlotOption.CONFUSION_MATRIX` is among the chosen plot_options."""
     if PlotOption.CONFUSION_MATRIX in plot_options and not class_names:
@@ -140,7 +140,7 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
 class DeepMILPlotsHandler:
     def __init__(
         self,
-        plot_options: Set[PlotOption],
+        plot_options: Collection[PlotOption],
         level: int = 1,
         tile_size: int = 224,
         num_columns: int = 4,

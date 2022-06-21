@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Set
+from typing import Collection
 from unittest.mock import MagicMock, patch
 import pytest
 from histopathology.utils.naming import ModelKey, PlotOption
@@ -18,7 +18,7 @@ def test_plots_handler_wrong_class_names() -> None:
 
 
 def assert_plot_func_called_if_among_plot_options(
-    mock_plot_func: MagicMock, plot_option: PlotOption, plot_options: Set[PlotOption]
+    mock_plot_func: MagicMock, plot_option: PlotOption, plot_options: Collection[PlotOption]
 ) -> int:
     calls_count = 0
     if plot_option in plot_options:
@@ -53,14 +53,17 @@ def test_plots_handler_plots_only_desired_plot_options(
     mock_tile: MagicMock,
     mock_histogram: MagicMock,
     mock_conf: MagicMock,
-    plot_options: Set[PlotOption],
+    plot_options: Collection[PlotOption],
 ) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
     plots_handler.slides_dataset = MagicMock()
 
+    n_tiles = 4
+    # n_slides = 2
     slide_node = SlideNode(slide_id="1", prob_score=0.5, true_label=1, pred_label=0)
     tiles_selector = TilesSelector(n_classes=2, num_slides=4, num_tiles=2)
-    tiles_selector.top_slides_heaps = {0: [slide_node] * 4, 1: [slide_node] * 4}
+    tiles_selector.top_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
+    tiles_selector.bottom_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
 
     plots_handler.save_plots(
         outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock(), stage=ModelKey.VAL
