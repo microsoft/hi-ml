@@ -9,9 +9,6 @@ on:
     paths:
       - "multimodal/**"
       - ".github/workflows/multimodal-pr.yml"
-      # When the core hi-ml libraries change, test the multimodal test too, to find problems with backwards compatibility
-      - "hi-ml-azure/**"
-      - "hi-ml/**"
 
 env:
   pythonVersion: 3.7
