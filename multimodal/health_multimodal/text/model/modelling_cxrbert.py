@@ -26,10 +26,11 @@ class CXRBertOutput(ModelOutput):
 
 
 class BertProjectionHead(nn.Module):
-    """
-    Projection head to be used with BERT CLS token, it's similar to `BertPredictionHeadTransform` in HuggingFace library
-    :param config: CXRBertConfig
-    :return: (batch_size, output_size)
+    """Projection head to be used with BERT CLS token.
+
+    This is similar to ``BertPredictionHeadTransform`` in HuggingFace.
+
+    :param config: Configuration for BERT.
     """
 
     def __init__(self, config: CXRBertConfig) -> None:
