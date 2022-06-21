@@ -4,7 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union, Sequence
 
 import torch
 import torch.nn as nn
@@ -127,15 +127,17 @@ class ImageEncoder(nn.Module):
 
         return avg_pooled_emb
 
-    def reload_encoder_with_dilation(self, replace_stride_with_dilation: List[bool] = [False, False, True]) -> None:
-        """
-        This is a workaround for enabling dilated convolutions after the model initialization.
+    def reload_encoder_with_dilation(self, replace_stride_with_dilation: Optional[Sequence[bool]] = None) -> None:
+        """Workaround for enabling dilated convolutions after model initialization.
 
         :param replace_stride_with_dilation: for each layer to replace the 2x2 stride with a dilated convolution
         """
         if self.img_model_type == 'resnet18':
             # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
             raise NotImplementedError("resnet18 does not support dilated convolutions")
+
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = False, False, True
 
         device = next(self.encoder.parameters()).device
         new_encoder = self._create_encoder(replace_stride_with_dilation=replace_stride_with_dilation).to(device)
