@@ -57,7 +57,7 @@ class ImageInferenceEngine:
             return transformed_image
 
     @torch.no_grad()
-    def get_patch_embeddings_from_image(self, image_path: str) -> Tuple[torch.Tensor, Tuple[int, int]]:
+    def get_patch_embeddings_from_image(self, image_path: Path) -> Tuple[torch.Tensor, Tuple[int, int]]:
         """
         Computes image embeddings in the joint latent space and preserves the image grid.
         :param image_path: Path to the image to compute embeddings for.
