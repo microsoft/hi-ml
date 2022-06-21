@@ -59,7 +59,8 @@ class ImageTextInferenceEngine:
 
     @staticmethod
     def _get_similarity_map_from_embeddings(projected_patch_embeddings: torch.Tensor,
-                                            projected_text_embeddings: torch.Tensor) -> torch.Tensor:
+                                            projected_text_embeddings: torch.Tensor,
+                                            sigma: float = 1.5) -> torch.Tensor:
         """
         Get smoothed similarity map for a given image patch embeddings and text embeddings.
 
@@ -67,7 +68,6 @@ class ImageTextInferenceEngine:
         :param projected_text_embeddings: [1, feature_size]
         :return: similarity_map: similarity map of shape [n_patches_h, n_patches_w]
         """
-        sigma = 1.5
         n_patches_h, n_patches_w, feature_size = projected_patch_embeddings.shape
         assert feature_size == projected_text_embeddings.shape[1]
         assert projected_text_embeddings.shape[0] == 1
