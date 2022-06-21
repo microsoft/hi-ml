@@ -44,7 +44,7 @@ dependencies:
       - mypy==0.931
       - mypy-extensions==0.4.3
       - numba==0.51.2
-      - numpy==1.19.1
+      - numpy==1.22.4
       - pillow==9.0.0
       - psutil==5.7.2
       - pydicom==2.0.0
