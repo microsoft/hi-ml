@@ -85,7 +85,7 @@ class ImageModel(nn.Module):
         :param normalize: If ``True``, the embeddings are L2-normalized.
         :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size].
         """
-        assert self.training is False, "This function is only implemented for evaluation mode"
+        assert not self.training, "This function is only implemented for evaluation mode"
         outputs = self.forward(input_img)
         projected_embeddings = outputs.projected_patch_embeddings.detach()  # type: ignore
         if normalize:
