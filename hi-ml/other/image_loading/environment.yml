@@ -3,7 +3,7 @@ channels:
   - defaults
 dependencies:
   - pip=20.1.1
-  - python=3.7.3
+  - python=3.10.5
   - pip:
       - line_profiler==3.3.1
       - monai[all]==0.7.0

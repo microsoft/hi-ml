@@ -69,5 +69,23 @@
             ],
             "console": "integratedTerminal",
         },
+        {
+            "name": "Python: Debug Tests",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Python: Test Tiling locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/testhisto/testhisto/datasets/test_panda_slides.py",
+            "args": [],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
     ]
 }

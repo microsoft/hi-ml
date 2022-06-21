@@ -4,7 +4,7 @@ channels:
   - pytorch
 dependencies:
   - pip=20.1.1
-  - python=3.7.3
+  - python=3.10.5
   - pip:
     # This file should contain pinned versions of all packages in requirements_run.txt
     # and requirements_test.txt.

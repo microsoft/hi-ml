@@ -76,7 +76,7 @@ setup(
         'Intended Audience :: Science/Research',
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.7'
+        'Programming Language :: Python :: 3.10'
     ],
     keywords='InnerEye, HealthIntelligence, AzureML',
     license='MIT License',

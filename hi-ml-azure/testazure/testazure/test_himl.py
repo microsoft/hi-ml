@@ -403,7 +403,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
     conda_env_spec = OrderedDict({"name": "dummy_env",
                                   "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.7.3"])})
+                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.10.5"])})
 
     conda_env_path = tmp_path / "dummy_conda_env.yml"
     with open(conda_env_path, "w+") as f_path:

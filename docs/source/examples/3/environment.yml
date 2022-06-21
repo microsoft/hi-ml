@@ -1,6 +1,6 @@
 name: primes-env
 dependencies:
   - pip=20.1.1
-  - python=3.7.3
+  - python=3.10.5
   - pip:
     - hi-ml-azure>=0.1.0

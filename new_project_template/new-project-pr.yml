@@ -10,7 +10,7 @@ on:
       - "newproject/**"
 
 env:
-  pythonVersion: 3.7
+  pythonVersion: 3.10.5
   folder: newproject
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
