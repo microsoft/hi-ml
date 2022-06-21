@@ -10,9 +10,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
-from torch import Tensor as T
 
 from .modules import MLP, MultiTaskModel
+
+TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
 
 @dataclass
@@ -115,7 +116,7 @@ class ImageEncoder(nn.Module):
 
         return encoder
 
-    def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> Union[T, Tuple[T, T]]:
+    def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> TypeImageEncoder:
         """Image encoder forward pass."""
 
         x = self.encoder(x)
