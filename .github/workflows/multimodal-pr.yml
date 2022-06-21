@@ -75,17 +75,12 @@ jobs:
           cd ${{ env.folder }}
           make pip_upgrade
 
-      - name: Install required packages
-        run: |
-          cd ${{ env.folder }}
-          make pip
-
       - name: Test with pytest
         run: |
           cd ${{ env.folder }}
 
           # Run tests
-          make pip_test
+          make pip
           make pytest
 
       - name: Run Jupyter notebooks
