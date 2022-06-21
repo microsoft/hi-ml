@@ -296,7 +296,7 @@ class DeepMILOutputsHandler:
         self.val_plots_handler.slides_dataset = slides_dataset
 
     def set_conf_matrix_for_plots_handlers(self, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
-        conf_matrix = metrics_dict.get(MetricsKey.CONF_MATRIX, None)
+        conf_matrix = metrics_dict[MetricsKey.CONF_MATRIX]
         if PlotOption.CONFUSION_MATRIX in self.test_plots_handler.plot_options and conf_matrix:
             self.test_plots_handler.conf_matrix = conf_matrix
         if PlotOption.CONFUSION_MATRIX in self.val_plots_handler.plot_options and conf_matrix:
