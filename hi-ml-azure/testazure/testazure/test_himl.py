@@ -781,7 +781,8 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool = False) -> str:
+                               suppress_config_creation: bool = False,
+                               upload_package: bool = True) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -791,6 +792,8 @@ def render_and_run_test_script(path: Path,
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
+    :param upload_package: If True, upload the current package version to the AzureML docker image. If False,
+      skip uploading. Use only if the script does not use hi-ml.
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     path.mkdir(exist_ok=True)
@@ -810,17 +813,17 @@ def render_and_run_test_script(path: Path,
             last_whl = whls[-1]
             himl_wheel_filename = str(last_whl)
 
-    if himl_wheel_filename:
+    if himl_wheel_filename and upload_package:
         # Testing against a private wheel.
         himl_wheel_filename_full_path = str(Path(himl_wheel_filename).resolve())
         extra_options['private_pip_wheel_path'] = f'Path("{himl_wheel_filename_full_path}")'
         print(f"Added private_pip_wheel_path: {himl_wheel_filename_full_path} option")
-    elif himl_test_pypi_version:
+    elif himl_test_pypi_version and upload_package:
         # Testing against test.pypi, add this as the pip_extra_index_url, and set the version.
         extra_options['pip_extra_index_url'] = "https://test.pypi.org/simple/"
         version = himl_test_pypi_version
         print(f"Added test.pypi: {himl_test_pypi_version} option")
-    elif himl_pypi_version:
+    elif himl_pypi_version and upload_package:
         # Testing against pypi, set the version.
         version = himl_pypi_version
         print(f"Added pypi: {himl_pypi_version} option")
