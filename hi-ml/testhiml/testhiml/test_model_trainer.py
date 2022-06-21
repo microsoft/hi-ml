@@ -93,7 +93,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
 
 
 def test_profiler_with_custom_arguments() -> None:
-    """Test that create_lightning_trainer picks up on additional arguments for
+    """Test that profiler is properly instantiated for all supported options with additional arguments
     """
 
     def _get_trainer_arguments() -> Dict[str, Any]:
@@ -110,8 +110,9 @@ def test_profiler_with_custom_arguments() -> None:
 
 @pytest.mark.parametrize("pl_profiler", ["", "simple", "advanced", "pytorch"])
 def test_pl_profiler_properly_instantiated(pl_profiler: str) -> None:
-    """Test that create_lightning_trainer picks up on additional arguments for
+    """Test that profiler is properly instantiated for all supported options
     """
+
     pl_profilers = {
         "": PassThroughProfiler,
         "simple": SimpleProfiler,

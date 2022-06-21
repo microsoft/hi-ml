@@ -26,7 +26,7 @@ VS Code restricts debugging to user-written code only by default. If you want to
 standard libraries functions, set `"justMyCode": false` inside the debugging config block in the `launch.json` file.
 
 In particular, if you would like to debug the current file while breaking through external libraries, navigate to
-`himl-projects.code-workspace` in the repo root and edit the "launch" block as follow:
+`himl-projects.code-workspace` in the repo root and edit the "launch" block as follows:
 
 ```json
 "launch": {
@@ -43,15 +43,15 @@ In particular, if you would like to debug the current file while breaking throug
 }
 ```
 
-### Pytorch Lightning flags for debugging and quick runs
+### PyTorch Lightning flags for debugging and quick runs
 
-The hi-ml toolbox is built upon [Pytorch Lightning (PL)](https://www.pytorchlightning.ai/) to help you build scalable
-deep learning models for healtcare and life sciences. Refer to [Running ML Experiments with hi-ml](runner.md) for
+The hi-ml toolbox is built upon [PyTorch Lightning (PL)](https://www.pytorchlightning.ai/) to help you build scalable
+deep learning models for healthcare and life sciences. Refer to [Running ML Experiments with hi-ml](runner.md) for
 detailed instructions on how to build scalable pipelines within hi-ml.
 
 Whether you're building a brand new model, or extending an existing one, you might want to make sure that your
 code runs as expected locally before submitting a job to AzureML. hi-ml supports a set of debugging flags that triggers
-[Pytorch Lightning Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#trainer) arguments to
+[PyTorch Lightning Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#trainer) arguments to
 help you detect any potential errors or bugs at early stage.
 
 These are available as part of the
@@ -72,15 +72,15 @@ In general, it is very useful to run the following two steps as part of the deve
 1. Make sure all training, validation and test loops complete properly:
 
 ```shell
-conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-fast-dev-run=4
+conda activate YourEnvName
+python hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-fast-dev-run=4
 ```
 
 2. Make sure the whole pipeline runs properly, including checkpoints callbacks and hyperparameter serialization:
 
 ```shell
-conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
+conda activate YourEnvName
+python hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4
 ```
 
 Note: Under the hood, setting `pl-fast-dev-run=n` overrides
@@ -89,7 +89,7 @@ callbacks. Please keep in mind that all the above is useful for efficient and qu
 
 ## Profiling Machine Learning Pipelines
 
-Pytorch Lightning supports a set of built-in
+PyTorch Lightning supports a set of built-in
 [profilers](https://pytorch-lightning.readthedocs.io/en/stable/advanced/profiler.html) that help you identify
 bottlenecks in your code during training, testing and inference. You can trigger code profiling through the command line
 argument `--pl_profiler` that you can set to either
@@ -100,16 +100,16 @@ argument `--pl_profiler` that you can set to either
 The profiler outputs will be saved in a subfolder `profiler` inside the outputs folder of the run.
 
 ```shell
-conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
+conda activate YourEnvName
+python hi-ml/src/health_ml/runner.py --model=YourCustomContainer --bach-size=2 --pl-limit-train-batches=4 --pl-limit-val-batches=4 --pl-limit-test-batches=4 --max_epochs=4 --pl-profiler=pytorch
 ```
 
-### Interpret Pytorch Profiling outputs via Tensorboard
+### Interpret PyTorch Profiling outputs via Tensorboard
 
-[Pytorch Profiler](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html) can effectively be interpreted via
+[PyTorch Profiler](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html) can effectively be interpreted via
 TensorBoard dashbord interface that is integrated in [VS
 Code](https://code.visualstudio.com/docs/datascience/pytorch-support#_tensorboard-integration) as part of the Python
-extension. Once you have the outputs of the Pytorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourCustomContainer/pytorch_profiler`, you can
+extension. Once you have the outputs of the PyTorch Profiler in `outputs/YYYY-MM-DDTHHmmssZ_YourCustomContainer/pytorch_profiler`, you can
 open the TensorBoard Profiler plugin by launching the Command Palette using the keyboard shortcut CTRL + SHIFT + P (CMD
 \+ SHIFT + P on a Mac) and typing the “Launch TensorBoard” command.
 
@@ -178,6 +178,6 @@ Finally, the plugin also supports distributed view on profiling DDP with NCCL/GL
 
 ## Learn More
 
-* [Pytorch Profiler with Tensorboard](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html)
-* [Pytorch TensorBoard Profiler github](https://github.com/pytorch/kineto/tree/main/tb_plugin)
+* [PyTorch Profiler with Tensorboard](https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html)
+* [PyTorch TensorBoard Profiler github](https://github.com/pytorch/kineto/tree/main/tb_plugin)
 * [Torch profiler API](https://pytorch.org/docs/master/profiler.html)
