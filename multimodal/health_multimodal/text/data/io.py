@@ -9,6 +9,9 @@ from typing import Any, List, Union
 from transformers import BertTokenizer
 
 
+TypePrompts = Union[str, List[str]]
+
+
 class TextInput:
     """Text input class that can be used for inference and deployment.
 
@@ -21,7 +24,7 @@ class TextInput:
     def __init__(self, tokenizer: BertTokenizer) -> None:
         self.tokenizer = tokenizer
 
-    def tokenize_input_prompts(self, prompts: Union[str, List[str]], verbose: bool) -> Any:
+    def tokenize_input_prompts(self, prompts: TypePrompts, verbose: bool) -> Any:
         """
         Tokenizes the input sentence(s) and adds special tokens as defined by the tokenizer.
         :param prompts: Either a string containing a single sentence, or a list of strings each containing
@@ -46,10 +49,7 @@ class TextInput:
         return tokenizer_output
 
     def assert_special_tokens_not_present(self, prompt: str) -> None:
-        """
-        Check if the input prompts contain special tokens.
-        """
-        if self.tokenizer.cls_token in prompt or \
-           self.tokenizer.pad_token in prompt or \
-           self.tokenizer.sep_token in prompt:
-            raise ValueError("The input should not contain any special tokens such as [CLS], [SEP], [PAD]")
+        """Check if the input prompts contain special tokens."""
+        special_tokens = self.tokenizer.all_special_tokens
+        if any(map(lambda token: token in prompt, special_tokens)):
+            raise ValueError(f"The input \"{prompt}\" contains at least one special token ({special_tokens})")
