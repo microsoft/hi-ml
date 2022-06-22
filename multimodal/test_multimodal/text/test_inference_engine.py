@@ -9,6 +9,7 @@ from typing import Tuple
 import pytest
 import torch
 
+from health_multimodal.text import BIOMED_VLP_CXR_BERT_SPECIALIZED
 from health_multimodal.text.inference_engine import TextInferenceEngine
 from health_multimodal.text.model.modelling_cxrbert import CXRBertModel
 from health_multimodal.text.model.configuration_cxrbert import CXRBertTokenizer
@@ -56,11 +57,9 @@ def test_sentence_semantic_similarity() -> None:
 
 
 def _get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
-    # Load the model and tokenizer
-    url = "microsoft/BiomedVLP-CXR-BERT-specialized"
-    tokenizer = CXRBertTokenizer.from_pretrained(url)
-    text_model = CXRBertModel.from_pretrained(url)
-
+    model_name = BIOMED_VLP_CXR_BERT_SPECIALIZED
+    tokenizer = CXRBertTokenizer.from_pretrained(model_name)
+    text_model = CXRBertModel.from_pretrained(model_name)
     return tokenizer, text_model
 
 

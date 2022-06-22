@@ -38,7 +38,7 @@ class ImageTextInferenceEngine:
         assert not self.image_inference_engine.model.training
         assert not self.text_inference_engine.model.training
 
-        # TODO: Add checks in here regarding the text query and etc.
+        # TODO: Add checks in here regarding the text query, etc.
 
         image_embedding, (width, height) = self.image_inference_engine.get_patch_embeddings_from_image(image_path)
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
