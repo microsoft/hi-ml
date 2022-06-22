@@ -58,9 +58,7 @@ def assert_plot_func_called_if_among_plot_options(
         },
     ],
 )
-def test_plots_handler_plots_only_desired_plot_options(
-    plot_options: Collection[PlotOption],
-) -> None:
+def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption],) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
     plots_handler.slides_dataset = MagicMock()
 
@@ -75,7 +73,7 @@ def test_plots_handler_plots_only_desired_plot_options(
             with patch("histopathology.utils.plots_utils.save_scores_histogram") as mock_histogram:
                 with patch("histopathology.utils.plots_utils.save_confusion_matrix") as mock_conf:
                     plots_handler.save_plots(
-                        outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock(), stage=ModelKey.VAL
+                        outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock()
                     )
 
     calls_count = 0

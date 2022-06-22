@@ -46,13 +46,13 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
     save_figure(fig=fig, figpath=figures_dir / "hist_scores.png")
 
 
-def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: ModelKey) -> None:
+def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path) -> None:
     """Plots and saves confusion matrix figure in its dedicated directory.
 
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    cf_matrix_n = confusion_matrix(results[ResultsKey.TRUE_LABEL], results[ResultsKey.PRED_LABEL], normalize="pred",)
+    cf_matrix_n = confusion_matrix(results[ResultsKey.TRUE_LABEL], results[ResultsKey.PRED_LABEL], normalize="pred")
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
@@ -182,9 +182,7 @@ class DeepMILPlotsHandler:
                 level=self.level,
             )
 
-    def save_plots(
-        self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType, stage: ModelKey
-    ) -> None:
+    def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
         """Plots and saves all selected plot options during inference (validation or test) time.
 
         :param outputs_dir: The root output directory where to save plots figures.
@@ -201,7 +199,7 @@ class DeepMILPlotsHandler:
 
         if PlotOption.CONFUSION_MATRIX in self.plot_options:
             assert self.class_names
-            save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir, stage=stage)
+            save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir)
 
         if tiles_selector:
             for class_id in range(tiles_selector.n_classes):
