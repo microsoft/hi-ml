@@ -42,10 +42,10 @@ flake8:
 
 # run mypy, assuming test requirements already installed
 mypy:
-	mypy --install-types --non-interactive -p histopathology
-	mypy --install-types --non-interactive -p SSL
-	mypy --install-types --non-interactive -p testhisto
-	mypy --install-types --non-interactive -p testSSL
+	mypy --install-types --show-error-codes --non-interactive --package histopathology
+	mypy --install-types --show-error-codes --non-interactive --package SSL
+	mypy --install-types --show-error-codes --non-interactive --package testhisto
+	mypy --install-types --show-error-codes --non-interactive --package testSSL
 
 # run basic checks
 check: flake8 mypy
