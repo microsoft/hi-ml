@@ -52,11 +52,7 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    cf_matrix_n = confusion_matrix(
-        results[ResultsKey.TRUE_LABEL],
-        results[ResultsKey.PRED_LABEL],
-        normalize="pred",
-    )
+    cf_matrix_n = confusion_matrix(results[ResultsKey.TRUE_LABEL], results[ResultsKey.PRED_LABEL], normalize="pred",)
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
