@@ -474,9 +474,9 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
-        mounted_input_datasets, mount_contexts = setup_local_datasets(aml_workspace,
-                                                                      workspace_config_path,
-                                                                      cleaned_input_datasets)
+        mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
+                                                                      aml_workspace,
+                                                                      workspace_config_path)
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
