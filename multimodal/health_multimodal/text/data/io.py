@@ -51,5 +51,6 @@ class TextInput:
     def assert_special_tokens_not_present(self, prompt: str) -> None:
         """Check if the input prompts contain special tokens."""
         special_tokens = self.tokenizer.all_special_tokens
+        special_tokens.remove(self.tokenizer.mask_token)  # [MASK] is allowed
         if any(map(lambda token: token in prompt, special_tokens)):
             raise ValueError(f"The input \"{prompt}\" contains at least one special token ({special_tokens})")
