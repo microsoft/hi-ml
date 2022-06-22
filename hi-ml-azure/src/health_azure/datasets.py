@@ -315,9 +315,10 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
     return workspace
 
 
-def setup_local_datasets(aml_workspace: Optional[Workspace],
-                         workspace_config_path: Optional[Path],
-                         dataset_configs: List[DatasetConfig]) -> Tuple[List[Optional[Path]], List[MountContext]]:
+def setup_local_datasets(dataset_configs: List[DatasetConfig],
+                         aml_workspace: Optional[Workspace] = None,
+                         workspace_config_path: Optional[Path] = None
+                         ) -> Tuple[List[Optional[Path]], List[MountContext]]:
     """
     When running outside of AzureML, setup datasets to be used locally.
 

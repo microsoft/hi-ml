@@ -3,12 +3,14 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, patch, Mock
 
 from numpy import random
+import pytest
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
+from pytorch_lightning.profiler import PyTorchProfiler, PassThroughProfiler, AdvancedProfiler, SimpleProfiler
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
+from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file, model_train
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
@@ -20,7 +22,8 @@ def test_write_experiment_summary_file(tmp_path: Path) -> None:
             "_min_l_rate": 0.0,
             "_model_name": "HelloWorld",
             "adam_betas": "(0.9, 0.999)",
-            "azure_datasets": "[]"}
+            "azure_datasets": "[]",
+        }
     }
     expected_args_path = tmp_path / EXPERIMENT_SUMMARY_FILE
     write_experiment_summary_file(config, tmp_path)
@@ -62,6 +65,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     """
     Test that create_lightning_trainer picks up on additional Container callbacks
     """
+
     def _get_trainer_arguments() -> Dict[str, Any]:
         callbacks = [MyCallback()]
         return {"callbacks": callbacks}
@@ -86,6 +90,50 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
     assert isinstance(storing_logger, StoringLogger)
+
+
+def _get_trainer_arguments_custom_profiler() -> Dict[str, Any]:
+    return {"profiler": PyTorchProfiler(profile_memory=True, with_stack=True)}
+
+
+def test_custom_profiler() -> None:
+    """Test that we can specify a custom profiler.
+    """
+
+    container = LightningContainer()
+    container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, PyTorchProfiler)
+    assert trainer.profiler._profiler_kwargs["profile_memory"]
+    assert trainer.profiler._profiler_kwargs["with_stack"]
+
+
+def test_pl_profiler_argument_overrides_custom_profiler() -> None:
+    """Test that pl_profiler argument overrides any custom profiler ser in get_trainer_arguments of the container.
+    """
+
+    container = LightningContainer()
+    container.pl_profiler = "advanced"
+    container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, AdvancedProfiler)
+
+
+@pytest.mark.parametrize("pl_profiler", ["", "simple", "advanced", "pytorch"])
+def test_pl_profiler_properly_instantiated(pl_profiler: str) -> None:
+    """Test that profiler is properly instantiated for all supported options.
+    """
+
+    pl_profilers = {
+        "": PassThroughProfiler,
+        "simple": SimpleProfiler,
+        "advanced": AdvancedProfiler,
+        "pytorch": PyTorchProfiler,
+    }
+    container = LightningContainer()
+    container.pl_profiler = pl_profiler
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, pl_profilers[pl_profiler])
 
 
 def test_create_lightning_trainer_limit_batches() -> None:

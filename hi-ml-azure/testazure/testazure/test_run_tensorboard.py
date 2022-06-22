@@ -72,13 +72,11 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
         "conda_dependencies": ["pytorch=1.4.0"],
         "imports": """
 import sys
-from health_azure.utils import is_running_in_azure_ml
 """,
 
         "body": """
-    if is_running_in_azure_ml():
-        import torch
-        from torch.utils.tensorboard import SummaryWriter
+    import torch
+    from torch.utils.tensorboard import SummaryWriter
     log_dir = Path("outputs")
     log_dir.mkdir(exist_ok=True)
     writer = SummaryWriter(log_dir=str(log_dir))
@@ -102,7 +100,10 @@ from health_azure.utils import is_running_in_azure_ml
     }
 
     extra_args: List[str] = []
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    # For this test, do not use the latest package for the AzureML run. The script only uses torch, the logic
+    # that should be tested is not in AzureML. This saves one Docker image build.
+    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args,
+                               expected_pass=True, upload_package=False)
 
     run = azure_util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
                                          workspace=ws)
