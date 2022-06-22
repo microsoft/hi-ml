@@ -92,6 +92,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
+            seed=self.get_effective_random_seed(),
         )
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
@@ -163,6 +164,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             tile_size=self.tile_size,
             step=self.step,
             random_offset=self.random_offset,
+            seed=self.get_effective_random_seed(),
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
