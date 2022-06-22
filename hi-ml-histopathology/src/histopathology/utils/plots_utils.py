@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import numpy as np
 from pathlib import Path
 from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
 from sklearn.metrics import confusion_matrix
