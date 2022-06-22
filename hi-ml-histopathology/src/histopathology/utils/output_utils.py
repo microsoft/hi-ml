@@ -295,13 +295,6 @@ class DeepMILOutputsHandler:
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
 
-    def set_conf_matrix_for_plots_handlers(self, metrics_dict: Mapping[MetricsKey, Metric]) -> None:
-        conf_matrix = metrics_dict[MetricsKey.CONF_MATRIX]
-        if PlotOption.CONFUSION_MATRIX in self.test_plots_handler.plot_options and conf_matrix:
-            self.test_plots_handler.conf_matrix = conf_matrix
-        if PlotOption.CONFUSION_MATRIX in self.val_plots_handler.plot_options and conf_matrix:
-            self.val_plots_handler.conf_matrix = conf_matrix
-
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 

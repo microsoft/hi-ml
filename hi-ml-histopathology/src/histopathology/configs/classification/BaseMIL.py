@@ -345,7 +345,6 @@ class BaseMILTiles(BaseMIL):
                                             outputs_handler=outputs_handler,
                                             chunk_size=self.encoding_chunk_size)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
-        outputs_handler.set_conf_matrix_for_plots_handlers(deepmil_module.get_metrics())
         return deepmil_module
 
 
@@ -389,5 +388,4 @@ class BaseMILSlides(BaseMIL):
                                              class_names=self.class_names,
                                              outputs_handler=outputs_handler)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
-        outputs_handler.set_conf_matrix_for_plots_handlers(deepmil_module.get_metrics())
         return deepmil_module
