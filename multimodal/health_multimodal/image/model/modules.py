@@ -55,10 +55,12 @@ class MLP(nn.Module):
 
 
 class MultiTaskModel(nn.Module):
-    """Multi-task classification heads.
+    """Torch module for multi-task classification heads. We create a separate classification head
+    for each task and perform a forward pass on each head independently in forward(). Classification
+    heads are instances of `MLP`.
 
     :param input_dim: Number of dimensions of the input feature map.
-    :param classifier_hidden_dim: If MLP is used, number of dimensions of hidden features.
+    :param classifier_hidden_dim: Number of dimensions of hidden features in the MLP.
     :param num_classes: Number of output classes per task.
     :param num_tasks: Number of classification tasks or heads required.
     """
