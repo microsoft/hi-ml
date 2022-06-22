@@ -43,7 +43,6 @@ class BaseDeepSMILEPanda(BaseMIL):
             max_bag_size_inf=0,
             # declared in TrainerParams:
             max_epochs=200,
-            # use_mixed_precision = True,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
