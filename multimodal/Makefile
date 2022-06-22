@@ -39,9 +39,9 @@ flake8:
 
 # run mypy, assuming test requirements already installed
 mypy:
-	mypy --install-types --non-interactive setup.py
-	mypy --install-types --non-interactive -p health_multimodal
-	mypy --install-types --non-interactive -p test_multimodal
+	mypy --install-types --show-error-codes --non-interactive setup.py
+	mypy --install-types --show-error-codes --non-interactive --package health_multimodal
+	mypy --install-types --show-error-codes --non-interactive --package test_multimodal
 
 # run pytest on package, assuming test requirements already installed
 pytest:
