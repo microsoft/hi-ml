@@ -15,7 +15,7 @@ from histopathology.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
-from histopathology.utils.naming import ModelKey, PlotOption, ResultsKey, SlideKey
+from histopathology.utils.naming import PlotOption, ResultsKey, SlideKey
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 

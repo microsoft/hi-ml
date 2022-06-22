@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Collection
 from unittest.mock import MagicMock, patch
 import pytest
-from histopathology.utils.naming import ModelKey, PlotOption
+from histopathology.utils.naming import PlotOption
 from histopathology.utils.plots_utils import DeepMILPlotsHandler
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
