@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 import logging
 import numpy as np
 from pathlib import Path
@@ -54,11 +53,9 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    logging.info("Computing and saving confusion matrix...")
     cf_matrix_n = confusion_matrix(
         results[ResultsKey.TRUE_LABEL],
         results[ResultsKey.PRED_LABEL],
-        labels=class_names,
         normalize="pred",
     )
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
