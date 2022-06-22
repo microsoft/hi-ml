@@ -236,8 +236,8 @@ def model_train(checkpoint_path: Optional[Path],
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.
     old_environ = dict(os.environ)
-    # Set random seeds just before training
-    seed_everything(container.get_effective_random_seed())
+    # Set random seeds just before training. Ensure that dataloader workers are also seed correctly.
+    seed_everything(container.get_effective_random_seed(), workers=True)
     trainer, storing_logger = create_lightning_trainer(container,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
