@@ -161,9 +161,9 @@ def test_create_lightning_trainer_limit_batches() -> None:
     original_num_test_batches = len(data_module.test_dataloader())
 
     # Now try to limit the number of batches to an integer number
-    limit_train_batches_int = random.randint(1, original_num_train_batches)
-    limit_val_batches_int = random.randint(1, original_num_val_batches)
-    limit_test_batches_int = random.randint(1, original_num_test_batches)
+    limit_train_batches_int: int = random.randint(1, original_num_train_batches)
+    limit_val_batches_int: int = random.randint(1, original_num_val_batches)
+    limit_test_batches_int: int = random.randint(1, original_num_test_batches)
     container.pl_limit_train_batches = limit_train_batches_int
     container.pl_limit_val_batches = limit_val_batches_int
     container.pl_limit_test_batches = limit_test_batches_int

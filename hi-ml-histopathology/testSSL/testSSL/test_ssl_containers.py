@@ -108,7 +108,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
