@@ -337,7 +337,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
         checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
         checkpoint_folder.mkdir(exist_ok=True)
         checkpoint = ModelCheckpoint(dirpath=checkpoint_folder,
-                                     every_n_val_epochs=1,
+                                     every_n_epochs=1,
                                      save_last=True)
         resume_from_checkpoint = last_checkpoint.last_model_path if last_checkpoint is not None else None
         trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
@@ -395,7 +395,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
     checkpoint_folder.mkdir(exist_ok=True)
     checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
-                                  every_n_val_epochs=1,
+                                  every_n_epochs=1,
                                   save_last=True)
     # Create a first callback, that will be used in training.
     callback1 = SslOnlineEvaluatorHiml(class_weights=None,
@@ -506,7 +506,6 @@ def test_online_evaluator_distributed() -> None:
             trainer = Trainer(strategy="ddp", num_processes=2)
             # Test the two flags that the internal logic of on_pretrain_routine_start uses
             assert trainer._accelerator_connector.is_distributed
-            assert trainer._accelerator_connector.use_ddp
             callback.on_pretrain_routine_start(trainer, mock_module)
             # Check that SyncBatchNorm has been turned on
             mock_sync.assert_called_once()

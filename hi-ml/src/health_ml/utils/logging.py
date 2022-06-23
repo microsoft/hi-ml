@@ -19,6 +19,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ProgressBarBase
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.distributed import rank_zero_only
+from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict, _sanitize_params
 
 from health_azure import is_running_in_azure_ml
 from health_azure.utils import PathOrString, RUN_CONTEXT, create_aml_run_object
@@ -140,11 +141,11 @@ class AzureMLLogger(LightningLoggerBase):
         :return: A dictionary mapping from string to string.
         """
         # Convert from Namespace to dictionary
-        params = self._convert_params(params)
+        params = _convert_params(params)
         # Convert nested dictionaries to folder-like structure
-        params = self._flatten_dict(params)
+        params = _flatten_dict(params)
         # Convert anything that is not a primitive type to str
-        params_final = self._sanitize_params(params)
+        params_final = _sanitize_params(params)
         if not isinstance(params_final, dict):
             raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
         return {str(key): str(value) for key, value in params_final.items()}
@@ -188,7 +189,7 @@ class AzureMLProgressBar(ProgressBarBase):
         self._enabled = True
         self.stage = ""
         self.stage_start_time = 0.0
-        self.total_num_batches = 0
+        self.total_num_batches = 0.
         self.write_to_logging_info = write_to_logging_info
         self.print_timestamp = print_timestamp
 
@@ -220,13 +221,13 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
-        self.start_stage(self.PROGRESS_STAGE_TEST, self.total_test_batches)
+        self.start_stage(self.PROGRESS_STAGE_TEST, self.total_test_batches_current_dataloader)
 
     def on_predict_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_predict_epoch_start(trainer, pl_module)
-        self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches)
+        self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches_current_dataloader)
 
-    def start_stage(self, stage: str, total_num_batches: int) -> None:
+    def start_stage(self, stage: str, total_num_batches: Union[int, float]) -> None:
         """
         Sets the information that a new stage of the PL loop is starting. The stage will be available in
         self.stage, total_num_batches in self.total_num_batches. The time when this method was called is recorded in
@@ -363,11 +364,11 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
         raise ValueError("Learning rate logging can only be used during training.")
     single_scheduler = not isinstance(schedulers, list)
     if single_scheduler:
-        schedulers = [schedulers]
+        schedulers = [schedulers]  # type: ignore
     lr_0 = schedulers[0].get_last_lr()  # type: ignore
     singleton_lr = single_scheduler and len(lr_0) == 1
     logged = {}
-    for i, scheduler in enumerate(schedulers):
+    for i, scheduler in enumerate(schedulers):  # type: ignore
         for j, lr_j in enumerate(scheduler.get_last_lr()):  # type: ignore
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j
