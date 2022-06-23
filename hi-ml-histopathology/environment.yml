@@ -1,4 +1,4 @@
-name: HimlHisto6
+name: HimlHisto
 channels:
   - defaults
   - pytorch
@@ -7,9 +7,9 @@ dependencies:
   - cudatoolkit=11.3.1
   - pip=20.1.1
   - python=3.7.3
-  - pytorch=1.11.0
+  - pytorch=1.10.0
   - python-blosc=1.7.0
-  - torchvision=0.12
+  - torchvision=0.11.1
   - pip:
       # Run requirements for hi-ml
       - dataclasses-json==0.5.2
