@@ -65,31 +65,27 @@ def test_log_on_epoch() -> None:
     assert actual_args[1] == {'on_epoch': True,
                               'on_step': False,
                               'reduce_fx': torch.mean,
-                              'sync_dist': False,
-                              'sync_dist_op': 'mean'}, "Failed for world_size==1"
+                              'sync_dist': False}, "Failed for world_size==1"
     # Test if sync_dist is computed correctly from world size: world size is now 2, so sync_dist should be True
     module.trainer.world_size = 2
     log_on_epoch(module, metrics=metrics)
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'reduce_fx': torch.mean,
-                                            'sync_dist': True,
-                                            'sync_dist_op': 'mean'}, "Failed for world_size==2"
+                                            'sync_dist': True}, "Failed for world_size==2"
     # Test if overrides for sync_dist and the other aggregation args are passed correctly
     module.trainer.world_size = 2
-    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False, sync_dist_op="nothing")  # type: ignore
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False)  # type: ignore
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'sync_dist': False,
-                                            'reduce_fx': "reduce",
-                                            'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
+                                            'reduce_fx': "reduce"}, "Failed for sync_dist==True"
     module.trainer.world_size = 1
-    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True, sync_dist_op="nothing")  # type: ignore
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True)  # type: ignore
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'sync_dist': True,
-                                            'reduce_fx': "reduce",
-                                            'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
+                                            'reduce_fx': "reduce"}, "Failed for sync_dist==True"
 
 
 def test_log_learning_rate_singleton() -> None:

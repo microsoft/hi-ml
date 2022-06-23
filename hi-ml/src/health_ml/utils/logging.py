@@ -309,13 +309,12 @@ def log_on_epoch(module: LightningModule,
                  value: Optional[Any] = None,
                  metrics: Optional[Mapping[str, Any]] = None,
                  reduce_fx: Callable = torch.mean,
-                 sync_dist: Optional[bool] = None,
-                 sync_dist_op: Any = "mean") -> None:
+                 sync_dist: Optional[bool] = None) -> None:
     """
     Write a dictionary with metrics and/or an individual metric as a name/value pair to the loggers of the given module.
     Metrics are always logged upon epoch completion.
-    The metrics in question first synchronized across GPUs if DDP with >1 node is used, using the sync_dist_op
-    (default: mean). Afterwards, they are aggregated across all steps via the reduce_fx (default: mean).
+    The metrics in question first synchronized across GPUs if DDP with >1 node is used,. Afterwards, they are
+    aggregated across all steps via the reduce_fx (default: mean).
     Metrics that are fed in as plain numbers rather than tensors (for example, plain Python integers) are converted
     to tensors before logging, to enable synchronization across GPUs if needed.
 
@@ -328,8 +327,6 @@ def log_on_epoch(module: LightningModule,
         available on Rank 0 of a DDP job.
     :param reduce_fx: The reduce function to apply to the per-step values, after synchronizing the tensors across GPUs.
         Default: torch.mean
-    :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
-        a value recognized by sync_ddp: 'sum', 'mean', 'avg'
     """
     assert module.trainer is not None, "No trainer is set for this module."
     if operator.xor(name is None, value is None):
@@ -348,8 +345,7 @@ def log_on_epoch(module: LightningModule,
                     on_epoch=True,
                     on_step=False,
                     sync_dist=is_sync_dist,
-                    reduce_fx=reduce_fx,
-                    sync_dist_op=sync_dist_op)
+                    reduce_fx=reduce_fx)
 
 
 def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> None:
