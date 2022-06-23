@@ -87,3 +87,7 @@ highlight_language = "python"
 
 # For classes, insert documentation from the class itself AND the constructor
 autoclass_content = "both"
+
+autodoc_default_options = {
+    'members': True,
+}
