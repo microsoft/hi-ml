@@ -86,7 +86,7 @@ class BaseDeepMILModule(LightningModule):
         self.weight_decay = weight_decay
         self.adam_betas = adam_betas
 
-        self.save_hyperparameters(ignore=["encoder", "pooling_layer"])
+        self.save_hyperparameters()
 
         self.verbose = verbose
 
