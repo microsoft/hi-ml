@@ -1,24 +1,40 @@
 API
 ###
 
-.. automodule:: health_multimodal.vlp.inference_engine
+.. currentmodule:: health_multimodal
 
 
-.. automodule:: health_multimodal.image.data.io
+Vision-language processing (VLP)
+--------------------------------
 
-.. automodule:: health_multimodal.image.data.transforms
+.. autosummary::
+   :toctree:
 
-.. automodule:: health_multimodal.image.model.model
-
-.. automodule:: health_multimodal.image.model.modules
-
-.. automodule:: health_multimodal.image.inference_engine
+   vlp
 
 
-.. automodule:: health_multimodal.text.data.io
+Image processing
+----------------
 
-.. automodule:: health_multimodal.text.model.configuration_cxrbert
+.. autosummary::
+   :toctree:
 
-.. automodule:: health_multimodal.text.model.modelling_cxrbert
+   image
 
-.. automodule:: health_multimodal.text.inference_engine
+
+Text processing
+----------------
+
+.. autosummary::
+   :toctree:
+
+   text
+
+
+Common utils
+------------
+
+.. autosummary::
+   :toctree:
+
+   common

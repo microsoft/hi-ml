@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+"""Tools related to joint image and text inference"""
 
 from math import ceil, floor
 from pathlib import Path
