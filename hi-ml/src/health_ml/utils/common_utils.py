@@ -3,29 +3,32 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 import os
-import sys
-import time
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Generator, Iterable, List, Optional, Union
+from typing import Any, Generator, List, Optional
 
 import torch
 from torch.nn import Module
-from health_azure import utils
+import pandas as pd
 from health_azure import paths
-from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME, git_repo_root_folder, is_himl_used_from_git_repo
 
-from health_azure.utils import PathOrString, is_conda_file_with_pip_include
+from health_azure.utils import PathOrString, is_conda_file_with_pip_include, find_file_in_parent_folders
 
 MAX_PATH_LENGTH = 260
 
 # convert string to None if an empty string or whitespace is provided
-empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
-string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
+
+
+def empty_string_to_none(x: Optional[str]) -> Optional[str]:
+    return None if (x is None or len(x.strip()) == 0) else x
+
+
+def string_to_path(x: Optional[str]) -> Optional[Path]:
+    return None if (x is None or len(x.strip()) == 0) else Path(x)
+
 
 # file and directory names
 CHECKPOINT_SUFFIX = ".ckpt"
@@ -56,104 +59,6 @@ class ModelExecutionMode(Enum):
     TRAIN = "Train"
     TEST = "Test"
     VAL = "Val"
-
-
-def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
-    """
-    Raises an exception if 'actual' is not any of the given valid values.
-    :param message: The prefix for the error message.
-    :param actual: The actual value.
-    :param valid: The set of valid strings that 'actual' is allowed to take on.
-    :return:
-    """
-    if actual not in valid:
-        all_valid = ", ".join(["<None>" if v is None else v for v in valid])
-        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
-
-
-logging_stdout_handler: Optional[logging.StreamHandler] = None
-logging_to_file_handler: Optional[logging.StreamHandler] = None
-
-
-def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
-    """
-    Instructs the Python logging libraries to start writing logs to stdout up to the given logging level.
-    Logging will use a timestamp as the prefix, using UTC.
-
-    :param log_level: The logging level. All logging message with a level at or above this level will be written to
-    stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
-    """
-    log_level = standardize_log_level(log_level)
-    logger = logging.getLogger()
-    # This function can be called multiple times, in particular in AzureML when we first run a training job and
-    # then a couple of tests, which also often enable logging. This would then add multiple handlers, and repeated
-    # logging lines.
-    global logging_stdout_handler
-    if not logging_stdout_handler:
-        print("Setting up logging to stdout.")
-        # At startup, logging has one handler set, that writes to stderr, with a log level of 0 (logging.NOTSET)
-        if len(logger.handlers) == 1:
-            logger.removeHandler(logger.handlers[0])
-        logging_stdout_handler = logging.StreamHandler(stream=sys.stdout)
-        _add_formatter(logging_stdout_handler)
-        logger.addHandler(logging_stdout_handler)
-    print(f"Setting logging level to {log_level}")
-    logging_stdout_handler.setLevel(log_level)
-    logger.setLevel(log_level)
-
-
-def standardize_log_level(log_level: Union[int, str]) -> int:
-    """
-
-    :param log_level: integer or string (any casing) version of a log level, e.g. 20 or "INFO".
-    :return: integer version of the level; throws if the string does not name a level.
-    """
-    if isinstance(log_level, str):
-        log_level = log_level.upper()
-        check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
-        return logging._nameToLevel[log_level]
-    return log_level
-
-
-def _add_formatter(handler: logging.StreamHandler) -> None:
-    """
-    Adds a logging formatter that includes the timestamp and the logging level.
-    """
-    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ")
-    # noinspection PyTypeHints
-    formatter.converter = time.gmtime  # type: ignore
-    handler.setFormatter(formatter)
-
-
-@contextmanager
-def logging_section(gerund: str) -> Generator:
-    """
-    Context manager to print "**** STARTING: ..." and "**** FINISHED: ..." lines around sections of the log,
-    to help people locate particular sections. Usage:
-    with logging_section("doing this and that"):
-       do_this_and_that()
-
-    :param gerund: string expressing what happens in this section of the log.
-    """
-    from time import time
-
-    logging.info("")
-    msg = f"**** STARTING: {gerund} "
-    logging.info(msg + (100 - len(msg)) * "*")
-    logging.info("")
-    start_time = time()
-    yield
-    elapsed = time() - start_time
-    logging.info("")
-    if elapsed >= 3600:
-        time_expr = f"{elapsed / 3600:0.2f} hours"
-    elif elapsed >= 60:
-        time_expr = f"{elapsed / 60:0.2f} minutes"
-    else:
-        time_expr = f"{elapsed:0.2f} seconds"
-    msg = f"**** FINISHED: {gerund} after {time_expr} "
-    logging.info(msg + (100 - len(msg)) * "*")
-    logging.info("")
 
 
 def is_windows() -> bool:
@@ -211,64 +116,50 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
     return generator
 
 
-def get_all_environment_files(project_root: Path, additional_files: Optional[List[Path]] = None) -> List[Path]:
+def choose_conda_env_file(env_file: Optional[Path] = None) -> Path:
     """
-    Returns a list of all Conda environment files that should be used. This is just an
-    environment.yml file that lives at the project root folder, plus any additional files provided in the model.
+    Chooses the Conda environment file that should be used when submitting the present run to AzureML. If a Conda
+    file is given explicitly on the commandline, return that. Otherwise, look in the current folder and its parents for
+    a file called `environment.yml`.
 
-    :param project_root: The root folder of the code that starts the present training run.
-    :param additional_files: Optional list of additional environment files to merge
-    :return: A list of Conda environment files to use.
+    :param env_file: The Conda environment file that was specified on the commandline when starting the run.
+    :return: The Conda environment files to use.
+    :raises FileNotFoundError: If the specified Conda file does not exist, or none could be found at all.
     """
-    env_files = []
-    project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
-    if paths.is_himl_used_from_git_repo():
-        logging.info("Searching for Conda files in the parent folders")
-        git_repo_root = paths.git_repo_root_folder()
-        env_file = utils.find_file_in_parent_folders(
-            file_name=paths.ENVIRONMENT_YAML_FILE_NAME, stop_at_path=[git_repo_root]
-        )
-        if env_file is None:
-            # Searching for Conda file starts at current working directory, meaning it might not find
-            # the file if cwd is outside the git repo
-            env_file = git_repo_root / paths.ENVIRONMENT_YAML_FILE_NAME
-            assert env_file.is_file(), "Expected to find at least the environment definition file at repo root"
-        logging.info(f"Using Conda environment in {env_file}")
-        env_files.append(env_file)
-    elif project_yaml.exists():
-        logging.info(f"Using Conda environment in current folder: {project_yaml}")
-        env_files.append(project_yaml)
-
-    if not env_files and not additional_files:
-        raise ValueError(
-            "No Conda environment files were found in the repository, and none were specified in the " "model itself."
-        )
-    if additional_files:
-        for additional_file in additional_files:
-            if additional_file.exists():
-                env_files.append(additional_file)
-    return env_files
+    if env_file is not None:
+        if env_file.is_file():
+            return env_file
+        raise FileNotFoundError(f"The Conda file specified on the commandline could not be found: {env_file}")
+    # When running from the Git repo, then stop search for environment file at repository root. Otherwise,
+    # search from current folder all the way up
+    stop_at = [paths.git_repo_root_folder()] if paths.is_himl_used_from_git_repo() else []
+    env_file = find_file_in_parent_folders(paths.ENVIRONMENT_YAML_FILE_NAME,
+                                           start_at_path=Path.cwd(),
+                                           stop_at_path=stop_at)
+    if env_file is None:
+        raise FileNotFoundError(f"No Conda environment file '{paths.ENVIRONMENT_YAML_FILE_NAME}' was found in the "
+                                "current folder or its parent folders")
+    return env_file
 
 
-def check_conda_environments(env_files: List[Path]) -> None:
-    """Tests if all conda environment files are valid. In particular, they must not contain "include" statements
+def check_conda_environment(env_file: Path) -> None:
+    """Tests if the given conda environment files is valid. In particular, it must not contain "include" statements
     in the pip section.
 
-    :param env_files: The list of Conda environment YAML files to check.
+    :param env_file: The Conda environment YAML file to check.
     """
-    if is_himl_used_from_git_repo():
-        repo_root_yaml: Optional[Path] = git_repo_root_folder() / ENVIRONMENT_YAML_FILE_NAME
+    if paths.is_himl_used_from_git_repo():
+        repo_root_yaml: Optional[Path] = paths.shared_himl_conda_env_file()
     else:
         repo_root_yaml = None
-    for file in env_files:
-        has_pip_include, _ = is_conda_file_with_pip_include(file)
-        # PIP include statements are only valid when reading from the repository root YAML file, because we
-        # are manually adding the included files in get_all_pip_requirements_files
-        if has_pip_include and file != repo_root_yaml:
-            raise ValueError(
-                f"The Conda environment definition in {file} uses '-r' to reference pip requirements "
-                "files. This does not work in AzureML. Please add the pip dependencies directly."
-            )
+    has_pip_include, _ = is_conda_file_with_pip_include(env_file)
+    # PIP include statements are only valid when reading from the repository root YAML file, because we
+    # are manually adding the included files in get_all_pip_requirements_files
+    if has_pip_include and env_file != repo_root_yaml:
+        raise ValueError(
+            f"The Conda environment definition in {env_file} uses '-r' to reference pip requirements "
+            "files. This does not work in AzureML. Please add the pip dependencies directly."
+        )
 
 
 def get_all_pip_requirements_files() -> List[Path]:
@@ -330,3 +221,29 @@ def is_long_path(path: PathOrString) -> bool:
     :return: True if the length of the path is greater than MAX_PATH_LENGTH, else False
     """
     return len(str(path)) > MAX_PATH_LENGTH
+
+
+def df_to_json(df: pd.DataFrame, json_path: Path, add_newline: bool = True) -> None:
+    """Save a data frame to a JSON file.
+
+    :param df: Input data frame.
+    :param json_path: Path to output JSON file.
+    :param add_newline: If ``True``, add newline at the end of the JSON file for POSIX compliance.
+    """
+    text = df.to_json()
+    if add_newline:
+        text += '\n'
+    json_path.write_text(text)
+
+
+def seed_monai_if_available(seed: int) -> None:
+    """If the MONAI package is available, set its shared seed to make all MONAI operations deterministic.
+    If MONAI is not available, nothing will happen.
+
+    :param seed: The random seed to use for MONAI."""
+    try:
+        # MONAI is not part of the core hi-ml requirements, this import can fail.
+        from monai.utils import set_determinism  # type: ignore
+        set_determinism(seed=seed)
+    except ImportError:
+        pass

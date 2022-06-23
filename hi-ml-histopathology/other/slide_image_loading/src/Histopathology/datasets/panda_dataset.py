@@ -20,6 +20,7 @@ class PandaDataset(Dataset):
 
     Ref.: https://www.kaggle.com/c/prostate-cancer-grade-assessment/overview
     """
+
     def __init__(self, root_dir: Union[str, Path], n_slides: Optional[int] = None,
                  frac_slides: Optional[float] = None) -> None:
         super().__init__()
@@ -51,6 +52,7 @@ class PandaDataset(Dataset):
 # MONAI's convention is that dictionary transforms have a 'd' suffix in the class name
 class ReadImaged(MapTransform):
     """Basic transform to read image files."""
+
     def __init__(self, reader: ImageReader, keys: KeysCollection,
                  allow_missing_keys: bool = False, **kwargs: Any) -> None:
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
@@ -74,6 +76,7 @@ class LoadPandaROId(MapTransform):
     - `'level'` (int): chosen magnification level
     - `'scale'` (float): corresponding scale, loaded from the file
     """
+
     def __init__(self, image_reader: WSIReader, mask_reader: WSIReader,
                  image_key: str = 'image', mask_key: str = 'mask',
                  level: int = 0, margin: int = 0, **kwargs: Any) -> None:

@@ -1,0 +1,11 @@
+{
+  "include": [
+    "src",
+    "testhisto",
+    "testSSL",
+  ],
+  "useLibraryCodeForTypes": false,
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportPrivateImportUsage": false,
+}

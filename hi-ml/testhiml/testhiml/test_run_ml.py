@@ -13,7 +13,7 @@ from health_ml.run_ml import MLRunner
 
 @pytest.fixture(scope="module")
 def ml_runner_no_setup() -> MLRunner:
-    experiment_config = ExperimentConfig(model="HelloContainer")
+    experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
     runner = MLRunner(experiment_config=experiment_config, container=container)
     return runner
@@ -21,7 +21,7 @@ def ml_runner_no_setup() -> MLRunner:
 
 @pytest.fixture(scope="module")
 def ml_runner() -> Generator:
-    experiment_config = ExperimentConfig(model="HelloContainer")
+    experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
@@ -33,7 +33,7 @@ def ml_runner() -> Generator:
 
 @pytest.fixture(scope="module")
 def ml_runner_with_container() -> Generator:
-    experiment_config = ExperimentConfig(model="HelloContainer")
+    experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
@@ -53,7 +53,7 @@ def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
     with patch.object(ml_runner_no_setup, "container", spec=LightningContainer) as mock_container:
         with patch("health_ml.run_ml.seed_everything") as mock_seed:
             ml_runner_no_setup.setup()
-            mock_container.get_effective_random_seed.assert_called_once()
+            mock_container.get_effective_random_seed.assert_called()
             mock_container.setup.assert_called_once()
             mock_container.create_lightning_module_and_store.assert_called_once()
             assert ml_runner_no_setup._has_setup_run

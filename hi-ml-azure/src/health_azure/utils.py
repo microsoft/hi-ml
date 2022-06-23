@@ -5,7 +5,6 @@
 """
 Utility functions for interacting with AzureML runs
 """
-from contextlib import contextmanager
 import hashlib
 import json
 import logging
@@ -14,21 +13,16 @@ import re
 import shutil
 import sys
 import tempfile
-from argparse import (
-    ArgumentDefaultsHelpFormatter,
-    ArgumentError,
-    ArgumentParser,
-    Namespace,
-    OPTIONAL,
-    SUPPRESS,
-    _UNRECOGNIZED_ARGS_ATTR,
-)
+from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
+                      ArgumentParser, Namespace)
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Callable, DefaultDict, Dict, Generator, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar,
+                    Union)
 
 import conda_merge
 import pandas as pd
@@ -38,6 +32,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
+from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
@@ -82,6 +77,7 @@ CONDA_CHANNELS = "channels"
 CONDA_DEPENDENCIES = "dependencies"
 CONDA_PIP = "pip"
 
+VALID_LOG_FILE_PATHS = [Path("user_logs/std_log.txt"), Path("azureml-logs/70_driver_log.txt")]
 
 # By default, define several environment variables that work around known issues in the software stack
 DEFAULT_ENVIRONMENT_VARIABLES = {
@@ -235,28 +231,40 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         :param _p: parameter to get type and nargs for.
         :return: Type
         """
+        get_type: Callable
         if isinstance(_p, param.Boolean):
-            p_type: Callable = parse_bool
+            get_type = parse_bool
         elif isinstance(_p, param.Integer):
-            p_type = lambda x: _p.default if x == "" else int(x)
+            def to_int(x: str) -> int:
+                return _p.default if x == "" else int(x)
+            get_type = to_int
         elif isinstance(_p, param.Number):
-            p_type = lambda x: _p.default if x == "" else float(x)
+            def to_float(x: str) -> float:
+                return _p.default if x == "" else float(x)
+            get_type = to_float
         elif isinstance(_p, param.String):
-            p_type = str
+            get_type = str
         elif isinstance(_p, param.List):
-            p_type = lambda x: [_p.class_(item) for item in x.split(",") if item]
+            def to_list(x: str) -> List[Any]:
+                return [_p.class_(item) for item in x.split(",") if item]
+            get_type = to_list
         elif isinstance(_p, param.NumericTuple):
-            float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
-            p_type = lambda x: tuple([float_or_int(item) for item in x.split(",")])
+
+            def float_or_int(y: str) -> Union[int, float]:
+                return int(y) if isinstance(_p, IntTuple) else float(y)
+
+            def to_tuple(x: str) -> Tuple:
+                return tuple([float_or_int(item) for item in x.split(",")])
+            get_type = to_tuple
         elif isinstance(_p, param.ClassSelector):
-            p_type = _p.class_
+            get_type = _p.class_
         elif isinstance(_p, CustomTypeParam):
-            p_type = _p.from_string
+            get_type = _p.from_string
 
         else:
             raise TypeError(f"Parameter of type {_p} is not supported")
 
-        return p_type
+        return get_type
 
     def add_boolean_argument(parser: ArgumentParser, k: str, p: param.Parameter) -> None:
         """
@@ -693,15 +701,19 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
     return run_or_recovery_id
 
 
-def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Optional[Path]:
+def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path],
+                                start_at_path: Optional[Path] = None) -> Optional[Path]:
     """Searches for a file of the given name in the current working directory, or any of its parent folders.
     Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
     of the given folders in stop_at_path.
 
     :param file_name: The name of the file to find.
     :param stop_at_path: A list of folders. If any of them is reached, search stops.
+    :param start_at_path: An optional path to the directory in which to start searching. If not supplied,
+        will use the current working directory.
     :return: The absolute path of the file if found, or None if it was not found.
     """
+    start_at_path = start_at_path or Path.cwd()
 
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
         logging.debug(f"Searching for file {file_name} in {start_at}")
@@ -712,7 +724,7 @@ def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path]) -> Opt
             return None
         return return_file_or_parent(start_at.parent)
 
-    return return_file_or_parent(start_at=Path.cwd())
+    return return_file_or_parent(start_at=start_at_path)
 
 
 def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
@@ -929,6 +941,7 @@ def _split_dependency(dep_str: str) -> Tuple[str, ...]:
 
 class PackageDependency:
     """Class to hold information from a single line of a conda/pip environment file  (i.e. a single package spec)"""
+
     def __init__(self, dependency_str: str) -> None:
         self.package_name = ""
         self.operator = ""
@@ -1460,6 +1473,35 @@ def download_files_from_run_id(
     torch_barrier()
 
 
+def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[str]:
+    """
+    Returns text stored in run log driver file.
+
+    :param run: Run object representing the current run.
+    :param download_file: If ``True``, download log file from the run.
+    :return: Driver log file text if a file exists, ``None`` otherwise.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+
+        for log_file_path in VALID_LOG_FILE_PATHS:
+            if download_file:
+                run.download_files(
+                    prefix=str(log_file_path),
+                    output_directory=tmp_dir_name,
+                    append_prefix=False,
+                )
+            tmp_log_file_path = tmp_dir_name / log_file_path
+            if tmp_log_file_path.is_file():
+                return tmp_log_file_path.read_text()
+
+    files_as_str = ', '.join(f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
+    logging.warning(
+        "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
+        f"one of the following: {files_as_str}"
+    )
+    return None
+
+
 def _download_file_from_run(
     run: Run, filename: str, output_file: Path, validate_checksum: bool = False
 ) -> Optional[Path]:
@@ -1769,13 +1811,16 @@ def get_tags_from_hyperdrive_run(run: Run, arg_name: str) -> str:
 
 
 def aggregate_hyperdrive_metrics(
-    run_id: str,
     child_run_arg_name: str,
+    run_id: Optional[str] = None,
+    run: Optional[Run] = None,
+    keep_metrics: Optional[List[str]] = None,
     aml_workspace: Optional[Workspace] = None,
     workspace_config_path: Optional[Path] = None,
 ) -> pd.DataFrame:
     """
-    For a given HyperDrive run id, retrieves the metrics from each of its children and then aggregates it.
+    For a given HyperDriveRun object, or id of a HyperDriveRun, retrieves the metrics from each of its children and
+    then aggregates it. Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
     Returns a DataFrame where each column is one child run, and each row is a metric logged by that child run.
     For example, for a HyperDrive run with 2 children, where each logs epoch, accuracy and loss, the result
     would look like::
@@ -1804,27 +1849,72 @@ def aggregate_hyperdrive_metrics(
         |----------------|-----------------------------------------|---------------------------------------|
         | accuracy_plot  | aml://artifactId/ExperimentRun/dcid.... | aml://artifactId/ExperimentRun/dcid...|
 
-    :param run_id: The run id (type: str) of the parent run. The type of this run must be an AML HyperDriveRun
     :param child_run_arg_name: the name of the argument given to each child run to denote its position relative
         to other child runs (e.g. this arg could equal 'child_run_index' - then each of your child runs should expect
         to receive the arg '--child_run_index' with a value <= the total number of child runs)
-    :param aml_workspace: If provided this is returned as the AzureML Workspace.
-    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
-        config
+    :param run: An Azure ML HyperDriveRun object to aggregate the metrics from. Either this or run_id must be provided
+    :param run_id: The id (type: str) of a parent/ HyperDrive run. Either this or run must be provided.
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by
+    :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
+    :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
+        AML Workspace object to retrieve the Run from.
     :return: A Pandas DataFrame containing the aggregated metrics from each child run
     """
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
+    if run is None:
+        assert run_id is not None, "Either run or run_id must be provided"
+        workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+        run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     assert isinstance(run, HyperDriveRun)
     metrics: DefaultDict = defaultdict()
-    for child_run in run.get_children():
+    for child_run in run.get_children():  # type: ignore
         child_run_metrics = child_run.get_metrics()
-        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
-        for k, v in child_run_metrics.items():
-            if k not in metrics:
-                metrics[k] = {}
-            metrics[k][child_run_tag] = v
+        keep_metrics = keep_metrics or child_run_metrics.keys()
 
+        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
+        for metric_name, metric_val in child_run_metrics.items():
+            if metric_name in keep_metrics:
+                if metric_name not in metrics:
+                    metrics[metric_name] = {}
+                metrics[metric_name][child_run_tag] = metric_val
+
+    df = pd.DataFrame.from_dict(metrics, orient="index")
+    return df
+
+
+def get_metrics_for_childless_run(
+    run_id: Optional[str] = None,
+    run: Optional[Run] = None,
+    keep_metrics: Optional[List[str]] = None,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+) -> pd.DataFrame:
+    """
+    For a given Run object or id, retrieves the metrics from that Run and returns them as a pandas DataFrame.
+    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep. This function
+    expects a childless AML Run. If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
+    please use the function ``aggregate_hyperdrive_metrics``.
+
+    :param run: A (childless) Run object to retrieve the metrics from. Either this or run_id must be provided
+    :param run_id: The id (type: str) of a (childless) AML Run. Either this or run must be provided.
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by
+    :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
+    :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
+        AML Workspace object to retrieve the Run from.
+    :return: A Pandas DataFrame containing the metrics
+    """
+    if run is None:
+        assert run_id is not None, "Either run or run_id must be provided"
+        workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+        run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
+    if isinstance(run, _OfflineRun):
+        logging.warning("Can't get metrics for _OfflineRun object")
+        return pd.DataFrame({})
+    metrics = {}
+    run_metrics = run.get_metrics()  # type: ignore
+    keep_metrics = keep_metrics or run_metrics.keys()
+    for metric_name, metric_val in run_metrics.items():
+        if metric_name in keep_metrics:
+            metrics[metric_name] = metric_val
     df = pd.DataFrame.from_dict(metrics, orient="index")
     return df
 
@@ -2025,3 +2115,16 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
     finally:
         if not target_config_exists:
             target_config_json.unlink()
+
+
+def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
+    """
+    Raises an exception if 'actual' is not any of the given valid values.
+    :param message: The prefix for the error message.
+    :param actual: The actual value.
+    :param valid: The set of valid strings that 'actual' is allowed to take on.
+    :return:
+    """
+    if actual not in valid:
+        all_valid = ", ".join(["<None>" if v is None else v for v in valid])
+        raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))

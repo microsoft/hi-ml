@@ -14,6 +14,7 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
+from random import randint
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,7 +25,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -34,17 +35,20 @@ from health_azure.datasets import (
     DatasetConfig,
     _input_dataset_key,
     _output_dataset_key,
-    get_datastore
+    get_datastore,
+    setup_local_datasets
 )
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
     ENVIRONMENT_VERSION,
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
+    VALID_LOG_FILE_PATHS,
     check_config_json,
     get_most_recent_run,
     get_workspace,
-    is_running_in_azure_ml
+    is_running_in_azure_ml,
+    get_driver_log_file_text,
 )
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
@@ -117,6 +121,135 @@ def test_write_run_recovery_file(mock_run: mock.MagicMock) -> None:
     himl._write_run_recovery_file(mock_run)
     recovery_file_text = Path(himl.RUN_RECOVERY_FILE).read_text()
     assert expected_run_recovery_id != recovery_file_text
+
+
+@pytest.fixture(scope="module")
+def dummy_max_num_nodes_available() -> int:
+    """
+    Return a random integer between 2 and 10 that will represent the maximum number of
+    nodes in our mock compute cluster
+    """
+    return randint(2, 10)
+
+
+@pytest.fixture(scope="module")
+def dummy_compute_cluster_name() -> str:
+    """
+    Returns a name for our mock Compute Target that will be used in multiple tests
+    """
+    return 'dummy_cluster'
+
+
+@pytest.fixture(scope="module")
+def mock_scale_settings(dummy_max_num_nodes_available: int) -> MagicMock:
+    """
+    Mock an Azure ML ScaleSettings object containing just the number of nodes a cluster
+    can resize to
+    """
+    return MagicMock(maximum_node_count=dummy_max_num_nodes_available)
+
+
+@pytest.fixture(scope="module")
+def mock_compute_cluster(mock_scale_settings: MagicMock) -> MagicMock:
+    """
+    Mock an Azure ML ComputeTarget representing a compute cluster with property 'scale_settings'
+    defined by our mock ScaleSettings object
+    """
+    return MagicMock(scale_settings=mock_scale_settings)
+
+
+@pytest.fixture(scope="module")
+def mock_workspace(mock_compute_cluster: MagicMock, dummy_compute_cluster_name: str) -> MagicMock:
+    """
+    Mock an Azure ML Workspace whose property compute_targets contains just our mock ComputeTarget object
+    """
+    return MagicMock(compute_targets={dummy_compute_cluster_name: mock_compute_cluster})
+
+
+@pytest.mark.fast
+def test_validate_num_nodes(dummy_max_num_nodes_available: int, mock_compute_cluster: MagicMock,
+                            dummy_compute_cluster_name: str) -> None:
+    # If number of requested nodes <= max available nodes, nothing should happen
+    num_nodes_requested = dummy_max_num_nodes_available // 2
+    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
+    num_nodes_requested = dummy_max_num_nodes_available
+    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
+
+    # But if number of nodes requested > max available, a ValueError should be raised
+    num_nodes_requested = randint(dummy_max_num_nodes_available + 1, 5000)
+    expected_error_msg = f"You have requested {num_nodes_requested} nodes, which is more than your compute "
+    f"cluster {dummy_compute_cluster_name}'s maximum of {dummy_max_num_nodes_available} nodes "
+    with pytest.raises(ValueError, match=expected_error_msg):
+        himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
+
+
+@pytest.mark.fast
+def test_validate_compute_name(mock_workspace: MagicMock, dummy_compute_cluster_name: str) -> None:
+    existing_compute_clusters = mock_workspace.compute_targets
+    existent_compute_name = dummy_compute_cluster_name
+    himl.validate_compute_name(existing_compute_clusters, existent_compute_name)
+
+    nonexistent_compute_name = 'idontexist'
+    assert nonexistent_compute_name not in existing_compute_clusters
+    expected_error_msg = f"Could not find the compute target {nonexistent_compute_name} in the AzureML workspace."
+    with pytest.raises(ValueError, match=expected_error_msg):
+        himl.validate_compute_name(existing_compute_clusters, nonexistent_compute_name)
+
+
+@pytest.mark.fast
+@patch("health_azure.himl.validate_compute_name")
+@patch("health_azure.himl.validate_num_nodes")
+def test_validate_compute(mock_validate_num_nodes: MagicMock, mock_validate_compute_name: MagicMock,
+                          mock_workspace: MagicMock, dummy_compute_cluster_name: str) -> None:
+    def _raise_value_error(*args: Any) -> None:
+        raise ValueError("A ValueError has been raised")
+
+    def _raise_assertion_error(*args: Any) -> None:
+        raise AssertionError("An AssertionError has been raised")
+
+    # first mock the case where validate_num_nodes and validate_compute_name both return None
+    mock_validate_compute_name.return_value = None
+    mock_validate_num_nodes.return_value = None
+    mock_num_available_nodes = 0
+    himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
+    assert mock_validate_num_nodes.call_count == 1
+    assert mock_validate_compute_name.call_count == 1
+
+    # now have validate_num_nodes raise an Assertionerror and check that calling validate_compute_cluster
+    # raises the error
+    mock_validate_num_nodes.side_effect = _raise_assertion_error
+    with pytest.raises(AssertionError, match="An AssertionError has been raised"):
+        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
+    assert mock_validate_num_nodes.call_count == 2
+    assert mock_validate_compute_name.call_count == 2
+
+    # now have validate_compute_name raise a ValueError and check that calling validate_compute_cluster raises the error
+    mock_validate_compute_name.side_effect = _raise_value_error
+    with pytest.raises(ValueError, match="A ValueError has been raised"):
+        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
+    assert mock_validate_num_nodes.call_count == 2
+    assert mock_validate_compute_name.call_count == 3
+
+
+def test_validate_compute_real(tmp_path: Path) -> None:
+    """
+    Get a real Workspace object and attempt to validate a compute cluster from it, if any exist.
+    This checks that the properties/ methods in the Azure ML SDK are consistent with those used in our
+    codebase
+    """
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+        workspace = get_workspace(aml_workspace=None,
+                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+    existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
+    if len(existing_compute_targets) == 0:
+        return
+    compute_target_name: str = list(existing_compute_targets)[0]
+    compute_target: ComputeTarget = existing_compute_targets[compute_target_name]
+    max_num_nodes = compute_target.scale_settings.maximum_node_count
+    request_num_nodes = max_num_nodes - 1
+    assert isinstance(compute_target_name, str)
+    assert isinstance(compute_target, ComputeTarget)
+    himl.validate_compute_cluster(workspace, compute_target_name, request_num_nodes)
 
 
 @pytest.mark.fast
@@ -196,16 +329,18 @@ def test_create_run_configuration_fails(
 @patch("health_azure.himl.Environment.get")
 @patch("health_azure.himl.Workspace")
 def test_create_run_configuration(
-        mock_workspace: mock.MagicMock,
-        mock_environment_get: mock.MagicMock,
-        mock_to_input_dataset: mock.MagicMock,
-        mock_to_output_dataset: mock.MagicMock,
-        mock_docker_configuration: mock.MagicMock,
+        mock_workspace: MagicMock,
+        mock_environment_get: MagicMock,
+        mock_to_input_dataset: MagicMock,
+        mock_to_output_dataset: MagicMock,
+        mock_docker_configuration: MagicMock,
+        dummy_max_num_nodes_available: MagicMock,
+        mock_compute_cluster: MagicMock
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_env_name = "Mock Env"
     mock_environment_get.return_value = mock_env_name
-    mock_workspace.compute_targets = {existing_compute_target: 123}
+    mock_workspace.compute_targets = {existing_compute_target: mock_compute_cluster}
     aml_input_dataset = MagicMock()
     aml_input_dataset.name = "dataset_in"
     aml_output_dataset = MagicMock()
@@ -216,7 +351,7 @@ def test_create_run_configuration(
         workspace=mock_workspace,
         compute_cluster_name=existing_compute_target,
         aml_environment_name="foo",
-        num_nodes=10,
+        num_nodes=dummy_max_num_nodes_available - 1,
         max_run_duration="1h",
         input_datasets=[DatasetConfig(name="input1")],
         output_datasets=[DatasetConfig(name="output1")],
@@ -226,8 +361,8 @@ def test_create_run_configuration(
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
     assert run_config.environment == mock_env_name
-    assert run_config.node_count == 10
-    assert run_config.mpi.node_count == 10
+    assert run_config.node_count == dummy_max_num_nodes_available - 1
+    assert run_config.mpi.node_count == dummy_max_num_nodes_available - 1
     assert run_config.max_run_duration_seconds == 60 * 60
     assert run_config.data == {"dataset_in": aml_input_dataset}
     assert run_config.output_data == {"dataset_out": aml_output_dataset}
@@ -256,8 +391,9 @@ def test_create_run_configuration(
 @patch("health_azure.himl.create_python_environment")
 def test_create_run_configuration_correct_env(mock_create_environment: MagicMock,
                                               mock_workspace: MagicMock,
+                                              mock_compute_cluster: MagicMock,
                                               tmp_path: Path) -> None:
-    mock_workspace.compute_targets = {"dummy_compute_cluster": ""}
+    mock_workspace.compute_targets = {"dummy_compute_cluster": mock_compute_cluster}
 
     # First ensure if environment.get returns None, that register_environment gets called
     mock_environment = MagicMock()
@@ -280,8 +416,8 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
         with patch("azureml.core.Environment.get") as mock_environment_get:  # type: ignore
             mock_environment_get.side_effect = Exception()
-            run_config = himl.create_run_configuration(mock_workspace,
-                                                       "dummy_compute_cluster",
+            run_config = himl.create_run_configuration(workspace=mock_workspace,
+                                                       compute_cluster_name="dummy_compute_cluster",
                                                        conda_environment_file=conda_env_path)
 
             # check that mock_register has been called once with the expected args
@@ -453,6 +589,7 @@ def test_generate_azure_datasets(
     for i in range(4):
         mock_run_context.input_datasets[_input_dataset_key(i)] = f"input_{i}"
         mock_run_context.output_datasets[_output_dataset_key(i)] = f"output_{i}"
+
     run_info = himl._generate_azure_datasets(
         cleaned_input_datasets=[mock_dataset_config] * 2,
         cleaned_output_datasets=[mock_dataset_config] * 3)
@@ -644,7 +781,8 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool = False) -> str:
+                               suppress_config_creation: bool = False,
+                               upload_package: bool = True) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -654,6 +792,8 @@ def render_and_run_test_script(path: Path,
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
+    :param upload_package: If True, upload the current package version to the AzureML docker image. If False,
+      skip uploading. Use only if the script does not use hi-ml.
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     path.mkdir(exist_ok=True)
@@ -673,17 +813,17 @@ def render_and_run_test_script(path: Path,
             last_whl = whls[-1]
             himl_wheel_filename = str(last_whl)
 
-    if himl_wheel_filename:
+    if himl_wheel_filename and upload_package:
         # Testing against a private wheel.
         himl_wheel_filename_full_path = str(Path(himl_wheel_filename).resolve())
         extra_options['private_pip_wheel_path'] = f'Path("{himl_wheel_filename_full_path}")'
         print(f"Added private_pip_wheel_path: {himl_wheel_filename_full_path} option")
-    elif himl_test_pypi_version:
+    elif himl_test_pypi_version and upload_package:
         # Testing against test.pypi, add this as the pip_extra_index_url, and set the version.
         extra_options['pip_extra_index_url'] = "https://test.pypi.org/simple/"
         version = himl_test_pypi_version
         print(f"Added test.pypi: {himl_test_pypi_version} option")
-    elif himl_pypi_version:
+    elif himl_pypi_version and upload_package:
         # Testing against pypi, set the version.
         version = himl_pypi_version
         print(f"Added pypi: {himl_pypi_version} option")
@@ -741,19 +881,21 @@ def render_and_run_test_script(path: Path,
         if run.status not in ["Failed", "Completed", "Cancelled"]:
             run.wait_for_completion()
         assert run.status == "Completed"
-        log_root = path / "logs"
-        log_root.mkdir(exist_ok=False)
-        files = run.get_file_names()
-        # Account for old and new job runtime: log files live in different places
-        driver_log_files = ["azureml-logs/70_driver_log.txt", "user_logs/std_log.txt"]
-        driver_log = log_root / "driver_log.txt"
-        for f in driver_log_files:
-            if f in files:
-                run.download_file(f, output_file_path=str(driver_log))
-                break
-        else:
-            raise ValueError("The run does not contain any of the driver log files")
-        log_text = driver_log.read_text()
+
+        # test error case mocking where no log file is present
+        log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
+        assert log_text_undownloaded is None
+
+        # TODO: upgrade to walrus operator when upgrading python version to 3.8+
+        # if log_text := get_driver_log_file_text(run=run):
+        log_text = get_driver_log_file_text(run=run)
+
+        if log_text is None:
+            raise ValueError(
+                "The run does not contain any of the following log files: "
+                f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
+            )
+
         return log_text
 
 
@@ -872,53 +1014,45 @@ import sys""",
     assert expected_output in output
 
 
-@pytest.mark.timeout(300)
-def test_mounting_dataset(tmp_path: Path) -> None:
+def _assert_hello_world_files_exist(folder: Path) -> None:
+    """Check if the .csv files in the hello_world dataset exist in the given folder."""
+    files = []
+    for file in folder.rglob("*.csv"):
+        file_relative = file.relative_to(folder)
+        logging.info(f"File {file_relative}: size: {file.stat().st_size}")
+        files.append(str(file_relative))
+    assert set(files) == {
+        "dataset.csv",
+        "train_and_test_data/metrics.csv",
+        "train_and_test_data/metrics_aggregates.csv",
+        "train_and_test_data/scalar_epoch_metrics.csv",
+        "train_and_test_data/scalar_prediction_target_metrics.csv"
+    }
+
+
+@pytest.mark.timeout(120)
+def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
     with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_mount" / "panda"
-        target_path.mkdir(parents=True)
-        existing_mounted = os.listdir(target_path)
-        assert len(existing_mounted) == 0
-        logging.info("ready to mount")
-        with dataset.mount(str(target_path)) as mount_context:
-            mount_point = Path(mount_context.mount_point)
-            logging.info("mount done, run listdir")
-            mounted = os.listdir(mount_point)
-            logging.info(f"mounted: {mounted}")
-            assert len(mounted) > 1
-            for image_file in (mount_point / subfolder).glob("*.tiff"):
-                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
-
-
-@pytest.mark.timeout(60)
-def test_downloading_dataset(tmp_path: Path) -> None:
-    logging.info("creating config.json")
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        logging.info("get_workspace")
-        workspace = get_workspace(aml_workspace=None,
-                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_download" / "panda"
-        target_path.mkdir(parents=True)
-        existing_downloaded = os.listdir(target_path)
-        assert len(existing_downloaded) == 0
-        logging.info("ready to download")
-        dataset.download(target_path=str(target_path), overwrite=False)
-        logging.info("download done, run listdir")
-        downloaded = os.listdir(target_path)
-        logging.info(f"downloaded: {downloaded}")
-        assert len(downloaded) > 1
-        for image_file in (target_path / subfolder).glob("*.tiff"):
-            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+        # Loop inside the test because getting the workspace is quite time-consuming
+        for use_mounting in [True, False]:
+            logging.info(f"use_mounting={use_mounting}")
+            action = "mount" if use_mounting else "download"
+            target_path = tmp_path / action
+            dataset_config = DatasetConfig(name="hello_world",
+                                           use_mounting=use_mounting,
+                                           target_folder=target_path)
+            logging.info(f"ready to {action}")
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], aml_workspace=workspace)
+            logging.info(f"{action} done")
+            path = paths[0]
+            assert path is not None
+            _assert_hello_world_files_exist(path)
+            for mount_context in mount_contexts:
+                mount_context.stop()
 
 
 def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,
@@ -1159,6 +1293,7 @@ def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: in
 @patch("sys.argv")
 @patch("health_azure.himl.exit")
 def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, mock_exit: MagicMock,
+                                                   mock_compute_cluster: MagicMock,
                                                    cross_validation_metric_name: Optional[str]) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
@@ -1167,7 +1302,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
     mock_sys_args.return_value = ["", "--azureml"]
     with patch.object(Environment, "get", return_value="dummy_env"):
         with patch("azureml.core.Workspace") as mock_workspace:
-            mock_workspace.compute_targets = ["foo", "bar"]
+            mock_workspace.compute_targets = {"foo": mock_compute_cluster}
             with patch("health_azure.himl.submit_run") as mock_submit_run:
                 with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
                     crossval_config = himl.create_crossval_hyperdrive_config(

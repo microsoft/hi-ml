@@ -1,0 +1,9 @@
+name: newproject
+channels:
+  - defaults
+  - pytorch
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pip:
+    - pytest==6.2.2

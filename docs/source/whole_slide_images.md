@@ -37,7 +37,7 @@ The suitable AzureML base Docker images are therefore the ones containing `cuda1
 
 ## Performance
 
-An exploratory set of scripts are at [slide_image_loading](./hi-ml-histopathology/other/slide_image_loading) for comparing loading images with OpenSlide or cuCIM, and performing tiling using both libraries.
+An exploratory set of scripts for comparing loading images with OpenSlide or cuCIM, and performing tiling using both libraries can be found at [`slide_image_loading`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/other/slide_image_loading).
 
 ### Loading and saving at lowest resolution
 
@@ -99,4 +99,3 @@ Test code created tiles of size 224x224 pilfes, loaded the mask images, and used
 For cuCIM the total time was 4.7s, 2.48s to retain the tiles as a Numpy stack but not save them as pngs. cuCIM has the option of cacheing images, but is actually made performance slightly worse, possibly because the natural tile sizes in the original tiffs were larger than the tile sizes.
 
 For OpenSlide the comparable total times were 5.7s, and 3.26s.
-

@@ -1,4 +1,4 @@
-# Notes for developers
+# Setting up the Development Environment
 
 ## Development environment
 
@@ -77,7 +77,7 @@ pip install --extra-index-url https://test.pypi.org/simple/ hi-ml==0.1.0.post165
 
 * If you are using Conda, you can add an additional parameter for `pip` into the Conda `environment.yml` file like this:
 
-```yml
+```yaml
 name: foo
 dependencies:
   - pip=20.1.1
@@ -140,7 +140,6 @@ When running the tests locally, they can either be run against the source direct
 
 All tests in the repository should be picked up automatically by VSCode. In particular, this includes the tests in the `hi-ml-histopathology` folder, which
 are not always necessary when working on the core `hi-ml` projects.
-You can exclude a set of tests from test discovery by modifying `python.testing.pytestArgs` in the VSCode `.vscode/settings.json` file.
 
 ## Creating a New Release
 

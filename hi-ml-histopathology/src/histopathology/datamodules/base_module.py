@@ -47,6 +47,8 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self,
         root_path: Path,
         batch_size: int = 1,
+        max_bag_size: int = 0,
+        max_bag_size_inf: int = 0,
         seed: Optional[int] = None,
         transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
@@ -56,6 +58,14 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         """
         :param root_path: Root directory of the source dataset.
         :param batch_size: Number of slides to load per batch.
+        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
+        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
+        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
+        tile_count used for tiling on the fly at training time.
+        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
+        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
+        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
+        tile_count used for tiling on the fly at validation and test time.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transforms_dict: A dictionary that contains transform, or a composition of transforms using
@@ -71,6 +81,8 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self.root_path = root_path
         self.transforms_dict = transforms_dict
         self.batch_size = batch_size
+        self.max_bag_size = max_bag_size
+        self.max_bag_size_inf = max_bag_size_inf
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
         self.train_dataset: _SlidesOrTilesDataset
@@ -85,26 +97,27 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         """Create the training, validation, and test datasets"""
         raise NotImplementedError
 
+    def train_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.val_dataset, shuffle=False, stage=ModelKey.VAL, **self.dataloader_kwargs)
+
+    def test_dataloader(self) -> DataLoader:
+        return self._get_dataloader(self.test_dataset, shuffle=False, stage=ModelKey.TEST, **self.dataloader_kwargs)
+
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
     """Base class to load the tiles of a dataset as train, val, test sets"""
 
     def __init__(
         self,
-        max_bag_size: int = 0,
-        max_bag_size_inf: int = 0,
         cache_mode: CacheMode = CacheMode.NONE,
         precache_location: CacheLocation = CacheLocation.NONE,
         cache_dir: Optional[Path] = None,
         **kwargs: Any,
     ) -> None:
         """
-        :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
-        will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
-        random subsets of instances.
-        :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
-        If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances.
         :param cache_mode: The type of caching to perform, i.e. whether the results of all
         transforms up to the first randomised one should be computed only once and reused in
         subsequent iterations:
@@ -129,8 +142,6 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         if cache_mode is CacheMode.DISK and cache_dir is None:
             raise ValueError("A cache directory is required for on-disk caching")
 
-        self.max_bag_size = max_bag_size
-        self.max_bag_size_inf = max_bag_size_inf
         self.cache_mode = cache_mode
         self.precache_location = precache_location
         self.cache_dir = cache_dir
@@ -222,15 +233,6 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             **dataloader_kwargs,
         )
 
-    def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, ModelKey.TRAIN, shuffle=True, **self.dataloader_kwargs)
-
-    def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, ModelKey.VAL, shuffle=True, **self.dataloader_kwargs)
-
-    def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, ModelKey.TEST, shuffle=True, **self.dataloader_kwargs)
-
 
 class SlidesDataModule(HistoDataModule[SlidesDataset]):
     """
@@ -241,8 +243,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        level: Optional[int] = 0,
-        tile_count: Optional[int] = None,
+        level: Optional[int] = 1,
         tile_size: Optional[int] = 224,
         step: Optional[int] = None,
         random_offset: Optional[bool] = True,
@@ -252,10 +253,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         **kwargs: Any,
     ) -> None:
         """
-        :param level: the whole slide image level at which the image is extracted, defaults to 0
+        :param level: the whole slide image level at which the image is extracted, defaults to 1
         this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend
-        :param tile_count: number of tiles to extract, if None extracts all non-background tiles, defaults to None
-        this param is passed to TileOnGridd monai transform for tiling on the fly.
         :param tile_size: size of the square tile, defaults to 224
         this param is passed to TileOnGridd monai transform for tiling on the fly.
         :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
@@ -274,15 +273,16 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         """
         super().__init__(**kwargs)
         self.level = level
-        self.tile_count = tile_count
         self.tile_size = tile_size
         self.step = step
         self.random_offset = random_offset
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        if self.tile_count is None:
-            assert self.batch_size == 1, "batch_size > 1 not supported if tiles_count=None 'for now'"
+        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
+        # max_bag_size_inf to None if set to 0
+        self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size  # type: ignore
+        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
@@ -291,16 +291,16 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     keys=slides_dataset.IMAGE_COLUMN,
                     reader=WSIReader,
                     backend="cuCIM",
-                    dtype=np.float32,
+                    dtype=np.uint8,
                     level=self.level,
                     image_only=True,
                 ),
                 TileOnGridd(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.tile_count,
+                    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
                     tile_size=self.tile_size,
                     step=self.step,
-                    random_offset=self.random_offset,
+                    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
                     pad_full=self.pad_full,
                     background_val=self.background_val,
                     filter_mode=self.filter_mode,
@@ -309,9 +309,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
+
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
             transforms = base_transform
+        # The tiling transform is randomized. Make them deterministic. This call needs to be
+        # done on the final Compose, not at the level of the individual randomized transforms.
+        transforms.set_random_state(seed=self.seed)
         return Dataset(slides_dataset, transforms)
 
     def _get_dataloader(self, dataset: SlidesDataset, stage: ModelKey, shuffle: bool,
@@ -326,12 +330,3 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             generator=generator,
             **dataloader_kwargs,
         )
-
-    def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
-
-    def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset, shuffle=True, stage=ModelKey.VAL, **self.dataloader_kwargs)
-
-    def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset, shuffle=True, stage=ModelKey.TEST, **self.dataloader_kwargs)

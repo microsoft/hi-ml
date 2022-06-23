@@ -51,7 +51,7 @@ saved to AzureML already (for example, metrics written by a call like `Run.log("
 Those metrics are already stored in AzureML, and will still be there when the job restarts. The re-started job will
 then **append** to the metrics that had been written in the previous run. This typically shows as sudden jumps in
 metrics, as illustrated here:
-![lowpriority_interrupted_lr.png](lowpriority_interrupted_lr.png)
+![lowpriority_interrupted_lr.png](images/lowpriority_interrupted_lr.png)
 In this example, the learning rate was increasing for the first 6 or so epochs. Then the job got preempted, and started
 training from scratch, with the initial learning rate and schedule. Note that this behaviour is only an artifact of how
 the metrics are stored in AzureML, the actual training is doing the right thing.
@@ -100,7 +100,7 @@ def get_latest_recovery_checkpoint():
     all_recovery_files = [f for f in Path(CHECKPOINT_FOLDER).glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
     if len(all_recovery_files) == 0:
         return None
-    # Get recovery checkpoint with highest epoch number    
+    # Get recovery checkpoint with highest epoch number
     recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in all_recovery_files]
     idx_max_epoch = int(np.argmax(recovery_epochs))
     return str(all_recovery_files[idx_max_epoch])

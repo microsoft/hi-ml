@@ -125,8 +125,13 @@ def _test_lightningmodule(
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
         score = metric_object(probs, bag_labels.view(batch_size,))
-        assert torch.all(score >= 0)
-        assert torch.all(score <= 1)
+        if metric_name == MetricsKey.COHENKAPPA:
+            # A NaN value could result due to a division-by-zero error
+            assert torch.all(score[~score.isnan()] >= -1)
+            assert torch.all(score[~score.isnan()] <= 1)
+        else:
+            assert torch.all(score >= 0)
+            assert torch.all(score <= 1)
 
 
 @pytest.fixture(scope="session")
@@ -228,6 +233,7 @@ def test_metrics(n_classes: int) -> None:
     # Patching to enable running the module without a Trainer object
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
+    module.outputs_handler = MagicMock()
 
     batch_size = 20
     bag_size = 5
@@ -268,6 +274,8 @@ def test_metrics(n_classes: int) -> None:
         value = metric_obj.compute()
         expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
         assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
+
+    assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
@@ -310,7 +318,7 @@ def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, us
         batch = move_batch_to_expected_device(batch, use_gpu)
         outputs_dict = module.test_step(batch, batch_idx)
         loss = outputs_dict[ResultsKey.LOSS]  # noqa
-        assert loss.shape == (1, 1) # noqa
+        assert loss.shape == (1, 1)  # noqa
         assert isinstance(loss, Tensor)
         break
 
@@ -344,6 +352,7 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     data_module.max_bag_size = 10
 
     module = container.create_model()
+    module.outputs_handler = MagicMock()
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
     if use_gpu:
@@ -361,6 +370,7 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     module = container.create_model()
 
     module.trainer = MagicMock(world_size=1)  # type: ignore
+    module.outputs_handler = MagicMock()
     module.log = MagicMock()  # type: ignore
     if use_gpu:
         module.cuda()

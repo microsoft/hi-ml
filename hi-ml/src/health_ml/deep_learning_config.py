@@ -152,6 +152,7 @@ class WorkflowParams(param.Parameterized):
         param.Number(default=0.0, allow_None=False,
                      doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
+    regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
@@ -175,11 +176,17 @@ class WorkflowParams(param.Parameterized):
 
     def get_effective_random_seed(self) -> int:
         """
-        Returns the random seed set as part of this configuration.
-
+        Returns the random seed set as part of this configuration. If the configuration corresponds
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
         :return:
         """
         seed = self.random_seed
+        if self.is_crossvalidation_enabled:
+            # Offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state. Cross validation index 0 will have
+            # a different seed from a non cross validation run.
+            seed += self.crossval_index + 1
         return seed
 
     @property
@@ -397,6 +404,14 @@ class TrainerParams(param.Parameterized):
         param.Number(default=None,
                      doc="PyTorch Lightning trainer flag 'limit_test_batches': Limit the test dataset to the "
                          "given number of batches if integer, or proportion of test dataset if float.")
+    pl_fast_dev_run: Optional[int] = \
+        param.Integer(default=0,
+                      doc="PyTorch Lightning trainer flag 'fast_dev_run': Runs n if set to 'n' batch(es) of train, val"
+                          "and test. Default to 0 to use all train, val and test batches available. Setting "
+                          "pl_fast_dev_run to n > 0 overrides pl_limit_{train, val, test}_batches to the same value n."
+                          "Additionally, by setting this argument, ALL (tuner, checkpoint callbacks, early stopping "
+                          "callbacks, loggers and loggger callbacks) will be disabled and run for only a single epoch."
+                          "This must be used only for debbuging purposes.")
     pl_profiler: Optional[str] = \
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
@@ -407,9 +422,6 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
-    additional_env_files: List[Path] = param.List(class_=Path, default=[],
-                                                  doc="Additional conda environment (.yml) files to merge into the"
-                                                      " overall environment definition")
 
     @property
     def use_gpu(self) -> bool:

@@ -40,6 +40,11 @@ The `hi-ml` toolbox provides
    :caption: Histopathology
 
    histopathology.md
+   public_datasets.md
+   panda_model.md
+   ssl_on_tile_dataset.md
+   azure_setup.md
+   dsa.md
 
 .. toctree::
    :maxdepth: 1
@@ -51,8 +56,11 @@ The `hi-ml` toolbox provides
    :maxdepth: 1
    :caption: Developers
 
-   developers.md
    CONTRIBUTING.md
+   coding_guidelines.md
+   developers.md
+   software_design_overview.md
+   debugging.md
 
 .. toctree::
    :maxdepth: 1

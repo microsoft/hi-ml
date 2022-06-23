@@ -48,10 +48,10 @@ if not version:
         # In github workflows, tests for hi-ml pull in hi-ml-azure as a dependency. Usually, we have a condition like
         # hi-ml-azure>=0.1.5. This means that a package version from PyPi would trump the local wheels. For this reason,
         # use an extremely large version number to give the local wheel priority.
-        version = '99.99.post' + build_number
+        version = '99.991.post' + build_number
     else:
         default_random_version_number = floor(random() * 10_000_000_000)
-        version = f'99.99.post{str(default_random_version_number)}'
+        version = f'99.991.post{str(default_random_version_number)}'
 
 (here / 'package_name.txt').write_text('hi-ml-azure')
 (here / 'latest_version.txt').write_text(version)

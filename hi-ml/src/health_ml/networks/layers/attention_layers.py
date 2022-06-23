@@ -135,6 +135,7 @@ class CustomTransformerEncoderLayer(TransformerEncoderLayer):
         >>> out, attention_weights = encoder_layer(src)
     """
     # new forward returns output as well as attention weights
+
     def forward(self, src: torch.Tensor,  # type: ignore
                 src_mask: Optional[torch.Tensor] = None,
                 src_key_padding_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -187,6 +188,7 @@ class TransformerPooling(Module):
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
     """
+
     def __init__(self, num_layers: int, num_heads: int, dim_representation: int) -> None:
         super(TransformerPooling, self).__init__()
         self.num_layers = num_layers
@@ -225,3 +227,42 @@ class TransformerPooling(Module):
         attention_weights += self_attention_cls_token / attention_weights.shape[-1]
 
         return (attention_weights, pooled_features)
+
+
+class TransformerPoolingBenchmark(Module):
+    """Create a Transformer encoder module consisting of multiple Transformer encoder layers.
+    The pooling is inspired by the transformer pooling in `monai.networks.nets.milmodel`.
+    The transformer pooling is used in the implementation of (Myronenko et al. 2021).
+    Example in https://github.com/Project-MONAI/tutorials/blob/master/pathology/multiple_instance_learning/
+    panda_mil_train_evaluate_pytorch_gpu.py.
+    Args:
+        num_layers: Number of Transformer encoder layers.
+        num_heads: Number of attention heads per layer.
+        dim_representation: Dimension of input encoding.
+    """
+
+    def __init__(self, num_layers: int, num_heads: int, dim_representation: int, hidden_dim: int) -> None:
+        super().__init__()
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.dim_representation = dim_representation
+        self.hidden_dim = hidden_dim
+        transformer_layer = nn.TransformerEncoderLayer(d_model=self.dim_representation,
+                                                       nhead=self.num_heads,
+                                                       dropout=0.0,
+                                                       batch_first=True)
+        self.transformer = nn.TransformerEncoder(transformer_layer, num_layers=self.num_layers)
+        self.attention = nn.Sequential(nn.Linear(self.dim_representation, self.hidden_dim),
+                                       nn.Tanh(), nn.Linear(self.hidden_dim, 1))
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Input size is L, bag size N, hidden dimension is D, and attention layers K (default K=1).
+        """
+        x = x.reshape(-1, x.shape[0], x.shape[1])                       # 1 x N X L
+        x = self.transformer(x)                                         # 1 x N X L
+        a = self.attention(x)                                           # 1 x N X K
+        attention_weights = torch.softmax(a, dim=1)                     # 1 x N x K
+        pooled_features = torch.sum(x * attention_weights, dim=1)       # K X L
+        attention_weights = attention_weights.permute(0, 2, 1)          # 1 x K X N
+        return (attention_weights.squeeze(0), pooled_features)          # K X N, K X L

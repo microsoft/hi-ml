@@ -101,9 +101,10 @@ def test_run(mock_runner: Runner) -> None:
     assert len(azure_run_info.input_datasets) == len(azure_run_info.output_datasets) == 0
 
 
-@patch("health_ml.runner.get_all_environment_files")
+@patch("health_ml.runner.choose_conda_env_file")
 @patch("health_ml.runner.get_all_pip_requirements_files")
 @patch("health_ml.runner.get_workspace")
+@pytest.mark.fast
 def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                                      mock_get_pip_req_files: MagicMock,
                                      mock_get_env_files: MagicMock,
@@ -120,7 +121,7 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                             output_folder=None,  # type: ignore
                             logs_folder=None)  # type: ignore
 
-    mock_get_env_files.return_value = []
+    mock_get_env_files.return_value = Path("some_file.txt")
     mock_get_pip_req_files.return_value = []
 
     mock_default_datastore = MagicMock()
@@ -212,7 +213,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # call_args is a tuple of (args, kwargs)
             call_kwargs = mock_submit_to_aml.call_args[1]
             # Submission to AzureML should have been turned on because a cluster name was supplied
-            assert mock_runner.experiment_config.azureml
+            assert mock_runner.experiment_config.cluster == "foo"
             assert call_kwargs["submit_to_azureml"]
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
@@ -283,6 +284,17 @@ def test_invalid_args(mock_runner: Runner) -> None:
             mock_runner.run()
         assert "Unknown arguments" in str(ex)
         assert invalid_arg in str(ex)
+
+
+def test_invalid_profiler(mock_runner: Runner) -> None:
+    """Test if invalid profiler commandline arguments raise an error.
+    """
+    invalid_profile = "--pl_profiler=foo"
+    arguments = ["", "--model=HelloWorld", invalid_profile]
+    with patch.object(sys, "argv", arguments):
+        with pytest.raises(ValueError) as ex:
+            mock_runner.run()
+        assert "Unsupported profiler." in str(ex)
 
 
 def test_custom_checkpoint_for_test(tmp_path: Path) -> None:

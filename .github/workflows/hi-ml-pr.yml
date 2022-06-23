@@ -1,0 +1,320 @@
+name: HI-ML HI-ML-Azure PR
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "hi-ml-azure/**"
+      - "hi-ml/**"
+      - ".github/workflows/hi-ml-pr.yml"
+
+env:
+  pythonVersion: 3.7
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  HIML_DIST_ARTIFACT_SUFFIX: '-dist'
+  HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
+  HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+
+jobs:
+
+  flake8:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: flake8
+        run: make flake8
+
+  mypy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: mypy
+        run: make mypy
+
+  pyright:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: conda-incubator/setup-miniconda@v2
+      - name: pyright
+        shell: bash -l {0}
+        run: |
+          conda info
+          make pyright
+
+  pytest_fast:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+      # This will let all parts of the matrix run, to collect as many errors as possible, rather than aborting after first fail
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install hi-ml-azure in editable mode
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Install hi-ml in editable mode
+        if: ${{ matrix.folder != 'hi-ml-azure' && matrix.folder != 'hi-ml' }}
+        run: |
+          cd hi-ml
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Test with pytest, fast only
+        run: |
+          cd ${{ matrix.folder }}
+
+          # Install local package in editable mode
+          make pip_local
+
+          # Run fast tests
+          make pytest_fast
+
+  build-python:
+    runs-on: ubuntu-18.04
+    needs: [ pytest_fast ]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Build Distribution
+        run: |
+          cd ${{ matrix.folder }}
+          make build
+
+      - name: Upload package artifacts
+        uses: ./.github/actions/upload_package_artifacts
+        with:
+          folder: ${{ matrix.folder }}
+
+  test-artifact-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ build-python ]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Download dependent package artifacts
+        id: download_dep
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: hi-ml-azure
+
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          make pip_upgrade
+
+          # Install package
+          pip install ${{ steps.download_dep.outputs.package_filename }}
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: ${{ matrix.folder }}
+
+      - name: Install artifact and test
+        run: |
+          cd ${{ matrix.folder }}
+
+          make pip_upgrade
+
+          # Install package
+          pip install ${{ steps.download.outputs.package_filename }}
+
+          # Set env vars so wheel is sent to azureml as a private package
+          echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
+
+          # Test with pytest
+          make pytest_and_coverage
+
+      - name: Upload coverage report to Codecov
+        # Coverage should also be uploaded if tests still fail
+        if: always()
+        uses: codecov/codecov-action@v2
+        with:
+            flags: ${{ matrix.folder }}
+
+  publish-testpypi-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ test-artifact-pkg ]
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: ${{ matrix.folder }}
+
+      - name: Set envs
+        run: |
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "TESTPYPI_TOKEN=${{ secrets.TEST_PIPY_TOKEN }}" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "TESTPYPI_TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}" >> $GITHUB_ENV
+          fi
+
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ env.TESTPYPI_TOKEN }}
+          packages_dir: ${{ matrix.folder }}/dist/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+
+      - name: Show published TestPyPI package version
+        run: |
+          echo "Install this package version via:"
+          echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
+
+  publish-pypi-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ test-artifact-pkg ]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: ${{ matrix.folder }}
+
+      - name: Set envs
+        run: |
+          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
+            echo "PYPI_TOKEN=${{ secrets.PYPI_TOKEN }}" >> $GITHUB_ENV
+          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
+            echo "PYPI_TOKEN=${{ secrets.PYPI_AZURE_TOKEN }}" >> $GITHUB_ENV
+          fi
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ env.PYPI_TOKEN }}
+          packages_dir: ${{ matrix.folder }}/dist/
+
+  test-pypi-pkg:
+    runs-on: ubuntu-18.04
+    needs: [ publish-pypi-pkg ]
+    strategy:
+      matrix:
+        folder: [ hi-ml, hi-ml-azure ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Download package artifacts
+        id: download
+        uses: ./.github/actions/download_package_artifacts
+        with:
+          folder: ${{ matrix.folder }}
+
+      - name: Install dependencies
+        if: ${{ matrix.folder != 'hi-ml-azure' }}
+        run: |
+          cd hi-ml-azure
+
+          # Install local package in editable mode
+          make pip_local
+
+      - name: Install PyPI package and test
+        run: |
+          cd ${{ matrix.folder }}
+
+          make pip_upgrade
+
+          while ! pip install ${{ steps.download.outputs.package_version }}
+          do
+            echo waiting for pypi
+            sleep 10
+          done
+
+          # Test with pytest, fast only
+          make pytest_fast

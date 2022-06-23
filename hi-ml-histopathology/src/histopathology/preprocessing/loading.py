@@ -65,6 +65,7 @@ class LoadROId(MapTransform):
     - `SlideKey.SCALE` (float): corresponding scale, loaded from the file
     - `SlideKey.FOREGROUND_THRESHOLD` (float): threshold used to segment the foreground
     """
+
     def __init__(self, reader: WSIReader, image_key: str = SlideKey.IMAGE, level: int = 0,
                  margin: int = 0, foreground_threshold: Optional[float] = None) -> None:
         """

@@ -10,6 +10,9 @@
       "path": "hi-ml-histopathology"
     },
     {
+      "path": "multimodal"
+    },
+    {
       "path": ".",
       "name": "ROOT",
     },
@@ -31,7 +34,8 @@
         "type": "python",
         "request": "launch",
         "program": "${file}",
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
+        "justMyCode": false
       },
     ],
     "compounds": []
@@ -42,6 +46,7 @@
       "hi-ml/": true,
       "hi-ml-azure/": true,
       "hi-ml-histopathology/": true,
+      "multimodal/": true,
     },
     // The settings below are shared across all projects.
     // When making changes here, please ensure they are kept in sync
@@ -65,10 +70,7 @@
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
-    "python.linting.pylintEnabled": true,
-    "python.linting.pylintArgs": [
-      "--max-line-length=120",
-    ],
+    "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.mypyEnabled": true,
     "python.linting.pycodestyleEnabled": false,
@@ -92,10 +94,10 @@
     },
     "terminal.integrated.defaultProfile.windows": "Command Prompt",
     "terminal.integrated.env.windows": {
-      "PYTHONPATH": "${workspaceFolder}/hi-ml/src;${workspaceFolder}/hi-ml-azure/src;${workspaceFolder}/hi-ml-histopathology/src"
+      "PYTHONPATH": "${workspaceFolder:hi-ml-azure}/src;${workspaceFolder:hi-ml}/src;${workspaceFolder:hi-ml-histopathology}/src"
     },
     "terminal.integrated.env.linux": {
-      "PYTHONPATH": "${workspaceFolder}/hi-ml/src:${workspaceFolder}/hi-ml-azure/src:${workspaceFolder}/hi-ml-histopathology/src"
+      "PYTHONPATH": "${workspaceFolder:hi-ml-azure}/src:${workspaceFolder:hi-ml}/src:${workspaceFolder:hi-ml-histopathology}/src"
     },
     "workbench.colorCustomizations": {
       "activityBar.background": "#135511",

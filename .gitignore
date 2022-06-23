@@ -166,3 +166,5 @@ None/
 hi-ml-histopathology/testSSL/test_outputs
 test_outputs/
 lightning_logs/
+# Downloaded datasets
+TCGA-Crck/
