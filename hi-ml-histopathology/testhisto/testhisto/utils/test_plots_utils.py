@@ -58,7 +58,7 @@ def assert_plot_func_called_if_among_plot_options(
         },
     ],
 )
-def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption],) -> None:
+def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption]) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
     plots_handler.slides_dataset = MagicMock()
 
