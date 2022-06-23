@@ -19,8 +19,8 @@ def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]]
     Percentiles can be used to specify the range of values to remap.
     This is useful to discard outliers in the input data.
 
-    :param: array: Input array.
-    :param: percentiles: Percentiles of the input values that will be mapped to ``0`` and ``255``.
+    :param array: Input array.
+    :param percentiles: Percentiles of the input values that will be mapped to ``0`` and ``255``.
         Passing ``None`` is equivalent to using percentiles ``(0, 100)`` (but faster).
     :returns: Array with ``0`` and ``255`` as minimum and maximum values.
     """
@@ -51,7 +51,7 @@ def load_image(path: Path) -> Image.Image:
 
     The image values are remapped to :math:`[0, 255]` and cast to 8-bit unsigned integers.
 
-    :param: path: Path to image.
+    :param path: Path to image.
     :returns: Image as ``Pillow`` ``Image``.
     """
     # Although ITK supports JPEG and PNG, we use Pillow for consistency with older trained models
