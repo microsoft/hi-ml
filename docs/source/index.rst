@@ -50,7 +50,7 @@ The `hi-ml` toolbox provides
    :maxdepth: 1
    :caption: Multimodal learning
 
-   multimodal.md
+   package_description_multimodal.md
    api/multimodal.rst
 
 .. toctree::
