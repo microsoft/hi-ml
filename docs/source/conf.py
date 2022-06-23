@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../../hi-ml/src'))
 sys.path.insert(0, os.path.abspath('../../hi-ml-azure/src'))
 sys.path.insert(0, os.path.abspath('../../hi-ml-histopathology/src'))
+sys.path.insert(0, os.path.abspath('../../multimodal'))
 
 # -- Project information -----------------------------------------------------
 
