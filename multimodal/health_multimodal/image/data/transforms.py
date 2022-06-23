@@ -11,14 +11,14 @@ from torchvision.transforms import Compose, Resize, ToTensor, CenterCrop
 
 class ExpandChannels:
     """
-    Transforms an image with 1 channel to an image with 3 channels by copying pixel intensities of the image along
-    the 1st dimension.
+    Transforms an image with one channel to an image with three channels by copying
+    pixel intensities of the image along the 1st dimension.
     """
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         """
-        :param: data of shape [1, H, W]
-        :return: data with channel copied 3 times, shape [3, H, W]
+        :param data: Tensor of shape [1, H, W].
+        :return: Tensor with channel copied three times, shape [3, H, W].
         """
         if data.shape[0] != 1:
             raise ValueError(f"Expected input of shape [1, H, W], found {data.shape}")
@@ -28,6 +28,7 @@ class ExpandChannels:
 def create_chest_xray_transform_for_inference(resize: int, center_crop_size: int) -> Compose:
     """
     Defines the image transformation pipeline for Chest-Xray datasets.
+
     :param resize: The size to resize the image to. Linear resampling is used.
                    Resizing is applied on the axis with smaller shape.
     :param center_crop_size: The size to center crop the image to. Square crop is applied.
