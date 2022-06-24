@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Collection
 from unittest.mock import MagicMock, patch
 import pytest
-from histopathology.utils.naming import ModelKey, PlotOption
-from histopathology.utils.plots_utils import DeepMILPlotsHandler
+from histopathology.utils.naming import PlotOption, ResultsKey
+from histopathology.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 
@@ -58,9 +58,7 @@ def assert_plot_func_called_if_among_plot_options(
         },
     ],
 )
-def test_plots_handler_plots_only_desired_plot_options(
-    plot_options: Collection[PlotOption],
-) -> None:
+def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption]) -> None:
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
     plots_handler.slides_dataset = MagicMock()
 
@@ -75,7 +73,7 @@ def test_plots_handler_plots_only_desired_plot_options(
             with patch("histopathology.utils.plots_utils.save_scores_histogram") as mock_histogram:
                 with patch("histopathology.utils.plots_utils.save_confusion_matrix") as mock_conf:
                     plots_handler.save_plots(
-                        outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock(), stage=ModelKey.VAL
+                        outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock()
                     )
 
     calls_count = 0
@@ -87,3 +85,14 @@ def test_plots_handler_plots_only_desired_plot_options(
     calls_count += assert_plot_func_called_if_among_plot_options(mock_conf, PlotOption.CONFUSION_MATRIX, plot_options)
 
     assert calls_count == len(plot_options)
+
+
+def test_save_conf_matrix_integration(tmp_path: Path) -> None:
+    results = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PRED_LABEL: [0, 1, 0, 0, 0, 1]
+    }
+    class_names = ["foo", "bar"]
+    save_confusion_matrix(results, class_names, tmp_path)
+    file = Path(tmp_path) / "normalized_confusion_matrix.png"
+    assert file.exists()
