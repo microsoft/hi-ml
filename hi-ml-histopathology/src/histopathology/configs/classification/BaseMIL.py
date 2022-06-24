@@ -182,13 +182,13 @@ class BaseMIL(LightningContainer):
         return pooling_layer, num_features
 
     def get_test_plot_options(self) -> Set[PlotOption]:
+        options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
         if self.num_top_slides > 0:
-            return {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES}
-        else:
-            return {PlotOption.HISTOGRAM}
+            options.add(PlotOption.TOP_BOTTOM_TILES)
+        return options
 
     def get_val_plot_options(self) -> Set[PlotOption]:
-        return {PlotOption.HISTOGRAM}
+        return {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
         n_classes = self.data_module.train_dataset.N_CLASSES

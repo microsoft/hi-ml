@@ -2,11 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 import logging
 from pathlib import Path
 from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
-from torchmetrics.classification.confusion_matrix import ConfusionMatrix
+from sklearn.metrics import confusion_matrix
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.viz_utils import (
@@ -16,7 +15,7 @@ from histopathology.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
-from histopathology.utils.naming import ModelKey, PlotOption, ResultsKey, SlideKey
+from histopathology.utils.naming import PlotOption, ResultsKey, SlideKey
 from histopathology.utils.tiles_selection_utils import SlideNode, TilesSelector
 from histopathology.utils.viz_utils import load_image_dict, save_figure
 
@@ -47,23 +46,13 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
     save_figure(fig=fig, figpath=figures_dir / "hist_scores.png")
 
 
-def save_confusion_matrix(
-    conf_matrix_metric: ConfusionMatrix, class_names: Sequence[str], figures_dir: Path, stage: ModelKey
-) -> None:
+def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path) -> None:
     """Plots and saves confusion matrix figure in its dedicated directory.
 
-    :param conf_matrix_metric: The confustion metric to be used that depends on the number of classes.
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    # Note: this is going to be enabled in the next iteration.
-    logging.info("Computing and saving confusion matrix...")
-    cf_matrix = conf_matrix_metric.compute().cpu().numpy()
-    #  We can't log tensors in the normal way - just print it to console
-    logging.info(f"{stage}/confusion matrix:")
-    logging.info(cf_matrix)
-    #  Save the normalized confusion matrix as a figure in outputs
-    cf_matrix_n = cf_matrix / cf_matrix.sum(axis=1, keepdims=True)
+    cf_matrix_n = confusion_matrix(results[ResultsKey.TRUE_LABEL], results[ResultsKey.PRED_LABEL], normalize="pred")
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
@@ -145,7 +134,6 @@ class DeepMILPlotsHandler:
         tile_size: int = 224,
         num_columns: int = 4,
         figsize: Tuple[int, int] = (10, 10),
-        conf_matrix: Optional[ConfusionMatrix] = None,
         class_names: Optional[Sequence[str]] = None,
     ) -> None:
         """_summary_
@@ -156,7 +144,6 @@ class DeepMILPlotsHandler:
         :param tile_size: _description_, defaults to 224
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
-        :param conf_matrix: The confustion metric to be used that depends on the number of classes, defaults to None
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
         """
@@ -166,7 +153,6 @@ class DeepMILPlotsHandler:
         self.tile_size = tile_size
         self.num_columns = num_columns
         self.figsize = figsize
-        self.conf_matrix: Optional[ConfusionMatrix] = conf_matrix
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def save_slide_node_figures(
@@ -196,9 +182,7 @@ class DeepMILPlotsHandler:
                 level=self.level,
             )
 
-    def save_plots(
-        self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType, stage: ModelKey
-    ) -> None:
+    def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
         """Plots and saves all selected plot options during inference (validation or test) time.
 
         :param outputs_dir: The root output directory where to save plots figures.
@@ -214,10 +198,8 @@ class DeepMILPlotsHandler:
             save_scores_histogram(results=results, figures_dir=figures_dir)
 
         if PlotOption.CONFUSION_MATRIX in self.plot_options:
-            # TODO: Re-enable plotting confusion matrix without relying on metrics to avoid DDP deadlocks
-            # will be adressed in a seperate PR
             assert self.class_names
-            save_confusion_matrix(self.conf_matrix, class_names=self.class_names, figures_dir=figures_dir, stage=stage)
+            save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir)
 
         if tiles_selector:
             for class_id in range(tiles_selector.n_classes):
