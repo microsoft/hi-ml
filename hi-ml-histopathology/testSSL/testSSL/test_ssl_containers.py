@@ -108,7 +108,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
-# @pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=3)
 def test_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -137,12 +137,12 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8736934661865234,
-                        'ssl_online_evaluator/val/loss': 2.2684895992279053,
+    expected_metrics = {'simclr/val/loss': 2.8596301078796387,
+                        'ssl_online_evaluator/val/loss': 2.2664988040924072,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
                         'simclr/train/loss': 3.6261773109436035,
                         'simclr/learning_rate': 0.0,
-                        'ssl_online_evaluator/train/loss': 3.1140334606170654,
+                        'ssl_online_evaluator/train/loss': 3.212641954421997,
                         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
