@@ -18,7 +18,6 @@ from _pytest.capture import SysCapture
 from _pytest.logging import LogCaptureFixture
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
-from pytorch_lightning import Trainer
 
 from health_azure import RUN_CONTEXT, create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
