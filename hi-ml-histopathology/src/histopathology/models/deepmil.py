@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Any
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 
 import torch
@@ -46,7 +46,8 @@ class BaseDeepMILModule(LightningModule):
                  class_names: Optional[Sequence[str]] = None,
                  is_finetune: bool = False,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 chunk_size: int = 0) -> None:
+                 chunk_size: int = 0,
+                 max_epochs: int = 50) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -95,6 +96,7 @@ class BaseDeepMILModule(LightningModule):
 
         self.outputs_handler = outputs_handler
         self.chunk_size = chunk_size
+        self.max_epochs = max_epochs
 
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
@@ -188,9 +190,13 @@ class BaseDeepMILModule(LightningModule):
         bag_logit = self.classifier_fn(bag_features)
         return bag_logit, attentions
 
-    def configure_optimizers(self) -> optim.Optimizer:
-        return optim.Adam(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay,
-                          betas=self.adam_betas)
+    # def configure_optimizers(self) -> optim.Optimizer:
+    #     return optim.Adam(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay,
+    #                       betas=self.adam_betas)
+    def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
+        optimizer = optim.AdamW(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.max_epochs, eta_min=0)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')

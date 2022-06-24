@@ -14,7 +14,7 @@ damage response defect classification directly from H&E whole-slide images. arXi
 from typing import Any
 from pathlib import Path
 
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
@@ -35,7 +35,7 @@ class DeepSMILECrck(BaseMILTiles):
             # declared in BaseMIL:
             pool_type=AttentionLayer.__name__,
             num_transformer_pool_layers=4,
-            num_transformer_pool_heads=4,
+            num_transformer_pool_heads=8,
             encoding_chunk_size=60,
             is_finetune=False,
             is_caching=True,
@@ -48,8 +48,8 @@ class DeepSMILECrck(BaseMILTiles):
             # declared in WorkflowParams:
             crossval_count=5,
             # declared in OptimizerParams:
-            l_rate=5e-4,
-            weight_decay=1e-4,
+            l_rate=3e-4,
+            weight_decay=0,
             adam_betas=(0.9, 0.99),
         )
         default_kwargs.update(kwargs)
@@ -59,6 +59,13 @@ class DeepSMILECrck(BaseMILTiles):
         if self.encoder_type == SSLEncoder.__name__:
             from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
             self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_crck_4ws)
+        if self.pool_type == TransformerPoolingBenchmark.__name__:
+            self.l_rate = 3e-5
+            self.weight_decay = 0.0001
+        # Params specific to fine-tuning
+        if self.is_finetune:
+            self.batch_size = 2
+            self.encoding_chunk_size = 60
         super().setup()
 
     def get_data_module(self) -> TilesDataModule:
