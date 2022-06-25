@@ -39,9 +39,9 @@ flake8:
 
 # run mypy, assuming test requirements already installed
 mypy:
-	mypy --install-types --non-interactive setup.py
-	mypy --install-types --non-interactive -p health_multimodal
-	mypy --install-types --non-interactive -p test_multimodal
+	mypy --install-types --show-error-codes --non-interactive setup.py
+	mypy --install-types --show-error-codes --non-interactive --package health_multimodal
+	mypy --install-types --show-error-codes --non-interactive --package test_multimodal
 
 # run pytest on package, assuming test requirements already installed
 pytest:
@@ -57,3 +57,8 @@ pyright:
 
 # run basic checks
 check: flake8 mypy pyright
+
+# run notebooks to ensure there are no errors
+notebooks: pip_test
+	ipython kernel install --name "python3" --user
+	papermill notebooks/phrase_grounding.ipynb /tmp/phrase_grounding_output.ipynb

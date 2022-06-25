@@ -25,7 +25,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azureml._restclient.constants import RunStatus
-from azureml.core import ComputeTarget, Dataset, Environment, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -35,7 +35,8 @@ from health_azure.datasets import (
     DatasetConfig,
     _input_dataset_key,
     _output_dataset_key,
-    get_datastore
+    get_datastore,
+    setup_local_datasets
 )
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
@@ -780,7 +781,8 @@ def render_and_run_test_script(path: Path,
                                extra_options: Dict[str, Any],
                                extra_args: List[str],
                                expected_pass: bool,
-                               suppress_config_creation: bool = False) -> str:
+                               suppress_config_creation: bool = False,
+                               upload_package: bool = True) -> str:
     """
     Prepare test scripts, submit them, and return response.
 
@@ -790,6 +792,8 @@ def render_and_run_test_script(path: Path,
     :param extra_args: Extra command line arguments for calling script.
     :param expected_pass: Whether this call to subprocess is expected to be successful.
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
+    :param upload_package: If True, upload the current package version to the AzureML docker image. If False,
+      skip uploading. Use only if the script does not use hi-ml.
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     path.mkdir(exist_ok=True)
@@ -809,17 +813,17 @@ def render_and_run_test_script(path: Path,
             last_whl = whls[-1]
             himl_wheel_filename = str(last_whl)
 
-    if himl_wheel_filename:
+    if himl_wheel_filename and upload_package:
         # Testing against a private wheel.
         himl_wheel_filename_full_path = str(Path(himl_wheel_filename).resolve())
         extra_options['private_pip_wheel_path'] = f'Path("{himl_wheel_filename_full_path}")'
         print(f"Added private_pip_wheel_path: {himl_wheel_filename_full_path} option")
-    elif himl_test_pypi_version:
+    elif himl_test_pypi_version and upload_package:
         # Testing against test.pypi, add this as the pip_extra_index_url, and set the version.
         extra_options['pip_extra_index_url'] = "https://test.pypi.org/simple/"
         version = himl_test_pypi_version
         print(f"Added test.pypi: {himl_test_pypi_version} option")
-    elif himl_pypi_version:
+    elif himl_pypi_version and upload_package:
         # Testing against pypi, set the version.
         version = himl_pypi_version
         print(f"Added pypi: {himl_pypi_version} option")
@@ -1010,53 +1014,45 @@ import sys""",
     assert expected_output in output
 
 
-@pytest.mark.timeout(300)
-def test_mounting_dataset(tmp_path: Path) -> None:
+def _assert_hello_world_files_exist(folder: Path) -> None:
+    """Check if the .csv files in the hello_world dataset exist in the given folder."""
+    files = []
+    for file in folder.rglob("*.csv"):
+        file_relative = file.relative_to(folder)
+        logging.info(f"File {file_relative}: size: {file.stat().st_size}")
+        files.append(str(file_relative))
+    assert set(files) == {
+        "dataset.csv",
+        "train_and_test_data/metrics.csv",
+        "train_and_test_data/metrics_aggregates.csv",
+        "train_and_test_data/scalar_epoch_metrics.csv",
+        "train_and_test_data/scalar_prediction_target_metrics.csv"
+    }
+
+
+@pytest.mark.timeout(120)
+def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
     with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         logging.info("get_workspace")
         workspace = get_workspace(aml_workspace=None,
                                   workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_mount" / "panda"
-        target_path.mkdir(parents=True)
-        existing_mounted = os.listdir(target_path)
-        assert len(existing_mounted) == 0
-        logging.info("ready to mount")
-        with dataset.mount(str(target_path)) as mount_context:
-            mount_point = Path(mount_context.mount_point)
-            logging.info("mount done, run listdir")
-            mounted = os.listdir(mount_point)
-            logging.info(f"mounted: {mounted}")
-            assert len(mounted) > 1
-            for image_file in (mount_point / subfolder).glob("*.tiff"):
-                logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
-
-
-@pytest.mark.timeout(60)
-def test_downloading_dataset(tmp_path: Path) -> None:
-    logging.info("creating config.json")
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        logging.info("get_workspace")
-        workspace = get_workspace(aml_workspace=None,
-                                  workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        logging.info("Dataset.get_by_name")
-        dataset = Dataset.get_by_name(workspace, name='panda')
-        subfolder = "train_images"
-        target_path = tmp_path / "test_download" / "panda"
-        target_path.mkdir(parents=True)
-        existing_downloaded = os.listdir(target_path)
-        assert len(existing_downloaded) == 0
-        logging.info("ready to download")
-        dataset.download(target_path=str(target_path), overwrite=False)
-        logging.info("download done, run listdir")
-        downloaded = os.listdir(target_path)
-        logging.info(f"downloaded: {downloaded}")
-        assert len(downloaded) > 1
-        for image_file in (target_path / subfolder).glob("*.tiff"):
-            logging.info(f"image_file: {str(image_file)}, size: {image_file.stat().st_size}")
+        # Loop inside the test because getting the workspace is quite time-consuming
+        for use_mounting in [True, False]:
+            logging.info(f"use_mounting={use_mounting}")
+            action = "mount" if use_mounting else "download"
+            target_path = tmp_path / action
+            dataset_config = DatasetConfig(name="hello_world",
+                                           use_mounting=use_mounting,
+                                           target_folder=target_path)
+            logging.info(f"ready to {action}")
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], aml_workspace=workspace)
+            logging.info(f"{action} done")
+            path = paths[0]
+            assert path is not None
+            _assert_hello_world_files_exist(path)
+            for mount_context in mount_contexts:
+                mount_context.stop()
 
 
 def _create_test_file_in_blobstore(datastore: AzureBlobDatastore,

@@ -62,7 +62,7 @@ install_requires = (here / 'requirements_run.txt').read_text().split("\n")
 # Remove any whitespace and blank lines
 install_requires = [line.strip() for line in install_requires if line.strip()]
 
-description = 'Microsoft Health Intelligence package to work with multi-modal health data'
+description = 'Microsoft Health Futures package to work with multi-modal health data'
 
 setup(
     name=package_name,
