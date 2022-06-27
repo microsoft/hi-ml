@@ -28,15 +28,14 @@ def check_patch_location_format(batch):
     faulty_slides_idx = []
     for slide_data in batch:
         for patch in slide_data:
-            location = patch[WSIPatchKeys.LOCATION]
-            if len(location) < 3:
-                # print(f'Slide {patch[SlideKey.SLIDE_ID]} '
-                #      f'will be skipped as its patches contained unexpected patch_location values: {location}')
+            location = patch[SlideKey.PATCH_LOCATION]
+            if not isinstance(location[0], np.uint8):
+                # we assume the location is 2d [y, x] but MONAI sometimes returns [[0], [0]] instead
                 faulty_slides_idx.append(patch[SlideKey.SLIDE_ID])
                 break
     n = len(faulty_slides_idx)
     if n > 0:
-        logging.warning(f'{n} slides will be skipped because somethign was wrong in the patch location')
+        logging.warning(f'{n} slides will be skipped because something was wrong in the patch location')
     return faulty_slides_idx
 
 
@@ -63,11 +62,15 @@ def array_collate(batch: List) -> Any:
     for patch_data in batch:
         # we assume all patches are dictionaries with the same keys
         data = patch_data[0]
-        # this is necesseary to overcome bug in RandGRidPatch, if one patch has faulty location the all slide is skipped
+        # this is necessary to overcome bug in RandGRidPatch, if one patch has faulty location the all slide is skipped
         if data[SlideKey.SLIDE_ID] not in skip_idx:
             for key in collate_keys:
-                data[key] = np.array([ix[key] for ix in patch_data])
+                if key == SlideKey.PATCH_LOCATION:
+                    data[key] = np.array([ix[key] for ix in patch_data if type(ix[key][0]) == np.uint8])
+                else:
+                    data[key] = np.array([ix[key] for ix in patch_data])
             for key in tensor_keys:
                 data[key] = torch.tensor(data[key])
             new_batch.append(data)
-    return multibag_collate(new_batch)
+            batch = new_batch
+    return multibag_collate(batch)

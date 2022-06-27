@@ -72,6 +72,11 @@
                 "--num_top_slides=2",
                 "--num_top_tiles=2",
                 "--max_num_gpus=1",
+                "--max_epochs 2",
+                "--pl_limit_train_batches 20",
+                "--pl_limit_test_batches 20",
+                "--pl_limit_val_batches 20"
+
             ],
             "console": "integratedTerminal",
         },
