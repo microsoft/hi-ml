@@ -21,7 +21,7 @@ class ResNetHIML(ResNet):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x0 = self.conv1(x)
         x0 = self.bn1(x0)
         x0 = self.relu(x0)
