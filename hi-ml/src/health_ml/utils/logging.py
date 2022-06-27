@@ -208,25 +208,13 @@ class AzureMLProgressBar(ProgressBarBase):
 
     @property
     def total_test_batches(self) -> int:
-        """The total number of testing batches during testing, which may change from epoch to epoch.
-
-        Use this to set the total number of iterations in the progress bar. Can return ``inf`` if the test dataloader is
-        of infinite size.
-        """
-
         assert self._trainer is not None
-        return sum(self.trainer.num_test_batches)
+        return sum(self.trainer.num_test_batches)  # type: ignore
 
     @property
     def total_predict_batches(self) -> int:
-        """The total number of predicting batches during testing, which may change from epoch to epoch.
-
-        Use this to set the total number of iterations in the progress bar. Can return ``inf`` if the predict dataloader
-        is of infinite size.
-        """
-
         assert self._trainer is not None
-        return sum(self.trainer.num_predict_batches)
+        return sum(self.trainer.num_predict_batches)  # type: ignore
 
     def disable(self) -> None:
         self._enabled = False
