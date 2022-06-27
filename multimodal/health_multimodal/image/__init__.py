@@ -21,6 +21,7 @@
 
    model
    modules
+   resnet
 """
 
 from .model.model import ImageModel, ResnetType
