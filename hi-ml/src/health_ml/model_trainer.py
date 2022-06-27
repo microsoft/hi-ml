@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Tuple, TypeVar
 from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
@@ -86,7 +86,7 @@ def create_lightning_trainer(container: LightningContainer,
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            strategy = DDPStrategy(find_unused_parameters=container.pl_find_unused_parameters)
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
@@ -117,7 +117,7 @@ def create_lightning_trainer(container: LightningContainer,
                                                save_top_k=0)
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
                                                    filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
-                                                   every_n_val_epochs=container.autosave_every_n_val_epochs,
+                                                   every_n_epochs=container.autosave_every_n_val_epochs,
                                                    save_last=False)
     callbacks: List[Callback] = [
         last_checkpoint_callback,
@@ -172,7 +172,7 @@ def create_lightning_trainer(container: LightningContainer,
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
                       limit_test_batches=container.pl_limit_test_batches or 1.0,
-                      fast_dev_run=container.pl_fast_dev_run,
+                      fast_dev_run=container.pl_fast_dev_run,  # type: ignore
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,

@@ -19,7 +19,7 @@ dependencies:
       - pandas==1.3.4
       - pre-commit==2.19.0
       - protobuf==3.20.1
-      - pytorch-lightning==1.5.5
+      - pytorch-lightning>=1.6.0, <1.7
       - rpdb==0.1.6
       - setuptools==59.5.0
       # Run requirements for hi-ml-azure
@@ -52,7 +52,7 @@ dependencies:
       - pydicom==2.0.0
       - pyflakes==2.2.0
       - PyJWT==1.7.1
-      - rich==5.1.1
+      - rich==12.4.4
       - runstats==1.8.0
       - scikit-image==0.17.2
       - scipy==1.5.2

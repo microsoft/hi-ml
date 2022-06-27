@@ -104,7 +104,7 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         else:
             raise ValueError("Unable to retrieve the accelerator information")
         if accelerator.is_distributed:
-            if accelerator.use_ddp:
+            if accelerator.strategy.strategy_name == "ddp":
                 self.evaluator = SyncBatchNorm.convert_sync_batchnorm(self.evaluator)
                 self.evaluator = DistributedDataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
             else:
