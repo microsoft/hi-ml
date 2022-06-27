@@ -354,7 +354,6 @@ def test_progress_bar_enable() -> None:
 
 def test_progress_bar(capsys: SysCapture) -> None:
     bar = AzureMLProgressBar(refresh_rate=1)
-    bar._current_eval_dataloader_idx = 0
     mock_module = mock.MagicMock(global_step=34)
     mock_trainer = mock.MagicMock(current_epoch=12,
                                   lightning_module=mock_module,

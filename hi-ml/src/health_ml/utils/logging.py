@@ -38,7 +38,7 @@ class AzureMLLogger(LightningLoggerBase):
     """
 
     def __init__(self,
-                 enable_logging_outside_azure_ml: bool,
+                 enable_logging_outside_azure_ml: Optional[bool] = False,
                  experiment_name: str = "azureml_logger",
                  run_name: Optional[str] = None,
                  workspace: Optional[Workspace] = None,
@@ -48,7 +48,8 @@ class AzureMLLogger(LightningLoggerBase):
         """
         :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
         executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
-        the logger will only write metrics to AzureML if the code is actually running inside of AzureML.
+        the logger will only write metrics to AzureML if the code is actually running inside of AzureML. Default False,
+        do not log outside of AzureML.
         :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
         :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI). This
         argument only matters when running outside of AzureML.
@@ -205,6 +206,28 @@ class AzureMLProgressBar(ProgressBarBase):
     def is_disabled(self) -> bool:
         return not self.is_enabled
 
+    @property
+    def total_test_batches(self) -> int:
+        """The total number of testing batches during testing, which may change from epoch to epoch.
+
+        Use this to set the total number of iterations in the progress bar. Can return ``inf`` if the test dataloader is
+        of infinite size.
+        """
+
+        assert self._trainer is not None
+        return sum(self.trainer.num_test_batches)
+
+    @property
+    def total_predict_batches(self) -> int:
+        """The total number of predicting batches during testing, which may change from epoch to epoch.
+
+        Use this to set the total number of iterations in the progress bar. Can return ``inf`` if the predict dataloader
+        is of infinite size.
+        """
+
+        assert self._trainer is not None
+        return sum(self.trainer.num_predict_batches)
+
     def disable(self) -> None:
         self._enabled = False
 
@@ -221,11 +244,11 @@ class AzureMLProgressBar(ProgressBarBase):
 
     def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
-        self.start_stage(self.PROGRESS_STAGE_TEST, self.total_test_batches_current_dataloader)
+        self.start_stage(self.PROGRESS_STAGE_TEST, self.total_test_batches)
 
     def on_predict_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_predict_epoch_start(trainer, pl_module)
-        self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches_current_dataloader)
+        self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches)
 
     def start_stage(self, stage: str, total_num_batches: Union[int, float]) -> None:
         """
