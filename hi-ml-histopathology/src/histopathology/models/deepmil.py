@@ -261,7 +261,7 @@ class BaseDeepMILModule(LightningModule):
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
         if (
-            (stage == ModelKey.TEST or self.additional_val_epoch)
+            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self.additional_val_epoch))
             and self.outputs_handler
             and self.outputs_handler.tiles_selector
         ):
