@@ -6,7 +6,7 @@
 import os
 import torch
 import param
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from torch import nn
 from pathlib import Path
@@ -33,7 +33,8 @@ from histopathology.models.encoders import (
     SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
-from histopathology.utils.naming import MetricsKey, SlideKey, ModelKey
+from histopathology.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
+from histopathology.utils.tiles_selection_utils import TilesSelector
 
 
 class BaseMIL(LightningContainer):
@@ -181,17 +182,33 @@ class BaseMIL(LightningContainer):
         num_features = num_encoding * self.pool_out_dim
         return pooling_layer, num_features
 
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
+        if self.num_top_slides > 0:
+            options.add(PlotOption.TOP_BOTTOM_TILES)
+        return options
+
+    def get_val_plot_options(self) -> Set[PlotOption]:
+        return {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
+
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
-        return DeepMILOutputsHandler(outputs_root=self.outputs_folder,
-                                     n_classes=self.data_module.train_dataset.N_CLASSES,
-                                     tile_size=self.tile_size,
-                                     level=self.level,
-                                     class_names=self.class_names,
-                                     primary_val_metric=self.primary_val_metric,
-                                     maximise=self.maximise_primary_metric,
-                                     save_output_slides=self.save_output_slides,
-                                     num_top_slides=self.num_top_slides,
-                                     num_top_tiles=self.num_top_tiles)
+        n_classes = self.data_module.train_dataset.N_CLASSES
+        outputs_handler = DeepMILOutputsHandler(
+            outputs_root=self.outputs_folder,
+            n_classes=n_classes,
+            tile_size=self.tile_size,
+            level=self.level,
+            class_names=self.class_names,
+            primary_val_metric=self.primary_val_metric,
+            maximise=self.maximise_primary_metric,
+            val_plot_options=self.get_val_plot_options(),
+            test_plot_options=self.get_test_plot_options(),
+        )
+        if self.num_top_slides > 0:
+            outputs_handler.tiles_selector = TilesSelector(
+                n_classes=n_classes, num_slides=self.num_top_slides, num_tiles=self.num_top_tiles
+            )
+        return outputs_handler
 
     def get_model_encoder(self) -> TileEncoder:
         model_encoder = self.encoder
@@ -244,6 +261,10 @@ class BaseMIL(LightningContainer):
         return dataloader_kwargs
 
     def get_transforms_dict(self, image_key: str) -> Optional[Dict[ModelKey, Union[Callable, None]]]:
+        """Returns the image transforms that the training, validation, and test dataloaders should use.
+
+        For reproducible results, those may need to be made deterministic via setting a fixed
+        random see. See `SlidesDataModule` for an example how to achieve that."""
         return None
 
     def create_model(self) -> BaseDeepMILModule:
@@ -328,7 +349,7 @@ class BaseMILTiles(BaseMIL):
                                             class_names=self.class_names,
                                             outputs_handler=outputs_handler,
                                             chunk_size=self.encoding_chunk_size)
-        outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
 
@@ -371,5 +392,5 @@ class BaseMILSlides(BaseMIL):
                                              is_finetune=self.is_finetune,
                                              class_names=self.class_names,
                                              outputs_handler=outputs_handler)
-        outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module

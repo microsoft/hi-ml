@@ -38,7 +38,8 @@ class DeepSMILECrck(BaseMILTiles):
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
             is_finetune=False,
-            is_caching=False,
+            is_caching=True,
+            num_top_slides=0,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
@@ -73,6 +74,7 @@ class DeepSMILECrck(BaseMILTiles):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
+            seed=self.get_effective_random_seed(),
         )
 
 

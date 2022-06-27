@@ -176,11 +176,17 @@ class WorkflowParams(param.Parameterized):
 
     def get_effective_random_seed(self) -> int:
         """
-        Returns the random seed set as part of this configuration.
-
+        Returns the random seed set as part of this configuration. If the configuration corresponds
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
         :return:
         """
         seed = self.random_seed
+        if self.is_crossvalidation_enabled:
+            # Offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state. Cross validation index 0 will have
+            # a different seed from a non cross validation run.
+            seed += self.crossval_index + 1
         return seed
 
     @property
