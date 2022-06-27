@@ -23,6 +23,8 @@ from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
                                           change_working_directory)
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_azure.logging import logging_section
+
 
 T = TypeVar('T')
 
@@ -254,6 +256,12 @@ def model_train(checkpoint_path: Optional[Path],
         trainer.fit(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
+
+    if container.additional_val_epoch and hasattr(lightning_model, "additional_val_epoch"):
+        with logging_section("Additional validation"):
+            lightning_model.additional_val_epoch = True
+            trainer.fit_loop.max_epochs += 1
+            trainer.validate(lightning_model, datamodule=data_module)
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set

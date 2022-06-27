@@ -266,7 +266,7 @@ class BaseDeepMILModule(LightningModule):
             and self.outputs_handler
             and self.outputs_handler.tiles_selector
         ):
-            self.outputs_handler.tiles_handler.update_slides_selection(batch, results)
+            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -296,12 +296,15 @@ class BaseDeepMILModule(LightningModule):
         self.log_metrics(ModelKey.VAL)
         if self.outputs_handler:
             logging.info(f"VALIDATION additional_val_epoch {self.additional_val_epoch}")
+            if self.additional_val_epoch:
+                self.outputs_handler.val_plots_handler.plot_options = (
+                    self.outputs_handler.test_plots_handler.plot_options
+                )
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
-                is_global_rank_zero=self.global_rank == 0,
-                save_plots=self.additional_val_epoch
+                is_global_rank_zero=self.global_rank == 0
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
