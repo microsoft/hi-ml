@@ -10,8 +10,8 @@ from typing import Any, Optional, Tuple, Union, Sequence
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pl_bolts.models.self_supervised.resnets import resnet18, resnet50
 
+from .resnet import resnet18, resnet50
 from .modules import MLP, MultiTaskModel
 
 TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
@@ -118,14 +118,13 @@ class ImageEncoder(nn.Module):
         if self.img_model_type not in supported:
             raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
         encoder_class = resnet18 if self.img_model_type == ResnetType.RESNET18 else resnet50
-        encoder = encoder_class(return_all_feature_maps=True, pretrained=True, **kwargs)
+        encoder = encoder_class(pretrained=True, **kwargs)
         return encoder
 
     def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> TypeImageEncoder:
         """Image encoder forward pass."""
 
         x = self.encoder(x)
-        x = x[-1] if isinstance(x, list) else x
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)), 1)
         if return_patch_embeddings:
             return x, avg_pooled_emb
