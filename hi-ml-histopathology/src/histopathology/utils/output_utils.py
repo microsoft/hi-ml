@@ -295,7 +295,7 @@ class DeepMILOutputsHandler:
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
 
-    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, save_plots: bool = False) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
@@ -316,7 +316,7 @@ class DeepMILOutputsHandler:
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True, save_plots: bool = False) -> None:
+                                epoch: int, is_global_rank_zero: bool = True) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
