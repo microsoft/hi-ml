@@ -12,8 +12,8 @@ from torchvision.models.utils import load_state_dict_from_url
 
 
 class ResNetHIML(ResNet):
-    """
-    Wrapper class of the original torchvision ResNet model.
+    """Wrapper class of the original torchvision ResNet model.
+
     The forward function is updated to return the penultimate layer
     activations, which are required to obtain image patch embeddings.
     """
@@ -37,8 +37,9 @@ class ResNetHIML(ResNet):
 
 def _resnet(arch: str, block: Type[Union[BasicBlock, Bottleneck]], layers: List[int],
             pretrained: bool, progress: bool, **kwargs: Any) -> ResNetHIML:
-    """
-    Adapted from torchvision.models.resnet -- Instantiates a custom ResNet model.
+    """Instantiate a custom :class:`ResNet` model.
+
+    Adapted from :mod:`torchvision.models.resnet`.
     """
     model = ResNetHIML(block=block, layers=layers, **kwargs)
     if pretrained:
@@ -51,9 +52,8 @@ def resnet18(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
+    :param pretrained: If ``True``, returns a model pre-trained on ImageNet.
+    :param progress: If ``True``, displays a progress bar of the download to ``stderr``.
     """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress, **kwargs)
 
@@ -62,8 +62,7 @@ def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
+    :param pretrained: If ``True``, returns a model pre-trained on ImageNet
+    :param progress: If ``True``, displays a progress bar of the download to ``stderr``.
     """
     return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
