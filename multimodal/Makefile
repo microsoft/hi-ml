@@ -57,3 +57,8 @@ pyright:
 
 # run basic checks
 check: flake8 mypy pyright
+
+# run notebooks to ensure there are no errors
+notebooks: pip_test
+	ipython kernel install --name "python3" --user
+	papermill notebooks/phrase_grounding.ipynb /tmp/phrase_grounding_output.ipynb
