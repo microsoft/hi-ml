@@ -43,7 +43,7 @@ def ml_runner_with_container() -> Generator:
         shutil.rmtree(output_dir)
 
 
-def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
+def _mock_model_train(chekpoint_path: Path, container: LightningContainer, num_nodes: int) -> Tuple[str, str]:
     return "trainer", "storing_logger"
 
 
