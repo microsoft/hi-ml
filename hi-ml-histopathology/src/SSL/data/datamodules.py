@@ -63,15 +63,15 @@ class HimlVisionDataModule(VisionDataModule):
         self.class_weights: Optional[torch.Tensor] = None
         # In setup() VisionDataModule expects the extra arguments to be passed to the dataset class init
         # via the self.EXTRA_ARGS attribute
-        self.EXTRA_ARGS = {"return_index": return_index}
+        self.EXTRA_ARGS = {"return_index": return_index, "download": True}
 
     def prepare_data(self) -> None:
         """
         Initializes the dataset class, and in the case of CIFAR dataset, optionally downloads the data from URL to
         local data_dir.
         """
-        self.dataset_cls(self.data_dir, train=True, download=True, **self.EXTRA_ARGS)
-        self.dataset_cls(self.data_dir, train=False, download=True, **self.EXTRA_ARGS)
+        self.dataset_cls(self.data_dir, train=True, **self.EXTRA_ARGS)
+        self.dataset_cls(self.data_dir, train=False, **self.EXTRA_ARGS)
 
     def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
         """

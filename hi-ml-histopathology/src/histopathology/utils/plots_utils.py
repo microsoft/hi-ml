@@ -41,7 +41,6 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
     :param results: List that contains slide_level dicts
     :param figures_dir: The path to the directory where to save the histogram scores.
     """
-    logging.info("Plotting histogram ...")
     fig = plot_scores_hist(results)
     save_figure(fig=fig, figpath=figures_dir / "hist_scores.png")
 
