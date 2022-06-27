@@ -316,7 +316,8 @@ class DeepMILOutputsHandler:
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True) -> None:
+                                epoch: int, is_global_rank_zero: bool = True, additional_val_epoch: bool = False
+                                ) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
@@ -332,7 +333,10 @@ class DeepMILOutputsHandler:
             self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs
-        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
+        if (
+            self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero)
+            or additional_val_epoch
+        ):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():

@@ -258,9 +258,8 @@ def model_train(checkpoint_path: Optional[Path],
     trainer.logger.finalize('success')
 
     if container.additional_val_epoch and hasattr(lightning_model, "additional_val_epoch"):
-        with logging_section("Additional validation"):
+        with logging_section("Additional validation epoch"):
             lightning_model.additional_val_epoch = True
-            trainer.fit_loop.max_epochs += 1
             trainer.validate(lightning_model, datamodule=data_module)
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.

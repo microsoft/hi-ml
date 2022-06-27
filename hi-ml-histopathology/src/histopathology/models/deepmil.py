@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 
@@ -289,13 +288,12 @@ class BaseDeepMILModule(LightningModule):
                  sync_dist=True)
         return test_result
 
-    def training_epoch_end(self, outputs: EpochResultsType) -> None:
+    def training_epoch_end(self, outputs: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.VAL)
         if self.outputs_handler:
-            logging.info(f"VALIDATION additional_val_epoch {self.additional_val_epoch}")
             if self.additional_val_epoch:
                 self.outputs_handler.val_plots_handler.plot_options = (
                     self.outputs_handler.test_plots_handler.plot_options
@@ -304,7 +302,8 @@ class BaseDeepMILModule(LightningModule):
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
-                is_global_rank_zero=self.global_rank == 0
+                is_global_rank_zero=self.global_rank == 0,
+                additional_val_epoch=self.additional_val_epoch
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
