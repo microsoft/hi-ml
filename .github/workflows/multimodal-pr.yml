@@ -30,7 +30,7 @@ jobs:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -48,7 +48,7 @@ jobs:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -66,7 +66,7 @@ jobs:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
