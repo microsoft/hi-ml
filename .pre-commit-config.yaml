@@ -45,10 +45,10 @@ repos:
     files: ^hi-ml-histopathology/
     args: [--config, hi-ml-histopathology/.flake8]
   - id: flake8
-    name: flake8 ./multimodal/
-    alias: flake8-multimodal
-    files: ^multimodal/
-    args: [--config, multimodal/.flake8]
+    name: flake8 ./hi-ml-multimodal/
+    alias: flake8-hi-ml-multimodal
+    files: ^hi-ml-multimodal/
+    args: [--config, hi-ml-multimodal/.flake8]
 
 - repo: https://github.com/pre-commit/mirrors-autopep8
   rev: v1.5.7
