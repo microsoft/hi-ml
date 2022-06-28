@@ -210,7 +210,6 @@ def model_train(checkpoint_handler: Optional[CheckpointHandler],
     fitting other models.
     """
     checkpoint_path = checkpoint_handler.get_recovery_or_checkpoint_path_train() if checkpoint_handler else None
-
     lightning_model = container.model
 
     # Execute some bookkeeping tasks only once if running distributed:
