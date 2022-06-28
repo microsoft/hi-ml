@@ -84,7 +84,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-18.04
-    needs: pytest
+    needs: [ flake8, mypy, pytest ]
     steps:
       - uses: actions/checkout@v2
         with:
