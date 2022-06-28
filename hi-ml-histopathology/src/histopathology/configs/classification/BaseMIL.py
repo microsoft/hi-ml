@@ -189,7 +189,7 @@ class BaseMIL(LightningContainer):
         return options
 
     def get_val_plot_options(self) -> Set[PlotOption]:
-        return {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
+        return set()
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
         n_classes = self.data_module.train_dataset.N_CLASSES
