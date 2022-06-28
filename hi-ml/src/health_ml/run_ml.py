@@ -147,8 +147,7 @@ class MLRunner:
 
         # do training
         with logging_section("Model training"):
-            checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            _, storing_logger = model_train(checkpoint_path,
+            _, storing_logger = model_train(checkpoint_handler=self.checkpoint_handler,
                                             container=self.container, num_nodes=self.container.num_nodes)
             self.storing_logger = storing_logger
 

@@ -203,7 +203,7 @@ def test_model_train(additional_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
     container.additional_val_epoch = additional_val_epoch
-    container.model.additional_val_epoch = additional_val_epoch
+    container.model.additional_val_epoch = additional_val_epoch  # type: ignore
 
     with patch.object(container, "get_data_module"):
         with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
@@ -215,8 +215,8 @@ def test_model_train(additional_val_epoch: bool) -> None:
             mock_trainer.validate = Mock()
             mock_close_logger = Mock()
             mock_trainer.logger = MagicMock(close=mock_close_logger)
-            checkpoint_path = None
-            trainer, storing_logger = model_train(checkpoint_path, container)
+            checkpoint_handler = None
+            trainer, storing_logger = model_train(checkpoint_handler, container)
 
             mock_trainer.fit.assert_called_once()
             assert mock_trainer.validate.called == additional_val_epoch
