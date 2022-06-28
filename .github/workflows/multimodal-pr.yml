@@ -90,6 +90,11 @@ jobs:
         with:
           lfs: true
 
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.pythonVersion }}
+
       - name: Install pypa/build
         run: pip install build
 
