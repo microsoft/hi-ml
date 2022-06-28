@@ -45,7 +45,7 @@ def ml_runner_with_container() -> Generator:
 
 
 def _mock_model_train(
-    chekpoint_handler: CheckpointHandler, container: LightningContainer, num_nodes: int
+    checkpoint_handler: CheckpointHandler, container: LightningContainer, num_nodes: int
 ) -> Tuple[str, str]:
     return "trainer", "storing_logger"
 
