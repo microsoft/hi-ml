@@ -260,7 +260,7 @@ def model_train(checkpoint_handler: Optional[CheckpointHandler],
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 
-    if container.run_extra_val_epoch and hasattr(lightning_model, "run_extra_val_epoch"):
+    if container.run_extra_val_epoch:
         if checkpoint_handler:
             checkpoint_handler.additional_training_done()
             checkpoint_path_for_inference = checkpoint_handler.get_checkpoint_to_test()
@@ -268,6 +268,8 @@ def model_train(checkpoint_handler: Optional[CheckpointHandler],
             lightning_model = container.model
 
         with logging_section("Additional validation epoch"):
+            assert hasattr(lightning_model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
+            "This is required for running an additional validation epoch to save plots."
             lightning_model.run_extra_val_epoch = True  # type: ignore
             trainer.validate(lightning_model, datamodule=data_module)
 
