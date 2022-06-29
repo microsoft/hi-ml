@@ -9,6 +9,7 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 
 
 @pytest.fixture(scope="module")
@@ -43,7 +44,9 @@ def ml_runner_with_container() -> Generator:
         shutil.rmtree(output_dir)
 
 
-def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
+def _mock_model_train(
+    checkpoint_handler: CheckpointHandler, container: LightningContainer, num_nodes: int
+) -> Tuple[str, str]:
     return "trainer", "storing_logger"
 
 
