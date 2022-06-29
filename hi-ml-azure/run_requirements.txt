@@ -1,8 +1,9 @@
 azure-core<2.0.0,>=1.23.0
 azureml-core==1.43.0
 azureml-dataset-runtime[fuse]
-azureml-train-core==1.42.0
 azureml-tensorboard==1.42.0
+azureml-telemetry==1.43.0
+azureml-train-core==1.42.0
 conda-merge>=0.1.5
 pandas>=1.3.4
 param>=1.12
