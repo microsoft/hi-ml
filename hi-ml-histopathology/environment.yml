@@ -24,7 +24,7 @@ dependencies:
       - setuptools==59.5.0
       # Run requirements for hi-ml-azure
       - azure-core<2.0.0,>=1.23.0
-      - azureml-core==1.42.0.post1
+      - azureml-core==1.43.0
       - azureml-dataset-runtime[fuse]
       - azureml-train-core==1.42.0
       - azureml-tensorboard==1.42.0
