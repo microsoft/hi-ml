@@ -1,3 +1,4 @@
+azure-core<2.0.0,>=1.23.0
 azureml-core==1.42.0.post1
 azureml-dataset-runtime[fuse]
 azureml-train-core==1.42.0
