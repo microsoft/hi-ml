@@ -103,7 +103,7 @@ class BaseMIL(LightningContainer):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.additional_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
+        self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
 

@@ -98,7 +98,7 @@ class BaseDeepMILModule(LightningModule):
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
-        self.additional_val_epoch = False
+        self.run_extra_val_epoch = False
 
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
@@ -261,7 +261,7 @@ class BaseDeepMILModule(LightningModule):
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
         if (
-            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self.additional_val_epoch))
+            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self.run_extra_val_epoch))
             and self.outputs_handler
             and self.outputs_handler.tiles_selector
         ):
@@ -294,7 +294,7 @@ class BaseDeepMILModule(LightningModule):
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.VAL)
         if self.outputs_handler:
-            if self.additional_val_epoch:
+            if self.run_extra_val_epoch:
                 self.outputs_handler.val_plots_handler.plot_options = (
                     self.outputs_handler.test_plots_handler.plot_options
                 )
@@ -303,7 +303,7 @@ class BaseDeepMILModule(LightningModule):
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0,
-                additional_val_epoch=self.additional_val_epoch
+                run_extra_val_epoch=self.run_extra_val_epoch
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore

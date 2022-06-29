@@ -422,7 +422,7 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
-    additional_val_epoch: bool = param.Boolean(default=False,
+    run_extra_val_epoch: bool = param.Boolean(default=False,
                                                doc="If True, run an additional validation epoch at the end of training "
                                                    "to produce plots outputs on the validation set. This is to reduce "
                                                    "any validation overheads during training time and produce "
