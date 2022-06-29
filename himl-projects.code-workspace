@@ -10,7 +10,7 @@
       "path": "hi-ml-histopathology"
     },
     {
-      "path": "multimodal"
+      "path": "hi-ml-multimodal"
     },
     {
       "path": ".",
@@ -46,7 +46,7 @@
       "hi-ml/": true,
       "hi-ml-azure/": true,
       "hi-ml-histopathology/": true,
-      "multimodal/": true,
+      "hi-ml-multimodal/": true,
     },
     // The settings below are shared across all projects.
     // When making changes here, please ensure they are kept in sync
