@@ -203,7 +203,7 @@ def test_ssl_container_rsna() -> None:
     args = common_test_args + [f"--model={model_namespace_byol}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)},{str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
-                               f"--ssl_encoder={EncoderName.densenet121.value}"]
+                               f"--ssl_encoder={EncoderName.densenet121.value}", "--max_num_gpus=0"]
     with mock.patch("sys.argv", args):
         loaded_config, _ = runner.run()
     assert loaded_config is not None
@@ -252,7 +252,7 @@ def test_ssl_container_rsna() -> None:
     args = common_test_args + [f"--model={model_namespace_cxr}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
-                               f"--local_ssl_weights_path={checkpoint_path}"]
+                               f"--local_ssl_weights_path={checkpoint_path}", "--max_num_gpus=0"]
     with mock.patch("sys.argv", args):
         loaded_config2, _ = runner.run()
     assert loaded_config2 is not None
