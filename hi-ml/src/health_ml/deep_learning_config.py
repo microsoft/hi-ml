@@ -423,11 +423,11 @@ class TrainerParams(param.Parameterized):
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
     run_extra_val_epoch: bool = param.Boolean(default=False,
-                                               doc="If True, run an additional validation epoch at the end of training "
-                                                   "to produce plots outputs on the validation set. This is to reduce "
-                                                   "any validation overheads during training time and produce "
-                                                   "additional time or memory consuming outputs only once after "
-                                                   "training is finished on the validation set.")
+                                              doc="If True, run an additional validation epoch at the end of training "
+                                              "to produce plots outputs on the validation set. This is to reduce "
+                                              "any validation overheads during training time and produce "
+                                              "additional time or memory consuming outputs only once after "
+                                              "training is finished on the validation set.")
 
     @property
     def use_gpu(self) -> bool:
