@@ -165,28 +165,29 @@ class TilesSelector:
             for i in range(batch_size):
                 label = results[ResultsKey.TRUE_LABEL][i].item()
                 probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-                self._update_label_slides(
-                    class_slides_heap=self.top_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(
-                        slide_id=slide_ids[i],
-                        prob_score=probs_gt_label[i].item(),
-                        true_label=label,
-                        pred_label=results[ResultsKey.PRED_LABEL][i].item(),
-                    ),
-                )
-                self._update_label_slides(
-                    class_slides_heap=self.bottom_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
-                    slide_node=SlideNode(
-                        slide_id=slide_ids[i],
-                        prob_score=-probs_gt_label[i].item(),
-                        true_label=label,
-                        pred_label=results[ResultsKey.PRED_LABEL][i].item(),
-                    ),
-                )
+                if not results[ResultsKey.BAG_ATTN][i].numel():  # some slides have no tiles and therefore no attn
+                    self._update_label_slides(
+                        class_slides_heap=self.top_slides_heaps[label],
+                        tiles=batch[SlideKey.IMAGE][i],
+                        attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                        slide_node=SlideNode(
+                            slide_id=slide_ids[i],
+                            prob_score=probs_gt_label[i].item(),
+                            true_label=label,
+                            pred_label=results[ResultsKey.PRED_LABEL][i].item(),
+                        ),
+                    )
+                    self._update_label_slides(
+                        class_slides_heap=self.bottom_slides_heaps[label],
+                        tiles=batch[SlideKey.IMAGE][i],
+                        attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                        slide_node=SlideNode(
+                            slide_id=slide_ids[i],
+                            prob_score=-probs_gt_label[i].item(),
+                            true_label=label,
+                            pred_label=results[ResultsKey.PRED_LABEL][i].item(),
+                        ),
+                    )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
         """Returns a shallow copy of slides heaps to be synchronised across devices.
