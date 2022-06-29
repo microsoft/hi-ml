@@ -260,13 +260,13 @@ def model_train(checkpoint_handler: Optional[CheckpointHandler],
     assert trainer.logger is not None
     trainer.logger.finalize('success')
 
-    if checkpoint_handler:
-        checkpoint_handler.additional_training_done()
-        checkpoint_path_for_inference = checkpoint_handler.get_checkpoint_to_test()
-        container.load_model_checkpoint(checkpoint_path_for_inference)
-        lightning_model = container.model
-
     if container.additional_val_epoch and hasattr(lightning_model, "additional_val_epoch"):
+        if checkpoint_handler:
+            checkpoint_handler.additional_training_done()
+            checkpoint_path_for_inference = checkpoint_handler.get_checkpoint_to_test()
+            container.load_model_checkpoint(checkpoint_path_for_inference)
+            lightning_model = container.model
+
         with logging_section("Additional validation epoch"):
             lightning_model.additional_val_epoch = True  # type: ignore
             trainer.validate(lightning_model, datamodule=data_module)

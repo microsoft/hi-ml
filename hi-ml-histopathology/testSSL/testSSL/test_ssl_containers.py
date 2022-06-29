@@ -108,7 +108,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -203,7 +203,7 @@ def test_ssl_container_rsna() -> None:
     args = common_test_args + [f"--model={model_namespace_byol}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)},{str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
-                               f"--ssl_encoder={EncoderName.densenet121.value}", "--max_num_gpus=0"]
+                               f"--ssl_encoder={EncoderName.densenet121.value}"]
     with mock.patch("sys.argv", args):
         loaded_config, _ = runner.run()
     assert loaded_config is not None
@@ -252,7 +252,7 @@ def test_ssl_container_rsna() -> None:
     args = common_test_args + [f"--model={model_namespace_cxr}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
-                               f"--local_ssl_weights_path={checkpoint_path}", "--max_num_gpus=0"]
+                               f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
         loaded_config2, _ = runner.run()
     assert loaded_config2 is not None
