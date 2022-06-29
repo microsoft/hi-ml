@@ -3,7 +3,6 @@
 # See https://github.com/pre-commit/pre-commit-hooks/blob/master/.pre-commit-config.yaml for an example with more hooks
 
 ci:
-  autofix_prs: false
   autoupdate_commit_msg: "ENH: Autoupdate hooks [pre-commit.ci]"
   autoupdate_schedule: monthly
 
