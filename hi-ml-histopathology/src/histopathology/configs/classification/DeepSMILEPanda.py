@@ -75,9 +75,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILTiles.setup(self)
+        self.ckpt_run_id = innereye_ssl_checkpoint_binary
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
@@ -144,9 +143,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILSlides.setup(self)
+        self.ckpt_run_id = innereye_ssl_checkpoint_binary
 
     def get_dataloader_kwargs(self) -> dict:
         return dict(

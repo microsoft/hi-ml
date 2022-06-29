@@ -3,17 +3,29 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from base64 import encode
+import torch
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
+from pathlib import Path
 
-import torch
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
+from torchvision.models.resnet import resnet18, resnet50
 
+from health_azure.utils import CheckpointDownloader, get_workspace
 from health_ml.utils import log_on_epoch
+from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
+                                                        MeanPoolingLayer, TransformerPooling,
+                                                        TransformerPoolingBenchmark)
+
 from histopathology.datasets.base_dataset import TilesDataset
-from histopathology.models.encoders import TileEncoder
+from histopathology.models.encoders import (
+    HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
+    SSLEncoder, TileEncoder)
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
@@ -34,9 +46,17 @@ class BaseDeepMILModule(LightningModule):
     def __init__(self,
                  label_column: str,
                  n_classes: int,
-                 encoder: TileEncoder,
-                 pooling_layer: Callable[[Tensor], Tuple[Tensor, Tensor]],
-                 num_features: int,
+                 outputs_folder: Path,
+                 ckpt_run_id: str,
+                 encoder_type: str = ImageNetEncoder.__name__,
+                 n_channels: int = 3,
+                 tile_size: int = 224,
+                 is_caching: bool = False,
+                 pool_type: str = AttentionLayer.__name__,
+                 pool_hidden_dim: int = 128,
+                 pool_out_dim: int = 1,
+                 num_transformer_pool_layers: int = 4,
+                 num_transformer_pool_heads: int = 4,
                  dropout_rate: Optional[float] = None,
                  class_weights: Optional[Tensor] = None,
                  l_rate: float = 5e-4,
@@ -75,11 +95,28 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.dropout_rate = dropout_rate
         self.class_weights = class_weights
-        self.encoder = encoder
-        self.aggregation_fn = pooling_layer
-        self.num_pooling = num_features
 
         self.class_names = validate_class_names(class_names, self.n_classes)
+
+        # Downloader parameters
+        self.outputs_folder = outputs_folder
+        self.ckpt_run_id = ckpt_run_id
+        self.downloader = self.get_checkpoint_downloader()
+
+        # Encoder parameters
+        self.encoder_type = encoder_type
+        self.tile_size = tile_size
+        self.n_channels = n_channels
+        self.is_caching = is_caching
+        self.encoder = self.get_encoder()
+
+        # Pooling layer parameters
+        self.pool_type = pool_type
+        self.pool_hidden_dim = pool_hidden_dim
+        self.pool_out_dim = pool_out_dim
+        self.num_transformer_pool_layers = num_transformer_pool_layers
+        self.num_transformer_pool_heads = num_transformer_pool_heads
+        self.aggregation_fn, self.num_pooling = self.get_pooling_layer()
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -108,6 +145,79 @@ class BaseDeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
+
+    def get_checkpoint_downloader(self) -> CheckpointDownloader:
+        downloader = CheckpointDownloader(
+            aml_workspace=get_workspace(),
+            run_id=self.ckpt_run_id,
+            checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+            download_dir=self.outputs_folder,
+            remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
+        )
+        downloader.download_checkpoint_if_necessary()
+        return downloader
+
+    def get_encoder(self) -> TileEncoder:
+        encoder: TileEncoder
+        if self.encoder_type == ImageNetEncoder.__name__:
+            encoder = ImageNetEncoder(feature_extraction_model=resnet18,
+                                      tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
+            # Myronenko et al. 2021 uses Resnet50 CNN encoder
+            encoder = ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
+                                               tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == ImageNetSimCLREncoder.__name__:
+            encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == HistoSSLEncoder.__name__:
+            encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == SSLEncoder.__name__:
+            encoder = SSLEncoder(pl_checkpoint_path=self.downloader.local_checkpoint_path,
+                                 tile_size=self.tile_size, n_channels=self.n_channels)
+        else:
+            raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
+
+        if self.is_finetune:
+            for params in encoder.parameters():
+                params.requires_grad = True
+        else:
+            encoder.eval()
+        return encoder
+
+    def get_pooling_layer(self) -> Tuple[nn.Module, int]:
+        num_encoding = self.encoder.num_encoding
+
+        pooling_layer: nn.Module
+        if self.pool_type == AttentionLayer.__name__:
+            pooling_layer = AttentionLayer(num_encoding,
+                                           self.pool_hidden_dim,
+                                           self.pool_out_dim)
+        elif self.pool_type == GatedAttentionLayer.__name__:
+            pooling_layer = GatedAttentionLayer(num_encoding,
+                                                self.pool_hidden_dim,
+                                                self.pool_out_dim)
+        elif self.pool_type == MeanPoolingLayer.__name__:
+            pooling_layer = MeanPoolingLayer()
+        elif self.pool_type == MaxPoolingLayer.__name__:
+            pooling_layer = MaxPoolingLayer()
+        elif self.pool_type == TransformerPooling.__name__:
+            pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
+                                               self.num_transformer_pool_heads,
+                                               num_encoding)
+            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
+        elif self.pool_type == TransformerPoolingBenchmark.__name__:
+            pooling_layer = TransformerPoolingBenchmark(self.num_transformer_pool_layers,
+                                                        self.num_transformer_pool_heads,
+                                                        num_encoding,
+                                                        self.pool_hidden_dim)
+            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
+        else:
+            raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
+
+        num_features = num_encoding * self.pool_out_dim
+        return pooling_layer, num_features
 
     def get_classifier(self) -> Callable:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
@@ -317,6 +427,14 @@ class BaseDeepMILModule(LightningModule):
 
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
+
+    def get_encoder(self) -> TileEncoder:
+        if self.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
+            return IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        else:
+            return super().get_encoder()
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:

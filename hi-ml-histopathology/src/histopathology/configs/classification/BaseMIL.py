@@ -6,31 +6,22 @@
 import os
 import torch
 import param
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
 
-from torch import nn
 from pathlib import Path
 from monai.transforms import Compose
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from torchvision.models.resnet import resnet18, resnet50
-
-from health_azure.utils import CheckpointDownloader, get_workspace
 
 from health_ml.utils import fixed_paths
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path
-from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
-                                                        MeanPoolingLayer, TransformerPooling,
-                                                        TransformerPoolingBenchmark)
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
+
 from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
-from histopathology.models.encoders import (
-    HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
-    SSLEncoder, TileEncoder)
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
@@ -112,75 +103,8 @@ class BaseMIL(LightningContainer):
         return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def setup(self) -> None:
-        self.encoder = self.get_encoder()
-        if not self.is_finetune:
-            self.encoder.eval()
-
-    def download_ssl_checkpoint(self, run_id: str) -> CheckpointDownloader:
-        downloader = CheckpointDownloader(
-            aml_workspace=get_workspace(),
-            run_id=run_id,
-            checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-            download_dir=self.outputs_folder,
-            remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
-        )
-        downloader.download_checkpoint_if_necessary()
-        return downloader
-
-    def get_encoder(self) -> TileEncoder:
-        if self.encoder_type == ImageNetEncoder.__name__:
-            return ImageNetEncoder(feature_extraction_model=resnet18,
-                                   tile_size=self.tile_size, n_channels=self.n_channels)
-        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
-            # Myronenko et al. 2021 uses Resnet50 CNN encoder
-            return ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
-                                            tile_size=self.tile_size, n_channels=self.n_channels)
-
-        elif self.encoder_type == ImageNetSimCLREncoder.__name__:
-            return ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
-
-        elif self.encoder_type == HistoSSLEncoder.__name__:
-            return HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
-
-        elif self.encoder_type == SSLEncoder.__name__:
-            return SSLEncoder(pl_checkpoint_path=self.downloader.local_checkpoint_path,
-                              tile_size=self.tile_size, n_channels=self.n_channels)
-
-        else:
-            raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
-
-    def get_pooling_layer(self) -> Tuple[nn.Module, int]:
-        num_encoding = self.encoder.num_encoding
-
-        pooling_layer: nn.Module
-        if self.pool_type == AttentionLayer.__name__:
-            pooling_layer = AttentionLayer(num_encoding,
-                                           self.pool_hidden_dim,
-                                           self.pool_out_dim)
-        elif self.pool_type == GatedAttentionLayer.__name__:
-            pooling_layer = GatedAttentionLayer(num_encoding,
-                                                self.pool_hidden_dim,
-                                                self.pool_out_dim)
-        elif self.pool_type == MeanPoolingLayer.__name__:
-            pooling_layer = MeanPoolingLayer()
-        elif self.pool_type == MaxPoolingLayer.__name__:
-            pooling_layer = MaxPoolingLayer()
-        elif self.pool_type == TransformerPooling.__name__:
-            pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
-                                               self.num_transformer_pool_heads,
-                                               num_encoding)
-            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
-        elif self.pool_type == TransformerPoolingBenchmark.__name__:
-            pooling_layer = TransformerPoolingBenchmark(self.num_transformer_pool_layers,
-                                                        self.num_transformer_pool_heads,
-                                                        num_encoding,
-                                                        self.pool_hidden_dim)
-            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
-        else:
-            raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
-
-        num_features = num_encoding * self.pool_out_dim
-        return pooling_layer, num_features
+        self.ckpt_run_id = ""
+        pass
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
@@ -209,13 +133,6 @@ class BaseMIL(LightningContainer):
                 n_classes=n_classes, num_slides=self.num_top_slides, num_tiles=self.num_top_tiles
             )
         return outputs_handler
-
-    def get_model_encoder(self) -> TileEncoder:
-        model_encoder = self.encoder
-        if self.is_finetune:
-            for params in model_encoder.parameters():
-                params.requires_grad = True
-        return model_encoder
 
     def get_callbacks(self) -> List[Callback]:
         return [*super().get_callbacks(),
@@ -316,30 +233,29 @@ class BaseMILTiles(BaseMIL):
         if self.is_caching:
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                EncodeTilesBatchd(image_key, self.model.encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
             ])
         else:
-            transform = LoadTilesBatchd(image_key, progress=True)
+            transform = LoadTilesBatchd(image_key, progress=True)  # type: ignore
         # in case the transformations for training contain augmentations, val and test transform will be different
         return {ModelKey.TRAIN: transform, ModelKey.VAL: transform, ModelKey.TEST: transform}
 
-    def get_model_encoder(self) -> TileEncoder:
-        if self.is_caching:
-            # Encoding is done in the datamodule, so here we provide instead a dummy
-            # no-op IdentityEncoder to be used inside the model
-            return IdentityEncoder(input_dim=(self.encoder.num_encoding,))
-        else:
-            return super().get_model_encoder()
-
     def create_model(self) -> TilesDeepMILModule:
         self.data_module = self.get_data_module()
-        pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = TilesDeepMILModule(encoder=self.get_model_encoder(),
-                                            label_column=self.data_module.train_dataset.LABEL_COLUMN,
+        deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
-                                            pooling_layer=pooling_layer,
-                                            num_features=num_features,
+                                            outputs_folder=self.outputs_folder,
+                                            ckpt_run_id=self.ckpt_run_id,
+                                            encoder_type=self.encoder_type,
+                                            n_channels=self.n_channels,
+                                            tile_size=self.tile_size,
+                                            is_caching=self.is_caching,
+                                            pool_type=self.pool_type,
+                                            pool_hidden_dim=self.pool_hidden_dim,
+                                            pool_out_dim=self.pool_out_dim,
+                                            num_transformer_pool_layers=self.num_transformer_pool_layers,
+                                            num_transformer_pool_heads=self.num_transformer_pool_heads,
                                             dropout_rate=self.dropout_rate,
                                             class_weights=self.data_module.class_weights,
                                             l_rate=self.l_rate,
@@ -377,13 +293,19 @@ class BaseMILSlides(BaseMIL):
 
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
-        pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(encoder=self.get_model_encoder(),
-                                             label_column=SlideKey.LABEL,
+        deepmil_module = SlidesDeepMILModule(label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
-                                             pooling_layer=pooling_layer,
-                                             num_features=num_features,
+                                             outputs_folder=self.outputs_folder,
+                                             ckpt_run_id=self.ckpt_run_id,
+                                             encoder_type=self.encoder_type,
+                                             n_channels=self.n_channels,
+                                             tile_size=self.tile_size,
+                                             pool_type=self.pool_type,
+                                             pool_hidden_dim=self.pool_hidden_dim,
+                                             pool_out_dim=self.pool_out_dim,
+                                             num_transformer_pool_layers=self.num_transformer_pool_layers,
+                                             num_transformer_pool_heads=self.num_transformer_pool_heads,
                                              dropout_rate=self.dropout_rate,
                                              class_weights=self.data_module.class_weights,
                                              l_rate=self.l_rate,
