@@ -103,6 +103,9 @@ class BaseDeepMILModule(LightningModule):
         self.ckpt_run_id = ckpt_run_id
         self.downloader = self.get_checkpoint_downloader()
 
+        # Finetuning attributes
+        self.is_finetune = is_finetune
+
         # Encoder parameters
         self.encoder_type = encoder_type
         self.tile_size = tile_size
@@ -127,8 +130,6 @@ class BaseDeepMILModule(LightningModule):
 
         self.verbose = verbose
 
-        # Finetuning attributes
-        self.is_finetune = is_finetune
 
         self.outputs_handler = outputs_handler
         self.chunk_size = chunk_size

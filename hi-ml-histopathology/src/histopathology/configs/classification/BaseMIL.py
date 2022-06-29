@@ -294,7 +294,7 @@ class BaseMILSlides(BaseMIL):
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(label_column=self.data_module.train_dataset.LABEL_COLUMN,
+        deepmil_module = SlidesDeepMILModule(label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              outputs_folder=self.outputs_folder,
                                              ckpt_run_id=self.ckpt_run_id,
