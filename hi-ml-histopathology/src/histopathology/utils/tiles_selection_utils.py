@@ -165,7 +165,7 @@ class TilesSelector:
             for i in range(batch_size):
                 label = results[ResultsKey.TRUE_LABEL][i].item()
                 probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
-                if not results[ResultsKey.BAG_ATTN][i].numel():  # some slides have no tiles and therefore no attn
+                if results[ResultsKey.BAG_ATTN][i].numel() != 0:  # some slides have no tiles and therefore no attn
                     self._update_label_slides(
                         class_slides_heap=self.top_slides_heaps[label],
                         tiles=batch[SlideKey.IMAGE][i],
