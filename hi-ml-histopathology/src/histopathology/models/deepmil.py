@@ -130,7 +130,6 @@ class BaseDeepMILModule(LightningModule):
 
         self.verbose = verbose
 
-
         self.outputs_handler = outputs_handler
         self.chunk_size = chunk_size
 
