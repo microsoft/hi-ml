@@ -31,8 +31,8 @@ class PandaTilesDataset(TilesDataset):
     LABEL_COLUMN = "slide_isup_grade"
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
     N_CLASSES = 6
-
-    _RELATIVE_ROOT_FOLDER = Path("panda_tiles_level1_224")
+    _RELATIVE_ROOT_FOLDER_5X = "panda_tiles_level1_224"
+    _RELATIVE_ROOT_FOLDER_20X = "panda_tiles_level0_224"
 
     def __init__(self,
                  root: Path,
@@ -52,7 +52,7 @@ class PandaTilesDataset(TilesDataset):
         :random_subset_fraction: A value > 0 and <=1 such that this proportion of tiles will be randomly selected.
         If 1, all tiles are selected. If `None` (default), all tiles are selected.
         """
-        super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
+        super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER_20X,
                          dataset_csv=dataset_csv,
                          dataset_df=dataset_df,
                          train=None,

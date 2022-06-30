@@ -22,8 +22,8 @@ from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.datasets.default_paths import (
     PANDA_DATASET_DIR,
     PANDA_DATASET_ID,
-    PANDA_TILES_DATASET_DIR,
-    PANDA_TILES_DATASET_ID)
+    PANDA_5X_TILES_DATASET_DIR,
+    PANDA_5X_TILES_DATASET_ID)
 
 
 class BaseDeepSMILEPanda(BaseMIL):
@@ -68,8 +68,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             is_caching=False,
             batch_size=8,
             # declared in DatasetParams:
-            local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
-            azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
+            local_datasets=[Path(PANDA_5X_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
+            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
