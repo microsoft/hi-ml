@@ -36,6 +36,7 @@ dependencies:
       # Histopathology requirements
       - coloredlogs==15.0.1
       - cucim==22.04.00
+      - flake8==4.0.1
       - girder-client==3.1.14
       - joblib==0.16.0
       - jupyter==1.0.0
@@ -44,14 +45,14 @@ dependencies:
       - mlflow==1.17.0
       - monai==0.8.0
       - more-itertools==8.10.0
-      - mypy==0.931
+      - mypy==0.961
       - mypy-extensions==0.4.3
       - numba==0.51.2
       - numpy==1.19.1
       - pillow==9.0.0
       - psutil==5.7.2
       - pydicom==2.0.0
-      - pyflakes==2.2.0
+      - pyflakes==2.4.0
       - PyJWT==1.7.1
       - rich==12.4.4
       - runstats==1.8.0
