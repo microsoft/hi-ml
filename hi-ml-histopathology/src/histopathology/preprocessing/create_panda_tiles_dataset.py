@@ -267,13 +267,13 @@ if __name__ == '__main__':
     parser.add_argument(
         "--panda-dir",
         type=str,
-        required=True,
+        default="/tmp/datasets/PANDA",
         help="Folder with the PANDA dataset. For example, \"/mnt/innereyedatasets/datasets/panda\"",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
-        required=True,
+        default="/panda_dataset/panda_20x"
     )
     parser.add_argument(
         "--level",

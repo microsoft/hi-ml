@@ -16,6 +16,7 @@ import PIL
 from monai.data import Dataset
 from monai.data.image_reader import WSIReader
 from tqdm import tqdm
+from health_ml.utils.box_utils import Box
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.preprocessing import tiling
@@ -61,7 +62,7 @@ def save_image(array_chw: np.ndarray, path: Path) -> PIL.Image:
     return pil_image
 
 
-def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold: float,
+def generate_tiles(sample: np.ndarray, tile_size: int, foreground_threshold: float,
                    occupancy_threshold: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     """Split the foreground of an input slide image into tiles.
 
@@ -72,7 +73,7 @@ def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold
     :return: A tuple containing the image tiles (N, C, H, W), tile coordinates (N, 2), occupancies
     (N,), and total number of discarded empty tiles.
     """
-    image_tiles, tile_locations = tiling.tile_array_2d(slide_image, tile_size=tile_size,
+    image_tiles, tile_locations = tiling.tile_array_2d(sample[SlideKey.IMAGE], tile_size=tile_size,
                                                        constant_values=255)
     foreground_mask, _ = segment_foreground(image_tiles, foreground_threshold)
 
@@ -83,6 +84,8 @@ def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold
     image_tiles = image_tiles[selected]
     tile_locations = tile_locations[selected]
     occupancies = occupancies[selected]
+
+    # Calculate the whole box here
 
     return image_tiles, tile_locations, occupancies, n_discarded
 
@@ -180,8 +183,13 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
             sample = loader(sample)  # load 'image' from disk
 
             logging.info(f"Tiling slide {slide_id} ...")
+            # image_tiles, rel_tile_locations, occupancies, _ = \
+            #     generate_tiles(sample[SlideKey.IMAGE], tile_size,
+            #                    sample[SlideKey.FOREGROUND_THRESHOLD],
+            #                    occupancy_threshold)
+            # New
             image_tiles, rel_tile_locations, occupancies, _ = \
-                generate_tiles(sample[SlideKey.IMAGE], tile_size,
+                generate_tiles(sample, tile_size,
                                sample[SlideKey.FOREGROUND_THRESHOLD],
                                occupancy_threshold)
 
@@ -295,8 +303,8 @@ if __name__ == '__main__':
 
     # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD"),
-         root_output_dir="/datadrive/TCGA-PRAD_tiles",
-         n_slides=None,
+         root_output_dir="/panda_dataset/TCGA-PRAD_tiles",
+         n_slides=2,
          level=3,
          tile_size=224,
          margin=0,

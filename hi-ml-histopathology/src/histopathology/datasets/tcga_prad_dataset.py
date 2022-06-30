@@ -37,6 +37,5 @@ class TcgaPradDataset(SlidesDataset):
         """
         super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
         # Example of how to define a custom label column from existing columns:
-        self.dataset_df[self.LABEL_COLUMN] = (self.dataset_df['label1']
-                                              | self.dataset_df['label2']).astype(int)  # noqa: W503
+        self.dataset_df[self.LABEL_COLUMN] = (self.dataset_df['brca1_mutation']).astype(int)  # noqa: W503
         self.validate_columns()
