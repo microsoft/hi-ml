@@ -6,6 +6,10 @@ env:
 	pip install -r requirements_test.txt
 	pip install -r requirements_build.txt
 
+# Update the Conda environment
+conda_update:
+	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml
+
 # Package management
 
 # pip upgrade
