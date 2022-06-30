@@ -67,7 +67,6 @@ class SlideNode:
         :param attn_scores: A tensor of attention scores assigned by the deepmil model to tiles of shape (n_tiles, 1).
         :param num_top_tiles: The number of tiles to select as top and bottom tiles.
         """
-        print("attn_scores.shape", attn_scores.shape)
         num_top_tiles = min(num_top_tiles, len(attn_scores))
 
         _, top_k_indices = torch.topk(attn_scores, k=num_top_tiles, largest=True, sorted=True)
@@ -167,7 +166,6 @@ class TilesSelector:
                 label = results[ResultsKey.TRUE_LABEL][i].item()
                 probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label][i].item()
                 tiles = batch[SlideKey.IMAGE][i]
-                print("results[ResultsKey.BAG_ATTN][i].shape", results[ResultsKey.BAG_ATTN][i].shape)
                 attn_scores = results[ResultsKey.BAG_ATTN][i].squeeze(0)
                 pred_label = results[ResultsKey.PRED_LABEL][i].item()
                 self._update_label_slides(
