@@ -8,7 +8,7 @@ env:
 
 # Update the Conda environment
 conda_update:
-	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml
+	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml --prune
 
 # Package management
 
