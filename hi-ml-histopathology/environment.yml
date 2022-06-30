@@ -74,3 +74,4 @@ dependencies:
       - pytest-cov==2.11.1
       # Pinned secondary dependencies to prevent clashes
       - cloudpickle==1.6.0
+      - msrest==0.6.21
