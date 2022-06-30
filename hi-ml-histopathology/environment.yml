@@ -23,13 +23,12 @@ dependencies:
       - rpdb==0.1.6
       - setuptools==59.5.0
       # Run requirements for hi-ml-azure
-      - azure-core<2.0.0,>=1.23.0
       - azureml-core==1.43.0
       - azureml-dataset-runtime[fuse]
-      - azureml-telemetry==1.43.0
-      - azureml-tensorboard==1.42.0
-      - azureml-train-core==1.42.0
+      - azureml-tensorboard==1.43.0
+      - azureml-train-core==1.43.0
       - conda-merge==0.1.5
+      - msal-extensions==0.3.1
       - param==1.12
       - pysocks==1.6.0
       - ruamel.yaml==0.16.12
