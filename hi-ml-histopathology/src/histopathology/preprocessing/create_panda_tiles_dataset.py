@@ -8,7 +8,6 @@
 """
 import functools
 import sys
-import logging
 import shutil
 import datetime
 from pathlib import Path
@@ -17,7 +16,6 @@ from typing import Tuple, Union, List
 
 import PIL
 import numpy as np
-import coloredlogs
 from monai.data import Dataset
 from monai.data.image_reader import WSIReader
 from tqdm import tqdm
@@ -43,11 +41,6 @@ CSV_COLUMNS = (
     'num_discarded',
 )
 TMP_SUFFIX = "_tmp"
-
-logging.basicConfig(format='%(asctime)s %(message)s', filemode='w')
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-
 
 def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
         -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
@@ -93,7 +86,7 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
     num_tiles = len(image_tiles)
     num_discarded = num_tiles - num_selected
     percentage_discarded = 100 * num_discarded / num_tiles
-    logging.info(f"Discarded {num_discarded}/{num_tiles} tiles ({percentage_discarded:.2f} %)")
+    print(f"Discarded {num_discarded}/{num_tiles} tiles ({percentage_discarded:.2f} %)")
 
     image_tiles = image_tiles[selected]
     mask_tiles = mask_tiles[selected]
@@ -145,15 +138,15 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
     if filter_slide not in slide_id:
         return
     slide_dir: Path = output_dir / (slide_id + "/")
-    logging.info(f">>> Slide dir {slide_dir}")
+    print(f">>> Slide dir {slide_dir}")
     if slide_dir.exists():  # already processed slide - skip
-        logging.info(f">>> Skipping {slide_dir} - already processed")
+        print(f">>> Skipping {slide_dir} - already processed")
         return
     else:
         mask_key = SlideKey.MASK  # it should be read from the dataset attribute instead, but we assume it's the same
         mask_path = Path(sample[mask_key])
         if not mask_path.is_file():
-            logging.error(f'Mask for slide {slide_id} not found')
+            print(f'Mask for slide {slide_id} not found')
             return
 
         slide_dir.mkdir(parents=True)
@@ -162,23 +155,23 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
         dataset_csv_file = dataset_csv_path.open('w')
         dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
 
-        logging.info(f"Loading slide {slide_id} ...")
+        print(f"Loading slide {slide_id} ...")
         reader = WSIReader(backend="cucim")
         loader = LoadPandaROId(reader, level=level, margin=margin)
         try:
             sample = loader(sample)  # load 'image' and 'mask' from disk
             failed = False
         except RuntimeError as e:  # happens when masks are empty
-            logging.error(f'Error loading slide {slide_id}, maybe due to an empty mask:\n{e}')
+            print(f'Error loading slide {slide_id}, maybe due to an empty mask:\n{e}')
             failed = True
 
         if failed:
-            logging.error(f'Error loading slide {slide_id}')
+            print(f'Error loading slide {slide_id}')
             dataset_csv_file.close()
             shutil.rmtree(slide_dir)
             return
 
-        logging.info(f"Tiling slide {slide_id} ...")
+        print(f"Tiling slide {slide_id} ...")
         image_tiles, mask_tiles, tile_boxes, occupancies, num_discarded = \
             generate_tiles(sample, tile_size, occupancy_threshold)
         n_tiles = image_tiles.shape[0]
@@ -212,7 +205,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
         # full_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
         first_file = True
         for slide_csv in tqdm(dataset_dir.glob("*/dataset.csv"), desc="Merging dataset.csv", unit='file'):
-            logging.info(f"Merging slide {slide_csv}")
+            print(f"Merging slide {slide_csv}")
             content = slide_csv.read_text()
             if not first_file:
                 content = content[content.index('\n') + 1:]  # discard header row for all but the first file
@@ -234,11 +227,8 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
 
-    time_string = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    logfile = open(output_dir / f"{time_string}.log", 'w')
-    coloredlogs.install(level=logging.DEBUG, stream=logfile)
-    logging.info(f"Command: \"{' '.join(sys.argv)}\"")
-    logging.info(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
+    print(f"Command: \"{' '.join(sys.argv)}\"")
+    print(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
 
     func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
                              occupancy_threshold=occupancy_threshold, output_dir=output_dir,
@@ -257,9 +247,8 @@ def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: 
     if parallel:
         pool.close()
 
-    logging.info("Merging slide files in a single file")
+    print("Merging slide files in a single file")
     merge_dataset_csv_files(output_dir)
-    logfile.close()
 
 
 if __name__ == '__main__':
