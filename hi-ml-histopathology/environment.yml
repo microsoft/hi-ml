@@ -7,9 +7,8 @@ dependencies:
   - cudatoolkit=11.3.1
   - pip=21.2.4
   - python=3.10.4
-  - pytorch=1.10.0
-  - python-blosc=1.7.0
-  - torchvision=0.11.1
+  - pytorch=1.11.0
+  - torchvision=0.12.0
   - pip:
       # Run requirements for hi-ml
       - dataclasses-json==0.5.2
