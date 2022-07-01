@@ -1,6 +1,7 @@
 class Foo:
     f: int
 
+
 a = Foo()
 a.f = 1
 match a:
