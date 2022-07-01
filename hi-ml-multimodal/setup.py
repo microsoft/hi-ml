@@ -82,7 +82,8 @@ setup(
     ],
     keywords='HealthIntelligence',
     license='MIT License',
-    packages=find_namespace_packages(include=['health_multimodal', 'health_multimodal.*']),
+    packages=find_namespace_packages(where="src"),
+    package_dir={"": "src"},
     include_package_data=True,
     install_requires=install_requires,
 )

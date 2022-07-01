@@ -69,10 +69,10 @@ class SlideNode:
         """
         num_top_tiles = min(num_top_tiles, len(attn_scores))
 
-        _, top_k_indices = torch.topk(attn_scores.squeeze(), k=num_top_tiles, largest=True, sorted=True)
+        _, top_k_indices = torch.topk(attn_scores, k=num_top_tiles, largest=True, sorted=True)
         self.top_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in top_k_indices]
 
-        _, bottom_k_indices = torch.topk(attn_scores.squeeze(), k=num_top_tiles, largest=False, sorted=True)
+        _, bottom_k_indices = torch.topk(attn_scores, k=num_top_tiles, largest=False, sorted=True)
         self.bottom_tiles = [TileNode(data=tiles[i], attn=attn_scores[i].item()) for i in bottom_k_indices]
 
     def _shallow_copy(self) -> "SlideNode":
@@ -164,27 +164,30 @@ class TilesSelector:
             batch_size = len(batch[SlideKey.IMAGE])
             for i in range(batch_size):
                 label = results[ResultsKey.TRUE_LABEL][i].item()
-                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label]
+                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label][i].item()
+                tiles = batch[SlideKey.IMAGE][i]
+                attn_scores = results[ResultsKey.BAG_ATTN][i].squeeze(0)
+                pred_label = results[ResultsKey.PRED_LABEL][i].item()
                 self._update_label_slides(
                     class_slides_heap=self.top_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                    tiles=tiles,
+                    attn_scores=attn_scores,
                     slide_node=SlideNode(
                         slide_id=slide_ids[i],
-                        prob_score=probs_gt_label[i].item(),
+                        prob_score=probs_gt_label,
                         true_label=label,
-                        pred_label=results[ResultsKey.PRED_LABEL][i].item(),
+                        pred_label=pred_label,
                     ),
                 )
                 self._update_label_slides(
                     class_slides_heap=self.bottom_slides_heaps[label],
-                    tiles=batch[SlideKey.IMAGE][i],
-                    attn_scores=results[ResultsKey.BAG_ATTN][i].squeeze(),
+                    tiles=tiles,
+                    attn_scores=attn_scores,
                     slide_node=SlideNode(
                         slide_id=slide_ids[i],
-                        prob_score=-probs_gt_label[i].item(),
+                        prob_score=-probs_gt_label,  # negative score for bottom slides to reverse order in max heap
                         true_label=label,
-                        pred_label=results[ResultsKey.PRED_LABEL][i].item(),
+                        pred_label=pred_label,
                     ),
                 )
 

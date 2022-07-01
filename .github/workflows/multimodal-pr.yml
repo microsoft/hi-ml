@@ -7,12 +7,12 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - "multimodal/**"
+      - "hi-ml-multimodal/**"
       - ".github/workflows/multimodal-pr.yml"
 
 env:
-  pythonVersion: 3.10.4
-  folder: multimodal
+  pythonVersion: 3.7
+  folder: hi-ml-multimodal
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -55,7 +55,7 @@ jobs:
       - name: mypy
         run: |
           cd ${{ env.folder }}
-          make pip_test
+          make pip
           make mypy
 
   pytest:

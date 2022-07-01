@@ -44,9 +44,11 @@
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
                 "--model=histopathology.SlidesPandaImageNetMIL",
-                "--pl_fast_dev_run=2",
+                "--pl_fast_dev_run=10",
                 "--crossval_count=0",
                 "--batch_size=2",
+                "--max_bag_size=4",
+                "--max_bag_size_inf=4",
                 "--num_top_slides=2",
                 "--num_top_tiles=2"
             ],
@@ -59,7 +61,7 @@
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
                 "--model=histopathology.TilesPandaImageNetMIL",
-                "--pl_fast_dev_run=2",
+                "--pl_fast_dev_run=10",
                 "--crossval_count=0",
                 "--batch_size=2",
                 "--max_bag_size=4",

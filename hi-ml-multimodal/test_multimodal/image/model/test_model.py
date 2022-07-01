@@ -6,10 +6,10 @@
 
 import pytest
 import torch
-from pl_bolts.models.self_supervised.resnets import resnet50
 
 from health_multimodal.image.model.model import ImageEncoder, ImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
+from health_multimodal.image.model.resnet import resnet50
 
 
 def test_frozen_cnn_model() -> None:
@@ -126,10 +126,9 @@ def test_reload_resnet_with_dilation() -> None:
         assert outputs_original.shape[2] * \
             2 == outputs_dilation.shape[2], "The dilation model should return larger feature maps."
 
-    expected_model = resnet50(return_all_feature_maps=True, pretrained=True,
-                              replace_stride_with_dilation=replace_stride_with_dilation)
+    expected_model = resnet50(pretrained=True, replace_stride_with_dilation=replace_stride_with_dilation)
 
     expected_model.eval()
     with torch.no_grad():
-        expected_output = expected_model(image)[-1]
+        expected_output = expected_model(image)
         assert torch.allclose(outputs_dilation, expected_output)
