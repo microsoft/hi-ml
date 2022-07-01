@@ -34,8 +34,10 @@ from .data.io import TypePrompts
 
 
 BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
+CXR_BERT_COMMIT_ID = "3b8d69176f81b37084b653107c00e33cd08aa7c4"
 
 __all__ = [
     "BIOMED_VLP_CXR_BERT_SPECIALIZED",
+    "CXR_BERT_COMMIT_ID",
     "TypePrompts",
 ]
