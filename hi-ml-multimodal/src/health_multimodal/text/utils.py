@@ -6,17 +6,17 @@
 
 from typing import Tuple
 
-from health_multimodal.text import BIOMED_VLP_CXR_BERT_SPECIALIZED, CXR_BERT_COMMIT_ID
-from health_multimodal.text.inference_engine import TextInferenceEngine
-from health_multimodal.text.model.modelling_cxrbert import CXRBertModel
-from health_multimodal.text.model.configuration_cxrbert import CXRBertTokenizer
+from health_multimodal.text import (
+    BIOMED_VLP_CXR_BERT_SPECIALIZED,
+    CXR_BERT_COMMIT_ID,
+    TextInferenceEngine,
+    CXRBertModel,
+    CXRBertTokenizer,
+)
 
 
 def get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
-    """Loads the CXR-BERT model and tokenizer from HUGGINGFACE HUB
-       `https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized`
-    """
-
+    """Load the CXR-BERT model and tokenizer from the `Hugging Face Hub <https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized>`_."""  # noqa: E501
     model_name = BIOMED_VLP_CXR_BERT_SPECIALIZED
     revision = CXR_BERT_COMMIT_ID
     tokenizer = CXRBertTokenizer.from_pretrained(model_name, revision=revision)
@@ -25,11 +25,11 @@ def get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
 
 
 def get_cxr_bert_inference() -> TextInferenceEngine:
-    """Creates a TextInferenceEngine for the CXR-BERT model after downloading the model from HUGGINGFACE HUB
-       The engine can be used to get embeddings from text prompts or masked token predictions.
-    """
+    """Create a :class:`TextInferenceEngine` for the CXR-BERT model.
 
+    The model is downloaded from the Hugging Face Hub.
+    The engine can be used to get embeddings from text prompts or masked token predictions.
+    """
     tokenizer, text_model = get_cxr_bert()
     text_inference = TextInferenceEngine(tokenizer=tokenizer, text_model=text_model)
-
     return text_inference
