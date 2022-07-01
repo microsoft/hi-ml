@@ -14,7 +14,7 @@ on:
       - "hi-ml/**"
 
 env:
-  pythonVersion: 3.7
+  pythonVersion: 3.10.4
   folder: hi-ml-histopathology
   module_for_coverage_reporting: histopathology
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
@@ -27,7 +27,7 @@ env:
 jobs:
 
   flake8:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -45,7 +45,7 @@ jobs:
           make flake8
 
   mypy:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -63,7 +63,7 @@ jobs:
           make mypy
 
   pytest:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
         with:
