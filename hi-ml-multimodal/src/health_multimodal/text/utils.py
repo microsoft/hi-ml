@@ -8,7 +8,7 @@ from typing import Tuple
 
 from health_multimodal.text import (
     BIOMED_VLP_CXR_BERT_SPECIALIZED,
-    CXR_BERT_COMMIT_ID,
+    CXR_BERT_COMMIT_TAG,
     TextInferenceEngine,
     CXRBertModel,
     CXRBertTokenizer,
@@ -18,7 +18,7 @@ from health_multimodal.text import (
 def get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
     """Load the CXR-BERT model and tokenizer from the `Hugging Face Hub <https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized>`_."""  # noqa: E501
     model_name = BIOMED_VLP_CXR_BERT_SPECIALIZED
-    revision = CXR_BERT_COMMIT_ID
+    revision = CXR_BERT_COMMIT_TAG
     tokenizer = CXRBertTokenizer.from_pretrained(model_name, revision=revision)
     text_model = CXRBertModel.from_pretrained(model_name, revision=revision)
     return tokenizer, text_model
