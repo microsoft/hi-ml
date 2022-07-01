@@ -34,7 +34,8 @@
 
 from .data.io import TypePrompts
 from .inference_engine import TextInferenceEngine
-from .model.modelling_cxrbert import CXRBertConfig, CXRBertModel, CXRBertOutput
+from .model.modelling_cxrbert import CXRBertModel, CXRBertOutput
+from .model.configuration_cxrbert import CXRBertConfig, CXRBertTokenizer
 
 
 BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
@@ -46,6 +47,7 @@ __all__ = [
     "TypePrompts",
     "TextInferenceEngine",
     "CXRBertConfig",
+    "CXRBertTokenizer",
     "CXRBertModel",
     "CXRBertOutput",
 ]
