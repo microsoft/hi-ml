@@ -1,3 +1,9 @@
+#  -------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  -------------------------------------------------------------------------------------------
+
+
 from typing import Tuple
 
 from health_multimodal.text import BIOMED_VLP_CXR_BERT_SPECIALIZED, CXR_BERT_COMMIT_ID
