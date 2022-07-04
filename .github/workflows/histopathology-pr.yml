@@ -72,18 +72,22 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           environment-file: ${{ env.folder }}/environment.yml
+          activate-environment: HimlHisto
 
       - name: Install hi-ml locally
+        shell: bash -l {0}
         run: |
           cd hi-ml
           make pip_local
 
       - name: Install hi-ml-azure locally
+        shell: bash -l {0}
         run: |
           cd hi-ml-azure
           make pip_local
 
       - name: Test with pytest
+        shell: bash -l {0}
         run: |
           cd ${{ env.folder }}
 
@@ -101,6 +105,7 @@ jobs:
       - name: Run GPU tests
         # GPU tests should be run even if other tests fail
         if: always()
+        shell: bash -l {0}
         run: |
           branch_prefix="refs/heads/"
           full_branch_name=$GITHUB_REF
