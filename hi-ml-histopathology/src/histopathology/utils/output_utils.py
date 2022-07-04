@@ -313,10 +313,11 @@ class DeepMILOutputsHandler:
         save_outputs_csv(results, outputs_dir)
 
         plots_handler = self.val_plots_handler if stage == ModelKey.VAL else self.test_plots_handler
-        plots_handler.save_plots(outputs_dir, self.tiles_selector, results, stage)
+        plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True) -> None:
+                                epoch: int, is_global_rank_zero: bool = True, run_extra_val_epoch: bool = False
+                                ) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
@@ -329,11 +330,14 @@ class DeepMILOutputsHandler:
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
         if PlotOption.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
-            logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs
-        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero):
+        # We also want to save the plots of the extra validation epoch
+        if (
+            self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero)
+            or (run_extra_val_epoch and is_global_rank_zero)
+        ):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
@@ -357,7 +361,6 @@ class DeepMILOutputsHandler:
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
         if PlotOption.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
-            logging.info("Selecting tiles ...")
             self.tiles_selector.gather_selected_tiles_across_devices()
 
         # Only global rank-0 process should actually render and save the outputs-

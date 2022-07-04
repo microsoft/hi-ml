@@ -1,0 +1,7 @@
+flake8==4.0.1
+ipykernel==6.15.0
+ipython==7.34.0
+mypy==0.931
+pytest==6.2.2
+papermill==2.3.4
+setuptools==59.5.0

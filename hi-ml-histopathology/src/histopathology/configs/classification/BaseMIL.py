@@ -103,6 +103,7 @@ class BaseMIL(LightningContainer):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+        self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
 
@@ -182,13 +183,13 @@ class BaseMIL(LightningContainer):
         return pooling_layer, num_features
 
     def get_test_plot_options(self) -> Set[PlotOption]:
+        options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
         if self.num_top_slides > 0:
-            return {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES}
-        else:
-            return {PlotOption.HISTOGRAM}
+            options.add(PlotOption.TOP_BOTTOM_TILES)
+        return options
 
     def get_val_plot_options(self) -> Set[PlotOption]:
-        return {PlotOption.HISTOGRAM}
+        return set()
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
         n_classes = self.data_module.train_dataset.N_CLASSES

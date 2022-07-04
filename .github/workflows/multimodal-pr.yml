@@ -7,12 +7,12 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - "multimodal/**"
+      - "hi-ml-multimodal/**"
       - ".github/workflows/multimodal-pr.yml"
 
 env:
   pythonVersion: 3.7
-  folder: multimodal
+  folder: hi-ml-multimodal
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -55,31 +55,8 @@ jobs:
       - name: mypy
         run: |
           cd ${{ env.folder }}
-          make pip_test
+          make pip
           make mypy
-
-  pyright:
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
-
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          environment-file: ${{ env.folder }}/environment.yml
-
-      - name: pyright
-        shell: bash -l {0}
-        run: |
-          conda info
-          cd ${{ env.folder }}
-          make pyright_install
-          make pyright
 
   pytest:
     runs-on: ubuntu-18.04
@@ -93,13 +70,20 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
+      - name: Upgrade PIP
+        run: |
+          cd ${{ env.folder }}
+          make pip_upgrade
+
       - name: Test with pytest
         run: |
           cd ${{ env.folder }}
 
-          # Install local package in editable mode
-          make pip_local
-
           # Run tests
-          make pip_test
+          make pip
           make pytest
+
+      - name: Run Jupyter notebooks
+        run: |
+          cd ${{ env.folder }}
+          make notebooks

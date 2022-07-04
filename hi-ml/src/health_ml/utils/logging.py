@@ -19,6 +19,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ProgressBarBase
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.distributed import rank_zero_only
+from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict, _sanitize_params
 
 from health_azure import is_running_in_azure_ml
 from health_azure.utils import PathOrString, RUN_CONTEXT, create_aml_run_object
@@ -37,7 +38,7 @@ class AzureMLLogger(LightningLoggerBase):
     """
 
     def __init__(self,
-                 enable_logging_outside_azure_ml: bool,
+                 enable_logging_outside_azure_ml: Optional[bool] = False,
                  experiment_name: str = "azureml_logger",
                  run_name: Optional[str] = None,
                  workspace: Optional[Workspace] = None,
@@ -47,7 +48,8 @@ class AzureMLLogger(LightningLoggerBase):
         """
         :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
         executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
-        the logger will only write metrics to AzureML if the code is actually running inside of AzureML.
+        the logger will only write metrics to AzureML if the code is actually running inside of AzureML. Default False,
+        do not log outside of AzureML.
         :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
         :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI). This
         argument only matters when running outside of AzureML.
@@ -140,11 +142,11 @@ class AzureMLLogger(LightningLoggerBase):
         :return: A dictionary mapping from string to string.
         """
         # Convert from Namespace to dictionary
-        params = self._convert_params(params)
+        params = _convert_params(params)
         # Convert nested dictionaries to folder-like structure
-        params = self._flatten_dict(params)
+        params = _flatten_dict(params)
         # Convert anything that is not a primitive type to str
-        params_final = self._sanitize_params(params)
+        params_final = _sanitize_params(params)
         if not isinstance(params_final, dict):
             raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
         return {str(key): str(value) for key, value in params_final.items()}
@@ -188,7 +190,7 @@ class AzureMLProgressBar(ProgressBarBase):
         self._enabled = True
         self.stage = ""
         self.stage_start_time = 0.0
-        self.total_num_batches = 0
+        self.total_num_batches = 0.
         self.write_to_logging_info = write_to_logging_info
         self.print_timestamp = print_timestamp
 
@@ -203,6 +205,16 @@ class AzureMLProgressBar(ProgressBarBase):
     @property
     def is_disabled(self) -> bool:
         return not self.is_enabled
+
+    @property
+    def total_test_batches(self) -> int:
+        assert self._trainer is not None
+        return sum(self.trainer.num_test_batches)  # type: ignore
+
+    @property
+    def total_predict_batches(self) -> int:
+        assert self._trainer is not None
+        return sum(self.trainer.num_predict_batches)  # type: ignore
 
     def disable(self) -> None:
         self._enabled = False
@@ -226,7 +238,7 @@ class AzureMLProgressBar(ProgressBarBase):
         super().on_predict_epoch_start(trainer, pl_module)
         self.start_stage(self.PROGRESS_STAGE_PREDICT, self.total_predict_batches)
 
-    def start_stage(self, stage: str, total_num_batches: int) -> None:
+    def start_stage(self, stage: str, total_num_batches: Union[int, float]) -> None:
         """
         Sets the information that a new stage of the PL loop is starting. The stage will be available in
         self.stage, total_num_batches in self.total_num_batches. The time when this method was called is recorded in
@@ -309,13 +321,12 @@ def log_on_epoch(module: LightningModule,
                  value: Optional[Any] = None,
                  metrics: Optional[Mapping[str, Any]] = None,
                  reduce_fx: Callable = torch.mean,
-                 sync_dist: Optional[bool] = None,
-                 sync_dist_op: Any = "mean") -> None:
+                 sync_dist: Optional[bool] = None) -> None:
     """
     Write a dictionary with metrics and/or an individual metric as a name/value pair to the loggers of the given module.
     Metrics are always logged upon epoch completion.
-    The metrics in question first synchronized across GPUs if DDP with >1 node is used, using the sync_dist_op
-    (default: mean). Afterwards, they are aggregated across all steps via the reduce_fx (default: mean).
+    The metrics in question first synchronized across GPUs if DDP with >1 node is used,. Afterwards, they are
+    aggregated across all steps via the reduce_fx (default: mean).
     Metrics that are fed in as plain numbers rather than tensors (for example, plain Python integers) are converted
     to tensors before logging, to enable synchronization across GPUs if needed.
 
@@ -328,8 +339,6 @@ def log_on_epoch(module: LightningModule,
         available on Rank 0 of a DDP job.
     :param reduce_fx: The reduce function to apply to the per-step values, after synchronizing the tensors across GPUs.
         Default: torch.mean
-    :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
-        a value recognized by sync_ddp: 'sum', 'mean', 'avg'
     """
     assert module.trainer is not None, "No trainer is set for this module."
     if operator.xor(name is None, value is None):
@@ -348,8 +357,7 @@ def log_on_epoch(module: LightningModule,
                     on_epoch=True,
                     on_step=False,
                     sync_dist=is_sync_dist,
-                    reduce_fx=reduce_fx,
-                    sync_dist_op=sync_dist_op)
+                    reduce_fx=reduce_fx)
 
 
 def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> None:
@@ -367,11 +375,11 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
         raise ValueError("Learning rate logging can only be used during training.")
     single_scheduler = not isinstance(schedulers, list)
     if single_scheduler:
-        schedulers = [schedulers]
+        schedulers = [schedulers]  # type: ignore
     lr_0 = schedulers[0].get_last_lr()  # type: ignore
     singleton_lr = single_scheduler and len(lr_0) == 1
     logged = {}
-    for i, scheduler in enumerate(schedulers):
+    for i, scheduler in enumerate(schedulers):  # type: ignore
         for j, lr_j in enumerate(scheduler.get_last_lr()):  # type: ignore
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j

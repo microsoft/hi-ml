@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Tuple, TypeVar
 from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
 from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
@@ -19,10 +19,13 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
                                           change_working_directory)
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_azure.logging import logging_section
+
 
 T = TypeVar('T')
 
@@ -86,7 +89,7 @@ def create_lightning_trainer(container: LightningContainer,
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            strategy = DDPStrategy(find_unused_parameters=container.pl_find_unused_parameters)
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
@@ -117,7 +120,7 @@ def create_lightning_trainer(container: LightningContainer,
                                                save_top_k=0)
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
                                                    filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
-                                                   every_n_val_epochs=container.autosave_every_n_val_epochs,
+                                                   every_n_epochs=container.autosave_every_n_val_epochs,
                                                    save_last=False)
     callbacks: List[Callback] = [
         last_checkpoint_callback,
@@ -172,7 +175,7 @@ def create_lightning_trainer(container: LightningContainer,
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
                       limit_test_batches=container.pl_limit_test_batches or 1.0,
-                      fast_dev_run=container.pl_fast_dev_run,
+                      fast_dev_run=container.pl_fast_dev_run,  # type: ignore
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
@@ -189,7 +192,7 @@ def create_lightning_trainer(container: LightningContainer,
     return trainer, storing_logger
 
 
-def model_train(checkpoint_path: Optional[Path],
+def model_train(checkpoint_handler: Optional[CheckpointHandler],
                 container: LightningContainer,
                 num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
@@ -197,7 +200,8 @@ def model_train(checkpoint_path: Optional[Path],
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
 
-    :param checkpoint_path: Checkpoint path for model initialization
+    :param checkpoint_handler: Checkpoint handler to retrieve model weights initialization and best checkpoint at the
+        end of training.
     :param num_nodes: The number of nodes to use in distributed training.
     :param container: A container object that holds the training data in PyTorch Lightning format
     and the model to train.
@@ -205,6 +209,7 @@ def model_train(checkpoint_path: Optional[Path],
     the model. The StoringLogger object is returned when training a built-in model, this is None when
     fitting other models.
     """
+    checkpoint_path = checkpoint_handler.get_recovery_or_checkpoint_path_train() if checkpoint_handler else None
     lightning_model = container.model
 
     # Execute some bookkeeping tasks only once if running distributed:
@@ -254,6 +259,19 @@ def model_train(checkpoint_path: Optional[Path],
         trainer.fit(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
+
+    if container.run_extra_val_epoch:
+        if checkpoint_handler:
+            checkpoint_handler.additional_training_done()
+            checkpoint_path_for_inference = checkpoint_handler.get_checkpoint_to_test()
+            container.load_model_checkpoint(checkpoint_path_for_inference)
+            lightning_model = container.model
+
+        with logging_section("Additional validation epoch"):
+            assert hasattr(lightning_model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
+            "This is required for running an additional validation epoch to save plots."
+            lightning_model.run_extra_val_epoch = True  # type: ignore
+            trainer.validate(lightning_model, datamodule=data_module)
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set

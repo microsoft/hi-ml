@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, PropertyMock, patch, Mock
 
 from numpy import random
 import pytest
@@ -154,10 +154,10 @@ def test_create_lightning_trainer_limit_batches() -> None:
     # First create a trainer and check what the default number of train, val and test batches is
     trainer, _ = create_lightning_trainer(container)
     # We have to call the 'fit' method on the trainer before it updates the number of batches
-    with patch.object(trainer, "logger", new=_mock_logger):
+    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
         trainer.fit(lightning_model, data_module)
-    original_num_train_batches = trainer.num_training_batches
-    original_num_val_batches = trainer.num_val_batches[0]
+    original_num_train_batches = int(trainer.num_training_batches)
+    original_num_val_batches = int(trainer.num_val_batches[0])
     original_num_test_batches = len(data_module.test_dataloader())
 
     # Now try to limit the number of batches to an integer number
@@ -172,7 +172,7 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer2.limit_train_batches == limit_train_batches_int
     assert trainer2.limit_val_batches == limit_val_batches_int
     assert trainer2.limit_test_batches == limit_test_batches_int
-    with patch.object(trainer2, "logger", new=_mock_logger):
+    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
         trainer2.fit(lightning_model, data_module)
         trainer2.test(model=lightning_model, datamodule=data_module)
     assert trainer2.num_training_batches == limit_train_batches_int
@@ -189,7 +189,7 @@ def test_create_lightning_trainer_limit_batches() -> None:
     trainer3, _ = create_lightning_trainer(container)
     assert trainer3.limit_train_batches == limit_train_batches_float
     assert trainer3.limit_val_batches == limit_val_batches_float
-    with patch.object(trainer3, "logger", new=_mock_logger):
+    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
         trainer3.fit(lightning_model, data_module)
         trainer3.test(model=lightning_model, datamodule=data_module)
     # The number of batches should be a proportion of the full available set
@@ -198,9 +198,12 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer3.num_test_batches[0] == int(limit_test_batches_float * original_num_test_batches)
 
 
-def test_model_train() -> None:
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_model_train(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
+    container.run_extra_val_epoch = run_extra_val_epoch
+    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
 
     with patch.object(container, "get_data_module"):
         with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
@@ -209,12 +212,14 @@ def test_model_train() -> None:
             mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
             mock_trainer.fit = Mock()
+            mock_trainer.validate = Mock()
             mock_close_logger = Mock()
             mock_trainer.logger = MagicMock(close=mock_close_logger)
-            checkpoint_path = None
-            trainer, storing_logger = model_train(checkpoint_path, container)
+            checkpoint_handler = None
+            trainer, storing_logger = model_train(checkpoint_handler, container)
 
             mock_trainer.fit.assert_called_once()
+            assert mock_trainer.validate.called == run_extra_val_epoch
             mock_trainer.logger.finalize.assert_called_once()
 
             assert trainer == mock_trainer
