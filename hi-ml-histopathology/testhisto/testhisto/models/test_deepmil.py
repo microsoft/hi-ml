@@ -64,7 +64,7 @@ def _test_lightningmodule(
         n_classes=n_classes,
         dropout_rate=dropout_rate,
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_attention_pooling_layer_params()
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim)
     )
 
     bag_images = rand([batch_size, max_bag_size, *module.encoder.input_dim])
@@ -392,7 +392,7 @@ def test_class_weights_binary() -> None:
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_attention_pooling_layer_params()
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1)
     )
 
     logits = Tensor(randn(1, n_classes))
@@ -417,7 +417,7 @@ def test_class_weights_multiclass() -> None:
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_attention_pooling_layer_params()
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1)
     )
 
     logits = Tensor(randn(1, n_classes))
