@@ -1,0 +1,62 @@
+name: HimlHisto
+channels:
+  - defaults
+  - pytorch
+  - conda-forge
+dependencies:
+  - cudatoolkit=11.3.1
+  - pip=21.2.4
+  - python=3.10.4
+  - pytorch=1.11.0
+  - torchvision=0.12.0
+  - pip:
+      # Run requirements for hi-ml
+      - dataclasses-json==0.5.2
+      - jinja2==3.0.2
+      - matplotlib==3.5.2
+      - opencv-python-headless==4.6.0.66
+      - pandas==1.4.3
+      - pre-commit==2.19.0
+      - protobuf==3.20.1
+      - pytorch-lightning>=1.6.0, <1.7
+      - rpdb==0.1.6
+      - setuptools==63.1.0
+      # Run requirements for hi-ml-azure
+      - azureml-core==1.43.0
+      - azureml-dataset-runtime[fuse]
+      - azureml-tensorboard==1.43.0
+      - azureml-train-core==1.43.0
+      - conda-merge==0.1.5
+      - msal-extensions==0.3.1
+      - param==1.12
+      - ruamel.yaml==0.16.12
+      - tensorboard==2.6.0
+      # Histopathology requirements
+      - coloredlogs==15.0.1
+      - cucim==22.04.00
+      - flake8==4.0.1
+      - girder-client==3.1.14
+      - jupyter==1.0.0
+      - jupyter-client==7.3.4
+      - lightning-bolts==0.4.0
+      - monai==0.8.0
+      - more-itertools==8.10.0
+      - mypy==0.961
+      - mypy-extensions==0.4.3
+      - numpy==1.23.0
+      - pillow==9.0.0
+      - pydicom==2.3.0
+      - scikit-image==0.17.2
+      - scipy==1.8.1
+      - seaborn==0.10.1
+      - simpleitk==2.1.1.2
+      - six==1.15.0
+      - tifffile==2021.11.2
+      - torchmetrics==0.6.0
+      - umap-learn==0.5.2
+      - yacs==0.1.8
+      # Test requirements
+      - pytest==7.1.2
+      - pytest-cov==3.0.0
+      # Pinned secondary dependencies to prevent clashes
+      - cloudpickle==1.6.0
