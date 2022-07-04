@@ -2,8 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
-from base64 import encode
 import torch
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
@@ -21,6 +19,8 @@ from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFF
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
                                                         MeanPoolingLayer, TransformerPooling,
                                                         TransformerPoolingBenchmark)
+from health_ml.deep_learning_config import OptimizerParams
+from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
 
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.models.encoders import (
@@ -46,92 +46,57 @@ class BaseDeepMILModule(LightningModule):
     def __init__(self,
                  label_column: str,
                  n_classes: int,
-                 outputs_folder: Path,
                  ckpt_run_id: str,
-                 encoder_type: str = ImageNetEncoder.__name__,
-                 n_channels: int = 3,
-                 tile_size: int = 224,
-                 is_caching: bool = False,
-                 pool_type: str = AttentionLayer.__name__,
-                 pool_hidden_dim: int = 128,
-                 pool_out_dim: int = 1,
-                 num_transformer_pool_layers: int = 4,
-                 num_transformer_pool_heads: int = 4,
-                 dropout_rate: Optional[float] = None,
+                 outputs_folder: Path,
                  class_weights: Optional[Tensor] = None,
-                 l_rate: float = 5e-4,
-                 weight_decay: float = 1e-4,
-                 adam_betas: Tuple[float, float] = (0.9, 0.99),
-                 verbose: bool = False,
                  class_names: Optional[Sequence[str]] = None,
-                 is_finetune: bool = False,
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 chunk_size: int = 0) -> None:
+                 dropout_rate: Optional[float] = None,
+                 verbose: bool = False,
+                 encoder_params: EncoderParams = EncoderParams(),
+                 pooling_params: PoolingParams = PoolingParams(),
+                 optimizer_params: OptimizerParams = OptimizerParams(),
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
          set to 1.
-        :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
-        you should use `IdentityEncoder`.
-        :param pooling_layer: A pooling layer nn.module
-        :param num_features: Dimensions of the input encoding features * attention dim outputs
-        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
+        :param ckpt_run_id: AML run id for encoder checkpoint download.
+        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param class_weights: Tensor containing class weights (default=None).
-        :param l_rate: Optimiser learning rate.
-        :param weight_decay: Weight decay parameter for L2 regularisation.
-        :param adam_betas: Beta parameters for Adam optimiser.
-        :param verbose: if True statements about memory usage are output at each step.
         :param class_names: The names of the classes if available (default=None).
-        :param is_finetune: Boolean value to enable/disable finetuning (default=False).
+        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
+        :param verbose: if True statements about memory usage are output at each step.
+        :param encoder_params: Encoder parameters that specify all encoder specific attributes.
+        :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
+        :param optimizer_params: Optimizer parameters that specify all specific attributes to be used for oprimization.
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
-        :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
         """
         super().__init__()
 
         # Dataset specific attributes
         self.label_column = label_column
         self.n_classes = n_classes
-        self.dropout_rate = dropout_rate
         self.class_weights = class_weights
-
         self.class_names = validate_class_names(class_names, self.n_classes)
 
-        # Downloader parameters
-        self.outputs_folder = outputs_folder
-        self.ckpt_run_id = ckpt_run_id
-        self.downloader = self.get_checkpoint_downloader()
-
-        # Finetuning attributes
-        self.is_finetune = is_finetune
+        # Classifier specific attributes
+        self.dropout_rate = dropout_rate
 
         # Encoder parameters
-        self.encoder_type = encoder_type
-        self.tile_size = tile_size
-        self.n_channels = n_channels
-        self.is_caching = is_caching
-        self.encoder = self.get_encoder()
+        self.encoder_params = encoder_params
+        self.encoder = self.get_encoder(ckpt_run_id, outputs_folder)
 
         # Pooling layer parameters
-        self.pool_type = pool_type
-        self.pool_hidden_dim = pool_hidden_dim
-        self.pool_out_dim = pool_out_dim
-        self.num_transformer_pool_layers = num_transformer_pool_layers
-        self.num_transformer_pool_heads = num_transformer_pool_heads
-        self.aggregation_fn, self.num_pooling = self.get_pooling_layer()
+        self.aggregation_fn, self.num_pooling = self.get_pooling_layer(pooling_params)
 
         # Optimiser hyperparameters
-        self.l_rate = l_rate
-        self.weight_decay = weight_decay
-        self.adam_betas = adam_betas
+        self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
-
         self.verbose = verbose
-
         self.outputs_handler = outputs_handler
-        self.chunk_size = chunk_size
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
@@ -146,77 +111,91 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_checkpoint_downloader(self) -> CheckpointDownloader:
+    @staticmethod
+    def get_checkpoint_downloader(ckpt_run_id: str, outputs_folder: Path) -> CheckpointDownloader:
         downloader = CheckpointDownloader(
             aml_workspace=get_workspace(),
-            run_id=self.ckpt_run_id,
+            run_id=ckpt_run_id,
             checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-            download_dir=self.outputs_folder,
+            download_dir=outputs_folder,
             remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
         )
         downloader.download_checkpoint_if_necessary()
         return downloader
 
-    def get_encoder(self) -> TileEncoder:
+    def get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
         encoder: TileEncoder
-        if self.encoder_type == ImageNetEncoder.__name__:
-            encoder = ImageNetEncoder(feature_extraction_model=resnet18,
-                                      tile_size=self.tile_size, n_channels=self.n_channels)
-        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
+        if self.encoder_params.encoder_type == ImageNetEncoder.__name__:
+            encoder = ImageNetEncoder(
+                feature_extraction_model=resnet18,
+                tile_size=self.encoder_params.tile_size,
+                n_channels=self.encoder_params.n_channels,
+            )
+        elif self.encoder_params.encoder_type == ImageNetEncoder_Resnet50.__name__:
             # Myronenko et al. 2021 uses Resnet50 CNN encoder
-            encoder = ImageNetEncoder_Resnet50(feature_extraction_model=resnet50,
-                                               tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = ImageNetEncoder_Resnet50(
+                feature_extraction_model=resnet50,
+                tile_size=self.encoder_params.tile_size,
+                n_channels=self.encoder_params.n_channels,
+            )
 
-        elif self.encoder_type == ImageNetSimCLREncoder.__name__:
-            encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_params.encoder_type == ImageNetSimCLREncoder.__name__:
+            encoder = ImageNetSimCLREncoder(
+                tile_size=self.encoder_params.tile_size, n_channels=self.encoder_params.n_channels
+            )
 
-        elif self.encoder_type == HistoSSLEncoder.__name__:
-            encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_params.encoder_type == HistoSSLEncoder.__name__:
+            encoder = HistoSSLEncoder(
+                tile_size=self.encoder_params.tile_size, n_channels=self.encoder_params.n_channels
+            )
 
-        elif self.encoder_type == SSLEncoder.__name__:
-            encoder = SSLEncoder(pl_checkpoint_path=self.downloader.local_checkpoint_path,
-                                 tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_params.encoder_type == SSLEncoder.__name__:
+            assert ckpt_run_id and outputs_folder, "SSLEncoder requires ckpt_run_id and outputs_folder"
+            downloader = self.get_checkpoint_downloader(ckpt_run_id, outputs_folder)
+            encoder = SSLEncoder(
+                pl_checkpoint_path=downloader.local_checkpoint_path,
+                tile_size=self.encoder_params.tile_size,
+                n_channels=self.encoder_params.n_channels,
+            )
         else:
-            raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
+            raise ValueError(f"Unsupported encoder type: {self.encoder_params.encoder_type}")
 
-        if self.is_finetune:
+        if self.encoder_params.is_finetune:
             for params in encoder.parameters():
                 params.requires_grad = True
         else:
             encoder.eval()
         return encoder
 
-    def get_pooling_layer(self) -> Tuple[nn.Module, int]:
+    def get_pooling_layer(self, pooling_params: PoolingParams) -> Tuple[nn.Module, int]:
         num_encoding = self.encoder.num_encoding
-
         pooling_layer: nn.Module
-        if self.pool_type == AttentionLayer.__name__:
+        if pooling_params.pool_type == AttentionLayer.__name__:
             pooling_layer = AttentionLayer(num_encoding,
-                                           self.pool_hidden_dim,
-                                           self.pool_out_dim)
-        elif self.pool_type == GatedAttentionLayer.__name__:
+                                           pooling_params.pool_hidden_dim,
+                                           pooling_params.pool_out_dim)
+        elif pooling_params.pool_type == GatedAttentionLayer.__name__:
             pooling_layer = GatedAttentionLayer(num_encoding,
-                                                self.pool_hidden_dim,
-                                                self.pool_out_dim)
-        elif self.pool_type == MeanPoolingLayer.__name__:
+                                                pooling_params.pool_hidden_dim,
+                                                pooling_params.pool_out_dim)
+        elif pooling_params.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
-        elif self.pool_type == MaxPoolingLayer.__name__:
+        elif pooling_params.pool_type == MaxPoolingLayer.__name__:
             pooling_layer = MaxPoolingLayer()
-        elif self.pool_type == TransformerPooling.__name__:
-            pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
-                                               self.num_transformer_pool_heads,
+        elif pooling_params.pool_type == TransformerPooling.__name__:
+            pooling_layer = TransformerPooling(pooling_params.num_transformer_pool_layers,
+                                               pooling_params.num_transformer_pool_heads,
                                                num_encoding)
-            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
-        elif self.pool_type == TransformerPoolingBenchmark.__name__:
-            pooling_layer = TransformerPoolingBenchmark(self.num_transformer_pool_layers,
-                                                        self.num_transformer_pool_heads,
+            pooling_params.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
+        elif pooling_params.pool_type == TransformerPoolingBenchmark.__name__:
+            pooling_layer = TransformerPoolingBenchmark(pooling_params.num_transformer_pool_layers,
+                                                        pooling_params.num_transformer_pool_heads,
                                                         num_encoding,
-                                                        self.pool_hidden_dim)
-            self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
+                                                        pooling_params.pool_hidden_dim)
+            pooling_params.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
-            raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
-
-        num_features = num_encoding * self.pool_out_dim
+            raise ValueError(f"Unsupported pooling type: {pooling_params.pooling_type}")
+        num_features = num_encoding * pooling_params.pool_out_dim
         return pooling_layer, num_features
 
     def get_classifier(self) -> Callable:
@@ -286,11 +265,11 @@ class BaseDeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        should_enable_encoder_grad = torch.is_grad_enabled() and self.is_finetune
+        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.is_finetune
         with set_grad_enabled(should_enable_encoder_grad):
-            if self.chunk_size > 0:
+            if self.encoder_params.chunk_size > 0:
                 embeddings = []
-                chunks = torch.split(instances, self.chunk_size)
+                chunks = torch.split(instances, self.encoder_params.chunk_size)
                 for chunk in chunks:
                     chunk_embeddings = self.encoder(chunk)
                     embeddings.append(chunk_embeddings)
@@ -303,8 +282,9 @@ class BaseDeepMILModule(LightningModule):
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
-        return optim.Adam(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay,
-                          betas=self.adam_betas)
+        return optim.Adam(self.parameters(), lr=self.optimizer_params.l_rate,
+                          weight_decay=self.optimizer_params.weight_decay,
+                          betas=self.optimizer_params.adam_betas)
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
@@ -428,13 +408,13 @@ class BaseDeepMILModule(LightningModule):
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
 
-    def get_encoder(self) -> TileEncoder:
-        if self.is_caching:
+    def get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+        if self.encoder_params.is_caching:
             # Encoding is done in the datamodule, so here we provide instead a dummy
             # no-op IdentityEncoder to be used inside the model
             return IdentityEncoder(input_dim=(self.encoder.num_encoding,))
         else:
-            return super().get_encoder()
+            return super().get_encoder(ckpt_run_id, outputs_folder)
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:

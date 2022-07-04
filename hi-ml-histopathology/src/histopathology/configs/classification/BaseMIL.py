@@ -13,40 +13,32 @@ from monai.transforms import Compose
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
+from health_azure.utils import create_from_matching_params
+
 from health_ml.utils import fixed_paths
+from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
-
 from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 
 from histopathology.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
+from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from histopathology.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer):
+class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
-    # Model parameters:
-    pool_type: str = param.String(doc="Name of the pooling layer class to use.")
-    pool_hidden_dim: int = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the\
-        hidden dimensions.")
-    pool_out_dim: int = param.Integer(1, doc="Dimension of the pooled representation.")
-    num_transformer_pool_layers: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
-         of encoding layers.")
-    num_transformer_pool_heads: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number\
-         of attention heads.")
-    is_finetune: bool = param.Boolean(False, doc="If True, fine-tune the encoder during training. If False (default), "
-                                                 "keep the encoder frozen.")
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
-    # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
+    # Outputs selection criteria
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
     primary_val_metric: MetricsKey = param.ClassSelector(default=MetricsKey.AUROC, class_=MetricsKey,
@@ -54,11 +46,6 @@ class BaseMIL(LightningContainer):
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
-
-    # Encoder parameters:
-    encoder_type: str = param.String(doc="Name of the encoder class to use.")
-    tile_size: int = param.Integer(224, bounds=(1, None), doc="Tile width/height, in pixels.")
-    n_channels: int = param.Integer(3, bounds=(1, None), doc="Number of channels in the tile.")
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
@@ -73,8 +60,6 @@ class BaseMIL(LightningContainer):
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0 , bags larger than `max_bag_size_inf` will yield "
                                           "random subsets of instances.")
-    encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
-                                                    "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
     level: int = param.Integer(1, bounds=(0, None), doc="The whole slide image level at which the image is extracted."
                                                         "Whole slide images are represented in a pyramid consisting of"
@@ -207,10 +192,6 @@ class BaseMILTiles(BaseMIL):
                                                            doc="Whether to pre-cache the entire transformed dataset "
                                                                "upfront and save it to disk and if re-load in cpu or "
                                                                "gpu. Options: `none`,`cpu` (default), `gpu`")
-    is_caching: bool = param.Boolean(False, doc="If True, cache the encoded tile features "
-                                     "(disables random subsampling of tiles). "
-                                     "If False (default), load the tiles without caching "
-                                     "(enables random subsampling of tiles).")
 
     def setup(self) -> None:
         super().setup()
@@ -245,26 +226,15 @@ class BaseMILTiles(BaseMIL):
         outputs_handler = self.get_outputs_handler()
         deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.LABEL_COLUMN,
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                                            class_names=self.class_names,
+                                            class_weights=self.data_module.class_weights,
+                                            dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
                                             ckpt_run_id=self.ckpt_run_id,
-                                            encoder_type=self.encoder_type,
-                                            n_channels=self.n_channels,
-                                            tile_size=self.tile_size,
-                                            is_caching=self.is_caching,
-                                            pool_type=self.pool_type,
-                                            pool_hidden_dim=self.pool_hidden_dim,
-                                            pool_out_dim=self.pool_out_dim,
-                                            num_transformer_pool_layers=self.num_transformer_pool_layers,
-                                            num_transformer_pool_heads=self.num_transformer_pool_heads,
-                                            dropout_rate=self.dropout_rate,
-                                            class_weights=self.data_module.class_weights,
-                                            l_rate=self.l_rate,
-                                            weight_decay=self.weight_decay,
-                                            adam_betas=self.adam_betas,
-                                            is_finetune=self.is_finetune,
-                                            class_names=self.class_names,
-                                            outputs_handler=outputs_handler,
-                                            chunk_size=self.encoding_chunk_size)
+                                            encoder_params=create_from_matching_params(self, EncoderParams),
+                                            pooling_params=create_from_matching_params(self, PoolingParams),
+                                            optimizer_params=create_from_matching_params(self, OptimizerParams),
+                                            outputs_handler=outputs_handler)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
@@ -296,23 +266,14 @@ class BaseMILSlides(BaseMIL):
         outputs_handler = self.get_outputs_handler()
         deepmil_module = SlidesDeepMILModule(label_column=SlideKey.LABEL,
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
+                                             class_names=self.class_names,
+                                             class_weights=self.data_module.class_weights,
+                                             dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              ckpt_run_id=self.ckpt_run_id,
-                                             encoder_type=self.encoder_type,
-                                             n_channels=self.n_channels,
-                                             tile_size=self.tile_size,
-                                             pool_type=self.pool_type,
-                                             pool_hidden_dim=self.pool_hidden_dim,
-                                             pool_out_dim=self.pool_out_dim,
-                                             num_transformer_pool_layers=self.num_transformer_pool_layers,
-                                             num_transformer_pool_heads=self.num_transformer_pool_heads,
-                                             dropout_rate=self.dropout_rate,
-                                             class_weights=self.data_module.class_weights,
-                                             l_rate=self.l_rate,
-                                             weight_decay=self.weight_decay,
-                                             adam_betas=self.adam_betas,
-                                             is_finetune=self.is_finetune,
-                                             class_names=self.class_names,
+                                             encoder_params=create_from_matching_params(self, EncoderParams),
+                                             pooling_params=create_from_matching_params(self, PoolingParams),
+                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
