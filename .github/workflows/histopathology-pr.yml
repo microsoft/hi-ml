@@ -69,20 +69,9 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+      - uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: PIP upgrade
-        run: |
-          cd ${{ env.folder }}
-          make pip_upgrade
-
-      - name: Install required packages
-        run: |
-          cd ${{ env.folder }}
-          make pip_from_conda
+          environment-file: ${{ env.folder }}/environment.yml
 
       - name: Install hi-ml locally
         run: |
