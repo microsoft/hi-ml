@@ -89,7 +89,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
 
     def setup(self) -> None:
         self.ckpt_run_id = ""
-        pass
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
