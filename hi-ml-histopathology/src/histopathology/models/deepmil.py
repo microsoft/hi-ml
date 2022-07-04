@@ -46,12 +46,12 @@ class BaseDeepMILModule(LightningModule):
     def __init__(self,
                  label_column: str,
                  n_classes: int,
-                 ckpt_run_id: str,
-                 outputs_folder: Path,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
+                 ckpt_run_id: Optional[str] = None,
+                 outputs_folder: Optional[Path] = None,
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
                  optimizer_params: OptimizerParams = OptimizerParams(),
@@ -60,12 +60,12 @@ class BaseDeepMILModule(LightningModule):
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
          set to 1.
-        :param ckpt_run_id: AML run id for encoder checkpoint download.
-        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
+        :param ckpt_run_id: AML run id for encoder checkpoint download.
+        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
         :param optimizer_params: Optimizer parameters that specify all specific attributes to be used for oprimization.
@@ -409,12 +409,12 @@ class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
 
     def get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+        encoder = super().get_encoder(ckpt_run_id, outputs_folder)
         if self.encoder_params.is_caching:
             # Encoding is done in the datamodule, so here we provide instead a dummy
             # no-op IdentityEncoder to be used inside the model
-            return IdentityEncoder(input_dim=(self.encoder.num_encoding,))
-        else:
-            return super().get_encoder(ckpt_run_id, outputs_folder)
+            encoder = IdentityEncoder(input_dim=(encoder.num_encoding,))
+        return encoder
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:

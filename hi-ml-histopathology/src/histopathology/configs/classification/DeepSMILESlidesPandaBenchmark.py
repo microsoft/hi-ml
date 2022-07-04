@@ -8,11 +8,12 @@ from typing import Any, Dict, Callable, Union
 from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
 
+from health_azure.utils import create_from_matching_params
 from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark
 )
-
+from health_ml.deep_learning_config import OptimizerParams
 from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.datamodules.panda_module_benchmark import PandaSlidesDataModuleBenchmark
 from histopathology.models.encoders import (
@@ -23,7 +24,26 @@ from histopathology.models.encoders import (
 )
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
 from histopathology.models.deepmil import SlidesDeepMILModule
+from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
 from histopathology.utils.naming import MetricsKey, ModelKey, SlideKey
+
+
+class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
+    """
+    Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
+    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
+    """
+
+    def __init__(self, n_epochs: int, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.save_hyperparameters()
+        self.n_epochs = n_epochs
+
+    def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
+        optimizer = optim.AdamW(self.parameters(), lr=self.optimizer_params.l_rate,
+                                weight_decay=self.optimizer_params.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 
 class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
@@ -59,7 +79,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Params specific to fine-tuning
         if self.is_finetune:
             self.batch_size = 2
-        DeepSMILESlidesPanda.setup()
+        DeepSMILESlidesPanda.setup(self)
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         # Use same transforms as demonstrated in
@@ -75,7 +95,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         ])
         return {ModelKey.TRAIN: transform_train, ModelKey.VAL: transform_inf, ModelKey.TEST: transform_inf}
 
-    def get_data_module(self) -> PandaSlidesDataModuleBenchmark:
+    def get_data_module(self) -> PandaSlidesDataModuleBenchmark:  # type: ignore
         # Myronenko et al. 2021 uses 80-20 cross-val split and no hold-out test set
         # Hence, inherited `PandaSlidesDataModuleBenchmark` from `SlidesDataModule`
         return PandaSlidesDataModuleBenchmark(
@@ -99,42 +119,23 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
 
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
-        pooling_layer, num_features = self.get_pooling_layer()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = PandaSlidesDeepMILModuleBenchmark(encoder=self.get_model_encoder(),
-                                                           label_column=SlideKey.LABEL,
-                                                           n_classes=self.data_module.train_dataset.N_CLASSES,
-                                                           pooling_layer=pooling_layer,
-                                                           num_features=num_features,
-                                                           dropout_rate=self.dropout_rate,
-                                                           class_weights=self.data_module.class_weights,
-                                                           l_rate=self.l_rate,
-                                                           weight_decay=self.weight_decay,
-                                                           adam_betas=self.adam_betas,
-                                                           is_finetune=self.is_finetune,
-                                                           class_names=self.class_names,
-                                                           outputs_handler=outputs_handler,
-                                                           chunk_size=self.encoding_chunk_size,
-                                                           n_epochs=self.max_epochs)
+        deepmil_module = PandaSlidesDeepMILModuleBenchmark(
+            n_epochs=self.max_epochs,
+            label_column=SlideKey.LABEL,
+            n_classes=self.data_module.train_dataset.N_CLASSES,
+            class_names=self.class_names,
+            class_weights=self.data_module.class_weights,
+            dropout_rate=self.dropout_rate,
+            outputs_folder=self.outputs_folder,
+            ckpt_run_id=self.ckpt_run_id,
+            encoder_params=create_from_matching_params(self, EncoderParams),
+            pooling_params=create_from_matching_params(self, PoolingParams),
+            optimizer_params=create_from_matching_params(self, OptimizerParams),
+            outputs_handler=outputs_handler,
+        )
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
-
-
-class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
-    """
-    Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
-    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
-    """
-
-    def __init__(self, n_epochs: int, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.save_hyperparameters()
-        self.n_epochs = n_epochs
-
-    def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
-        optimizer = optim.AdamW(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 
 class SlidesPandaImageNetMILBenchmark(DeepSMILESlidesPandaBenchmark):
