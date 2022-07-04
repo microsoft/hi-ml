@@ -209,7 +209,9 @@ def add_callback(fn: Callable, callback: Callable) -> Callable:
 def test_metrics(n_classes: int) -> None:
     input_dim = (128,)
 
-    def _mock_get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+    def _mock_get_encoder(  # type: ignore
+        self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
+    ) -> TileEncoder:
         return IdentityEncoder(input_dim=input_dim)
 
     with patch.object(BaseDeepMILModule, "get_encoder", new=_mock_get_encoder):
