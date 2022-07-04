@@ -79,7 +79,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Params specific to fine-tuning
         if self.is_finetune:
             self.batch_size = 2
-        DeepSMILESlidesPanda.setup(self)
+        super().setup()
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         # Use same transforms as demonstrated in
