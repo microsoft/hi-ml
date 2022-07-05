@@ -60,4 +60,4 @@ dependencies:
       - pytest-cov==3.0.0
       # Pinned secondary dependencies to prevent clashes
       - cloudpickle==1.6.0
-      - pyarrow==8.0.0
+      - pyarrow==8.0.0  # some package has pyarray<4.0.0.0, but that version 3.0 only has a wheel for Python 3.9
