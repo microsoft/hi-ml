@@ -37,16 +37,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
-
-    # Outputs selection criteria
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
-    primary_val_metric: MetricsKey = param.ClassSelector(default=MetricsKey.AUROC, class_=MetricsKey,
-                                                         doc="Primary validation metric to track for checkpointing and "
-                                                             "generating outputs.")
-    maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
-                                                            "maximised (otherwise minimised).")
-
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
@@ -66,9 +58,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                                         "multiple images at different resolutions."
                                                         "If 1 (default), will extract baseline image at the resolution"
                                                         "at level 1.")
-
     # Outputs Handler parameters:
-    save_output_slides: bool = param.Boolean(True, doc="a boolean parameter to enable saving heatmaps and thumbnails.")
     num_top_slides: int = param.Integer(10, bounds=(0, None), doc="Number of slides to select when saving top and "
                                                                   "bottom tiles. If set to 10 (default), it selects 10 "
                                                                   "top and 10 bottom slides. To disable tiles plots "
@@ -76,6 +66,11 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     num_top_tiles: int = param.Integer(12, bounds=(1, None), doc="Number of tiles to select when saving top and bottom"
                                                                  "tiles. If set to 12 (default), it saves 12 top and 12"
                                                                  "bottom tiles.")
+    primary_val_metric: MetricsKey = param.ClassSelector(default=MetricsKey.AUROC, class_=MetricsKey,
+                                                         doc="Primary validation metric to track for checkpointing and "
+                                                             "generating outputs.")
+    maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
+                                                            "maximised (otherwise minimised).")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
