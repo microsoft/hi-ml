@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 import os
 from contextlib import contextmanager
 from datetime import datetime
@@ -13,9 +12,10 @@ from typing import Any, Generator, List, Optional
 
 import torch
 from torch.nn import Module
+import pandas as pd
 from health_azure import paths
 
-from health_azure.utils import PathOrString, is_conda_file_with_pip_include
+from health_azure.utils import PathOrString, is_conda_file_with_pip_include, find_file_in_parent_folders
 
 MAX_PATH_LENGTH = 260
 
@@ -116,66 +116,50 @@ def _create_generator(seed: Optional[int] = None) -> torch.Generator:
     return generator
 
 
-def get_all_environment_files(project_root: Path, additional_files: Optional[List[Path]] = None) -> List[Path]:
+def choose_conda_env_file(env_file: Optional[Path] = None) -> Path:
     """
-    Returns a list of all Conda environment files that should be used, comprised of the default conda environment
-    definition file, plus any additional files specified in the input. If hi-ml has been downloaded from the
-    git repo or installed as a git submodule, the default environment definition file exists in hi-ml/hi-ml.
-    Otherwise, looks for a default environment file in project root folder.
+    Chooses the Conda environment file that should be used when submitting the present run to AzureML. If a Conda
+    file is given explicitly on the commandline, return that. Otherwise, look in the current folder and its parents for
+    a file called `environment.yml`.
 
-    :param project_root: The root folder of the code that starts the present training run.
-    :param additional_files: Optional list of additional environment files to merge
-    :return: A list of Conda environment files to use.
+    :param env_file: The Conda environment file that was specified on the commandline when starting the run.
+    :return: The Conda environment files to use.
+    :raises FileNotFoundError: If the specified Conda file does not exist, or none could be found at all.
     """
-    env_files = []
-    if paths.is_himl_used_from_git_repo():
-        env_file = paths.shared_himl_conda_env_file()
-        if not env_file.exists():
-            # Searching for Conda file starts at current working directory, meaning it might not find
-            # the file if cwd is outside the git repo
-            env_file = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
-            assert env_file.is_file(), f"Didn't find an environment file at {env_file}"
-
-        logging.info(f"Using Conda environment in {env_file}")
-        env_files.append(env_file)
-
-    else:
-        project_yaml = project_root / paths.ENVIRONMENT_YAML_FILE_NAME
-        print(f"Looking for project yaml: {project_yaml}")
-        if project_yaml.exists():
-            logging.info(f"Using Conda environment in current folder: {project_yaml}")
-            env_files.append(project_yaml)
-
-    if not env_files and not additional_files:
-        raise ValueError(
-            "No Conda environment files were found in the repository, and none were specified in the " "model itself."
-        )
-    if additional_files:
-        for additional_file in additional_files:
-            if additional_file.exists():
-                env_files.append(additional_file)
-    return env_files
+    if env_file is not None:
+        if env_file.is_file():
+            return env_file
+        raise FileNotFoundError(f"The Conda file specified on the commandline could not be found: {env_file}")
+    # When running from the Git repo, then stop search for environment file at repository root. Otherwise,
+    # search from current folder all the way up
+    stop_at = [paths.git_repo_root_folder()] if paths.is_himl_used_from_git_repo() else []
+    env_file = find_file_in_parent_folders(paths.ENVIRONMENT_YAML_FILE_NAME,
+                                           start_at_path=Path.cwd(),
+                                           stop_at_path=stop_at)
+    if env_file is None:
+        raise FileNotFoundError(f"No Conda environment file '{paths.ENVIRONMENT_YAML_FILE_NAME}' was found in the "
+                                "current folder or its parent folders")
+    return env_file
 
 
-def check_conda_environments(env_files: List[Path]) -> None:
-    """Tests if all conda environment files are valid. In particular, they must not contain "include" statements
+def check_conda_environment(env_file: Path) -> None:
+    """Tests if the given conda environment files is valid. In particular, it must not contain "include" statements
     in the pip section.
 
-    :param env_files: The list of Conda environment YAML files to check.
+    :param env_file: The Conda environment YAML file to check.
     """
     if paths.is_himl_used_from_git_repo():
         repo_root_yaml: Optional[Path] = paths.shared_himl_conda_env_file()
     else:
         repo_root_yaml = None
-    for file in env_files:
-        has_pip_include, _ = is_conda_file_with_pip_include(file)
-        # PIP include statements are only valid when reading from the repository root YAML file, because we
-        # are manually adding the included files in get_all_pip_requirements_files
-        if has_pip_include and file != repo_root_yaml:
-            raise ValueError(
-                f"The Conda environment definition in {file} uses '-r' to reference pip requirements "
-                "files. This does not work in AzureML. Please add the pip dependencies directly."
-            )
+    has_pip_include, _ = is_conda_file_with_pip_include(env_file)
+    # PIP include statements are only valid when reading from the repository root YAML file, because we
+    # are manually adding the included files in get_all_pip_requirements_files
+    if has_pip_include and env_file != repo_root_yaml:
+        raise ValueError(
+            f"The Conda environment definition in {env_file} uses '-r' to reference pip requirements "
+            "files. This does not work in AzureML. Please add the pip dependencies directly."
+        )
 
 
 def get_all_pip_requirements_files() -> List[Path]:
@@ -237,3 +221,29 @@ def is_long_path(path: PathOrString) -> bool:
     :return: True if the length of the path is greater than MAX_PATH_LENGTH, else False
     """
     return len(str(path)) > MAX_PATH_LENGTH
+
+
+def df_to_json(df: pd.DataFrame, json_path: Path, add_newline: bool = True) -> None:
+    """Save a data frame to a JSON file.
+
+    :param df: Input data frame.
+    :param json_path: Path to output JSON file.
+    :param add_newline: If ``True``, add newline at the end of the JSON file for POSIX compliance.
+    """
+    text = df.to_json()
+    if add_newline:
+        text += '\n'
+    json_path.write_text(text)
+
+
+def seed_monai_if_available(seed: int) -> None:
+    """If the MONAI package is available, set its shared seed to make all MONAI operations deterministic.
+    If MONAI is not available, nothing will happen.
+
+    :param seed: The random seed to use for MONAI."""
+    try:
+        # MONAI is not part of the core hi-ml requirements, this import can fail.
+        from monai.utils import set_determinism  # type: ignore
+        set_determinism(seed=seed)
+    except ImportError:
+        pass

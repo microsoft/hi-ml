@@ -45,7 +45,6 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             max_bag_size=56,
             batch_size=8,  # effective batch size = batch_size * num_GPUs
             max_epochs=50,
-            crossval_count=5,
             l_rate=3e-4,
             weight_decay=0,
             primary_val_metric=MetricsKey.ACC)
@@ -74,7 +73,6 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         transform_inf = Compose([
             ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
         ])
-        # in case the transformations for training contain augmentations, val and test transform will be different
         return {ModelKey.TRAIN: transform_train, ModelKey.VAL: transform_inf, ModelKey.TEST: transform_inf}
 
     def get_data_module(self) -> PandaSlidesDataModuleBenchmark:
@@ -89,6 +87,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             tile_size=self.tile_size,
             step=self.step,
             random_offset=self.random_offset,
+            seed=self.get_effective_random_seed(),
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
@@ -117,7 +116,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
                                                            outputs_handler=outputs_handler,
                                                            chunk_size=self.encoding_chunk_size,
                                                            n_epochs=self.max_epochs)
-        outputs_handler.set_slides_dataset(self.get_slides_dataset())
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
 

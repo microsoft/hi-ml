@@ -6,6 +6,10 @@ env:
 	pip install -r requirements_test.txt
 	pip install -r requirements_build.txt
 
+# Update the Conda environment
+conda_update:
+	conda env update -n $(CONDA_DEFAULT_ENV) --file environment.yml --prune
+
 # Package management
 
 # pip upgrade
@@ -42,10 +46,10 @@ flake8:
 
 # run mypy, assuming test requirements already installed
 mypy:
-	mypy --install-types --non-interactive -p histopathology
-	mypy --install-types --non-interactive -p SSL
-	mypy --install-types --non-interactive -p testhisto
-	mypy --install-types --non-interactive -p testSSL
+	mypy --install-types --show-error-codes --non-interactive --package histopathology
+	mypy --install-types --show-error-codes --non-interactive --package SSL
+	mypy --install-types --show-error-codes --non-interactive --package testhisto
+	mypy --install-types --show-error-codes --non-interactive --package testSSL
 
 # run basic checks
 check: flake8 mypy
@@ -59,48 +63,92 @@ pytest_coverage:
 	pytest --cov=histopathology --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
-tilespandaimagenetmil_regression_test:
+regression_test_tilespandaimagenetmil:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
-	--cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml-histopathology/environment.yml \
-	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
-	TilesPANDAImageNetMIL/HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 \
-	--regression_test_csv_tolerance=0.5 --is_finetune \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL --batch_size=2 \
+	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--regression_test_folder=testhisto/RegressionTestResults/TilesPANDAImageNetMIL/\
+	HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 --regression_test_csv_tolerance=0.5 --is_finetune \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
-	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
+	test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
 
-slidespandaimagenetmil_regression_test:
+regression_test_slidespandaimagenetmil:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMIL \
-	--cluster innereye4cl --mount_in_azureml --additional_env_files hi-ml-histopathology/environment.yml \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMILBenchmark \
+	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
 	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
 	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 --is_finetune \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
-	test/ISUP 2,test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
+	test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
 
-tcgacrcksslmil_regression_test:
+regression_test_tcgacrcksslmil:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL --azureml \
-	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml --max_epochs=50 \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL \
+	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml --max_epochs=50 \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
-	--regression_metrics=test/auroc,test/f1score,test/precision,test/recall;\
+	--regression_metrics=test/accuracy,test/auroc,test/f1score,test/precision,test/recall;\
 	}
 
-crck_simclr_regression_test:
+regression_test_crck_simclr:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR  --azureml \
-	--cluster innereye4cl --additional_env_files hi-ml-histopathology/environment.yml \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
+	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml \
 	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR/\
-	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5\
+	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
 	 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
 	}
 
-regression tests: tilespandaimagenetmil_regression_test slidespandaimagenetmil_regression_test tcgacrcksslmil_regression_test crck_simclr_regression_test
+regression tests: regression_test_tilespandaimagenetmil regression_test_slidespandaimagenetmil regression_test_tcgacrcksslmil regression_test_crck_simclr
+
+# Smoke tests (smaller tests that run end to end to check integration)
+# The following test takes around 26 minutes due to saving hyperparameters
+smoke_test_slidespandaimagenetmil:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMILBenchmark \
+	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml --is_finetune \
+	--conda_env hi-ml-histopathology/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+# The following test takes about 6 minutes
+smoke_test_tilespandaimagenetmil:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TilesPandaImageNetMIL \
+	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--is_finetune --batch_size=2 --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+# The following test takes about 30 seconds
+smoke_test_tcgacrcksslmil:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.TcgaCrckSSLMIL \
+	--conda_env hi-ml-histopathology/environment.yml --crossval_count=1 \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+# The following test takes about 3 minutes
+smoke_test_crck_simclr:
+	{ \
+	cd ../; \
+	python hi-ml/src/health_ml/runner.py --model=histopathology.CRCK_SimCLR \
+	--conda_env hi-ml-histopathology/environment.yml \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--is_debug_model=True --num_workers=0 --max_epochs=2; \
+	}
+
+smoke tests: smoke_test_slidespandaimagenetmil smoke_test_tilespandaimagenetmil smoke_test_tcgacrcksslmil smoke_test_crck_simclr

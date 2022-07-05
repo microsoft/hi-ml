@@ -120,6 +120,7 @@ class HelloRegression(LightningModule):
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)  # type: ignore
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
+        self.run_extra_val_epoch = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
@@ -234,8 +235,8 @@ class HelloWorld(LightningContainer):
     An example container for using the hi-ml runner. This container has methods
     to generate the actual Lightning model, and read out the datamodule that will be used for training.
     The number of training epochs is controlled at container level.
-    You can train this model by running `python health_ml/runner.py --model=HelloContainer` on the local box,
-    or via `python health_ml/runner.py --model=HelloContainer --azureml=True` in AzureML
+    You can train this model by running `python health_ml/runner.py --model=HelloWorld` on the local box,
+    or via `python health_ml/runner.py --model=HelloWorld --cluster=<cluster name>` in AzureML
     """
 
     def __init__(self) -> None:

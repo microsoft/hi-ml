@@ -77,6 +77,7 @@ class MetricsKey(str, Enum):
     PRECISION = 'precision'
     RECALL = 'recall'
     F1 = 'f1score'
+    COHENKAPPA = 'cohenkappa'
 
 
 class ModelKey(str, Enum):
@@ -91,3 +92,10 @@ class AMLMetricsJsonKey(str, Enum):
     VALUE = 'value'
     N_CLASSES = 'n_classes'
     CLASS_NAMES = 'class_names'
+
+
+class PlotOption(Enum):
+    TOP_BOTTOM_TILES = "top_bottom_tiles"
+    SLIDE_THUMBNAIL_HEATMAP = "slide_thumbnail_heatmap"
+    CONFUSION_MATRIX = "confusion_matrix"
+    HISTOGRAM = "histogram"

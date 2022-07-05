@@ -29,10 +29,15 @@ def test_validate_workflow_params() -> None:
     WorkflowParams(local_dataset=Path("foo"), weights_url="foo").validate()
 
 
+@pytest.mark.fast
 def test_workflow_params_get_effective_random_seed() -> None:
-    params = WorkflowParams(local_dataset=Path("foo"), weights_url="foo")
-    seed = params.get_effective_random_seed()
-    assert seed == params.random_seed
+    seed0 = 123
+    params = WorkflowParams(random_seed=seed0)
+    assert params.get_effective_random_seed() == seed0
+    params.crossval_count = 5
+    params.crossval_index = 0
+    assert params.is_crossvalidation_enabled
+    assert params.get_effective_random_seed() != seed0
 
 
 @pytest.mark.fast

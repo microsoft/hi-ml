@@ -143,6 +143,7 @@ tensorboard_logs/
 
 docs/source/api
 !docs/source/api/api.rst
+!docs/source/api/multimodal.rst
 # This file is copied from repository root to docs/source by the makefile
 /docs/source/CHANGELOG.md
 /docs/source/CONTRIBUTING.md
@@ -166,3 +167,5 @@ None/
 hi-ml-histopathology/testSSL/test_outputs
 test_outputs/
 lightning_logs/
+# Downloaded datasets
+TCGA-Crck/

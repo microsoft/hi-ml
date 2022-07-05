@@ -125,8 +125,13 @@ def _test_lightningmodule(
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
         score = metric_object(probs, bag_labels.view(batch_size,))
-        assert torch.all(score >= 0)
-        assert torch.all(score <= 1)
+        if metric_name == MetricsKey.COHENKAPPA:
+            # A NaN value could result due to a division-by-zero error
+            assert torch.all(score[~score.isnan()] >= -1)
+            assert torch.all(score[~score.isnan()] <= 1)
+        else:
+            assert torch.all(score >= 0)
+            assert torch.all(score <= 1)
 
 
 @pytest.fixture(scope="session")
@@ -347,6 +352,7 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     data_module.max_bag_size = 10
 
     module = container.create_model()
+    module.outputs_handler = MagicMock()
     module.trainer = MagicMock(world_size=1)  # type: ignore
     module.log = MagicMock()  # type: ignore
     if use_gpu:

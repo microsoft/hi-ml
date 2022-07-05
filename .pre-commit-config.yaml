@@ -3,7 +3,9 @@
 # See https://github.com/pre-commit/pre-commit-hooks/blob/master/.pre-commit-config.yaml for an example with more hooks
 
 ci:
-  autofix_prs: false
+  autofix_prs: true
+  autoupdate_commit_msg: "ENH: Autoupdate hooks [pre-commit.ci]"
+  autoupdate_schedule: monthly
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -42,6 +44,11 @@ repos:
     alias: flake8-hi-ml-histopathology
     files: ^hi-ml-histopathology/
     args: [--config, hi-ml-histopathology/.flake8]
+  - id: flake8
+    name: flake8 ./hi-ml-multimodal/
+    alias: flake8-hi-ml-multimodal
+    files: ^hi-ml-multimodal/
+    args: [--config, hi-ml-multimodal/.flake8]
 
 - repo: https://github.com/pre-commit/mirrors-autopep8
   rev: v1.5.7

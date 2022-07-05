@@ -312,6 +312,9 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()  # type: ignore
         else:
             transforms = base_transform
+        # The tiling transform is randomized. Make them deterministic. This call needs to be
+        # done on the final Compose, not at the level of the individual randomized transforms.
+        transforms.set_random_state(seed=self.seed)
         return Dataset(slides_dataset, transforms)
 
     def _get_dataloader(self, dataset: SlidesDataset, stage: ModelKey, shuffle: bool,

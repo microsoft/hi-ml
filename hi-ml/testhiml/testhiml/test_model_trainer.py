@@ -1,14 +1,16 @@
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, PropertyMock, patch, Mock
 
 from numpy import random
+import pytest
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
+from pytorch_lightning.profiler import PyTorchProfiler, PassThroughProfiler, AdvancedProfiler, SimpleProfiler
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_trainer import (create_lightning_trainer, write_experiment_summary_file, model_train)
+from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file, model_train
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
@@ -18,9 +20,10 @@ def test_write_experiment_summary_file(tmp_path: Path) -> None:
     config = {
         "Container": {
             "_min_l_rate": 0.0,
-            "_model_name": "HelloContainer",
+            "_model_name": "HelloWorld",
             "adam_betas": "(0.9, 0.999)",
-            "azure_datasets": "[]"}
+            "azure_datasets": "[]",
+        }
     }
     expected_args_path = tmp_path / EXPERIMENT_SUMMARY_FILE
     write_experiment_summary_file(config, tmp_path)
@@ -62,6 +65,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     """
     Test that create_lightning_trainer picks up on additional Container callbacks
     """
+
     def _get_trainer_arguments() -> Dict[str, Any]:
         callbacks = [MyCallback()]
         return {"callbacks": callbacks}
@@ -71,7 +75,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     container = model_config_loader.create_model_config_from_name(model_name)
     container.monitor_gpu = False
     container.monitor_loading = False
-    # mock get_trainer_arguments method, since default HelloContainer class doesn't specify any additional callbacks
+    # mock get_trainer_arguments method, since default HelloWorld class doesn't specify any additional callbacks
     container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
 
     kwargs = container.get_trainer_arguments()
@@ -86,6 +90,50 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
 
     assert isinstance(storing_logger, StoringLogger)
+
+
+def _get_trainer_arguments_custom_profiler() -> Dict[str, Any]:
+    return {"profiler": PyTorchProfiler(profile_memory=True, with_stack=True)}
+
+
+def test_custom_profiler() -> None:
+    """Test that we can specify a custom profiler.
+    """
+
+    container = LightningContainer()
+    container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, PyTorchProfiler)
+    assert trainer.profiler._profiler_kwargs["profile_memory"]
+    assert trainer.profiler._profiler_kwargs["with_stack"]
+
+
+def test_pl_profiler_argument_overrides_custom_profiler() -> None:
+    """Test that pl_profiler argument overrides any custom profiler ser in get_trainer_arguments of the container.
+    """
+
+    container = LightningContainer()
+    container.pl_profiler = "advanced"
+    container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, AdvancedProfiler)
+
+
+@pytest.mark.parametrize("pl_profiler", ["", "simple", "advanced", "pytorch"])
+def test_pl_profiler_properly_instantiated(pl_profiler: str) -> None:
+    """Test that profiler is properly instantiated for all supported options.
+    """
+
+    pl_profilers = {
+        "": PassThroughProfiler,
+        "simple": SimpleProfiler,
+        "advanced": AdvancedProfiler,
+        "pytorch": PyTorchProfiler,
+    }
+    container = LightningContainer()
+    container.pl_profiler = pl_profiler
+    trainer, _ = create_lightning_trainer(container)
+    assert isinstance(trainer.profiler, pl_profilers[pl_profiler])
 
 
 def test_create_lightning_trainer_limit_batches() -> None:
@@ -106,10 +154,10 @@ def test_create_lightning_trainer_limit_batches() -> None:
     # First create a trainer and check what the default number of train, val and test batches is
     trainer, _ = create_lightning_trainer(container)
     # We have to call the 'fit' method on the trainer before it updates the number of batches
-    with patch.object(trainer, "logger", new=_mock_logger):
+    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
         trainer.fit(lightning_model, data_module)
-    original_num_train_batches = trainer.num_training_batches
-    original_num_val_batches = trainer.num_val_batches[0]
+    original_num_train_batches = int(trainer.num_training_batches)
+    original_num_val_batches = int(trainer.num_val_batches[0])
     original_num_test_batches = len(data_module.test_dataloader())
 
     # Now try to limit the number of batches to an integer number
@@ -124,7 +172,7 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer2.limit_train_batches == limit_train_batches_int
     assert trainer2.limit_val_batches == limit_val_batches_int
     assert trainer2.limit_test_batches == limit_test_batches_int
-    with patch.object(trainer2, "logger", new=_mock_logger):
+    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
         trainer2.fit(lightning_model, data_module)
         trainer2.test(model=lightning_model, datamodule=data_module)
     assert trainer2.num_training_batches == limit_train_batches_int
@@ -141,7 +189,7 @@ def test_create_lightning_trainer_limit_batches() -> None:
     trainer3, _ = create_lightning_trainer(container)
     assert trainer3.limit_train_batches == limit_train_batches_float
     assert trainer3.limit_val_batches == limit_val_batches_float
-    with patch.object(trainer3, "logger", new=_mock_logger):
+    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
         trainer3.fit(lightning_model, data_module)
         trainer3.test(model=lightning_model, datamodule=data_module)
     # The number of batches should be a proportion of the full available set
@@ -150,9 +198,12 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer3.num_test_batches[0] == int(limit_test_batches_float * original_num_test_batches)
 
 
-def test_model_train() -> None:
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_model_train(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
+    container.run_extra_val_epoch = run_extra_val_epoch
+    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
 
     with patch.object(container, "get_data_module"):
         with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
@@ -161,12 +212,14 @@ def test_model_train() -> None:
             mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
             mock_trainer.fit = Mock()
+            mock_trainer.validate = Mock()
             mock_close_logger = Mock()
             mock_trainer.logger = MagicMock(close=mock_close_logger)
-            checkpoint_path = None
-            trainer, storing_logger = model_train(checkpoint_path, container)
+            checkpoint_handler = None
+            trainer, storing_logger = model_train(checkpoint_handler, container)
 
             mock_trainer.fit.assert_called_once()
+            assert mock_trainer.validate.called == run_extra_val_epoch
             mock_trainer.logger.finalize.assert_called_once()
 
             assert trainer == mock_trainer
