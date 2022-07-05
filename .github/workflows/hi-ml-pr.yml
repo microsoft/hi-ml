@@ -28,7 +28,7 @@ jobs:
   flake8:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -43,7 +43,7 @@ jobs:
   mypy:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -58,7 +58,7 @@ jobs:
   pyright:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
       - uses: actions/setup-node@v2
@@ -79,7 +79,7 @@ jobs:
       # This will let all parts of the matrix run, to collect as many errors as possible, rather than aborting after first fail
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -121,7 +121,7 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -147,7 +147,7 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -209,7 +209,7 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -249,7 +249,7 @@ jobs:
         folder: [ hi-ml, hi-ml-azure ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -281,7 +281,7 @@ jobs:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
