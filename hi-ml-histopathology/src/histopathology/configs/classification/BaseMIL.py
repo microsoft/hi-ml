@@ -25,7 +25,7 @@ from histopathology.datamodules.base_module import CacheLocation, CacheMode, His
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
-from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
 from histopathology.utils.output_utils import DeepMILOutputsHandler
 from histopathology.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from histopathology.utils.tiles_selection_utils import TilesSelector

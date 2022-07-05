@@ -24,7 +24,7 @@ from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
 from histopathology.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
-from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType

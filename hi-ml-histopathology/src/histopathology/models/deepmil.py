@@ -10,22 +10,12 @@ from pathlib import Path
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
-from torchvision.models.resnet import resnet18, resnet50
 
-from health_azure.utils import CheckpointDownloader, get_workspace
 from health_ml.utils import log_on_epoch
-from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer, MaxPoolingLayer,
-                                                        MeanPoolingLayer, TransformerPooling,
-                                                        TransformerPoolingBenchmark)
 from health_ml.deep_learning_config import OptimizerParams
-from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams, get_encoder, get_pooling_layer
 
 from histopathology.datasets.base_dataset import TilesDataset
-from histopathology.models.encoders import (
-    HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetEncoder_Resnet50, ImageNetSimCLREncoder,
-    SSLEncoder, TileEncoder)
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
@@ -80,6 +70,7 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
+
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
         self.optimizer_params = optimizer_params
@@ -93,8 +84,8 @@ class BaseDeepMILModule(LightningModule):
         self.run_extra_val_epoch = False
 
         # Model components
-        self.encoder = self.get_encoder(ckpt_run_id, outputs_folder)
-        self.aggregation_fn, self.num_pooling = self.get_pooling_layer(pooling_params)
+        self.encoder = get_encoder(ckpt_run_id, outputs_folder, encoder_params)
+        self.aggregation_fn, self.num_pooling = get_pooling_layer(pooling_params, self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
 
@@ -104,93 +95,6 @@ class BaseDeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
-
-    @staticmethod
-    def get_checkpoint_downloader(ckpt_run_id: str, outputs_folder: Path) -> CheckpointDownloader:
-        downloader = CheckpointDownloader(
-            aml_workspace=get_workspace(),
-            run_id=ckpt_run_id,
-            checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-            download_dir=outputs_folder,
-            remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
-        )
-        downloader.download_checkpoint_if_necessary()
-        return downloader
-
-    def get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
-        encoder: TileEncoder
-        if self.encoder_params.encoder_type == ImageNetEncoder.__name__:
-            encoder = ImageNetEncoder(
-                feature_extraction_model=resnet18,
-                tile_size=self.encoder_params.tile_size,
-                n_channels=self.encoder_params.n_channels,
-            )
-        elif self.encoder_params.encoder_type == ImageNetEncoder_Resnet50.__name__:
-            # Myronenko et al. 2021 uses Resnet50 CNN encoder
-            encoder = ImageNetEncoder_Resnet50(
-                feature_extraction_model=resnet50,
-                tile_size=self.encoder_params.tile_size,
-                n_channels=self.encoder_params.n_channels,
-            )
-
-        elif self.encoder_params.encoder_type == ImageNetSimCLREncoder.__name__:
-            encoder = ImageNetSimCLREncoder(
-                tile_size=self.encoder_params.tile_size, n_channels=self.encoder_params.n_channels
-            )
-
-        elif self.encoder_params.encoder_type == HistoSSLEncoder.__name__:
-            encoder = HistoSSLEncoder(
-                tile_size=self.encoder_params.tile_size, n_channels=self.encoder_params.n_channels
-            )
-
-        elif self.encoder_params.encoder_type == SSLEncoder.__name__:
-            assert ckpt_run_id and outputs_folder, "SSLEncoder requires ckpt_run_id and outputs_folder"
-            downloader = self.get_checkpoint_downloader(ckpt_run_id, outputs_folder)
-            encoder = SSLEncoder(
-                pl_checkpoint_path=downloader.local_checkpoint_path,
-                tile_size=self.encoder_params.tile_size,
-                n_channels=self.encoder_params.n_channels,
-            )
-        else:
-            raise ValueError(f"Unsupported encoder type: {self.encoder_params.encoder_type}")
-
-        if self.encoder_params.is_finetune:
-            for params in encoder.parameters():
-                params.requires_grad = True
-        else:
-            encoder.eval()
-        return encoder
-
-    def get_pooling_layer(self, pooling_params: PoolingParams) -> Tuple[nn.Module, int]:
-        num_encoding = self.encoder.num_encoding
-        pooling_layer: nn.Module
-        if pooling_params.pool_type == AttentionLayer.__name__:
-            pooling_layer = AttentionLayer(num_encoding,
-                                           pooling_params.pool_hidden_dim,
-                                           pooling_params.pool_out_dim)
-        elif pooling_params.pool_type == GatedAttentionLayer.__name__:
-            pooling_layer = GatedAttentionLayer(num_encoding,
-                                                pooling_params.pool_hidden_dim,
-                                                pooling_params.pool_out_dim)
-        elif pooling_params.pool_type == MeanPoolingLayer.__name__:
-            pooling_layer = MeanPoolingLayer()
-        elif pooling_params.pool_type == MaxPoolingLayer.__name__:
-            pooling_layer = MaxPoolingLayer()
-        elif pooling_params.pool_type == TransformerPooling.__name__:
-            pooling_layer = TransformerPooling(pooling_params.num_transformer_pool_layers,
-                                               pooling_params.num_transformer_pool_heads,
-                                               num_encoding)
-            pooling_params.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
-        elif pooling_params.pool_type == TransformerPoolingBenchmark.__name__:
-            pooling_layer = TransformerPoolingBenchmark(pooling_params.num_transformer_pool_layers,
-                                                        pooling_params.num_transformer_pool_heads,
-                                                        num_encoding,
-                                                        pooling_params.pool_hidden_dim)
-            pooling_params.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
-        else:
-            raise ValueError(f"Unsupported pooling type: {pooling_params.pooling_type}")
-        num_features = num_encoding * pooling_params.pool_out_dim
-        return pooling_layer, num_features
 
     def get_classifier(self) -> Callable:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
@@ -401,14 +305,6 @@ class BaseDeepMILModule(LightningModule):
 
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
-
-    def get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
-        encoder = super().get_encoder(ckpt_run_id, outputs_folder)
-        if self.encoder_params.is_caching:
-            # Encoding is done in the datamodule, so here we provide instead a dummy
-            # no-op IdentityEncoder to be used inside the model
-            encoder = IdentityEncoder(input_dim=(encoder.num_encoding,))
-        return encoder
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:

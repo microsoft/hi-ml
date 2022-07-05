@@ -24,7 +24,7 @@ from histopathology.models.encoders import (
 )
 from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
 from histopathology.models.deepmil import SlidesDeepMILModule
-from histopathology.utils.deepmil_params import EncoderParams, PoolingParams
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
 from histopathology.utils.naming import MetricsKey, ModelKey, SlideKey
 
 
