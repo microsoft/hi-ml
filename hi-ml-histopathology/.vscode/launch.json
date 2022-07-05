@@ -48,13 +48,8 @@
                 "--pl_fast_dev_run=10",
                 "--crossval_count=0",
                 "--batch_size=2",
-<<<<<<< HEAD
                 "--max_bag_size=5",
                 "--max_bag_size_inf=5",
-=======
-                "--max_bag_size=4",
-                "--max_bag_size_inf=4",
->>>>>>> main
                 "--num_top_slides=2",
                 "--num_top_tiles=2",
                 "--max_num_gpus=1",
