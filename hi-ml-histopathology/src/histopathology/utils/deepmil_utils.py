@@ -10,7 +10,6 @@ from typing import Optional, Tuple
 from torchvision.models.resnet import resnet18, resnet50
 from histopathology.models.encoders import (
     HistoSSLEncoder,
-    IdentityEncoder,
     ImageNetEncoder,
     ImageNetEncoder_Resnet50,
     ImageNetSimCLREncoder,
@@ -88,10 +87,6 @@ class EncoderParams(param.Parameterized):
                 params.requires_grad = True
         else:
             encoder.eval()
-        if self.is_caching:
-            # Encoding is done in the datamodule, so here we provide instead a dummy
-            # no-op IdentityEncoder to be used inside the model
-            encoder = IdentityEncoder(input_dim=(encoder.num_encoding,))
         return encoder
 
 

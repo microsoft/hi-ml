@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 from pathlib import Path
 
@@ -13,6 +13,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
+from histopathology.models.encoders import IdentityEncoder
 from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
 
 from histopathology.datasets.base_dataset import TilesDataset
@@ -305,6 +306,13 @@ class BaseDeepMILModule(LightningModule):
 
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if self.encoder_params.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
+            self.encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
