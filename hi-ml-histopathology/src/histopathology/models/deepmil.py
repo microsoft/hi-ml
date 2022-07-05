@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from logging import raiseExceptions
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 import numpy as np
@@ -338,7 +339,10 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     @staticmethod
     def get_empty_lists(shape: int, n: int) -> List:
-        return [[None] * shape] * n
+        ll = []
+        for _ in range(n):
+            ll.append([None] * shape)
+        return ll
 
     @staticmethod
     def get_patch_coordinate(slide_offset: List, patch_location: List, patch_size: List) -> Tuple[int, int, int, int]:
@@ -380,13 +384,13 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         top, bottom, left, right = self.get_empty_lists(len(patches_location), 4)
         for i, location in enumerate(patches_location):
             top[i], bottom[i], left[i], right[i] = self.get_patch_coordinate(slide_offset, location, patch_size)
-        return (top, bottom, left, right)
+        return top, bottom, left, right
 
     def compute_slide_metadata(self, batch: Dict, index: int, metadata_dict: Dict) -> Dict:
         """compute patch-dependent and patch-invariante metadata for a single slide """
-        offset = batch[SlideKey.OFFSET][index]
-        patches_location = batch[SlideKey.PATCH_LOCATION][index]
-        patch_size = batch[SlideKey.PATCH_SIZE][index]
+        offset = batch[SlideKey.OFFSET.value][index]
+        patches_location = batch[SlideKey.PATCH_LOCATION.value][index]
+        patch_size = batch[SlideKey.PATCH_SIZE.value][index]
         n_patches = len(patches_location)
         id = batch[SlideKey.SLIDE_ID][index]
         path = batch[SlideKey.IMAGE_PATH][index]
@@ -406,7 +410,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return metadata_dict
 
     def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
-        if all(key in batch.keys() for key in [SlideKey.OFFSET, SlideKey.PATCH_LOCATION, SlideKey.PATCH_SIZE]):
+        if all(key.value in batch.keys() for key in [SlideKey.OFFSET, SlideKey.PATCH_LOCATION, SlideKey.PATCH_SIZE]):
             n_slides = len(batch[SlideKey.SLIDE_ID])
             metadata_dict = {
                 ResultsKey.TILE_TOP: [],
@@ -425,4 +429,4 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                     results[key].append(updated_metadata_dict[key])
         else:
             rank_zero_warn(message="Offset, patch location or patch size are not found in the batch"
-            "make sure to use RandGridPatch.")
+                "make sure to use RandGridPatch.")

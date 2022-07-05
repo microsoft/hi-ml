@@ -57,7 +57,8 @@ def array_collate(batch: List) -> Any:
                 constant_keys.append(key)
     tensor_keys = collate_keys + [SlideKey.LABEL]
 
-    skip_idx = check_patch_location_format(batch)
+    # skip_idx = check_patch_location_format(batch)
+    skip_idx = []
     new_batch: List[dict] = []
     for patch_data in batch:
         # we assume all patches are dictionaries with the same keys
@@ -65,10 +66,10 @@ def array_collate(batch: List) -> Any:
         # this is necessary to overcome bug in RandGRidPatch, if one patch has faulty location the all slide is skipped
         if data[SlideKey.SLIDE_ID] not in skip_idx:
             for key in collate_keys:
-                if key == SlideKey.PATCH_LOCATION:
-                    data[key] = np.array([ix[key] for ix in patch_data if type(ix[key][0]) == np.uint8])
-                else:
-                    data[key] = np.array([ix[key] for ix in patch_data])
+                # if key == SlideKey.PATCH_LOCATION:
+                #    data[key] = np.array([ix[key] for ix in patch_data if type(ix[key][0]) == np.int16])
+                #else:
+                data[key] = np.array([ix[key] for ix in patch_data])
             for key in tensor_keys:
                 data[key] = torch.tensor(data[key])
             new_batch.append(data)

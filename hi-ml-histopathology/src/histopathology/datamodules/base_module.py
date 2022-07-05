@@ -302,7 +302,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     sort_fn=self.filter_mode,
                     pad_mode="constant",
                     constant_values=self.background_val,
-                    overlap=self.overlap,  #type: ignore
+                    overlap=self.overlap,  # type: ignore
                     threshold=self.intensity_threshold,
                     max_offset=max_offset,
                 )
