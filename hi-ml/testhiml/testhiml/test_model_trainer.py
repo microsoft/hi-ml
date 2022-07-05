@@ -198,9 +198,12 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer3.num_test_batches[0] == int(limit_test_batches_float * original_num_test_batches)
 
 
-def test_model_train() -> None:
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_model_train(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
+    container.run_extra_val_epoch = run_extra_val_epoch
+    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
 
     with patch.object(container, "get_data_module"):
         with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
@@ -209,12 +212,14 @@ def test_model_train() -> None:
             mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
             mock_trainer.fit = Mock()
+            mock_trainer.validate = Mock()
             mock_close_logger = Mock()
             mock_trainer.logger = MagicMock(close=mock_close_logger)
-            checkpoint_path = None
-            trainer, storing_logger = model_train(checkpoint_path, container)
+            checkpoint_handler = None
+            trainer, storing_logger = model_train(checkpoint_handler, container)
 
             mock_trainer.fit.assert_called_once()
+            assert mock_trainer.validate.called == run_extra_val_epoch
             mock_trainer.logger.finalize.assert_called_once()
 
             assert trainer == mock_trainer
