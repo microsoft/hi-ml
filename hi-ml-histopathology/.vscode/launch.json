@@ -57,29 +57,6 @@
             "console": "integratedTerminal",
         },
         {
-            "name": "Python: Long Run SlidesPandaImageNetMIL locally",
-            "type": "python",
-            "request": "launch",
-            "justMyCode": false,
-            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
-            "args": [
-                "--model=histopathology.SlidesPandaImageNetMIL",
-                "--crossval_count=0",
-                "--batch_size=50",
-                "--max_bag_size=10",
-                "--max_bag_size_inf=10",
-                "--num_top_slides=2",
-                "--num_top_tiles=2",
-                "--max_num_gpus=1",
-                "--max_epochs 2",
-                "--pl_limit_train_batches 20",
-                "--pl_limit_test_batches 20",
-                "--pl_limit_val_batches 20"
-
-            ],
-            "console": "integratedTerminal",
-        },
-        {
             "name": "Python: Run TilesPandaImageNetMIL locally",
             "type": "python",
             "request": "launch",

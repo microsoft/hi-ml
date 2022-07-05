@@ -245,13 +245,12 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self,
         level: Optional[int] = 1,
         tile_size: Optional[int] = 224,
-        step: Optional[int] = None,
         random_offset: Optional[bool] = True,
-        pad_full: Optional[bool] = False,
         background_val: Optional[int] = 255,
-        filter_mode: Optional[str] = "min",
+        filter_mode: Optional[str] = "None",
         overlap: Optional[float] = 0,
         intensity_threshold: Optional[float] = 0,
+        pad_mode: Optional[str] = "constant",
         **kwargs: Any,
     ) -> None:
         """
@@ -263,19 +262,17 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
         defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
-        tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value). This param is passed to
-        monai transform for tiling on the fly.
-        : param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+        :param filter_mode:  when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
+        :param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        : param intensity_threshold: a value to keep only the patches whose sum of intensities are less than the
+        :param intensity_threshold: a value to keep only the patches whose sum of intensities are less than the
             threshold. Defaults to no filtering.
+        :pad_mode:  refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied.
         """
         super().__init__(**kwargs)
         self.level = level
         self.tile_size = tile_size
-        self.step = step
         self.random_offset = random_offset
         self.background_val = background_val
         self.filter_mode = filter_mode
@@ -285,6 +282,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
         self.overlap = overlap
         self.intensity_threshold = intensity_threshold
+        self.pad_mode = pad_mode
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         load_image_transform = LoadImaged(
@@ -301,7 +299,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             patch_size=[self.tile_size, self.tile_size],  # type: ignore
             num_patches=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
             sort_fn=self.filter_mode,
-            pad_mode="constant",
+            pad_mode=self.pad_mode,
             constant_values=self.background_val,
             overlap=self.overlap,  # type: ignore
             threshold=self.intensity_threshold,
