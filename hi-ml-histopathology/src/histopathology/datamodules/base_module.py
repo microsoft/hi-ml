@@ -22,7 +22,7 @@ from histopathology.utils.naming import ModelKey
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
-from monai.transforms import RandGridPatchd, GridPatchd
+from monai.transforms import RandGridPatchd
 from monai.data.image_reader import WSIReader
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -293,7 +293,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     dtype=np.uint8,
                     level=self.level,
                     image_only=True,
-                )
+        )
         max_offset = None if (self.random_offset and stage == ModelKey.TRAIN) else 0
         random_grid_transform = RandGridPatchd(
                     keys=[slides_dataset.IMAGE_COLUMN],
@@ -305,7 +305,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     overlap=self.overlap,  # type: ignore
                     threshold=self.intensity_threshold,
                     max_offset=max_offset,
-                )
+        )
         base_transform = Compose([load_image_transform, random_grid_transform])
 
         if self.transforms_dict and self.transforms_dict[stage]:
