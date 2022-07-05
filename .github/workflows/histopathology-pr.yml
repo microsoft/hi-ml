@@ -74,6 +74,7 @@ jobs:
           environment-file: ${{ env.folder }}/environment.yml
           activate-environment: HimlHisto
 
+
       - name: Install hi-ml locally
         shell: bash -l {0}
         run: |
