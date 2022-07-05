@@ -16,6 +16,7 @@ jobs:
         uses: microsoft/security-devops-action@preview
         id: credscan
         with:
+          policy: Microsoft
           tools: credscan
       - name: Upload results to Security tab
         uses: github/codeql-action/upload-sarif@v2
