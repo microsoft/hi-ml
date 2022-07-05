@@ -86,6 +86,15 @@ jobs:
   notebooks:
     runs-on: ubuntu-18.04
     steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
       - name: Install test requirements
         run: |
           cd ${{ env.folder }}
