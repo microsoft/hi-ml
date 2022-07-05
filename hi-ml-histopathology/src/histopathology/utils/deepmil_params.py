@@ -17,8 +17,8 @@ class EncoderParams(param.Parameterized):
                                                 "(disables random subsampling of tiles). "
                                                 "If False (default), load the tiles without caching "
                                                 "(enables random subsampling of tiles).")
-    chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading enconding_chunk_size tiles "
-                                           "per chunk")
+    encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles "
+                                                    "per chunk")
 
 
 class PoolingParams(param.Parameterized):

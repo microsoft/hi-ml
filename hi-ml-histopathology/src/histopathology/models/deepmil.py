@@ -267,9 +267,9 @@ class BaseDeepMILModule(LightningModule):
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.is_finetune
         with set_grad_enabled(should_enable_encoder_grad):
-            if self.encoder_params.chunk_size > 0:
+            if self.encoder_params.encoding_chunk_size > 0:
                 embeddings = []
-                chunks = torch.split(instances, self.encoder_params.chunk_size)
+                chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
                 for chunk in chunks:
                     chunk_embeddings = self.encoder(chunk)
                     embeddings.append(chunk_embeddings)
