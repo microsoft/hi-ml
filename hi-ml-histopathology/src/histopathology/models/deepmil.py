@@ -13,7 +13,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
-from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams, get_encoder, get_pooling_layer
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
 
 from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
@@ -84,8 +84,8 @@ class BaseDeepMILModule(LightningModule):
         self.run_extra_val_epoch = False
 
         # Model components
-        self.encoder = get_encoder(ckpt_run_id, outputs_folder, encoder_params)
-        self.aggregation_fn, self.num_pooling = get_pooling_layer(pooling_params, self.encoder.num_encoding)
+        self.encoder = encoder_params.get_encoder(ckpt_run_id, outputs_folder)
+        self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
 

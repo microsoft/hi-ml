@@ -36,17 +36,11 @@ no_gpu = not is_gpu_available()
 
 
 def get_supervised_imagenet_encoder_params() -> EncoderParams:
-    encoder_params = EncoderParams()
-    encoder_params.encoder_type = ImageNetEncoder.__name__
-    return encoder_params
+    return EncoderParams(encoder_type=ImageNetEncoder.__name__)
 
 
 def get_attention_pooling_layer_params(pool_out_dim: int = 1) -> PoolingParams:
-    pooling_params = PoolingParams()
-    pooling_params.pool_out_dim = pool_out_dim
-    pooling_params.pool_type = AttentionLayer.__name__
-    pooling_params.pool_hidden_dim = 5  # different dimensions get tested in test_attentionlayers.py
-    return pooling_params
+    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5)
 
 
 def _test_lightningmodule(
@@ -214,7 +208,7 @@ def test_metrics(n_classes: int) -> None:
     ) -> TileEncoder:
         return IdentityEncoder(input_dim=input_dim)
 
-    with patch("histopathology.models.deepmil.get_encoder", new=_mock_get_encoder):
+    with patch("histopathology.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
         module = TilesDeepMILModule(label_column=TilesDataset.LABEL_COLUMN,
                                     n_classes=n_classes,
                                     pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
