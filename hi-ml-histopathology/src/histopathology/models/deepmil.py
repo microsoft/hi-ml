@@ -364,6 +364,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     @staticmethod
     def check_patch_location_format(batch):
+        """Workaround for bug in MONAI that returns not consistent location"""
         faulty_slides_idx = []
         for i, locations in enumerate(batch[SlideKey.PATCH_LOCATION]):
             for location in locations:
@@ -374,7 +375,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                 break
         n = len(faulty_slides_idx)
         if n > 0:
-            print(f'{n} slides will be skipped because somethign was wrong in the patch location')
+            print(f'{n} slides will be skipped because something was wrong in the patch location')
         return faulty_slides_idx
 
     def get_slide_patch_coordinates(
@@ -394,8 +395,6 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         n_patches = len(patches_location)
         id = batch[SlideKey.SLIDE_ID][index]
         path = batch[SlideKey.IMAGE_PATH][index]
-
-        # self.check_patch_location_format(batch)
 
         top, bottom, left, right = self.get_slide_patch_coordinates(offset, patches_location, patch_size)
         slide_id, image_paths, tile_id = self.expand_slide_constant_metadata(id, path, n_patches)

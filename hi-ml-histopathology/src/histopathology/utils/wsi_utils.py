@@ -21,24 +21,6 @@ slide_metadata_keys = [
 ]
 
 
-def check_patch_location_format(batch):
-    """
-    check locations returned by transform have expected size [z, y, x]
-    """
-    faulty_slides_idx = []
-    for slide_data in batch:
-        for patch in slide_data:
-            location = patch[SlideKey.PATCH_LOCATION]
-            if not isinstance(location[0], np.uint8):
-                # we assume the location is 2d [y, x] but MONAI sometimes returns [[0], [0]] instead
-                faulty_slides_idx.append(patch[SlideKey.SLIDE_ID])
-                break
-    n = len(faulty_slides_idx)
-    if n > 0:
-        logging.warning(f'{n} slides will be skipped because something was wrong in the patch location')
-    return faulty_slides_idx
-
-
 def array_collate(batch: List) -> Any:
     """
         Combine instances from a list of dicts into a single dict, by stacking arrays along first dim
@@ -57,21 +39,14 @@ def array_collate(batch: List) -> Any:
                 constant_keys.append(key)
     tensor_keys = collate_keys + [SlideKey.LABEL]
 
-    # skip_idx = check_patch_location_format(batch)
-    skip_idx = []
     new_batch: List[dict] = []
     for patch_data in batch:
         # we assume all patches are dictionaries with the same keys
         data = patch_data[0]
-        # this is necessary to overcome bug in RandGRidPatch, if one patch has faulty location the all slide is skipped
-        if data[SlideKey.SLIDE_ID] not in skip_idx:
-            for key in collate_keys:
-                # if key == SlideKey.PATCH_LOCATION:
-                #    data[key] = np.array([ix[key] for ix in patch_data if type(ix[key][0]) == np.int16])
-                #else:
-                data[key] = np.array([ix[key] for ix in patch_data])
-            for key in tensor_keys:
-                data[key] = torch.tensor(data[key])
-            new_batch.append(data)
-            batch = new_batch
+        for key in collate_keys:
+            data[key] = np.array([ix[key] for ix in patch_data])
+        for key in tensor_keys:
+            data[key] = torch.tensor(data[key])
+        new_batch.append(data)
+        batch = new_batch
     return multibag_collate(batch)
