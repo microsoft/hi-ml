@@ -206,9 +206,11 @@ class BaseMILTiles(BaseMIL):
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
+            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ckpt_run_id,
+                                                                                   self.outputs_folder)
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.model.encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
+                EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
             ])
         else:
             transform = LoadTilesBatchd(image_key, progress=True)  # type: ignore
