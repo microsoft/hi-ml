@@ -1,9 +1,1 @@
-# Multimodal learning
-
-Introduction
-
-## Installation
-
-## Example
-
-## Credits
+../../hi-ml-multimodal/package_description.md

@@ -19,10 +19,13 @@ from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, 
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
                                           change_working_directory)
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_azure.logging import logging_section
+
 
 T = TypeVar('T')
 
@@ -189,7 +192,7 @@ def create_lightning_trainer(container: LightningContainer,
     return trainer, storing_logger
 
 
-def model_train(checkpoint_path: Optional[Path],
+def model_train(checkpoint_handler: Optional[CheckpointHandler],
                 container: LightningContainer,
                 num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
@@ -197,7 +200,8 @@ def model_train(checkpoint_path: Optional[Path],
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
 
-    :param checkpoint_path: Checkpoint path for model initialization
+    :param checkpoint_handler: Checkpoint handler to retrieve model weights initialization and best checkpoint at the
+        end of training.
     :param num_nodes: The number of nodes to use in distributed training.
     :param container: A container object that holds the training data in PyTorch Lightning format
     and the model to train.
@@ -205,6 +209,7 @@ def model_train(checkpoint_path: Optional[Path],
     the model. The StoringLogger object is returned when training a built-in model, this is None when
     fitting other models.
     """
+    checkpoint_path = checkpoint_handler.get_recovery_or_checkpoint_path_train() if checkpoint_handler else None
     lightning_model = container.model
 
     # Execute some bookkeeping tasks only once if running distributed:
@@ -254,6 +259,19 @@ def model_train(checkpoint_path: Optional[Path],
         trainer.fit(lightning_model, datamodule=data_module)
     assert trainer.logger is not None
     trainer.logger.finalize('success')
+
+    if container.run_extra_val_epoch:
+        if checkpoint_handler:
+            checkpoint_handler.additional_training_done()
+            checkpoint_path_for_inference = checkpoint_handler.get_checkpoint_to_test()
+            container.load_model_checkpoint(checkpoint_path_for_inference)
+            lightning_model = container.model
+
+        with logging_section("Additional validation epoch"):
+            assert hasattr(lightning_model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
+            "This is required for running an additional validation epoch to save plots."
+            lightning_model.run_extra_val_epoch = True  # type: ignore
+            trainer.validate(lightning_model, datamodule=data_module)
 
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
