@@ -83,6 +83,14 @@ jobs:
           make pip
           make pytest
 
+  notebooks:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Install test requirements
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+
       - name: Run Jupyter notebooks
         run: |
           cd ${{ env.folder }}
