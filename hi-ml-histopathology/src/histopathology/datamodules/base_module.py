@@ -106,6 +106,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     def test_dataloader(self) -> DataLoader:
         return self._get_dataloader(self.test_dataset, shuffle=False, stage=ModelKey.TEST, **self.dataloader_kwargs)
 
+
 class TilesDataModule(HistoDataModule[TilesDataset]):
     """Base class to load the tiles of a dataset as train, val, test sets"""
 
@@ -287,25 +288,25 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         load_image_transform = LoadImaged(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    reader=WSIReader,  # type: ignore
-                    backend="cuCIM",
-                    dtype=np.uint8,
-                    level=self.level,
-                    image_only=True,
-                )
+            keys=slides_dataset.IMAGE_COLUMN,
+            reader=WSIReader,  # type: ignore
+            backend="cuCIM",
+            dtype=np.uint8,
+            level=self.level,
+            image_only=True,
+        )
         max_offset = None if (self.random_offset and stage == ModelKey.TRAIN) else 0
         random_grid_transform = RandGridPatchd(
-                    keys=[slides_dataset.IMAGE_COLUMN],
-                    patch_size=[self.tile_size, self.tile_size],  # type: ignore
-                    num_patches=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
-                    sort_fn=self.filter_mode,
-                    pad_mode="constant",
-                    constant_values=self.background_val,
-                    overlap=self.overlap,  # type: ignore
-                    threshold=self.intensity_threshold,
-                    max_offset=max_offset,
-                )
+            keys=[slides_dataset.IMAGE_COLUMN],
+            patch_size=[self.tile_size, self.tile_size],  # type: ignore
+            num_patches=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
+            sort_fn=self.filter_mode,
+            pad_mode="constant",
+            constant_values=self.background_val,
+            overlap=self.overlap,  # type: ignore
+            threshold=self.intensity_threshold,
+            max_offset=max_offset,
+        )
         base_transform = Compose([load_image_transform, random_grid_transform])
 
         if self.transforms_dict and self.transforms_dict[stage]:

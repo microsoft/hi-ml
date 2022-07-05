@@ -445,4 +445,4 @@ class SlidesDeepMILModule(BaseDeepMILModule):
                     results[key].append(updated_metadata_dict[key])
         else:
             rank_zero_warn(message="Offset, patch location or patch size are not found in the batch"
-                "make sure to use RandGridPatch.")
+                           "make sure to use RandGridPatch.")
