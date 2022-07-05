@@ -27,8 +27,6 @@
 from .model.model import ImageModel, ResnetType
 from .inference_engine import ImageInferenceEngine
 
-TEST = 'hola'
-
 __all__ = [
     'ImageModel',
     'ResnetType',
