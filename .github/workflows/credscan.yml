@@ -13,11 +13,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Credential Scanning
+        uses: microsoft/security-devops-action@preview
         id: credscan
-        uses: microsoft/security-devops-action@v1.5.0
         with:
-            policy: Github
-            categories: secrets
+          tools: credscan
       - name: Upload results to Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
