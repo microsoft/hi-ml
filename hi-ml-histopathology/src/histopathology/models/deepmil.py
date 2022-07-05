@@ -80,18 +80,8 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
-
-        # Classifier specific attributes
         self.dropout_rate = dropout_rate
-
-        # Encoder parameters
         self.encoder_params = encoder_params
-        self.encoder = self.get_encoder(ckpt_run_id, outputs_folder)
-
-        # Pooling layer parameters
-        self.aggregation_fn, self.num_pooling = self.get_pooling_layer(pooling_params)
-
-        # Optimiser hyperparameters
         self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
@@ -102,9 +92,13 @@ class BaseDeepMILModule(LightningModule):
         # consuming validation outputs
         self.run_extra_val_epoch = False
 
+        # Model components
+        self.encoder = self.get_encoder(ckpt_run_id, outputs_folder)
+        self.aggregation_fn, self.num_pooling = self.get_pooling_layer(pooling_params)
         self.classifier_fn = self.get_classifier()
-        self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
+
+        self.loss_fn = self.get_loss()
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
