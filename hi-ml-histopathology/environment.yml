@@ -47,8 +47,8 @@ dependencies:
       # - git+https://github.com/Project-MONAI/MONAI.git@df4a7d72e1d231b898f88d92cf981721c49ceaeb
       # commit of dev branch including latest fixed to GridPatch 22/06
       # - git+https://github.com/Project-MONAI/MONAI.git@669bddf581201f994d1bcc0cb780854901605d9b
-      # commit of fork from dev branch that includes latest fix to GridPatch 05/07
-      - git+https://github.com/vale-salvatelli/MONAI.git@2e552df599b520064fa4418c3cac07376ae301b8
+      # commit of dev branch that includes latest fix to GridPatch 06/07
+      - git+https://github.com/Project-MONAI/MONAI.git@4ddd2bc3870a86fb0a300c20e680de48886bbfc1
       - more-itertools==8.10.0
       - mypy==0.961
       - mypy-extensions==0.4.3
