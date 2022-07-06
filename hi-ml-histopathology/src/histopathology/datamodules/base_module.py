@@ -247,7 +247,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         tile_size: Optional[int] = 224,
         random_offset: Optional[bool] = True,
         background_val: Optional[int] = 255,
-        filter_mode: Optional[str] = "None",
+        filter_mode: Optional[str] = "max",
         overlap: Optional[float] = 0,
         intensity_threshold: Optional[float] = 0,
         pad_mode: Optional[str] = "constant",
