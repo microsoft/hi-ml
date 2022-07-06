@@ -49,7 +49,7 @@ def array_collate(batch: List) -> Any:
             if isinstance(data[key], np.ndarray):
                 data[key] = np.array([ix[key] for ix in patch_data])
             elif isinstance(data[key], MetaTensor):
-                #TODO change how this collation happens if we have list of tensors
+                # TODO change how this collation happens if we have list of tensors
                 data[key] = np.array([ix[key].as_tensor().numpy() for ix in patch_data])
         for key in tensor_keys:
             data[key] = torch.tensor(data[key])
