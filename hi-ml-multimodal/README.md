@@ -36,7 +36,7 @@ You can visit the [API documentation][9] for a deeper understanding of our tools
 
 ## Hugging Face 🤗
 
-More information about our models and trained weights can be found on [Hugging Face 🤗][6]
+More information about our models and trained weights can be found on [Hugging Face 🤗][6].
 
 ## Credit
 
