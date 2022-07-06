@@ -32,7 +32,7 @@ def array_collate(batch: List) -> Any:
     constant_keys = slide_metadata_keys
     for key in batch[0][0].keys():
         if key not in slide_metadata_keys:
-            if type(batch[0][0][key]) == np.ndarray:
+            if isinstance(batch[0][0][key], np.ndarray):
                 collate_keys.append(key)
             else:
                 logging.warning(f'Only np.ndarray are collated - {key} value will be taken from first patch')

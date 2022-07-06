@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 from pathlib import Path
 
@@ -357,7 +357,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     @staticmethod
     def get_patch_coordinate(slide_offset: List, patch_location: List[int], patch_size: List[int]
-                             ) -> Tuple[int, int, int, int]:
+                            ) -> Tuple[int, int, int, int]:
         """ computing absolute patch coordinate """
         #  PATCH_LOCATION is expected to have shape [y, x]
         top = slide_offset[0] + patch_location[0]
@@ -386,8 +386,8 @@ class SlidesDeepMILModule(BaseDeepMILModule):
     def compute_slide_metadata(self, batch: Dict, index: int, metadata_dict: Dict) -> Dict:
         """compute patch-dependent and patch-invariante metadata for a single slide """
         offset = batch[SlideKey.OFFSET.value][index]
-        patches_location = batch[SlideKey.PATCH_LOCATION.value][index]
-        patch_size = batch[SlideKey.PATCH_SIZE.value][index]
+        patches_location = batch[SlideKey.TILE_LOCATION.value][index]
+        patch_size = batch[SlideKey.TILE_SIZE.value][index]
         n_patches = len(patches_location)
         id = batch[SlideKey.SLIDE_ID][index]
         path = batch[SlideKey.IMAGE_PATH][index]
@@ -409,7 +409,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
     def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
         if all(key.value in batch.keys() for key in [SlideKey.OFFSET, SlideKey.TILE_LOCATION, SlideKey.TILE_SIZE]):
             n_slides = len(batch[SlideKey.SLIDE_ID])
-            metadata_dict = {
+            metadata_dict: Dict[str, List[Union[int, str]]] = {
                 ResultsKey.TILE_TOP: [],
                 ResultsKey.TILE_BOTTOM: [],
                 ResultsKey.TILE_LEFT: [],
