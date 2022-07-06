@@ -357,7 +357,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
 
     @staticmethod
     def get_patch_coordinate(slide_offset: List, patch_location: List[int], patch_size: List[int]
-                            ) -> Tuple[int, int, int, int]:
+                             ) -> Tuple[int, int, int, int]:
         """ computing absolute patch coordinate """
         #  PATCH_LOCATION is expected to have shape [y, x]
         top = slide_offset[0] + patch_location[0]
