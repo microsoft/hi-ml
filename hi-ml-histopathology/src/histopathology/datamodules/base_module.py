@@ -262,8 +262,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
         defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param filter_mode:  when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
-            lowest values (`"min"`), or in their default order (`None`). Default to None.
+        :param filter_mode:  when `num_patches` is provided, it determines if keep patches with highest values
+            (`"max"`), lowest values (`"min"`), or in their default order (`None`). Default to None.
         :param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         :param intensity_threshold: a value to keep only the patches whose sum of intensities are less than the
