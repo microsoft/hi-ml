@@ -317,7 +317,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 constant_values=self.background_val,
                 overlap=self.overlap,  # type: ignore
                 threshold=self.intensity_threshold,
-                max_offset=max_offset,
+                offset=max_offset,
             )
 
         base_transform = Compose([load_image_transform, grid_transform])
