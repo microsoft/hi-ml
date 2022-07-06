@@ -1,3 +1,4 @@
 -r build_requirements.txt
 -r hi-ml/run_requirements.txt
 -r hi-ml-azure/run_requirements.txt
+-r hi-ml-multimodal/requirements_run.txt

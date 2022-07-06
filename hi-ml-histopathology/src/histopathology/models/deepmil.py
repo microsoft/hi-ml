@@ -2,18 +2,21 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
-from pytorch_lightning.utilities.warnings import rank_zero_warn
-
 import torch
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from pytorch_lightning.utilities.warnings import rank_zero_warn
+from pathlib import Path
+
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
 from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
 
 from health_ml.utils import log_on_epoch
+from health_ml.deep_learning_config import OptimizerParams
+from histopathology.models.encoders import IdentityEncoder
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
+
 from histopathology.datasets.base_dataset import TilesDataset
-from histopathology.models.encoders import TileEncoder
 from histopathology.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from histopathology.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                                validate_class_names)
@@ -34,71 +37,60 @@ class BaseDeepMILModule(LightningModule):
     def __init__(self,
                  label_column: str,
                  n_classes: int,
-                 encoder: TileEncoder,
-                 pooling_layer: Callable[[Tensor], Tuple[Tensor, Tensor]],
-                 num_features: int,
-                 dropout_rate: Optional[float] = None,
                  class_weights: Optional[Tensor] = None,
-                 l_rate: float = 5e-4,
-                 weight_decay: float = 1e-4,
-                 adam_betas: Tuple[float, float] = (0.9, 0.99),
-                 verbose: bool = False,
                  class_names: Optional[Sequence[str]] = None,
-                 is_finetune: bool = False,
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 chunk_size: int = 0) -> None:
+                 dropout_rate: Optional[float] = None,
+                 verbose: bool = False,
+                 ckpt_run_id: Optional[str] = None,
+                 outputs_folder: Optional[Path] = None,
+                 encoder_params: EncoderParams = EncoderParams(),
+                 pooling_params: PoolingParams = PoolingParams(),
+                 optimizer_params: OptimizerParams = OptimizerParams(),
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
          set to 1.
-        :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
-        you should use `IdentityEncoder`.
-        :param pooling_layer: A pooling layer nn.module
-        :param num_features: Dimensions of the input encoding features * attention dim outputs
-        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param class_weights: Tensor containing class weights (default=None).
-        :param l_rate: Optimiser learning rate.
-        :param weight_decay: Weight decay parameter for L2 regularisation.
-        :param adam_betas: Beta parameters for Adam optimiser.
-        :param verbose: if True statements about memory usage are output at each step.
         :param class_names: The names of the classes if available (default=None).
-        :param is_finetune: Boolean value to enable/disable finetuning (default=False).
+        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
+        :param verbose: if True statements about memory usage are output at each step.
+        :param ckpt_run_id: AML run id for encoder checkpoint download.
+        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
+        :param encoder_params: Encoder parameters that specify all encoder specific attributes.
+        :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
+        :param optimizer_params: Optimizer parameters that specify all specific attributes to be used for oprimization.
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
-        :param chunk_size: if > 0, extracts features in chunks of size `chunk_size`.
         """
         super().__init__()
 
         # Dataset specific attributes
         self.label_column = label_column
         self.n_classes = n_classes
-        self.dropout_rate = dropout_rate
         self.class_weights = class_weights
-        self.encoder = encoder
-        self.aggregation_fn = pooling_layer
-        self.num_pooling = num_features
-
         self.class_names = validate_class_names(class_names, self.n_classes)
 
-        # Optimiser hyperparameters
-        self.l_rate = l_rate
-        self.weight_decay = weight_decay
-        self.adam_betas = adam_betas
+        self.dropout_rate = dropout_rate
+        self.encoder_params = encoder_params
+        self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
-
         self.verbose = verbose
-
-        # Finetuning attributes
-        self.is_finetune = is_finetune
-
         self.outputs_handler = outputs_handler
-        self.chunk_size = chunk_size
 
+        # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
+        # consuming validation outputs
+        self.run_extra_val_epoch = False
+
+        # Model components
+        self.encoder = encoder_params.get_encoder(ckpt_run_id, outputs_folder)
+        self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
-        self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
+
+        self.loss_fn = self.get_loss()
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
@@ -172,11 +164,11 @@ class BaseDeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        should_enable_encoder_grad = torch.is_grad_enabled() and self.is_finetune
+        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.is_finetune
         with set_grad_enabled(should_enable_encoder_grad):
-            if self.chunk_size > 0:
+            if self.encoder_params.encoding_chunk_size > 0:
                 embeddings = []
-                chunks = torch.split(instances, self.chunk_size)
+                chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
                 for chunk in chunks:
                     chunk_embeddings = self.encoder(chunk)
                     embeddings.append(chunk_embeddings)
@@ -189,8 +181,9 @@ class BaseDeepMILModule(LightningModule):
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
-        return optim.Adam(self.parameters(), lr=self.l_rate, weight_decay=self.weight_decay,
-                          betas=self.adam_betas)
+        return optim.Adam(self.parameters(), lr=self.optimizer_params.l_rate,
+                          weight_decay=self.optimizer_params.weight_decay,
+                          betas=self.optimizer_params.adam_betas)
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
@@ -256,8 +249,12 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
-        if stage == ModelKey.TEST and self.outputs_handler:
-            self.outputs_handler.tiles_handler.update_slides_selection(batch, results)
+        if (
+            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self.run_extra_val_epoch))
+            and self.outputs_handler
+            and self.outputs_handler.tiles_selector
+        ):
+            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
@@ -280,17 +277,22 @@ class BaseDeepMILModule(LightningModule):
                  sync_dist=True)
         return test_result
 
-    def training_epoch_end(self, outputs: EpochResultsType) -> None:
+    def training_epoch_end(self, outputs: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.VAL)
         if self.outputs_handler:
+            if self.run_extra_val_epoch:
+                self.outputs_handler.val_plots_handler.plot_options = (
+                    self.outputs_handler.test_plots_handler.plot_options
+                )
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
-                is_global_rank_zero=self.global_rank == 0
+                is_global_rank_zero=self.global_rank == 0,
+                run_extra_val_epoch=self.run_extra_val_epoch
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
@@ -304,6 +306,13 @@ class BaseDeepMILModule(LightningModule):
 
 class TilesDeepMILModule(BaseDeepMILModule):
     """Base class for Tiles based deep multiple-instance learning."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if self.encoder_params.is_caching:
+            # Encoding is done in the datamodule, so here we provide instead a dummy
+            # no-op IdentityEncoder to be used inside the model
+            self.encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:

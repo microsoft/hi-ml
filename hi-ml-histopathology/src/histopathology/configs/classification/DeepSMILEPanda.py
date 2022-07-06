@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 from health_azure.utils import is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import AttentionLayer
@@ -24,6 +24,7 @@ from histopathology.datasets.default_paths import (
     PANDA_DATASET_ID,
     PANDA_TILES_DATASET_DIR,
     PANDA_TILES_DATASET_ID)
+from histopathology.utils.naming import PlotOption
 
 
 class BaseDeepSMILEPanda(BaseMIL):
@@ -74,9 +75,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILTiles.setup(self)
+        self.ckpt_run_id = innereye_ssl_checkpoint_binary
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
@@ -91,10 +91,16 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
+            seed=self.get_effective_random_seed(),
         )
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
+
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options = super().get_test_plot_options()
+        plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
+        return plot_options
 
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):
@@ -131,15 +137,13 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             background_val=255,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/PANDA")],
-            azure_datasets=["PANDA"],
-            save_output_slides=False,)
+            azure_datasets=["PANDA"],)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_binary)
         BaseMILSlides.setup(self)
+        self.ckpt_run_id = innereye_ssl_checkpoint_binary
 
     def get_dataloader_kwargs(self) -> dict:
         return dict(
@@ -157,6 +161,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             tile_size=self.tile_size,
             step=self.step,
             random_offset=self.random_offset,
+            seed=self.get_effective_random_seed(),
             pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,

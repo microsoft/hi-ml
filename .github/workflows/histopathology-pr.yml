@@ -29,12 +29,12 @@ jobs:
   flake8:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -47,12 +47,12 @@ jobs:
   mypy:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -65,12 +65,12 @@ jobs:
   pytest:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -105,7 +105,7 @@ jobs:
       - name: Upload coverage report to Codecov
         # Coverage should also be uploaded if tests still fail
         if: always()
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
             flags: ${{ env.folder }}
 
@@ -121,6 +121,6 @@ jobs:
       - name: Upload gpu tests coverage report to Codecov
         # Coverage should also be uploaded if tests still fail
         if: always()
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
             flags: ${{ env.folder }}

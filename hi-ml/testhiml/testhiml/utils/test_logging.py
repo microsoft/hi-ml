@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import torch
@@ -18,7 +18,6 @@ from _pytest.capture import SysCapture
 from _pytest.logging import LogCaptureFixture
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
-from pytorch_lightning import Trainer
 
 from health_azure import RUN_CONTEXT, create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
@@ -65,31 +64,27 @@ def test_log_on_epoch() -> None:
     assert actual_args[1] == {'on_epoch': True,
                               'on_step': False,
                               'reduce_fx': torch.mean,
-                              'sync_dist': False,
-                              'sync_dist_op': 'mean'}, "Failed for world_size==1"
+                              'sync_dist': False}, "Failed for world_size==1"
     # Test if sync_dist is computed correctly from world size: world size is now 2, so sync_dist should be True
     module.trainer.world_size = 2
     log_on_epoch(module, metrics=metrics)
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'reduce_fx': torch.mean,
-                                            'sync_dist': True,
-                                            'sync_dist_op': 'mean'}, "Failed for world_size==2"
+                                            'sync_dist': True}, "Failed for world_size==2"
     # Test if overrides for sync_dist and the other aggregation args are passed correctly
     module.trainer.world_size = 2
-    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False, sync_dist_op="nothing")  # type: ignore
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False)  # type: ignore
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'sync_dist': False,
-                                            'reduce_fx': "reduce",
-                                            'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
+                                            'reduce_fx': "reduce"}, "Failed for sync_dist==True"
     module.trainer.world_size = 1
-    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True, sync_dist_op="nothing")  # type: ignore
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True)  # type: ignore
     assert module.log_dict.call_args[1] == {'on_epoch': True,
                                             'on_step': False,
                                             'sync_dist': True,
-                                            'reduce_fx': "reduce",
-                                            'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
+                                            'reduce_fx': "reduce"}, "Failed for sync_dist==True"
 
 
 def test_log_learning_rate_singleton() -> None:
@@ -359,74 +354,67 @@ def test_progress_bar_enable() -> None:
 
 def test_progress_bar(capsys: SysCapture) -> None:
     bar = AzureMLProgressBar(refresh_rate=1)
+    mock_module = mock.MagicMock(global_step=34)
     mock_trainer = mock.MagicMock(current_epoch=12,
-                                  lightning_module=mock.MagicMock(global_step=34),
+                                  lightning_module=mock_module,
                                   num_training_batches=10,
+                                  num_val_batches=5,
                                   emable_validation=False,
                                   num_test_batches=[20],
                                   num_predict_batches=[30])
-    bar.on_init_end(mock_trainer)  # type: ignore
+    bar.setup(mock_trainer, mock_module)
     assert bar.trainer == mock_trainer
 
     def latest_message() -> str:
         return capsys.readouterr().out.splitlines()[-1]  # type: ignore
 
     # Messages in training
-    trainer = Trainer()
-    bar.on_train_epoch_start(trainer, None)  # type: ignore
+    bar.on_train_epoch_start(mock_trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TRAIN
-    assert bar.train_batch_idx == 0
-    assert bar.val_batch_idx == 0
-    assert bar.test_batch_idx == 0
-    assert bar.predict_batch_idx == 0
-    bar.on_train_batch_end(None, None, None, None, None)  # type: ignore
-    assert bar.train_batch_idx == 1
-    latest = latest_message()
-    assert "Training epoch 12 (step 34)" in latest
-    assert "1/10 ( 10%) completed" in latest
-    # When starting the next training epoch, the counters should be reset
-    bar.on_train_epoch_start(trainer, None)  # type: ignore
-    assert bar.train_batch_idx == 0
+    with patch("health_ml.utils.AzureMLProgressBar.train_batch_idx", PropertyMock(return_value=1)):
+        bar.on_train_batch_end(None, None, None, None, None)  # type: ignore
+        latest = latest_message()
+        assert "Training epoch 12 (step 34)" in latest
+        assert "1/10 ( 10%) completed" in latest
+
     # Messages in validation
-    bar.on_validation_start(trainer, None)  # type: ignore
-    assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_VAL
-    assert bar.total_num_batches == 0
-    assert bar.val_batch_idx == 0
-    # Number of validation batches is difficult to fake, tweak the field where it is stored in the progress bar
-    bar.total_num_batches = 5
-    bar.on_validation_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.val_batch_idx == 1
-    latest = latest_message()
-    assert "Validation epoch 12: " in latest
-    assert "1/5 ( 20%) completed" in latest
+    with patch("health_ml.utils.AzureMLProgressBar.total_val_batches", PropertyMock(return_value=5)):
+        bar.on_validation_start(mock_trainer, None)  # type: ignore
+        assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_VAL
+        with patch("health_ml.utils.AzureMLProgressBar.val_batch_idx", PropertyMock(return_value=1)):
+            bar.on_validation_batch_end(None, None, None, None, None, None)  # type: ignore
+            latest = latest_message()
+            assert "Validation epoch 12: " in latest
+            assert "1/5 ( 20%) completed" in latest
+
     # Messages in testing
-    bar.on_test_epoch_start(trainer, None)  # type: ignore
+    bar.on_test_epoch_start(mock_trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_TEST
     test_count = 2
-    for _ in range(test_count):
+    with patch("health_ml.utils.AzureMLProgressBar.test_batch_idx", PropertyMock(return_value=test_count)):
         bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.test_batch_idx == test_count
-    latest = latest_message()
-    assert "Testing:" in latest
-    assert f"{test_count}/20 ( 10%)" in latest
+        latest = latest_message()
+        assert "Testing:" in latest
+        assert f"{test_count}/20 ( 10%)" in latest
+
     # Messages in prediction
-    bar.on_predict_epoch_start(trainer, None)  # type: ignore
+    bar.on_predict_epoch_start(mock_trainer, None)  # type: ignore
     assert bar.stage == AzureMLProgressBar.PROGRESS_STAGE_PREDICT
     predict_count = 3
-    for _ in range(predict_count):
+    with patch("health_ml.utils.AzureMLProgressBar.predict_batch_idx", PropertyMock(return_value=predict_count)):
         bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.predict_batch_idx == predict_count
-    latest = latest_message()
-    assert "Prediction:" in latest
-    assert f"{predict_count}/30 ( 10%)" in latest
-    assert "since epoch start" in latest
+        latest = latest_message()
+        assert "Prediction:" in latest
+        assert f"{predict_count}/30 ( 10%)" in latest
+        assert "since epoch start" in latest
+
     # Test behaviour when a batch count is infinity
-    bar.total_num_batches = math.inf  # type: ignore
-    bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.predict_batch_idx == 4
-    latest = latest_message()
-    assert "4 batches completed" in latest
-    assert "since epoch start" in latest
+    with patch("health_ml.utils.AzureMLProgressBar.predict_batch_idx", PropertyMock(return_value=predict_count + 1)):
+        bar.total_num_batches = math.inf  # type: ignore
+        bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
+        latest = latest_message()
+        assert "4 batches completed" in latest
+        assert "since epoch start" in latest
 
 
 def test_progress_bar_to_logging(caplog: LogCaptureFixture) -> None:

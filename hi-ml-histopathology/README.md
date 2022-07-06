@@ -14,6 +14,13 @@ make env
 You can then activate the environment via `conda activate HimlHisto`. Set VSCode to use this Conda environment, by choosing "Python: Select Interpreter"
 from the command palette.
 
+In the event of dependencies update, you can update your conda environment by running the following:
+
+```shell
+cd hi-ml-histopathology
+make conda_update
+```
+
 ### Setting up AzureML
 
 In addition, please download an AzureML workspace configuration file for the workspace that you wish to use:
@@ -40,7 +47,7 @@ the compute cluster (`training-nd24` in the above example).
 ### Conda environment
 
 If you start your jobs in the `hi-ml-histopathology` folder, they will automatically pick up the Conda environment file that is present in that folder.
-If you start your jobs in a different folder, you need to add the `--additional_env_files` option to point to the file `<repo_root>/hi-ml-histopathology/environment.yml`.
+If you start your jobs in a different folder, you need to add the `--conda_env` option to point to the file `<repo_root>/hi-ml-histopathology/environment.yml`.
 
 ## Running histopathology tests
 

@@ -15,7 +15,7 @@ from typing import Any
 from pathlib import Path
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-
+from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
 from histopathology.models.encoders import (
@@ -38,7 +38,8 @@ class DeepSMILECrck(BaseMILTiles):
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
             is_finetune=False,
-            is_caching=False,
+            is_caching=True,
+            num_top_slides=0,
             # declared in DatasetParams:
             local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
@@ -55,10 +56,8 @@ class DeepSMILECrck(BaseMILTiles):
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_crck_4ws)
         super().setup()
+        self.ckpt_run_id = innereye_ssl_checkpoint_crck_4ws
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(
@@ -73,6 +72,7 @@ class DeepSMILECrck(BaseMILTiles):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
+            seed=self.get_effective_random_seed(),
         )
 
 

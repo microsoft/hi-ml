@@ -27,7 +27,9 @@ from health_ml.utils.common_utils import (
     RUN_RECOVERY_ID_KEY,
     RUN_RECOVERY_FROM_ID_KEY_NAME,
     df_to_json,
+    seed_monai_if_available,
 )
+
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
@@ -94,8 +96,11 @@ class MLRunner:
                         raise ValueError(f"Invalid setup: The dataset at index {i} is None")
                     local_datasets.append(check_dataset_folder_exists(dataset))
                 self.container.local_datasets = local_datasets  # type: ignore
-        # Ensure that we use fixed seeds before initializing the PyTorch models
-        seed_everything(self.container.get_effective_random_seed())
+        # Ensure that we use fixed seeds before initializing the PyTorch models.
+        # MONAI needs a separate method to make all transforms deterministic by default
+        seed = self.container.get_effective_random_seed()
+        seed_monai_if_available(seed)
+        seed_everything(seed)
 
         # Creating the folder structure must happen before the LightningModule is created, because the output
         # parameters of the container will be copied into the module.
@@ -142,9 +147,8 @@ class MLRunner:
 
         # do training
         with logging_section("Model training"):
-            checkpoint_path = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            _, storing_logger = model_train(checkpoint_path,
-                                            container=self.container)
+            _, storing_logger = model_train(checkpoint_handler=self.checkpoint_handler,
+                                            container=self.container, num_nodes=self.container.num_nodes)
             self.storing_logger = storing_logger
 
         # Since we have trained the model, let the checkpoint_handler object know so it can handle
