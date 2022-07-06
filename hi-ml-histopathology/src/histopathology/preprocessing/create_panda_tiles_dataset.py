@@ -42,6 +42,7 @@ CSV_COLUMNS = (
 )
 TMP_SUFFIX = "_tmp"
 
+
 def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
         -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
     if occupancy_threshold < 0 or occupancy_threshold > 1:
