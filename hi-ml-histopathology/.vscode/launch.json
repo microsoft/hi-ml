@@ -71,5 +71,17 @@
             ],
             "console": "integratedTerminal",
         },
+        {
+            "name": "Benchmark on Py3.10",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=histopathology.SlidesPandaImageNetMILBenchmark",
+                "--cluster=innereye4cl",
+                "--max_epochs=2",
+            ],
+            "console": "integratedTerminal",
+        }
     ]
 }
