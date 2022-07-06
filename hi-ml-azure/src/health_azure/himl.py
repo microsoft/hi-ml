@@ -25,7 +25,7 @@ from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
-from azureml.dataprep.fuse.daemon import MountContext
+# from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
@@ -64,7 +64,7 @@ class AzureRunInfo:
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
          datasets are specified, the list is empty."""
-    mount_contexts: List[MountContext]
+    mount_contexts: List["MountContext"]
     """A list of mount contexts for input datasets when running outside AzureML. There will be a mount context
     for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set.
     This list is maintained only to prevent exit from these contexts until the RunInfo object is deleted."""

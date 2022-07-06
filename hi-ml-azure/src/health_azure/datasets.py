@@ -10,7 +10,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 from azureml.core import Dataset, Datastore, Workspace
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.dataprep.fuse.daemon import MountContext
+# from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.utils import PathOrString, get_workspace
 
@@ -118,7 +118,7 @@ class DatasetConfig:
             raise ValueError("Can't mount or download a dataset to the current working directory.")
         self.local_folder = Path(local_folder) if local_folder else None
 
-    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Path, Optional[MountContext]]:
+    def to_input_dataset_local(self, workspace: Optional[Workspace]) -> Tuple[Path, Optional["MountContext"]]:
         """
         Return a local path to the dataset when outside of an AzureML run.
         If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
@@ -318,7 +318,7 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
 def setup_local_datasets(dataset_configs: List[DatasetConfig],
                          aml_workspace: Optional[Workspace] = None,
                          workspace_config_path: Optional[Path] = None
-                         ) -> Tuple[List[Optional[Path]], List[MountContext]]:
+                         ) -> Tuple[List[Optional[Path]], List["MountContext"]]:
     """
     When running outside of AzureML, setup datasets to be used locally.
 
@@ -336,7 +336,7 @@ def setup_local_datasets(dataset_configs: List[DatasetConfig],
     workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
 
     mounted_input_datasets: List[Optional[Path]] = []
-    mount_contexts: List[MountContext] = []
+    mount_contexts: List["MountContext"] = []
 
     for d in dataset_configs:
         target_path, mount_context = d.to_input_dataset_local(workspace)
