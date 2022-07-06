@@ -37,7 +37,7 @@ class PANDA_SimCLR(HistoSSLContainer):
                          model_checkpoints_save_last_k=3,
                          model_monitor_metric='ssl_online_evaluator/val/AccuracyAtThreshold05',
                          model_monitor_mode='max',
-                         max_epochs=200,
+                         max_epochs=50,
                          ssl_training_batch_size=128,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,

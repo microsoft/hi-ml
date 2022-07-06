@@ -267,7 +267,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--level",
         type=int,
-        default=1,
+        default=0,
     )
     parser.add_argument(
         "--tile-size",
@@ -293,12 +293,12 @@ if __name__ == '__main__':
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        default=False,
+        default=True,
     )
     parser.add_argument(
         "--filter-slide",
         type=str,
-        default="",
+        default="b896",  # filtering for "b896" gives 4 slides, good for debugging
         help="Process only slides whose ID contain this substring. Useful for debugging"
     )
     args = parser.parse_args()

@@ -32,7 +32,7 @@ class PandaTilesDataset(TilesDataset):
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
     N_CLASSES = 6
 
-    _RELATIVE_ROOT_FOLDER = Path("panda_tiles_level1_224")
+    _RELATIVE_ROOT_FOLDER = Path("panda_tiles_level0_224")
 
     def __init__(self,
                  root: Path,

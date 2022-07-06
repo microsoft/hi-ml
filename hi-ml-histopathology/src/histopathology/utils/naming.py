@@ -30,8 +30,6 @@ class TileKey(str, Enum):
     MASK_PATH = 'mask_path'
     LABEL = 'label'
     SPLIT = 'split'
-    TILE_X = 'tile_x'  # TODO: deprecate ambiguous x and y names
-    TILE_Y = 'tile_y'
     TILE_LEFT = 'left'
     TILE_TOP = 'top'
     TILE_RIGHT = 'right'

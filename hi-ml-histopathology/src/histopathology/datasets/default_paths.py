@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 PANDA_DATASET_ID = "PANDA"
-PANDA_TILES_DATASET_ID = "PANDA_tiles_20220530"
+PANDA_TILES_DATASET_ID = "PANDA_20X_tiles_20220705-132122"
 TCGA_CRCK_DATASET_ID = "TCGA-CRCk"
 TCGA_PRAD_DATASET_ID = "TCGA-PRAD"
 
