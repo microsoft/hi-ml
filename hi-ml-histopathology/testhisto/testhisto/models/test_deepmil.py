@@ -8,12 +8,11 @@ import shutil
 import torch
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type, Tuple
+from unittest.mock import MagicMock, patch
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
-from torchvision.models import resnet18
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.classification.BaseMIL import BaseMILTiles
@@ -25,6 +24,7 @@ from histopathology.datasets.base_dataset import TilesDataset
 from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
 from histopathology.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
+from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
 from histopathology.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
@@ -35,20 +35,12 @@ from health_ml.utils.common_utils import is_gpu_available
 no_gpu = not is_gpu_available()
 
 
-def get_supervised_imagenet_encoder() -> TileEncoder:
-    return ImageNetEncoder(feature_extraction_model=resnet18, tile_size=224)
+def get_supervised_imagenet_encoder_params() -> EncoderParams:
+    return EncoderParams(encoder_type=ImageNetEncoder.__name__)
 
 
-def get_attention_pooling_layer(num_encoding: int = 512,
-                                pool_out_dim: int = 1) -> Tuple[nn.Module, int]:
-
-    pool_hidden_dim = 5  # different dimensions get tested in test_attentionlayers.py
-    pooling_layer = AttentionLayer(num_encoding,
-                                   pool_hidden_dim,
-                                   pool_out_dim)
-
-    num_features = num_encoding * pool_out_dim
-    return pooling_layer, num_features
+def get_attention_pooling_layer_params(pool_out_dim: int = 1) -> PoolingParams:
+    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5)
 
 
 def _test_lightningmodule(
@@ -61,19 +53,12 @@ def _test_lightningmodule(
 
     assert n_classes > 0
 
-    # hard-coded here to avoid test explosion; correctness of other encoders is tested elsewhere
-    encoder = get_supervised_imagenet_encoder()
-
-    # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=pool_out_dim)
-
     module = TilesDeepMILModule(
-        encoder=encoder,
         label_column="label",
         n_classes=n_classes,
-        pooling_layer=pooling_layer,
-        num_features=num_features,
         dropout_rate=dropout_rate,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim)
     )
 
     bag_images = rand([batch_size, max_bag_size, *module.encoder.input_dim])
@@ -218,64 +203,61 @@ def add_callback(fn: Callable, callback: Callable) -> Callable:
 def test_metrics(n_classes: int) -> None:
     input_dim = (128,)
 
-    # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(num_encoding=input_dim[0],
-                                                              pool_out_dim=1)
+    def _mock_get_encoder(  # type: ignore
+        self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
+    ) -> TileEncoder:
+        return IdentityEncoder(input_dim=input_dim)
 
-    module = TilesDeepMILModule(
-        encoder=IdentityEncoder(input_dim=input_dim),
-        label_column=TilesDataset.LABEL_COLUMN,
-        n_classes=n_classes,
-        pooling_layer=pooling_layer,
-        num_features=num_features
-    )
+    with patch("histopathology.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
+        module = TilesDeepMILModule(label_column=TilesDataset.LABEL_COLUMN,
+                                    n_classes=n_classes,
+                                    pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
 
-    # Patching to enable running the module without a Trainer object
-    module.trainer = MagicMock(world_size=1)  # type: ignore
-    module.log = MagicMock()  # type: ignore
-    module.outputs_handler = MagicMock()
+        # Patching to enable running the module without a Trainer object
+        module.trainer = MagicMock(world_size=1)  # type: ignore
+        module.log = MagicMock()  # type: ignore
+        module.outputs_handler = MagicMock()
 
-    batch_size = 20
-    bag_size = 5
-    if n_classes > 1:
-        class_weights = torch.rand(n_classes)
-    else:
-        class_weights = torch.tensor([0.8, 0.2])
-    bags: List[Dict] = []
-    for slide_idx in range(batch_size):
-        bag_label = torch.multinomial(class_weights, 1)
-        sample: Dict[str, Iterable] = {
-            TilesDataset.SLIDE_ID_COLUMN: [str(slide_idx)] * bag_size,
-            TilesDataset.TILE_ID_COLUMN: [f"{slide_idx}-{tile_idx}"
-                                          for tile_idx in range(bag_size)],
-            TilesDataset.IMAGE_COLUMN: rand(bag_size, *input_dim),
-            TilesDataset.LABEL_COLUMN: bag_label.expand(bag_size),
-        }
-        sample[TilesDataset.PATH_COLUMN] = [tile_id + '.png'
-                                            for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]
-        bags.append(sample)
-    batch = default_collate(bags)
+        batch_size = 20
+        bag_size = 5
+        if n_classes > 1:
+            class_weights = torch.rand(n_classes)
+        else:
+            class_weights = torch.tensor([0.8, 0.2])
+        bags: List[Dict] = []
+        for slide_idx in range(batch_size):
+            bag_label = torch.multinomial(class_weights, 1)
+            sample: Dict[str, Iterable] = {
+                TilesDataset.SLIDE_ID_COLUMN: [str(slide_idx)] * bag_size,
+                TilesDataset.TILE_ID_COLUMN: [f"{slide_idx}-{tile_idx}" for tile_idx in range(bag_size)],
+                TilesDataset.IMAGE_COLUMN: rand(bag_size, *input_dim),
+                TilesDataset.LABEL_COLUMN: bag_label.expand(bag_size),
+            }
+            sample[TilesDataset.PATH_COLUMN] = [tile_id + '.png'
+                                                for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]
+            bags.append(sample)
+        batch = default_collate(bags)
 
-    # ================
-    # Test that the module metrics match manually computed metrics with the correct inputs
-    module_metrics_dict = module.test_metrics
-    independent_metrics_dict = module.get_metrics()
+        # ================
+        # Test that the module metrics match manually computed metrics with the correct inputs
+        module_metrics_dict = module.test_metrics
+        independent_metrics_dict = module.get_metrics()
 
-    # Patch the metrics to check that the inputs are valid. In particular, test that the scores
-    # do not have integral values, which would suggest that hard labels were passed instead.
-    for metric_obj in module_metrics_dict.values():
-        metric_obj.update = add_callback(metric_obj.update, validate_metric_inputs)
+        # Patch the metrics to check that the inputs are valid. In particular, test that the scores
+        # do not have integral values, which would suggest that hard labels were passed instead.
+        for metric_obj in module_metrics_dict.values():
+            metric_obj.update = add_callback(metric_obj.update, validate_metric_inputs)
 
-    results = module.test_step(batch, 0)
-    predicted_probs = results[ResultsKey.PROB]
-    true_labels = results[ResultsKey.TRUE_LABEL]
+        results = module.test_step(batch, 0)
+        predicted_probs = results[ResultsKey.PROB]
+        true_labels = results[ResultsKey.TRUE_LABEL]
 
-    for key, metric_obj in module_metrics_dict.items():
-        value = metric_obj.compute()
-        expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
-        assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
+        for key, metric_obj in module_metrics_dict.items():
+            value = metric_obj.compute()
+            expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
+            assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
-    assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
+        assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
@@ -399,17 +381,14 @@ def test_class_weights_binary() -> None:
     class_weights = Tensor([0.5, 3.5])
     n_classes = 1
 
-    # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=1)
-
     module = TilesDeepMILModule(
-        encoder=get_supervised_imagenet_encoder(),
         label_column="label",
         n_classes=n_classes,
-        pooling_layer=pooling_layer,
-        num_features=num_features,
         class_weights=class_weights,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1)
     )
+
     logits = Tensor(randn(1, n_classes))
     bag_label = randint(n_classes + 1, size=(1,))
 
@@ -427,17 +406,14 @@ def test_class_weights_multiclass() -> None:
     class_weights = Tensor([0.33, 0.33, 0.33])
     n_classes = 3
 
-    # hard-coded here to avoid test explosion; correctness of other pooling layers is tested elsewhere
-    pooling_layer, num_features = get_attention_pooling_layer(pool_out_dim=1)
-
     module = TilesDeepMILModule(
-        encoder=get_supervised_imagenet_encoder(),
         label_column="label",
         n_classes=n_classes,
-        pooling_layer=pooling_layer,
-        num_features=num_features,
         class_weights=class_weights,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1)
     )
+
     logits = Tensor(randn(1, n_classes))
     bag_label = randint(n_classes, size=(1,))
 
