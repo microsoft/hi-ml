@@ -20,8 +20,8 @@ class SlideKey(str, Enum):
     FOREGROUND_THRESHOLD = 'foreground_threshold'
     METADATA = 'metadata'
     LOCATION = 'location'
-    PATCH_SIZE = WSIPatchKeys.SIZE.value  # 'patch_size'
-    PATCH_LOCATION = WSIPatchKeys.LOCATION.value  # 'patch_location'
+    TILE_SIZE = WSIPatchKeys.SIZE.value  # 'patch_size'
+    TILE_LOCATION = WSIPatchKeys.LOCATION.value  # 'patch_location'
     OFFSET = 'offset'
     SHAPE = 'original_spatial_shape'
 

@@ -15,7 +15,7 @@ slide_metadata_keys = [
     SlideKey.SLIDE_ID,
     SlideKey.MASK_PATH,
     WSIPatchKeys.COUNT,
-    SlideKey.PATCH_SIZE,  # TODO: remove in case we want to allow patches of different sizes from the same slide
+    SlideKey.TILE_SIZE,  # TODO: remove in case we want to allow patches of different sizes from the same slide
     SlideKey.SHAPE,
     SlideKey.OFFSET
 ]

@@ -172,6 +172,10 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
     def get_slides_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.local_datasets[0])                             # type: ignore
 
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options = super().get_test_plot_options()
+        plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
+        return plot_options
 
 class SlidesPandaImageNetMIL(DeepSMILESlidesPanda):
     def __init__(self, **kwargs: Any) -> None:

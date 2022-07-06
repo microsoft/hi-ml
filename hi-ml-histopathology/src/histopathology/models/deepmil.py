@@ -356,7 +356,8 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return ll
 
     @staticmethod
-    def get_patch_coordinate(slide_offset: List, patch_location: List, patch_size: List) -> Tuple[int, int, int, int]:
+    def get_patch_coordinate(slide_offset: List, patch_location: List[int], patch_size: List[int]
+                            ) -> Tuple[int, int, int, int]:
         """ computing absolute patch coordinate """
         #  PATCH_LOCATION is expected to have shape [y, x]
         top = slide_offset[0] + patch_location[0]
@@ -366,32 +367,16 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return top, bottom, left, right
 
     @staticmethod
-    def expand_slide_constant_metadata(id: str, path: str, n_patches: int) -> Tuple[List, List, List]:
+    def expand_slide_constant_metadata(id: str, path: str, n_patches: int, top: List[int],
+                                       bottom: List[int], left: List[int], right: List[int]) -> Tuple[List, List, List]:
         """Duplicate metadata that is patch invariant to match the shape of other arrays"""
         slide_id = [id] * n_patches
         image_paths = [path] * n_patches
-        tile_id = [f"{id}_{tile_id}" for tile_id in range(n_patches)]
+        tile_id = [f"{id}_left_{left[i]}_top_{top[i]}_right_{right[i]}_bottom_{bottom[i]}" for i in range(n_patches)]
         return slide_id, image_paths, tile_id
 
-    @staticmethod
-    def check_patch_location_format(batch):
-        """Workaround for bug in MONAI that returns not consistent location"""
-        faulty_slides_idx = []
-        for i, locations in enumerate(batch[SlideKey.PATCH_LOCATION]):
-            for location in locations:
-                if len(location) != 2:
-                    print(f'Slide {batch[SlideKey.SLIDE_ID][i]} '
-                          f'will be skipped as its patches contained unexpected values in patch_location {location}')
-                    faulty_slides_idx.append(batch[SlideKey.SLIDE_ID][i])
-                break
-        n = len(faulty_slides_idx)
-        if n > 0:
-            print(f'{n} slides will be skipped because something was wrong in the patch location')
-        return faulty_slides_idx
-
-    def get_slide_patch_coordinates(
-        self, slide_offset: List, patches_location: List, patch_size: List
-    ) -> Tuple[List, List, List, List]:
+    def get_slide_patch_coordinates(self, slide_offset: List, patches_location: List, patch_size: List
+                                    ) -> Tuple[List, List, List, List]:
         """ computing absolute coordinates for all patches in a slide"""
         top, bottom, left, right = self.get_empty_lists(len(patches_location), 4)
         for i, location in enumerate(patches_location):
@@ -408,7 +393,9 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         path = batch[SlideKey.IMAGE_PATH][index]
 
         top, bottom, left, right = self.get_slide_patch_coordinates(offset, patches_location, patch_size)
-        slide_id, image_paths, tile_id = self.expand_slide_constant_metadata(id, path, n_patches)
+        slide_id, image_paths, tile_id = self.expand_slide_constant_metadata(
+            id, path, n_patches, top, bottom, left, right
+        )
 
         metadata_dict[ResultsKey.TILE_TOP] = top
         metadata_dict[ResultsKey.TILE_BOTTOM] = bottom
@@ -420,7 +407,7 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         return metadata_dict
 
     def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
-        if all(key.value in batch.keys() for key in [SlideKey.OFFSET, SlideKey.PATCH_LOCATION, SlideKey.PATCH_SIZE]):
+        if all(key.value in batch.keys() for key in [SlideKey.OFFSET, SlideKey.TILE_LOCATION, SlideKey.TILE_SIZE]):
             n_slides = len(batch[SlideKey.SLIDE_ID])
             metadata_dict = {
                 ResultsKey.TILE_TOP: [],

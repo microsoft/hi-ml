@@ -22,7 +22,7 @@ from histopathology.utils.naming import ModelKey
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
-from monai.transforms import RandGridPatchd
+from monai.transforms import RandGridPatchd, GridPatchd
 from monai.data.image_reader import WSIReader
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -294,18 +294,33 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             image_only=True,
         )
         max_offset = None if (self.random_offset and stage == ModelKey.TRAIN) else 0
-        random_grid_transform = RandGridPatchd(
-            keys=[slides_dataset.IMAGE_COLUMN],
-            patch_size=[self.tile_size, self.tile_size],  # type: ignore
-            num_patches=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
-            sort_fn=self.filter_mode,
-            pad_mode=self.pad_mode,
-            constant_values=self.background_val,
-            overlap=self.overlap,  # type: ignore
-            threshold=self.intensity_threshold,
-            max_offset=max_offset,
-        )
-        base_transform = Compose([load_image_transform, random_grid_transform])
+
+        if stage != ModelKey.TRAIN:
+            grid_transform = RandGridPatchd(
+                keys=[slides_dataset.IMAGE_COLUMN],
+                patch_size=[self.tile_size, self.tile_size],  # type: ignore
+                num_patches=self.max_bag_size,
+                sort_fn=self.filter_mode,
+                pad_mode=self.pad_mode, # type: ignore
+                constant_values=self.background_val,
+                overlap=self.overlap,  # type: ignore
+                threshold=self.intensity_threshold,
+                max_offset=max_offset,
+            )
+        else:
+            grid_transform = GridPatchd(
+                keys=[slides_dataset.IMAGE_COLUMN],
+                patch_size=[self.tile_size, self.tile_size],  # type: ignore
+                num_patches=self.max_bag_size_inf,
+                sort_fn=self.filter_mode,
+                pad_mode=self.pad_mode, # type: ignore
+                constant_values=self.background_val,
+                overlap=self.overlap,  # type: ignore
+                threshold=self.intensity_threshold,
+                max_offset=max_offset,
+            )
+
+        base_transform = Compose([load_image_transform, grid_transform])
 
         if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()  # type: ignore
