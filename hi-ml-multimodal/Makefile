@@ -1,5 +1,11 @@
 ## Package management
 
+# Create a Conda environment for this folder only
+env:
+	conda env create --file environment.yml
+	pip install -r requirements_test.txt
+	pip install -r requirements_build.txt
+
 # pip upgrade
 pip_upgrade:
 	python -m pip install --upgrade pip
