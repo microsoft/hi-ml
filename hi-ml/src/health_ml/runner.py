@@ -253,9 +253,9 @@ class Runner:
                 pip_requirements_files = get_all_pip_requirements_files()
 
                 # Merge the project-specific dependencies with the packages and write unified definition to temp file.
-                if len(pip_requirements_files) > 0:
-                    temp_conda_file = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                    merge_conda_files([env_file], temp_conda_file, pip_files=pip_requirements_files)
+                # if len(pip_requirements_files) > 0:
+                #     temp_conda_file = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+                #     merge_conda_files([env_file], temp_conda_file, pip_files=pip_requirements_files)
 
                 if not self.experiment_config.cluster:
                     raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
