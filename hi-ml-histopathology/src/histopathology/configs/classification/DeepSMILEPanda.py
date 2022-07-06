@@ -177,6 +177,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
         return plot_options
 
+
 class SlidesPandaImageNetMIL(DeepSMILESlidesPanda):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)

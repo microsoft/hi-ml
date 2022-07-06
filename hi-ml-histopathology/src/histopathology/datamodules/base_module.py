@@ -301,7 +301,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 patch_size=[self.tile_size, self.tile_size],  # type: ignore
                 num_patches=self.max_bag_size,
                 sort_fn=self.filter_mode,
-                pad_mode=self.pad_mode, # type: ignore
+                pad_mode=self.pad_mode,  # type: ignore
                 constant_values=self.background_val,
                 overlap=self.overlap,  # type: ignore
                 threshold=self.intensity_threshold,
@@ -313,7 +313,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 patch_size=[self.tile_size, self.tile_size],  # type: ignore
                 num_patches=self.max_bag_size_inf,
                 sort_fn=self.filter_mode,
-                pad_mode=self.pad_mode, # type: ignore
+                pad_mode=self.pad_mode,  # type: ignore
                 constant_values=self.background_val,
                 overlap=self.overlap,  # type: ignore
                 threshold=self.intensity_threshold,
