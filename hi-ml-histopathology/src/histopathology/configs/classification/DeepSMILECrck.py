@@ -12,7 +12,6 @@ Reference:
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
 from typing import Any
-from pathlib import Path
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
@@ -40,8 +39,6 @@ class DeepSMILECrck(BaseMILTiles):
             is_finetune=False,
             is_caching=True,
             num_top_slides=0,
-            # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
             azure_datasets=["TCGA-CRCk"],
             # declared in TrainerParams:
             max_epochs=50,
