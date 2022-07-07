@@ -1,5 +1,11 @@
 # Histopathology Models and Workflows
 
+## Models on public data
+
+This repository contains a set of models built on and for public datasets (PANDA, TCGA). Detailed instructions to
+on-board the datasets and run the models are provided [on
+readthedocs](https://hi-ml.readthedocs.io/en/latest/histopathology.html).
+
 ## Getting started
 
 ### Setting up Python
