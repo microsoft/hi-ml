@@ -3,28 +3,21 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import os
-import sys
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
-from pytorch_lightning import Callback, Trainer, seed_everything
+from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
-from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, RUN_CONTEXT, is_global_rank_zero,
-                                is_local_rank_zero, is_running_in_azure_ml)
+from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
-from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.checkpoint_utils import cleanup_checkpoints
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE,
-                                          change_working_directory)
+from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.lightning_loggers import StoringLogger
-from health_azure.logging import logging_section
 
 
 T = TypeVar('T')
@@ -189,105 +182,4 @@ def create_lightning_trainer(container: LightningContainer,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
                       **additional_args)
-    return trainer, storing_logger
-
-
-def model_train(checkpoint_handler: Optional[CheckpointHandler],
-                container: LightningContainer,
-                num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
-    """
-    The main training loop. It creates the Pytorch model based on the configuration options passed in,
-    creates a Pytorch Lightning trainer, and trains the model.
-    If a checkpoint was specified, then it loads the checkpoint before resuming training.
-
-    :param checkpoint_handler: Checkpoint handler to retrieve model weights initialization and best checkpoint at the
-        end of training.
-    :param num_nodes: The number of nodes to use in distributed training.
-    :param container: A container object that holds the training data in PyTorch Lightning format
-    and the model to train.
-    :return: A tuple of [Trainer, StoringLogger]. Trainer is the Lightning Trainer object that was used for fitting
-    the model. The StoringLogger object is returned when training a built-in model, this is None when
-    fitting other models.
-    """
-    checkpoint_path = checkpoint_handler.get_recovery_or_checkpoint_path_train() if checkpoint_handler else None
-    lightning_model = container.model
-
-    # Execute some bookkeeping tasks only once if running distributed:
-    if is_global_rank_zero():
-        logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
-        write_experiment_summary_file(container,
-                                      outputs_folder=container.outputs_folder)
-
-    data_module = container.get_data_module()
-    if is_global_rank_zero():
-        container.before_training_on_global_rank_zero()
-    if is_local_rank_zero():
-        container.before_training_on_local_rank_zero()
-    container.before_training_on_all_ranks()
-
-    # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
-    # because training data that uses a CombinedLoader is not split correctly in DDP. This flag cannot be passed
-    # through the get_trainer_arguments method of the container because cycle mode is not yet available.
-    multiple_trainloader_mode = "max_size_cycle"
-    try:
-        from SSL.data.datamodules import CombinedDataModule  # type: ignore
-        if isinstance(data_module, CombinedDataModule):
-            data_module.prepare_data()
-            multiple_trainloader_mode = data_module.train_loader_cycle_mode  # type: ignore
-            assert multiple_trainloader_mode, "train_loader_cycle_mode should be available now"
-    except ModuleNotFoundError:
-        pass
-
-    # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
-    # training in the unit tests.
-    old_environ = dict(os.environ)
-    # Set random seeds just before training. Ensure that dataloader workers are also seed correctly.
-    seed_everything(container.get_effective_random_seed(), workers=True)
-    trainer, storing_logger = create_lightning_trainer(container,
-                                                       checkpoint_path,
-                                                       num_nodes=num_nodes,
-                                                       multiple_trainloader_mode=multiple_trainloader_mode)
-    rank_info = ", ".join(f"{env}: {os.getenv(env)}"
-                          for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
-    logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
-
-    # get recovery checkpoint if it exists
-    logging.info("Starting training")
-    # Change to the outputs folder so that the model can write to current working directory, and still everything
-    # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
-    with change_working_directory(container.outputs_folder):
-        trainer.fit(lightning_model, datamodule=data_module)
-    assert trainer.logger is not None
-    trainer.logger.finalize('success')
-
-    if container.run_extra_val_epoch:
-        if checkpoint_handler:
-            checkpoint_handler.additional_training_done()
-            checkpoint_path_for_inference = checkpoint_handler.get_checkpoint_to_test()
-            container.load_model_checkpoint(checkpoint_path_for_inference)
-            lightning_model = container.model
-
-        with logging_section("Additional validation epoch"):
-            assert hasattr(lightning_model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
-            "This is required for running an additional validation epoch to save plots."
-            lightning_model.run_extra_val_epoch = True  # type: ignore
-            trainer.validate(lightning_model, datamodule=data_module)
-
-    # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
-    # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
-    # all necessary properties.
-    if lightning_model.global_rank != 0:
-        logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
-        sys.exit()
-
-    logging.info("Removing redundant checkpoint files.")
-    cleanup_checkpoints(container.checkpoint_folder)
-    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
-    # those environment variables will mislead the training runs in the test suite, and make them crash.
-    # Hence, restore the original environment after training.
-    os.environ.clear()
-    os.environ.update(old_environ)
-
-    logging.info("Finished training")
-
     return trainer, storing_logger
