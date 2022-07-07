@@ -6,7 +6,7 @@ The code is available on [GitHub][1] and [Hugging Face 🤗][6].
 ## Getting started
 
 The best way to get started is by running the [phrase grounding notebook][2].
-All the dependencies will be installed by the notebook, so Python 3.7 and [Jupyter][3] are the only requirements to get started.
+All the dependencies will be installed upon execution, so Python 3.7 and [Jupyter][3] are the only requirements to get started.
 
 The notebook can also be run on [Binder][4], without the need to download any code or install any libraries:
 
@@ -14,7 +14,7 @@ The notebook can also be run on [Binder][4], without the need to download any co
 
 ## Installation
 
-The latest version from can be installed using `pip`:
+The latest version can be installed using `pip`:
 
 ```console
 pip install "git+https://github.com/microsoft/hi-ml.git#subdirectory=hi-ml-multimodal"
@@ -40,7 +40,7 @@ More information about our models and trained weights can be found on [Hugging F
 
 ## Credit
 
-If you use our code or models in your research, please cite our [paper][7] (accepted at [ECCV 2022][8]).
+If you use our code or models in your research, please cite [the manuscript][7] (accepted to be presented at [ECCV 2022][8]).
 
 ### APA
 
