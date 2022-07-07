@@ -17,6 +17,7 @@ from health_ml.networks.layers.attention_layers import AttentionLayer
 from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
+from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from histopathology.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
@@ -39,7 +40,7 @@ class DeepSMILECrck(BaseMILTiles):
             is_finetune=False,
             is_caching=True,
             num_top_slides=0,
-            azure_datasets=["TCGA-CRCk"],
+            azure_datasets=[TCGA_CRCK_DATASET_ID],
             # declared in TrainerParams:
             max_epochs=50,
             # declared in WorkflowParams:

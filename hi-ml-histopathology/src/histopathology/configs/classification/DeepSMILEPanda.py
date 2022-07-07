@@ -130,7 +130,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             tile_size=224,
             random_offset=True,
             background_val=255,
-            azure_datasets=["PANDA"],)
+            azure_datasets=[PANDA_DATASET_ID],)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
