@@ -4,16 +4,11 @@
 #  -------------------------------------------------------------------------------------------
 
 import pytest
-from transformers import AutoModel, AutoTokenizer
 
-from health_multimodal.text import BIOMED_VLP_CXR_BERT_SPECIALIZED, TypePrompts
-from health_multimodal.text.inference_engine import TextInferenceEngine
+from health_multimodal.text import TypePrompts
+from health_multimodal.text.utils import get_cxr_bert_inference
 
-
-text_inference = TextInferenceEngine(
-    tokenizer=AutoTokenizer.from_pretrained(BIOMED_VLP_CXR_BERT_SPECIALIZED, trust_remote_code=True),
-    text_model=AutoModel.from_pretrained(BIOMED_VLP_CXR_BERT_SPECIALIZED, trust_remote_code=True),
-)
+text_inference = get_cxr_bert_inference()
 
 
 @pytest.mark.parametrize("prompts", ("", "hello", "this is a test", ["this is", "also a test"]))
