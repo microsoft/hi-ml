@@ -254,7 +254,8 @@ class MLRunner:
         assert hasattr(self.container.model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
         "This is required for running an additional validation epoch to save plots."
         self.container.model.run_extra_val_epoch = True  # type: ignore
-        self.trainer.validate(self.container.model, datamodule=self.data_module)
+        with change_working_directory(self.container.outputs_folder):
+            self.trainer.validate(self.container.model, datamodule=self.data_module)
 
     def run_inference(self,) -> None:
         """
