@@ -7,6 +7,7 @@ from typing import Any
 
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
+from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatasetWithReturnIndex
 from histopathology.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
 
@@ -33,7 +34,7 @@ class CRCK_SimCLR(HistoSSLContainer):
 
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK,
                          linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK,
-                         azure_datasets=["TCGA-CRCk"],
+                         azure_datasets=[TCGA_CRCK_DATASET_ID],
                          random_seed=1,
                          num_workers=8,
                          is_debug_model=False,
