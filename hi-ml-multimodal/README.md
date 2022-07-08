@@ -41,7 +41,7 @@ the weights and model cards are hosted on [Hugging Face 🤗][6].
 
 ## Credit
 
-If you use our code or models in your research, please cite [the manuscript][7] (accepted to be presented at [ECCV 2022][8]).
+If you use our code or models in your research, please cite [the manuscript][7] (accepted to be presented at the [**European Conference on Computer Vision (ECCV) 2022**][8]).
 
 ### APA
 
