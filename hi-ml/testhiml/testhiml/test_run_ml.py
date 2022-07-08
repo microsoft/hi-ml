@@ -1,10 +1,9 @@
-import os
 import shutil
 from pathlib import Path
 
 import pytest
 from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig

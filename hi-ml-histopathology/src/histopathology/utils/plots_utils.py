@@ -189,24 +189,26 @@ class DeepMILPlotsHandler:
         :param results: A dictionary of the validation or tests results.
         :param stage: The model stage: validation or test.
         """
+        if self.plot_options:
+            logging.info(
+                f"Plotting {[opt.value for opt in self.plot_options]}. All figures will be saved in {outputs_dir}"
+            )
+            figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
-        logging.info(f"Plotting {[opt.value for opt in self.plot_options]}. All figures will be saved in {outputs_dir}")
-        figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
+            if PlotOption.HISTOGRAM in self.plot_options:
+                save_scores_histogram(results=results, figures_dir=figures_dir)
 
-        if PlotOption.HISTOGRAM in self.plot_options:
-            save_scores_histogram(results=results, figures_dir=figures_dir)
+            if PlotOption.CONFUSION_MATRIX in self.plot_options:
+                assert self.class_names
+                save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir)
 
-        if PlotOption.CONFUSION_MATRIX in self.plot_options:
-            assert self.class_names
-            save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir)
+            if tiles_selector:
+                for class_id in range(tiles_selector.n_classes):
 
-        if tiles_selector:
-            for class_id in range(tiles_selector.n_classes):
+                    for slide_node in tiles_selector.top_slides_heaps[class_id]:
+                        case = "TN" if class_id == 0 else f"TP_{class_id}"
+                        self.save_slide_node_figures(case, slide_node, outputs_dir, results)
 
-                for slide_node in tiles_selector.top_slides_heaps[class_id]:
-                    case = "TN" if class_id == 0 else f"TP_{class_id}"
-                    self.save_slide_node_figures(case, slide_node, outputs_dir, results)
-
-                for slide_node in tiles_selector.bottom_slides_heaps[class_id]:
-                    case = "FP" if class_id == 0 else f"FN_{class_id}"
-                    self.save_slide_node_figures(case, slide_node, outputs_dir, results)
+                    for slide_node in tiles_selector.bottom_slides_heaps[class_id]:
+                        case = "FP" if class_id == 0 else f"FN_{class_id}"
+                        self.save_slide_node_figures(case, slide_node, outputs_dir, results)
