@@ -69,7 +69,6 @@ class MLRunner:
         it is crucial when using hi-ml as a package or submodule!
         """
         self.container = container
-        self.data_module = self.container.get_data_module()
         self.experiment_config = experiment_config
         self.container.num_nodes = self.experiment_config.num_nodes
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
@@ -145,6 +144,8 @@ class MLRunner:
         if not is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
+
+        self.data_module = self.container.get_data_module()
 
     def get_multiple_trainloader_mode(self) -> str:
         # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
