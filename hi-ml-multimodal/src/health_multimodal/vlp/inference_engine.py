@@ -31,7 +31,15 @@ class ImageTextInferenceEngine:
                                          image_path: Path,
                                          query_text: str,
                                          interpolation: str = "nearest") -> np.ndarray:
-        """Return a heatmap of the similarities between each patch embedding from the image and the text embedding."""
+        """Return a heatmap of the similarities between each patch embedding from the image and the text embedding.
+
+        :param image_path: Path to the input chest X-ray, either a DICOM or JPEG file.
+        :param query_text: Input radiology text phrase.
+        :param interpolation: Interpolation method to upsample the heatmap so it matches the input image size.
+            See :func:`torch.nn.functional.interpolate` for more details.
+        :return: A heatmap of the similarities between each patch embedding from the image and the text embedding,
+            with the same shape as the input image.
+        """
         assert not self.image_inference_engine.model.training
         assert not self.text_inference_engine.model.training
 
