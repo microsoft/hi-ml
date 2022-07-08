@@ -16,8 +16,17 @@ from .inference_engine import ImageInferenceEngine
 from .data.transforms import create_chest_xray_transform_for_inference
 
 
-def _download_image_model_weights() -> Path:
-    """Download image model weights from Hugging Face."""
+MODEL_TYPE = "resnet50"
+JOINT_FEATURE_SIZE = 128
+TRANSFORM_RESIZE = 512
+TRANSFORM_CENTER_CROP_SIZE = 480
+
+
+def _download_biovil_image_model_weights() -> Path:
+    """Download image model weights from Hugging Face.
+
+    More information available at https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized.
+    """
     root_dir = tempfile.gettempdir()
     download_url(
         IMAGE_WEIGHTS_URL,
@@ -28,24 +37,27 @@ def _download_image_model_weights() -> Path:
     return Path(root_dir, IMAGE_WEIGHTS_NAME)
 
 
-def get_cxr_resnet(model_type: str = "resnet50", joint_feature_size: int = 128) -> ImageModel:
+def get_biovil_resnet() -> ImageModel:
     """Download weights from Hugging Face and instantiate the image model."""
-    resnet_checkpoint_path = _download_image_model_weights()
+    resnet_checkpoint_path = _download_biovil_image_model_weights()
     image_model = ImageModel(
-        img_model_type=model_type,
-        joint_feature_size=joint_feature_size,
+        img_model_type=MODEL_TYPE,
+        joint_feature_size=JOINT_FEATURE_SIZE,
         pretrained_model_path=resnet_checkpoint_path,
     )
     return image_model
 
 
-def get_cxr_resnet_inference(resize: int = 512, center_crop_size: int = 480) -> ImageInferenceEngine:
+def get_biovil_resnet_inference() -> ImageInferenceEngine:
     """Create a :class:`ImageInferenceEngine` for the image model.
 
     The model is downloaded from the Hugging Face Hub.
     The engine can be used to get embeddings from text prompts or masked token predictions.
     """
-    image_model = get_cxr_resnet()
-    transform = create_chest_xray_transform_for_inference(resize=resize, center_crop_size=center_crop_size)
+    image_model = get_biovil_resnet()
+    transform = create_chest_xray_transform_for_inference(
+        resize=TRANSFORM_RESIZE,
+        center_crop_size=TRANSFORM_CENTER_CROP_SIZE,
+    )
     image_inference = ImageInferenceEngine(image_model=image_model, transform=transform)
     return image_inference
