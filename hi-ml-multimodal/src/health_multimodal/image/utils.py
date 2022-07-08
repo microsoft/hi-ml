@@ -8,14 +8,12 @@ from pathlib import Path
 
 from torchvision.datasets.utils import download_url
 
-from .. import REPO_URL
+from .. import IMAGE_WEIGHTS_NAME
+from .. import IMAGE_WEIGHTS_URL
+from .. import IMAGE_WEIGHTS_MD5
 from .model import ImageModel
 from .inference_engine import ImageInferenceEngine
 from .data.transforms import create_chest_xray_transform_for_inference
-
-IMAGE_WEIGHTS_NAME = ""  # TODO
-IMAGE_WEIGHTS_URL = f"{REPO_URL}/raw/main/{IMAGE_WEIGHTS_NAME}"
-IMAGE_WEIGHTS_MD5 = ""  # TODO
 
 
 def _download_image_model_weights() -> Path:
