@@ -61,6 +61,7 @@ In the script below, you will need to replace the values of the following variab
 export location=uksouth     # The Azure location where the resources should be created
 export prefix=himl          # The name of the AzureML workspace, and prefix for all other resources
 export container=datasets
+export datastorefile=datastore.yaml
 az group create \
     --name ${prefix}rg \
     --location ${location}
@@ -77,7 +78,7 @@ az ml workspace create \
     --resource-group ${prefix}rg \
     --name ${prefix} \
     --location ${location}
-key=$(az storage account keys list --resource-group ${prefix}rg --account-name ${prefix}data --query [0].value -o tsv)cat >datastore.yml <<EOL
+key=$(az storage account keys list --resource-group ${prefix}rg --account-name ${prefix}data --query [0].value -o tsv)cat >${datastorefile} <<EOL
 \$schema: https://azuremlschemas.azureedge.net/latest/azureBlob.schema.json
 name: datasets
 type: azure_blob
@@ -87,7 +88,8 @@ container_name: ${container}
 credentials:
   account_key: ${key}
 EOL
-az ml datastore create --file datastore.yml --resource-group ${prefix}rg --workspace-name ${prefix}
+az ml datastore create --file ${datastorefile} --resource-group ${prefix}rg --workspace-name ${prefix}
+rm ${datastorefile}
 ```
 
 Note that the datastore will use the storage account key to authenticate. You may want to switch that to Shared Access Signature (SAS).
