@@ -1,1 +1,1 @@
-../../hi-ml-multimodal/package_description.md
+../../hi-ml-multimodal/README.md
