@@ -18,29 +18,7 @@ A ResNet50 encoder that was pre-trained on ImageNet is downloaded on-the-fly (fr
 Please follow the instructions in the [Readme file](../README.md#setting-up-python) to create a Conda environment and
 activate it, and the instructions to [set up Azure](../README.md#setting-up-azureml).
 
-## Mount datasets
-
-If you would like to use the models interactively to debug and/or develop, it is necessary to mount the datasets that are
-available in Azure. Instructions to prepare and upload the PANDA dataset are [here](public_datasets.md).
-"Mounting" here means that the dataset will be loaded on-demand over the network (see also [the
-docs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-with-datasets#mount-vs-download)).
-
-You can mount the dataset by executing this script in `<root>/hi-ml-histopathology`:
-
-```shell
-python src/histopathology/scripts/mount_azure_dataset.py --dataset_id PANDA
-```
-
-After a few seconds, this may bring up a browser to authenticate you in Azure, and let you access the AzureML
-workspace that you chose by downloading the `config.json` file. If you get an error message saying that authentication
-failed (error message contains "The token is not yet valid (nbf)"), please ensure that your
-system's time is set correctly and then try again. On WSL, you can use `sudo hwclock -s`.
-
-Upon success, the script will print out:
-
-```text
-Dataset PANDA will be mounted at /tmp/datasets/PANDA.
-```
+You will also need to run the dataset preparations for the PANDA dataset, as described [here](public_datasets.md#panda-dataset).
 
 ## Running the model as-is
 
@@ -51,6 +29,15 @@ conda activate HimlHisto
 python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark
 ```
 
+Running the model will automatically mount (download on-the-fly) the PANDA dataset from Azure. To enable that, you will
+be asked to log into Azure a few seconds after the start of the script. This will either pop up a browser window
+automatically, or give you a prompt on the console to open the browser.
+
+Once the authentication is completed, it will access the AzureML
+workspace that you chose by downloading the `config.json` file. If you get an error message saying that authentication
+failed, "The token is not yet valid (nbf)", please ensure that your
+system's time is set correctly (on WSL, use `sudo hwclock -s`) and then try again.
+
 However, the GPU demand for this model is rather high. We recommend running in AzureML, on a GPU compute cluster. You
 can run the training in the cloud by simply appending name of the compute cluster, `--cluster=<your_cluster_name>`. In
 addition, you can turn on fine-tuning of the encoder, which will improve the results further:
@@ -59,11 +46,6 @@ addition, you can turn on fine-tuning of the encoder, which will improve the res
 conda activate HimlHisto
 python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --is_finetune --cluster=<your_cluster_name>
 ```
-
-After a few seconds, this may bring up a browser to authenticate you in Azure, and let you access the AzureML
-workspace that you chose by downloading the `config.json` file. If you get an error message saying that authentication
-failed, "The token is not yet valid (nbf)", please ensure that your
-system's time is set correctly (on WSL, use `sudo hwclock -s`) and then try again.
 
 Then the script will output "Successfully queued run number ..." and a line prefixed "Run URL: ...". Open that
 URL to view the submitted run in AzureML, view progress, metrics, etc.

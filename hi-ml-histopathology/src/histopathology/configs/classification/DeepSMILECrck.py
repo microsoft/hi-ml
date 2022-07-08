@@ -12,12 +12,12 @@ Reference:
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
 from typing import Any
-from pathlib import Path
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-
+from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
 from histopathology.datamodules.base_module import TilesDataModule
 from histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
+from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from histopathology.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
@@ -40,9 +40,7 @@ class DeepSMILECrck(BaseMILTiles):
             is_finetune=False,
             is_caching=True,
             num_top_slides=0,
-            # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/TCGA-CRCk")],
-            azure_datasets=["TCGA-CRCk"],
+            azure_datasets=[TCGA_CRCK_DATASET_ID],
             # declared in TrainerParams:
             max_epochs=50,
             # declared in WorkflowParams:
@@ -56,10 +54,8 @@ class DeepSMILECrck(BaseMILTiles):
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
-        if self.encoder_type == SSLEncoder.__name__:
-            from histopathology.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
-            self.downloader = self.download_ssl_checkpoint(innereye_ssl_checkpoint_crck_4ws)
         super().setup()
+        self.ckpt_run_id = innereye_ssl_checkpoint_crck_4ws
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(

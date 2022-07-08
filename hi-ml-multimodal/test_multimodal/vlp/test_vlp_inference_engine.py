@@ -10,19 +10,11 @@ import torch
 import pytest
 import numpy as np
 from PIL import Image
-from transformers import AutoModel, AutoTokenizer
 
-from health_multimodal.text import BIOMED_VLP_CXR_BERT_SPECIALIZED
-from health_multimodal.text.inference_engine import TextInferenceEngine
+from health_multimodal.text.utils import get_cxr_bert_inference
 from health_multimodal.image import ImageModel, ResnetType, ImageInferenceEngine
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
 from health_multimodal.vlp.inference_engine import ImageTextInferenceEngine
-
-
-text_inference = TextInferenceEngine(
-    tokenizer=AutoTokenizer.from_pretrained(BIOMED_VLP_CXR_BERT_SPECIALIZED, trust_remote_code=True),
-    text_model=AutoModel.from_pretrained(BIOMED_VLP_CXR_BERT_SPECIALIZED, trust_remote_code=True),
-)
 
 
 @pytest.mark.parametrize("height", (400, 500, 650))
@@ -42,7 +34,7 @@ def test_vlp_inference(height: int, query_text: str) -> None:
         transform=create_chest_xray_transform_for_inference(resize=resize, center_crop_size=center_crop_size))
     img_txt_inference = ImageTextInferenceEngine(
         image_inference_engine=image_inference,
-        text_inference_engine=text_inference,
+        text_inference_engine=get_cxr_bert_inference(),
     )
 
     with tempfile.NamedTemporaryFile(suffix='.jpg') as f:
