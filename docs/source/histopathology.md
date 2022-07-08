@@ -11,7 +11,7 @@ up your local Python environment.
 
 ## Onboarding to Azure
 
-Please follow the [instructions here](azure_setup.md).
+Please follow the [instructions here](azure_setup.md) to create an AzureML workspace if you don't have one yet.
 
 ## Creating datasets
 
