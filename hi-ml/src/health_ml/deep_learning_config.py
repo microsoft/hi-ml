@@ -369,8 +369,10 @@ class TrainerParams(param.Parameterized):
                                                          "N * pl_check_val_every_n_epoch training epochs.")
     detect_anomaly: bool = param.Boolean(False,
                                          doc="If true, test gradients for anomalies (NaN or Inf) during training.")
-    use_mixed_precision: bool = param.Boolean(True,
-                                              doc="If True, use float16 precision during training. If False, float32.")
+    use_mixed_precision: bool = \
+        param.Boolean(True,
+                      doc="If True, use float16 precision (Native Adaptive Mixed Precision) during training. "
+                          "If False, use float32.")
     max_num_gpus: int = param.Integer(default=-1,
                                       doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                           "all available GPUs. In distributed training, this is the "
