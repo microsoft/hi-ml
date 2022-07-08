@@ -36,6 +36,7 @@ az extension add --name ml
 - [Creating Azure storage accounts via the CLI](https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest)
 - [Schema for creating datastores](https://docs.microsoft.com/en-us/azure/machine-learning/reference-yaml-datastore-blob)
 - [Creating datastores via the CLI](https://docs.microsoft.com/en-us/cli/azure/ml/datastore?view=azure-cli-latest)
+- [Create a shared access signature](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-user-delegation-sas-create-cli)
 
 ### Collecting the necessary information
 
@@ -57,26 +58,44 @@ In the script below, you will need to replace the values of the following variab
 - `prefix` - the prefix you want to use for the resources you create. This will also be the name of the AzureML workspace.
 
 ```bash
-export location=uksouth
-export prefix=himl
-az group create --name ${prefix}rg --location ${location}
-az storage account create --name ${prefix}data --resource-group ${prefix}rg --location ${location} --sku Standard_LRS
-az storage container create --account-name ${prefix}data --name datasets --auth-mode
-az ml workspace create --resource-group ${prefix}rg --name ${prefix} --location ${location}
+export location=uksouth     # The Azure location where the resources should be created
+export prefix=himl          # The name of the AzureML workspace, and prefix for all other resources
+export container=datasets
+az group create \
+    --name ${prefix}rg \
+    --location ${location}
+az storage account create \
+    --name ${prefix}data \
+    --resource-group ${prefix}rg \
+    --location ${location} \
+    --sku Standard_LRS
+az storage container create \
+    --account-name ${prefix}data \
+    --name ${container} \
+    --auth-mode
+az ml workspace create \
+    --resource-group ${prefix}rg \
+    --name ${prefix} \
+    --location ${location}
 key=$(az storage account keys list --resource-group ${prefix}rg --account-name ${prefix}data --query [0].value -o tsv)cat >datastore.yml <<EOL
 \$schema: https://azuremlschemas.azureedge.net/latest/azureBlob.schema.json
 name: datasets
 type: azure_blob
 description: Pointing to the datasets container in the ${prefix}data storage account.
 account_name: ${prefix}data
-container_name: datasets
+container_name: ${container}
 credentials:
   account_key: ${key}
 EOL
 az ml datastore create --file datastore.yml --resource-group ${prefix}rg --workspace-name ${prefix}
 ```
 
-Note that the datastore will use the storage account key to authenticate. You may want to switch that to Shared Access Signature.
+Note that the datastore will use the storage account key to authenticate. You may want to switch that to Shared Access Signature (SAS).
+
+### Adjusting permissions
+
+- Find the AzureML workspace that you just created in the Azure Portal.
+- Add yourself and your team members with "Contributor" permissions to the workspace, following the guidelines [here](https://docs.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal?tabs=current).
 
 ## Accessing the workspace
 
