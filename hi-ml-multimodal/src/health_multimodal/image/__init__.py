@@ -5,6 +5,16 @@
 
 """Image-related tools
 
+
+.. currentmodule:: health_multimodal.image
+
+.. autosummary::
+   :toctree:
+
+   inference_engine
+   utils
+
+
 .. currentmodule:: health_multimodal.image.data
 
 .. autosummary::
@@ -24,11 +34,22 @@
    resnet
 """
 
-from .model.model import ImageModel, ResnetType
+from .. import REPO_URL
+from .model import ImageModel
+from .model import ResnetType
 from .inference_engine import ImageInferenceEngine
+from .utils import get_cxr_resnet_inference
+
+IMAGE_WEIGHTS_NAME = ""  # TODO
+IMAGE_WEIGHTS_URL = f"{REPO_URL}/raw/main/{IMAGE_WEIGHTS_NAME}"
+IMAGE_WEIGHTS_MD5 = ""  # TODO
 
 __all__ = [
-    'ImageModel',
-    'ResnetType',
-    'ImageInferenceEngine',
+    "ImageModel",
+    "ResnetType",
+    "ImageInferenceEngine",
+    "IMAGE_WEIGHTS_NAME",
+    "IMAGE_WEIGHTS_URL",
+    "IMAGE_WEIGHTS_MD5",
+    "get_cxr_resnet_inference",
 ]
