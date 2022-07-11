@@ -259,7 +259,7 @@ class MLRunner:
             assert self.trainer, "Trainer should be initialized before validation. Call self.init_training() first."
             self.trainer.validate(self.container.model, datamodule=self.data_module)
 
-    def run_inference(self,) -> None:
+    def run_inference(self) -> None:
         """
         Run inference on the test set for all models.
         """
