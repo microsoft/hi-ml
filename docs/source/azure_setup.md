@@ -15,10 +15,10 @@ We recommend the CLI because all necessary resources can be easily created via a
 If you prefer to create your workspace via the web UI on the Azure Portal, please follow the steps below.
 
 - [Create a resource
-  group](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)
+  group.](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)
 - [Create a storage account for
-  datasets](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
-- [Create an AzureML workspace, compute instances and compute clusters](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources)
+  datasets.](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
+- [Create an AzureML workspace, compute instances and compute clusters.](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources)
 
 ## Creating an AzureML workspace via the Azure Command-line Tools
 
@@ -35,12 +35,12 @@ az extension add --name ml
 - [Creating AzureML workspaces via the CLI](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-manage-workspace-cli)
 - [Creating Azure storage accounts via the CLI](https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest)
 - [Schema for creating datastores](https://docs.microsoft.com/en-us/azure/machine-learning/reference-yaml-datastore-blob)
-- [Creating datastores via the CLI](https://docs.microsoft.com/en-us/cli/azure/ml/datastore?view=azure-cli-latest)
-- [Create a shared access signature](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-user-delegation-sas-create-cli)
+- [Creating datastores via the CLI.](https://docs.microsoft.com/en-us/cli/azure/ml/datastore?view=azure-cli-latest)
+- [Create a shared access signature.](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-user-delegation-sas-create-cli)
 
 ### Collecting the necessary information
 
-Find out which Azure datacenter locations you can use:
+Find out which Azure data centre locations you can use:
 
 ```bash
 az account list-locations -o table
@@ -97,7 +97,7 @@ Note that the datastore will use the storage account key to authenticate. You ma
 Now that you have created the core AzureML workspace, you need to
 [create a compute cluster](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources#cluster).
 
-The final step is to download the workspace configuration file, as descreibed [here](#accessing-the-workspace).
+The final step is to download the workspace configuration file, as described [here](#accessing-the-workspace).
 
 ### Adjusting permissions
 
