@@ -152,6 +152,7 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
 
             assert runner.trainer == mock_trainer
             assert runner.storing_logger == mock_storing_logger
+
             mock_trainer.validate = Mock()
 
             if run_extra_val_epoch:
@@ -215,6 +216,7 @@ def test_run(ml_runner_with_container: MLRunner) -> None:
                 mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
                 ml_runner_with_container.run()
-                assert ml_runner_with_container._has_setup_run
+
                 mock_load.assert_called_once()
+                assert ml_runner_with_container._has_setup_run
                 assert ml_runner_with_container.checkpoint_handler.has_continued_training
