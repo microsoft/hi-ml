@@ -14,8 +14,8 @@ import torch
 import torch.nn.functional as F
 from scipy import ndimage
 
-from health_multimodal.image.inference_engine import ImageInferenceEngine
-from health_multimodal.text.inference_engine import TextInferenceEngine
+from health_multimodal.image import ImageInferenceEngine
+from health_multimodal.text import TextInferenceEngine
 
 
 class ImageTextInferenceEngine:
@@ -125,3 +125,8 @@ class ImageTextInferenceEngine:
                 align_corners=align_corners,
             )[0, 0]
         return similarity_map.numpy()
+
+    def to(self, device: torch.device):
+        """Move models to the specified device."""
+        self.image_inference_engine.to(device)
+        self.text_inference_engine.to(device)

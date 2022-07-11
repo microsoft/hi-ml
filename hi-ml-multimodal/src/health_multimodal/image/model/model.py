@@ -59,8 +59,7 @@ class ImageModel(nn.Module):
         if pretrained_model_path is not None:
             if not isinstance(pretrained_model_path, (str, Path)):
                 raise TypeError(f"Expected a string or Path, got {type(pretrained_model_path)}")
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            state_dict = torch.load(pretrained_model_path, map_location=device)
+            state_dict = torch.load(pretrained_model_path, map_location="cpu")
             self.load_state_dict(state_dict)
 
     def train(self, mode: bool = True) -> Any:
