@@ -36,7 +36,7 @@ def ml_runner() -> Generator:
         shutil.rmtree(output_dir)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def ml_runner_with_container() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
