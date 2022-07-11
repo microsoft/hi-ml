@@ -33,21 +33,20 @@
 """
 
 from .data.io import TypePrompts
+from .utils import get_cxr_bert_inference
 from .inference_engine import TextInferenceEngine
-from .model.modelling_cxrbert import CXRBertModel, CXRBertOutput
-from .model.configuration_cxrbert import CXRBertConfig, CXRBertTokenizer
+from .model import CXRBertModel
+from .model import CXRBertOutput
+from .model import CXRBertConfig
+from .model import CXRBertTokenizer
 
-
-BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
-CXR_BERT_COMMIT_TAG = "v1.0"
 
 __all__ = [
-    "BIOMED_VLP_CXR_BERT_SPECIALIZED",
-    "CXR_BERT_COMMIT_TAG",
     "TypePrompts",
     "TextInferenceEngine",
     "CXRBertConfig",
     "CXRBertTokenizer",
     "CXRBertModel",
     "CXRBertOutput",
+    "get_cxr_bert_inference",
 ]

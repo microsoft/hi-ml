@@ -27,8 +27,8 @@ class TextInferenceEngine(TextInput):
         assert isinstance(text_model, BertForMaskedLM), f"Expected a BertForMaskedLM, got {type(text_model)}"
 
         self.model = text_model
-        self.device = next(self.model.parameters()).device
         self.max_allowed_input_length = self.model.config.max_position_embeddings
+        self.to = self.model.to
 
     def is_in_eval(self) -> bool:
         """Returns True if the model is in eval mode."""
@@ -36,8 +36,9 @@ class TextInferenceEngine(TextInput):
 
     def tokenize_input_prompts(self, prompts: Union[str, List[str]], verbose: bool = True) -> Any:
         tokenizer_output = super().tokenize_input_prompts(prompts, verbose=verbose)
-        tokenizer_output.input_ids = tokenizer_output.input_ids.to(self.device)
-        tokenizer_output.attention_mask = tokenizer_output.attention_mask.to(self.device)
+        device = next(self.model.parameters()).device
+        tokenizer_output.input_ids = tokenizer_output.input_ids.to(device)
+        tokenizer_output.attention_mask = tokenizer_output.attention_mask.to(device)
 
         max_length = tokenizer_output.input_ids.shape[1]
         if tokenizer_output.input_ids.shape[1] > self.max_allowed_input_length:
