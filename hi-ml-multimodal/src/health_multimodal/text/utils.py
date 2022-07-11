@@ -6,13 +6,12 @@
 
 from typing import Tuple
 
-from health_multimodal.text import (
-    BIOMED_VLP_CXR_BERT_SPECIALIZED,
-    CXR_BERT_COMMIT_TAG,
-    TextInferenceEngine,
-    CXRBertModel,
-    CXRBertTokenizer,
-)
+from .. import BIOMED_VLP_CXR_BERT_SPECIALIZED
+from .. import CXR_BERT_COMMIT_TAG
+
+from .inference_engine import TextInferenceEngine
+from .model import CXRBertModel
+from .model import CXRBertTokenizer
 
 
 def get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
