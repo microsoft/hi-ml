@@ -8,9 +8,9 @@ from pathlib import Path
 
 from torchvision.datasets.utils import download_url
 
-from .. import IMAGE_WEIGHTS_NAME
-from .. import IMAGE_WEIGHTS_URL
-from .. import IMAGE_WEIGHTS_MD5
+from .. import BIOVIL_IMAGE_WEIGHTS_NAME
+from .. import BIOVIL_IMAGE_WEIGHTS_URL
+from .. import BIOVIL_IMAGE_WEIGHTS_MD5
 from .model import ImageModel
 from .inference_engine import ImageInferenceEngine
 from .data.transforms import create_chest_xray_transform_for_inference
@@ -29,12 +29,12 @@ def _download_biovil_image_model_weights() -> Path:
     """
     root_dir = tempfile.gettempdir()
     download_url(
-        IMAGE_WEIGHTS_URL,
+        BIOVIL_IMAGE_WEIGHTS_URL,
         root=tempfile.gettempdir(),
-        filename=IMAGE_WEIGHTS_NAME,
-        md5=IMAGE_WEIGHTS_MD5,
+        filename=BIOVIL_IMAGE_WEIGHTS_NAME,
+        md5=BIOVIL_IMAGE_WEIGHTS_MD5,
     )
-    return Path(root_dir, IMAGE_WEIGHTS_NAME)
+    return Path(root_dir, BIOVIL_IMAGE_WEIGHTS_NAME)
 
 
 def get_biovil_resnet() -> ImageModel:
