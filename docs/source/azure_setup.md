@@ -32,7 +32,7 @@ az extension add --name ml
 
 ### Documentation
 
-- [Creating AzureML workspaces via the CLI](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-manage-workspace-cli)
+- [Creating AzureML workspaces via the CLI.](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-manage-workspace-cli)
 - [Creating Azure storage accounts via the CLI](https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest)
 - [Schema for creating datastores.](https://docs.microsoft.com/en-us/azure/machine-learning/reference-yaml-datastore-blob)
 - [Creating datastores via the CLI.](https://docs.microsoft.com/en-us/cli/azure/ml/datastore?view=azure-cli-latest)
