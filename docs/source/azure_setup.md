@@ -7,7 +7,7 @@ To set up Azure, you need to have:
 - A subscription to Azure.
 - An account that has "Owner" permissions to the Azure subscription.
 
-There are two ways to set up all necessary resources, either via the Azure portal or via the Azure Commandline Interface (CLI).
+There are two ways to set up all necessary resources, either via the Azure portal or via the Azure Command-line Interface (CLI).
 We recommend the CLI because all necessary resources can be easily created via a single script.
 
 ## Creating an AzureML workspace via the Azure Portal
@@ -20,11 +20,11 @@ If you prefer to create your workspace via the web UI on the Azure Portal, pleas
   datasets](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
 - [Create an AzureML workspace, compute instances and compute clusters](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources)
 
-## Creating an AzureML workspace via the Azure Commandline Tools
+## Creating an AzureML workspace via the Azure Command-line Tools
 
-A pureley commandline-drive setup is possible via the [Azure Commandline Tools](https://docs.microsoft.com/en-us/cli/azure/). These tools are available for multiple platforms, including Linux, Mac, and Windows.
+A pureley command-line driven setup is possible via the [Azure Command-line Tools](https://docs.microsoft.com/en-us/cli/azure/). These tools are available for multiple platforms, including Linux, Mac, and Windows.
 
-After downloading the commandline tools, you can run the following command add the `ml` extension that is required to create an AzureML workspace:
+After downloading the command-line tools, you can run the following command add the `ml` extension that is required to create an AzureML workspace:
 
 ```bash
 az extension add --name ml
