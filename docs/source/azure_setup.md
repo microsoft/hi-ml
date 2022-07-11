@@ -2,7 +2,7 @@
 
 If you already have an AzureML workspace available, you can go straight to [the last step](#accessing-the-workspace).
 
-To set up Azure, you need to have:
+To set up all your Azure resources, you need to have:
 
 - A subscription to Azure.
 - An account that has "Owner" permissions to the Azure subscription.
