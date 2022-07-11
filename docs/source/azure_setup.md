@@ -18,7 +18,7 @@ If you prefer to create your workspace via the web UI on the Azure Portal, pleas
   group.](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)
 - [Create a storage account for
   datasets.](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
-- [Create an AzureML workspace, compute instances and compute clusters](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources)
+- [Create an AzureML workspace, compute instances and compute clusters.](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources)
 
 ## Creating an AzureML workspace via the Azure Commandline Tools
 
