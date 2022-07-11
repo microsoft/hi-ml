@@ -40,7 +40,7 @@ az extension add --name ml
 
 ### Collecting the necessary information
 
-Find out which Azure datacenter locations you can use:
+Find out which Azure data centre locations you can use:
 
 ```bash
 az account list-locations -o table
