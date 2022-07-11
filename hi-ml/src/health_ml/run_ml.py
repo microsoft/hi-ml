@@ -265,7 +265,7 @@ class MLRunner:
         Run inference on the test set for all models.
         """
 
-        if type(self.container.model).test_step != LightningModule.test_step:
+        if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
             # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
@@ -334,7 +334,7 @@ class MLRunner:
             self.run_training()
 
         # load model checkpoint for custom inference or additional validation step
-        if type(self.container.model).test_step != LightningModule.test_step or self.container.run_extra_val_epoch:
+        if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
             self.load_model_checkpoint_after_training()
 
         # Run extra validation epoch if enabled

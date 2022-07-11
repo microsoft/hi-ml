@@ -207,6 +207,9 @@ class LightningContainer(WorkflowParams,
                 arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
+    def has_custom_test_step(self) -> bool:
+        return type(self.model).test_step != LightningModule.test_step
+
 
 class LightningModuleWithOptimizer(LightningModule):
     """
