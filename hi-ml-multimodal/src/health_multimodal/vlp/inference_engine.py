@@ -126,7 +126,7 @@ class ImageTextInferenceEngine:
             )[0, 0]
         return similarity_map.numpy()
 
-    def to(self, device: torch.device):
+    def to(self, device: torch.device) -> None:
         """Move models to the specified device."""
         self.image_inference_engine.to(device)
         self.text_inference_engine.to(device)
