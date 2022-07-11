@@ -4,6 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 import enum
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union, Sequence
 
@@ -39,7 +40,7 @@ class ImageModel(nn.Module):
                  img_model_type: str,
                  joint_feature_size: int,
                  freeze_encoder: bool = False,
-                 pretrained_model_path: Optional[str] = None,
+                 pretrained_model_path: Optional[Union[str, Path]] = None,
                  **downstream_classifier_kwargs: Any):
         super().__init__()
 
@@ -56,7 +57,8 @@ class ImageModel(nn.Module):
         self.train()
 
         if pretrained_model_path is not None:
-            assert isinstance(pretrained_model_path, str), f"Expected a string, got {type(pretrained_model_path)}"
+            if not isinstance(pretrained_model_path, (str, Path)):
+                raise TypeError(f"Expected a string or Path, got {type(pretrained_model_path)}")
             self.load_state_dict(torch.load(pretrained_model_path))
 
     def train(self, mode: bool = True) -> Any:
