@@ -99,10 +99,6 @@ class ImageTextInferenceEngine:
         # verify_resize_params(val_img_transforms, resize_size, crop_size)
 
         reshaped_similarity = similarity_map.reshape(target_shape)
-        interpolation_kwargs = {
-            "mode": interpolation,
-            "align_corners": False,
-        }
 
         if crop_size is not None:
             if resize_size is not None:
@@ -113,7 +109,8 @@ class ImageTextInferenceEngine:
             similarity_map = F.interpolate(
                 reshaped_similarity,
                 size=target_size,
-                **interpolation_kwargs,
+                mode=interpolation,
+                align_corners=False,
             )
             margin_w, margin_h = (width - target_size[0]), (height - target_size[1])
             margins_for_pad = (floor(margin_w / 2), ceil(margin_w / 2), floor(margin_h / 2), ceil(margin_h / 2))
@@ -122,6 +119,7 @@ class ImageTextInferenceEngine:
             similarity_map = F.interpolate(
                 reshaped_similarity,
                 size=(height, width),
-                **interpolation_kwargs,
+                mode=interpolation,
+                align_corners=False,
             )[0, 0]
         return similarity_map.numpy()
