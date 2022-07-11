@@ -169,14 +169,13 @@ class MLRunner:
         if is_global_rank_zero():
             logging.info(f"Model checkpoints are saved at {self.container.checkpoint_folder}")
             write_experiment_summary_file(self.container, outputs_folder=self.container.outputs_folder)
-
-        if is_global_rank_zero():
             self.container.before_training_on_global_rank_zero()
+
         if is_local_rank_zero():
             self.container.before_training_on_local_rank_zero()
         self.container.before_training_on_all_ranks()
 
-        # Set random seeds just before training. Ensure that dataloader workers are also seed correctly.
+        # Set random seeds just before training. Ensure that dataloader workers are also seeded correctly.
         seed_everything(self.container.get_effective_random_seed(), workers=True)
 
         checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
