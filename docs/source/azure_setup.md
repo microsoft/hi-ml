@@ -97,7 +97,7 @@ Note that the datastore will use the storage account key to authenticate. You ma
 Now that you have created the core AzureML workspace, you need to
 [create a compute cluster](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources#cluster).
 
-The final step is to download the workspace configuration file, as descreibed [here](#accessing-the-workspace).
+The final step is to download the workspace configuration file, as described [here](#accessing-the-workspace).
 
 ### Adjusting permissions
 
