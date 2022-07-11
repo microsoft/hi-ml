@@ -10,7 +10,7 @@ import torch.multiprocessing
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pytorch_lightning import LightningModule, Trainer, seed_everything
+from pytorch_lightning import Trainer, seed_everything
 
 from health_azure import AzureRunInfo
 from health_azure.logging import logging_section

@@ -208,6 +208,10 @@ class LightningContainer(WorkflowParams,
         return arguments_str
 
     def has_custom_test_step(self) -> bool:
+        """
+        Determines if the lightning module has a custom test step so that the runner can determine whether to
+        run inference or skip it.
+        """
         return type(self.model).test_step != LightningModule.test_step
 
 
