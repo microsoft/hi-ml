@@ -203,6 +203,7 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     assert _expected_files_exist()
 
 
+def test_run(ml_runner_with_container: MLRunner) -> None:
     """Test that model runner gets called """
     ml_runner_with_container.setup()
     assert not ml_runner_with_container.checkpoint_handler.has_continued_training
