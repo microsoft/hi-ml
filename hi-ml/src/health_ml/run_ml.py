@@ -250,7 +250,7 @@ class MLRunner:
 
     def run_validation(self) -> None:
         """
-        Run validation on the validation set for all models to save time/memory cosuming outputs.
+        Run validation on the validation set for all models to save time/memory consuming outputs.
         """
         assert hasattr(self.container.model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
         "This is required for running an additional validation epoch to save plots."
