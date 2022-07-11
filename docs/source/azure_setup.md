@@ -15,7 +15,7 @@ We recommend the CLI because all necessary resources can be easily created via a
 If you prefer to create your workspace via the web UI on the Azure Portal, please follow the steps below.
 
 - [Create a resource
-  group](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)
+  group.](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)
 - [Create a storage account for
   datasets](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
 - [Create an AzureML workspace, compute instances and compute clusters](https://docs.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources)
