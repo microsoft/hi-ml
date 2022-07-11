@@ -27,7 +27,6 @@ class TextInferenceEngine(TextInput):
         assert isinstance(text_model, BertForMaskedLM), f"Expected a BertForMaskedLM, got {type(text_model)}"
 
         self.model = text_model
-        self.device = next(self.model.parameters()).device
         self.max_allowed_input_length = self.model.config.max_position_embeddings
         self.to = self.model.to
 
