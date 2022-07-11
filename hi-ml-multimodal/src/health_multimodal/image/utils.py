@@ -30,7 +30,7 @@ def _download_biovil_image_model_weights() -> Path:
     root_dir = tempfile.gettempdir()
     download_url(
         BIOVIL_IMAGE_WEIGHTS_URL,
-        root=tempfile.gettempdir(),
+        root=root_dir,
         filename=BIOVIL_IMAGE_WEIGHTS_NAME,
         md5=BIOVIL_IMAGE_WEIGHTS_MD5,
     )
