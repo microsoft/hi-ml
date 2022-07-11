@@ -333,7 +333,9 @@ class MLRunner:
         with logging_section("Model training"):
             self.run_training()
 
-        self.load_model_checkpoint_after_training()
+        # load model checkpoint for custom inference or additional validation step
+        if type(self.container.model).test_step != LightningModule.test_step or self.container.run_extra_val_epoch:
+            self.load_model_checkpoint_after_training()
 
         # Run extra validation epoch if enabled
         if self.container.run_extra_val_epoch:

@@ -30,7 +30,6 @@ class SSLClassifier(LightningModuleWithOptimizer):
         self.encoder = encoder
         self.freeze_encoder = freeze_encoder
         self.class_weights = class_weights
-        self.save_hyperparameters()
         self.encoder.eval()
         self.classifier_head = SSLEvaluator(n_input=get_encoder_output_dim(self.encoder),
                                             n_hidden=None,
