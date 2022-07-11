@@ -77,7 +77,7 @@ class MLRunner:
         self.checkpoint_handler = CheckpointHandler(container=self.container,
                                                     project_root=self.project_root,
                                                     run_context=RUN_CONTEXT)
-        self.trainer: Trainer
+        self.trainer: Optional[Trainer] = None
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -144,7 +144,7 @@ class MLRunner:
         if not is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
-
+        # get the container's datamodule after azure setup
         self.data_module = self.container.get_data_module()
 
     def get_multiple_trainloader_mode(self) -> str:
