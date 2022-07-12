@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 import sys
+import time
+from typing import Any
 
 himl_histo_root_dir = Path(__file__).parent.parent.parent
 himl_root = himl_histo_root_dir.parent.parent
@@ -14,14 +16,14 @@ from health_azure import DatasetConfig  # noqa: E402
 from health_azure.utils import get_workspace  # noqa: E402
 
 
-def mount_dataset(dataset_id: str) -> str:
+def mount_dataset(dataset_id: str) -> Any:
     ws = get_workspace()
     target_folder = "/tmp/datasets/" + dataset_id
     dataset = DatasetConfig(name=dataset_id, target_folder=target_folder, use_mounting=True)
     dataset_mount_folder, mount_ctx = dataset.to_input_dataset_local(ws)
     assert mount_ctx is not None  # for mypy
     mount_ctx.start()
-    return str(dataset_mount_folder)
+    return mount_ctx
 
 
 if __name__ == '__main__':
@@ -31,4 +33,9 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_id', type=str,
                         help='Name of the Azure dataset e.g. PANDA or TCGA-CRCk')
     args = parser.parse_args()
-    mount_dataset(args.dataset_id)
+    # It is essential that the mount context is returned from the mounting function and referenced here.
+    # If not, mounting will be stopped, and the files are no longer available.
+    _ = mount_dataset(args.dataset_id)
+    print("The mounted dataset will only be available while this script is running. Press Ctrl-C to terminate it.`")
+    while True:
+        time.sleep(60)
