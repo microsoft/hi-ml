@@ -191,7 +191,7 @@ class DeepMILPlotsHandler:
         """
         if self.plot_options:
             logging.info(
-                f"Plotting {[opt.value for opt in self.plot_options]}. All figures will be saved in {outputs_dir}"
+                f"Plotting {[opt.value for opt in self.plot_options]}..."
             )
             figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
