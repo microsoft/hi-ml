@@ -237,8 +237,6 @@ class MLRunner:
         creates a Pytorch Lightning trainer, and trains the model.
         If a checkpoint was specified, then it loads the checkpoint before resuming training.
         """
-        # get recovery checkpoint if it exists
-        logging.info("Starting training")
         # Change to the outputs folder so that the model can write to current working directory, and still everything
         # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
         with change_working_directory(self.container.outputs_folder):
@@ -247,7 +245,6 @@ class MLRunner:
 
         assert self.trainer.logger is not None
         self.trainer.logger.finalize('success')
-        logging.info("Finished training")
 
     def run_validation(self) -> None:
         """
