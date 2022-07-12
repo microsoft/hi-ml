@@ -144,8 +144,6 @@ class MLRunner:
         if not is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
-        # get the container's datamodule after azure setup
-        self.data_module = self.container.get_data_module()
 
     def get_multiple_trainloader_mode(self) -> str:
         # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
@@ -177,6 +175,9 @@ class MLRunner:
 
         # Set random seeds just before training. Ensure that dataloader workers are also seeded correctly.
         seed_everything(self.container.get_effective_random_seed(), workers=True)
+
+        # get the container's datamodule
+        self.data_module = self.container.get_data_module()
 
         checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
 
