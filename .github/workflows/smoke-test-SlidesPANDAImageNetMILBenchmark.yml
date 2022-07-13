@@ -40,5 +40,5 @@ jobs:
       - name: smoketest
         run: |
           cd ${{ env.folder }}
-          make pip_test
+          make pip_from_conda
           make smoke_test_slidespandaimagenetmil_aml
