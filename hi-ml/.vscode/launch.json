@@ -12,7 +12,8 @@
             "args": [
                 "--model=HelloWorld"
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false
         },
         {
             "name": "Train HelloWorld model in AzureML",

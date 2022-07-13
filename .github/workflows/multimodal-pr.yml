@@ -19,6 +19,7 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
 jobs:
 
@@ -83,7 +84,26 @@ jobs:
           make pip
           make pytest
 
+  notebooks:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install test requirements
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+
       - name: Run Jupyter notebooks
         run: |
           cd ${{ env.folder }}
-          make notebooks
+          ipython kernel install --name "python3" --user
+          echo "Current branch: ${BRANCH_NAME}"
+          papermill --parameters repo_branch ${BRANCH_NAME} notebooks/phrase_grounding.ipynb /tmp/phrase_grounding_output.ipynb

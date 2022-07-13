@@ -5,6 +5,7 @@
 from pathlib import Path
 
 import pandas as pd
+from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_ID
 
 from histopathology.utils.tcga_utils import extract_fields
 from histopathology.datasets.tcga_prad_dataset import TcgaPradDataset
@@ -19,7 +20,7 @@ def check_dataset_csv_paths(dataset_dir: Path) -> None:
 if __name__ == '__main__':
     # Script needs to be started in the parent folder of the dataset folder
     current_dir = Path.cwd()
-    expected_datasetdir = "TCGA-Crck"
+    expected_datasetdir = TCGA_CRCK_DATASET_ID
     if not (current_dir / expected_datasetdir).is_dir:
         raise ValueError(f"The current folder must contain the actual dataset folder {expected_datasetdir}")
     dataset_dir = current_dir / expected_datasetdir

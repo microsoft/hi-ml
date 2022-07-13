@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from typing import Any, Optional, Set
 
 from health_azure.utils import is_running_in_azure_ml
@@ -20,9 +19,7 @@ from histopathology.models.encoders import (
 from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.datasets.default_paths import (
-    PANDA_DATASET_DIR,
     PANDA_DATASET_ID,
-    PANDA_TILES_DATASET_DIR,
     PANDA_TILES_DATASET_ID)
 from histopathology.utils.naming import PlotOption
 
@@ -43,7 +40,6 @@ class BaseDeepSMILEPanda(BaseMIL):
             max_bag_size_inf=0,
             # declared in TrainerParams:
             max_epochs=200,
-            # use_mixed_precision = True,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -68,8 +64,6 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             batch_size=8,
-            # declared in DatasetParams:
-            local_datasets=[Path(PANDA_TILES_DATASET_DIR), Path(PANDA_DATASET_DIR)],
             azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
@@ -135,9 +129,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             tile_size=224,
             random_offset=True,
             background_val=255,
-            # declared in DatasetParams:
-            local_datasets=[Path("/tmp/datasets/PANDA")],
-            azure_datasets=["PANDA"],)
+            azure_datasets=[PANDA_DATASET_ID],)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
