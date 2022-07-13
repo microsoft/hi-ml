@@ -110,11 +110,21 @@ regression tests: regression_test_tilespandaimagenetmil regression_test_slidespa
 
 # Smoke tests (smaller tests that run end to end to check integration)
 # The following test takes around 26 minutes due to saving hyperparameters
-smoke_test_slidespandaimagenetmil:
+smoke_test_slidespandaimagenetmil_local:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMILBenchmark \
 	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml --is_finetune \
+	--conda_env hi-ml-histopathology/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	}
+
+smoke_test_slidespandaimagenetmil_aml:
+	{ \
+	cd ../ ;\
+	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMILBenchmark \
+	--cluster=pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml --is_finetune \
 	--conda_env hi-ml-histopathology/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\

@@ -1,0 +1,44 @@
+name: Smoke test SlidesPANDAImageNetMILBenchmark
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "hi-ml-histopathology/**"
+      - ".github/workflows/histopathology-pr.yml"
+      # When the core hi-ml libraries change, test the histo test too, to find problems with backwards compatibility
+      - "hi-ml-azure/**"
+      - "hi-ml/**"
+
+env:
+  pythonVersion: 3.7
+  folder: hi-ml-histopathology
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+
+jobs:
+
+  smoketest:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: smoketest
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make smoke_test_slidespandaimagenetmil_aml
