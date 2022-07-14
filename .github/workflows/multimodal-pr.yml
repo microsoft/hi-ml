@@ -135,6 +135,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
+          password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: ${{ env.folder }}/dist/
           verbose: true
