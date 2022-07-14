@@ -5,7 +5,9 @@
 import logging
 from pathlib import Path
 from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
+
 from sklearn.metrics import confusion_matrix
+from torch import Tensor
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.viz_utils import (
@@ -51,8 +53,8 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    true_labels = [i.item() for i in results[ResultsKey.TRUE_LABEL]]
-    pred_labels = [i.item() for i in results[ResultsKey.PRED_LABEL]]
+    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    pred_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PRED_LABEL]]
     all_potential_labels = [i for i in range(len(class_names))]
     present_labels_diff_expected = set(true_labels).union(set(pred_labels)).difference(set(all_potential_labels))
     if present_labels_diff_expected != set():
