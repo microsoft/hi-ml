@@ -20,7 +20,7 @@ from histopathology.configs.classification.BaseMIL import BaseMILSlides, BaseMIL
 from histopathology.datasets.panda_dataset import PandaDataset
 from histopathology.datasets.default_paths import (
     PANDA_DATASET_ID,
-    PANDA_TILES_DATASET_ID)
+    PANDA_TILES_DATASET_ID_20X)
 from histopathology.utils.naming import PlotOption
 
 
@@ -64,7 +64,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             batch_size=8,
-            azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
+            azure_datasets=[PANDA_TILES_DATASET_ID_20X, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 

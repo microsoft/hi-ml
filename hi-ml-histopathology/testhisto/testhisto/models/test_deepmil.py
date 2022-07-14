@@ -21,7 +21,7 @@ from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
 from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
 from histopathology.datamodules.base_module import HistoDataModule, TilesDataModule
 from histopathology.datasets.base_dataset import TilesDataset
-from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
+from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR_5X, TCGA_CRCK_DATASET_DIR
 from histopathology.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
@@ -306,7 +306,7 @@ def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, us
 
 
 CONTAINER_DATASET_DIR = {
-    DeepSMILETilesPanda: PANDA_TILES_DATASET_DIR,
+    DeepSMILETilesPanda: PANDA_TILES_DATASET_DIR_5X,
     DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
 }
 

@@ -9,7 +9,6 @@
 import functools
 import sys
 import shutil
-import datetime
 from pathlib import Path
 from argparse import ArgumentParser
 from typing import Tuple, Union, List
@@ -215,15 +214,15 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     return full_csv
 
 
-def main(panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: int, tile_size: int,
+def main(panda_dir: Union[str, Path], root_output_dir: str, level: int, tile_size: int,
          margin: int, occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
          filter_slide: str = '') -> None:
 
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
     dataset = Dataset(PandaDataset(panda_dir))  # type: ignore
+    output_dir = Path(root_output_dir)
 
-    output_dir = Path(root_output_dir) / f"panda_tiles_level{level}_{tile_size}"
     if overwrite and output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
@@ -258,12 +257,12 @@ if __name__ == '__main__':
         "--panda-dir",
         type=str,
         default="/tmp/datasets/PANDA",
-        help="Folder with the PANDA dataset. For example, \"/mnt/innereyedatasets/datasets/panda\"",
+        help="Folder with the PANDA dataset. For example, \"/tmp/datasets/PANDA"",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="/panda_dataset/panda_20x"
+        default="/datasetdrive/panda_20x_level_0_224"
     )
     parser.add_argument(
         "--level",

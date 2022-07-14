@@ -8,7 +8,7 @@ import shutil
 import traceback
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import PIL
@@ -86,7 +86,7 @@ def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold
 
 
 def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
-                  rel_slide_dir: Path) -> Dict[TileKey, Any]:
+                  rel_slide_dir: Path) -> dict:
     """Map slide information and tiling outputs into tile-specific information dictionary.
 
     :param sample: Slide dictionary.
@@ -112,11 +112,10 @@ def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
         TileKey.SLIDE_METADATA: {TileKey.from_slide_metadata_key(key): value
                                  for key, value in sample[SlideKey.METADATA].items()}
     }
-
     return tile_info
 
 
-def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey],
+def format_csv_row(tile_info: dict, keys_to_save: Iterable[TileKey],
                    metadata_keys: Iterable[str]) -> str:
     """Format tile information dictionary as a row to write to a dataset CSV tile.
 
@@ -238,7 +237,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     return full_csv
 
 
-def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
+def main(slides_dataset: SlidesDataset, root_output_dir: str,
          level: int, tile_size: int, margin: int, foreground_threshold: Optional[float],
          occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
          n_slides: Optional[int] = None) -> None:
@@ -261,8 +260,8 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
     dataset = Dataset(slides_dataset)[:n_slides]  # type: ignore
+    output_dir = Path(root_output_dir)
 
-    output_dir = Path(root_output_dir + f"_level{level}_{tile_size}")
     print(f"Creating dataset of level-{level} {tile_size}x{tile_size} "
           f"{slides_dataset.__class__.__name__} tiles at: {output_dir}")
 
@@ -297,11 +296,11 @@ if __name__ == '__main__':
 
     # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD"),
-         root_output_dir="/panda_dataset/TCGA-PRAD_tiles",
+         root_output_dir="/panda_dataset/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=5,
          level=1,
          tile_size=224,
-         margin=64,
+         margin=0,
          foreground_threshold=None,
          occupancy_threshold=0.05,
          parallel=True,
