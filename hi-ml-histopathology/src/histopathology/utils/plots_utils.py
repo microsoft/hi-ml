@@ -51,7 +51,18 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    cf_matrix_n = confusion_matrix(results[ResultsKey.TRUE_LABEL], results[ResultsKey.PRED_LABEL], normalize="pred")
+    true_labels = [i.item() for i in results[ResultsKey.TRUE_LABEL]]
+    pred_labels = [i.item() for i in results[ResultsKey.PRED_LABEL]]
+    all_potential_labels = [i for i in range(len(class_names))]
+    present_labels_diff_expected = set(true_labels).union(set(pred_labels)).difference(set(all_potential_labels))
+    if present_labels_diff_expected != set():
+        raise ValueError("More entries were found in true and predicted labels than are available in class names")
+    cf_matrix_n = confusion_matrix(
+        true_labels,
+        pred_labels,
+        labels=all_potential_labels,
+        normalize="pred"
+    )
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
