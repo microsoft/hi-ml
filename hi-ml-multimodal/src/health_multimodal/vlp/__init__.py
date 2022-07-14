@@ -12,3 +12,9 @@
 
    inference_engine
 """
+
+from .inference_engine import ImageTextInferenceEngine
+
+__all__ = [
+    "ImageTextInferenceEngine",
+]

@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, PropertyMock, patch, Mock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from numpy import random
 import pytest
@@ -8,9 +8,8 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GradientAccumulationScheduler, ModelCheckpoint, ModelSummary, TQDMProgressBar
 from pytorch_lightning.profiler import PyTorchProfiler, PassThroughProfiler, AdvancedProfiler, SimpleProfiler
 
-from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.lightning_container import LightningContainer
-from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file, model_train
+from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
 from health_ml.utils.lightning_loggers import StoringLogger
@@ -196,26 +195,3 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer3.num_training_batches == int(limit_train_batches_float * original_num_train_batches)
     assert trainer3.num_val_batches[0] == int(limit_val_batches_float * original_num_val_batches)
     assert trainer3.num_test_batches[0] == int(limit_test_batches_float * original_num_test_batches)
-
-
-def test_model_train() -> None:
-    container = HelloWorld()
-    container.create_lightning_module_and_store()
-
-    with patch.object(container, "get_data_module"):
-        with patch("health_ml.model_trainer.create_lightning_trainer") as mock_create_trainer:
-            mock_trainer = MagicMock()
-            mock_storing_logger = MagicMock()
-            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
-
-            mock_trainer.fit = Mock()
-            mock_close_logger = Mock()
-            mock_trainer.logger = MagicMock(close=mock_close_logger)
-            checkpoint_path = None
-            trainer, storing_logger = model_train(checkpoint_path, container)
-
-            mock_trainer.fit.assert_called_once()
-            mock_trainer.logger.finalize.assert_called_once()
-
-            assert trainer == mock_trainer
-            assert storing_logger == mock_storing_logger

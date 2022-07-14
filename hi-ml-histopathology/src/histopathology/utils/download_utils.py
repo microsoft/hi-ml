@@ -7,7 +7,10 @@ import os
 from pathlib import Path
 
 from health_azure import download_files_from_run_id, get_workspace
+from health_azure.utils import CheckpointDownloader
 from health_ml.utils import fixed_paths
+from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
 def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path, filename: str) -> None:
@@ -27,10 +30,24 @@ def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path
     else:
         local_dir = local_path.parent.parent
         local_dir.mkdir(exist_ok=True, parents=True)
-        download_files_from_run_id(run_id=run_id,
-                                   output_folder=local_dir,
-                                   prefix=str(remote_path),
-                                   workspace=aml_workspace,
-                                   validate_checksum=True)
+        download_files_from_run_id(
+            run_id=run_id,
+            output_folder=local_dir,
+            prefix=str(remote_path),
+            workspace=aml_workspace,
+            validate_checksum=True,
+        )
         assert local_path.exists()
         print("File is downloaded at", local_path)
+
+
+def get_checkpoint_downloader(ckpt_run_id: str, outputs_folder: Path) -> CheckpointDownloader:
+    downloader = CheckpointDownloader(
+        aml_workspace=get_workspace(),
+        run_id=ckpt_run_id,
+        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+        download_dir=outputs_folder,
+        remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"),
+    )
+    downloader.download_checkpoint_if_necessary()
+    return downloader

@@ -367,10 +367,12 @@ class TrainerParams(param.Parameterized):
                                                          "If pl_check_val_every_n_epoch > 1, this means that "
                                                          "checkpoints are saved every "
                                                          "N * pl_check_val_every_n_epoch training epochs.")
-    detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
-                                                    "training.")
-    use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
-                                                         "training.")
+    detect_anomaly: bool = param.Boolean(False,
+                                         doc="If true, test gradients for anomalies (NaN or Inf) during training.")
+    use_mixed_precision: bool = \
+        param.Boolean(True,
+                      doc="If True, use float16 precision (Native Adaptive Mixed Precision) during training. "
+                          "If False, use float32.")
     max_num_gpus: int = param.Integer(default=-1,
                                       doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                           "all available GPUs. In distributed training, this is the "
@@ -422,6 +424,12 @@ class TrainerParams(param.Parameterized):
     monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
+    run_extra_val_epoch: bool = param.Boolean(default=False,
+                                              doc="If True, run an additional validation epoch at the end of training "
+                                              "to produce plots outputs on the validation set. This is to reduce "
+                                              "any validation overheads during training time and produce "
+                                              "additional time or memory consuming outputs only once after "
+                                              "training is finished on the validation set.")
 
     @property
     def use_gpu(self) -> bool:

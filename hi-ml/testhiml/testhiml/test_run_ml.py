@@ -2,13 +2,18 @@ import shutil
 from pathlib import Path
 
 import pytest
-from typing import Generator, Tuple
-from unittest.mock import patch
+from typing import Generator
+from unittest.mock import MagicMock, Mock, patch
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
+from health_ml.utils.common_utils import is_gpu_available
+from health_azure.utils import is_global_rank_zero
+
+
+no_gpu = not is_gpu_available()
 
 
 @pytest.fixture(scope="module")
@@ -31,7 +36,7 @@ def ml_runner() -> Generator:
         shutil.rmtree(output_dir)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def ml_runner_with_container() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
@@ -41,10 +46,6 @@ def ml_runner_with_container() -> Generator:
     output_dir = runner.container.file_system_config.outputs_folder
     if output_dir.exists():
         shutil.rmtree(output_dir)
-
-
-def _mock_model_train(chekpoint_path: Path, container: LightningContainer) -> Tuple[str, str]:
-    return "trainer", "storing_logger"
 
 
 def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
@@ -73,25 +74,99 @@ def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
             mock_run_context.set_tags.assert_called()
 
 
-def test_run(ml_runner: MLRunner) -> None:
-    """Test that model runner gets called """
+def test_get_multiple_trainloader_mode(ml_runner: MLRunner) -> None:
+    multiple_trainloader_mode = ml_runner.get_multiple_trainloader_mode()
+    assert multiple_trainloader_mode == "max_size_cycle", "train_loader_cycle_mode is available now, "
+    "`get_multiple_trainloader_mode` workaround can be safely removed."
+
+
+def _test_init_training(ml_runner: MLRunner) -> None:
+    """Test that training is initialized correctly"""
     ml_runner.setup()
     assert not ml_runner.checkpoint_handler.has_continued_training
-    with patch.object(ml_runner, "run_inference"):
-        with patch.object(ml_runner, "checkpoint_handler"):
-            with patch("health_ml.run_ml.model_train", new=_mock_model_train):
-                ml_runner.run()
-                assert ml_runner._has_setup_run
-                # expect _mock_model_train to be called and the result of ml_runner.storing_logger
-                # updated accordingly
-                assert ml_runner.storing_logger == "storing_logger"
-                assert ml_runner.checkpoint_handler.has_continued_training
+    assert ml_runner.trainer is None
+    assert ml_runner.storing_logger is None
+    with patch("health_ml.run_ml.write_experiment_summary_file") as mock_write_experiment_summary_file:
+        ml_runner.init_training()
+        if is_global_rank_zero():
+            mock_write_experiment_summary_file.assert_called()
+        assert ml_runner.storing_logger
+        assert ml_runner.trainer
+
+
+def test_init_training_cpu(ml_runner: MLRunner) -> None:
+    """Test that training is initialized correctly"""
+    ml_runner.container.max_num_gpus = 0
+    _test_init_training(ml_runner)
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+def test_init_training_gpu(ml_runner: MLRunner) -> None:
+    """Test that training is initialized correctly in DDP mode"""
+    _test_init_training(ml_runner)
+
+
+def test_run_training() -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+
+    with patch.object(container, "get_data_module"):
+        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+            runner.setup()
+            mock_trainer = MagicMock()
+            mock_storing_logger = MagicMock()
+            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+            runner.init_training()
+
+            assert runner.trainer == mock_trainer
+            assert runner.storing_logger == mock_storing_logger
+
+            mock_trainer.fit = Mock()
+            mock_close_logger = Mock()
+            mock_trainer.logger = MagicMock(close=mock_close_logger)
+
+            runner.run_training()
+
+            mock_trainer.fit.assert_called_once()
+            mock_trainer.logger.finalize.assert_called_once()
+
+
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_run_validation(run_extra_val_epoch: bool) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.create_lightning_module_and_store()
+    container.run_extra_val_epoch = run_extra_val_epoch
+    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+
+    with patch.object(container, "get_data_module"):
+        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+            runner.setup()
+            mock_trainer = MagicMock()
+            mock_storing_logger = MagicMock()
+            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+            runner.init_training()
+
+            assert runner.trainer == mock_trainer
+            assert runner.storing_logger == mock_storing_logger
+
+            mock_trainer.validate = Mock()
+
+            if run_extra_val_epoch:
+                runner.run_validation()
+
+            assert mock_trainer.validate.called == run_extra_val_epoch
 
 
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
     """
     Test that run_inference gets called as expected.
     """
+    ml_runner_with_container.container.max_num_gpus = 0
+
     def _expected_files_exist() -> bool:
         output_dir = ml_runner_with_container.container.outputs_folder
         if not output_dir.is_dir():
@@ -127,3 +202,21 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     assert actual_test_ckpt_path.is_file()
     # After training, the outputs directory should now exist and contain the 2 error files
     assert _expected_files_exist()
+
+
+def test_run(ml_runner_with_container: MLRunner) -> None:
+    """Test that model runner gets called """
+    ml_runner_with_container.setup()
+    assert not ml_runner_with_container.checkpoint_handler.has_continued_training
+    with patch.object(ml_runner_with_container, "checkpoint_handler"):
+        with patch.object(ml_runner_with_container, "load_model_checkpoint_after_training") as mock_load:
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                mock_trainer = MagicMock()
+                mock_storing_logger = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+
+                ml_runner_with_container.run()
+
+                mock_load.assert_called_once()
+                assert ml_runner_with_container._has_setup_run
+                assert ml_runner_with_container.checkpoint_handler.has_continued_training

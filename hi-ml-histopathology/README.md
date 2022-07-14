@@ -1,5 +1,11 @@
 # Histopathology Models and Workflows
 
+## Models on public data
+
+This repository contains a set of models built on and for public datasets (PANDA, TCGA). Detailed instructions to
+on-board the datasets and run the models are provided [on
+readthedocs](https://hi-ml.readthedocs.io/en/latest/histopathology.html).
+
 ## Getting started
 
 ### Setting up Python
@@ -13,6 +19,13 @@ make env
 
 You can then activate the environment via `conda activate HimlHisto`. Set VSCode to use this Conda environment, by choosing "Python: Select Interpreter"
 from the command palette.
+
+In the event of dependencies update, you can update your conda environment by running the following:
+
+```shell
+cd hi-ml-histopathology
+make conda_update
+```
 
 ### Setting up AzureML
 
