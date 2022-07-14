@@ -28,28 +28,37 @@ class PandaTilesDataset(TilesDataset):
     - `'tile_x'`, `'tile_y'` (int): top-right tile coordinates
     - `'data_provider'`, `'slide_isup_grade'`, `'slide_gleason_score'` (str): parent slide metadata
     """
+
     LABEL_COLUMN = "slide_isup_grade"
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
     N_CLASSES = 6
 
-    _RELATIVE_ROOT_FOLDER = Path("panda_tiles_level1_224")
+    # _RELATIVE_ROOT_FOLDER = Path("panda_tiles_level1_224")
 
-    def __init__(self,
-                 root: Path,
-                 dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None,
-                 occupancy_threshold: Optional[float] = None) -> None:
-        super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
-                         dataset_csv=dataset_csv,
-                         dataset_df=dataset_df,
-                         train=None,
-                         validate_columns=False)
+    def __init__(
+        self,
+        root: Path,
+        dataset_csv: Optional[Union[str, Path]] = None,
+        dataset_df: Optional[pd.DataFrame] = None,
+        occupancy_threshold: Optional[float] = None,
+        datapart: float = 1.0,
+        relative_root_folder: Path = Path("panda_tiles_level1_224"),
+    ) -> None:
+        super().__init__(
+            root=Path(root) / relative_root_folder,
+            dataset_csv=dataset_csv,
+            dataset_df=dataset_df,
+            train=None,
+            validate_columns=False,
+        )
         if occupancy_threshold is not None:
             self.dataset_df: pd.DataFrame
-            dataset_df_filtered = self.dataset_df.loc[
-                self.dataset_df['occupancy'] > occupancy_threshold
-            ]
+            dataset_df_filtered = self.dataset_df.loc[self.dataset_df["occupancy"] > occupancy_threshold]
             self.dataset_df = dataset_df_filtered
+
+        if datapart < 1.0:
+            print("sampling dataset")
+            self.dataset_df = self.dataset_df.sample(frac=datapart, random_state=43)
 
         # Copy columns "left" --> "tile_x" and "top" --> "tile_y"
         # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
@@ -65,20 +74,22 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
     Any dataset used in SSL needs to return a tuple where the first element is the image and the second is a
     class label.
     """
+
     occupancy_threshold = 0
 
-    def __init__(self,
-                 root: Path,
-                 dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None,
-                 transform: Optional[Callable] = None,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        root: Path,
+        dataset_csv: Optional[Union[str, Path]] = None,
+        dataset_df: Optional[pd.DataFrame] = None,
+        transform: Optional[Callable] = None,
+        **kwargs: Any
+    ) -> None:
         super().__init__(root=root, transform=transform)
 
-        self.base_dataset = PandaTilesDataset(root=root,
-                                              dataset_csv=dataset_csv,
-                                              dataset_df=dataset_df,
-                                              occupancy_threshold=self.occupancy_threshold)
+        self.base_dataset = PandaTilesDataset(
+            root=root, dataset_csv=dataset_csv, dataset_df=dataset_df, occupancy_threshold=self.occupancy_threshold
+        )
 
     def __getitem__(self, index: int) -> Tuple:  # type: ignore
         sample = self.base_dataset[index]
@@ -100,6 +111,7 @@ class PandaTilesDatasetWithReturnIndex(DataClassBaseWithReturnIndex, PandaTilesD
     This class is just a shorthand notation for this double inheritance. Please note that this class needs
     to override __getitem__(), this is why we need a separate PandaTilesDatasetReturnImageLabel.
     """
+
     @property
     def num_classes(self) -> int:
         return 2
