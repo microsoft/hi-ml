@@ -32,13 +32,30 @@ jobs:
         with:
           lfs: true
 
+      - name: create config file
+        run: ./create_config.sh
+
       - name: Set up Python ${{ env.pythonVersion }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: smoketest
+      - name: Install required packages
         run: |
           cd ${{ env.folder }}
           make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
           make smoke_test_slidespandaimagenetmil_aml
