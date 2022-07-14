@@ -257,7 +257,7 @@ if __name__ == '__main__':
         "--panda-dir",
         type=str,
         default="/tmp/datasets/PANDA",
-        help="Folder with the PANDA dataset. For example, \"/tmp/datasets/PANDA"",
+        help="Folder with the PANDA dataset. For example, '/tmp/datasets/PANDA'",
     )
     parser.add_argument(
         "--output-dir",
