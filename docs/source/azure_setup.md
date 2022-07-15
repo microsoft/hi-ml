@@ -56,7 +56,7 @@ The script below will create
 
 - an AzureML workspace.
 - a storage account to hold the datasets, with a container called `datasets`.
-- a datastore that links the AzureML workspace to the storage account
+- a datastore that links the AzureML workspace to the storage account.
 - a resource group for all of the above items.
 
 In the script, you will need to replace the values of the following variables:
