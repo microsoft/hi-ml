@@ -14,7 +14,7 @@ import numpy as np
 
 from health_azure import DatasetConfig, submit_to_azure_if_needed
 
-from histopathology.preprocessing.create_tiles_dataset import process_slide, save_tile, generate_tiles
+from health_cpath.preprocessing.create_tiles_dataset import process_slide, save_tile, generate_tiles
 
 
 def profile_cucim(input_file: Path,
@@ -137,7 +137,7 @@ def profile_main(mount_point: Path,
                  label: str,
                  process: Callable) -> None:
     def wrap_main() -> None:
-        from histopathology.preprocessing.create_tiles_dataset import main
+        from health_cpath.preprocessing.create_tiles_dataset import main
         main(process,
              panda_dir=mount_point,
              root_output_dir=output_folder / label,

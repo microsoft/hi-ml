@@ -44,7 +44,7 @@ To test your setup, please execute in the `hi-ml-histopathology` folder:
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.TcgaCrckImageNetMIL  --cluster=training-nd24
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.TcgaCrckImageNetMIL  --cluster=training-nd24
 ```
 
 This should start an AzureML job in the AzureML workspace that you configured above via `config.json`. You may need to adjust the name of

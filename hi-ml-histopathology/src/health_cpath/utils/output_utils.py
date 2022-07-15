@@ -198,7 +198,7 @@ class OutputsPolicy:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
-            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+            :py:class:`~health_cpath.models.deepmil.DeepMILModule`.
         :param epoch: Current epoch number.
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
@@ -322,7 +322,7 @@ class DeepMILOutputsHandler:
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
         :param metrics_dict: Current epoch's validation metrics dictionary from
-            :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+            :py:class:`~health_cpath.models.deepmil.DeepMILModule`.
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
@@ -354,7 +354,7 @@ class DeepMILOutputsHandler:
         """Render and save test epoch outputs.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`test_epoch_end()`.
-        :param metrics_dict: Test metrics dictionary from :py:class:`~histopathology.models.deepmil.DeepMILModule`.
+        :param metrics_dict: Test metrics dictionary from :py:class:`~health_cpath.models.deepmil.DeepMILModule`.
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
         """

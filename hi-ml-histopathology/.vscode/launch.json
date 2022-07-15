@@ -22,7 +22,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=histopathology.configs.classification.DeepSMILECrck",
+                "--model=health_cpath.configs.classification.DeepSMILECrck",
                 "--cluster=lite-testing-ds2",
             ],
             "console": "integratedTerminal"
@@ -33,7 +33,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=histopathology.DeepSMILECrck",
+                "--model=health_cpath.DeepSMILECrck",
             ],
             "console": "integratedTerminal"
         },
@@ -43,7 +43,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=histopathology.SlidesPandaImageNetMIL",
+                "--model=health_cpath.SlidesPandaImageNetMIL",
                 "--pl_fast_dev_run=10",
                 "--crossval_count=0",
                 "--batch_size=2",
@@ -60,7 +60,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=histopathology.TilesPandaImageNetMIL",
+                "--model=health_cpath.TilesPandaImageNetMIL",
                 "--pl_fast_dev_run=10",
                 "--crossval_count=0",
                 "--batch_size=2",

@@ -208,7 +208,7 @@ def test_metrics(n_classes: int) -> None:
     ) -> TileEncoder:
         return IdentityEncoder(input_dim=input_dim)
 
-    with patch("histopathology.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
+    with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
         module = TilesDeepMILModule(label_column=TilesDataset.LABEL_COLUMN,
                                     n_classes=n_classes,
                                     pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))

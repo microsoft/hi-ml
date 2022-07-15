@@ -140,7 +140,7 @@ def test_collect_crossval_outputs(tmp_path: Path) -> None:
         csv_path.parent.mkdir()
         csv_path.write_text(csv_contents)
 
-    with patch('histopathology.utils.report_utils.get_aml_run_from_run_id',
+    with patch('health_cpath.utils.report_utils.get_aml_run_from_run_id',
                return_value=MockHyperDriveRun(child_indices)):
         crossval_dfs = collect_crossval_outputs(parent_run_id="",
                                                 download_dir=download_dir,
@@ -193,7 +193,7 @@ def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) ->
 
 @pytest.mark.parametrize('overwrite', [False, True])
 def test_collect_crossval_metrics(metrics_df: pd.DataFrame, tmp_path: Path, overwrite: bool) -> None:
-    with patch('histopathology.utils.report_utils.aggregate_hyperdrive_metrics',
+    with patch('health_cpath.utils.report_utils.aggregate_hyperdrive_metrics',
                return_value=metrics_df) as mock_aggregate:
         returned_df = collect_crossval_metrics(parent_run_id="", download_dir=tmp_path,
                                                aml_workspace=None, overwrite=overwrite)

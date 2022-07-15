@@ -68,10 +68,10 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
     tiles_selector.top_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
     tiles_selector.bottom_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
 
-    with patch("histopathology.utils.plots_utils.save_slide_thumbnail_and_heatmap") as mock_slide:
-        with patch("histopathology.utils.plots_utils.save_top_and_bottom_tiles") as mock_tile:
-            with patch("histopathology.utils.plots_utils.save_scores_histogram") as mock_histogram:
-                with patch("histopathology.utils.plots_utils.save_confusion_matrix") as mock_conf:
+    with patch("health_cpath.utils.plots_utils.save_slide_thumbnail_and_heatmap") as mock_slide:
+        with patch("health_cpath.utils.plots_utils.save_top_and_bottom_tiles") as mock_tile:
+            with patch("health_cpath.utils.plots_utils.save_scores_histogram") as mock_histogram:
+                with patch("health_cpath.utils.plots_utils.save_confusion_matrix") as mock_conf:
                     plots_handler.save_plots(
                         outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock()
                     )
