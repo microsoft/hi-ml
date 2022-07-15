@@ -1,12 +1,12 @@
 # HI-ML Tools for Computational Pathology
 
-The directory [`hi-ml-histopathology`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology) contains code
+The directory [`hi-ml-cpath`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-cpath) contains code
 for runnning experiments in Computational Pathology.
 
 ## Setting up your computer
 
 The tools for computational pathology cannot be as a Python package, but rather directly from the Git repository. Please
-follow the instructions in [README](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/README.md) to set
+follow the instructions in [README](https://github.com/microsoft/hi-ml/blob/main/hi-ml-cpath/README.md) to set
 up your local Python environment.
 
 ## Onboarding to Azure
@@ -40,7 +40,7 @@ inherit from a
 As an example, please check the [HelloWorld
 model](https://github.com/microsoft/hi-ml/blob/0793cbd1a874920d04b0a8f1298a7a112cfd712c/hi-ml/src/health_ml/configs/hello_world.py#L232)
 or the [base class for the MIL
-models](https://github.com/microsoft/hi-ml/blob/1d96c9bcdb326ad4d145ab082f45a2116d776a76/hi-ml-histopathology/src/histopathology/configs/classification/BaseMIL.py#L39).
+models](https://github.com/microsoft/hi-ml/blob/1d96c9bcdb326ad4d145ab082f45a2116d776a76/hi-ml-cpath/src/histopathology/configs/classification/BaseMIL.py#L39).
 
 ## Mount datasets
 
@@ -49,7 +49,7 @@ or mount them. "Mounting" here means that the dataset will be loaded on-demand o
 docs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-with-datasets#mount-vs-download)). This is ideal if you expect that
 you will only need a small number of files, or if the disk of your machine is too small to download the full dataset.
 
-You can mount the dataset by executing this script in `<root>/hi-ml-histopathology`:
+You can mount the dataset by executing this script in `<root>/hi-ml-cpath`:
 
 ```shell
 python src/histopathology/scripts/mount_azure_dataset.py --dataset_id PANDA

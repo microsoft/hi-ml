@@ -13,7 +13,7 @@ readthedocs](https://hi-ml.readthedocs.io/en/latest/histopathology.html).
 For working on the histopathology folder, please create a separate Conda environment.
 
 ```shell
-cd hi-ml-histopathology
+cd hi-ml-cpath
 make env
 ```
 
@@ -23,7 +23,7 @@ from the command palette.
 In the event of dependencies update, you can update your conda environment by running the following:
 
 ```shell
-cd hi-ml-histopathology
+cd hi-ml-cpath
 make conda_update
 ```
 
@@ -36,11 +36,11 @@ In addition, please download an AzureML workspace configuration file for the wor
 * Select "Download config file".
 * Save that file into the the repository root.
 
-Once that config file is in place, all Python runs that you start inside the `hi-ml-histopathology` folder will automatically use this config file.
+Once that config file is in place, all Python runs that you start inside the `hi-ml-cpath` folder will automatically use this config file.
 
 ## Running histopathology models
 
-To test your setup, please execute in the `hi-ml-histopathology` folder:
+To test your setup, please execute in the `hi-ml-cpath` folder:
 
 ```shell
 conda activate HimlHisto
@@ -52,12 +52,12 @@ the compute cluster (`training-nd24` in the above example).
 
 ### Conda environment
 
-If you start your jobs in the `hi-ml-histopathology` folder, they will automatically pick up the Conda environment file that is present in that folder.
-If you start your jobs in a different folder, you need to add the `--conda_env` option to point to the file `<repo_root>/hi-ml-histopathology/environment.yml`.
+If you start your jobs in the `hi-ml-cpath` folder, they will automatically pick up the Conda environment file that is present in that folder.
+If you start your jobs in a different folder, you need to add the `--conda_env` option to point to the file `<repo_root>/hi-ml-cpath/environment.yml`.
 
 ## Running histopathology tests
 
-In the `hi-ml-histopathology` folder, run
+In the `hi-ml-cpath` folder, run
 
 ```shell
 make call_pytest

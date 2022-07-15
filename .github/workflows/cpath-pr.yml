@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - "hi-ml-histopathology/**"
+      - "hi-ml-cpath/**"
       - ".github/workflows/histopathology-pr.yml"
       # When the core hi-ml libraries change, test the histo test too, to find problems with backwards compatibility
       - "hi-ml-azure/**"
@@ -15,7 +15,7 @@ on:
 
 env:
   pythonVersion: 3.7
-  folder: hi-ml-histopathology
+  folder: hi-ml-cpath
   module_for_coverage_reporting: histopathology
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}

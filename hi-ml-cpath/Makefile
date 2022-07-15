@@ -78,7 +78,7 @@ regression_test_slidespandaimagenetmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
-	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-cpath/environment.yml \
 	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
 	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 --is_finetune \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
@@ -89,8 +89,8 @@ regression_test_tcgacrcksslmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.TcgaCrckSSLMIL \
-	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml --max_epochs=50 \
-	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/\
+	--cluster pr-gpu --conda_env hi-ml-cpath/environment.yml --max_epochs=50 \
+	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics=test/accuracy,test/auroc,test/f1score,test/precision,test/recall;\
 	}
@@ -99,8 +99,8 @@ regression_test_crck_simclr:
 	{ \
 	cd ../; \
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
-	--cluster pr-gpu --conda_env hi-ml-histopathology/environment.yml \
-	--regression_test_folder=hi-ml-histopathology/testhisto/RegressionTestResults/CRCK_SimCLR/\
+	--cluster pr-gpu --conda_env hi-ml-cpath/environment.yml \
+	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
 	 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
 	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
@@ -114,8 +114,8 @@ smoke_test_slidespandaimagenetmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
-	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml --is_finetune \
-	--conda_env hi-ml-histopathology/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	--mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
+	--conda_env hi-ml-cpath/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
 	}
@@ -125,7 +125,7 @@ smoke_test_tilespandaimagenetmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL \
-	--mount_in_azureml --conda_env hi-ml-histopathology/environment.yml \
+	--mount_in_azureml --conda_env hi-ml-cpath/environment.yml \
 	--is_finetune --batch_size=2 --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
@@ -136,7 +136,7 @@ smoke_test_tcgacrcksslmil:
 	{ \
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.TcgaCrckSSLMIL \
-	--conda_env hi-ml-histopathology/environment.yml --crossval_count=1 \
+	--conda_env hi-ml-cpath/environment.yml --crossval_count=1 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
 	}
@@ -146,7 +146,7 @@ smoke_test_crck_simclr:
 	{ \
 	cd ../; \
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
-	--conda_env hi-ml-histopathology/environment.yml \
+	--conda_env hi-ml-cpath/environment.yml \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--is_debug_model=True --num_workers=0 --max_epochs=2; \
 	}
