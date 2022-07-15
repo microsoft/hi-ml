@@ -54,7 +54,7 @@ For the storage account, please choose an SKU from based on your needs as descri
 
 The script below will create
 
-- an AzureML workspace
+- an AzureML workspace.
 - a storage account to hold the datasets, with a container called `datasets`.
 - a datastore that links the AzureML workspace to the storage account
 - a resource group for all of the above items.
