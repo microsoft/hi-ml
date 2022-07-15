@@ -101,23 +101,23 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     file = Path(tmp_path) / "normalized_confusion_matrix.png"
     assert file.exists()
 
-    # check that an error is raised if true or predicted labels include indices greater than the expected number of
-    # classes
+    # check that an error is raised if true labels include indices greater than the expected number of classes
     invalid_results_1 = {
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 2],
         ResultsKey.PRED_LABEL: [0, 1, 0, 0, 0, 1]
     }
     with pytest.raises(ValueError) as e:
         save_confusion_matrix(invalid_results_1, class_names, tmp_path)
-    assert "More entries were found in true and predicted labels than are available in class names" in str(e)
+    assert "More entries were found in true labels than are available in class names" in str(e)
 
+    # check that an error is raised if prediced labels include indices greater than the expected number of classes
     invalid_results_2 = {
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PRED_LABEL: [0, 1, 0, 0, 0, 2]
     }
     with pytest.raises(ValueError) as e:
         save_confusion_matrix(invalid_results_2, class_names, tmp_path)
-    assert "More entries were found in true and predicted labels than are available in class names" in str(e)
+    assert "More entries were found in predicted labels than are available in class names" in str(e)
 
     # check that if confusion matrix still has correct shape even if results don't cover all expected labels
     class_names_extended = ["foo", "bar", "baz"]
