@@ -22,6 +22,8 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+  PYPI_TEST_API_TOKEN: ${{ secrets.PYPI_TEST_API_TOKEN }}
 
 jobs:
 
@@ -219,19 +221,11 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Set envs
-        run: |
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "TESTPYPI_TOKEN=${{ secrets.TEST_PIPY_TOKEN }}" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "TESTPYPI_TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}" >> $GITHUB_ENV
-          fi
-
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ env.TESTPYPI_TOKEN }}
+          password: ${{ env.PYPI_TEST_API_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
@@ -259,19 +253,11 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Set envs
-        run: |
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "PYPI_TOKEN=${{ secrets.PYPI_TOKEN }}" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "PYPI_TOKEN=${{ secrets.PYPI_AZURE_TOKEN }}" >> $GITHUB_ENV
-          fi
-
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ env.PYPI_TOKEN }}
+          password: ${{ env.PYPI_API_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
 
   test-pypi-pkg:
