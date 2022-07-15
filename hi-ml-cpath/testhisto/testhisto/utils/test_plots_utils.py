@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from pathlib import Path
 from typing import Collection
 from unittest.mock import MagicMock, patch
@@ -88,11 +89,43 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
 
 
 def test_save_conf_matrix_integration(tmp_path: Path) -> None:
+    matplotlib_logger = logging.getLogger('matplotlib')
+    matplotlib_logger.setLevel(logging.WARNING)
     results = {
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PRED_LABEL: [0, 1, 0, 0, 0, 1]
     }
     class_names = ["foo", "bar"]
+
     save_confusion_matrix(results, class_names, tmp_path)
     file = Path(tmp_path) / "normalized_confusion_matrix.png"
     assert file.exists()
+
+    # check that an error is raised if true labels include indices greater than the expected number of classes
+    invalid_results_1 = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 2],
+        ResultsKey.PRED_LABEL: [0, 1, 0, 0, 0, 1]
+    }
+    with pytest.raises(ValueError) as e:
+        save_confusion_matrix(invalid_results_1, class_names, tmp_path)
+    assert "More entries were found in true labels than are available in class names" in str(e)
+
+    # check that an error is raised if prediced labels include indices greater than the expected number of classes
+    invalid_results_2 = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PRED_LABEL: [0, 1, 0, 0, 0, 2]
+    }
+    with pytest.raises(ValueError) as e:
+        save_confusion_matrix(invalid_results_2, class_names, tmp_path)
+    assert "More entries were found in predicted labels than are available in class names" in str(e)
+
+    # check that if confusion matrix still has correct shape even if results don't cover all expected labels
+    class_names_extended = ["foo", "bar", "baz"]
+    num_classes = len(class_names_extended)
+    expected_conf_matrix_shape = (num_classes, num_classes)
+    with patch("histopathology.utils.plots_utils.plot_normalized_confusion_matrix") as mock_plot_conf_matrix:
+        with patch("histopathology.utils.plots_utils.save_figure"):
+            save_confusion_matrix(results, class_names_extended, tmp_path)
+            mock_plot_conf_matrix.assert_called_once()
+            actual_conf_matrix = mock_plot_conf_matrix.call_args[1].get('cm')
+            assert actual_conf_matrix.shape == expected_conf_matrix_shape
