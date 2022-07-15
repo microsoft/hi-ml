@@ -25,7 +25,7 @@ env:
 jobs:
 
   flake8:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -43,7 +43,7 @@ jobs:
           make flake8
 
   mypy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -61,7 +61,7 @@ jobs:
           make mypy
 
   pyright:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -84,7 +84,7 @@ jobs:
           make pyright
 
   pytest:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -128,7 +128,7 @@ jobs:
           python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --add_to_sys_path=${{ env.folder }} --experiment="$branch_name_without_prefix"
 
   build-python:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     needs: [ pytest ]
     steps:
       - uses: actions/checkout@v2
@@ -152,7 +152,7 @@ jobs:
           folder: ${{ env.folder }}
 
   publish-pypi-pkg:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     needs: [ build-python ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
