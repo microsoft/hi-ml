@@ -19,7 +19,7 @@ from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
-                                               validate_class_names)
+                                             validate_class_names)
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]

@@ -12,14 +12,14 @@ from matplotlib import pyplot as plt
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
 from health_cpath.utils.analysis_plot_utils import (add_training_curves_legend, plot_confusion_matrices,
-                                                      plot_crossval_roc_and_pr_curves,
-                                                      plot_crossval_training_curves)
+                                                    plot_crossval_roc_and_pr_curves,
+                                                    plot_crossval_training_curves)
 from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
-                                               AML_VAL_OUTPUTS_CSV)
+                                             AML_VAL_OUTPUTS_CSV)
 from health_cpath.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
-                                               crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                               get_best_epochs, get_crossval_metrics_table, get_formatted_run_info,
-                                               collect_class_info)
+                                             crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
+                                             get_best_epochs, get_crossval_metrics_table, get_formatted_run_info,
+                                             collect_class_info)
 from health_cpath.utils.naming import MetricsKey, ModelKey
 
 

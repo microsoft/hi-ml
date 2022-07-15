@@ -13,7 +13,7 @@ from torchmetrics.metric import Metric
 
 from health_cpath.utils.naming import MetricsKey, ModelKey, ResultsKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
-                                               collate_results_on_cpu, gather_results)
+                                             collate_results_on_cpu, gather_results)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
 _RANK_KEY = 'rank'

@@ -10,11 +10,11 @@ import pytest
 
 from health_azure.utils import download_file_if_necessary
 from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV,
-                                               AML_VAL_OUTPUTS_CSV)
+                                             AML_VAL_OUTPUTS_CSV)
 from health_cpath.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
-                                               crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                               get_best_epochs, get_crossval_metrics_table,
-                                               run_has_val_and_test_outputs)
+                                             crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
+                                             get_best_epochs, get_crossval_metrics_table,
+                                             run_has_val_and_test_outputs)
 
 
 def test_run_has_val_and_test_outputs() -> None:
