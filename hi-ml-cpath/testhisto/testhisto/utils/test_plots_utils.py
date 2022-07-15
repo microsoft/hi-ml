@@ -123,8 +123,8 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     class_names_extended = ["foo", "bar", "baz"]
     num_classes = len(class_names_extended)
     expected_conf_matrix_shape = (num_classes, num_classes)
-    with patch("histopathology.utils.plots_utils.plot_normalized_confusion_matrix") as mock_plot_conf_matrix:
-        with patch("histopathology.utils.plots_utils.save_figure"):
+    with patch("health_cpath.utils.plots_utils.plot_normalized_confusion_matrix") as mock_plot_conf_matrix:
+        with patch("health_cpath.utils.plots_utils.save_figure"):
             save_confusion_matrix(results, class_names_extended, tmp_path)
             mock_plot_conf_matrix.assert_called_once()
             actual_conf_matrix = mock_plot_conf_matrix.call_args[1].get('cm')

@@ -26,7 +26,7 @@ If you have a GPU available, you can run training on that machine, by executing 
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.idesPandaImageNetMILBenchmark
 ```
 
 Running the model will automatically mount (download on-the-fly) the PANDA dataset from Azure. To enable that, you will
@@ -44,7 +44,7 @@ addition, you can turn on fine-tuning of the encoder, which will improve the res
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --is_finetune --cluster=<your_cluster_name>
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.idesPandaImageNetMILBenchmark --is_finetune --cluster=<your_cluster_name>
 ```
 
 Then the script will output "Successfully queued run number ..." and a line prefixed "Run URL: ...". Open that
@@ -87,7 +87,7 @@ This will mean that the job starts faster, but may not run at maximum speed beca
 To use cross-validation, supply the additional commandline flag `--crossval_count=5` for 5-fold cross-validation, like:
 
 ```shell
-python ../hi-ml/src/health_ml/runner.py --model histopathology.SlidesPandaImageNetMILBenchmark --crossval_count=5 --cluster=<your_cluster_name>
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.idesPandaImageNetMILBenchmark --crossval_count=5 --cluster=<your_cluster_name>
 ```
 
 Cross-validation will start 5 training runs in parallel. For this reason, cross-validation can only be used in AzureML.

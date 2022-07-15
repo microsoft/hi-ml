@@ -34,7 +34,7 @@ Please follow the [detailed instructions](public_datasets.md) to download and pr
 
 ## New Model configurations
 
-To define your own model configuration, place a class definition in the directory `histopathology.configs`. The class should
+To define your own model configuration, place a class definition in the directory `health_cpath.configs`. The class should
 inherit from a
 [LightningContainer](https://github.com/microsoft/hi-ml/blob/39911d217c919d8213ad36c9c776f69369d98509/hi-ml/src/health_ml/lightning_container.py#L24).
 As an example, please check the [HelloWorld
