@@ -14,11 +14,11 @@ from pathlib import Path
 from monai.transforms import RandFlipd
 
 from health_ml.utils.common_utils import is_gpu_available
-from histopathology.datamodules.base_module import SlidesDataModule
-from histopathology.datasets.panda_dataset import PandaDataset
+from health_cpath.datamodules.base_module import SlidesDataModule
+from health_cpath.datasets.panda_dataset import PandaDataset
 
-from histopathology.utils.naming import SlideKey, ModelKey
-from histopathology.datamodules.panda_module import PandaSlidesDataModule
+from health_cpath.utils.naming import SlideKey, ModelKey
+from health_cpath.datamodules.panda_module import PandaSlidesDataModule
 from testhisto.mocks.slides_generator import (
     MockPandaSlidesGenerator,
     MockHistoDataType,

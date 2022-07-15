@@ -6,7 +6,7 @@
 import numpy as np
 
 from health_ml.utils.box_utils import Box
-from histopathology.preprocessing.create_panda_tiles_dataset import generate_tiles
+from health_cpath.preprocessing.create_panda_tiles_dataset import generate_tiles
 
 
 def test_generate_slide_tiles() -> None:

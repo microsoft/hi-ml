@@ -13,9 +13,9 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
-from histopathology.datasets.base_dataset import TilesDataset
-from histopathology.utils.naming import ModelKey
+from health_cpath.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
+from health_cpath.datasets.base_dataset import TilesDataset
+from health_cpath.utils.naming import ModelKey
 
 
 def noop_transform(x: Any) -> Any:

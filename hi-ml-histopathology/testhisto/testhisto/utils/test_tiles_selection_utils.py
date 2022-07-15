@@ -10,8 +10,8 @@ import numpy as np
 from unittest.mock import patch
 from typing import Dict, List, Any
 from testhisto.utils.utils_testhisto import run_distributed
-from histopathology.utils.naming import ResultsKey, SlideKey
-from histopathology.utils.plots_utils import TilesSelector, SlideNode
+from health_cpath.utils.naming import ResultsKey, SlideKey
+from health_cpath.utils.plots_utils import TilesSelector, SlideNode
 
 
 def _create_mock_data(n_samples: int, n_tiles: int = 3, device: str = "cpu") -> Dict:

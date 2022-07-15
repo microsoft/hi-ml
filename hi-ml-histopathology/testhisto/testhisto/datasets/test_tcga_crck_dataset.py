@@ -10,9 +10,9 @@ import torch
 from monai.data.dataset import Dataset
 from torch.utils.data import DataLoader
 
-from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
-from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
-from histopathology.models.transforms import LoadTiled
+from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
+from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from health_cpath.models.transforms import LoadTiled
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),

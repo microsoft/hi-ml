@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any, Optional, Set
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPanda
-from histopathology.datasets.panda_dataset import PandaDataset
-from histopathology.models.encoders import ImageNetEncoder
-from histopathology.datamodules.base_module import CacheMode, CacheLocation
-from histopathology.utils.naming import PlotOption
+from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPanda
+from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.models.encoders import ImageNetEncoder
+from health_cpath.datamodules.base_module import CacheMode, CacheLocation
+from health_cpath.utils.naming import PlotOption
 
 
 class MockDeepSMILETilesPanda(DeepSMILETilesPanda):

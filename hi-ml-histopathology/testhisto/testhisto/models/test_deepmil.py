@@ -15,17 +15,17 @@ from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclo
 from torch.utils.data._utils.collate import default_collate
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from histopathology.configs.classification.BaseMIL import BaseMILTiles
+from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 
-from histopathology.configs.classification.DeepSMILECrck import DeepSMILECrck
-from histopathology.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
-from histopathology.datamodules.base_module import HistoDataModule, TilesDataModule
-from histopathology.datasets.base_dataset import TilesDataset
-from histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
-from histopathology.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
-from histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
-from histopathology.utils.deepmil_utils import EncoderParams, PoolingParams
-from histopathology.utils.naming import MetricsKey, ResultsKey
+from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
+from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
+from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
+from health_cpath.datasets.base_dataset import TilesDataset
+from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
+from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
+from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.naming import MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator

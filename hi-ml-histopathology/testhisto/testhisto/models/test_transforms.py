@@ -20,10 +20,10 @@ from torchvision.transforms import RandomHorizontalFlip
 from health_ml.utils.bag_utils import BagDataset
 from health_ml.utils.data_augmentations import HEDJitter
 
-from histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
-from histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
-from histopathology.models.encoders import ImageNetEncoder
-from histopathology.models.transforms import (EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, Subsampled,
+from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
+from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from health_cpath.models.encoders import ImageNetEncoder
+from health_cpath.models.transforms import (EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, Subsampled,
                                               transform_dict_adaptor)
 
 from testhisto.utils.utils_testhisto import assert_dicts_equal

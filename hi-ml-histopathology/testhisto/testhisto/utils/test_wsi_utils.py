@@ -4,8 +4,8 @@ import numpy as np
 
 from typing import Any, Dict, List
 from typing import Sequence
-from histopathology.utils.naming import SlideKey
-from histopathology.utils.wsi_utils import image_collate
+from health_cpath.utils.naming import SlideKey
+from health_cpath.utils.wsi_utils import image_collate
 from torch.utils.data import Dataset
 
 

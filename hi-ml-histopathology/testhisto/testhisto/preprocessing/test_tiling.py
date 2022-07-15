@@ -6,7 +6,7 @@
 import numpy as np
 import pytest
 
-from histopathology.preprocessing.tiling import assemble_tiles_2d, get_1d_padding, \
+from health_cpath.preprocessing.tiling import assemble_tiles_2d, get_1d_padding, \
     pad_for_tiling_2d, tile_array_2d
 
 

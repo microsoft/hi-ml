@@ -13,7 +13,7 @@ from tifffile import TiffWriter
 from typing import Any, Optional, Tuple, List, Union
 
 import torch
-from histopathology.datasets.panda_dataset import PandaDataset
+from health_cpath.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 

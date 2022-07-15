@@ -13,9 +13,9 @@ from torchvision.models import resnet18
 from health_azure.utils import CheckpointDownloader, get_workspace, WORKSPACE_CONFIG_JSON, check_config_json, Workspace
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
-from histopathology.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
+from health_cpath.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
                                             ImageNetSimCLREncoder, SSLEncoder)
-from histopathology.utils.layer_utils import setup_feature_extractor
+from health_cpath.utils.layer_utils import setup_feature_extractor
 from testazure.utils_testazure import get_shared_config_json
 
 

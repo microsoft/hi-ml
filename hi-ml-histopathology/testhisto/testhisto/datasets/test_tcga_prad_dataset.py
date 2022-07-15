@@ -7,9 +7,9 @@ import os
 
 import pytest
 
-from histopathology.datasets.default_paths import TCGA_PRAD_DATASET_DIR
-from histopathology.datasets.tcga_prad_dataset import TcgaPradDataset
-from histopathology.utils.naming import SlideKey
+from health_cpath.datasets.default_paths import TCGA_PRAD_DATASET_DIR
+from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
+from health_cpath.utils.naming import SlideKey
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_PRAD_DATASET_DIR),

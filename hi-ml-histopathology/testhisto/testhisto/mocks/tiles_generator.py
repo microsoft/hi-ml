@@ -10,7 +10,7 @@ from typing import Any
 import torch
 from torchvision.utils import save_image
 
-from histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
+from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
 
 

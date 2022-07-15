@@ -6,7 +6,7 @@
 import pandas as pd
 import pytest
 
-from histopathology.utils.tcga_utils import extract_fields
+from health_cpath.utils.tcga_utils import extract_fields
 
 
 @pytest.mark.fast

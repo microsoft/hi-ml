@@ -18,12 +18,12 @@ from torch.functional import Tensor
 
 from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
-from histopathology.utils.viz_utils import plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide, \
+from health_cpath.utils.viz_utils import plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide, \
     plot_heatmap_overlay, plot_normalized_confusion_matrix
-from histopathology.utils.naming import ResultsKey
-from histopathology.utils.heatmap_utils import location_selected_tiles
-from histopathology.utils.tiles_selection_utils import SlideNode, TileNode
-from histopathology.utils.viz_utils import save_figure
+from health_cpath.utils.naming import ResultsKey
+from health_cpath.utils.heatmap_utils import location_selected_tiles
+from health_cpath.utils.tiles_selection_utils import SlideNode, TileNode
+from health_cpath.utils.viz_utils import save_figure
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 # import testhisto
 
