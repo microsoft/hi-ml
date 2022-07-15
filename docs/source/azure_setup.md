@@ -117,7 +117,8 @@ credentials:
 EOL
 ```
 
-You can adjust the expiry date of the SAS token, and the permissions of the SAS token (full read/write permission
+You can adjust the expiry date of the SAS token and the permissions of the SAS token (full read/write permission
+
 in the script above). For further options, run `az storage container generate-sas --help`
 
 ### Creating compute clusters and permissions
