@@ -67,5 +67,10 @@
         "${workspaceFolder}/src",
         "${workspaceFolder}/testhisto",
         "${workspaceFolder}/testSSL"
-    ]
+    ],
+    "workbench.colorCustomizations": {
+      "activityBar.background": "#4B0769",
+      "titleBar.activeBackground": "#690A93",
+      "titleBar.activeForeground": "#FDF9FF"
+    }
  }
