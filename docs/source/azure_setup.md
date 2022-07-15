@@ -61,7 +61,7 @@ The script below will create
 
 In the script, you will need to replace the values of the following variables:
 
-- `location` - the location of the Azure datacenter you want to use
+- `location` - the location of the Azure datacenter you want to use.
 - `prefix` - the prefix you want to use for the resources you create. This will also be the name of the AzureML workspace.
 
 ```bash
