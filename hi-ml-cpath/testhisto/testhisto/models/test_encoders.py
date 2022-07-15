@@ -14,7 +14,7 @@ from health_azure.utils import CheckpointDownloader, get_workspace, WORKSPACE_CO
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 from health_cpath.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
-                                            ImageNetSimCLREncoder, SSLEncoder)
+                                          ImageNetSimCLREncoder, SSLEncoder)
 from health_cpath.utils.layer_utils import setup_feature_extractor
 from testazure.utils_testazure import get_shared_config_json
 

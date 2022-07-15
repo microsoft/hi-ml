@@ -15,7 +15,7 @@ from health_ml.utils.common_utils import df_to_json
 from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
                                 get_tags_from_hyperdrive_run)
 from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
-                                               AML_VAL_OUTPUTS_CSV, validate_class_names)
+                                             AML_VAL_OUTPUTS_CSV, validate_class_names)
 from health_cpath.utils.naming import AMLMetricsJsonKey
 
 
