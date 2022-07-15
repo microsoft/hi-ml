@@ -5,7 +5,9 @@
 import logging
 from pathlib import Path
 from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
+
 from sklearn.metrics import confusion_matrix
+from torch import Tensor
 
 from histopathology.datasets.base_dataset import SlidesDataset
 from histopathology.utils.viz_utils import (
@@ -51,7 +53,24 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     """
-    cf_matrix_n = confusion_matrix(results[ResultsKey.TRUE_LABEL], results[ResultsKey.PRED_LABEL], normalize="pred")
+    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    pred_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PRED_LABEL]]
+    all_potential_labels = list(range(len(class_names)))
+    true_labels_diff_expected = set(true_labels).difference(set(all_potential_labels))
+    pred_labels_diff_expected = set(pred_labels).difference(set(all_potential_labels))
+
+    if true_labels_diff_expected != set():
+        raise ValueError("More entries were found in true labels than are available in class names")
+    if pred_labels_diff_expected != set():
+        raise ValueError("More entries were found in predicted labels than are available in class names")
+
+    cf_matrix_n = confusion_matrix(
+        true_labels,
+        pred_labels,
+        labels=all_potential_labels,
+        normalize="pred"
+    )
+
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
     save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
 
