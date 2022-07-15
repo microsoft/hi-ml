@@ -115,7 +115,7 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Install pypa/build
+      - name: Install build tools
         run: pip install build
 
       - name: Build a binary wheel and a source tarball
