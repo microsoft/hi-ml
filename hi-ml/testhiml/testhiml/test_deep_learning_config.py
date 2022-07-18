@@ -16,7 +16,7 @@ from health_ml.deep_learning_config import DatasetParams, WorkflowParams, Output
 
 
 def test_validate_workflow_params() -> None:
-    error_message = "Cannot specify more than one of local_weights_path, weights_url."
+    error_message = "Cannot specify more than one of local_weights_path, weights_url, ckpt_run_id."
     # DeepLearningConfig cannot be initialized with more than one of these parameters set
     with pytest.raises(ValueError) as ex:
         WorkflowParams(local_datasets=Path("foo"),
@@ -24,9 +24,27 @@ def test_validate_workflow_params() -> None:
                        weights_url="bar").validate()
     assert ex.value.args[0] == error_message
 
+    with pytest.raises(ValueError) as ex:
+        WorkflowParams(local_datasets=Path("foo"),
+                       local_weights_path=Path("foo"),
+                       weights_url="bar", ckpt_run_id="buzz").validate()
+    assert ex.value.args[0] == error_message
+
     # The following should be okay
     WorkflowParams(local_dataset=Path("foo"), local_weights_path=Path("foo")).validate()
     WorkflowParams(local_dataset=Path("foo"), weights_url="foo").validate()
+
+
+def test_validate_workflow_params_for_inference_only() -> None:
+    error_message = "Cannot run inference without a checkpoint source"
+    # DeepLearningConfig cannot be initialized with more than one of these parameters set
+    with pytest.raises(ValueError) as ex:
+        WorkflowParams(local_datasets=Path("foo"),
+                       run_inference_only=True).validate()
+    assert error_message in ex.value.args[0]
+    WorkflowParams(local_dataset=Path("foo"), local_weights_path=Path("foo"), run_inference_only=True).validate()
+    WorkflowParams(local_dataset=Path("foo"), weights_url="foo", run_inference_only=True).validate()
+    WorkflowParams(local_dataset=Path("foo"), ckpt_run_id="foo", run_inference_only=True).validate()
 
 
 @pytest.mark.fast
