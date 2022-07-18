@@ -4,11 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 
 import numpy as np
+import pytest
 
 from health_ml.utils.box_utils import Box
 from histopathology.preprocessing.create_panda_tiles_dataset import generate_tiles
 
 
+@pytest.mark.gpu
 def test_generate_slide_tiles() -> None:
     image_size = 12
     bg_value = 255
