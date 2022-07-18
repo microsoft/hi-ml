@@ -169,8 +169,9 @@ class WorkflowParams(param.Parameterized):
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
-        if self.run_inference_only and not self.ckpt_run_id:
-            raise ValueError("Cannot run inference without a ckpt_run_id.")
+        if self.run_inference_only and not (self.weights_url or self.local_weights_path or self.ckpt_run_id):
+            raise ValueError("Cannot run inference without a checkpoint source. Please specify either "
+                             "local_weights_path, weights_url or ckpt_run_id.")
 
     @property
     def is_running_in_aml(self) -> bool:
