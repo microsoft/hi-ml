@@ -16,11 +16,11 @@ from the Cancer Genome Atlas (TCGA) with accompanying binarized MicroSatellite I
 TCGA-CRCk, the dataset is already tiled, i.e., the WSI are not available. In [public_datasets.md](./public_datasets.md)
 you will find instructions on how to download and setup the TCGA-CRCk dataset.
 
-To train an image encoder using SSL locally run this in the `hi-ml-histopathology` folder, with the `HimlHisto` conda
+To train an image encoder using SSL locally run this in the `hi-ml-cpath` folder, with the `HimlHisto` conda
 enviroment activated:
 
 ```bash
-python ../hi-ml/src/health_ml/runner.py --model histopathology.CRCK_SimCLR
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.CRCK_SimCLR
 ```
 
 The model class
@@ -76,7 +76,7 @@ the TCGA-CRCk dataset. Assuming you are using a total of 8  GPUs (e.g. 1 node wi
 Azure you can start training with the following command in the repository root folder:
 
 ```bash
-python hi-ml/src/health_ml/runner.py --model histopathology.CRCK_SimCLR --cluster CLUSTER_NAME --conda_env hi-ml-histopathology/environment.yml
+python hi-ml/src/health_ml/runner.py --model health_cpath.CRCK_SimCLR --cluster CLUSTER_NAME --conda_env hi-ml-cpath/environment.yml
 ```
 
 A SimCLR run with 200 epochs, 8 GPUs, and a batch size of 48 (per GPU) takes about 6 hours. On Azure we use

@@ -52,7 +52,7 @@ upload annotations to a deployed DSA.
 For example:
 
 ```shell
-SCRIPT="hi-ml-histopathology/src/histopathology/utils/girder.py"
+SCRIPT="hi-ml-cpath/src/histopathology/utils/girder.py"
 python $SCRIPT \
     --run-id "Experiment_transformer_Gleason_run_0" \
     --dsa-url "https://my-deployed-dsa.azure.com/" \
