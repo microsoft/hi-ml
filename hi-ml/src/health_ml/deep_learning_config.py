@@ -155,17 +155,22 @@ class WorkflowParams(param.Parameterized):
                      doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
+    run_inference_only: bool = param.Boolean(False, doc="If True, run inference using the specified ckpt_run_id as "
+                                                        "checkpoint.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify more than one of local_weights_path, weights_url.")
+        if self.weights_url and self.local_weights_path and self.ckpt_run_id:
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url, ckpt_run_id.")
 
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
+
+        if self.run_inference_only and not self.ckpt_run_id:
+            raise ValueError("Cannot run inference without a ckpt_run_id.")
 
     @property
     def is_running_in_aml(self) -> bool:

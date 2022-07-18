@@ -129,6 +129,7 @@ class CheckpointHandler:
         elif self.container.ckpt_run_id:
             downloader = get_checkpoint_downloader(self.container.ckpt_run_id, self.container.outputs_folder)
             checkpoint_path = downloader.local_checkpoint_path
+            assert checkpoint_path.is_file(), f"Couln't download checkpoint from run {self.container.ckpt_run_id}."
         else:
             raise ValueError("Cannot download weights, neither local_weights_path or weights_url are set")
 

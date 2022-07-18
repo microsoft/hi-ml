@@ -324,24 +324,25 @@ class MLRunner:
         """
         self.setup()
         self.init_training()
-        # Backup the environment variables in case we need to run a second training in the unit tests.
-        old_environ = dict(os.environ)
+        if not self.container.run_inference_only:
+            # Backup the environment variables in case we need to run a second training in the unit tests.
+            old_environ = dict(os.environ)
 
-        # do training
-        with logging_section("Model training"):
-            self.run_training()
+            # do training
+            with logging_section("Model training"):
+                self.run_training()
 
-        # load model checkpoint for custom inference or additional validation step
-        if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-            self.load_model_checkpoint_after_training()
+            # load model checkpoint for custom inference or additional validation step
+            if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
+                self.load_model_checkpoint_after_training()
 
-        # Run extra validation epoch if enabled
-        if self.container.run_extra_val_epoch:
-            with logging_section("Model Validation to save plots on validation set"):
-                self.run_validation()
+            # Run extra validation epoch if enabled
+            if self.container.run_extra_val_epoch:
+                with logging_section("Model Validation to save plots on validation set"):
+                    self.run_validation()
 
-        # Kill all processes besides rank 0
-        self.after_ddp_cleanup(old_environ)
+            # Kill all processes besides rank 0
+            self.after_ddp_cleanup(old_environ)
 
         # Run inference on a single device
         with logging_section("Model inference"):
