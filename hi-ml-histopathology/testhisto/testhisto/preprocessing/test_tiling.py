@@ -8,6 +8,7 @@ import pytest
 
 from histopathology.preprocessing.tiling import assemble_tiles_2d, get_1d_padding, \
     pad_for_tiling_2d, tile_array_2d
+from histopathology.preprocessing.create_tiles_dataset import get_tile_descriptor
 
 
 @pytest.mark.fast
@@ -128,3 +129,8 @@ def test_assemble_tiles_2d(width: int, height: int, tile_size: int, channels_fir
         else:
             crop = assembled_array[row:row + tile_size, col:col + tile_size, :]
         assert np.array_equal(crop, tiles[idx])
+
+
+def test_select_tiles():
+    pass
+

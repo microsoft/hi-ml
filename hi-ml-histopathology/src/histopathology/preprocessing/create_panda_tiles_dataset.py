@@ -23,6 +23,7 @@ from health_ml.utils.box_utils import Box
 from histopathology.preprocessing import tiling
 from histopathology.utils.naming import SlideKey, TileKey
 from histopathology.datasets.panda_dataset import PandaDataset, LoadPandaROId
+from histopathology.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files, select_tiles
 
 CSV_COLUMNS = (
     'slide_id',
@@ -42,36 +43,6 @@ CSV_COLUMNS = (
 TMP_SUFFIX = "_tmp"
 
 
-def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
-        -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
-    if occupancy_threshold < 0 or occupancy_threshold > 1:
-        raise ValueError("Tile occupancy threshold must be between 0 and 1")
-    # mask_tile has shape (N, C, H, W)
-    foreground_mask = mask_tile > 0
-    occupancy = foreground_mask.mean(axis=(-2, -1))
-    selected = occupancy >= occupancy_threshold  # if the threshold is 0, all tiles should be selected
-    # selected has shape (N, 1)
-    return selected[:, 0], occupancy[:, 0]
-
-
-def get_tile_descriptor(tile_box: Box) -> str:
-    left, top = tile_box.x, tile_box.y
-    right, bottom = left + tile_box.w, top + tile_box.h
-    return f"left_{left:05d}_top_{top:05d}_right_{right:05d}_bottom_{bottom:05d}"
-
-
-def get_tile_id(slide_id: str, tile_box: Box) -> str:
-    return f"{slide_id}_{get_tile_descriptor(tile_box)}"
-
-
-def save_image(array_chw: np.ndarray, path: Path) -> PIL.Image:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    array_hwc = np.moveaxis(array_chw, 0, -1).astype(np.uint8).squeeze()
-    pil_image = PIL.Image.fromarray(array_hwc)
-    pil_image.convert('RGB').save(path)
-    return pil_image
-
-
 def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
         -> Tuple[np.ndarray, np.ndarray, List[Box], np.ndarray, int]:
     image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size,
@@ -81,7 +52,7 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
 
     selected: np.ndarray
     occupancies: np.ndarray
-    selected, occupancies = select_tile(mask_tiles, occupancy_threshold)  # type: ignore
+    selected, occupancies = select_tiles(mask_tiles, occupancy_threshold)  # type: ignore
     num_selected = selected.sum()
     num_tiles = len(image_tiles)
     num_discarded = num_tiles - num_selected
@@ -193,25 +164,6 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
             dataset_csv_file.write(dataset_row + '\n')
 
         dataset_csv_file.close()
-
-
-def merge_dataset_csv_files(dataset_dir: Path) -> Path:
-    full_csv = dataset_dir / "dataset.csv"
-    # TODO change how we retrieve these filenames, probably because mounted, the operation is slow
-    #  and it seems to find many more files
-    # print("List of files")
-    # print([str(file) + '\n' for file in dataset_dir.glob("*/dataset.csv")])
-    with full_csv.open('w') as full_csv_file:
-        # full_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
-        first_file = True
-        for slide_csv in tqdm(dataset_dir.glob("*/dataset.csv"), desc="Merging dataset.csv", unit='file'):
-            print(f"Merging slide {slide_csv}")
-            content = slide_csv.read_text()
-            if not first_file:
-                content = content[content.index('\n') + 1:]  # discard header row for all but the first file
-            full_csv_file.write(content)
-            first_file = False
-    return full_csv
 
 
 def main(panda_dir: Union[str, Path], root_output_dir: str, level: int, tile_size: int,

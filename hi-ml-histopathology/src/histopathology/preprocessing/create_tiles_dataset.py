@@ -296,7 +296,7 @@ if __name__ == '__main__':
 
     # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD"),
-         root_output_dir="/panda_dataset/TCGA-PRAD_10X_tiles_level1_224",
+         root_output_dir="/datasetdrive/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=5,
          level=1,
          tile_size=224,
