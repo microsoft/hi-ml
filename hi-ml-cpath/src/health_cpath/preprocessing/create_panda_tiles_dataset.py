@@ -22,8 +22,7 @@ from health_ml.utils.box_utils import Box
 from health_cpath.preprocessing import tiling
 from health_cpath.utils.naming import SlideKey, TileKey
 from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
-from health_cpath.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files,\
-    select_tiles
+from health_cpath.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files
 
 CSV_COLUMNS = (
     'slide_id',
@@ -43,6 +42,18 @@ CSV_COLUMNS = (
 TMP_SUFFIX = "_tmp"
 
 
+def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
+        -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
+    if occupancy_threshold < 0 or occupancy_threshold > 1:
+        raise ValueError("Tile occupancy threshold must be between 0 and 1")
+    # mask_tile has shape (N, C, H, W)
+    foreground_mask = mask_tile > 0
+    occupancy = foreground_mask.mean(axis=(-2, -1))
+    selected = occupancy >= occupancy_threshold  # if the threshold is 0, all tiles should be selected
+    # selected has shape (N, 1)
+    return selected[:, 0], occupancy[:, 0]
+
+
 def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
         -> Tuple[np.ndarray, np.ndarray, List[Box], np.ndarray, int]:
     image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size,
@@ -52,7 +63,7 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
 
     selected: np.ndarray
     occupancies: np.ndarray
-    selected, occupancies = select_tiles(mask_tiles, occupancy_threshold)  # type: ignore
+    selected, occupancies = select_tile(mask_tiles, occupancy_threshold)  # type: ignore
     num_selected = selected.sum()
     num_tiles = len(image_tiles)
     num_discarded = num_tiles - num_selected
