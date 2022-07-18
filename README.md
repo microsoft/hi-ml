@@ -12,7 +12,7 @@ This repository consists of two Python packages, as well as project-specific cod
 
 * PyPi package [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
 * PyPi package [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
-* hi-ml-histopathology: Models and workflows for working with histopathology images
+* hi-ml-cpath: Models and workflows for working with histopathology images
 
 ## Getting started
 
@@ -24,7 +24,7 @@ For just the AzureML helper functions:
 
 * Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
 
-For the histopathology workflows, please follow the instructions [here](hi-ml-histopathology/README.md).
+For the histopathology workflows, please follow the instructions [here](hi-ml-cpath/README.md).
 
 If you would like to contribute to the code, please check the [developer guide](docs/source/developers.md).
 

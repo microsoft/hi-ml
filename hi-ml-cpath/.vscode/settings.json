@@ -1,0 +1,76 @@
+{
+    // The settings below are shared across all projects.
+    // When making changes here, please ensure they are kept in sync
+    // across all projects and the workspace configuration.
+    "autoDocstring.docstringFormat": "sphinx-notypes",
+    "fileHeaderComment.parameter": {
+      "*": {
+        "line": "-------------------------------------------------------------------------------------------",
+        "commentprefix": "#",
+        "company": "Microsoft Corporation"
+      }
+    },
+    "fileHeaderComment.template": {
+      "*": [
+        "${commentprefix}  ${line}",
+        "${commentprefix}  Copyright (c) ${company}. All rights reserved.",
+        "${commentprefix}  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.",
+        "${commentprefix}  ${line}"
+      ]
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/.mypy_cache/**": true,
+      "**/.pytest_cache/**": true
+    },
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": true,
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.pycodestyleArgs": [
+      "--max-line-length=120",
+      "--show-source",
+      "--show-pep8"
+    ],
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+      "--line-length=120"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "rewrap.autoWrap.enabled": true,
+    "rewrap.wrappingColumn": 120,
+    "[python]": {
+      "editor.rulers": [
+        120
+      ]
+    },
+    // The settings below are specific to this project,
+    // and may override settings in the workspace configuration.
+    "python.sortImports.args": [
+        "-l=120",
+        "--src=${workspaceFolder}/../hi-ml/src",
+        "--src=${workspaceFolder}/../hi-ml-azure/src",
+        "--src=${workspaceFolder}/src",
+        "--src=${workspaceFolder}/testhisto",
+        "--src=${workspaceFolder}/testSSL",
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/../hi-ml-azure/src",
+        "${workspaceFolder}/../hi-ml-azure/testazure",
+        "${workspaceFolder}/../hi-ml/src",
+        "${workspaceFolder}/../hi-ml/testhiml",
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/testhisto",
+        "${workspaceFolder}/testSSL"
+    ],
+    "workbench.colorCustomizations": {
+      "activityBar.background": "#4B0769",
+      "titleBar.activeBackground": "#690A93",
+      "titleBar.activeForeground": "#FDF9FF"
+    }
+ }

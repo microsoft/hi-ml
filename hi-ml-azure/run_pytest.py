@@ -50,7 +50,7 @@ class RunPytestConfig(param.Parameterized):
     coverage_module: str = param.String(
         default="",
         doc="This value is used as an argument to --cov of pytest to collect code coverage for the specified pyhton "
-        "module. For example, in the subfolder hi-ml-histopathology, one can collect code coverage for the "
+        "module. For example, in the subfolder hi-ml-cpath, one can collect code coverage for the "
         "histopathology module by setting `module=histopathology`. If set to '' (default), no coverage is collected."
     )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
