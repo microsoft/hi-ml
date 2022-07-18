@@ -7,7 +7,10 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import skimage.filters
-from cucim import CuImage
+try:
+    from cucim import CuImage
+except ImportError:  # noqa: E722
+    logging.warning("cucim library not available, code may fail")
 from health_ml.utils import box_utils
 from monai.data.image_reader import WSIReader
 from monai.transforms import MapTransform
