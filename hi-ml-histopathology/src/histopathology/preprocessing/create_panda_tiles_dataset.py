@@ -23,7 +23,7 @@ from histopathology.preprocessing import tiling
 from histopathology.utils.naming import SlideKey, TileKey
 from histopathology.datasets.panda_dataset import PandaDataset, LoadPandaROId
 from histopathology.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files,\
-                                                              select_tiles
+    select_tiles
 
 CSV_COLUMNS = (
     'slide_id',
