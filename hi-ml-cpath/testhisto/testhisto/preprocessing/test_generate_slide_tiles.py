@@ -12,6 +12,7 @@ from health_cpath.preprocessing.create_panda_tiles_dataset import generate_tiles
 
 no_gpu = not is_gpu_available()
 
+
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_generate_slide_tiles() -> None:
