@@ -16,7 +16,6 @@ from health_cpath.models.encoders import (
     SSLEncoder,
     TileEncoder,
 )
-from health_cpath.utils.download_utils import get_checkpoint_downloader
 from health_ml.networks.layers.attention_layers import (
     AttentionLayer,
     GatedAttentionLayer,
@@ -25,6 +24,7 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark,
 )
+from health_azure.utils import get_checkpoint_downloader
 
 
 class EncoderParams(param.Parameterized):
@@ -45,10 +45,10 @@ class EncoderParams(param.Parameterized):
         default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
     )
 
-    def get_encoder(self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+    def get_encoder(self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
 
-        :param ckpt_run_id: The AML run id for SSL checkpoint download.
+        :param ssl_ckpt_run_id: The AML run id for SSL checkpoint download.
         :param outputs_folder: The output folder where SSL checkpoint should be saved.
         :param encoder_params: The encoder arguments that define the encoder class object depending on the encoder type.
         :raises ValueError: If the encoder type is not supported.
@@ -72,8 +72,8 @@ class EncoderParams(param.Parameterized):
             encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SSLEncoder.__name__:
-            assert ckpt_run_id and outputs_folder, "SSLEncoder requires ckpt_run_id and outputs_folder"
-            downloader = get_checkpoint_downloader(ckpt_run_id, outputs_folder)
+            assert ssl_ckpt_run_id and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
+            downloader = get_checkpoint_downloader(ssl_ckpt_run_id, outputs_folder)
             encoder = SSLEncoder(
                 pl_checkpoint_path=downloader.local_checkpoint_path,
                 tile_size=self.tile_size,

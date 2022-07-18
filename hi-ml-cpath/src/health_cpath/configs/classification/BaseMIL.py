@@ -83,7 +83,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def setup(self) -> None:
-        self.ckpt_run_id = ""
+        self.ssl_ckpt_run_id = ""
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
@@ -206,7 +206,7 @@ class BaseMILTiles(BaseMIL):
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
-            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ckpt_run_id,
+            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ssl_ckpt_run_id,
                                                                                    self.outputs_folder)
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
@@ -226,7 +226,7 @@ class BaseMILTiles(BaseMIL):
                                             class_weights=self.data_module.class_weights,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
-                                            ckpt_run_id=self.ckpt_run_id,
+                                            ssl_ckpt_run_id=self.ssl_ckpt_run_id,
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
@@ -266,7 +266,7 @@ class BaseMILSlides(BaseMIL):
                                              class_weights=self.data_module.class_weights,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
-                                             ckpt_run_id=self.ckpt_run_id,
+                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),

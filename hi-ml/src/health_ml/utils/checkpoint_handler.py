@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import requests
 from azureml.core import Run
 
-from health_azure.utils import is_global_rank_zero
+from health_azure.utils import is_global_rank_zero, get_checkpoint_downloader
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (MODEL_WEIGHTS_DIR_NAME, find_recovery_checkpoint_on_disk_or_cloud)
 
@@ -43,7 +43,7 @@ class CheckpointHandler:
         downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
         nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         """
-        if self.container.weights_url or self.container.local_weights_path:
+        if self.container.weights_url or self.container.local_weights_path or self.container.ckpt_run_id:
             self.trained_weights_path = self.get_local_checkpoints_path_or_download()
 
     def additional_training_done(self) -> None:
@@ -126,6 +126,9 @@ class CheckpointHandler:
             download_folder.mkdir(exist_ok=True, parents=True)
             checkpoint_path = CheckpointHandler.download_weights(url=self.container.weights_url,
                                                                  download_folder=download_folder)
+        elif self.container.ckpt_run_id:
+            downloader = get_checkpoint_downloader(self.container.ckpt_run_id, self.container.outputs_folder)
+            checkpoint_path = downloader.local_checkpoint_path
         else:
             raise ValueError("Cannot download weights, neither local_weights_path or weights_url are set")
 

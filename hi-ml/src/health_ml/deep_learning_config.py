@@ -132,6 +132,8 @@ class WorkflowParams(param.Parameterized):
     local_weights_path: Optional[Path] = \
         param.ClassSelector(class_=Path, allow_None=True, default=None,
                             doc="Checkpoint paths to use for inference, when the job is running outside Azure.")
+    ckpt_run_id: str = param.String(default="", doc="The Azure ML run ID to use as checkpoint for transfer learning "
+                                                    "or inference.")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")

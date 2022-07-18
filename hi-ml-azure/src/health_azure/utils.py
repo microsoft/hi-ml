@@ -673,6 +673,26 @@ class CheckpointDownloader:
         return self.local_checkpoint_path
 
 
+def get_checkpoint_downloader(ckpt_run_id: str, outputs_folder: Path) -> CheckpointDownloader:
+    """Creates an instance of CheckpointDownloader for the specified run_id and downloads the corresponding checkpoint.
+
+    :param ckpt_run_id: The Azure ML run_id of the run from which to load the checkpoint.
+    :param outputs_folder: The outputs folder where to download the checkpoint.
+    :return: A downloader instance for the specified run_id.
+    """
+    from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+    from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    downloader = CheckpointDownloader(
+        aml_workspace=get_workspace(),
+        run_id=ckpt_run_id,
+        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+        download_dir=outputs_folder,
+        remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"),
+    )
+    downloader.download_checkpoint_if_necessary()
+    return downloader
+
+
 def is_private_field_name(name: str) -> bool:
     """
     A private field is any Python class member that starts with an underscore eg: _hello
