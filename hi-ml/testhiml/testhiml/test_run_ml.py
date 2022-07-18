@@ -209,7 +209,7 @@ def test_run(ml_runner_with_container: MLRunner) -> None:
     ml_runner_with_container.setup()
     assert not ml_runner_with_container.checkpoint_handler.has_continued_training
     with patch.object(ml_runner_with_container, "checkpoint_handler"):
-        with patch.object(ml_runner_with_container, "load_model_checkpoint_after_training") as mock_load:
+        with patch.object(ml_runner_with_container, "load_model_checkpoint") as mock_load:
             with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
                 mock_trainer = MagicMock()
                 mock_storing_logger = MagicMock()

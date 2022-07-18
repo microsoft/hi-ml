@@ -189,8 +189,9 @@ class MLRunner:
         rank_info = ", ".join(f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
         logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
 
-    def load_model_checkpoint_after_training(self) -> None:
-        self.checkpoint_handler.additional_training_done()
+    def load_model_checkpoint(self) -> None:
+        if not self.container.run_inference_only:
+            self.checkpoint_handler.additional_training_done()
         checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
         self.container.load_model_checkpoint(checkpoint_path_for_inference)
 
@@ -334,7 +335,7 @@ class MLRunner:
 
             # load model checkpoint for custom inference or additional validation step
             if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-                self.load_model_checkpoint_after_training()
+                self.load_model_checkpoint()
 
             # Run extra validation epoch if enabled
             if self.container.run_extra_val_epoch:
@@ -343,6 +344,9 @@ class MLRunner:
 
             # Kill all processes besides rank 0
             self.after_ddp_cleanup(old_environ)
+
+        else:
+            self.load_model_checkpoint()
 
         # Run inference on a single device
         with logging_section("Model inference"):
