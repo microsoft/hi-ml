@@ -18,7 +18,7 @@ from azureml.core import Workspace, Run
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",
-                  himl_root / "hi-ml-histopathology" / "src"]
+                  himl_root / "hi-ml-cpath" / "src"]
 for folder in folders_to_add:
     if folder.is_dir():
         sys.path.insert(0, str(folder))

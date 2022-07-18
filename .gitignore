@@ -164,7 +164,7 @@ temp_requirements.txt
 cifar-10-python.tar.gz
 cifar-10-batches-py/
 None/
-hi-ml-histopathology/testSSL/test_outputs
+hi-ml-cpath/testSSL/test_outputs
 test_outputs/
 lightning_logs/
 # Downloaded datasets

@@ -7,7 +7,7 @@
       "path": "hi-ml-azure"
     },
     {
-      "path": "hi-ml-histopathology"
+      "path": "hi-ml-cpath"
     },
     {
       "path": "hi-ml-multimodal"
@@ -45,7 +45,7 @@
     "files.exclude": {
       "hi-ml/": true,
       "hi-ml-azure/": true,
-      "hi-ml-histopathology/": true,
+      "hi-ml-cpath/": true,
       "hi-ml-multimodal/": true,
     },
     // The settings below are shared across all projects.
@@ -100,10 +100,10 @@
     },
     "terminal.integrated.defaultProfile.windows": "Command Prompt",
     "terminal.integrated.env.windows": {
-      "PYTHONPATH": "${workspaceFolder:hi-ml-azure}/src;${workspaceFolder:hi-ml}/src;${workspaceFolder:hi-ml-histopathology}/src"
+      "PYTHONPATH": "${workspaceFolder:hi-ml-azure}/src;${workspaceFolder:hi-ml}/src;${workspaceFolder:hi-ml-cpath}/src"
     },
     "terminal.integrated.env.linux": {
-      "PYTHONPATH": "${workspaceFolder:hi-ml-azure}/src:${workspaceFolder:hi-ml}/src:${workspaceFolder:hi-ml-histopathology}/src"
+      "PYTHONPATH": "${workspaceFolder:hi-ml-azure}/src:${workspaceFolder:hi-ml}/src:${workspaceFolder:hi-ml-cpath}/src"
     },
     "workbench.colorCustomizations": {
       "activityBar.background": "#135511",
