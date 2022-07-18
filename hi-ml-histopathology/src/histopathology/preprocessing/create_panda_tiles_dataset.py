@@ -13,7 +13,6 @@ from pathlib import Path
 from argparse import ArgumentParser
 from typing import Tuple, Union, List
 
-import PIL
 import numpy as np
 from monai.data import Dataset
 from monai.data.image_reader import WSIReader
@@ -23,7 +22,8 @@ from health_ml.utils.box_utils import Box
 from histopathology.preprocessing import tiling
 from histopathology.utils.naming import SlideKey, TileKey
 from histopathology.datasets.panda_dataset import PandaDataset, LoadPandaROId
-from histopathology.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files, select_tiles
+from histopathology.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files,\
+                                                              select_tiles
 
 CSV_COLUMNS = (
     'slide_id',
