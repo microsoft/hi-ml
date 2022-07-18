@@ -2,18 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import logging
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 import skimage.filters
+
+from health_ml.utils import box_utils
+from monai.data.image_reader import WSIReader
+from monai.transforms import MapTransform
 try:
     from cucim import CuImage
 except ImportError:  # noqa: E722
     logging.warning("cucim library not available, code may fail")
-from health_ml.utils import box_utils
-from monai.data.image_reader import WSIReader
-from monai.transforms import MapTransform
 
 from histopathology.utils.naming import SlideKey
 
