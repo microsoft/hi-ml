@@ -133,4 +133,3 @@ def test_assemble_tiles_2d(width: int, height: int, tile_size: int, channels_fir
 
 def test_select_tiles():
     pass
-
