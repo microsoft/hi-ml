@@ -16,7 +16,7 @@ from health_cpath.models.encoders import (
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder)
-from health_cpath.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
+from health_cpath.configs.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datasets.default_paths import (
     PANDA_DATASET_ID,

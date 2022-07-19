@@ -22,7 +22,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
-                "--model=health_cpath.configs.classification.DeepSMILECrck",
+                "--model=health_cpath.configs.DeepSMILECrck",
                 "--cluster=lite-testing-ds2",
             ],
             "console": "integratedTerminal"

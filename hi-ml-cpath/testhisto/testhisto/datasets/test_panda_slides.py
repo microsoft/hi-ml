@@ -13,7 +13,7 @@ import pytest
 import torch
 from pytorch_lightning import seed_everything
 
-from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
+from health_cpath.configs.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType

@@ -24,7 +24,7 @@ from health_cpath.models.encoders import (
     ImageNetSimCLREncoder,
     SSLEncoder,
 )
-from health_cpath.configs.classification.BaseMIL import BaseMILTiles
+from health_cpath.configs.BaseMIL import BaseMILTiles
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 
 

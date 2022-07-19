@@ -22,7 +22,7 @@ from health_cpath.models.encoders import (
     ImageNetSimCLREncoder,
     SSLEncoder,
 )
-from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
+from health_cpath.configs.DeepSMILEPanda import DeepSMILESlidesPanda
 from health_cpath.models.deepmil import SlidesDeepMILModule
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ModelKey, SlideKey

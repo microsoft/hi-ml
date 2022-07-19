@@ -15,10 +15,10 @@ from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclo
 from torch.utils.data._utils.collate import default_collate
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
-from health_cpath.configs.classification.BaseMIL import BaseMILTiles
+from health_cpath.configs.BaseMIL import BaseMILTiles
 
-from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
-from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
+from health_cpath.configs.DeepSMILECrck import DeepSMILECrck
+from health_cpath.configs.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
