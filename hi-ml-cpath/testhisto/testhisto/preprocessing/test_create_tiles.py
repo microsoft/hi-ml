@@ -11,7 +11,7 @@ from health_cpath.preprocessing.create_tiles_dataset import generate_tiles, get_
 from health_ml.utils.box_utils import Box
 
 
-def create_dummy_slide() -> np.array:
+def test_generate_slide_tiles() -> None:
     bg_value = 255
     fg_value = 128
 
@@ -24,11 +24,6 @@ def create_dummy_slide() -> np.array:
     # Add channel dimensions
     image_level_1 = np.array(3 * (image_level_1,))
 
-    return image_level_1
-
-
-def test_generate_slide_tiles() -> None:
-    image_level_1 = create_dummy_slide()
     # Level 1 (foreground only, as loaded by the loader)
     # 1 1 0
     # 0 1 0
