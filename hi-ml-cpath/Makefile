@@ -31,15 +31,15 @@ pip_from_conda:
 
 # clean build artifacts
 clean:
-	rm -vrf `find . -type d -name __pycache__`
-	rm -vrf `find . -type d -name .mypy_cache`
-	rm -vrf `find . -type d -name logs`
-	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.pytest_cache
-	rm -vrf ./testhisto/test_outputs ./testSSL/test_outputs
-	rm -vf ./coverage ./coverage.txt ./coverage.xml
-	rm -vf ./latest_version.txt ./package_name.txt
-	rm -vrf build dist
+	rm -rf `find . -type d -name __pycache__`
+	rm -rf `find . -type d -name .mypy_cache`
+	rm -rf `find . -type d -name logs`
+	rm -rf `find . -type d -name outputs`
+	rm -rf ./.pytest_cache
+	rm -rf ./testhisto/test_outputs ./testSSL/test_outputs
+	rm -f ./coverage ./coverage.txt ./coverage.xml
+	rm -f ./latest_version.txt ./package_name.txt
+	rm -rf build dist
 
 # build package, assuming build requirements already installed
 build:
