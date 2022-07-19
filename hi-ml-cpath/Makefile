@@ -63,6 +63,13 @@ pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
+define BASE_DEEPSMILEPANDASLIDES_COMMAND
+cd ../ ; \
+python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
+--mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
+
+endef
+
 regression_test_tilespandaimagenetmil:
 	{ \
 	cd ../ ;\
@@ -76,11 +83,9 @@ regression_test_tilespandaimagenetmil:
 
 regression_test_slidespandaimagenetmil:
 	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
-	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-cpath/environment.yml \
+	${BASE_DEEPSMILEPANDASLIDES_COMMAND} --cluster pr-gpu --mount_in_azureml \
 	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
-	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 --is_finetune \
+	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
 	test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
@@ -109,27 +114,21 @@ regression_test_crck_simclr:
 regression tests: regression_test_tilespandaimagenetmil regression_test_slidespandaimagenetmil regression_test_tcgacrcksslmil regression_test_crck_simclr
 
 # Smoke tests (smaller tests that run end to end to check integration)
+define DEEPSMILEPANDASLIDES__SMOKE_TEST_ARGS
+--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
+--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 \
+
+endef
+
 # The following test takes around 5 minutes
 smoke_test_slidespandaimagenetmil_local:
-	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
-	--mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
-	--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
-	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
-	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
-	}
+	{ ${BASE_DEEPSMILEPANDASLIDES_COMMAND} ${DEEPSMILEPANDASLIDES__SMOKE_TEST_ARGS};}
 
 # Once running in AML the following test takes around 6 minutes
 smoke_test_slidespandaimagenetmil_aml:
-	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
-	--cluster=testing-nc24x2 --mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
-	--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
-	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
-	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 --num_nodes=1 --max_num_gpus=1 --wait_for_completion;\
-	}
+	{  ${BASE_DEEPSMILEPANDASLIDES_COMMAND} ${DEEPSMILEPANDASLIDES__SMOKE_TEST_ARGS} \
+	--cluster=testing-nc24x2 --wait_for_completion --num_nodes=1 --max_num_gpus=1;}
 
 # The following test takes about 6 minutes
 smoke_test_tilespandaimagenetmil:
