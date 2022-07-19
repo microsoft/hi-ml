@@ -11,7 +11,7 @@ from typing import Any, Iterable, Optional
 import torch
 from yacs.config import CfgNode
 
-from SSL import ssl_augmentation_config
+from health_cpath.SSL import ssl_augmentation_config
 from health_ml.lightning_container import LightningModuleWithOptimizer
 
 
