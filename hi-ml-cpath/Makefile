@@ -3,8 +3,6 @@
 # Create a Conda environment for this folder only
 env:
 	conda env create --file environment.yml
-	pip install -r requirements_test.txt
-	pip install -r requirements_build.txt
 
 # Update the Conda environment
 conda_update:
@@ -34,11 +32,18 @@ pip_from_conda:
 # clean build artifacts
 clean:
 	rm -vrf `find . -type d -name __pycache__`
+	rm -vrf `find . -type d -name .mypy_cache`
 	rm -vrf `find . -type d -name logs`
 	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.mypy_cache ./.pytest_cache
-	rm -vrf ./testhisto/testhisto/test_outputs ./testhistotestSSL/test_ouputs
+	rm -vrf ./.pytest_cache
+	rm -vrf ./testhisto/test_outputs ./testSSL/test_outputs
 	rm -vf ./coverage ./coverage.txt ./coverage.xml
+	rm -vf ./latest_version.txt ./package_name.txt
+	rm -vrf build dist
+
+# build package, assuming build requirements already installed
+build:
+	python setup.py sdist bdist_wheel
 
 # run flake8, assuming test requirements already installed
 flake8:
@@ -98,7 +103,7 @@ regression_test_tcgacrcksslmil:
 regression_test_crck_simclr:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
+	python hi-ml/src/health_ml/runner.py --model=SSL.CRCK_SimCLR \
 	--cluster pr-gpu --conda_env hi-ml-cpath/environment.yml \
 	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
@@ -145,7 +150,7 @@ smoke_test_tcgacrcksslmil:
 smoke_test_crck_simclr:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
+	python hi-ml/src/health_ml/runner.py --model=SSL.CRCK_SimCLR \
 	--conda_env hi-ml-cpath/environment.yml \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--is_debug_model=True --num_workers=0 --max_epochs=2; \
