@@ -309,7 +309,7 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> None:
+def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str, tmp_path: Path) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
@@ -317,11 +317,13 @@ def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> No
     container.ckpt_run_id = mock_run_id
     container.run_inference_only = run_inference_only
     container.run_extra_val_epoch = True
-    runner = MLRunner(experiment_config=experiment_config, container=container)
-    runner.setup()
-    weights_before: torch.Tensor = container.model.model.weight.detach().clone()  # type: ignore
-    with patch.object(runner, "run_validation"):
-        with patch.object(runner, "run_inference"):
-            runner.run()
-    weights_after: torch.Tensor = runner.container.model.model.weight  # type: ignore
-    assert not torch.allclose(weights_before, weights_after)
+    with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = _get_workspace(tmp_path)
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        weights_before: torch.Tensor = container.model.model.weight.detach().clone()  # type: ignore
+        with patch.object(runner, "run_validation"):
+            with patch.object(runner, "run_inference"):
+                runner.run()
+        weights_after: torch.Tensor = runner.container.model.model.weight  # type: ignore
+        assert not torch.allclose(weights_before, weights_after)
