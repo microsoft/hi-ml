@@ -104,6 +104,7 @@ dependencies:
     - cloudpickle==1.6.0
     - colorama==0.4.5
     - coloredlogs==15.0.1
+    - conda-merge==0.1.5
     - contextlib2==21.6.0
     - coverage==6.3.2
     - cryptography==37.0.4
