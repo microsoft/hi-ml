@@ -87,11 +87,15 @@ def save_top_and_bottom_tiles(
     top_tiles_fig = plot_attention_tiles(
         slide_node=slide_node, case=case, top=True, num_columns=num_columns, figsize=figsize
     )
+    if top_tiles_fig is None:
+        return
     save_figure(fig=top_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_top.png")
 
     bottom_tiles_fig = plot_attention_tiles(
         slide_node=slide_node, case=case, top=False, num_columns=num_columns, figsize=figsize
     )
+    if bottom_tiles_fig is None:
+        return
     save_figure(fig=bottom_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_bottom.png")
 
 

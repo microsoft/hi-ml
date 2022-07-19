@@ -151,9 +151,11 @@ def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFo
     top_tiles_fig = plot_attention_tiles(
         case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
     )
+    assert top_tiles_fig is not None
     bottom_tiles_fig = plot_attention_tiles(
         case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
     )
+    assert bottom_tiles_fig is not None
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
     assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)
 
