@@ -350,8 +350,8 @@ class DummySimCLR(SSLContainer):
                         is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
 
         # is_ssl_encoder_module will be True for ssl training, False for linear head training
-        train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])  # do nothing
-        val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])  # add 1
+        train_transforms = ImageTransformationPipeline([])  # do nothing
+        val_transforms = ImageTransformationPipeline([])  # add 1
 
         if is_ssl_encoder_module:
             train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore

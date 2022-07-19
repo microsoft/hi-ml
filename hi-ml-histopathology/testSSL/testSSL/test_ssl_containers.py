@@ -16,6 +16,7 @@ from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.strategies import DDPSpawnStrategy
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
@@ -327,6 +328,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
                                    ) -> Tuple[list, list, ModelCheckpoint]:
         seed_everything(0, workers=True)
         container = DummySimCLR()
+        container.max_num_gpus = 2
         container.setup()
         model = container.create_model()
         data = container.get_data_module()
@@ -344,11 +346,11 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
                           logger=logger,
                           callbacks=[progress, checkpoint],
                           max_epochs=num_epochs,
-                          resume_from_checkpoint=resume_from_checkpoint,
                           deterministic=True,
                           benchmark=False,
-                          gpus=1)
-        trainer.fit(model, datamodule=data)
+                          strategy=DDPSpawnStrategy(),
+                          gpus=2)
+        trainer.fit(model, datamodule=data, ckpt_path=resume_from_checkpoint)
 
         lrs = []
         loss = []
@@ -361,28 +363,29 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
     small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
     with mock.patch("SSL.encoders.create_ssl_encoder", return_value=small_encoder):
         with mock.patch("SSL.encoders.get_encoder_output_dim", return_value=2):
-            # Normal run
-            normal_lrs, normal_loss, _ = run_simclr_dummy_container(
-                test_output_dirs,
-                20,
-                last_checkpoint=None)
+            with mock.patch("SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=2):
+                # Normal run
+                normal_lrs, normal_loss, _ = run_simclr_dummy_container(
+                    test_output_dirs,
+                    20,
+                    last_checkpoint=None)
 
-            # Short run
-            short_lrs, short_loss, short_checkpoint = run_simclr_dummy_container(
-                test_output_dirs,
-                15,
-                last_checkpoint=None)
+                # Short run
+                short_lrs, short_loss, short_checkpoint = run_simclr_dummy_container(
+                    test_output_dirs,
+                    15,
+                    last_checkpoint=None)
 
-            # Resumed run
-            resumed_lrs, resumed_loss, _ = run_simclr_dummy_container(
-                test_output_dirs,
-                20,
-                last_checkpoint=short_checkpoint)
+                # Resumed run
+                resumed_lrs, resumed_loss, _ = run_simclr_dummy_container(
+                    test_output_dirs,
+                    20,
+                    last_checkpoint=short_checkpoint)
 
-            resumed_lrs = short_lrs + resumed_lrs
-            assert resumed_lrs == normal_lrs
-            resumed_loss = short_loss + resumed_loss
-            assert resumed_loss == normal_loss
+                resumed_lrs = short_lrs + resumed_lrs
+                assert resumed_lrs == normal_lrs
+                resumed_loss = short_loss + resumed_loss
+                assert resumed_loss == normal_loss
 
 
 def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
