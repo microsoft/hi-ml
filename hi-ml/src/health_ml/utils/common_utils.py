@@ -148,37 +148,12 @@ def check_conda_environment(env_file: Path) -> None:
 
     :param env_file: The Conda environment YAML file to check.
     """
-    if paths.is_himl_used_from_git_repo():
-        repo_root_yaml: Optional[Path] = paths.shared_himl_conda_env_file()
-    else:
-        repo_root_yaml = None
     has_pip_include, _ = is_conda_file_with_pip_include(env_file)
-    # PIP include statements are only valid when reading from the repository root YAML file, because we
-    # are manually adding the included files in get_all_pip_requirements_files
-    if has_pip_include and env_file != repo_root_yaml:
+    if has_pip_include:
         raise ValueError(
             f"The Conda environment definition in {env_file} uses '-r' to reference pip requirements "
             "files. This does not work in AzureML. Please add the pip dependencies directly."
         )
-
-
-def get_all_pip_requirements_files() -> List[Path]:
-    """
-    If the root level hi-ml directory is available (e.g. it has been installed as a submodule or
-    downloaded directly into a parent repo) then we must add it's pip requirements to any environment
-    definition. This function returns a list of the necessary pip requirements files. If the hi-ml
-    root directory does not exist (e.g. hi-ml has been installed as a pip package, this is not necessary
-    and so this function returns an empty list.)
-
-    :return: An list list of pip requirements files in the hi-ml and hi-ml-azure packages if relevant,
-        or else an empty list
-    """
-    files = []
-    if paths.is_himl_used_from_git_repo():
-        git_root = paths.git_repo_root_folder()
-        for folder in [Path("hi-ml") / "run_requirements.txt", Path("hi-ml-azure") / "run_requirements.txt"]:
-            files.append(git_root / folder)
-    return files
 
 
 def create_unique_timestamp_id() -> str:
