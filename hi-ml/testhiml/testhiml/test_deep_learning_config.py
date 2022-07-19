@@ -36,7 +36,7 @@ def test_validate_workflow_params() -> None:
 
 
 def test_validate_workflow_params_for_inference_only() -> None:
-    error_message = "Cannot run inference without a checkpoint source"
+    error_message = "Cannot run inference without a checkpoint source."
     # DeepLearningConfig cannot be initialized with more than one of these parameters set
     with pytest.raises(ValueError) as ex:
         WorkflowParams(local_datasets=Path("foo"),

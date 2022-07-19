@@ -204,19 +204,32 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     assert _expected_files_exist()
 
 
-def test_run(ml_runner_with_container: MLRunner) -> None:
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+@pytest.mark.parametrize("run_inference_only", [True, False])
+def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
     """Test that model runner gets called """
+    ml_runner_with_container.container.run_inference_only = run_inference_only
+    ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_container.setup()
     assert not ml_runner_with_container.checkpoint_handler.has_continued_training
     with patch.object(ml_runner_with_container, "checkpoint_handler"):
         with patch.object(ml_runner_with_container, "load_model_checkpoint") as mock_load:
             with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-                mock_trainer = MagicMock()
-                mock_storing_logger = MagicMock()
-                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+                with patch.object(ml_runner_with_container, "run_training") as mock_run_training:
+                    with patch.object(ml_runner_with_container, "run_validation") as mock_run_validation:
+                        with patch.object(ml_runner_with_container, "run_inference") as mock_run_inference:
+                            mock_trainer = MagicMock()
+                            mock_storing_logger = MagicMock()
+                            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
-                ml_runner_with_container.run()
+                            ml_runner_with_container.run()
 
-                mock_load.assert_called_once()
-                assert ml_runner_with_container._has_setup_run
-                assert ml_runner_with_container.checkpoint_handler.has_continued_training
+                            mock_load.assert_called_once()
+                            assert ml_runner_with_container._has_setup_run
+                            assert (
+                                ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
+                            )
+
+                            assert mock_run_training.called != run_inference_only
+                            assert mock_run_validation.called == (not run_inference_only and run_extra_val_epoch)
+                            mock_run_inference.assert_called_once()
