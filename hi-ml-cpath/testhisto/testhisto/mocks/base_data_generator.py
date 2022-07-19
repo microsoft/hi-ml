@@ -46,8 +46,6 @@ class MockHistoDataGenerator:
         5: ["4+5", "5+4", "5+5"],
     }
 
-    _RELATIVE_ROOT_FOLDER = ""
-
     def __init__(
         self,
         dest_data_path: Path,

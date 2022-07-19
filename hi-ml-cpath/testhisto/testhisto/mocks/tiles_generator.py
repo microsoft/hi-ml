@@ -35,7 +35,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         )
 
     def update_dest_data_path(self) -> None:
-        self.dest_data_path: Path = self.dest_data_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
+        self.dest_data_path: Path = self.dest_data_path
         self.dest_data_path.mkdir(parents=True, exist_ok=True)
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
