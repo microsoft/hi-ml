@@ -162,7 +162,7 @@ class WorkflowParams(param.Parameterized):
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if [bool(self.weights_url), bool(self.local_weights_path), bool(self.ckpt_run_id)].count(True) > 1:
+        if sum([bool(self.weights_url), bool(self.local_weights_path), bool(self.ckpt_run_id)]) > 1:
             raise ValueError("Cannot specify more than one of local_weights_path, weights_url, ckpt_run_id.")
 
         if self.crossval_count > 1:
