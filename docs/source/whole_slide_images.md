@@ -37,7 +37,7 @@ The suitable AzureML base Docker images are therefore the ones containing `cuda1
 
 ## Performance
 
-An exploratory set of scripts for comparing loading images with OpenSlide or cuCIM, and performing tiling using both libraries can be found at [`slide_image_loading`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/other/slide_image_loading).
+An exploratory set of scripts for comparing loading images with OpenSlide or cuCIM, and performing tiling using both libraries can be found at [`slide_image_loading`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-cpath/other/slide_image_loading).
 
 ### Loading and saving at lowest resolution
 
