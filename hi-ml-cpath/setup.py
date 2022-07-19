@@ -82,8 +82,8 @@ setup(
     ],
     keywords='HealthIntelligence, Computational Pathology, AzureML',
     license='MIT License',
-    packages=find_namespace_packages(where="src"),
+    packages=find_namespace_packages(where="src", include=["health_cpath.*"]),
     package_dir={"": "src"},
-    include_package_data=True,
+    include_package_data=False,
     install_requires=install_requires,
 )
