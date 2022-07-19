@@ -47,6 +47,7 @@ dependencies:
   - openssl=1.1.1q=h7f8727e_0
   - pip=20.1.1=py37_1
   - python=3.7.3
+  - pytorch=1.10.0=py3.7_cuda11.3_cudnn8.2.0_0
   - pytorch-mutex=1.0=cuda
   - readline=7.0=h7b6447c_5
   - six=1.16.0=pyhd3eb1b0_1
@@ -250,7 +251,6 @@ dependencies:
     - tifffile==2021.11.2
     - toml==0.10.2
     - tomli==2.0.1
-    - torch==1.12.0
     - torchmetrics==0.6.0
     - tqdm==4.64.0
     - twine==3.3.0
