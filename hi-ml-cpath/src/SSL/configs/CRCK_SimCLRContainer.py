@@ -9,7 +9,7 @@ from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SS
 from SSL.utils import SSLTrainingType
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatasetWithReturnIndex
-from health_cpath.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
+from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
 
 
 class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
