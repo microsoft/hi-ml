@@ -20,12 +20,9 @@ make env
 You can then activate the environment via `conda activate HimlHisto`. Set VSCode to use this Conda environment, by choosing "Python: Select Interpreter"
 from the command palette.
 
-In the event of dependencies update, you can update your conda environment by running the following:
-
-```shell
-cd hi-ml-cpath
-make conda_update
-```
+If the dependencies need to be updated, please modify `hi-ml-cpath/primary_deps.yml`, and then run the script
+`hi-ml-cpath/create_and_lock_environment.sh`. This will create a full "locked" environment specification with pinned
+versions of all depdencies.
 
 ### Setting up AzureML
 
