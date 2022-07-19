@@ -5,13 +5,16 @@ import pytest
 from typing import Generator
 from unittest.mock import MagicMock, Mock, patch
 
+import torch
+
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
-from health_azure.utils import is_global_rank_zero
-
+from health_azure.utils import is_global_rank_zero, create_aml_run_object
+from testazure.utils_testazure import DEFAULT_WORKSPACE
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path
 
 no_gpu = not is_gpu_available()
 
@@ -40,6 +43,36 @@ def ml_runner() -> Generator:
 def ml_runner_with_container() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner.setup()
+    yield runner
+    output_dir = runner.container.file_system_config.outputs_folder
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+
+
+@pytest.fixture(scope="module")
+def mock_run_id() -> str:
+    """Create a mock aml run that contains a checkpoint for hello_world container.
+
+    :return: The run id of the created run that contains the checkpoint.
+    """
+
+    experiment_name = "himl-tests"
+    run_to_download_from = create_aml_run_object(experiment_name=experiment_name, workspace=DEFAULT_WORKSPACE.workspace)
+    file_name = "outputs/checkpoints/last.ckpt"
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    run_to_download_from.upload_file(file_name, str(full_file_path))
+    run_to_download_from.complete()
+    return run_to_download_from.id
+
+
+@pytest.fixture()
+def ml_runner_with_run_id(mock_run_id: str) -> Generator:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.save_checkpoint = True
+    container.ckpt_run_id = mock_run_id
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
@@ -233,3 +266,47 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
                             assert mock_run_training.called != run_inference_only
                             assert mock_run_validation.called == (not run_inference_only and run_extra_val_epoch)
                             mock_run_inference.assert_called_once()
+
+
+def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
+    ml_runner_with_run_id.container.run_inference_only = True
+    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    with patch.object(ml_runner_with_run_id, "run_training") as mock_run_training:
+        with patch.object(ml_runner_with_run_id, "run_validation") as mock_run_validation:
+            with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
+
+                ml_runner_with_run_id.run()
+
+                mock_run_training.assert_not_called()
+                mock_run_validation.assert_not_called()
+                mock_run_inference.assert_called_once()
+
+
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.max_epochs = 2
+    ml_runner_with_run_id.container.max_num_gpus = 0
+    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    with patch.object(ml_runner_with_run_id, "run_validation") as mock_run_validation:
+        with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
+            ml_runner_with_run_id.run()
+            assert mock_run_validation.called == run_extra_val_epoch
+            mock_run_inference.assert_called_once()
+
+
+@pytest.mark.parametrize("run_inference_only", [True, False])
+def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_epochs = 2
+    container.max_num_gpus = 0
+    container.save_checkpoint = True
+    container.ckpt_run_id = mock_run_id
+    container.run_inference_only = run_inference_only
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner.setup()
+    weights_before: torch.Tensor = container.model.model.weight  # type: ignore
+    runner.run()
+    weights_after: torch.Tensor = runner.container.model.model.weight  # type: ignore
+    assert torch.allclose(weights_before, weights_after) != run_inference_only

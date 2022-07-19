@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from torchmetrics import MeanAbsoluteError
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
@@ -243,6 +245,7 @@ class HelloWorld(LightningContainer):
         super().__init__()
         self.local_dataset_dir = Path(__file__).resolve().parent
         self.max_epochs = 20
+        self.save_checkpoint = False
 
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
     # train, as a LightningModule
@@ -257,3 +260,13 @@ class HelloWorld(LightningContainer):
         # you need to provide the crossvalidation parameters in the LightningContainer to the datamodule. The
         # datamodule must carry out appropriate splitting of the data.
         return HelloWorldDataModule(crossval_count=self.crossval_count, crossval_index=self.crossval_index)
+
+    def get_callbacks(self) -> List[Callback]:
+        if self.save_checkpoint:
+            return [ModelCheckpoint(dirpath=self.checkpoint_folder,
+                                    monitor="val_loss",
+                                    filename="checkpoint",
+                                    auto_insert_metric_name=False,
+                                    mode="min")]
+        else:
+            return super().get_callbacks()
