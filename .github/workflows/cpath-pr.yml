@@ -1,0 +1,155 @@
+name: Pathology PR
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "hi-ml-cpath/**"
+      - ".github/workflows/cpath-pr.yml"
+      # When the core hi-ml libraries change, test the histo test too, to find problems with backwards compatibility
+      - "hi-ml-azure/**"
+      - "hi-ml/**"
+
+env:
+  pythonVersion: 3.7
+  folder: hi-ml-cpath
+  module_for_coverage_reporting: health_cpath
+  HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
+  HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
+  HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
+  HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
+  HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
+  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+
+jobs:
+
+  flake8:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: flake8
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make flake8
+
+  mypy:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: mypy
+        run: |
+          cd ${{ env.folder }}
+          make pip_test
+          make mypy
+
+  pytest:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: PIP upgrade
+        run: |
+          cd ${{ env.folder }}
+          make pip_upgrade
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: Test with pytest
+        run: |
+          cd ${{ env.folder }}
+
+          # Run tests
+          make pip_test
+          make pytest_coverage
+
+      - name: Run GPU tests
+        # GPU tests should be run even if other tests fail
+        if: always()
+        run: |
+          branch_prefix="refs/heads/"
+          full_branch_name=$GITHUB_REF
+          branch_name_without_prefix=${full_branch_name#$branch_prefix}
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
+
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded if tests still fail.
+        # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+            flags: ${{ env.folder }}
+
+  smoketest:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: create config file
+        run: ./create_config.sh
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_slidespandaimagenetmil_aml

@@ -25,9 +25,9 @@ that class:
 `health_ml.configs` namespace. It can be in any module/folder inside of that namespace.
 - If the class is outside of the `health_ml.configs` (as would be normal if using the `himl-runner` from a package),
 you need to provide some "hints" where to start searching. It is enough to provide the start of the namespace string:
-for example, `--model histopathology.PandaImageNetMIL` is effectively telling the runner to search for the
+for example, `--model health_cpath.PandaImageNetMIL` is effectively telling the runner to search for the
 `PandaImageNetMIL` class _anywhere_ in the `histopathology` namespace. You can think of this as
-`histopathology.*.PandaImageNetMIL`
+`health_cpath.*.PandaImageNetMIL`
 
 ## Running ML experiments in Azure ML
 

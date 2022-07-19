@@ -40,10 +40,10 @@ repos:
     files: ^hi-ml-azure/
     args: [--config, hi-ml-azure/.flake8]
   - id: flake8
-    name: flake8 ./hi-ml-histopathology/
-    alias: flake8-hi-ml-histopathology
-    files: ^hi-ml-histopathology/
-    args: [--config, hi-ml-histopathology/.flake8]
+    name: flake8 ./hi-ml-cpath/
+    alias: flake8-hi-ml-cpath
+    files: ^hi-ml-cpath/
+    args: [--config, hi-ml-cpath/.flake8]
   - id: flake8
     name: flake8 ./hi-ml-multimodal/
     alias: flake8-hi-ml-multimodal

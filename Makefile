@@ -42,7 +42,7 @@ conda_update:
 	conda env update -n $(CONDA_DEFAULT_ENV) --file hi-ml/environment.yml
 
 # Set the conda environment for local development work, that contains all packages need for hi-ml, hi-ml-azure
-# and hi-ml-histopathology with hi-ml and hi-ml-azure installed in editable mode
+# and hi-ml-cpath with hi-ml and hi-ml-azure installed in editable mode
 conda: conda_update call_pip_local
 
 ## Actions
@@ -120,10 +120,10 @@ combine: pip_test
 	mkdir -p coverage
 	cp hi-ml/.coverage coverage/hi-ml-coverage
 	cp hi-ml-azure/.coverage coverage/hi-ml-azure-coverage
-	cp hi-ml-histopathology/.coverage coverage/hi-ml-histopathology-coverage
+	cp hi-ml-cpath/.coverage coverage/hi-ml-cpath-coverage
 	cp .coveragerc coverage/
 	cd coverage && \
-		coverage combine hi-ml-coverage hi-ml-azure-coverage hi-ml-histopathology-coverage &&  \
+		coverage combine hi-ml-coverage hi-ml-azure-coverage hi-ml-cpath-coverage &&  \
 		coverage html && \
 		coverage xml && \
 		pycobertura show --format text --output coverage.txt coverage.xml
