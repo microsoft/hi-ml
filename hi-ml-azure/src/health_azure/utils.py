@@ -27,7 +27,6 @@ from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List,
 import conda_merge
 import pandas as pd
 import param
-import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication

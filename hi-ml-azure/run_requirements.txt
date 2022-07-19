@@ -2,7 +2,6 @@ azureml-core==1.43.0
 azureml-dataset-runtime[fuse]
 azureml-tensorboard==1.43.0
 azureml-train-core==1.43.0
-conda-merge>=0.1.5
 pandas>=1.3.4
 param>=1.12
 protobuf<=3.20.1

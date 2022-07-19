@@ -655,7 +655,7 @@ dependencies:
   - python=3.7.3
   - pip:
     - azureml-sdk==1.23.0
-    - conda-merge==0.1.5
+    - something-else==0.1.5
   - pip:
     - --index-url https://test.pypi.org/simple/
     - --extra-index-url https://pypi.org/simple

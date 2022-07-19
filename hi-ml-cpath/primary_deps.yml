@@ -26,7 +26,6 @@ dependencies:
       - azureml-dataset-runtime[fuse]
       - azureml-tensorboard==1.43.0
       - azureml-train-core==1.43.0
-      - conda-merge==0.1.5
       - msal-extensions==0.3.1
       - param==1.12
       - pysocks==1.6.0
