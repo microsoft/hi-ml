@@ -16,9 +16,9 @@ from torch.optim import Adam
 
 from health_ml.utils import log_learning_rate, log_on_epoch
 
-from SSL.lightning_modules.byol.byol_models import SiameseArm
-from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from SSL.utils import SSLDataModuleType
+from health_cpath.SSL.lightning_modules.byol.byol_models import SiameseArm
+from health_cpath.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
+from health_cpath.SSL.utils import SSLDataModuleType
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]

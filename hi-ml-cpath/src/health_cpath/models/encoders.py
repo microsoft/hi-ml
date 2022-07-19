@@ -16,8 +16,8 @@ from torchvision.transforms import Compose
 from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
                                             load_weights_to_model,
                                             setup_feature_extractor)
-from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from SSL.utils import create_ssl_image_classifier
+from health_cpath.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
+from health_cpath.SSL.utils import create_ssl_image_classifier
 from SSL import encoders
 
 

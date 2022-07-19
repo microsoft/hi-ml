@@ -3,8 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from SSL.utils import SSLTrainingType
+from health_cpath.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from health_cpath.SSL.utils import SSLTrainingType
 
 
 class CIFAR10SimCLR(SSLContainer):

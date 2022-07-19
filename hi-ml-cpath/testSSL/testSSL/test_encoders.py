@@ -6,8 +6,8 @@
 import pytest
 from pl_bolts.models.self_supervised.resnets import ResNet
 
-from SSL.encoders import DenseNet121Encoder, SSLEncoder
-from SSL.lightning_containers.ssl_container import EncoderName
+from health_cpath.SSL.encoders import DenseNet121Encoder, SSLEncoder
+from health_cpath.SSL.lightning_containers.ssl_container import EncoderName
 
 
 def test_get_encoder_dim_within_encoder_class() -> None:

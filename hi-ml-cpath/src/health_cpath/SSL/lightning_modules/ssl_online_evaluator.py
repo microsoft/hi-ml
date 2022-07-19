@@ -18,8 +18,8 @@ from torchmetrics import Metric
 from health_ml.utils import log_on_epoch
 from health_ml.utils.common_utils import set_model_to_eval_mode
 
-from SSL.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
-from SSL.utils import SSLDataModuleType, add_submodules_to_same_device
+from health_cpath.SSL.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
+from health_cpath.SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
 

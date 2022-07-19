@@ -6,7 +6,7 @@
 import pytest
 import torch
 
-from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
+from health_cpath.SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
 
 
 @pytest.mark.fast

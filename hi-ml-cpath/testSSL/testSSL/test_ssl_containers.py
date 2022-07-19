@@ -23,16 +23,16 @@ from PIL import Image
 
 from health_ml.utils.common_utils import is_gpu_available
 
-from SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
-from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-from SSL.lightning_modules.simclr_module import SimClrHiml
-from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
-from SSL.data.datamodules import CombinedDataModule
-from SSL.utils import SSLDataModuleType, SSLTrainingType
+from health_cpath.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
+from health_cpath.SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
+from health_cpath.SSL.lightning_modules.simclr_module import SimClrHiml
+from health_cpath.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
+from health_cpath.SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
+from health_cpath.SSL.data.datamodules import CombinedDataModule
+from health_cpath.SSL.utils import SSLDataModuleType, SSLTrainingType
 
-from SSL.configs.CIFAR_SSL_configs import CIFAR10SimCLR
-from SSL.configs.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA_SimCLR
+from health_cpath.SSL.configs.CIFAR_SSL_configs import CIFAR10SimCLR
+from health_cpath.SSL.configs.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA_SimCLR
 
 from health_ml.runner import Runner
 from health_ml.utils import AzureMLProgressBar

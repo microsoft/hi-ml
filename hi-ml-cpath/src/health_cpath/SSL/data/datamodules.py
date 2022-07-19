@@ -14,7 +14,7 @@ from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.utils.data import DataLoader, Dataset
 
-from SSL.utils import SSLDataModuleType
+from health_cpath.SSL.utils import SSLDataModuleType
 
 
 class HimlVisionDataModule(VisionDataModule):

@@ -13,9 +13,9 @@ import torch
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
-from SSL.data.cxr_datasets import RSNAKaggleCXR
-from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
+from health_cpath.SSL.data.cxr_datasets import RSNAKaggleCXR
+from health_cpath.SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
+from health_cpath.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 
 from testSSL.utils import TEST_OUTPUTS_PATH
 
