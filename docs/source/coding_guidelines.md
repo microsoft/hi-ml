@@ -221,7 +221,7 @@ Try gauging the value of your contribution for yourself by asking the following 
 
 ### Pull Request Titles
 
-To enable good auto-generated changelogs, we prefix all PR titles with a category string, like "BUG: Out of bounds error when using small images".
+To enable good auto-generated changelogs, we prefix all PR titles with a category string, like `BUG: Fix out of bounds error when using small images`.
 Those category prefixes must be in upper case, followed by a colon (`:`).
 Valid categories are
 
