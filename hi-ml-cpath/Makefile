@@ -115,7 +115,7 @@ smoke_test_slidespandaimagenetmil_local:
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
 	--mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
-	--conda_env hi-ml-cpath/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
 	}
@@ -126,7 +126,7 @@ smoke_test_slidespandaimagenetmil_aml:
 	cd ../ ;\
 	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
 	--cluster=testing-nc24x2 --mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
-	--conda_env hi-ml-cpath/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 --num_nodes=1 --max_num_gpus=1 --wait_for_completion;\
 	}
