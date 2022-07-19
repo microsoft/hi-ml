@@ -109,7 +109,7 @@ regression_test_crck_simclr:
 regression tests: regression_test_tilespandaimagenetmil regression_test_slidespandaimagenetmil regression_test_tcgacrcksslmil regression_test_crck_simclr
 
 # Smoke tests (smaller tests that run end to end to check integration)
-# The following test takes around 26 minutes due to saving hyperparameters
+# The following test takes around 5 minutes
 smoke_test_slidespandaimagenetmil_local:
 	{ \
 	cd ../ ;\
@@ -120,14 +120,15 @@ smoke_test_slidespandaimagenetmil_local:
 	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
 	}
 
+# Once running in AML the following test takes around 6 minutes
 smoke_test_slidespandaimagenetmil_aml:
 	{ \
 	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=histopathology.SlidesPandaImageNetMILBenchmark \
-	--cluster=pr-gpu --mount_in_azureml --conda_env hi-ml-histopathology/environment.yml --is_finetune \
-	--conda_env hi-ml-histopathology/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+	python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
+	--cluster=testing-nc24x2 --mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
+	--conda_env hi-ml-cpath/environment.yml --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
-	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
+	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 --num_nodes=1 --max_num_gpus=1 --wait_for_completion;\
 	}
 
 # The following test takes about 6 minutes
