@@ -7,7 +7,6 @@ import logging
 import os
 import param
 import sys
-import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -28,7 +27,7 @@ from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
-                                merge_conda_files, set_environment_variables_for_multi_node,
+                                set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
 
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
@@ -36,7 +35,6 @@ from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (check_conda_environment, choose_conda_env_file,  # noqa: E402
-                                          get_all_pip_requirements_files,
                                           is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
@@ -242,61 +240,48 @@ class Runner:
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        temp_conda_file: Optional[Path] = None
-        try:
-            if self.experiment_config.cluster and not is_running_in_azure_ml():
-                env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
-                logging.info(f"Using this Conda environment definition: {env_file}")
-                check_conda_environment(env_file)
-                # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from
-                # source (submodule) rather than installed as a package.
-                pip_requirements_files = get_all_pip_requirements_files()
+        if self.experiment_config.cluster and not is_running_in_azure_ml():
+            env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
+            logging.info(f"Using this Conda environment definition: {env_file}")
+            check_conda_environment(env_file)
 
-                # Merge the project-specific dependencies with the packages and write unified definition to temp file.
-                if len(pip_requirements_files) > 0:
-                    temp_conda_file = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                    merge_conda_files([env_file], temp_conda_file, pip_files=pip_requirements_files)
+            if not self.experiment_config.cluster:
+                raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
+                                 "the script to run in AzureML")
+            azure_run_info = submit_to_azure_if_needed(
+                entry_script=entry_script,
+                snapshot_root_directory=root_folder,
+                script_params=script_params,
+                conda_environment_file=env_file,
+                aml_workspace=workspace,
+                compute_cluster_name=self.experiment_config.cluster,
+                environment_variables=environment_variables,
+                default_datastore=default_datastore,
+                experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
+                input_datasets=input_datasets,  # type: ignore
+                num_nodes=self.experiment_config.num_nodes,
+                wait_for_completion=self.experiment_config.wait_for_completion,
+                ignored_folders=[],
+                submit_to_azureml=bool(self.experiment_config.cluster),
+                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_shm_size=self.experiment_config.docker_shm_size,
+                hyperdrive_config=hyperdrive_config,
+                create_output_folders=False,
+                after_submission=after_submission_hook,
+                tags=self.additional_run_tags(script_params)
+            )
+            if self.experiment_config.tag and azure_run_info.run:
+                if self.lightning_container.is_crossvalidation_enabled:
+                    # This code is only reached inside Azure. Set display name again - this will now affect
+                    # Hypdrive child runs (for other jobs, this has already been done after submission)
+                    cv_index = self.lightning_container.crossval_index
+                    full_display_name = f"{self.experiment_config.tag} {cv_index}"
+                    azure_run_info.run.display_name = full_display_name
 
-                if not self.experiment_config.cluster:
-                    raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
-                                     "the script to run in AzureML")
-                azure_run_info = submit_to_azure_if_needed(
-                    entry_script=entry_script,
-                    snapshot_root_directory=root_folder,
-                    script_params=script_params,
-                    conda_environment_file=temp_conda_file or env_file,
-                    aml_workspace=workspace,
-                    compute_cluster_name=self.experiment_config.cluster,
-                    environment_variables=environment_variables,
-                    default_datastore=default_datastore,
-                    experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
-                    input_datasets=input_datasets,  # type: ignore
-                    num_nodes=self.experiment_config.num_nodes,
-                    wait_for_completion=self.experiment_config.wait_for_completion,
-                    ignored_folders=[],
-                    submit_to_azureml=bool(self.experiment_config.cluster),
-                    docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
-                    docker_shm_size=self.experiment_config.docker_shm_size,
-                    hyperdrive_config=hyperdrive_config,
-                    create_output_folders=False,
-                    after_submission=after_submission_hook,
-                    tags=self.additional_run_tags(script_params)
-                )
-                if self.experiment_config.tag and azure_run_info.run:
-                    if self.lightning_container.is_crossvalidation_enabled:
-                        # This code is only reached inside Azure. Set display name again - this will now affect
-                        # Hypdrive child runs (for other jobs, this has already been done after submission)
-                        cv_index = self.lightning_container.crossval_index
-                        full_display_name = f"{self.experiment_config.tag} {cv_index}"
-                        azure_run_info.run.display_name = full_display_name
-
-            else:
-                azure_run_info = submit_to_azure_if_needed(
-                    input_datasets=input_datasets,  # type: ignore
-                    submit_to_azureml=False)
-        finally:
-            if temp_conda_file and temp_conda_file.is_file():
-                temp_conda_file.unlink()
+        else:
+            azure_run_info = submit_to_azure_if_needed(
+                input_datasets=input_datasets,  # type: ignore
+                submit_to_azureml=False)
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info
