@@ -11,9 +11,9 @@ from pytorch_lightning import Callback
 from health_ml.lightning_container import LightningModuleWithOptimizer
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 
-from SSL.data.datamodules import HimlVisionDataModule
-from SSL.lightning_containers.ssl_container import DataModuleTypes, SSLContainer
-from SSL.utils import create_ssl_image_classifier
+from health_cpath.SSL.data.datamodules import HimlVisionDataModule
+from health_cpath.SSL.lightning_containers.ssl_container import DataModuleTypes, SSLContainer
+from health_cpath.SSL.utils import create_ssl_image_classifier
 
 
 class SSLClassifierContainer(SSLContainer):

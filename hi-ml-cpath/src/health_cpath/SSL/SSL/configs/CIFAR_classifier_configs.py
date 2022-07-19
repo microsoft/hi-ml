@@ -2,8 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from SSL.lightning_containers.ssl_container import SSLDatasetName
-from SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
+from health_cpath.SSL.lightning_containers.ssl_container import SSLDatasetName
+from health_cpath.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
 
 
 class SSLClassifierCIFAR(SSLClassifierContainer):

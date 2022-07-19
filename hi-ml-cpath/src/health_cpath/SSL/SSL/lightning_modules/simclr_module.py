@@ -12,8 +12,8 @@ import torch.nn.functional as F
 from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 
-from SSL.encoders import SSLEncoder
-from SSL.utils import SSLDataModuleType
+from health_cpath.SSL.encoders import SSLEncoder
+from health_cpath.SSL.utils import SSLDataModuleType
 
 SingleBatchType = Tuple[List, torch.Tensor]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]

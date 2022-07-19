@@ -5,12 +5,12 @@
 from enum import Enum
 from typing import Any
 
-from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from SSL.utils import SSLTrainingType
+from health_cpath.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from health_cpath.SSL.utils import SSLTrainingType
 from health_azure.utils import is_running_in_azure_ml
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
 from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_ID
-from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
+from health_cpath.SSL.configs.HistoSimCLRContainer import HistoSSLContainer
 
 
 class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore

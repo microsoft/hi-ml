@@ -13,7 +13,7 @@ from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.models.transforms import load_pil_image
 from health_cpath.utils.naming import TileKey
 
-from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from health_cpath.SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
 
 
 class PandaTilesDataset(TilesDataset):
