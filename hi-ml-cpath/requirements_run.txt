@@ -4,11 +4,11 @@ girder-client==3.1.14
 lightning-bolts==0.4.0
 monai==0.8.0
 more-itertools==8.10.0
-numpy==1.22.3
+numpy==1.21.6
 pillow==9.0.1
 pydicom==2.3.0
 scikit-image==0.19.3
-scipy==1.8.1
+scipy==1.7.3
 seaborn==0.10.1
 simpleitk==2.1.1.2
 tifffile==2021.11.2
