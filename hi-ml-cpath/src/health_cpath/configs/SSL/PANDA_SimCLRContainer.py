@@ -10,7 +10,7 @@ from SSL.utils import SSLTrainingType
 from health_azure.utils import is_running_in_azure_ml
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
 from health_cpath.configs.SSL.HistoSimCLRContainer import HistoSSLContainer
-from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_ID_20X
+from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_ID_5X
 
 
 class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
@@ -29,7 +29,7 @@ class PANDA_SimCLR(HistoSSLContainer):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
                          linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
-                         azure_datasets=[PANDA_TILES_DATASET_ID_20X],
+                         azure_datasets=[PANDA_TILES_DATASET_ID_5X],
                          random_seed=1,
                          num_workers=5,
                          is_debug_model=False,
@@ -37,7 +37,7 @@ class PANDA_SimCLR(HistoSSLContainer):
                          model_checkpoints_save_last_k=3,
                          model_monitor_metric='ssl_online_evaluator/val/AccuracyAtThreshold05',
                          model_monitor_mode='max',
-                         max_epochs=50,
+                         max_epochs=200,
                          ssl_training_batch_size=128,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
