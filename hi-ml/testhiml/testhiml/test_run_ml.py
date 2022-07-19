@@ -299,14 +299,16 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
 def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
-    container.max_epochs = 2
     container.max_num_gpus = 0
     container.save_checkpoint = True
     container.ckpt_run_id = mock_run_id
     container.run_inference_only = run_inference_only
+    container.run_extra_val_epoch = True
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
-    weights_before: torch.Tensor = container.model.model.weight  # type: ignore
-    runner.run()
+    weights_before: torch.Tensor = container.model.model.weight.detach().clone()  # type: ignore
+    with patch.object(runner, "run_validation"):
+        with patch.object(runner, "run_inference"):
+            runner.run()
     weights_after: torch.Tensor = runner.container.model.model.weight  # type: ignore
-    assert torch.allclose(weights_before, weights_after) != run_inference_only
+    assert not torch.allclose(weights_before, weights_after)
