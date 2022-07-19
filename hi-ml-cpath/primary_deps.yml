@@ -41,3 +41,4 @@ dependencies:
       # Pinned secondary dependencies to prevent clashes
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
+      - markdown==2.6.8
