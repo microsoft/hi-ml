@@ -14,17 +14,17 @@ from yacs.config import CfgNode
 
 from health_ml.lightning_container import LightningContainer
 
-from health_cpath.SSL.data.cifar_datasets import HimlCifar10, HimlCifar100
-from health_cpath.SSL.data.cxr_datasets import CheXpert, CovidDataset, NIHCXR, RSNAKaggleCXR
-from health_cpath.SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
-from health_cpath.SSL.data.transforms_utils import CIFARLinearHeadTransform, \
+from SSL.data.cifar_datasets import HimlCifar10, HimlCifar100
+from SSL.data.cxr_datasets import CheXpert, CovidDataset, NIHCXR, RSNAKaggleCXR
+from SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
+from SSL.data.transforms_utils import CIFARLinearHeadTransform, \
     CIFARTrainTransform, \
     get_ssl_transforms_from_config
-from health_cpath.SSL.encoders import get_encoder_output_dim
-from health_cpath.SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-from health_cpath.SSL.lightning_modules.simclr_module import SimClrHiml
-from health_cpath.SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
-from health_cpath.SSL.utils import SSLDataModuleType, SSLTrainingType, load_yaml_augmentation_config
+from SSL.encoders import get_encoder_output_dim
+from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
+from SSL.lightning_modules.simclr_module import SimClrHiml
+from SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
+from SSL.utils import SSLDataModuleType, SSLTrainingType, load_yaml_augmentation_config
 
 
 @dataclass

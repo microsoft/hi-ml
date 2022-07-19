@@ -8,14 +8,14 @@ import pytest
 import torch
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
-from health_cpath.SSL.data.cifar_datasets import HimlCifar10
-from health_cpath.SSL.data.cxr_datasets import RSNAKaggleCXR
-from health_cpath.SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
-from health_cpath.SSL.data.transforms_utils import CIFARLinearHeadTransform, \
+from SSL.data.cifar_datasets import HimlCifar10
+from SSL.data.cxr_datasets import RSNAKaggleCXR
+from SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
+from SSL.data.transforms_utils import CIFARLinearHeadTransform, \
     CIFARTrainTransform, get_ssl_transforms_from_config
-from health_cpath.SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
-from health_cpath.SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
-from health_cpath.SSL.configs.CXR_SSL_configs import path_encoder_augmentation_cxr
+from SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
+from SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
+from SSL.configs.CXR_SSL_configs import path_encoder_augmentation_cxr
 from testSSL.utils import TEST_OUTPUTS_PATH
 
 

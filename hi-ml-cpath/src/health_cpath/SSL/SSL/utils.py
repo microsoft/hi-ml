@@ -43,7 +43,7 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
     If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not shrink them.
     """
     from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
-    from health_cpath.SSL.encoders import DenseNet121Encoder
+    from SSL.encoders import DenseNet121Encoder
     if encoder_name == 'resnet18':
         encoder = resnet18(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'resnet50':
@@ -69,9 +69,9 @@ def create_ssl_image_classifier(num_classes: int,
     """
 
     # Use local imports to avoid circular imports
-    from health_cpath.SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
-    from health_cpath.SSL.lightning_modules.simclr_module import SimClrHiml
-    from health_cpath.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
+    from SSL.lightning_modules.byol.byol_module import BootstrapYourOwnLatent
+    from SSL.lightning_modules.simclr_module import SimClrHiml
+    from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 
     logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
     loaded_params = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]
@@ -109,7 +109,7 @@ def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
     :param num_classes: Number of target classes for the linear head.
     """
     from pl_bolts.models.self_supervised import SSLEvaluator
-    from health_cpath.SSL.encoders import get_encoder_output_dim
+    from SSL.encoders import get_encoder_output_dim
 
     class _wrap(ssl_class):  # type: ignore
         def __init__(self, **kwargs: Any) -> None:

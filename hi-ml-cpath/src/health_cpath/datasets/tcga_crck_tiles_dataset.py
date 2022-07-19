@@ -12,7 +12,7 @@ from torchvision.datasets.vision import VisionDataset
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.models.transforms import load_pil_image
-from health_cpath.SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
 
 
 class TcgaCrck_TilesDataset(TilesDataset):

@@ -151,7 +151,7 @@ class MLRunner:
         # through the get_trainer_arguments method of the container because cycle mode is not yet available.
         multiple_trainloader_mode = "max_size_cycle"
         try:
-            from health_cpath.SSL.data.datamodules import CombinedDataModule  # type: ignore
+            from SSL.data.datamodules import CombinedDataModule  # type: ignore
             if isinstance(self.data_module, CombinedDataModule):
                 self.data_module.prepare_data()
                 multiple_trainloader_mode = self.data_module.train_loader_cycle_mode  # type: ignore

@@ -12,7 +12,7 @@ from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomAffin
 from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
-from health_cpath.SSL.data.image_transforms import (
+from SSL.data.image_transforms import (
     AddGaussianNoise,
     ElasticTransform,
     ExpandChannels,

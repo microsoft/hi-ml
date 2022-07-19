@@ -2,7 +2,7 @@ from typing import Any
 
 from torch import Tensor as T, nn
 
-from health_cpath.SSL.encoders import SSLEncoder
+from SSL.encoders import SSLEncoder
 
 
 class _MLP(nn.Module):

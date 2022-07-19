@@ -10,10 +10,10 @@ from torchvision.transforms import ColorJitter, RandomHorizontalFlip, RandomGray
     RandomApply
 
 from health_ml.utils.data_augmentations import GaussianBlur
-from health_cpath.SSL.lightning_containers.ssl_container import SSLContainer
-from health_cpath.SSL.data.transforms_utils import DualViewTransformWrapper
-from health_cpath.SSL.data.transform_pipeline import ImageTransformationPipeline
-from health_cpath.SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
+from SSL.lightning_containers.ssl_container import SSLContainer
+from SSL.data.transforms_utils import DualViewTransformWrapper
+from SSL.data.transform_pipeline import ImageTransformationPipeline
+from SSL.lightning_modules.ssl_online_evaluator import SslOnlineEvaluatorHiml
 
 
 class HistoSSLContainer(SSLContainer):

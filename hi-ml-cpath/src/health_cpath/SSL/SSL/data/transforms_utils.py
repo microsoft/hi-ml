@@ -10,7 +10,7 @@ import torch
 from pl_bolts.models.self_supervised.simclr import SimCLRTrainDataTransform
 from yacs.config import CfgNode
 
-from health_cpath.SSL.data.transform_pipeline import create_transforms_from_config
+from SSL.data.transform_pipeline import create_transforms_from_config
 
 
 def get_ssl_transforms_from_config(config: CfgNode,

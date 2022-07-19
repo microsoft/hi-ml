@@ -11,8 +11,8 @@ from torch.nn import ModuleList, functional as F
 from health_ml.lightning_container import LightningModuleWithOptimizer
 from health_ml.utils import log_on_epoch
 
-from health_cpath.SSL.encoders import get_encoder_output_dim
-from health_cpath.SSL.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
+from SSL.encoders import get_encoder_output_dim
+from SSL.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 
 class SSLClassifier(LightningModuleWithOptimizer):

@@ -8,7 +8,7 @@ from typing import Optional
 import numpy as np
 import pydicom
 import SimpleITK as sitk
-from health_cpath.SSL.data.io_util import PhotometricInterpretation
+from SSL.data.io_util import PhotometricInterpretation
 
 ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
 ENV_SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"

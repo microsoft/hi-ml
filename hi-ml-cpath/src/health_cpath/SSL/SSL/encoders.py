@@ -10,7 +10,7 @@ import torch
 from torch import Tensor as T, nn
 from torchvision.models import densenet121
 
-from health_cpath.SSL.utils import SSLDataModuleType, create_ssl_encoder
+from SSL.utils import SSLDataModuleType, create_ssl_encoder
 
 
 class DenseNet121Encoder(torch.nn.Module):
@@ -76,7 +76,7 @@ def get_encoder_output_dim(
 
     # Create a dummy input image
     if dm is not None:
-        from health_cpath.SSL.lightning_modules.ssl_online_evaluator import (
+        from SSL.lightning_modules.ssl_online_evaluator import (
             SslOnlineEvaluatorHiml,
         )
         loaders = dm.train_dataloader()

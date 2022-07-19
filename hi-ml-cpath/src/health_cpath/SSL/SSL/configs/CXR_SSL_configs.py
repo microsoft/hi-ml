@@ -5,9 +5,9 @@
 import sys
 from pathlib import Path
 
-from health_cpath.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from health_cpath.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
-from health_cpath.SSL.utils import SSLTrainingType
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
+from SSL.utils import SSLTrainingType
 
 RSNA_AZURE_DATASET_ID = "rsna_pneumonia_detection_kaggle_dataset"
 NIH_AZURE_DATASET_ID = "nih-training-set"

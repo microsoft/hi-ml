@@ -5,7 +5,7 @@
 
 from torchvision.datasets import CIFAR10, CIFAR100
 
-from health_cpath.SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
 
 
 class HimlCifar10(DataClassBaseWithReturnIndex, CIFAR10):

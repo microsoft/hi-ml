@@ -1,8 +1,8 @@
 from typing import Any
 
-from health_cpath.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from health_cpath.SSL.utils import SSLTrainingType
-from health_cpath.SSL.configs.CXR_SSL_configs import NIH_AZURE_DATASET_ID, path_encoder_augmentation_cxr, \
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.utils import SSLTrainingType
+from SSL.configs.CXR_SSL_configs import NIH_AZURE_DATASET_ID, path_encoder_augmentation_cxr, \
     path_linear_head_augmentation_cxr
 
 COVID_DATASET_ID = "id-of-your-dataset"

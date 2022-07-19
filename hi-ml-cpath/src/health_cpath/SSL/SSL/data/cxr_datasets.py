@@ -12,10 +12,10 @@ from PIL import Image
 from torch.utils.data import Subset
 from torchvision.datasets import VisionDataset
 
-from health_cpath.SSL.data.io_util import is_dicom_file_path, load_dicom_image
+from SSL.data.io_util import is_dicom_file_path, load_dicom_image
 from health_azure.utils import PathOrString
 
-from health_cpath.SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex, \
+from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex, \
     OptionalIndexInputAndLabel
 
 
