@@ -20,7 +20,7 @@ from health_cpath.configs.classification.BaseMIL import BaseMILSlides, BaseMILTi
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datasets.default_paths import (
     PANDA_DATASET_ID,
-    PANDA_TILES_DATASET_ID_5X)
+    PANDA_5X_TILES_DATASET_ID)
 from health_cpath.utils.naming import PlotOption
 
 
@@ -64,7 +64,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             batch_size=8,
-            azure_datasets=[PANDA_TILES_DATASET_ID_5X, PANDA_DATASET_ID])
+            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 

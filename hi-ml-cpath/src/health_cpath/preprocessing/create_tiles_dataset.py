@@ -8,7 +8,7 @@ import shutil
 import traceback
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import numpy as np
 import PIL
@@ -115,7 +115,7 @@ def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
     return tile_info
 
 
-def format_csv_row(tile_info: dict, keys_to_save: Iterable[TileKey],
+def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey],
                    metadata_keys: Iterable[str]) -> str:
     """Format tile information dictionary as a row to write to a dataset CSV tile.
 
@@ -237,7 +237,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     return full_csv
 
 
-def main(slides_dataset: SlidesDataset, root_output_dir: str,
+def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
          level: int, tile_size: int, margin: int, foreground_threshold: Optional[float],
          occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
          n_slides: Optional[int] = None) -> None:

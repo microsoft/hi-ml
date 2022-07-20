@@ -225,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="/datasetdrive/panda_20x_level_0_224"
+        default="/datasetdrive/PANDA_20X_level_0_224"
     )
     parser.add_argument(
         "--level",
@@ -261,7 +261,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--filter-slide",
         type=str,
-        default="b896",  # filtering for "b896" gives 4 slides, good for debugging
+        default="",  # filtering for "b896" gives 4 slides, good for debugging
         help="Process only slides whose ID contain this substring. Useful for debugging"
     )
     args = parser.parse_args()

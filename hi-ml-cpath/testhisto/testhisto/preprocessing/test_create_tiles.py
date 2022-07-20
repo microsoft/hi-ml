@@ -49,14 +49,14 @@ def test_generate_slide_tiles() -> None:
                                                                            tile_size,
                                                                            foreground_threshold,
                                                                            occupancy_threshold)
-    assert np.all(image_tiles[0] == np.array([[[128, 128], [255, 128]],
-                                              [[128, 128], [255, 128]],
-                                              [[128, 128], [255, 128]]]))
-    assert np.all(image_tiles[1] == np.array([[[128, 128], [255, 255]],
-                                              [[128, 128], [255, 255]],
-                                              [[128, 128], [255, 255]]]))
-    assert np.all(tile_locations[0] == np.array([0, 0]))
-    assert np.all(tile_locations[1] == np.array([0, 2]))
+    assert np.array_equal(image_tiles[0], np.array([[[128, 128], [255, 128]],
+                                                    [[128, 128], [255, 128]],
+                                                    [[128, 128], [255, 128]]]))
+    assert np.array_equal(image_tiles[1], np.array([[[128, 128], [255, 255]],
+                                                    [[128, 128], [255, 255]],
+                                                    [[128, 128], [255, 255]]]))
+    assert np.array_equal(tile_locations[0], np.array([0, 0]))
+    assert np.array_equal(tile_locations[1], np.array([0, 2]))
     assert occupancies[0] == 0.75
     assert occupancies[1] == 0.5
     assert n_discarded == 2
@@ -67,10 +67,10 @@ def test_generate_slide_tiles() -> None:
                                                                            tile_size,
                                                                            foreground_threshold,
                                                                            occupancy_threshold)
-    assert np.all(image_tiles[0] == np.array([[[128, 128], [255, 128]],
-                                              [[128, 128], [255, 128]],
-                                              [[128, 128], [255, 128]]]))
-    assert np.all(tile_locations[0] == np.array([0, 0]))
+    assert np.array_equal(image_tiles[0], np.array([[[128, 128], [255, 128]],
+                                                    [[128, 128], [255, 128]],
+                                                    [[128, 128], [255, 128]]]))
+    assert np.array_equal(tile_locations[0], np.array([0, 0]))
     assert occupancies[0] == 0.75
     assert n_discarded == 3
 
@@ -101,4 +101,4 @@ def test_save_image(tmp_path: Path) -> None:
     assert tmp_path.exists()
 
     test_image = np.array(Image.open(tmp_path))
-    assert np.all(test_image.shape == (5, 5, 3))
+    assert np.array_equal(test_image.shape, (5, 5, 3))
