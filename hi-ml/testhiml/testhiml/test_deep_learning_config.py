@@ -16,19 +16,19 @@ from health_ml.deep_learning_config import DatasetParams, WorkflowParams, Output
 
 
 def test_validate_workflow_params() -> None:
-    error_message = "Cannot specify more than one of local_checkpoint, checkpoint_url, checkpoint_from_run."
+    error_message = "Cannot specify more than one of"
     # DeepLearningConfig cannot be initialized with more than one of these parameters set
     with pytest.raises(ValueError) as ex:
         WorkflowParams(local_datasets=Path("foo"),
                        local_checkpoint=Path("foo"),
                        checkpoint_url="bar").validate()
-    assert ex.value.args[0] == error_message
+    assert error_message in ex.value.args[0]
 
     with pytest.raises(ValueError) as ex:
         WorkflowParams(local_datasets=Path("foo"),
                        local_checkpoint=Path("foo"),
                        checkpoint_url="bar", checkpoint_from_run="buzz").validate()
-    assert ex.value.args[0] == error_message
+    assert error_message in ex.value.args[0]
 
     # The following should be okay
     WorkflowParams(local_dataset=Path("foo"), local_checkpoint=Path("foo")).validate()
