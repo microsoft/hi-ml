@@ -130,7 +130,8 @@ class CheckpointHandler:
             downloader = get_checkpoint_downloader(self.container.checkpoint_from_run, self.container.outputs_folder)
             checkpoint_path = downloader.local_checkpoint_path
         else:
-            raise ValueError("Cannot download weights, neither local_checkpoint, checkpoint_url or checkpoint_from_run are set")
+            raise ValueError(
+                "Cannot download weights, neither local_checkpoint, checkpoint_url or checkpoint_from_run are set")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
