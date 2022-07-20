@@ -89,7 +89,10 @@ def test_my_code() -> None:
 * Tests that run only on a GPU machine:
 
 ```python
-@pytest.mark.skipif(torch.cuda.device_count() < 1, reason="This test requires a GPU")
+from health_ml.utils.common_utils import is_gpu_available
+no_gpu = not is_gpu_available()
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_my_code() -> None:
     pass
