@@ -668,7 +668,7 @@ class CheckpointDownloader:
             download_checkpoints_from_run_id(
                 self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
             )
-            assert self.local_checkpoint_path.exists()
+            assert self.local_checkpoint_path.exists(), f"Couln't download checkpoint from run {self.run_id}."
 
         return self.local_checkpoint_path
 
