@@ -153,7 +153,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-20.04
-    needs: [ flake8, mypy, pytest, smoketest ]
+    # needs: [ flake8, mypy, pytest, smoketest ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -171,6 +171,11 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make build
+
+      - name: Test the binary wheel
+        run: |
+          cd ${{ env.folder }}
+          make test_wheel
 
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@v1.5.0

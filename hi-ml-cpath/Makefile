@@ -39,11 +39,18 @@ clean:
 	rm -rf ./testhisto/test_outputs ./testSSL/test_outputs
 	rm -f ./coverage ./coverage.txt ./coverage.xml
 	rm -f ./latest_version.txt ./package_name.txt
-	rm -rf build dist
+	rm -rf build dist hi_ml_cpath.egg-info
+	rm cifar-10-python.tar.gz
+	rm -rf cifar-10-batches-py
 
 # build package, assuming build requirements already installed
 build:
 	python setup.py sdist bdist_wheel
+
+# Brief smoke-test of the package, by just importing one of the essential modules.
+test_wheel:
+	pip install `ls dist/*.whl`
+	python -c "from health_cpath.configs.classification.BaseMIL import BaseMIL"
 
 # run flake8, assuming test requirements already installed
 flake8:
