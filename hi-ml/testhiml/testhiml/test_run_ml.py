@@ -71,7 +71,7 @@ def ml_runner_with_run_id(mock_run_id: str) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.ckpt_run_id = mock_run_id
+    container.checkpoint_from_run = mock_run_id
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
@@ -300,7 +300,7 @@ def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> No
     container = HelloWorld()
     container.max_num_gpus = 0
     container.save_checkpoint = True
-    container.ckpt_run_id = mock_run_id
+    container.checkpoint_from_run = mock_run_id
     container.run_inference_only = run_inference_only
     container.run_extra_val_epoch = True
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:

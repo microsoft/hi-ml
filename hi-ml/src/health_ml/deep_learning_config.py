@@ -127,13 +127,15 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    weights_url: str = param.String(default="",
-                                    doc="If provided, use this URL to download checkpoints for inference.")
-    local_weights_path: Optional[Path] = \
+    checkpoint_url: str = param.String(default="",
+                                       doc="If provided, use this URL to download checkpoints for inference or transfer"
+                                           "learning.")
+    local_checkpoint: Optional[Path] = \
         param.ClassSelector(class_=Path, allow_None=True, default=None,
-                            doc="Checkpoint paths to use for inference, when the job is running outside Azure.")
-    ckpt_run_id: str = param.String(default="", doc="The Azure ML run ID to use as checkpoint for transfer learning "
-                                                    "or inference.")
+                            doc="Checkpoint paths to use for inference or transfer learning, when the job is running "
+                                "outside Azure.")
+    checkpoint_from_run: str = param.String(default="", doc="The Azure ML run ID to use as checkpoint for transfer "
+                                                            "learning or inference.")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -156,23 +158,23 @@ class WorkflowParams(param.Parameterized):
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
     run_inference_only: bool = param.Boolean(False, doc="If True, run inference using the specified checkpoint "
-                                                        "through one of the arguments `weights_url`, "
-                                                        "`local_weights_path` or `ckpt_run_id`.")
+                                                        "through one of the arguments `checkpoint_url`, "
+                                                        "`local_checkpoint` or `checkpoint_from_run`.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if sum([bool(self.weights_url), bool(self.local_weights_path), bool(self.ckpt_run_id)]) > 1:
-            raise ValueError("Cannot specify more than one of local_weights_path, weights_url, ckpt_run_id.")
+        if sum([bool(self.checkpoint_url), bool(self.local_checkpoint), bool(self.checkpoint_from_run)]) > 1:
+            raise ValueError("Cannot specify more than one of local_checkpoint, checkpoint_url, checkpoint_from_run.")
 
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
-        if self.run_inference_only and not (self.weights_url or self.local_weights_path or self.ckpt_run_id):
+        if self.run_inference_only and not (self.checkpoint_url or self.local_checkpoint or self.checkpoint_from_run):
             raise ValueError("Cannot run inference without a checkpoint source. Please specify either "
-                             "local_weights_path, weights_url or ckpt_run_id.")
+                             "local_checkpoint, checkpoint_url or checkpoint_from_run.")
 
     @property
     def is_running_in_aml(self) -> bool:

@@ -672,10 +672,10 @@ class CheckpointDownloader:
         return self.local_checkpoint_path
 
 
-def get_checkpoint_downloader(ckpt_run_id: str, outputs_folder: Path) -> CheckpointDownloader:
+def get_checkpoint_downloader(checkpoint_from_run: str, outputs_folder: Path) -> CheckpointDownloader:
     """Creates an instance of CheckpointDownloader for the specified run_id and downloads the corresponding checkpoint.
 
-    :param ckpt_run_id: The Azure ML run_id of the run from which to load the checkpoint.
+    :param checkpoint_from_run: The Azure ML run_id of the run from which to load the checkpoint.
     :param outputs_folder: The outputs folder where to download the checkpoint.
     :return: A downloader instance for the specified run_id.
     """
@@ -683,7 +683,7 @@ def get_checkpoint_downloader(ckpt_run_id: str, outputs_folder: Path) -> Checkpo
     from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     downloader = CheckpointDownloader(
         aml_workspace=get_workspace(),
-        run_id=ckpt_run_id,
+        run_id=checkpoint_from_run,
         checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
         download_dir=outputs_folder,
         remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"),

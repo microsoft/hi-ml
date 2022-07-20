@@ -214,19 +214,19 @@ and returns a tuple containing the Optimizer and LRScheduler objects
 ## Run inference with a pretrained model
 
 You can use the hi-ml-runner in inference mode only by switching the `--run_inference_only` flag on and specifying
-the model weights by setting any of those arguments `--weights_url`, `--local_weights_path` or `--ckpt_run_id`.
+the model weights by setting any of those arguments `--checkpoint_url`, `--local_checkpoint` or `--checkpoint_from_run`.
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy`
 
 ```
-himl-runner --model=Mycontainer --run_inference_only --ckpt_run_id=MyContainer_XXXX_yyyy
+himl-runner --model=Mycontainer --run_inference_only --checkpoint_from_run=MyContainer_XXXX_yyyy
 ```
 
 ## Resume training from a given checkpoint
 
-Analogousely, one can resume training by setting one of `--weights_url`, `--local_weights_path` or `--ckpt_run_id`.
+Analogousely, one can resume training by setting one of `--checkpoint_url`, `--local_checkpoint` or `--checkpoint_from_run`.
 The pytorch lightning trainer will initialize the lightning module from the given checkpoint.
 
 ```
-himl-runner --model=Mycontainer --cluster=my_cluster_name --ckpt_run_id=MyContainer_XXXX_yyyy
+himl-runner --model=Mycontainer --cluster=my_cluster_name --checkpoint_from_run=MyContainer_XXXX_yyyy
 ```

@@ -36,14 +36,14 @@ class CheckpointHandler:
     def download_recovery_checkpoints_or_weights(self) -> None:
         """
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
-        run_recovery_object, weights_url or local_weights_path.
+        run_recovery_object, checkpoint_url or local_checkpoint.
         This is called at the start of training.
 
         :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
         downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
         nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         """
-        if self.container.weights_url or self.container.local_weights_path or self.container.ckpt_run_id:
+        if self.container.checkpoint_url or self.container.local_checkpoint or self.container.checkpoint_from_run:
             self.trained_weights_path = self.get_local_checkpoints_path_or_download()
 
     def additional_training_done(self) -> None:
@@ -91,7 +91,7 @@ class CheckpointHandler:
     @staticmethod
     def download_weights(url: str, download_folder: Path) -> Path:
         """
-        Download a checkpoint from weights_url to the modelweights directory. The file name is determined from
+        Download a checkpoint from checkpoint_url to the modelweights directory. The file name is determined from
         from the file name in the URL. If that can't be determined, use a random file name.
 
         :param url: The URL from which the weights should be downloaded.
@@ -119,18 +119,18 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them.
         """
-        if self.container.local_weights_path:
-            checkpoint_path = self.container.local_weights_path
-        elif self.container.weights_url:
+        if self.container.local_checkpoint:
+            checkpoint_path = self.container.local_checkpoint
+        elif self.container.checkpoint_url:
             download_folder = self.container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
-            checkpoint_path = CheckpointHandler.download_weights(url=self.container.weights_url,
+            checkpoint_path = CheckpointHandler.download_weights(url=self.container.checkpoint_url,
                                                                  download_folder=download_folder)
-        elif self.container.ckpt_run_id:
-            downloader = get_checkpoint_downloader(self.container.ckpt_run_id, self.container.outputs_folder)
+        elif self.container.checkpoint_from_run:
+            downloader = get_checkpoint_downloader(self.container.checkpoint_from_run, self.container.outputs_folder)
             checkpoint_path = downloader.local_checkpoint_path
         else:
-            raise ValueError("Cannot download weights, neither local_weights_path, weights_url or ckpt_run_id are set")
+            raise ValueError("Cannot download weights, neither local_checkpoint, checkpoint_url or checkpoint_from_run are set")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")

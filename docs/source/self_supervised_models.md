@@ -164,7 +164,7 @@ top of the `SSLContainer` with additional command line arguments allowing you to
 for your pretrained model. For this you have two options:
 
 - If you are running locally, you can provide the local path to your pretrained model checkpoint
-  via `--local_weights_path`.
+  via `--local_checkpoint`.
 - If your are running on AML, use the `pretraining_run_recovery_id` field. Providing this field, will mean that AML will
   automatically download the checkpoints to the current node, will pick the latest checkpoint to build the classifier on
   top. Beware not to confuse `pretraining_run_recovery_id` with `run_recovery_id` as the latter is use to continue training on
@@ -195,5 +195,5 @@ python ML/runner.py --model=CXRImageClassifier --pretraining_run_recovery_id={TH
 or for a local run
 
 ```
-python ML/runner.py --model=CXRImageClassifier --local_weights_path={LOCAL_PATH_TO_YOUR_SSL_CHECKPOINT}
+python ML/runner.py --model=CXRImageClassifier --local_checkpoint={LOCAL_PATH_TO_YOUR_SSL_CHECKPOINT}
 ```
