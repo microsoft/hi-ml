@@ -46,8 +46,6 @@ class MockHistoDataGenerator:
         5: ["4+5", "5+4", "5+5"],
     }
 
-    _RELATIVE_ROOT_FOLDER = ""
-
     def __init__(
         self,
         dest_data_path: Path,
@@ -83,15 +81,12 @@ class MockHistoDataGenerator:
         self.tile_size = tile_size
 
         self.validate()
-        self.update_dest_data_path()
+        self.dest_data_path.mkdir(parents=True, exist_ok=True)
 
         self.dataframe = self.create_mock_metadata_dataframe()
         self.dataloader = self.get_dataloader()
 
     def validate(self) -> None:
-        pass
-
-    def update_dest_data_path(self) -> None:
         pass
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:

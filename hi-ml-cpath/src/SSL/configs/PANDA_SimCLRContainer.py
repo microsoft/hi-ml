@@ -9,7 +9,7 @@ from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SS
 from SSL.utils import SSLTrainingType
 from health_azure.utils import is_running_in_azure_ml
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
-from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_ID
+from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID
 from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
 
 
@@ -29,7 +29,7 @@ class PANDA_SimCLR(HistoSSLContainer):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
                          linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
-                         azure_datasets=[PANDA_TILES_DATASET_ID],
+                         azure_datasets=[PANDA_5X_TILES_DATASET_ID],
                          random_seed=1,
                          num_workers=5,
                          is_debug_model=False,
