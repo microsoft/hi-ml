@@ -55,7 +55,8 @@ class BaseDeepMILModule(LightningModule):
         :param class_names: The names of the classes if available (default=None).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
-        :param ssl_ckpt_run_id: AML run id for SSL encoder checkpoint download.
+        :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
+            if using `SSLEncoder`.
         :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
