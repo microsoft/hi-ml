@@ -267,6 +267,7 @@ class HelloWorld(LightningContainer):
                                     monitor="val_loss",
                                     filename="checkpoint",
                                     auto_insert_metric_name=False,
-                                    mode="min")]
+                                    mode="min"),
+                    *super().get_callbacks()]
         else:
             return super().get_callbacks()
