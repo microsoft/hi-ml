@@ -213,13 +213,13 @@ and returns a tuple containing the Optimizer and LRScheduler objects
 
 ## Run inference with a pretrained model
 
-You can use the hi-ml-runner in inference mode only by switching the `--run_inference` flag on and specifying
+You can use the hi-ml-runner in inference mode only by switching the `--run_inference_only` flag on and specifying
 the model weights by setting any of those arguments `--weights_url`, `--local_weights_path` or `--ckpt_run_id`.
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy`
 
 ```
-himl-runner --model=Mycontainer --run_inference --ckpt_run_id=MyContainer_XXXX_yyyy
+himl-runner --model=Mycontainer --run_inference_only --ckpt_run_id=MyContainer_XXXX_yyyy
 ```
 
 ## Resume training from a given checkpoint
