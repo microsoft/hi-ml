@@ -13,7 +13,7 @@ from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.models.transforms import load_pil_image
 from health_cpath.utils.naming import TileKey
 
-from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex
 
 
 class PandaTilesDataset(TilesDataset):
@@ -116,7 +116,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
         return len(self.base_dataset)
 
 
-class PandaTilesDatasetWithReturnIndex(DataClassBaseWithReturnIndex, PandaTilesDatasetReturnImageLabel):
+class PandaTilesDatasetWithReturnIndex(DatasetWithReturnIndex, PandaTilesDatasetReturnImageLabel):
     """
     Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance. Please note that this class needs
