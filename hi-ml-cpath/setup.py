@@ -62,7 +62,7 @@ install_requires = (here / 'requirements_run.txt').read_text().split("\n")
 # Remove any whitespace and blank lines
 install_requires = [line.strip() for line in install_requires if line.strip()]
 
-description = 'Microsoft Health Futures package for computational pathology data'
+description = 'Microsoft Health Futures package for deep learning on histopathology images'
 
 setup(
     name=package_name,
@@ -80,7 +80,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3.7'
     ],
-    keywords='HealthIntelligence, Computational Pathology, AzureML',
+    keywords='Health Futures, Health Intelligence, Computational Pathology, AzureML',
     license='MIT License',
     packages=find_namespace_packages(where="src", include=["health_cpath.*"]),
     package_dir={"": "src"},
