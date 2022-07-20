@@ -155,8 +155,9 @@ class WorkflowParams(param.Parameterized):
                      doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
-    run_inference_only: bool = param.Boolean(False, doc="If True, run inference using the specified ckpt_run_id as "
-                                                        "checkpoint.")
+    run_inference_only: bool = param.Boolean(False, doc="If True, run inference using the specified checkpoint "
+                                                        "through one of the arguments `weights_url`, "
+                                                        "`local_weights_path` or `ckpt_run_id`.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
