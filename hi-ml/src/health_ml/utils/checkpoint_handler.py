@@ -131,7 +131,7 @@ class CheckpointHandler:
             checkpoint_path = downloader.local_checkpoint_path
             assert checkpoint_path.is_file(), f"Couln't download checkpoint from run {self.container.ckpt_run_id}."
         else:
-            raise ValueError("Cannot download weights, neither local_weights_path or weights_url are set")
+            raise ValueError("Cannot download weights, neither local_weights_path, weights_url or ckpt_run_id are set")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
