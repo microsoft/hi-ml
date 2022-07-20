@@ -6,30 +6,16 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
-from azureml.core import Workspace
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
 from health_azure.utils import is_global_rank_zero, create_aml_run_object
-from health_azure.utils import WORKSPACE_CONFIG_JSON, check_config_json, get_workspace
 from testazure.utils_testazure import DEFAULT_WORKSPACE
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path
-from testazure.utils_testazure import get_shared_config_json
 
 no_gpu = not is_gpu_available()
-
-
-def _get_workspace(tmp_path: Path) -> Workspace:
-    try:
-        # For local dev machines: when config.json is specified at the root of repository
-        ws = get_workspace()
-    except ValueError:
-        # For github agents: config.json dumped from environement variables
-        with check_config_json(script_folder=tmp_path, shared_config_json=get_shared_config_json()):
-            ws = get_workspace(workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-    return ws
 
 
 @pytest.fixture(scope="module")
@@ -81,13 +67,13 @@ def mock_run_id() -> str:
 
 
 @pytest.fixture()
-def ml_runner_with_run_id(mock_run_id: str, tmp_path: Path) -> Generator:
+def ml_runner_with_run_id(mock_run_id: str) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
     container.ckpt_run_id = mock_run_id
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = _get_workspace(tmp_path)
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
         runner.setup()
         yield runner
@@ -272,7 +258,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
         ) as mocks:
             mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_container.run()
-            
+
             mocks["load_model_checkpoint"].assert_called_once()
             assert ml_runner_with_container._has_setup_run
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
@@ -309,7 +295,7 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str, tmp_path: Path) -> None:
+def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
@@ -318,7 +304,7 @@ def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str, tmp_p
     container.run_inference_only = run_inference_only
     container.run_extra_val_epoch = True
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = _get_workspace(tmp_path)
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
         runner.setup()
         weights_before: torch.Tensor = container.model.model.weight.detach().clone()  # type: ignore
