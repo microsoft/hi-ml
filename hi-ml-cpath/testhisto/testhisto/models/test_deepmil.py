@@ -21,7 +21,7 @@ from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
 from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import TilesDataset
-from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
+from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
@@ -306,7 +306,7 @@ def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, us
 
 
 CONTAINER_DATASET_DIR = {
-    DeepSMILETilesPanda: PANDA_TILES_DATASET_DIR,
+    DeepSMILETilesPanda: PANDA_5X_TILES_DATASET_ID,
     DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
 }
 

@@ -102,11 +102,9 @@ def test_run(mock_runner: Runner) -> None:
 
 
 @patch("health_ml.runner.choose_conda_env_file")
-@patch("health_ml.runner.get_all_pip_requirements_files")
 @patch("health_ml.runner.get_workspace")
 @pytest.mark.fast
 def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
-                                     mock_get_pip_req_files: MagicMock,
                                      mock_get_env_files: MagicMock,
                                      mock_runner: Runner
                                      ) -> None:
@@ -122,7 +120,6 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                             logs_folder=None)  # type: ignore
 
     mock_get_env_files.return_value = Path("some_file.txt")
-    mock_get_pip_req_files.return_value = []
 
     mock_default_datastore = MagicMock()
     mock_default_datastore.name.return_value = "dummy_datastore"

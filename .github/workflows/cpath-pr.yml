@@ -102,13 +102,6 @@ jobs:
           make pip_test
           make pytest_coverage
 
-      - name: Upload coverage report to Codecov
-        # Coverage should also be uploaded if tests still fail
-        if: always()
-        uses: codecov/codecov-action@v3
-        with:
-            flags: ${{ env.folder }}
-
       - name: Run GPU tests
         # GPU tests should be run even if other tests fail
         if: always()
@@ -118,9 +111,45 @@ jobs:
           branch_name_without_prefix=${full_branch_name#$branch_prefix}
           python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
 
-      - name: Upload gpu tests coverage report to Codecov
-        # Coverage should also be uploaded if tests still fail
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded if tests still fail.
+        # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
         if: always()
         uses: codecov/codecov-action@v3
         with:
             flags: ${{ env.folder }}
+
+  smoketest:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: create config file
+        run: ./create_config.sh
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_slidespandaimagenetmil_aml

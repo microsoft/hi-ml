@@ -20,12 +20,9 @@ make env
 You can then activate the environment via `conda activate HimlHisto`. Set VSCode to use this Conda environment, by choosing "Python: Select Interpreter"
 from the command palette.
 
-In the event of dependencies update, you can update your conda environment by running the following:
-
-```shell
-cd hi-ml-cpath
-make conda_update
-```
+If the dependencies need to be updated, please modify `hi-ml-cpath/primary_deps.yml`, and then run the script
+`hi-ml-cpath/create_and_lock_environment.sh`. This will create a full "locked" environment specification with pinned
+versions of all depdencies.
 
 ### Setting up AzureML
 
@@ -92,7 +89,10 @@ def test_my_code() -> None:
 * Tests that run only on a GPU machine:
 
 ```python
-@pytest.mark.skipif(torch.cuda.device_count() < 1, reason="This test requires a GPU")
+from health_ml.utils.common_utils import is_gpu_available
+no_gpu = not is_gpu_available()
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_my_code() -> None:
     pass
