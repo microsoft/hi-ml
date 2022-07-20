@@ -165,16 +165,19 @@ class WorkflowParams(param.Parameterized):
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     def validate(self) -> None:
-        if sum([bool(self.checkpoint_url), bool(self.local_checkpoint), bool(self.checkpoint_from_run)]) > 1:
-            raise ValueError("Cannot specify more than one of local_checkpoint, checkpoint_url, checkpoint_from_run.")
+        checkpoint_args_sum = sum(
+            [bool(self.checkpoint_url), bool(self.local_checkpoint), bool(self.checkpoint_from_run)])
+        if checkpoint_args_sum > 1:
+            raise ValueError(
+                "Cannot specify more than one of `local_checkpoint`, `checkpoint_url`, `checkpoint_from_run`.")
 
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
-        if self.run_inference_only and not (self.checkpoint_url or self.local_checkpoint or self.checkpoint_from_run):
+        if self.run_inference_only and checkpoint_args_sum == 0:
             raise ValueError("Cannot run inference without a checkpoint source. Please specify either "
-                             "local_checkpoint, checkpoint_url or checkpoint_from_run.")
+                             "`local_checkpoint`, `checkpoint_url` or `checkpoint_from_run`.")
 
     @property
     def is_running_in_aml(self) -> bool:
