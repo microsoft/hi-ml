@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 import numpy as np
 import pandas as pd
 
@@ -33,10 +32,6 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             f"The image of size {self.img_size} can't contain more than {(self.img_size // self.tile_size)**2} tiles."
             f"Choose a number of tiles 0 < n_tiles <= {(self.img_size // self.tile_size)**2} "
         )
-
-    def update_dest_data_path(self) -> None:
-        self.dest_data_path: Path = self.dest_data_path / PandaTilesDataset._RELATIVE_ROOT_FOLDER
-        self.dest_data_path.mkdir(parents=True, exist_ok=True)
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
