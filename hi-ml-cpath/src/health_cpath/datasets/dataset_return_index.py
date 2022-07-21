@@ -9,7 +9,7 @@ import torch
 OptionalIndexInputAndLabel = Union[Tuple[torch.Tensor, int], Tuple[int, torch.Tensor, int]]
 
 
-class DataClassBaseWithReturnIndex:
+class DatasetWithReturnIndex:
     """
     Class to be use with double inheritance with a VisionDataset.
     Overloads the __getitem__ function so that we can optionally also return

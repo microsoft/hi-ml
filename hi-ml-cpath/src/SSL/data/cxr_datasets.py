@@ -15,7 +15,7 @@ from torchvision.datasets import VisionDataset
 from SSL.data.io_util import is_dicom_file_path, load_dicom_image
 from health_azure.utils import PathOrString
 
-from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex, \
+from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex, \
     OptionalIndexInputAndLabel
 
 
@@ -79,9 +79,9 @@ class CxrDatasetBase(VisionDataset):
         return len(self.indices)
 
 
-class CxrDatasetWithReturnIndex(DataClassBaseWithReturnIndex, CxrDatasetBase):
+class CxrDatasetWithReturnIndex(DatasetWithReturnIndex, CxrDatasetBase):
     """
-    Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.
+    Any dataset used in SSL needs to inherit from DatasetWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance.
     """
     pass

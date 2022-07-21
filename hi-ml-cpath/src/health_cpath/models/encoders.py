@@ -16,9 +16,6 @@ from torchvision.transforms import Compose
 from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
                                             load_weights_to_model,
                                             setup_feature_extractor)
-from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from SSL.utils import create_ssl_image_classifier
-from SSL import encoders
 
 
 class TileEncoder(nn.Module):
@@ -112,6 +109,12 @@ class SSLEncoder(TileEncoder):
         super().__init__(tile_size=tile_size, n_channels=n_channels)
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
+        try:
+            from SSL.lightning_modules.ssl_classifier_module import SSLClassifier
+            from SSL.utils import create_ssl_image_classifier
+            from SSL import encoders
+        except (ImportError, ModuleNotFoundError):
+            raise ValueError("SSL not found. This class can only be used by using hi-ml from the GitHub source")
         model: SSLClassifier = create_ssl_image_classifier(  # type: ignore
             num_classes=1,  # dummy value
             freeze_encoder=True,
