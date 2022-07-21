@@ -8,6 +8,7 @@ import logging
 from enum import Enum, unique
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 
 import param
 from azureml.train.hyperdrive import HyperDriveConfig
@@ -17,6 +18,7 @@ from health_azure import create_crossval_hyperdrive_config
 from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
+from health_azure.utils import get_aml_run_from_run_id
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
@@ -127,15 +129,20 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    checkpoint_url: str = param.String(default="",
-                                       doc="If provided, use this URL to download checkpoints for inference or transfer"
-                                           "learning.")
-    local_checkpoint: Optional[Path] = \
-        param.ClassSelector(class_=Path, allow_None=True, default=None,
-                            doc="Checkpoint paths to use for inference or transfer learning, when the job is running "
-                                "outside Azure.")
-    checkpoint_from_run: str = param.String(default="", doc="The Azure ML run ID to use as checkpoint for transfer "
-                                                            "learning or inference.")
+    src_checkpoint: str = param.String(default="",
+                                       doc="This flag can be used for 3 different scenarios:"
+                                           "1- Resume training from a checkpoint to train longer."
+                                           "2- Run inference only by jointly using `run_inference_only` flag."
+                                           "3- Transfer learning from a pretrained model checkpoint."
+                                           "We currently support Three types of checkpoints: "
+                                           "    a. A local checkpoint folder that contains a checkpoint file."
+                                           "    b. A URL to a remote checkpoint to be downloaded."
+                                           "    c. A previous azureml run id where the checkpoint is supposed to be "
+                                           "       saved in 'outputs/checkpoints/' folder.")
+    src_checkpoint_filename: str = param.String(default="last.ckpt",
+                                                doc="The name of the checkpoint file to use (e.g., 'last.ckpt' for the"
+                                                "last epoch checkpoint, 'best_val_loss.ckpt' for the best validation "
+                                                "loss checkpoint, etc.)")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -158,26 +165,48 @@ class WorkflowParams(param.Parameterized):
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
     run_inference_only: bool = param.Boolean(False, doc="If True, run inference using the specified checkpoint "
-                                                        "through one of the arguments `checkpoint_url`, "
-                                                        "`local_checkpoint` or `checkpoint_from_run`.")
+                                                        "and skip training. If False, run training and inference.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
-    def validate(self) -> None:
-        checkpoint_args_sum = sum(
-            [bool(self.checkpoint_url), bool(self.local_checkpoint), bool(self.checkpoint_from_run)])
-        if checkpoint_args_sum > 1:
-            raise ValueError(
-                "Cannot specify more than one of `local_checkpoint`, `checkpoint_url`, `checkpoint_from_run`.")
+    @property
+    def checkpoint_is_url(self) -> bool:
+        try:
+            result = urlparse(self.src_checkpoint)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
 
+    @property
+    def checkpoint_is_local_file(self) -> bool:
+        return Path(self.src_checkpoint).exists()
+
+    @property
+    def checkpoint_is_aml_run_id(self) -> bool:
+        try:
+            _ = get_aml_run_from_run_id(self.src_checkpoint)
+            return True
+        except ValueError:
+            return False
+
+    @property
+    def is_valid_checkpoint(self) -> bool:
+        if self.src_checkpoint:
+            return self.checkpoint_is_local_file or self.checkpoint_is_aml_run_id or self.checkpoint_is_url
+        return True
+
+    def validate(self) -> None:
+        if not self.is_valid_checkpoint:
+            raise ValueError(f"Invalid src_checkpoint: {self.src_checkpoint}. Please provide a valid URL, local file "
+                             "or azureml run id.")
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
-        if self.run_inference_only and checkpoint_args_sum == 0:
-            raise ValueError("Cannot run inference without a checkpoint source. Please specify either "
-                             "`local_checkpoint`, `checkpoint_url` or `checkpoint_from_run`.")
+        if self.run_inference_only and not self.src_checkpoint:
+            raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
+                             "You can either use a URL, local file or azureml run id.")
 
     @property
     def is_running_in_aml(self) -> bool:

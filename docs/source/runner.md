@@ -214,19 +214,27 @@ and returns a tuple containing the Optimizer and LRScheduler objects
 ## Run inference with a pretrained model
 
 You can use the hi-ml-runner in inference mode only by switching the `--run_inference_only` flag on and specifying
-the model weights by setting any of those arguments `--checkpoint_url`, `--local_checkpoint` or `--checkpoint_from_run`.
+the model weights by setting `--src_checkpoint` argument that supports three types of checkpoints:
+
+* A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
+* A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
+* An azureml run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
+  with different checkpoints by setting `--src_checkpoint_filename` flag that is equal to `last.ckpt` by default where
+  the last epoch checkpoint will be loaded.
+
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
-in the AzureMl run `MyContainer_XXXX_yyyy`
+in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
 
 ```
-himl-runner --model=Mycontainer --run_inference_only --checkpoint_from_run=MyContainer_XXXX_yyyy
+himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContainer_XXXX_yyyy --src_checkpoint_filename=best_val_loss.ckpt
 ```
 
 ## Resume training from a given checkpoint
 
-Analogousely, one can resume training by setting one of `--checkpoint_url`, `--local_checkpoint` or `--checkpoint_from_run`.
-The pytorch lightning trainer will initialize the lightning module from the given checkpoint.
+Analogousely, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
+The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
+validation loss epoch.
 
 ```
-himl-runner --model=Mycontainer --cluster=my_cluster_name --checkpoint_from_run=MyContainer_XXXX_yyyy
+himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy --src_checkpoint_filename=best_val_loss.ckpt
 ```

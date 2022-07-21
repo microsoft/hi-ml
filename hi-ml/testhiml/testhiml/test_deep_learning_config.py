@@ -13,38 +13,44 @@ from pathlib import Path
 
 from health_ml.deep_learning_config import DatasetParams, WorkflowParams, OutputParams, OptimizerParams, \
     ExperimentFolderHandler, TrainerParams
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path
+from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
-def test_validate_workflow_params() -> None:
-    error_message = "Cannot specify more than one of"
-    # DeepLearningConfig cannot be initialized with more than one of these parameters set
-    with pytest.raises(ValueError) as ex:
-        WorkflowParams(local_datasets=Path("foo"),
-                       local_checkpoint=Path("foo"),
-                       checkpoint_url="bar").validate()
-    assert error_message in ex.value.args[0]
+def _test_invalid_pre_checkpoint_workflow_params(src_checkpoint: str) -> None:
+    with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        error_message = "Invalid src_checkpoint:"
+        with pytest.raises(ValueError) as ex:
+            WorkflowParams(local_datasets=Path("foo"),
+                           src_checkpoint=src_checkpoint).validate()
+        assert error_message in ex.value.args[0]
 
-    with pytest.raises(ValueError) as ex:
-        WorkflowParams(local_datasets=Path("foo"),
-                       local_checkpoint=Path("foo"),
-                       checkpoint_url="bar", checkpoint_from_run="buzz").validate()
-    assert error_message in ex.value.args[0]
+
+def test_validate_workflow_params_pre_checkpoint(mock_run_id: str) -> None:
+
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy_local_path")
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="https://dummy.com/checkpoint.ckpt")
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy_run_id")
 
     # The following should be okay
-    WorkflowParams(local_dataset=Path("foo"), local_checkpoint=Path("foo")).validate()
-    WorkflowParams(local_dataset=Path("foo"), checkpoint_url="foo").validate()
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=str(full_file_path)).validate()
+    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=mock_run_id).validate()
 
 
-def test_validate_workflow_params_for_inference_only() -> None:
-    error_message = "Cannot run inference without a checkpoint source."
-    # DeepLearningConfig cannot be initialized with more than one of these parameters set
+def test_validate_workflow_params_for_inference_only(mock_run_id: str) -> None:
+    error_message = "Cannot run inference without a src_checkpoint."
     with pytest.raises(ValueError) as ex:
         WorkflowParams(local_datasets=Path("foo"),
                        run_inference_only=True).validate()
     assert error_message in ex.value.args[0]
-    WorkflowParams(local_dataset=Path("foo"), local_checkpoint=Path("foo"), run_inference_only=True).validate()
-    WorkflowParams(local_dataset=Path("foo"), checkpoint_url="foo", run_inference_only=True).validate()
-    WorkflowParams(local_dataset=Path("foo"), checkpoint_from_run="foo", run_inference_only=True).validate()
+
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id).validate()
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id,
+                   pre_checkpoint_filename="best_val_loss.ckpt").validate()
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=str(full_file_path)).validate()
 
 
 @pytest.mark.fast

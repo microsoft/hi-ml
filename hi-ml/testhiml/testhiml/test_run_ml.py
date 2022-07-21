@@ -11,9 +11,8 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
-from health_azure.utils import is_global_rank_zero, create_aml_run_object
+from health_azure.utils import is_global_rank_zero
 from testazure.utils_testazure import DEFAULT_WORKSPACE
-from testhiml.utils.fixed_paths_for_tests import full_test_data_path
 
 no_gpu = not is_gpu_available()
 
@@ -50,28 +49,12 @@ def ml_runner_with_container() -> Generator:
         shutil.rmtree(output_dir)
 
 
-@pytest.fixture(scope="module")
-def mock_run_id() -> str:
-    """Create a mock aml run that contains a checkpoint for hello_world container.
-
-    :return: The run id of the created run that contains the checkpoint.
-    """
-
-    experiment_name = "himl-tests"
-    run_to_download_from = create_aml_run_object(experiment_name=experiment_name, workspace=DEFAULT_WORKSPACE.workspace)
-    file_name = "outputs/checkpoints/last.ckpt"
-    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    run_to_download_from.upload_file(file_name, str(full_file_path))
-    run_to_download_from.complete()
-    return run_to_download_from.id
-
-
 @pytest.fixture()
 def ml_runner_with_run_id(mock_run_id: str) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.checkpoint_from_run = mock_run_id
+    container.src_checkpoint = mock_run_id
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
@@ -300,7 +283,7 @@ def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> No
     container = HelloWorld()
     container.max_num_gpus = 0
     container.save_checkpoint = True
-    container.checkpoint_from_run = mock_run_id
+    container.src_checkpoint = mock_run_id
     container.run_inference_only = run_inference_only
     container.run_extra_val_epoch = True
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:

@@ -614,7 +614,7 @@ class CheckpointDownloader:
     def __init__(
         self,
         run_id: str,
-        checkpoint_filename: Optional[str] = "last.ckpt",
+        checkpoint_filename: str,
         download_dir: PathOrString = "checkpoints",
         remote_checkpoint_dir: PathOrString = "checkpoints",
     ) -> None:
@@ -632,27 +632,6 @@ class CheckpointDownloader:
         self.download_dir = Path(download_dir)
         self.remote_checkpoint_dir = Path(remote_checkpoint_dir)
         self.download_checkpoint_if_necessary()
-
-    @staticmethod
-    def extract_checkpoint_filename_from_run_id(run_id: str, checkpoint_filename: Optional[str]) -> Tuple[str, str]:
-        """Extracts the checkpoint filename from the run_id if run_id is in the format
-        <MyContainer_xx>:<checkpoint_filename.ckpt>. Otherwise, uses the last checkpoint filenmane as default.
-        """
-        run_id_split = run_id.split(":")
-
-        if len(run_id_split) < 2 and not checkpoint_filename:
-            logging.info(
-                "No checkpoint filename provided, and run_id is not in the format "
-                "<MyContainer_xx>:<checkpoint_filename.ckpt>. We will use the default checkpoint filename `last.ckpt`")
-            checkpoint_filename = "last.ckpt"
-        elif len(run_id_split) == 2 and checkpoint_filename:
-            logging.info(
-                "checkpoint_filename is provided both as an argument and as part of run_id. We will use the checkpoint "
-                "filename provided as an argument.")
-        else:
-            checkpoint_filename = run_id_split[-1]
-        assert checkpoint_filename
-        return run_id_split[0], checkpoint_filename
 
     @property
     def local_checkpoint_dir(self) -> Path:

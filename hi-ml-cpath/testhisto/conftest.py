@@ -31,7 +31,7 @@ sys.path.insert(0, str(himl_azure_package_root))
 test_himl_azure_package_root = himl_root / "hi-ml-azure" / "testazure"
 logging.info(f"Adding {str(test_himl_azure_package_root)} to path")
 sys.path.insert(0, str(test_himl_azure_package_root))
-from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
+from health_ml.utils.fixed_paths import OutputFolderForTests # noqa: E402
 
 
 def remove_and_create_folder(folder: Path) -> None:
