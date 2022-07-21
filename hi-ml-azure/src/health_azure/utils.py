@@ -1359,7 +1359,8 @@ def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", valid
     """
     run_paths = get_run_file_names(run, prefix=prefix)
     if len(run_paths) == 0:
-        raise ValueError("No such files were found for this Run.")
+        prefix_string = f' with prefix "{prefix}"' if prefix else ""
+        raise ValueError(f"No files{prefix_string} were found for run with ID {run.id}")
 
     for run_path in run_paths:
         output_path = output_dir / run_path
