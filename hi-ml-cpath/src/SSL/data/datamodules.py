@@ -34,7 +34,7 @@ class HimlVisionDataModule(VisionDataModule):
         """
         Wrapper around VisionDatamodule to load torchvision dataset into a pytorch-lightning module.
 
-        :param dataset_cls: class to load the dataset. Expected to inherit from DataClassBaseWithReturnIndex and
+        :param dataset_cls: class to load the dataset. Expected to inherit from DatasetWithReturnIndex and
          VisionDataset. See HIMLCIFAR 10 for an example.
          BEWARE VisionDataModule expects the first positional argument of your class to be the data directory.
         :param return_index: whether the return the index in __get_item__, the dataset_cls is expected to implement
