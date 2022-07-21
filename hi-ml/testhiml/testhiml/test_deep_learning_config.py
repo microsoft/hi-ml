@@ -22,8 +22,7 @@ def _test_invalid_pre_checkpoint_workflow_params(src_checkpoint: str) -> None:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         error_message = "Invalid src_checkpoint:"
         with pytest.raises(ValueError) as ex:
-            WorkflowParams(local_datasets=Path("foo"),
-                           src_checkpoint=src_checkpoint).validate()
+            WorkflowParams(local_datasets=Path("foo"), src_checkpoint=src_checkpoint).validate()
         assert error_message in ex.value.args[0]
 
 
@@ -41,16 +40,18 @@ def test_validate_workflow_params_pre_checkpoint(mock_run_id: str) -> None:
 
 def test_validate_workflow_params_for_inference_only(mock_run_id: str) -> None:
     error_message = "Cannot run inference without a src_checkpoint."
-    with pytest.raises(ValueError) as ex:
-        WorkflowParams(local_datasets=Path("foo"),
-                       run_inference_only=True).validate()
-    assert error_message in ex.value.args[0]
+    with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        with pytest.raises(ValueError) as ex:
+            WorkflowParams(local_datasets=Path("foo"), run_inference_only=True).validate()
+        assert error_message in ex.value.args[0]
 
-    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id).validate()
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id,
-                   pre_checkpoint_filename="best_val_loss.ckpt").validate()
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=str(full_file_path)).validate()
+        full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+        WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id).validate()
+        WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id,
+                       src_checkpoint_filename="best_val_loss.ckpt").validate()
+        WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                       src_checkpoint=str(full_file_path)).validate()
 
 
 @pytest.mark.fast
