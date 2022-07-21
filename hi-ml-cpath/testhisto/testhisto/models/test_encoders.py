@@ -4,19 +4,20 @@
 #  ------------------------------------------------------------------------------------------
 
 from typing import Callable, Tuple
+from unittest.mock import patch
 import numpy as np
 import pytest
 from pathlib import Path
 from torch import Tensor, float32, nn, rand
 from torchvision.models import resnet18
 
-from health_azure.utils import CheckpointDownloader, get_workspace, WORKSPACE_CONFIG_JSON, check_config_json, Workspace
+from health_azure.utils import CheckpointDownloader
+from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
 from health_cpath.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
                                           ImageNetSimCLREncoder, SSLEncoder)
 from health_cpath.utils.layer_utils import setup_feature_extractor
-from testazure.utils_testazure import get_shared_config_json
+from testazure.utils_testazure import DEFAULT_WORKSPACE
 
 
 TILE_SIZE = 224
@@ -32,13 +33,11 @@ def get_simclr_imagenet_encoder() -> TileEncoder:
     return ImageNetSimCLREncoder(tile_size=TILE_SIZE)
 
 
-def get_ssl_encoder(download_dir: Path, workspace: Workspace) -> TileEncoder:
-    downloader = CheckpointDownloader(aml_workspace=workspace,
-                                      run_id=TEST_SSL_RUN_ID,
+def get_ssl_encoder(download_dir: Path) -> TileEncoder:
+    downloader = CheckpointDownloader(run_id=TEST_SSL_RUN_ID,
                                       download_dir=download_dir,
                                       checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                                      remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"))
-    downloader.download_checkpoint_if_necessary()
+                                      remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
     return SSLEncoder(pl_checkpoint_path=downloader.local_checkpoint_path, tile_size=TILE_SIZE)
 
 
@@ -68,10 +67,9 @@ def test_encoder(create_encoder_fn: Callable[[], TileEncoder], tmp_path: Path) -
     if create_encoder_fn == get_ssl_encoder:
         download_dir = tmp_path / "ssl_downloaded_weights"
         download_dir.mkdir()
-        with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-            workspace = get_workspace(aml_workspace=None,
-                                      workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
-        encoder = create_encoder_fn(download_dir=download_dir, workspace=workspace)   # type: ignore
+        with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+            mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+            encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
     else:
         encoder = create_encoder_fn()
     _test_encoder(encoder, input_dims=encoder.input_dim, output_dim=encoder.num_encoding)

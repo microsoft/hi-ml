@@ -19,7 +19,7 @@ from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
-from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
@@ -129,13 +129,13 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         """
         # absolute path is required for registering the model.
         absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/",
+                                        DEFAULT_AML_CHECKPOINT_DIR,
                                         self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path.is_file():
             return absolute_checkpoint_path
 
         absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/",
+                                               DEFAULT_AML_CHECKPOINT_DIR,
                                                self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent

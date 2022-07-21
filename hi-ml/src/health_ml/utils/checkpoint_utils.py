@@ -11,7 +11,7 @@ import torch
 from azureml.core import Run, Workspace
 
 from health_azure.utils import (RUN_CONTEXT, download_files_from_run_id, get_run_file_names, is_running_in_azure_ml)
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR)
+from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, DEFAULT_AML_CHECKPOINT_DIR)
 
 CHECKPOINT_SUFFIX = ".ckpt"
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
@@ -87,8 +87,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
         # folder might
         # cause artifact conflicts later.
-        temp_folder = download_folder_from_run_to_temp_folder(
-            folder=f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
+        temp_folder = download_folder_from_run_to_temp_folder(folder=DEFAULT_AML_CHECKPOINT_DIR)
         recovery_checkpoint = find_recovery_checkpoint(temp_folder)
     return recovery_checkpoint
 

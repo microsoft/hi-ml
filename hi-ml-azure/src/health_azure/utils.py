@@ -35,6 +35,7 @@ from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
+
 T = TypeVar("T")
 
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -613,9 +614,7 @@ class CheckpointDownloader:
     def __init__(
         self,
         run_id: str,
-        checkpoint_filename: str,
-        azure_config_json_path: Optional[Path] = None,
-        aml_workspace: Workspace = None,
+        checkpoint_filename: Optional[str] = "last.ckpt",
         download_dir: PathOrString = "checkpoints",
         remote_checkpoint_dir: PathOrString = "checkpoints",
     ) -> None:
@@ -625,20 +624,35 @@ class CheckpointDownloader:
         :param run_id: Recovery ID of the run from which to load the checkpoint.
         :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
         `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
-        :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
-            experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
-            is required.
-        :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
-            azure_config_json_path is provided, this is required.
         :param download_dir: The local directory in which to save the downloaded checkpoint files.
         :param remote_checkpoint_dir: The remote folder from which to download the checkpoint file
         """
-        self.azure_config_json_path = azure_config_json_path
-        self.aml_workspace = aml_workspace
         self.run_id = run_id
         self.checkpoint_filename = checkpoint_filename
         self.download_dir = Path(download_dir)
         self.remote_checkpoint_dir = Path(remote_checkpoint_dir)
+        self.download_checkpoint_if_necessary()
+
+    @staticmethod
+    def extract_checkpoint_filename_from_run_id(run_id: str, checkpoint_filename: Optional[str]) -> Tuple[str, str]:
+        """Extracts the checkpoint filename from the run_id if run_id is in the format
+        <MyContainer_xx>:<checkpoint_filename.ckpt>. Otherwise, uses the last checkpoint filenmane as default.
+        """
+        run_id_split = run_id.split(":")
+
+        if len(run_id_split) < 2 and not checkpoint_filename:
+            logging.info(
+                "No checkpoint filename provided, and run_id is not in the format "
+                "<MyContainer_xx>:<checkpoint_filename.ckpt>. We will use the default checkpoint filename `last.ckpt`")
+            checkpoint_filename = LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+        elif len(run_id_split) == 2 and checkpoint_filename:
+            logging.info(
+                "checkpoint_filename is provided both as an argument and as part of run_id. We will use the checkpoint "
+                "filename provided as an argument.")
+        else:
+            checkpoint_filename = run_id_split[-1]
+        assert checkpoint_filename
+        return run_id_split[0], checkpoint_filename
 
     @property
     def local_checkpoint_dir(self) -> Path:
@@ -649,18 +663,16 @@ class CheckpointDownloader:
 
     @property
     def remote_checkpoint_path(self) -> Path:
+        assert self.checkpoint_filename is not None
         return self.remote_checkpoint_dir / self.checkpoint_filename
 
     @property
     def local_checkpoint_path(self) -> Path:
         return self.local_checkpoint_dir / self.remote_checkpoint_path
 
-    def download_checkpoint_if_necessary(self) -> Path:
-        """Downloads the specified checkpoint if it does not already exist.
-
-        :return: The local path to the downloaded checkpoint file.
-        """
-        workspace = get_workspace(aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
+    def download_checkpoint_if_necessary(self) -> None:
+        """Downloads the specified checkpoint if it does not already exist. """
+        workspace = get_workspace()
 
         if not self.local_checkpoint_path.exists():
             self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
@@ -668,28 +680,6 @@ class CheckpointDownloader:
                 self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
             )
             assert self.local_checkpoint_path.exists(), f"Couln't download checkpoint from run {self.run_id}."
-
-        return self.local_checkpoint_path
-
-
-def get_checkpoint_downloader(checkpoint_from_run: str, outputs_folder: Path) -> CheckpointDownloader:
-    """Creates an instance of CheckpointDownloader for the specified run_id and downloads the corresponding checkpoint.
-
-    :param checkpoint_from_run: The Azure ML run_id of the run from which to load the checkpoint.
-    :param outputs_folder: The outputs folder where to download the checkpoint.
-    :return: A downloader instance for the specified run_id.
-    """
-    from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
-    from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    downloader = CheckpointDownloader(
-        aml_workspace=get_workspace(),
-        run_id=checkpoint_from_run,
-        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-        download_dir=outputs_folder,
-        remote_checkpoint_dir=Path(f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"),
-    )
-    downloader.download_checkpoint_if_necessary()
-    return downloader
 
 
 def is_private_field_name(name: str) -> bool:

@@ -13,9 +13,10 @@ from urllib.parse import urlparse
 import requests
 from azureml.core import Run
 
-from health_azure.utils import is_global_rank_zero, get_checkpoint_downloader
+from health_azure.utils import is_global_rank_zero, CheckpointDownloader
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (MODEL_WEIGHTS_DIR_NAME, find_recovery_checkpoint_on_disk_or_cloud)
+from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
 
 class CheckpointHandler:
@@ -127,7 +128,9 @@ class CheckpointHandler:
             checkpoint_path = CheckpointHandler.download_weights(url=self.container.checkpoint_url,
                                                                  download_folder=download_folder)
         elif self.container.checkpoint_from_run:
-            downloader = get_checkpoint_downloader(self.container.checkpoint_from_run, self.container.outputs_folder)
+            downloader = CheckpointDownloader(run_id=self.container.checkpoint_from_run,
+                                              download_dir=self.container.outputs_folder,
+                                              remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
             checkpoint_path = downloader.local_checkpoint_path
         else:
             raise ValueError(

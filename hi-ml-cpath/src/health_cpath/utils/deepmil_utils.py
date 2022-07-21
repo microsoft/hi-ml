@@ -8,6 +8,9 @@ from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
 from torchvision.models.resnet import resnet18, resnet50
+from health_azure.utils import CheckpointDownloader
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
     ImageNetEncoder,
@@ -24,7 +27,6 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark,
 )
-from health_azure.utils import get_checkpoint_downloader
 
 
 class EncoderParams(param.Parameterized):
@@ -73,7 +75,10 @@ class EncoderParams(param.Parameterized):
 
         elif self.encoder_type == SSLEncoder.__name__:
             assert ssl_ckpt_run_id and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
-            downloader = get_checkpoint_downloader(ssl_ckpt_run_id, outputs_folder)
+            downloader = CheckpointDownloader(run_id=ssl_ckpt_run_id,
+                                              download_dir=outputs_folder,
+                                              checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                                              remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
             encoder = SSLEncoder(
                 pl_checkpoint_path=downloader.local_checkpoint_path,
                 tile_size=self.tile_size,
