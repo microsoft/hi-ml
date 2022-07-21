@@ -295,8 +295,8 @@ class BaseDeepMILModule(LightningModule):
                 run_extra_val_epoch=self.run_extra_val_epoch
             )
 
-        # Reset the top and bottom slides heaps
-        self.outputs_handler.tiles_selector._clear_cached_slides_heaps()
+            # Reset the top and bottom slides heaps
+            self.outputs_handler.tiles_selector._clear_cached_slides_heaps()
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TEST)

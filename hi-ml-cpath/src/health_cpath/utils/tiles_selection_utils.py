@@ -120,7 +120,7 @@ class TilesSelector:
         report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
         return report_cases
 
-    def _clear_cached_slides_heaps(self):
+    def _clear_cached_slides_heaps(self) -> None:
         self.top_slides_heaps = {class_id: [] for class_id in range(self.n_classes)}
         self.bottom_slides_heaps = {class_id: [] for class_id in range(self.n_classes)}
 
