@@ -156,7 +156,7 @@ jobs:
 
   smoke test tilespandaimagenetmil:
     runs-on: ubuntu-20.04
-      steps:
+    steps:
       - uses: actions/checkout@v3
         with:
           lfs: true
