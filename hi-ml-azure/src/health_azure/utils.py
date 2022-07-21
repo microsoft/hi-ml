@@ -644,7 +644,7 @@ class CheckpointDownloader:
             logging.info(
                 "No checkpoint filename provided, and run_id is not in the format "
                 "<MyContainer_xx>:<checkpoint_filename.ckpt>. We will use the default checkpoint filename `last.ckpt`")
-            checkpoint_filename = LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+            checkpoint_filename = "last.ckpt"
         elif len(run_id_split) == 2 and checkpoint_filename:
             logging.info(
                 "checkpoint_filename is provided both as an argument and as part of run_id. We will use the checkpoint "
