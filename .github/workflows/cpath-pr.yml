@@ -119,7 +119,7 @@ jobs:
         with:
             flags: ${{ env.folder }}
 
-  smoketest:
+  smoke test slidespandaimagenetmil:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -153,3 +153,108 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_slidespandaimagenetmil_aml
+
+ smoke test tilespandaimagenetmil:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: create config file
+        run: ./create_config.sh
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_tilespandaimagenetmil_aml
+
+ smoke test tcgacrcksslmil_aml:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: create config file
+        run: ./create_config.sh
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_tcgacrcksslmil_aml
+
+ smoke test crck_simclr_aml:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: create config file
+        run: ./create_config.sh
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install required packages
+        run: |
+          cd ${{ env.folder }}
+          make pip_from_conda
+
+      - name: Install hi-ml locally
+        run: |
+          cd hi-ml
+          make pip_local
+
+      - name: Install hi-ml-azure locally
+        run: |
+          cd hi-ml-azure
+          make pip_local
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_crck_simclr_aml
