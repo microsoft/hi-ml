@@ -63,27 +63,39 @@ pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Run regression tests and compare performance
-define BASE_DEEPSMILEPANDASLIDES_COMMAND
+define BASE_CPATH_RUNNER_COMMAND
 cd ../ ; \
-python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMILBenchmark \
---mount_in_azureml --conda_env hi-ml-cpath/environment.yml --is_finetune \
+python hi-ml/src/health_ml/runner.py --mount_in_azureml --conda_env=hi-ml-cpath/environment.yml
+endef
 
+define DEEPSMILEPANDASLIDES_ARGS
+--model=health_cpath.SlidesPandaImageNetMILBenchmark --is_finetune
+endef
+
+define DEEPSMILEPANDATILES_ARGS
+--model=health_cpath.TilesPandaImageNetMIL --is_finetune --batch_size=2
+endef
+
+define TCGACRCKSSLMIL_ARGS
+--model=health_cpath.TcgaCrckSSLMIL
+endef
+
+define CRCKSIMCLR_ARGS
+--model=health_cpath.CRCK_SimCLR
 endef
 
 regression_test_tilespandaimagenetmil:
 	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL --batch_size=2 \
-	--cluster pr-gpu --mount_in_azureml --conda_env hi-ml-health_cpath/environment.yml \
+    ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} --cluster pr-gpu \
 	--regression_test_folder=testhisto/RegressionTestResults/TilesPANDAImageNetMIL/\
-	HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 --regression_test_csv_tolerance=0.5 --is_finetune \
+	HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
 	test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
 	}
 
 regression_test_slidespandaimagenetmil:
 	{ \
-	${BASE_DEEPSMILEPANDASLIDES_COMMAND} --cluster pr-gpu --mount_in_azureml \
+	${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} --cluster pr-gpu \
 	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
 	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
@@ -91,74 +103,91 @@ regression_test_slidespandaimagenetmil:
 	}
 
 regression_test_tcgacrcksslmil:
-	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.TcgaCrckSSLMIL \
-	--cluster pr-gpu --conda_env hi-ml-cpath/environment.yml --max_epochs=50 \
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} --cluster pr-gpu --max_epochs=50 \
 	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/\
 	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
 	--regression_metrics=test/accuracy,test/auroc,test/f1score,test/precision,test/recall;\
 	}
 
 regression_test_crck_simclr:
-	{ \
-	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
-	--cluster pr-gpu --conda_env hi-ml-cpath/environment.yml \
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${CRCKSIMCLR_ARGS}\
+	--cluster pr-gpu  --max_epochs=200 \
 	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
 	 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
-	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05 --max_epochs=200;\
+	ssl_online_evaluator/val/AreaUnderPRCurve,ssl_online_evaluator/val/AccuracyAtThreshold05;\
 	}
 
 regression tests: regression_test_tilespandaimagenetmil regression_test_slidespandaimagenetmil regression_test_tcgacrcksslmil regression_test_crck_simclr
 
 # Smoke tests (smaller tests that run end to end to check integration)
-define DEEPSMILEPANDASLIDES__SMOKE_TEST_ARGS
---crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
+define DEFAULT_SMOKE_TEST_ARGS
 --pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
---max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2 \
+--max_epochs=2
+endef
 
+define AML_ONE_DEVICE_ARGS
+--cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1
+endef
+
+define DEEPSMILEPANDASLIDES_SMOKE_TEST_ARGS
+--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 \
+--max_bag_size_inf=3
+endef
+
+define DEEPSMILEPANDATILES_SMOKE_TEST_ARGS
+--crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 \
+--max_bag_size_inf=3
+endef
+
+define TCGACRCKSSLMIL_SMOKE_TEST_ARGS
+--crossval_count=1 --max_bag_size=3 --max_bag_size_inf=3
+endef
+
+define CRCKSIMCLR_SMOKE_TEST_ARGS
+ --is_debug_model=True --num_workers=0
 endef
 
 # The following test takes around 5 minutes
 smoke_test_slidespandaimagenetmil_local:
-	{ ${BASE_DEEPSMILEPANDASLIDES_COMMAND} ${DEEPSMILEPANDASLIDES__SMOKE_TEST_ARGS};}
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEPANDASLIDES_SMOKE_TEST_ARGS};}
 
 # Once running in AML the following test takes around 6 minutes
 smoke_test_slidespandaimagenetmil_aml:
-	{  ${BASE_DEEPSMILEPANDASLIDES_COMMAND} ${DEEPSMILEPANDASLIDES__SMOKE_TEST_ARGS} \
-	--cluster=testing-nc24x2 --wait_for_completion --num_nodes=1 --max_num_gpus=1;}
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEPANDASLIDES_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
 
 # The following test takes about 6 minutes
-smoke_test_tilespandaimagenetmil:
-	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL \
-	--mount_in_azureml --conda_env hi-ml-cpath/environment.yml \
-	--is_finetune --batch_size=2 --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 \
-	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
-	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
-	}
+smoke_test_tilespandaimagenetmil_local:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEPANDATILES_SMOKE_TEST_ARGS};}
 
+smoke_test_tilespandaimagenetmil_aml:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEPANDATILES_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
+
+# Note: this test doesn't currently run in hi-ml Workspace since the checkpoint run specified in run_ids
+# innereye_ssl_checkpoint_crck_4ws does not exist there. Once we can specify alternative checkpoints
+# this can be run with any Workspace
 # The following test takes about 30 seconds
-smoke_test_tcgacrcksslmil:
-	{ \
-	cd ../ ;\
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.TcgaCrckSSLMIL \
-	--conda_env hi-ml-cpath/environment.yml --crossval_count=1 \
-	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
-	--max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2;\
-	}
+smoke_test_tcgacrcksslmil_local:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS};}
+
+smoke_test_tcgacrcksslmil_aml:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
 
 # The following test takes about 3 minutes
-smoke_test_crck_simclr:
-	{ \
-	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
-	--conda_env hi-ml-cpath/environment.yml \
-	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
-	--is_debug_model=True --num_workers=0 --max_epochs=2; \
-	}
+smoke_test_crck_simclr_local:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${CRCKSIMCLR_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${CRCKSIMCLR_SMOKE_TEST_ARGS};}
 
-smoke tests: smoke_test_slidespandaimagenetmil smoke_test_tilespandaimagenetmil smoke_test_tcgacrcksslmil smoke_test_crck_simclr
+smoke_test_crck_simclr_aml:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${CRCKSIMCLR_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${CRCKSIMCLR_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
+
+smoke tests local: smoke_test_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local
+
+smoke tests AML: smoke_test_slidespandaimagenetmil_aml smoke_test_tilespandaimagenetmil_aml smoke_test_tcgacrcksslmil_aml smoke_test_crck_simclr_aml
