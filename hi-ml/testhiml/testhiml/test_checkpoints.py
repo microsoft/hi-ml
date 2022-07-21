@@ -53,11 +53,11 @@ def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp
     src_checkpoint = f"{mock_run_id}:{src_chekpoint_filename}" if src_chekpoint_filename else mock_run_id
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
     checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
-    src_checkpoint = (
+    src_checkpoint_filename = (
         src_chekpoint_filename.split("/")[-1] if src_chekpoint_filename else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     )
     expected_weights_path = (
-        container.outputs_folder / mock_run_id / checkpoint_path / src_chekpoint_filename.split("/")[-1]
+        container.outputs_folder / mock_run_id / checkpoint_path / src_checkpoint_filename
     )
     assert container.checkpoint_is_aml_run_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
