@@ -10,9 +10,32 @@ import pytest
 from health_ml.configs.hello_world import HelloWorld
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, MODEL_WEIGHTS_DIR_NAME
+from health_ml.utils.checkpoint_utils import (
+    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+    MODEL_WEIGHTS_DIR_NAME,
+    CheckpointDownloader,
+)
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path
+from testhiml.utils_testhiml import DEFAULT_WORKSPACE
+
+
+def test_checkpoint_downloader_run_id() -> None:
+    with mock.patch("health_ml.utils.checkpoint_utils.CheckpointDownloader.download_checkpoint_if_necessary"):
+        checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id")
+        assert checkpoint_downloader.run_id == "dummy_run_id"
+        assert checkpoint_downloader.checkpoint_filename == LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+        assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
+
+        checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:best.ckpt")
+        assert checkpoint_downloader.run_id == "dummy_run_id"
+        assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
+        assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
+
+        checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:custom/path/best.ckpt")
+        assert checkpoint_downloader.run_id == "dummy_run_id"
+        assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
+        assert checkpoint_downloader.remote_checkpoint_dir == Path("custom/path")
 
 
 def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[LightningContainer, CheckpointHandler]:
@@ -50,20 +73,20 @@ def test_load_model_checkpoints_from_local_file(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("src_chekpoint_filename", ["", "best_val_loss.ckpt", "custom/path/model.ckpt"])
 def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp_path: Path, mock_run_id: str) -> None:
-    src_checkpoint = f"{mock_run_id}:{src_chekpoint_filename}" if src_chekpoint_filename else mock_run_id
-    container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
-    checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
-    src_checkpoint_filename = (
-        src_chekpoint_filename.split("/")[-1] if src_chekpoint_filename else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    )
-    expected_weights_path = (
-        container.outputs_folder / mock_run_id / checkpoint_path / src_checkpoint_filename
-    )
-    assert container.checkpoint_is_aml_run_id
-    checkpoint_handler.download_recovery_checkpoints_or_weights()
-    assert checkpoint_handler.trained_weights_path
-    assert checkpoint_handler.trained_weights_path.exists()
-    assert checkpoint_handler.trained_weights_path == expected_weights_path
+    with mock.patch("health_azure.utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        src_checkpoint = f"{mock_run_id}:{src_chekpoint_filename}" if src_chekpoint_filename else mock_run_id
+        container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
+        checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
+        src_checkpoint_filename = (
+            src_chekpoint_filename.split("/")[-1] if src_chekpoint_filename else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+        )
+        expected_weights_path = container.outputs_folder / mock_run_id / checkpoint_path / src_checkpoint_filename
+        assert container.checkpoint_is_aml_run_id
+        checkpoint_handler.download_recovery_checkpoints_or_weights()
+        assert checkpoint_handler.trained_weights_path
+        assert checkpoint_handler.trained_weights_path.exists()
+        assert checkpoint_handler.trained_weights_path == expected_weights_path
 
 
 def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
