@@ -12,11 +12,12 @@ from torch import Tensor, float32, nn, rand
 from torchvision.models import resnet18
 
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_azure.utils import get_workspace, WORKSPACE_CONFIG_JSON, check_config_json
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
 from health_cpath.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
                                           ImageNetSimCLREncoder, SSLEncoder)
+from testazure.utils_testazure import get_shared_config_json
 from health_cpath.utils.layer_utils import setup_feature_extractor
-from testazure.utils_testazure import DEFAULT_WORKSPACE
 
 
 TILE_SIZE = 224
@@ -66,9 +67,13 @@ def test_encoder(create_encoder_fn: Callable[[], TileEncoder], tmp_path: Path) -
     if create_encoder_fn == get_ssl_encoder:
         download_dir = tmp_path / "ssl_downloaded_weights"
         download_dir.mkdir()
-        with patch("health_azure.utils.get_workspace") as mock_get_workspace:
-            mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-            encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
+        with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+            workspace = get_workspace(aml_workspace=None,
+                                      workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+
+            with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+                mock_get_workspace.return_value = workspace
+                encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
     else:
         encoder = create_encoder_fn()
     _test_encoder(encoder, input_dims=encoder.input_dim, output_dim=encoder.num_encoding)
