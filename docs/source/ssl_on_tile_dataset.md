@@ -128,4 +128,4 @@ Here the data augmentations are applied and the ```__getitem__``` method is defi
 The dataset is then wrapped one last time in
 [```TcgaCrck_TilesDatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/histopathology/datasets/tcga_crck_tiles_dataset.py),
 where we inherit the ability to return the tile index from
-[```DataClassBaseWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).
+[```DatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).

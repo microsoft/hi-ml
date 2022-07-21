@@ -130,7 +130,7 @@ To use this code with your own data, you will need to:
 
 1. Define your own Lightening Container that inherits from `SSLContainer` as described in the paragraph above.
 2. Create a dataset class that reads your new dataset, inheriting from both `VisionDataset`
-   and `InnerEyeDataClassBaseWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
+   and `DatasetWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
    class. WARNING: the first positional argument of your dataset class constructor MUST be the data directory ("root"),
    as VisionDataModule expects this in the prepare_data step.
 3. In your own container update the `_SSLDataClassMappings` member of the class so that the code knows which data class

@@ -81,7 +81,7 @@ class CxrDatasetBase(VisionDataset):
 
 class CxrDatasetWithReturnIndex(DatasetWithReturnIndex, CxrDatasetBase):
     """
-    Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.
+    Any dataset used in SSL needs to inherit from DatasetWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance.
     """
     pass

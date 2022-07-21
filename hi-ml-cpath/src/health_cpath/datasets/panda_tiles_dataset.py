@@ -118,7 +118,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
 
 class PandaTilesDatasetWithReturnIndex(DatasetWithReturnIndex, PandaTilesDatasetReturnImageLabel):
     """
-    Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.
+    Any dataset used in SSL needs to inherit from DatasetWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance. Please note that this class needs
     to override __getitem__(), this is why we need a separate PandaTilesDatasetReturnImageLabel.
     """
