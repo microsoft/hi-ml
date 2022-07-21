@@ -207,7 +207,8 @@ class WorkflowParams(param.Parameterized):
 
         if self.run_inference_only and not self.src_checkpoint:
             raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
-                             "You can either use a URL, local file or azureml run id.")
+                             "You can either use a URL, local file or azureml run id. For custom checkpoint filename "
+                             "(other than last.ckpt) use the src_checkpoint_filename flag.")
 
     @property
     def is_running_in_aml(self) -> bool:
