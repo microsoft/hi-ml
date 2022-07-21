@@ -48,8 +48,10 @@ def test_validate_workflow_params_for_inference_only(mock_run_id: str) -> None:
 
         full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
         WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id).validate()
-        WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=mock_run_id,
-                       src_checkpoint_filename="best_val_loss.ckpt").validate()
+        WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                       src_checkpoint=f"{mock_run_id}:best_val_loss.ckpt").validate()
+        WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                       src_checkpoint=f"{mock_run_id}:custom/path/model.ckpt").validate()
         WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
                        src_checkpoint=str(full_file_path)).validate()
 

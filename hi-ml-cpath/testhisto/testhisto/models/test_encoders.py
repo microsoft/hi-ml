@@ -11,9 +11,8 @@ from pathlib import Path
 from torch import Tensor, float32, nn, rand
 from torchvision.models import resnet18
 
-from health_azure.utils import CheckpointDownloader
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
 from health_cpath.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
                                           ImageNetSimCLREncoder, SSLEncoder)
 from health_cpath.utils.layer_utils import setup_feature_extractor

@@ -48,12 +48,17 @@ def test_load_model_checkpoints_from_local_file(tmp_path: Path) -> None:
     assert checkpoint_handler.trained_weights_path == local_checkpoint_path
 
 
-@pytest.mark.parametrize("src_chekpoint_filename", [LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, "best_val_loss.ckpt"])
+@pytest.mark.parametrize("src_chekpoint_filename", ["", "best_val_loss.ckpt", "custom/path/model.ckpt"])
 def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp_path: Path, mock_run_id: str) -> None:
-
-    container, checkpoint_handler = get_checkpoint_handler(tmp_path, mock_run_id)
-    expected_weights_path = container.outputs_folder / mock_run_id / DEFAULT_AML_CHECKPOINT_DIR / src_chekpoint_filename
-    container.src_checkpoint_filename = src_chekpoint_filename
+    src_checkpoint = f"{mock_run_id}:{src_chekpoint_filename}" if src_chekpoint_filename else mock_run_id
+    container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
+    checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
+    src_checkpoint = (
+        src_chekpoint_filename.split("/")[-1] if src_chekpoint_filename else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    )
+    expected_weights_path = (
+        container.outputs_folder / mock_run_id / checkpoint_path / src_chekpoint_filename.split("/")[-1]
+    )
     assert container.checkpoint_is_aml_run_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_path

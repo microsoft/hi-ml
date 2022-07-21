@@ -132,17 +132,20 @@ class WorkflowParams(param.Parameterized):
     src_checkpoint: str = param.String(default="",
                                        doc="This flag can be used for 3 different scenarios:"
                                            "1- Resume training from a checkpoint to train longer."
-                                           "2- Run inference only by jointly using `run_inference_only` flag."
+                                           "2- Run inference-only using `run_inference_only` flag jointly."
                                            "3- Transfer learning from a pretrained model checkpoint."
-                                           "We currently support Three types of checkpoints: "
+                                           "We currently support three types of checkpoints: "
                                            "    a. A local checkpoint folder that contains a checkpoint file."
                                            "    b. A URL to a remote checkpoint to be downloaded."
                                            "    c. A previous azureml run id where the checkpoint is supposed to be "
-                                           "       saved in 'outputs/checkpoints/' folder.")
-    src_checkpoint_filename: str = param.String(default="last.ckpt",
-                                                doc="The name of the checkpoint file to use (e.g., 'last.ckpt' for the"
-                                                "last epoch checkpoint, 'best_val_loss.ckpt' for the best validation "
-                                                "loss checkpoint, etc.)")
+                                           "       saved ('outputs/checkpoints/' folder by default.)"
+                                           "For the 'c' case: src_checkpoint should be in the format of "
+                                           "<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
+                                           "If no custom path is provide (e.g., <MyContainer_xxx_yyy>:<filename.ckpt>)"
+                                           "the checkpoint will be downloaded from the default checkpoint folder "
+                                           "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
+                                           "`src_checkpoint=<MyContainer_xxx_yyy>`) the latest checkpoint (last.ckpt) "
+                                           "will be used to initialize the model.")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -164,9 +167,9 @@ class WorkflowParams(param.Parameterized):
                      doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
-    run_inference_only: bool = param.Boolean(False, doc="If True, run inference using the specified checkpoint via "
-                                                        "the `src_checkpoint` and `src_checkpoint_filename` flags "
-                                                        "and skip training. If False, run training and inference.")
+    run_inference_only: bool = param.Boolean(False, doc="If True, run only inference and skip training after loading"
+                                                        "model weights from the specified checkpoint in "
+                                                        "`src_checkpoint` flag. If False, run training and inference.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
@@ -186,7 +189,7 @@ class WorkflowParams(param.Parameterized):
     @property
     def checkpoint_is_aml_run_id(self) -> bool:
         try:
-            _ = get_aml_run_from_run_id(self.src_checkpoint)
+            _ = get_aml_run_from_run_id(self.src_checkpoint.split(":")[0])
             return True
         except ValueError:
             return False
@@ -207,8 +210,12 @@ class WorkflowParams(param.Parameterized):
 
         if self.run_inference_only and not self.src_checkpoint:
             raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
-                             "You can either use a URL, local file or azureml run id. For custom checkpoint filename "
-                             "(other than last.ckpt) use the src_checkpoint_filename flag.")
+                             "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
+                             "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
+                             "<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
+                             "If no custom path is specified (e.g., <MyContainer_xxx_yyy>:<filename.ckpt>), "
+                             "the chceckpoint is assumed to be available in the default checkpoint folder "
+                             "`outputs/checkpoints/`.")
 
     @property
     def is_running_in_aml(self) -> bool:

@@ -7,7 +7,6 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Generator, List, Optional
-from unittest import mock
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -20,8 +19,6 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
-from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
 

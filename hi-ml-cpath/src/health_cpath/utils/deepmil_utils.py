@@ -8,8 +8,7 @@ from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
 from torchvision.models.resnet import resnet18, resnet50
-from health_azure.utils import CheckpointDownloader
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from health_cpath.models.encoders import (
     HistoSSLEncoder,

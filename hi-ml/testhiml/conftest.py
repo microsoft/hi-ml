@@ -34,7 +34,11 @@ def mock_run_id() -> str:
     experiment_name = "himl-tests"
     run_to_download_from = create_aml_run_object(experiment_name=experiment_name, workspace=DEFAULT_WORKSPACE.workspace)
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+
     run_to_download_from.upload_file("outputs/checkpoints/last.ckpt", str(full_file_path))
     run_to_download_from.upload_file("outputs/checkpoints/best_val_loss.ckpt", str(full_file_path))
+
+    run_to_download_from.upload_file("custom/path/model.ckpt", str(full_file_path))
+
     run_to_download_from.complete()
     return run_to_download_from.id

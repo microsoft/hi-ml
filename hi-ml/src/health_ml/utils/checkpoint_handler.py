@@ -13,10 +13,13 @@ from urllib.parse import urlparse
 import requests
 from azureml.core import Run
 
-from health_azure.utils import is_global_rank_zero, CheckpointDownloader
+from health_azure.utils import is_global_rank_zero
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import (MODEL_WEIGHTS_DIR_NAME, find_recovery_checkpoint_on_disk_or_cloud)
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.checkpoint_utils import (
+    MODEL_WEIGHTS_DIR_NAME,
+    CheckpointDownloader,
+    find_recovery_checkpoint_on_disk_or_cloud,
+)
 
 
 class CheckpointHandler:
@@ -24,10 +27,7 @@ class CheckpointHandler:
     This class handles which checkpoints are used to initialize the model during train or test time
     """
 
-    def __init__(self,
-                 container: LightningContainer,
-                 project_root: Path,
-                 run_context: Optional[Run] = None):
+    def __init__(self, container: LightningContainer, project_root: Path, run_context: Optional[Run] = None):
         self.container = container
         self.project_root = project_root
         self.run_context = run_context
@@ -124,14 +124,12 @@ class CheckpointHandler:
             download_folder.mkdir(exist_ok=True, parents=True)
             checkpoint_path = self.download_weights(url=self.container.src_checkpoint, download_folder=download_folder)
         elif self.container.checkpoint_is_aml_run_id:
-            downloader = CheckpointDownloader(run_id=self.container.src_checkpoint,
-                                              checkpoint_filename=self.container.src_checkpoint_filename,
-                                              download_dir=self.container.outputs_folder,
-                                              remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
+            downloader = CheckpointDownloader(
+                run_id=self.container.src_checkpoint, download_dir=self.container.outputs_folder
+            )
             checkpoint_path = downloader.local_checkpoint_path
         else:
-            raise ValueError(
-                "Cannot download weights, src_checkpoint is not set.")
+            raise ValueError("Cannot download weights, src_checkpoint is not set.")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")

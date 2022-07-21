@@ -219,14 +219,17 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
 * A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
 * A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
 * An azureml run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
-  with different checkpoints by setting `--src_checkpoint_filename` flag that is equal to `last.ckpt` by default where
-  the last epoch checkpoint will be loaded.
+  with different checkpoints by setting `--src_checkpoint` according to the format
+  `<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided
+  (e.g., `--src_checkpoint=MyContainer_xxx_yyy:best.ckpt`) we assume the checkpoints to be saved in the default
+  checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=MyContainer_xxx_yyy`)
+  the last epoch checkpoint `outputs/chekpoints/last.ckpt` will be loaded.
 
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
 
 ```
-himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContainer_XXXX_yyyy --src_checkpoint_filename=best_val_loss.ckpt
+himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
 ```
 
 ## Resume training from a given checkpoint
@@ -236,5 +239,5 @@ The pytorch lightning trainer will initialize the lightning module from the give
 validation loss epoch.
 
 ```
-himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy --src_checkpoint_filename=best_val_loss.ckpt
+himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
 ```

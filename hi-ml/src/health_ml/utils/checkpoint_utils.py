@@ -9,9 +9,11 @@ from typing import Optional
 
 import torch
 from azureml.core import Run, Workspace
+from health_azure import download_checkpoints_from_run_id, get_workspace
 
 from health_azure.utils import (RUN_CONTEXT, download_files_from_run_id, get_run_file_names, is_running_in_azure_ml)
 from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, DEFAULT_AML_CHECKPOINT_DIR)
+from health_ml.utils.type_annotations import PathOrString
 
 CHECKPOINT_SUFFIX = ".ckpt"
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
@@ -156,3 +158,76 @@ def cleanup_checkpoints(ckpt_folder: Path) -> None:
         autosave = ckpt_folder / candidate
         if autosave.is_file():
             autosave.unlink()
+
+
+class CheckpointDownloader:
+    def __init__(
+        self,
+        run_id: str,
+        checkpoint_filename: Optional[str] = None,
+        download_dir: PathOrString = "checkpoints",
+        remote_checkpoint_dir: Optional[Path] = None,
+    ) -> None:
+        """
+        Utility class for downloading checkpoint files from an Azure ML run
+
+        :param run_id: Recovery ID of the run from which to load the checkpoint.
+        :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
+        `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
+        :param download_dir: The local directory in which to save the downloaded checkpoint files.
+        :param remote_checkpoint_dir: The remote folder from which to download the checkpoint file
+        """
+        self.run_id = run_id
+        self.checkpoint_filename = checkpoint_filename or self.extract_checkpoint_filename_from_run_id()
+        self.download_dir = Path(download_dir)
+        self.remote_checkpoint_dir = (
+            remote_checkpoint_dir or self.extract_remote_checkpoint_dir_from_checkpoint_filename()
+        )
+        self.download_checkpoint_if_necessary()
+
+    def extract_checkpoint_filename_from_run_id(self) -> str:
+        """
+        Extracts the checkpoint filename from the run_id if run_id is in the format
+        <MyContainer_xx>:<checkpoint_filename.ckpt>. Otherwise, uses the last epoch checkpoint filename as default.
+        """
+        run_id_split = self.run_id.split(":")
+        self.run_id = run_id_split[0]
+        return run_id_split[-1] if len(run_id_split) > 1 else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+
+    def extract_remote_checkpoint_dir_from_checkpoint_filename(self) -> Path:
+        """
+        Extracts the remote checkpoint directory from the run_id if run_id is in the format
+        <MyContainer_xx>:<checkpoint_filename.ckpt>. Otherwise, uses the default remote checkpoint directory.
+        """
+        tmp_checkpoint_filename = self.checkpoint_filename
+        checkpoint_filename_split = self.checkpoint_filename.split("/")
+        self.checkpoint_filename = checkpoint_filename_split[-1]
+        return (
+            Path(tmp_checkpoint_filename).parent
+            if len(checkpoint_filename_split) > 1
+            else Path(DEFAULT_AML_CHECKPOINT_DIR)
+        )
+
+    @property
+    def local_checkpoint_dir(self) -> Path:
+        return self.download_dir / self.run_id
+
+    @property
+    def remote_checkpoint_path(self) -> Path:
+        assert self.checkpoint_filename is not None
+        return self.remote_checkpoint_dir / self.checkpoint_filename
+
+    @property
+    def local_checkpoint_path(self) -> Path:
+        return self.local_checkpoint_dir / self.remote_checkpoint_path
+
+    def download_checkpoint_if_necessary(self) -> None:
+        """Downloads the specified checkpoint if it does not already exist. """
+        workspace = get_workspace()
+
+        if not self.local_checkpoint_path.exists():
+            self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+            download_checkpoints_from_run_id(
+                self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
+            )
+            assert self.local_checkpoint_path.exists(), f"Couln't download checkpoint from run {self.run_id}."
