@@ -256,13 +256,15 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.multiple(
-            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT, run_inference=DEFAULT
+            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT, run_inference=DEFAULT,
+            load_model_checkpoint=DEFAULT, init_training=DEFAULT
         ) as mocks:
             mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_run_id.run()
             mocks["run_training"].assert_not_called()
             mocks["run_validation"].assert_not_called()
             mocks["run_inference"].assert_called_once()
+            mocks["load_model_checkpoint"].assert_called_once()
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
@@ -277,21 +279,14 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
         mocks["run_inference"].assert_called_once()
 
 
-@pytest.mark.parametrize("run_inference_only", [True, False])
-def test_load_model_checkpoint(run_inference_only: bool, mock_run_id: str) -> None:
+def test_model_weights_when_resume_training(mock_run_id: str) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.save_checkpoint = True
     container.src_checkpoint = mock_run_id
-    container.run_inference_only = run_inference_only
-    container.run_extra_val_epoch = True
     with patch("health_azure.utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
         runner.setup()
-        weights_before: torch.Tensor = container.model.model.weight.detach().clone()  # type: ignore
-        with patch.multiple(ml_runner_with_run_id, run_validation=DEFAULT, run_inference=DEFAULT):
-            runner.run()
-        weights_after: torch.Tensor = runner.container.model.model.weight  # type: ignore
-        assert not torch.allclose(weights_before, weights_after)
+        runner.init_training()
+        assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
