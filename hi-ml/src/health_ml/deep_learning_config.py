@@ -129,7 +129,7 @@ class WorkflowParams(param.Parameterized):
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     src_checkpoint: str = param.String(default="",
-                                       doc="This flag can be used for 3 different scenarios:"
+                                       doc="This flag can be used in 3 different scenarios:"
                                            "1- Resume training from a checkpoint to train longer."
                                            "2- Run inference-only using `run_inference_only` flag jointly."
                                            "3- Transfer learning from a pretrained model checkpoint."
@@ -138,9 +138,9 @@ class WorkflowParams(param.Parameterized):
                                            "    b. A URL to a remote checkpoint to be downloaded."
                                            "    c. A previous azureml run id where the checkpoint is supposed to be "
                                            "       saved ('outputs/checkpoints/' folder by default.)"
-                                           "For the 'c' case: src_checkpoint should be in the format of "
+                                           "For the latter case 'c' : src_checkpoint should be in the format of "
                                            "<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
-                                           "If no custom path is provide (e.g., <MyContainer_xxx_yyy>:<filename.ckpt>)"
+                                           "If no custom path is provided (e.g., <MyContainer_xxx_yyy>:<filename.ckpt>)"
                                            "the checkpoint will be downloaded from the default checkpoint folder "
                                            "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
                                            "`src_checkpoint=<MyContainer_xxx_yyy>`) the latest checkpoint (last.ckpt) "
