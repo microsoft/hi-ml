@@ -58,14 +58,16 @@ def ml_runner_with_run_id(mock_run_id: str) -> Generator:
     container = HelloWorld()
     container.save_checkpoint = True
     container.src_checkpoint = mock_run_id
-    with patch("health_azure.utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        runner = MLRunner(experiment_config=experiment_config, container=container)
-        runner.setup()
-        yield runner
-        output_dir = runner.container.file_system_config.outputs_folder
-        if output_dir.exists():
-            shutil.rmtree(output_dir)
+    with patch("health_azure.utils.get_workspace") as mock_get_workspace_1:
+        with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace_2:
+            mock_get_workspace_1.return_value = DEFAULT_WORKSPACE.workspace
+            mock_get_workspace_2.return_value = DEFAULT_WORKSPACE.workspace
+            runner = MLRunner(experiment_config=experiment_config, container=container)
+            runner.setup()
+            yield runner
+            output_dir = runner.container.file_system_config.outputs_folder
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
 
 
 def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
@@ -287,9 +289,11 @@ def test_model_weights_when_resume_training(mock_run_id: str) -> None:
     container = HelloWorld()
     container.max_num_gpus = 0
     container.src_checkpoint = mock_run_id
-    with patch("health_azure.utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        runner = MLRunner(experiment_config=experiment_config, container=container)
-        runner.setup()
-        runner.init_training()
-        assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
+    with patch("health_azure.utils.get_workspace") as mock_get_workspace_1:
+        with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace_2:
+            mock_get_workspace_1.return_value = DEFAULT_WORKSPACE.workspace
+            mock_get_workspace_2.return_value = DEFAULT_WORKSPACE.workspace
+            runner = MLRunner(experiment_config=experiment_config, container=container)
+            runner.setup()
+            runner.init_training()
+            assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
