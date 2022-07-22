@@ -104,9 +104,12 @@ class TilesSelector:
         self.n_classes = n_classes if n_classes > 1 else 2
         self.num_slides = num_slides
         self.num_tiles = num_tiles
-        self.top_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
-        self.bottom_slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
+        self.top_slides_heaps: SlideDict = self._initialise_slide_heaps()
+        self.bottom_slides_heaps: SlideDict = self._initialise_slide_heaps()
         self.report_cases_slide_ids = self.init_report_cases()
+
+    def _initialise_slide_heaps(self) -> SlideDict:
+        return {class_id: [] for class_id in range(self.n_classes)}
 
     def init_report_cases(self) -> Dict[str, List[str]]:
         """ Initializes the report cases dictionary to store slide_ids per case.
@@ -121,8 +124,8 @@ class TilesSelector:
         return report_cases
 
     def _clear_cached_slides_heaps(self) -> None:
-        self.top_slides_heaps = {class_id: [] for class_id in range(self.n_classes)}
-        self.bottom_slides_heaps = {class_id: [] for class_id in range(self.n_classes)}
+        self.top_slides_heaps = self._initialise_slide_heaps()
+        self.bottom_slides_heaps = self._initialise_slide_heaps()
 
     def _reset_slides_heaps(self, new_top_slides_heaps: SlideDict, new_bottom_slides_heaps: SlideDict) -> None:
         self.top_slides_heaps = new_top_slides_heaps
@@ -214,7 +217,7 @@ class TilesSelector:
         :param slides_heaps_list: A list of slides heaps gathered across devices.
         :return: A reduced version of slides_heaps_list to a single slides_heaps containing only top or bottom slides.
         """
-        slides_heaps: SlideDict = {class_id: [] for class_id in range(self.n_classes)}
+        slides_heaps: SlideDict = self._initialise_slide_heaps()
         for class_id in range(self.n_classes):
             for rank in range(world_size):
                 for slide_node in slides_heaps_list[rank][class_id]:
