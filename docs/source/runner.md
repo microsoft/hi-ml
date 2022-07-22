@@ -222,7 +222,7 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
   with different checkpoints by setting `--src_checkpoint` according to the format
   `<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided
   (e.g., `--src_checkpoint=MyContainer_xxx_yyy:best.ckpt`), we assume the checkpoints to be saved in the default
-  checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=MyContainer_xxx_yyy`), 
+  checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=MyContainer_xxx_yyy`),
   the last epoch checkpoint `outputs/chekpoints/last.ckpt` will be loaded.
 
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
