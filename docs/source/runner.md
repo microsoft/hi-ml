@@ -223,7 +223,7 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
   `<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided
   (e.g., `--src_checkpoint=MyContainer_xxx_yyy:best.ckpt`), we assume the checkpoints to be saved in the default
   checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=MyContainer_xxx_yyy`),
-  the last epoch checkpoint `outputs/chekpoints/last.ckpt` will be loaded.
+  the last epoch checkpoint `outputs/checkpoints/last.ckpt` will be loaded.
 
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
