@@ -26,11 +26,11 @@ def _test_invalid_pre_checkpoint_workflow_params(src_checkpoint: str) -> None:
         assert error_message in ex.value.args[0]
 
 
-def test_validate_workflow_params_pre_checkpoint(mock_run_id: str) -> None:
+def test_validate_workflow_params_src_checkpoint(mock_run_id: str) -> None:
 
-    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy_local_path")
-    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="https://dummy.com/checkpoint.ckpt")
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy/local/path/model.ckpt")
     _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy_run_id")
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="http/dummy_url-com")
 
     # The following should be okay
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")

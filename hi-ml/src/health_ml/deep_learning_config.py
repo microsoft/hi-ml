@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import param
 from azureml.train.hyperdrive import HyperDriveConfig
 from param import Parameterized
-
+from azureml.exceptions import ServiceException
 from health_azure import create_crossval_hyperdrive_config
 from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
 
@@ -191,13 +191,13 @@ class WorkflowParams(param.Parameterized):
         try:
             _ = get_aml_run_from_run_id(self.src_checkpoint.split(":")[0])
             return True
-        except ValueError:
+        except ServiceException:
             return False
 
     @property
     def is_valid_checkpoint(self) -> bool:
         if self.src_checkpoint:
-            return self.checkpoint_is_local_file or self.checkpoint_is_aml_run_id or self.checkpoint_is_url
+            return self.checkpoint_is_local_file or self.checkpoint_is_url or self.checkpoint_is_aml_run_id
         return True
 
     def validate(self) -> None:
