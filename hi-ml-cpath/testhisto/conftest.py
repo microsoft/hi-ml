@@ -22,18 +22,12 @@ TEST_OUTPUTS_PATH = testhisto_root_dir / "test_outputs"
 
 # temporary workaround until these hi-ml package release
 himl_root = testhisto_root_dir.parent.parent
-himl_package_root = himl_root / "hi-ml" / "src"
-logging.info(f"Adding {str(himl_package_root)} to path")
-sys.path.insert(0, str(himl_package_root))
-test_himl_package_root = himl_root / "hi-ml" / "testhiml"
-logging.info(f"Adding {str(test_himl_package_root)} to path")
-sys.path.insert(0, str(test_himl_package_root))
-himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
-logging.info(f"Adding {str(himl_azure_package_root)} to path")
-sys.path.insert(0, str(himl_azure_package_root))
-test_himl_azure_package_root = himl_root / "hi-ml-azure" / "testazure"
-logging.info(f"Adding {str(test_himl_azure_package_root)} to path")
-sys.path.insert(0, str(test_himl_azure_package_root))
+packages = {"hi-ml": ["src", "testhiml"], "hi-ml-azure": ["src", "testazure"]}
+for package, subpackages in packages.items():
+    for subpackage in subpackages:
+        logging.info(f"Adding {himl_root / package / subpackage} to sys path")
+        sys.path.insert(0, str(himl_root / package / subpackage))
+
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 
 
