@@ -64,9 +64,9 @@ def _test_encoder(encoder: nn.Module, input_dims: Tuple[int, ...], output_dim: i
                                                get_ssl_encoder])
 def test_encoder(create_encoder_fn: Callable[[], TileEncoder], tmp_path: Path) -> None:
     if create_encoder_fn == get_ssl_encoder:
-        download_dir = tmp_path / "ssl_downloaded_weights"
-        download_dir.mkdir()
         with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+            download_dir = tmp_path / "ssl_downloaded_weights"
+            download_dir.mkdir()
             mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
             encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
     else:

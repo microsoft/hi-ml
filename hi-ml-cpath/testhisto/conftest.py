@@ -25,6 +25,9 @@ himl_root = testhisto_root_dir.parent.parent
 himl_package_root = himl_root / "hi-ml" / "src"
 logging.info(f"Adding {str(himl_package_root)} to path")
 sys.path.insert(0, str(himl_package_root))
+test_himl_package_root = himl_root / "hi-ml" / "testhiml"
+logging.info(f"Adding {str(test_himl_package_root)} to path")
+sys.path.insert(0, str(test_himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
 logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
