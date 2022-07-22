@@ -117,13 +117,13 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them.
         """
-        if self.container.checkpoint_is_local_file:
+        if self.container.src_checkpoint_is_local_file:
             checkpoint_path = Path(self.container.src_checkpoint)
-        elif self.container.checkpoint_is_url:
+        elif self.container.src_checkpoint_is_url:
             download_folder = self.container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
             checkpoint_path = self.download_weights(url=self.container.src_checkpoint, download_folder=download_folder)
-        elif self.container.checkpoint_is_aml_run_id:
+        elif self.container.src_checkpoint_is_aml_run_id:
             downloader = CheckpointDownloader(
                 run_id=self.container.src_checkpoint, download_dir=self.container.outputs_folder
             )

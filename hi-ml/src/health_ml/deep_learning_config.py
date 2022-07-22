@@ -174,7 +174,7 @@ class WorkflowParams(param.Parameterized):
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
 
     @property
-    def checkpoint_is_url(self) -> bool:
+    def src_checkpoint_is_url(self) -> bool:
         try:
             result = urlparse(self.src_checkpoint)
             return all([result.scheme, result.netloc])
@@ -182,17 +182,17 @@ class WorkflowParams(param.Parameterized):
             return False
 
     @property
-    def checkpoint_is_local_file(self) -> bool:
+    def src_checkpoint_is_local_file(self) -> bool:
         return Path(self.src_checkpoint).exists()
 
     @property
-    def checkpoint_is_aml_run_id(self) -> bool:
+    def src_checkpoint_is_aml_run_id(self) -> bool:
         return re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0]) is not None
 
     @property
     def is_valid_checkpoint(self) -> bool:
         if self.src_checkpoint:
-            return self.checkpoint_is_local_file or self.checkpoint_is_url or self.checkpoint_is_aml_run_id
+            return self.src_checkpoint_is_local_file or self.src_checkpoint_is_url or self.src_checkpoint_is_aml_run_id
         return True
 
     def validate(self) -> None:

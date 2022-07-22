@@ -53,7 +53,7 @@ def test_load_model_chcekpoints_from_url(tmp_path: Path) -> None:
 
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, WEIGHTS_URL)
     download_folder = container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
-    assert container.checkpoint_is_url
+    assert container.src_checkpoint_is_url
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_path
     assert checkpoint_handler.trained_weights_path.exists()
@@ -64,7 +64,7 @@ def test_load_model_checkpoints_from_local_file(tmp_path: Path) -> None:
     local_checkpoint_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
 
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, str(local_checkpoint_path))
-    assert container.checkpoint_is_local_file
+    assert container.src_checkpoint_is_local_file
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_path
     assert checkpoint_handler.trained_weights_path.exists()
@@ -85,7 +85,7 @@ def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp
             else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
         )
         expected_weights_path = container.outputs_folder / run_id / checkpoint_path / src_checkpoint_filename
-        assert container.checkpoint_is_aml_run_id
+        assert container.src_checkpoint_is_aml_run_id
         checkpoint_handler.download_recovery_checkpoints_or_weights()
         assert checkpoint_handler.trained_weights_path
         assert checkpoint_handler.trained_weights_path.exists()
