@@ -190,13 +190,13 @@ class WorkflowParams(param.Parameterized):
         return re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0]) is not None
 
     @property
-    def is_valid_checkpoint(self) -> bool:
+    def is_valid_src_checkpoint(self) -> bool:
         if self.src_checkpoint:
             return self.src_checkpoint_is_local_file or self.src_checkpoint_is_url or self.src_checkpoint_is_aml_run_id
         return True
 
     def validate(self) -> None:
-        if not self.is_valid_checkpoint:
+        if not self.is_valid_src_checkpoint:
             raise ValueError(f"Invalid src_checkpoint: {self.src_checkpoint}. Please provide a valid URL, local file "
                              "or azureml run id.")
         if self.crossval_count > 1:
