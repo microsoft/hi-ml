@@ -218,7 +218,7 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
 
 * A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
 * A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
-* An azureml run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
+* An AzureML run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
   with different checkpoints by setting `--src_checkpoint` according to the format
   `<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided
   (e.g., `--src_checkpoint=MyContainer_xxx_yyy:best.ckpt`), we assume the checkpoints to be saved in the default
