@@ -234,7 +234,7 @@ himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContaine
 
 ## Resume training from a given checkpoint
 
-Analogousely, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
+Analogously, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
 The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
 validation loss epoch.
 
