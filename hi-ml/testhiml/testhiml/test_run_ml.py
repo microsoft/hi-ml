@@ -16,6 +16,7 @@ from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
 from health_azure.utils import is_global_rank_zero
 from testazure.utils_testazure import DEFAULT_WORKSPACE
+from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
 no_gpu = not is_gpu_available()
 
@@ -53,21 +54,19 @@ def ml_runner_with_container() -> Generator:
 
 
 @pytest.fixture()
-def ml_runner_with_run_id(mock_run_id: str) -> Generator:
+def ml_runner_with_run_id() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.src_checkpoint = mock_run_id
-    with patch("health_azure.utils.get_workspace") as mock_get_workspace_1:
-        with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace_2:
-            mock_get_workspace_1.return_value = DEFAULT_WORKSPACE.workspace
-            mock_get_workspace_2.return_value = DEFAULT_WORKSPACE.workspace
-            runner = MLRunner(experiment_config=experiment_config, container=container)
-            runner.setup()
-            yield runner
-            output_dir = runner.container.file_system_config.outputs_folder
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        yield runner
+        output_dir = runner.container.file_system_config.outputs_folder
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
 
 
 def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
@@ -284,16 +283,14 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
         mocks["run_inference"].assert_called_once()
 
 
-def test_model_weights_when_resume_training(mock_run_id: str) -> None:
+def test_model_weights_when_resume_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = mock_run_id
-    with patch("health_azure.utils.get_workspace") as mock_get_workspace_1:
-        with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace_2:
-            mock_get_workspace_1.return_value = DEFAULT_WORKSPACE.workspace
-            mock_get_workspace_2.return_value = DEFAULT_WORKSPACE.workspace
-            runner = MLRunner(experiment_config=experiment_config, container=container)
-            runner.setup()
-            runner.init_training()
-            assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        runner.init_training()
+        assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore

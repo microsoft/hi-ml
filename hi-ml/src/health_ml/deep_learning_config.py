@@ -7,18 +7,17 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
+import re
 from typing import List, Optional
 from urllib.parse import urlparse
 
 import param
 from azureml.train.hyperdrive import HyperDriveConfig
 from param import Parameterized
-from azureml.exceptions import ServiceException
 from health_azure import create_crossval_hyperdrive_config
 from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
-from health_azure.utils import get_aml_run_from_run_id
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
@@ -188,11 +187,7 @@ class WorkflowParams(param.Parameterized):
 
     @property
     def checkpoint_is_aml_run_id(self) -> bool:
-        try:
-            _ = get_aml_run_from_run_id(self.src_checkpoint.split(":")[0])
-            return True
-        except ServiceException:
-            return False
+        return re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0]) is not None
 
     @property
     def is_valid_checkpoint(self) -> bool:
