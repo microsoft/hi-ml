@@ -35,7 +35,9 @@ def test_validate_workflow_params_src_checkpoint(mock_run_id: str) -> None:
     # The following should be okay
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     WorkflowParams(local_dataset=Path("foo"), src_checkpoint=str(full_file_path)).validate()
-    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=mock_run_id).validate()
+    with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        WorkflowParams(local_dataset=Path("foo"), src_checkpoint=mock_run_id).validate()
 
 
 def test_validate_workflow_params_for_inference_only(mock_run_id: str) -> None:
