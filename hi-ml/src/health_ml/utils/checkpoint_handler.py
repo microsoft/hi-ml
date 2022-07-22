@@ -37,7 +37,7 @@ class CheckpointHandler:
     def download_recovery_checkpoints_or_weights(self) -> None:
         """
         Download checkpoints from a run recovery object or from a given checkpoint. Set the checkpoints path based on
-        the run_recovery_object, the checkpoint_url, local_checkpoint or checkpoint from an azureml run id.
+        the checkpoint_url, local_checkpoint or checkpoint from an azureml run id.
         This is called at the start of training.
         """
 
@@ -128,8 +128,6 @@ class CheckpointHandler:
                 run_id=self.container.src_checkpoint, download_dir=self.container.outputs_folder
             )
             checkpoint_path = downloader.local_checkpoint_path
-        else:
-            raise ValueError("Cannot download weights, src_checkpoint is not set.")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")

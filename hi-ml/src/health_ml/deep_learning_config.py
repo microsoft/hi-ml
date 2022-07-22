@@ -187,7 +187,8 @@ class WorkflowParams(param.Parameterized):
 
     @property
     def src_checkpoint_is_aml_run_id(self) -> bool:
-        return re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0]) is not None
+        match = re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0])
+        return match is not None and not self.src_checkpoint_is_url and not self.src_checkpoint_is_local_file
 
     @property
     def is_valid_src_checkpoint(self) -> bool:
