@@ -8,7 +8,7 @@ import shutil
 import traceback
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Tuple, Union, List
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import numpy as np
 import PIL
@@ -109,7 +109,9 @@ def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
         TileKey.TILE_RIGHT.value: tile_box.x + tile_box.w,
         TileKey.TILE_BOTTOM.value: tile_box.y + tile_box.h,
         TileKey.OCCUPANCY: occupancy,
-        TileKey.SLIDE_METADATA: {TileKey.from_slide_metadata_key(key): value
+        # TileKey.SLIDE_METADATA: {TileKey.from_slide_metadata_key(key): value
+        #                          for key, value in sample[SlideKey.METADATA].items()
+        TileKey.SLIDE_METADATA: {key: value
                                  for key, value in sample[SlideKey.METADATA].items()}
     }
     return tile_info
@@ -131,7 +133,7 @@ def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey
     return dataset_row
 
 
-def process_slide(sample: Dict[SlideKey, Any], additional_keys: List, level: int, margin: int, tile_size: int,
+def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_size: int,
                   foreground_threshold: Optional[float], occupancy_threshold: float, output_dir: Path,
                   tile_progress: bool = False) -> None:
     """Load and process a slide, saving tile images and information to a CSV file.
@@ -150,8 +152,9 @@ def process_slide(sample: Dict[SlideKey, Any], additional_keys: List, level: int
     slide_metadata: Dict[str, Any] = sample[SlideKey.METADATA]
     keys_to_save = (TileKey.SLIDE_ID, TileKey.TILE_ID, TileKey.IMAGE, TileKey.LABEL,
                     TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM, TileKey.OCCUPANCY)
-    metadata_keys = tuple(TileKey.from_slide_metadata_key(key) for key in slide_metadata)
-    csv_columns: Tuple[str, ...] = (*keys_to_save, *additional_keys, *metadata_keys)
+    # metadata_keys = tuple(TileKey.from_slide_metadata_key(key) for key in slide_metadata)
+    metadata_keys = tuple(key for key in slide_metadata)
+    csv_columns: Tuple[str, ...] = (*keys_to_save, *metadata_keys)
 
     slide_id: str = sample[SlideKey.SLIDE_ID]
     rel_slide_dir = Path(slide_id)
@@ -237,7 +240,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
     return full_csv
 
 
-def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path], additional_keys: List,
+def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
          level: int, tile_size: int, margin: int, foreground_threshold: Optional[float],
          occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
          n_slides: Optional[int] = None) -> None:
@@ -245,7 +248,6 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path], addit
 
     :param slides_dataset: Input tiles dataset object.
     :param root_output_dir: The root directory of the output tiles dataset.
-    :param additional_keys: dataset specific keys for csv
     :param level: Magnification level at which to process the slide.
     :param tile_size: Lateral dimensions of each tile, in pixels.
     :param margin: Margin around the foreground bounding box, in pixels at lowest resolution.
@@ -270,7 +272,7 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path], addit
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
 
-    func = functools.partial(process_slide, additional_keys=additional_keys, level=level, margin=margin, tile_size=tile_size,
+    func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
                              foreground_threshold=foreground_threshold,
                              occupancy_threshold=occupancy_threshold, output_dir=output_dir,
                              tile_progress=not parallel)
@@ -295,22 +297,9 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path], addit
 if __name__ == '__main__':
     from cpath.datasets.tcga_prad_private_dataset import TcgaPradPrivateDataset
 
-    ADDITIONAL_KEYS = [TcgaPradPrivateDataset.CASE_ID_COLUMN,
-                       TcgaPradPrivateDataset.FILE_SIZE_COLUMN,
-                       TcgaPradPrivateDataset.FILE_NAME_COLUMN,
-                       TcgaPradPrivateDataset.SLIDE_SUBMITTER_ID_COLUMN,
-                       TcgaPradPrivateDataset.IS_FFPE_COLUMN,
-                       TcgaPradPrivateDataset.PRIMARY_GLEASON_COLUMN,
-                       TcgaPradPrivateDataset.SECONDARY_GLEASON_COLUMN,
-                       TcgaPradPrivateDataset.PRIMARY_AND_SECONDARY_GLEASON_COLUMN,
-                       TcgaPradPrivateDataset.ISUP_COLUMN,
-                       TcgaPradPrivateDataset.TP53_COLUMN,
-                       TcgaPradPrivateDataset.BRCA12_COLUMN]
-
     # Example set up for an existing slides dataset:
-    main(slides_dataset=TcgaPradPrivateDataset("/tmp/datasets/TCGA-PRAD_20220712"),
-         root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
-         additional_keys=ADDITIONAL_KEYS,
+    main(slides_dataset=TcgaPradPrivateDataset("/panda_dataset/TCGA-PRAD_20220712"),
+         root_output_dir="/panda_dataset/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=5,
          level=1,
          tile_size=224,
