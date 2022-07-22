@@ -196,8 +196,9 @@ class CheckpointDownloader:
 
     def extract_remote_checkpoint_dir_from_checkpoint_filename(self) -> Path:
         """
-        Extracts the remote checkpoint directory from the run_id if run_id is in the format
-        <MyContainer_xx>:<checkpoint_filename.ckpt>. Otherwise, uses the default remote checkpoint directory.
+        Extracts the remote checkpoint directory from the checkpoint filename if checkpoint_filename is in the format
+        <custom/patch/checkpoint_filename.ckpt>. Otherwise, uses the default remote checkpoint directory
+        'outputs/checkpoints/'.
         """
         tmp_checkpoint_filename = self.checkpoint_filename
         checkpoint_filename_split = self.checkpoint_filename.split("/")
