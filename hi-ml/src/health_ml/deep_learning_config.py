@@ -123,6 +123,15 @@ class ExperimentFolderHandler(Parameterized):
         )
 
 
+SRC_CHECKPOINT_FORMAT_DOC = ("<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
+                             "If no custom path is provided (e.g., <AzureML_run_id>:<filename.ckpt>)"
+                             "the checkpoint will be downloaded from the default checkpoint folder "
+                             "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
+                             "`src_checkpoint=<AzureML_run_id>`) the latest checkpoint (last.ckpt) "
+                             "will be used to initialize the model."
+                             )
+
+
 class WorkflowParams(param.Parameterized):
     """
     This class contains all parameters that affect how the whole training and testing workflow is executed.
@@ -139,12 +148,7 @@ class WorkflowParams(param.Parameterized):
                                            "    c. A previous azureml run id where the checkpoint is supposed to be "
                                            "       saved ('outputs/checkpoints/' folder by default.)"
                                            "For the latter case 'c' : src_checkpoint should be in the format of "
-                                           "<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
-                                           "If no custom path is provided (e.g., <MyContainer_xxx_yyy>:<filename.ckpt>)"
-                                           "the checkpoint will be downloaded from the default checkpoint folder "
-                                           "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
-                                           "`src_checkpoint=<MyContainer_xxx_yyy>`) the latest checkpoint (last.ckpt) "
-                                           "will be used to initialize the model.")
+                                           f"{SRC_CHECKPOINT_FORMAT_DOC}")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -208,10 +212,7 @@ class WorkflowParams(param.Parameterized):
             raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
                              "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
                              "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
-                             "<MyContainer_xxx_yyy>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
-                             "If no custom path is specified (e.g., <MyContainer_xxx_yyy>:<filename.ckpt>), "
-                             "the chceckpoint is assumed to be available in the default checkpoint folder "
-                             "`outputs/checkpoints/`.")
+                             f"{SRC_CHECKPOINT_FORMAT_DOC}")
 
     @property
     def is_running_in_aml(self) -> bool:
