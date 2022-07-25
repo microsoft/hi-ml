@@ -44,17 +44,13 @@
             "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
             "args": [
                 "--model=health_cpath.SlidesPandaImageNetMIL",
-                "--pl_limit_train_batches=20",
-                "--pl_limit_val_batches=20",
-                "--pl_limit_test_batches=20",
-                "--max_epochs=2",
+                "--pl_fast_dev_run=10",
+                "--crossval_count=0",
+                "--batch_size=2",
                 "--max_bag_size=4",
                 "--max_bag_size_inf=4",
                 "--num_top_slides=2",
-                "--num_top_tiles=2",
-                "--src_checkpoint=SlidesPandaImageNetMIL_1658495141_e7b20cdc",
-                "--max_num_gpus=1",
-                // "--run_inference_only=True"
+                "--num_top_tiles=2"
             ],
             "console": "integratedTerminal",
         },

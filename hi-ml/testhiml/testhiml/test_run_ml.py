@@ -246,7 +246,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_container.run()
 
-            mocks["load_model_checkpoint"].called == run_extra_val_epoch
+            mocks["load_model_checkpoint"].assert_called_once()
             assert ml_runner_with_container._has_setup_run
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 
