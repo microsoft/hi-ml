@@ -292,5 +292,10 @@ def test_model_weights_when_resume_training() -> None:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
         runner.setup()
-        runner.init_training()
         assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
+        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+            mock_create_trainer.return_value = MagicMock(), MagicMock()
+            runner.init_training()
+            mock_create_trainer.assert_called_once()
+            recovery_checkpoint = mock_create_trainer.call_args[0][1]
+            assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path

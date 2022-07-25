@@ -117,6 +117,7 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them.
         """
+
         if self.container.src_checkpoint_is_local_file:
             checkpoint_path = Path(self.container.src_checkpoint)
         elif self.container.src_checkpoint_is_url:

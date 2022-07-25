@@ -179,7 +179,10 @@ class MLRunner:
         # get the container's datamodule
         self.data_module = self.container.get_data_module()
 
-        checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+        checkpoint_path_for_recovery = (
+            self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+            or self.checkpoint_handler.trained_weights_path  # for resuming from a checkpoint
+        )
 
         self.trainer, self.storing_logger = create_lightning_trainer(
             self.container, checkpoint_path_for_recovery,
