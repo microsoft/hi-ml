@@ -276,7 +276,6 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.max_epochs = 2
     ml_runner_with_run_id.container.max_num_gpus = 0
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch.multiple(ml_runner_with_run_id, run_validation=DEFAULT, run_inference=DEFAULT) as mocks:
