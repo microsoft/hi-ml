@@ -187,7 +187,7 @@ class WorkflowParams(param.Parameterized):
 
     @property
     def src_checkpoint_is_local_file(self) -> bool:
-        return Path(self.src_checkpoint).exists()
+        return Path(self.src_checkpoint).is_file()
 
     @property
     def src_checkpoint_is_aml_run_id(self) -> bool:
