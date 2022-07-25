@@ -186,8 +186,6 @@ class MLRunner:
                 # If there is no recovery checkpoint (e.g job hasn't been resubmitted) and a source checkpoint is given,
                 # use it to resume training and increase max_epochs.
                 checkpoint_path_for_recovery = self.checkpoint_handler.trained_weights_path
-                logging.info("Increasing the number of epochs to continue training from the last checkpoint.")
-                self.container.max_epochs += self.container.max_epochs
 
             self.trainer, self.storing_logger = create_lightning_trainer(
                 container=self.container,
