@@ -277,6 +277,7 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
 def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_run_id.container.max_num_gpus = 0
+    ml_runner_with_run_id.container.max_epochs += 10
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch.multiple(ml_runner_with_run_id, run_validation=DEFAULT, run_inference=DEFAULT) as mocks:
         ml_runner_with_run_id.run()
@@ -300,3 +301,17 @@ def test_model_weights_when_resume_training() -> None:
             mock_create_trainer.assert_called_once()
             recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
             assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path
+
+
+def test_runner_end_to_end() -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_num_gpus = 0
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        runner.init_training()
+        runner.run_training()
+        assert True
