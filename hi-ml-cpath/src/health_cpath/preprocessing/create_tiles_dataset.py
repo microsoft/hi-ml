@@ -109,8 +109,6 @@ def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
         TileKey.TILE_RIGHT.value: tile_box.x + tile_box.w,
         TileKey.TILE_BOTTOM.value: tile_box.y + tile_box.h,
         TileKey.OCCUPANCY: occupancy,
-        # TileKey.SLIDE_METADATA: {TileKey.from_slide_metadata_key(key): value
-        #                          for key, value in sample[SlideKey.METADATA].items()
         TileKey.SLIDE_METADATA: {key: value
                                  for key, value in sample[SlideKey.METADATA].items()}
     }
@@ -152,7 +150,6 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
     slide_metadata: Dict[str, Any] = sample[SlideKey.METADATA]
     keys_to_save = (TileKey.SLIDE_ID, TileKey.TILE_ID, TileKey.IMAGE, TileKey.LABEL,
                     TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM, TileKey.OCCUPANCY)
-    # metadata_keys = tuple(TileKey.from_slide_metadata_key(key) for key in slide_metadata)
     metadata_keys = tuple(key for key in slide_metadata)
     csv_columns: Tuple[str, ...] = (*keys_to_save, *metadata_keys)
 
@@ -295,11 +292,11 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
 
 
 if __name__ == '__main__':
-    from cpath.datasets.tcga_prad_private_dataset import TcgaPradPrivateDataset
+    from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
 
     # Example set up for an existing slides dataset:
-    main(slides_dataset=TcgaPradPrivateDataset("/panda_dataset/TCGA-PRAD_20220712"),
-         root_output_dir="/panda_dataset/TCGA-PRAD_10X_tiles_level1_224",
+    main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
+         root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=5,
          level=1,
          tile_size=224,
