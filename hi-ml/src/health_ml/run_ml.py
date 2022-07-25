@@ -183,7 +183,8 @@ class MLRunner:
             self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
             or self.checkpoint_handler.trained_weights_path  # for resuming from a checkpoint
         )
-
+        if checkpoint_path_for_recovery:
+            logging.info(f"Resuming training from checkpoint {checkpoint_path_for_recovery}")
         self.trainer, self.storing_logger = create_lightning_trainer(
             self.container, checkpoint_path_for_recovery,
             num_nodes=self.container.num_nodes,
@@ -349,6 +350,9 @@ class MLRunner:
             self.after_ddp_cleanup(old_environ)
 
         else:
+            logging.info(
+                f"Initializing model for inference with checkpoints {self.checkpoint_handler.trained_weights_path}"
+            )
             self.load_model_checkpoint()
 
         # Run inference on a single device
