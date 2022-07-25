@@ -24,6 +24,7 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils import fixed_paths
+from health_ml.utils import checkpoint_handler
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.common_utils import (
@@ -179,19 +180,26 @@ class MLRunner:
         # get the container's datamodule
         self.data_module = self.container.get_data_module()
 
-        if self.container.src_checkpoint and self.checkpoint_handler.trained_weights_path:
-            self.container.load_model_checkpoint(self.checkpoint_handler.trained_weights_path)
-            logging.info(f"Resuming training from checkpoint {self.checkpoint_handler.trained_weights_path}")
+        if not self.container.run_inference_only:
 
-        checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+            checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+            if not checkpoint_path_for_recovery and self.container.src_checkpoint:
+                # If there is no recovery checkpoint (e.g job hasn't been resubmitted) and a source checkpoint is given,
+                # use it to resume training and increase max_epochs.
+                checkpoint_path_for_recovery = self.checkpoint_handler.trained_weights_path
+                logging.info("Increasing the number of epochs to continue training from the last checkpoint.")
+                self.container.max_epochs += self.container.max_epochs
 
-        self.trainer, self.storing_logger = create_lightning_trainer(
-            self.container, checkpoint_path_for_recovery,
-            num_nodes=self.container.num_nodes,
-            multiple_trainloader_mode=self.get_multiple_trainloader_mode())
+            self.trainer, self.storing_logger = create_lightning_trainer(
+                container=self.container,
+                resume_from_checkpoint=checkpoint_path_for_recovery,
+                num_nodes=self.container.num_nodes,
+                multiple_trainloader_mode=self.get_multiple_trainloader_mode())
 
-        rank_info = ", ".join(f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
-        logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
+            rank_info = ", ".join(
+                f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK]
+            )
+            logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
 
     def load_model_checkpoint(self) -> None:
         if not self.container.run_inference_only:
@@ -275,7 +283,12 @@ class MLRunner:
             # uneven inputs.
             self.container.max_num_gpus = 1
 
-            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+            checkpoint_path = (
+                self.checkpoint_handler.get_checkpoint_to_test() if self.container.src_checkpoint else None
+            )
+            trainer, _ = create_lightning_trainer(
+                self.container, resume_from_checkpoint=checkpoint_path, num_nodes=1
+            )
 
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
@@ -348,12 +361,6 @@ class MLRunner:
 
             # Kill all processes besides rank 0
             self.after_ddp_cleanup(old_environ)
-
-        else:
-            logging.info(
-                f"Initializing model for inference with checkpoints {self.checkpoint_handler.trained_weights_path}"
-            )
-            self.load_model_checkpoint()
 
         # Run inference on a single device
         with logging_section("Model inference"):

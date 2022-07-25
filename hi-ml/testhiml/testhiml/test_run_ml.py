@@ -260,19 +260,17 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.multiple(
-            ml_runner_with_run_id,
-            run_training=DEFAULT,
-            run_validation=DEFAULT,
-            run_inference=DEFAULT,
-            load_model_checkpoint=DEFAULT,
-            init_training=DEFAULT,
+            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT
         ) as mocks:
-            mock_create_trainer.return_value = MagicMock(), MagicMock()
+            mock_trainer = MagicMock()
+            mock_create_trainer.return_value = mock_trainer, MagicMock()
             ml_runner_with_run_id.run()
+            mock_create_trainer.assert_called_once()
+            recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
+            assert recovery_checkpoint == ml_runner_with_run_id.checkpoint_handler.trained_weights_path
             mocks["run_training"].assert_not_called()
             mocks["run_validation"].assert_not_called()
-            mocks["run_inference"].assert_called_once()
-            mocks["load_model_checkpoint"].assert_called_once()
+            mock_trainer.test.assert_called_once()
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
@@ -296,10 +294,10 @@ def test_model_weights_when_resume_training() -> None:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
         runner.setup()
-        expected_checkpoint_file = runner.checkpoint_handler.trained_weights_path
-        assert expected_checkpoint_file.is_file()  # type: ignore
-        with patch.object(runner.container, "load_model_checkpoint") as mock_load_model_checkpoint:
+        assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
+        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+            mock_create_trainer.return_value = MagicMock(), MagicMock()
             runner.init_training()
-            mock_load_model_checkpoint.assert_called_once()
-            checkpoint_file = mock_load_model_checkpoint.call_args[0][0]
-            assert checkpoint_file == expected_checkpoint_file
+            mock_create_trainer.assert_called_once()
+            recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
+            assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path
