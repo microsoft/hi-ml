@@ -224,9 +224,9 @@ class CheckpointDownloader:
 
     def download_checkpoint_if_necessary(self) -> None:
         """Downloads the specified checkpoint if it does not already exist. """
-        workspace = get_workspace()
 
         if not self.local_checkpoint_path.exists():
+            workspace = get_workspace()
             self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
             download_checkpoints_from_run_id(
                 self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
