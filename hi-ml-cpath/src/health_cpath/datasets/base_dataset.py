@@ -15,6 +15,11 @@ from torch.utils.data import Dataset
 from health_cpath.utils.naming import SlideKey
 
 
+TRAIN_SPLIT_LABEL = "train"  # Value used to indicate the training split in `SPLIT_COLUMN`
+VAL_SPLIT_LABEL = "val"  # Value used to indicate the validation split in `SPLIT_COLUMN`
+TEST_SPLIT_LABEL = "test"  # Value used to indicate the test split in `SPLIT_COLUMN`
+
+
 class TilesDataset(Dataset):
     """Base class for datasets of WSI tiles, iterating dictionaries of image paths and metadata.
 
@@ -26,8 +31,6 @@ class TilesDataset(Dataset):
     :param SPLIT_COLUMN: CSV column name for train/test split (optional).
     :param TILE_X_COLUMN: CSV column name for horizontal tile coordinate (optional).
     :param TILE_Y_COLUMN: CSV column name for vertical tile coordinate (optional).
-    :param TRAIN_SPLIT_LABEL: Value used to indicate the training split in `SPLIT_COLUMN`.
-    :param TEST_SPLIT_LABEL: Value used to indicate the test split in `SPLIT_COLUMN`.
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
     """
@@ -35,13 +38,10 @@ class TilesDataset(Dataset):
     SLIDE_ID_COLUMN: str = 'slide_id'
     IMAGE_COLUMN: str = 'image'
     PATH_COLUMN: str = 'image_path'
-    LABEL_COLUMN: str = 'label'
+    label_column: str = 'label'
     SPLIT_COLUMN: Optional[str] = 'split'
     TILE_X_COLUMN: Optional[str] = 'tile_x'
     TILE_Y_COLUMN: Optional[str] = 'tile_y'
-
-    TRAIN_SPLIT_LABEL: str = 'train'
-    TEST_SPLIT_LABEL: str = 'test'
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
@@ -81,7 +81,7 @@ class TilesDataset(Dataset):
         if train is None:
             self.dataset_df = dataset_df
         else:
-            split = self.TRAIN_SPLIT_LABEL if train else self.TEST_SPLIT_LABEL
+            split = TRAIN_SPLIT_LABEL if train else TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
 
         if validate_columns:
@@ -93,7 +93,7 @@ class TilesDataset(Dataset):
         If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
         call `validate_columns()` after creating derived columns, for example.
         """
-        columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.LABEL_COLUMN,
+        columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.label_column,
                    self.SPLIT_COLUMN, self.TILE_X_COLUMN, self.TILE_Y_COLUMN]
         columns_not_found = []
         for column in columns:
@@ -121,7 +121,7 @@ class TilesDataset(Dataset):
         return self.dataset_df[self.SLIDE_ID_COLUMN]
 
     def get_slide_labels(self) -> pd.Series:
-        return self.dataset_df.groupby(self.SLIDE_ID_COLUMN)[self.LABEL_COLUMN].agg(pd.Series.mode)
+        return self.dataset_df.groupby(self.SLIDE_ID_COLUMN)[self.label_column].agg(pd.Series.mode)
 
     def get_class_weights(self) -> torch.Tensor:
         slide_labels = self.get_slide_labels()
@@ -139,8 +139,6 @@ class SlidesDataset(Dataset):
     :param IMAGE_COLUMN: CSV column name for relative path to image file.
     :param LABEL_COLUMN: CSV column name for tile label.
     :param SPLIT_COLUMN: CSV column name for train/test split (optional).
-    :param TRAIN_SPLIT_LABEL: Value used to indicate the training split in `SPLIT_COLUMN`.
-    :param TEST_SPLIT_LABEL: Value used to indicate the test split in `SPLIT_COLUMN`.
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
     """
@@ -149,9 +147,6 @@ class SlidesDataset(Dataset):
     LABEL_COLUMN: str = 'label'
     MASK_COLUMN: Optional[str] = None
     SPLIT_COLUMN: Optional[str] = None
-
-    TRAIN_SPLIT_LABEL: str = 'train'
-    TEST_SPLIT_LABEL: str = 'test'
 
     METADATA_COLUMNS: Tuple[str, ...] = ()
 
@@ -193,7 +188,7 @@ class SlidesDataset(Dataset):
         if train is None:
             self.dataset_df = dataset_df
         else:
-            split = self.TRAIN_SPLIT_LABEL if train else self.TEST_SPLIT_LABEL
+            split = TRAIN_SPLIT_LABEL if train else TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
 
         if validate_columns:

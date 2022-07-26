@@ -109,7 +109,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
         if self.transform:
             image = self.transform(image)
         # get binary label
-        label = 0 if sample[self.base_dataset.LABEL_COLUMN] == 0 else 1
+        label = 0 if sample[self.base_dataset.label_column] == 0 else 1
         return image, label
 
     def __len__(self) -> int:
