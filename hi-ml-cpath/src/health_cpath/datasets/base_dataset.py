@@ -27,32 +27,31 @@ class TilesDataset(Dataset):
     :param SLIDE_ID_COLUMN: CSV column name for slide ID.
     :param IMAGE_COLUMN: CSV column name for relative path to image file.
     :param PATH_COLUMN: CSV column name for relative path to image file. Replicated to propagate the path to the batch.
-    :param LABEL_COLUMN: CSV column name for tile label.
     :param SPLIT_COLUMN: CSV column name for train/test split (optional).
     :param TILE_X_COLUMN: CSV column name for horizontal tile coordinate (optional).
     :param TILE_Y_COLUMN: CSV column name for vertical tile coordinate (optional).
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
-    :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
     """
     TILE_ID_COLUMN: str = 'tile_id'
     SLIDE_ID_COLUMN: str = 'slide_id'
     IMAGE_COLUMN: str = 'image'
     PATH_COLUMN: str = 'image_path'
-    label_column: str = 'label'
     SPLIT_COLUMN: Optional[str] = 'split'
     TILE_X_COLUMN: Optional[str] = 'tile_x'
     TILE_Y_COLUMN: Optional[str] = 'tile_y'
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
-    N_CLASSES: int = 1  # binary classification by default
+    n_classes: int = 1  # binary classification by default
 
     def __init__(self,
                  root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  train: Optional[bool] = None,
-                 validate_columns: bool = True) -> None:
+                 validate_columns: bool = True,
+                 label_column: str = "label",
+                 n_classes: int = 1) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -65,11 +64,15 @@ class TilesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
+        :param label_column: CSV column name for tile label.
+        :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         """
         if self.SPLIT_COLUMN is None and train is not None:
             raise ValueError("Train/test split was specified but dataset has no split column")
 
         self.root_dir = Path(root)
+        self.label_column = label_column
+        self.n_classes = n_classes
 
         if dataset_df is not None:
             self.dataset_csv = None
@@ -137,14 +140,11 @@ class SlidesDataset(Dataset):
 
     :param SLIDE_ID_COLUMN: CSV column name for slide ID.
     :param IMAGE_COLUMN: CSV column name for relative path to image file.
-    :param LABEL_COLUMN: CSV column name for tile label.
     :param SPLIT_COLUMN: CSV column name for train/test split (optional).
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
-    :param N_CLASSES: Number of classes indexed in `LABEL_COLUMN`.
     """
     SLIDE_ID_COLUMN: str = 'slide_id'
     IMAGE_COLUMN: str = 'image'
-    LABEL_COLUMN: str = 'label'
     MASK_COLUMN: Optional[str] = None
     SPLIT_COLUMN: Optional[str] = None
 
@@ -152,14 +152,14 @@ class SlidesDataset(Dataset):
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
-    N_CLASSES: int = 1  # binary classification by default
-
     def __init__(self,
                  root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  train: Optional[bool] = None,
-                 validate_columns: bool = True) -> None:
+                 validate_columns: bool = True,
+                 label_column: str = "label",
+                 n_classes: int = 1) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -172,11 +172,15 @@ class SlidesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
+        :param label_column: CSV column name for tile label.
+        :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         """
         if self.SPLIT_COLUMN is None and train is not None:
             raise ValueError("Train/test split was specified but dataset has no split column")
 
         self.root_dir = Path(root)
+        self.label_column = label_column
+        self.n_classes = n_classes
 
         if dataset_df is not None:
             self.dataset_csv = None
@@ -200,7 +204,7 @@ class SlidesDataset(Dataset):
         If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
         call `validate_columns()` after creating derived columns, for example.
         """
-        columns = [self.IMAGE_COLUMN, self.LABEL_COLUMN, self.MASK_COLUMN,
+        columns = [self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN,
                    self.SPLIT_COLUMN] + list(self.METADATA_COLUMNS)
         columns_not_found = []
         for column in columns:
@@ -227,7 +231,7 @@ class SlidesDataset(Dataset):
             sample[SlideKey.MASK] = str(self.root_dir / rel_mask_path)
             sample[SlideKey.MASK_PATH] = sample[SlideKey.MASK]
 
-        sample[SlideKey.LABEL] = slide_row[self.LABEL_COLUMN]
+        sample[SlideKey.LABEL] = slide_row[self.label_column]
         sample[SlideKey.METADATA] = {col: slide_row[col] for col in self.METADATA_COLUMNS}
         return sample
 
@@ -236,7 +240,7 @@ class SlidesDataset(Dataset):
         return cls.MASK_COLUMN is not None
 
     def get_slide_labels(self) -> pd.Series:
-        return self.dataset_df[self.LABEL_COLUMN]
+        return self.dataset_df[self.label_column]
 
     def get_class_weights(self) -> torch.Tensor:
         slide_labels = self.get_slide_labels()

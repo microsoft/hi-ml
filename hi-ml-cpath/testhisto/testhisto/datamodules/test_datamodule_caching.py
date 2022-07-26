@@ -45,6 +45,7 @@ def compare_dataloaders(dl1: DataLoader, dl2: DataLoader) -> None:
 
 class MockTilesDataset(TilesDataset):
     TILE_X_COLUMN = TILE_Y_COLUMN = None
+    LABEL_COLUMN: str = "label"
 
 
 def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.DataFrame:
@@ -59,7 +60,7 @@ def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.
     df = pd.DataFrame()
     df[MockTilesDataset.TILE_ID_COLUMN] = np.arange(n_tiles)
     df[MockTilesDataset.SLIDE_ID_COLUMN] = slide_ids
-    df[MockTilesDataset.label_column] = tile_labels
+    df[MockTilesDataset.LABEL_COLUMN] = tile_labels
     df[MockTilesDataset.SPLIT_COLUMN] = tile_splits
     df[MockTilesDataset.IMAGE_COLUMN] = [f"{tile_splits[i]}/{i:06d}.png" for i in range(n_tiles)]
 

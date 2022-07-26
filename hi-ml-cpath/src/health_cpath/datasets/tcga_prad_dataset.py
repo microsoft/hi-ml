@@ -21,13 +21,13 @@ class TcgaPradDataset(SlidesDataset):
     - `'label'` (int, 0 or 1): label for predicting positive or negative
     """
     IMAGE_COLUMN: str = 'image_path'
-    LABEL_COLUMN: str = 'label'
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
     def __init__(self, root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None) -> None:
+                 dataset_df: Optional[pd.DataFrame] = None,
+                 label_column: str = "label") -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file. If omitted, the CSV will be read from
@@ -35,8 +35,8 @@ class TcgaPradDataset(SlidesDataset):
         :param dataset_df: A potentially pre-processed dataframe in the same format as would be read
         from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         """
-        super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
+        super().__init__(root, dataset_csv, dataset_df, validate_columns=False, label_column=label_column)
         # Example of how to define a custom label column from existing columns:
-        self.dataset_df[self.LABEL_COLUMN] = (self.dataset_df['label1']
+        self.dataset_df[self.label_column] = (self.dataset_df['label1']
                                               | self.dataset_df['label2']).astype(int)  # noqa: W503
         self.validate_columns()

@@ -13,6 +13,8 @@ from typing import Optional
 from torch.utils.data import DataLoader
 
 
+PANDA_N_CLASSES = 6
+
 class MockHistoDataType(Enum):
     PATHMNIST = "PathMNIST"
     FAKE = "fake"

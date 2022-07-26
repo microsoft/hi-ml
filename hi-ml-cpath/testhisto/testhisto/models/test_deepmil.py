@@ -207,9 +207,9 @@ def test_metrics(n_classes: int) -> None:
         self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
     ) -> TileEncoder:
         return IdentityEncoder(input_dim=input_dim)
-
+    LABEL_COLUMN = "label"
     with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
-        module = TilesDeepMILModule(label_column=TilesDataset.label_column,
+        module = TilesDeepMILModule(label_column=LABEL_COLUMN,
                                     n_classes=n_classes,
                                     pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
 
@@ -231,7 +231,7 @@ def test_metrics(n_classes: int) -> None:
                 TilesDataset.SLIDE_ID_COLUMN: [str(slide_idx)] * bag_size,
                 TilesDataset.TILE_ID_COLUMN: [f"{slide_idx}-{tile_idx}" for tile_idx in range(bag_size)],
                 TilesDataset.IMAGE_COLUMN: rand(bag_size, *input_dim),
-                TilesDataset.label_column: bag_label.expand(bag_size),
+                LABEL_COLUMN: bag_label.expand(bag_size),
             }
             sample[TilesDataset.PATH_COLUMN] = [tile_id + '.png'
                                                 for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]

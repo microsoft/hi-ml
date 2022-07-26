@@ -95,7 +95,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return set()
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
-        n_classes = self.data_module.train_dataset.N_CLASSES
+        n_classes = self.data_module.train_dataset.n_classes
         outputs_handler = DeepMILOutputsHandler(
             outputs_root=self.outputs_folder,
             n_classes=n_classes,
@@ -220,8 +220,8 @@ class BaseMILTiles(BaseMIL):
     def create_model(self) -> TilesDeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                                            n_classes=self.data_module.train_dataset.N_CLASSES,
+        deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.label_column,
+                                            n_classes=self.data_module.train_dataset.n_classes,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
                                             dropout_rate=self.dropout_rate,
@@ -261,7 +261,7 @@ class BaseMILSlides(BaseMIL):
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
         deepmil_module = SlidesDeepMILModule(label_column=SlideKey.LABEL,
-                                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                                             n_classes=self.data_module.train_dataset.n_classes,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
                                              dropout_rate=self.dropout_rate,
