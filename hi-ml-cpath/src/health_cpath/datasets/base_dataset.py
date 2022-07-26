@@ -42,8 +42,6 @@ class TilesDataset(Dataset):
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
-    n_classes: int = 1  # binary classification by default
-
     def __init__(self,
                  root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
