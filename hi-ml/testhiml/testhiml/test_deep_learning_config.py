@@ -13,20 +13,44 @@ from pathlib import Path
 
 from health_ml.deep_learning_config import DatasetParams, WorkflowParams, OutputParams, OptimizerParams, \
     ExperimentFolderHandler, TrainerParams
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 
 
-def test_validate_workflow_params() -> None:
-    error_message = "Cannot specify more than one of local_weights_path, weights_url."
-    # DeepLearningConfig cannot be initialized with more than one of these parameters set
+def _test_invalid_pre_checkpoint_workflow_params(src_checkpoint: str) -> None:
+    error_message = "Invalid src_checkpoint:"
     with pytest.raises(ValueError) as ex:
-        WorkflowParams(local_datasets=Path("foo"),
-                       local_weights_path=Path("foo"),
-                       weights_url="bar").validate()
-    assert ex.value.args[0] == error_message
+        WorkflowParams(local_datasets=Path("foo"), src_checkpoint=src_checkpoint).validate()
+    assert error_message in ex.value.args[0]
+
+
+def test_validate_workflow_params_src_checkpoint() -> None:
+
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy/local/path/model.ckpt")
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="INV@lid%RUN*id")
+    _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="http/dummy_url-com")
 
     # The following should be okay
-    WorkflowParams(local_dataset=Path("foo"), local_weights_path=Path("foo")).validate()
-    WorkflowParams(local_dataset=Path("foo"), weights_url="foo").validate()
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=str(full_file_path)).validate()
+    run_id = mock_run_id(id=0)
+    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=run_id).validate()
+
+
+def test_validate_workflow_params_for_inference_only() -> None:
+    error_message = "Cannot run inference without a src_checkpoint."
+    with pytest.raises(ValueError) as ex:
+        WorkflowParams(local_datasets=Path("foo"), run_inference_only=True).validate()
+    assert error_message in ex.value.args[0]
+
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    run_id = mock_run_id(id=0)
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=run_id).validate()
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                   src_checkpoint=f"{run_id}:best_val_loss.ckpt").validate()
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                   src_checkpoint=f"{run_id}:custom/path/model.ckpt").validate()
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                   src_checkpoint=str(full_file_path)).validate()
 
 
 @pytest.mark.fast
