@@ -1,4 +1,4 @@
-# DeepMIL model on PANDA dataset
+# DeepMIL model for tumor grading on PANDA dataset
 
 ## Background
 
