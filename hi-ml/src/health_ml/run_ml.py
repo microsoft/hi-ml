@@ -179,18 +179,28 @@ class MLRunner:
         # get the container's datamodule
         self.data_module = self.container.get_data_module()
 
-        checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+        if not self.container.run_inference_only:
 
-        self.trainer, self.storing_logger = create_lightning_trainer(
-            self.container, checkpoint_path_for_recovery,
-            num_nodes=self.container.num_nodes,
-            multiple_trainloader_mode=self.get_multiple_trainloader_mode())
+            checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+            if not checkpoint_path_for_recovery and self.container.src_checkpoint:
+                # If there is no recovery checkpoint (e.g job hasn't been resubmitted) and a source checkpoint is given,
+                # use it to resume training.
+                checkpoint_path_for_recovery = self.checkpoint_handler.trained_weights_path
 
-        rank_info = ", ".join(f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
-        logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
+            self.trainer, self.storing_logger = create_lightning_trainer(
+                container=self.container,
+                resume_from_checkpoint=checkpoint_path_for_recovery,
+                num_nodes=self.container.num_nodes,
+                multiple_trainloader_mode=self.get_multiple_trainloader_mode())
 
-    def load_model_checkpoint_after_training(self) -> None:
-        self.checkpoint_handler.additional_training_done()
+            rank_info = ", ".join(
+                f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK]
+            )
+            logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
+
+    def load_model_checkpoint(self) -> None:
+        if not self.container.run_inference_only:
+            self.checkpoint_handler.additional_training_done()
         checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
         self.container.load_model_checkpoint(checkpoint_path_for_inference)
 
@@ -270,7 +280,12 @@ class MLRunner:
             # uneven inputs.
             self.container.max_num_gpus = 1
 
-            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+            checkpoint_path = (
+                self.checkpoint_handler.get_checkpoint_to_test() if self.container.src_checkpoint else None
+            )
+            trainer, _ = create_lightning_trainer(
+                self.container, resume_from_checkpoint=checkpoint_path, num_nodes=1
+            )
 
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
@@ -324,24 +339,25 @@ class MLRunner:
         """
         self.setup()
         self.init_training()
-        # Backup the environment variables in case we need to run a second training in the unit tests.
-        old_environ = dict(os.environ)
+        if not self.container.run_inference_only:
+            # Backup the environment variables in case we need to run a second training in the unit tests.
+            old_environ = dict(os.environ)
 
-        # do training
-        with logging_section("Model training"):
-            self.run_training()
+            # do training
+            with logging_section("Model training"):
+                self.run_training()
 
-        # load model checkpoint for custom inference or additional validation step
-        if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-            self.load_model_checkpoint_after_training()
+            # load model checkpoint for custom inference or additional validation step
+            if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
+                self.load_model_checkpoint()
 
-        # Run extra validation epoch if enabled
-        if self.container.run_extra_val_epoch:
-            with logging_section("Model Validation to save plots on validation set"):
-                self.run_validation()
+            # Run extra validation epoch if enabled
+            if self.container.run_extra_val_epoch:
+                with logging_section("Model Validation to save plots on validation set"):
+                    self.run_validation()
 
-        # Kill all processes besides rank 0
-        self.after_ddp_cleanup(old_environ)
+            # Kill all processes besides rank 0
+            self.after_ddp_cleanup(old_environ)
 
         # Run inference on a single device
         with logging_section("Model inference"):

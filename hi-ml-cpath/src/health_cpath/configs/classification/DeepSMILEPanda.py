@@ -70,7 +70,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         BaseMILTiles.setup(self)
-        self.ckpt_run_id = innereye_ssl_checkpoint_binary
+        self.ssl_ckpt_run_id = innereye_ssl_checkpoint_binary
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
@@ -135,7 +135,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         BaseMILSlides.setup(self)
-        self.ckpt_run_id = innereye_ssl_checkpoint_binary
+        self.ssl_ckpt_run_id = innereye_ssl_checkpoint_binary
 
     def get_dataloader_kwargs(self) -> dict:
         return dict(

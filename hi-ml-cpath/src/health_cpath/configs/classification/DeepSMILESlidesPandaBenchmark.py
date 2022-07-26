@@ -128,7 +128,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             class_weights=self.data_module.class_weights,
             dropout_rate=self.dropout_rate,
             outputs_folder=self.outputs_folder,
-            ckpt_run_id=self.ckpt_run_id,
+            ssl_ckpt_run_id=self.ssl_ckpt_run_id,
             encoder_params=create_from_matching_params(self, EncoderParams),
             pooling_params=create_from_matching_params(self, PoolingParams),
             optimizer_params=create_from_matching_params(self, OptimizerParams),
