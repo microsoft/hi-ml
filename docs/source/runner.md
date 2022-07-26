@@ -236,8 +236,15 @@ himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContaine
 
 Analogously, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
 The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
-validation loss epoch.
+validation loss epoch as set in the following comandline.
 
 ```
 himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
+```
+
+Warning: When resuming training, one should make sure to set `container.max_epochs` greater than the last epoch of the
+specified checkpoint. A misconfiguration exception will be raised otherwise:
+
+```
+pytorch_lightning.utilities.exceptions.MisconfigurationException: You restored a checkpoint with current_epoch=19, but you have set Trainer(max_epochs=4).
 ```
