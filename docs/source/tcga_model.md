@@ -1,4 +1,4 @@
-# DeepMIL model for genetic mutation on TCGA-CRCK 
+# DeepMIL model for genetic mutation on TCGA-CRCK
 
 ## Background
 
