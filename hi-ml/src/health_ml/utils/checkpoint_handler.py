@@ -15,7 +15,11 @@ from azureml.core import Run
 
 from health_azure.utils import is_global_rank_zero
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import (MODEL_WEIGHTS_DIR_NAME, find_recovery_checkpoint_on_disk_or_cloud)
+from health_ml.utils.checkpoint_utils import (
+    MODEL_WEIGHTS_DIR_NAME,
+    CheckpointDownloader,
+    find_recovery_checkpoint_on_disk_or_cloud,
+)
 
 
 class CheckpointHandler:
@@ -23,10 +27,7 @@ class CheckpointHandler:
     This class handles which checkpoints are used to initialize the model during train or test time
     """
 
-    def __init__(self,
-                 container: LightningContainer,
-                 project_root: Path,
-                 run_context: Optional[Run] = None):
+    def __init__(self, container: LightningContainer, project_root: Path, run_context: Optional[Run] = None):
         self.container = container
         self.project_root = project_root
         self.run_context = run_context
@@ -35,15 +36,12 @@ class CheckpointHandler:
 
     def download_recovery_checkpoints_or_weights(self) -> None:
         """
-        Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
-        run_recovery_object, weights_url or local_weights_path.
+        Download checkpoints from a run recovery object or from a given checkpoint. Set the checkpoints path based on
+        the checkpoint_url, local_checkpoint or checkpoint from an azureml run id.
         This is called at the start of training.
-
-        :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
-        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
-        nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         """
-        if self.container.weights_url or self.container.local_weights_path:
+
+        if self.container.src_checkpoint:
             self.trained_weights_path = self.get_local_checkpoints_path_or_download()
 
     def additional_training_done(self) -> None:
@@ -91,7 +89,7 @@ class CheckpointHandler:
     @staticmethod
     def download_weights(url: str, download_folder: Path) -> Path:
         """
-        Download a checkpoint from weights_url to the modelweights directory. The file name is determined from
+        Download a checkpoint from checkpoint_url to the modelweights directory. The file name is determined from
         from the file name in the URL. If that can't be determined, use a random file name.
 
         :param url: The URL from which the weights should be downloaded.
@@ -119,15 +117,20 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them.
         """
-        if self.container.local_weights_path:
-            checkpoint_path = self.container.local_weights_path
-        elif self.container.weights_url:
+
+        if self.container.src_checkpoint_is_local_file:
+            checkpoint_path = Path(self.container.src_checkpoint)
+        elif self.container.src_checkpoint_is_url:
             download_folder = self.container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
-            checkpoint_path = CheckpointHandler.download_weights(url=self.container.weights_url,
-                                                                 download_folder=download_folder)
+            checkpoint_path = self.download_weights(url=self.container.src_checkpoint, download_folder=download_folder)
+        elif self.container.src_checkpoint_is_aml_run_id:
+            downloader = CheckpointDownloader(
+                run_id=self.container.src_checkpoint, download_dir=self.container.outputs_folder
+            )
+            checkpoint_path = downloader.local_checkpoint_path
         else:
-            raise ValueError("Cannot download weights, neither local_weights_path or weights_url are set")
+            raise ValueError("Unable to determine how to get the checkpoint path.")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")

@@ -12,7 +12,7 @@ from torchvision.datasets.vision import VisionDataset
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.models.transforms import load_pil_image
-from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex
 
 
 class TcgaCrck_TilesDataset(TilesDataset):
@@ -59,7 +59,7 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
         return len(self.base_dataset)
 
 
-class TcgaCrck_TilesDatasetWithReturnIndex(DataClassBaseWithReturnIndex,
+class TcgaCrck_TilesDatasetWithReturnIndex(DatasetWithReturnIndex,
                                            TcgaCrck_TilesDatasetReturnImageLabel):
     """
     Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.

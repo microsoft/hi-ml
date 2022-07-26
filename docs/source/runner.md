@@ -26,7 +26,7 @@ that class:
 - If the class is outside of the `health_ml.configs` (as would be normal if using the `himl-runner` from a package),
 you need to provide some "hints" where to start searching. It is enough to provide the start of the namespace string:
 for example, `--model health_cpath.PandaImageNetMIL` is effectively telling the runner to search for the
-`PandaImageNetMIL` class _anywhere_ in the `histopathology` namespace. You can think of this as
+`PandaImageNetMIL` class _anywhere_ in the `health_cpath` namespace. You can think of this as
 `health_cpath.*.PandaImageNetMIL`
 
 ## Running ML experiments in Azure ML
@@ -210,3 +210,41 @@ class MyContainer(LightningContainer):
 To the optimizer and LR scheduler: the Lightning model returned by `create_model` should define its own
 `configure_optimizers` method, with the same signature as `LightningModule.configure_optimizers`,
 and returns a tuple containing the Optimizer and LRScheduler objects
+
+## Run inference with a pretrained model
+
+You can use the hi-ml-runner in inference mode only by switching the `--run_inference_only` flag on and specifying
+the model weights by setting `--src_checkpoint` argument that supports three types of checkpoints:
+
+* A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
+* A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
+* An AzureML run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
+  with different checkpoints by setting `--src_checkpoint` according to the format
+  `<azureml_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided
+  (e.g., `--src_checkpoint=AzureML_run_id:best.ckpt`), we assume the checkpoints to be saved in the default
+  checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=AzureML_run_id`),
+  the last epoch checkpoint `outputs/checkpoints/last.ckpt` will be loaded.
+
+Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
+in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
+
+```
+himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
+```
+
+## Resume training from a given checkpoint
+
+Analogously, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
+The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
+validation loss epoch as set in the following comandline.
+
+```
+himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
+```
+
+Warning: When resuming training, one should make sure to set `container.max_epochs` greater than the last epoch of the
+specified checkpoint. A misconfiguration exception will be raised otherwise:
+
+```
+pytorch_lightning.utilities.exceptions.MisconfigurationException: You restored a checkpoint with current_epoch=19, but you have set Trainer(max_epochs=4).
+```

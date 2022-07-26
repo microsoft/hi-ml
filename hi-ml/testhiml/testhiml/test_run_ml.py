@@ -1,9 +1,13 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 import shutil
-from pathlib import Path
-
 import pytest
+
+from pathlib import Path
 from typing import Generator
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
@@ -11,7 +15,8 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
 from health_azure.utils import is_global_rank_zero
-
+from testazure.utils_testazure import DEFAULT_WORKSPACE
+from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
 no_gpu = not is_gpu_available()
 
@@ -46,6 +51,22 @@ def ml_runner_with_container() -> Generator:
     output_dir = runner.container.file_system_config.outputs_folder
     if output_dir.exists():
         shutil.rmtree(output_dir)
+
+
+@pytest.fixture()
+def ml_runner_with_run_id() -> Generator:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.save_checkpoint = True
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        yield runner
+        output_dir = runner.container.file_system_config.outputs_folder
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
 
 
 def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
@@ -204,19 +225,93 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
     assert _expected_files_exist()
 
 
-def test_run(ml_runner_with_container: MLRunner) -> None:
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+@pytest.mark.parametrize("run_inference_only", [True, False])
+def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
     """Test that model runner gets called """
+    ml_runner_with_container.container.run_inference_only = run_inference_only
+    ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_container.setup()
     assert not ml_runner_with_container.checkpoint_handler.has_continued_training
-    with patch.object(ml_runner_with_container, "checkpoint_handler"):
-        with patch.object(ml_runner_with_container, "load_model_checkpoint_after_training") as mock_load:
-            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-                mock_trainer = MagicMock()
-                mock_storing_logger = MagicMock()
-                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
 
-                ml_runner_with_container.run()
+    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+        with patch.multiple(
+            ml_runner_with_container,
+            checkpoint_handler=DEFAULT,
+            load_model_checkpoint=DEFAULT,
+            run_training=DEFAULT,
+            run_validation=DEFAULT,
+            run_inference=DEFAULT,
+        ) as mocks:
+            mock_create_trainer.return_value = MagicMock(), MagicMock()
+            ml_runner_with_container.run()
 
-                mock_load.assert_called_once()
-                assert ml_runner_with_container._has_setup_run
-                assert ml_runner_with_container.checkpoint_handler.has_continued_training
+            mocks["load_model_checkpoint"].called == run_extra_val_epoch
+            assert ml_runner_with_container._has_setup_run
+            assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
+
+            assert mocks["run_training"].called != run_inference_only
+            assert mocks["run_validation"].called == (not run_inference_only and run_extra_val_epoch)
+            mocks["run_inference"].assert_called_once()
+
+
+def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
+    ml_runner_with_run_id.container.run_inference_only = True
+    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+        with patch.multiple(
+            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT
+        ) as mocks:
+            mock_trainer = MagicMock()
+            mock_create_trainer.return_value = mock_trainer, MagicMock()
+            ml_runner_with_run_id.run()
+            mock_create_trainer.assert_called_once()
+            recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
+            assert recovery_checkpoint == ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+            mocks["run_training"].assert_not_called()
+            mocks["run_validation"].assert_not_called()
+            mock_trainer.test.assert_called_once()
+
+
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.max_num_gpus = 0
+    ml_runner_with_run_id.container.max_epochs += 10
+    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    with patch.multiple(ml_runner_with_run_id, run_validation=DEFAULT, run_inference=DEFAULT) as mocks:
+        ml_runner_with_run_id.run()
+        assert mocks["run_validation"].called == run_extra_val_epoch
+        mocks["run_inference"].assert_called_once()
+
+
+def test_model_weights_when_resume_training() -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_num_gpus = 0
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
+        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+            mock_create_trainer.return_value = MagicMock(), MagicMock()
+            runner.init_training()
+            mock_create_trainer.assert_called_once()
+            recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
+            assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path
+
+
+def test_runner_end_to_end() -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_num_gpus = 0
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        runner.init_training()
+        runner.run_training()
+        assert True

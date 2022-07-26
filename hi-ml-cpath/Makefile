@@ -3,8 +3,6 @@
 # Create a Conda environment for this folder only
 env:
 	conda env create --file environment.yml
-	pip install -r requirements_test.txt
-	pip install -r requirements_build.txt
 
 # Update the Conda environment
 conda_update:
@@ -33,12 +31,29 @@ pip_from_conda:
 
 # clean build artifacts
 clean:
-	rm -vrf `find . -type d -name __pycache__`
-	rm -vrf `find . -type d -name logs`
-	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.mypy_cache ./.pytest_cache
-	rm -vrf ./testhisto/testhisto/test_outputs ./testhistotestSSL/test_ouputs
-	rm -vf ./coverage ./coverage.txt ./coverage.xml
+	rm -rf `find . -type d -name __pycache__`
+	rm -rf `find . -type d -name .mypy_cache`
+	rm -rf `find . -type d -name logs`
+	rm -rf `find . -type d -name outputs`
+	rm -rf ./.pytest_cache
+	rm -rf ./testhisto/test_outputs ./testSSL/test_outputs
+	rm -f ./coverage ./coverage.txt ./coverage.xml
+	rm -f ./latest_version.txt ./package_name.txt
+	rm -rf build dist hi_ml_cpath.egg-info
+	rm cifar-10-python.tar.gz
+	rm -rf cifar-10-batches-py
+
+# build package, assuming build requirements already installed
+build:
+	python setup.py sdist bdist_wheel
+
+# Brief smoke-test of the package, by just importing one of the essential modules.
+test_wheel:
+	pip uninstall -y hi-ml hi-ml-azure
+	pip install -e ../hi-ml/
+	pip install -e ../hi-ml-azure/
+	pip install `ls dist/*.whl`
+	python -c "from health_cpath.configs.classification.BaseMIL import BaseMIL"
 
 # run flake8, assuming test requirements already installed
 flake8:
@@ -103,7 +118,7 @@ regression_test_tcgacrcksslmil:
 regression_test_crck_simclr:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
+	python hi-ml/src/health_ml/runner.py --model=SSL.CRCK_SimCLR \
 	--cluster pr-gpu --conda_env hi-ml-cpath/environment.yml \
 	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
@@ -155,7 +170,7 @@ smoke_test_tcgacrcksslmil:
 smoke_test_crck_simclr:
 	{ \
 	cd ../; \
-	python hi-ml/src/health_ml/runner.py --model=health_cpath.CRCK_SimCLR \
+	python hi-ml/src/health_ml/runner.py --model=SSL.CRCK_SimCLR \
 	--conda_env hi-ml-cpath/environment.yml \
 	--pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2 \
 	--is_debug_model=True --num_workers=0 --max_epochs=2; \

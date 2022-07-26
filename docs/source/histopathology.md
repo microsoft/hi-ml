@@ -3,11 +3,14 @@
 The directory [`hi-ml-cpath`](https://github.com/microsoft/hi-ml/tree/main/hi-ml-cpath) contains code
 for runnning experiments in Computational Pathology.
 
+The tools for computational pathology are best used directly from the Git repository.
+You can also use the [`hi-ml-cpath` PyPi package](https://pypi.org/project/hi-ml-cpath)
+to re-use the code in your own projects, for example the deep learning architectures.
+
 ## Setting up your computer
 
-The tools for computational pathology cannot be as a Python package, but rather directly from the Git repository. Please
-follow the instructions in [README](https://github.com/microsoft/hi-ml/blob/main/hi-ml-cpath/README.md) to set
-up your local Python environment.
+Please follow the instructions in [README](https://github.com/microsoft/hi-ml/blob/main/hi-ml-cpath/README.md)
+to set up your local Python environment.
 
 ## Onboarding to Azure
 
