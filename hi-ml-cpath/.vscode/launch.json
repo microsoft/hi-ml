@@ -1,0 +1,75 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run GPU tests in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml-azure/run_pytest.py",
+            "args": [
+                "--mark=gpu",
+                "--cluster=pr-gpu",
+                "--conda_env=${workspaceFolder}/environment.yml",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Train DeepSMILECrck in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=health_cpath.configs.classification.DeepSMILECrck",
+                "--cluster=innereye4cl",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Train DeepSMILECrck locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=health_cpath.DeepSMILECrck",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Run SlidesPandaImageNetMIL locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=health_cpath.SlidesPandaImageNetMIL",
+                "--pl_fast_dev_run=10",
+                "--crossval_count=0",
+                "--batch_size=2",
+                "--max_bag_size=4",
+                "--max_bag_size_inf=4",
+                "--num_top_slides=2",
+                "--num_top_tiles=2"
+            ],
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Python: Run TilesPandaImageNetMIL locally",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/../hi-ml/src/health_ml/runner.py",
+            "args": [
+                "--model=health_cpath.TilesPandaImageNetMIL",
+                "--pl_fast_dev_run=10",
+                "--crossval_count=0",
+                "--batch_size=2",
+                "--max_bag_size=4",
+                "--max_bag_size_inf=4",
+                "--num_top_slides=2",
+                "--num_top_tiles=2"
+            ],
+            "console": "integratedTerminal",
+        },
+    ]
+}

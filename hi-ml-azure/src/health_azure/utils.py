@@ -27,7 +27,6 @@ from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List,
 import conda_merge
 import pandas as pd
 import param
-import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
@@ -35,6 +34,7 @@ from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
+
 
 T = TypeVar("T")
 
@@ -610,69 +610,6 @@ class RunIdOrListParam(CustomTypeParam):
         return [determine_run_id_type(x) for x in res]
 
 
-class CheckpointDownloader:
-    def __init__(
-        self,
-        run_id: str,
-        checkpoint_filename: str,
-        azure_config_json_path: Optional[Path] = None,
-        aml_workspace: Workspace = None,
-        download_dir: PathOrString = "checkpoints",
-        remote_checkpoint_dir: PathOrString = "checkpoints",
-    ) -> None:
-        """
-        Utility class for downloading checkpoint files from an Azure ML run
-
-        :param run_id: Recovery ID of the run from which to load the checkpoint.
-        :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
-        `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
-        :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
-            experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
-            is required.
-        :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
-            azure_config_json_path is provided, this is required.
-        :param download_dir: The local directory in which to save the downloaded checkpoint files.
-        :param remote_checkpoint_dir: The remote folder from which to download the checkpoint file
-        """
-        self.azure_config_json_path = azure_config_json_path
-        self.aml_workspace = aml_workspace
-        self.run_id = run_id
-        self.checkpoint_filename = checkpoint_filename
-        self.download_dir = Path(download_dir)
-        self.remote_checkpoint_dir = Path(remote_checkpoint_dir)
-
-    @property
-    def local_checkpoint_dir(self) -> Path:
-        # in case we run_id is a run recovery id, extract the run id
-        run_id_parts = self.run_id.split(":")
-        run_id = run_id_parts[-1]
-        return self.download_dir / run_id
-
-    @property
-    def remote_checkpoint_path(self) -> Path:
-        return self.remote_checkpoint_dir / self.checkpoint_filename
-
-    @property
-    def local_checkpoint_path(self) -> Path:
-        return self.local_checkpoint_dir / self.remote_checkpoint_path
-
-    def download_checkpoint_if_necessary(self) -> Path:
-        """Downloads the specified checkpoint if it does not already exist.
-
-        :return: The local path to the downloaded checkpoint file.
-        """
-        workspace = get_workspace(aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
-
-        if not self.local_checkpoint_path.exists():
-            self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
-            download_checkpoints_from_run_id(
-                self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
-            )
-            assert self.local_checkpoint_path.exists()
-
-        return self.local_checkpoint_path
-
-
 def is_private_field_name(name: str) -> bool:
     """
     A private field is any Python class member that starts with an underscore eg: _hello
@@ -1098,78 +1035,6 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     return False, conda_yaml
 
 
-def merge_conda_files(
-    conda_files: List[Path],
-    result_file: Path,
-    pip_files: Optional[List[Path]] = None,
-) -> None:
-    """
-    Merges the given Conda environment files using the conda_merge package, optionally adds any
-    dependencies from pip requirements files, and writes the merged file to disk.
-
-    :param conda_files: The Conda environment files to read.
-    :param result_file: The location where the merge results should be written.
-    :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
-    """
-    env_definitions: List[Any] = []
-    for file in conda_files:
-        _, pip_without_include = is_conda_file_with_pip_include(file)
-        env_definitions.append(pip_without_include)
-    unified_definition = {}
-
-    extra_pip_deps = []
-    for pip_file in pip_files or []:
-        additional_pip_deps = [d for d in pip_file.read_text().split("\n") if d and not is_pip_include_dependency(d)]
-        extra_pip_deps.extend(additional_pip_deps)
-
-    name = conda_merge.merge_names(env.get(CONDA_NAME) for env in env_definitions)
-    if name:
-        unified_definition[CONDA_NAME] = name
-
-    try:
-        channels = conda_merge.merge_channels(env.get(CONDA_CHANNELS) for env in env_definitions)
-    except conda_merge.MergeError:
-        logging.error("Failed to merge channel priorities.")
-        raise
-    if channels:
-        unified_definition[CONDA_CHANNELS] = channels
-
-    try:
-        deps_to_merge = [env.get(CONDA_DEPENDENCIES) for env in env_definitions]
-        if len(extra_pip_deps) > 0:
-            deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
-        deps = conda_merge.merge_dependencies(deps_to_merge)
-
-        # Get conda dependencies and pip dependencies from specification
-        pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
-        if len(pip_deps_entries) == 0:
-            raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
-        pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
-        pip_deps = pip_deps_entry[CONDA_PIP]
-        # temporarily remove pip dependencies from deps to be added back after deduplicaton
-        deps.remove(pip_deps_entry)
-
-        # remove all non-pip duplicates from the list of dependencies
-        unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
-
-        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
-
-        # finally add back the deduplicated list of dependencies
-        unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
-
-    except conda_merge.MergeError:
-        logging.error("Failed to merge dependencies.")
-        raise
-    if unique_deps:
-        unified_definition[CONDA_DEPENDENCIES] = unique_deps
-    else:
-        raise ValueError("No dependencies found in any of the conda files.")
-
-    with result_file.open("w") as f:
-        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
-    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
-
-
 def create_python_environment(
     conda_environment_file: Path,
     pip_extra_index_url: str = "",
@@ -1432,7 +1297,8 @@ def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", valid
     """
     run_paths = get_run_file_names(run, prefix=prefix)
     if len(run_paths) == 0:
-        raise ValueError("No such files were found for this Run.")
+        prefix_string = f' with prefix "{prefix}"' if prefix else ""
+        raise FileNotFoundError(f"No files{prefix_string} were found for run with ID {run.id}")
 
     for run_path in run_paths:
         output_path = output_dir / run_path

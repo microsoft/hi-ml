@@ -39,7 +39,7 @@ repository. To prepare:
 
 - In the last statement, where we upload the full dataset to Azure, replace `<your_storage_account>` with the
   name of your Azure storage account.
-- For Python to pick up the paths in `hi-ml-histopathology/src/histopathology/scripts/tcga_dataset_prep.py`, you need to
+- For Python to pick up the paths in `hi-ml-cpath/src/histopathology/scripts/tcga_dataset_prep.py`, you need to
   add the `hi
 
 Note: Depending on the speed of your internet connection, this script can run for several hours because it downloads
@@ -64,8 +64,8 @@ do
 done
 # Create a summary file dataset.csv with all file paths and class labels
 cd ..
-export PYTHONPATH=`pwd`/hi-ml-histopathology/src
-python hi-ml-histopathology/src/histopathology/scripts/tcga_dataset_prep.py
+export PYTHONPATH=`pwd`/hi-ml-cpath/src
+python hi-ml-cpath/src/histopathology/scripts/tcga_dataset_prep.py
 # Upload
 azcopy copy TCGA-Crck https://<your_storage_account>.blob.core.windows.net/datasets/ --recursive
 ```
@@ -73,5 +73,10 @@ azcopy copy TCGA-Crck https://<your_storage_account>.blob.core.windows.net/datas
 ## Making your storage account accessible to AzureML
 
 As a last step, you need to ensure that AzureML has access to your storage account. For that, you need to create a
-datastore [following the instructions
+datastore.
+A datastore is an abstraction layer on top of the plain storage account, where AzureML stores an account key or access
+token that allows it to later download the data to the training machine.
+
+To create the datastore, please [follow the instructions
 here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-datastore?tabs=cli-identity-based-access%2Ccli-adls-identity-based-access%2Ccli-azfiles-account-key%2Ccli-adlsgen1-identity-based-access).
+Once the datastore is created, mark it as the default datastore.

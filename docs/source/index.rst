@@ -19,6 +19,7 @@ The `hi-ml` toolbox provides
    :caption: Working with Azure
 
    first_steps.md
+   azure_setup.md
    authentication.md
    datasets.md
    hyperdrive.md
@@ -44,7 +45,6 @@ The `hi-ml` toolbox provides
    panda_model.md
    tcga_model.md
    ssl_on_tile_dataset.md
-   azure_setup.md
    dsa.md
 
 .. toctree::

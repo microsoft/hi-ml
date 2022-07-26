@@ -11,6 +11,7 @@
    :toctree:
 
    inference_engine
+   utils
 
 
 .. currentmodule:: health_multimodal.text.data
@@ -28,14 +29,24 @@
 
    configuration_cxrbert
    modelling_cxrbert
+
 """
 
 from .data.io import TypePrompts
+from .utils import get_cxr_bert_inference
+from .inference_engine import TextInferenceEngine
+from .model import CXRBertModel
+from .model import CXRBertOutput
+from .model import CXRBertConfig
+from .model import CXRBertTokenizer
 
-
-BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
 
 __all__ = [
-    "BIOMED_VLP_CXR_BERT_SPECIALIZED",
     "TypePrompts",
+    "TextInferenceEngine",
+    "CXRBertConfig",
+    "CXRBertTokenizer",
+    "CXRBertModel",
+    "CXRBertOutput",
+    "get_cxr_bert_inference",
 ]

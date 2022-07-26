@@ -33,10 +33,10 @@ class ImageInferenceEngine:
 
         self.model = image_model
         self.transform = transform
-        self.device = next(self.model.parameters()).device
 
         self.model.eval()
         self.resize_size, self.crop_size = infer_resize_params(self.transform.transforms)
+        self.to = self.model.to
 
     def load_and_transform_input_image(self, image_path: Path, transform: Callable) -> Tuple[torch.Tensor, TypeShape2D]:
         """Read an image and apply the transform to it.
@@ -50,7 +50,8 @@ class ImageInferenceEngine:
             before the transforms. The tuple returned contains (width, height).
         """
         image = load_image(image_path)
-        transformed_image = transform(image).unsqueeze(0).to(self.device)
+        device = next(self.model.parameters()).device
+        transformed_image = transform(image).unsqueeze(0).to(device)
         return transformed_image, image.size
 
     @torch.no_grad()

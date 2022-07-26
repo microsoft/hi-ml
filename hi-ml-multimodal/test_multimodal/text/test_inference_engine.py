@@ -4,22 +4,18 @@
 #  -------------------------------------------------------------------------------------------
 
 
-from typing import Tuple
-
 import pytest
 import torch
 
-from health_multimodal.text import BIOMED_VLP_CXR_BERT_SPECIALIZED
 from health_multimodal.text.inference_engine import TextInferenceEngine
-from health_multimodal.text.model.modelling_cxrbert import CXRBertModel
-from health_multimodal.text.model.configuration_cxrbert import CXRBertTokenizer
+from health_multimodal.text.utils import get_cxr_bert
 
 
 def test_text_inference_init_model_type() -> None:
     """
     Test that init fails if the wrong model type is passed in
     """
-    tokenizer, _ = _get_cxr_bert()
+    tokenizer, _ = get_cxr_bert()
     false_model = torch.nn.Linear(4, 4)
     with pytest.raises(AssertionError) as ex:
         TextInferenceEngine(tokenizer=tokenizer, text_model=false_model)  # type: ignore[arg-type]
@@ -30,7 +26,7 @@ def test_l2_normalization() -> None:
     """
     Test that the text embeddings (CLS token) are l2 normalized.
     """
-    tokenizer, text_model = _get_cxr_bert()
+    tokenizer, text_model = get_cxr_bert()
 
     text_inference = TextInferenceEngine(tokenizer=tokenizer, text_model=text_model)
     input_query = ["There is a tumor in the left lung", "Lungs are all clear"]
@@ -43,7 +39,7 @@ def test_sentence_semantic_similarity() -> None:
     """
     Test that the sentence embedding similarity computed by the text model is meaningful.
     """
-    tokenizer, text_model = _get_cxr_bert()
+    tokenizer, text_model = get_cxr_bert()
 
     # CLS token has no dedicated meaning, but we can expect vector similarity due to token overlap between the sentences
     text_inference = TextInferenceEngine(tokenizer=tokenizer, text_model=text_model)
@@ -56,19 +52,12 @@ def test_sentence_semantic_similarity() -> None:
     assert pos_sim > neg_sim_2
 
 
-def _get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
-    model_name = BIOMED_VLP_CXR_BERT_SPECIALIZED
-    tokenizer = CXRBertTokenizer.from_pretrained(model_name)
-    text_model = CXRBertModel.from_pretrained(model_name)
-    return tokenizer, text_model
-
-
 def test_triplet_similarities_with_inference_engine() -> None:
     """
     Test that the triplet sentence similarities computed by the text model are meaningful.
     """
 
-    tokenizer, text_model = _get_cxr_bert()
+    tokenizer, text_model = get_cxr_bert()
     text_inference = TextInferenceEngine(tokenizer=tokenizer, text_model=text_model)
 
     reference = \
@@ -102,7 +91,7 @@ def test_mlm_with_inference_engine_with_hf_hub() -> None:
     Test that the MLM model can be used with the inference engine and the filled masked tokens are correct.
     """
 
-    tokenizer, text_model = _get_cxr_bert()
+    tokenizer, text_model = get_cxr_bert()
     text_inference = TextInferenceEngine(tokenizer=tokenizer, text_model=text_model)
 
     # ##### Test Masked Language Modelling ######
