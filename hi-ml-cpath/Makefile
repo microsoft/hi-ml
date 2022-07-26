@@ -93,7 +93,7 @@ define TCGACRCKSSLMIL_ARGS
 endef
 
 define CRCKSIMCLR_ARGS
---model=health_cpath.CRCK_SimCLR
+--model=SSL.CRCK_SimCLR
 endef
 
 regression_test_tilespandaimagenetmil:
