@@ -232,7 +232,6 @@ jobs:
       pytest,
       smoke_test_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
-      smoke_test_tcgacrcksslmil_aml,
       smoke_test_crck_simclr_aml
       ]
     steps:
