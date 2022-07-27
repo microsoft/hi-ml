@@ -111,8 +111,8 @@ def plot_attention_tiles(
     num_rows = int(ceil(len(tile_nodes) / num_columns))
     if num_rows == 0:
         logging.warning(
-            "The number of selected top and bottom tiles is too low, plotting will be skipped. Try debugging with a higher "
-            "num_top_tiles and/or a higher number of batches.")
+            "The number of selected top and bottom tiles is too low, plotting will be skipped."
+            "Try debugging with a higher num_top_tiles and/or a higher number of batches.")
         return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
