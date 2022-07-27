@@ -9,6 +9,7 @@ from typing import Mapping, Sequence, Union, Callable, Dict
 import torch
 import numpy as np
 import PIL
+from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.transform import MapTransform, Randomizable
 from torchvision.transforms.functional import to_tensor
@@ -20,7 +21,7 @@ PathOrString = Union[Path, str]
 
 def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
     """Load a PIL image in RGB format from the given path"""
-    with PIL.PngImagePlugin.PngImageFile(image_path) as pil_png:
+    with PngImagePlugin.PngImageFile(image_path) as pil_png:
         image = np.asarray(pil_png)
     return image
 
