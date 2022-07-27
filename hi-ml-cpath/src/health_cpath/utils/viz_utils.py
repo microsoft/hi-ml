@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 import sys
 import math
 import numpy as np
@@ -12,7 +13,7 @@ import matplotlib.collections as collection
 
 from math import ceil
 from pathlib import Path
-from typing import Sequence, List, Any, Dict, Union, Tuple
+from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
 from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
@@ -96,7 +97,7 @@ def plot_scores_hist(
 
 def plot_attention_tiles(
     case: str, slide_node: SlideNode, top: bool, num_columns: int, figsize: Tuple[int, int]
-) -> plt.Figure:
+) -> Optional[plt.Figure]:
     """Plot top or bottom tiles figures along with their attention scores.
 
     :param case: The report case (e.g., TP, FN, ...)
@@ -108,10 +109,11 @@ def plot_attention_tiles(
     """
     tile_nodes = slide_node.top_tiles if top else slide_node.bottom_tiles
     num_rows = int(ceil(len(tile_nodes) / num_columns))
-    assert (
-        num_rows > 0
-    ), "The number of selected top and bottom tiles is too low. Try debugging with a higher num_top_tiles and/or a "
-    "higher number of batches."
+    if num_rows == 0:
+        logging.warning(
+            "The number of selected top and bottom tiles is too low, plotting will be skipped. Try debugging with a higher "
+            "num_top_tiles and/or a higher number of batches.")
+        return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
     fig.suptitle(
@@ -245,11 +247,13 @@ def resize_and_save(width_inch: int, height_inch: int, filename: Union[Path, str
     plt.savefig(filename, dpi=dpi, bbox_inches="tight", pad_inches=0.1)
 
 
-def save_figure(fig: plt.figure, figpath: Path) -> None:
+def save_figure(fig: Optional[plt.figure], figpath: Path) -> None:
     """Save a matplotlib figure in a given figpath.
 
     :param fig: The figure to be saved.
     :param figpath: The filename where to save the figure.
     """
+    if fig is None:
+        return
     fig.savefig(figpath, bbox_inches="tight")
     plt.close(fig)
