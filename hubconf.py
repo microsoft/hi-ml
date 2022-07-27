@@ -1,5 +1,15 @@
-from health_multimodal.image import ImageModel
-from health_multimodal.image import get_biovil_resnet as _biovil_resnet
+# autopep8: off
+dependencies = ["torch", "torchvision"]
+
+import sys
+from pathlib import Path
+repo_dir = Path(__file__).parent
+multimodal_src_dir = repo_dir / "hi-ml-multimodal" / "src" / "health_multimodal"
+sys.path.append(str(multimodal_src_dir))
+
+from image import ImageModel
+from image import get_biovil_resnet as _biovil_resnet
+# autopep8: on
 
 
 def biovil_resnet(pretrained: bool = False) -> ImageModel:
