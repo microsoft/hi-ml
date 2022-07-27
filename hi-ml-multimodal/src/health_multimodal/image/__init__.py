@@ -37,6 +37,7 @@
 from .model import ImageModel
 from .model import ResnetType
 from .inference_engine import ImageInferenceEngine
+from .utils import get_biovil_resnet
 from .utils import get_biovil_resnet_inference
 
 
@@ -44,5 +45,6 @@ __all__ = [
     "ImageModel",
     "ResnetType",
     "ImageInferenceEngine",
+    "get_biovil_resnet",
     "get_biovil_resnet_inference",
 ]
