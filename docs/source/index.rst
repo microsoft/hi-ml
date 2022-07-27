@@ -43,6 +43,7 @@ The `hi-ml` toolbox provides
    histopathology.md
    public_datasets.md
    panda_model.md
+   tcga_model.md
    ssl_on_tile_dataset.md
    dsa.md
 
