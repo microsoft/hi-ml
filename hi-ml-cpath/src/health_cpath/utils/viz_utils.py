@@ -111,7 +111,7 @@ def plot_attention_tiles(
     num_rows = int(ceil(len(tile_nodes) / num_columns))
     if num_rows == 0:
         logging.warning(
-            "The number of selected top and bottom tiles is too low. Try debugging with a higher "
+            "The number of selected top and bottom tiles is too low, plotting will be skipped. Try debugging with a higher "
             "num_top_tiles and/or a higher number of batches.")
         return None
 
@@ -247,11 +247,13 @@ def resize_and_save(width_inch: int, height_inch: int, filename: Union[Path, str
     plt.savefig(filename, dpi=dpi, bbox_inches="tight", pad_inches=0.1)
 
 
-def save_figure(fig: plt.figure, figpath: Path) -> None:
+def save_figure(fig: Optional[plt.figure], figpath: Path) -> None:
     """Save a matplotlib figure in a given figpath.
 
     :param fig: The figure to be saved.
     :param figpath: The filename where to save the figure.
     """
+    if fig is None:
+        return
     fig.savefig(figpath, bbox_inches="tight")
     plt.close(fig)

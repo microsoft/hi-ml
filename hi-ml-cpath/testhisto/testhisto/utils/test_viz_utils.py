@@ -162,7 +162,7 @@ def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFo
 
 
 def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogCaptureFixture) -> None:
-    expected_warning = "The number of selected top and bottom tiles is too low. Try debugging with a higher "
+    expected_warning = "The number of selected top and bottom tiles is too low, plotting will be skipped. Try debugging with a higher "
     "num_top_tiles and/or a higher number of batches."
     slide_node.bottom_tiles = []
     with caplog.at_level(logging.WARNING):
