@@ -41,6 +41,7 @@ CHECKPOINT_FOLDER = "checkpoints"
 DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_LOGS_DIR_NAME = "logs"
 EXPERIMENT_SUMMARY_FILE = "experiment_summary.txt"
+DEFAULT_AML_CHECKPOINT_DIR = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}"
 
 # run recovery
 RUN_RECOVERY_ID_KEY = "run_recovery_id"

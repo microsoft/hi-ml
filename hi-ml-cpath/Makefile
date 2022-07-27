@@ -49,6 +49,9 @@ build:
 
 # Brief smoke-test of the package, by just importing one of the essential modules.
 test_wheel:
+	pip uninstall -y hi-ml hi-ml-azure
+	pip install -e ../hi-ml/
+	pip install -e ../hi-ml-azure/
 	pip install `ls dist/*.whl`
 	python -c "from health_cpath.configs.classification.BaseMIL import BaseMIL"
 
