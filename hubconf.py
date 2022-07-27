@@ -1,5 +1,5 @@
 # autopep8: off
-dependencies = ["torch==1.9.0", "torchvision==0.10.0"]
+dependencies = ["torch", "torchvision"]
 
 import sys
 from pathlib import Path
