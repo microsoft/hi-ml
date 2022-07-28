@@ -295,11 +295,10 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
 
 
 if __name__ == '__main__':
-    # from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
-    from cpath.datasets.tcga_prad_private_dataset import TcgaPradPrivateDataset
+    from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
 
     # Example set up for an existing slides dataset:
-    main(slides_dataset=TcgaPradPrivateDataset("/tmp/datasets/TCGA-PRAD_20220712"),
+    main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
          root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=5,
          level=1,
