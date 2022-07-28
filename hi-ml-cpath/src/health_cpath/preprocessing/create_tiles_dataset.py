@@ -125,8 +125,11 @@ def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey
     :return: The formatted CSV row.
     """
     tile_slide_metadata = tile_info.pop(TileKey.SLIDE_METADATA)
+
     fields = [str(tile_info[key]) for key in keys_to_save]
     fields.extend(str(tile_slide_metadata[key]) for key in metadata_keys)
+    fields = ['"' + value + '"' if ',' in value else value for value in fields]  # if field contains a , add extra " "
+
     dataset_row = ','.join(fields)
     return dataset_row
 
@@ -292,10 +295,11 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
 
 
 if __name__ == '__main__':
-    from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
+    # from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
+    from cpath.datasets.tcga_prad_private_dataset import TcgaPradPrivateDataset
 
     # Example set up for an existing slides dataset:
-    main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
+    main(slides_dataset=TcgaPradPrivateDataset("/tmp/datasets/TCGA-PRAD_20220712"),
          root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=5,
          level=1,
