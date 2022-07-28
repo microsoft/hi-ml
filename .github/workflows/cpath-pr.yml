@@ -126,28 +126,9 @@ jobs:
         with:
           lfs: true
 
-      - name: create config file
-        run: ./create_config.sh
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: Install required packages
-        run: |
-          cd ${{ env.folder }}
-          make pip_from_conda
-
-      - name: Install hi-ml locally
-        run: |
-          cd hi-ml
-          make pip_local
-
-      - name: Install hi-ml-azure locally
-        run: |
-          cd hi-ml-azure
-          make pip_local
+      - name: Set up smoke test environment
+        id: setup-slides-smoke-test-environment
+        uses: ./.github/actions/prepare_smoke_test_environment
 
       - name: smoke test
         run: |
@@ -161,28 +142,9 @@ jobs:
         with:
           lfs: true
 
-      - name: create config file
-        run: ./create_config.sh
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: Install required packages
-        run: |
-          cd ${{ env.folder }}
-          make pip_from_conda
-
-      - name: Install hi-ml locally
-        run: |
-          cd hi-ml
-          make pip_local
-
-      - name: Install hi-ml-azure locally
-        run: |
-          cd hi-ml-azure
-          make pip_local
+      - name: Set up smoke test environment
+        id: setup-tiles-smoke-test-environment
+        uses: ./.github/actions/prepare_smoke_test_environment
 
       - name: smoke test
         run: |
@@ -196,28 +158,9 @@ jobs:
         with:
           lfs: true
 
-      - name: create config file
-        run: ./create_config.sh
-
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: Install required packages
-        run: |
-          cd ${{ env.folder }}
-          make pip_from_conda
-
-      - name: Install hi-ml locally
-        run: |
-          cd hi-ml
-          make pip_local
-
-      - name: Install hi-ml-azure locally
-        run: |
-          cd hi-ml-azure
-          make pip_local
+      - name: Set up smoke test environment
+        id: setup-simclr-smoke-test-environment
+        uses: ./.github/actions/prepare_smoke_test_environment
 
       - name: smoke test
         run: |
