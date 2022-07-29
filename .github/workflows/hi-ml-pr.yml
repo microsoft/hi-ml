@@ -222,7 +222,7 @@ jobs:
           folder: ${{ matrix.folder }}
 
       - name: Publish package to TestPyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@v1.5.1
         with:
           user: __token__
           password: ${{ env.PYPI_TEST_API_TOKEN }}
@@ -254,7 +254,7 @@ jobs:
           folder: ${{ matrix.folder }}
 
       - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@v1.5.1
         with:
           user: __token__
           password: ${{ env.PYPI_API_TOKEN }}
