@@ -39,6 +39,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
+    tune_classifier: bool = param.Boolean(
+        default=True,
+        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
@@ -77,6 +80,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
+        assert self.tune_encoder or self.tune_pooling or self.tune_classifier, \
+            "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of these " \
+            "tune parameters `tune_encoder`, `tune_pooling`, `tune_classifier`."
 
     @property
     def cache_dir(self) -> Path:
@@ -224,6 +230,7 @@ class BaseMILTiles(BaseMIL):
                                             n_classes=self.data_module.train_dataset.N_CLASSES,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
+                                            tune_classifer=self.tune_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
@@ -264,6 +271,7 @@ class BaseMILSlides(BaseMIL):
                                              n_classes=self.data_module.train_dataset.N_CLASSES,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
+                                             tune_classifer=self.tune_classifier,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              ssl_ckpt_run_id=self.ssl_ckpt_run_id,

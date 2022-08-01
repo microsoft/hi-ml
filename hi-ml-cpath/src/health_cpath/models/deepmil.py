@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, enable_disable_gradients
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, enable_module_gradients
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
@@ -102,15 +102,14 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_classifier(self) -> Callable:
+    def get_classifier(self) -> nn.Module:
         classifier_layer: nn.Module = nn.Linear(in_features=self.num_pooling, out_features=self.n_classes)
-        if self.dropout_rate is None:
-            return classifier_layer
-        elif 0 <= self.dropout_rate < 1:
-            classifier_layer = nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
-        else:
-            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
-        enable_disable_gradients(classifier_layer, self.tune_classifier)
+        if self.dropout_rate is not None:
+            if 0 <= self.dropout_rate < 1:
+                classifier_layer = nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+            else:
+                raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
+        enable_module_gradients(classifier_layer, self.tune_classifier)
         return classifier_layer
 
     def get_loss(self) -> Callable:
@@ -169,8 +168,10 @@ class BaseDeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
-    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
+    def get_instance_features(self, instances: Tensor) -> Tensor:
         should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.tune_encoder
+        if not self.encoder_params.tune_encoder:
+            self.encoder.eval()
         with set_grad_enabled(should_enable_encoder_grad):
             if self.encoder_params.encoding_chunk_size > 0:
                 embeddings = []
@@ -180,12 +181,30 @@ class BaseDeepMILModule(LightningModule):
                     embeddings.append(chunk_embeddings)
                 instance_features = torch.cat(embeddings)
             else:
-                instance_features = self.encoder(instances)                # N X L x 1 x 1
+                instance_features = self.encoder(instances)  # N X L x 1 x 1
+        return instance_features
+
+    def get_bag_features_and_attentions(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
+        if not self.pooling_params.tune_pooling:
+            self.aggregation_fn.eval()
         should_enable_pooling_grad = torch.is_grad_enabled() and self.pooling_params.tune_pooling
         with set_grad_enabled(should_enable_pooling_grad):
             attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
-        bag_logit = self.classifier_fn(bag_features)
+        return attentions, bag_features
+
+    def get_bag_logit(self, bag_features: Tensor) -> Tensor:
+        if not self.tune_classifier:
+            self.classifier_fn.eval()
+        should_enable_classifier_grad = torch.is_grad_enabled() and self.tune_classifier
+        with set_grad_enabled(should_enable_classifier_grad):
+            bag_logit = self.classifier_fn(bag_features)
+        return bag_logit
+
+    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
+        instance_features = self.get_instance_features(instances)
+        attentions, bag_features = self.get_bag_features_and_attentions(instance_features)
+        bag_logit = self.get_bag_logit(bag_features)
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:

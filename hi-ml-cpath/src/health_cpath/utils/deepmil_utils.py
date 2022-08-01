@@ -28,17 +28,14 @@ from health_ml.networks.layers.attention_layers import (
 )
 
 
-def enable_disable_gradients(model: nn.Module, tuning_flag: bool) -> None:
-    """Given a model, enable or disable gradients for all parameters if tuning_flag is True. Otherwise, evaluate the model
+def enable_module_gradients(model: nn.Module, tuning_flag: bool) -> None:
+    """Given a model, enable or disable gradients for all parameters if tuning_flag is True.
 
     :param model: A PyTorch model.
     :param tuning_flag: A boolean indicating whether to enable or disable gradients.
     """
-    if tuning_flag:
-        for params in model.parameters():
-            params.requires_grad = True
-    else:
-        model.eval()
+    for params in model.parameters():
+        params.requires_grad = tuning_flag
 
 
 class EncoderParams(param.Parameterized):
@@ -48,7 +45,7 @@ class EncoderParams(param.Parameterized):
     tile_size: int = param.Integer(default=224, bounds=(1, None), doc="Tile width/height, in pixels.")
     n_channels: int = param.Integer(default=3, bounds=(1, None), doc="Number of channels in the tile.")
     tune_encoder: bool = param.Boolean(
-        False, doc="If True, fine-tune the encoder during training. If False (default), " "keep the encoder frozen."
+        False, doc="If True, fine-tune the encoder during training. If False (default), keep the encoder frozen."
     )
     is_caching: bool = param.Boolean(
         default=False,
@@ -100,7 +97,7 @@ class EncoderParams(param.Parameterized):
             )
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
-        enable_disable_gradients(encoder, self.tune_encoder)
+        enable_module_gradients(encoder, tuning_flag=self.tune_encoder)
         return encoder
 
 
@@ -151,7 +148,7 @@ class PoolingParams(param.Parameterized):
             )
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
-            raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
+            raise ValueError(f"Unsupported pooling type: {self.pool_type}")
         num_features = num_encoding * self.pool_out_dim
-        enable_disable_gradients(pooling_layer, self.tune_pooling)
+        enable_module_gradients(pooling_layer, tuning_flag=self.tune_pooling)
         return pooling_layer, num_features

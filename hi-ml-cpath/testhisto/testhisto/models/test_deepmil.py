@@ -35,12 +35,13 @@ from health_ml.utils.common_utils import is_gpu_available
 no_gpu = not is_gpu_available()
 
 
-def get_supervised_imagenet_encoder_params() -> EncoderParams:
-    return EncoderParams(encoder_type=ImageNetEncoder.__name__)
+def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> EncoderParams:
+    return EncoderParams(encoder_type=ImageNetEncoder.__name__, tune_encoder=tune_encoder)
 
 
-def get_attention_pooling_layer_params(pool_out_dim: int = 1) -> PoolingParams:
-    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5)
+def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
+    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5,
+                         tune_pooling=tune_pooling)
 
 
 def _test_lightningmodule(
@@ -425,3 +426,21 @@ def test_class_weights_multiclass() -> None:
     # TODO: the test should reflect actual weighted loss operation for the class weights after
     # batch_size > 1 is implemented.
     assert allclose(loss_weighted, loss_unweighted)
+
+
+@pytest.mark.parametrize(
+    "tune_encoder, tune_pooling, tune_classifier",
+    [(False, False, True), (True, True, True), (False, False, False), (False, True, False), (True, False, False)],
+)
+def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
+    module = TilesDeepMILModule(
+        label_column="label",
+        n_classes=1,
+        encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+        finetune_encoder=tune_encoder,
+        finetune_pooling=tune_pooling,
+    )
+
+    # assert module.encoder.finetune == tune_encoder
+    # assert module.pooling_layer.finetune == tune_pooling
