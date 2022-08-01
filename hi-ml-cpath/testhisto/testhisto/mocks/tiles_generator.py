@@ -10,7 +10,7 @@ import torch
 from torchvision.utils import save_image
 
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
-from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
+from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
 
 class MockPandaTilesGenerator(MockHistoDataGenerator):
@@ -26,8 +26,8 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
 
     def validate(self) -> None:
         assert (
-            self.n_slides >= PandaTilesDataset.N_CLASSES
-        ), f"The number of slides should be >= N_CLASSES (i.e., {PandaTilesDataset.N_CLASSES})"
+            self.n_slides >= PANDA_N_CLASSES
+        ), f"The number of slides should be >= N_CLASSES (i.e., {PANDA_N_CLASSES})"
         assert (self.img_size // self.tile_size) ** 2 >= self.n_tiles, (
             f"The image of size {self.img_size} can't contain more than {(self.img_size // self.tile_size)**2} tiles."
             f"Choose a number of tiles 0 < n_tiles <= {(self.img_size // self.tile_size)**2} "
@@ -54,7 +54,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         tiles_count = 0
 
         # This is to make sure that the dataset contains at least one sample from each isup grade class.
-        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaTilesDataset.N_CLASSES + 1,)
+        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PANDA_N_CLASSES + 1,)
 
         for slide_id in range(self.n_slides):
 

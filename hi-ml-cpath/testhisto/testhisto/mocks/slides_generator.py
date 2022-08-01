@@ -14,7 +14,7 @@ from typing import Any, Optional, Tuple, List, Union
 
 import torch
 from health_cpath.datasets.panda_dataset import PandaDataset
-from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType
+from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
 
 class TilesPositioningType(Enum):
@@ -75,12 +75,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
     def validate(self) -> None:
         assert (
-            self.n_slides >= PandaDataset.N_CLASSES
-        ), f"The number of slides should be >= N_CLASSES (i.e., {PandaDataset.N_CLASSES})"
+            self.n_slides >= PANDA_N_CLASSES
+        ), f"The number of slides should be >= PANDA_N_CLASSES (i.e., {PANDA_N_CLASSES})"
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
-        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PandaDataset.N_CLASSES + 1,)
+        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PANDA_N_CLASSES + 1,)
         mock_metadata: dict = {col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, *PandaDataset.METADATA_COLUMNS]}
         for slide_id in range(self.n_slides):
             mock_metadata[PandaDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")

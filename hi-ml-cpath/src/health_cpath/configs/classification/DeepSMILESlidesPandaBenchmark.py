@@ -122,7 +122,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         deepmil_module = PandaSlidesDeepMILModuleBenchmark(
             n_epochs=self.max_epochs,
             label_column=SlideKey.LABEL,
-            n_classes=self.data_module.train_dataset.N_CLASSES,
+            n_classes=self.data_module.train_dataset.n_classes,
             class_names=self.class_names,
             class_weights=self.data_module.class_weights,
             dropout_rate=self.dropout_rate,

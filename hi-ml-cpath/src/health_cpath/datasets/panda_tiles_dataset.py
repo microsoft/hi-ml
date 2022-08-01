@@ -28,16 +28,16 @@ class PandaTilesDataset(TilesDataset):
     - `'tile_x'`, `'tile_y'` (int): top-right tile coordinates
     - `'data_provider'`, `'slide_isup_grade'`, `'slide_gleason_score'` (str): parent slide metadata
     """
-    LABEL_COLUMN = "slide_isup_grade"
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
-    N_CLASSES = 6
 
     def __init__(self,
                  root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  occupancy_threshold: Optional[float] = None,
-                 random_subset_fraction: Optional[float] = None) -> None:
+                 random_subset_fraction: Optional[float] = None,
+                 label_column: str = "slide_isup_grade",
+                 n_classes: int = 6) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -54,7 +54,9 @@ class PandaTilesDataset(TilesDataset):
                          dataset_csv=dataset_csv,
                          dataset_df=dataset_df,
                          train=None,
-                         validate_columns=False)
+                         validate_columns=False,
+                         label_column=label_column,
+                         n_classes=n_classes)
 
         if occupancy_threshold is not None:
             if (occupancy_threshold < 0) or (occupancy_threshold > 1):
@@ -109,7 +111,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
         if self.transform:
             image = self.transform(image)
         # get binary label
-        label = 0 if sample[self.base_dataset.LABEL_COLUMN] == 0 else 1
+        label = 0 if sample[self.base_dataset.label_column] == 0 else 1
         return image, label
 
     def __len__(self) -> int:
