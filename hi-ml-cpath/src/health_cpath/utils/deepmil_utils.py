@@ -34,7 +34,7 @@ class EncoderParams(param.Parameterized):
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
     tile_size: int = param.Integer(default=224, bounds=(1, None), doc="Tile width/height, in pixels.")
     n_channels: int = param.Integer(default=3, bounds=(1, None), doc="Number of channels in the tile.")
-    is_finetune: bool = param.Boolean(
+    tune_encoder: bool = param.Boolean(
         False, doc="If True, fine-tune the encoder during training. If False (default), " "keep the encoder frozen."
     )
     is_caching: bool = param.Boolean(
@@ -74,10 +74,12 @@ class EncoderParams(param.Parameterized):
 
         elif self.encoder_type == SSLEncoder.__name__:
             assert ssl_ckpt_run_id and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
-            downloader = CheckpointDownloader(run_id=ssl_ckpt_run_id,
-                                              download_dir=outputs_folder,
-                                              checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                                              remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
+            downloader = CheckpointDownloader(
+                run_id=ssl_ckpt_run_id,
+                download_dir=outputs_folder,
+                checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR),
+            )
             encoder = SSLEncoder(
                 pl_checkpoint_path=downloader.local_checkpoint_path,
                 tile_size=self.tile_size,
@@ -86,7 +88,7 @@ class EncoderParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
 
-        if self.is_finetune:
+        if self.tune_encoder:
             for params in encoder.parameters():
                 params.requires_grad = True
         else:
@@ -106,9 +108,11 @@ class PoolingParams(param.Parameterized):
         default=4, doc="If transformer pooling is chosen, this defines the number of encoding layers.",
     )
     num_transformer_pool_heads: int = param.Integer(
-        4,
-        doc="If transformer pooling is chosen, this defines the number\
-         of attention heads.",
+        default=4, doc="If transformer pooling is chosen, this defines the number of attention heads.",
+    )
+    tune_pooling: bool = param.Boolean(
+        default=True,
+        doc="If True (default), fine-tune the pooling layer during training. If False, keep the pooling layer frozen.",
     )
 
     def get_pooling_layer(self, num_encoding: int) -> Tuple[nn.Module, int]:
@@ -141,4 +145,9 @@ class PoolingParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
         num_features = num_encoding * self.pool_out_dim
+        if self.tune_pooling:
+            for params in pooling_layer.parameters():
+                params.requires_grad = True
+        else:
+            pooling_layer.eval()
         return pooling_layer, num_features

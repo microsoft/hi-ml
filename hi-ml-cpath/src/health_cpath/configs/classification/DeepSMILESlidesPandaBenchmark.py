@@ -50,9 +50,8 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
     """
     Configuration for PANDA experiments from Myronenko et al. 2021:
     (https://link.springer.com/chapter/10.1007/978-3-030-87237-3_32)
-    `is_finetune` sets the fine-tuning mode. For fine-tuning,
-    batch_size = 2 runs on 8 GPUs with
-    ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
+    `tune_encoder` sets the fine-tuning mode of the encoder. For fine-tuning, batch_size = 2 runs on 8 GPUs
+    with ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -77,7 +76,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             self.l_rate = 3e-5
             self.weight_decay = 0.1
         # Params specific to fine-tuning
-        if self.is_finetune:
+        if self.tune_encoder:
             self.batch_size = 2
         super().setup()
 

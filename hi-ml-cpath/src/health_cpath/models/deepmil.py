@@ -75,6 +75,7 @@ class BaseDeepMILModule(LightningModule):
 
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
+        self.pooling_params = pooling_params
         self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
@@ -165,7 +166,7 @@ class BaseDeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.is_finetune
+        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.tune_encoder
         with set_grad_enabled(should_enable_encoder_grad):
             if self.encoder_params.encoding_chunk_size > 0:
                 embeddings = []
@@ -176,7 +177,9 @@ class BaseDeepMILModule(LightningModule):
                 instance_features = torch.cat(embeddings)
             else:
                 instance_features = self.encoder(instances)                # N X L x 1 x 1
-        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
+        should_enable_pooling_grad = torch.is_grad_enabled() and self.pooling_params.tune_pooling
+        with set_grad_enabled(should_enable_pooling_grad):
+            attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)
         return bag_logit, attentions

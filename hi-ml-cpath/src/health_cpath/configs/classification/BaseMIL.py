@@ -190,8 +190,8 @@ class BaseMILTiles(BaseMIL):
     def setup(self) -> None:
         super().setup()
         # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
-        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
-        if self.is_finetune:
+        # When tune_encoder and is_caching are both set, below lines should disable caching automatically.
+        if self.tune_encoder:
             self.is_caching = False
         if not self.is_caching:
             self.cache_mode = CacheMode.NONE

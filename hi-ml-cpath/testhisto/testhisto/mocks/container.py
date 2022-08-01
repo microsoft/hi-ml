@@ -21,7 +21,7 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
             pool_hidden_dim=16,
             num_transformer_pool_layers=1,
             num_transformer_pool_heads=1,
-            is_finetune=False,
+            tune_encoder=False,
             class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
             encoder_type=ImageNetEncoder.__name__,
@@ -62,7 +62,7 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             pool_hidden_dim=16,
             num_transformer_pool_layers=1,
             num_transformer_pool_heads=1,
-            is_finetune=True,
+            tune_encoder=True,
             class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
             encoder_type=ImageNetEncoder.__name__,
