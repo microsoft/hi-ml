@@ -53,7 +53,7 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
         image = load_pil_image(sample[self.base_dataset.IMAGE_COLUMN])
         if self.transform:
             image = self.transform(image)
-        return image, sample[self.base_dataset.LABEL_COLUMN]
+        return image, sample[self.base_dataset.label_column]
 
     def __len__(self) -> int:
         return len(self.base_dataset)
