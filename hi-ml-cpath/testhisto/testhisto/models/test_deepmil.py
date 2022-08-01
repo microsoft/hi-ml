@@ -433,14 +433,46 @@ def test_class_weights_multiclass() -> None:
     [(False, False, True), (True, True, True), (False, False, False), (False, True, False), (True, False, False)],
 )
 def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
+
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=1,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
-        finetune_encoder=tune_encoder,
-        finetune_pooling=tune_pooling,
+        tune_classifier=tune_classifier,
     )
 
-    # assert module.encoder.finetune == tune_encoder
-    # assert module.pooling_layer.finetune == tune_pooling
+    assert module.encoder_params.tune_encoder == tune_encoder
+    assert module.pooling_params.tune_pooling == tune_pooling
+    assert module.tune_classifier == tune_classifier
+
+    for params in module.encoder.parameters():
+        assert params.requires_grad == tune_encoder
+
+    for params in module.aggregation_fn.parameters():
+        assert params.requires_grad == tune_pooling
+
+    for params in module.classifier_fn.parameters():
+        assert params.requires_grad == tune_classifier
+
+    instances = torch.randn(4, 3, 224, 224)
+
+    def _assert_existing_gradients(tensor: Tensor, tuning_flag: bool) -> None:
+        if tuning_flag:
+            assert tensor.grad_fn is not None
+        else:
+            assert tensor.grad_fn is None
+
+    with torch.enable_grad():
+        instance_features = module.get_instance_features(instances)
+        _assert_existing_gradients(instance_features, tuning_flag=tune_encoder)
+        assert module.encoder.training == tune_encoder
+
+        attentions, bag_features = module.get_attentions_and_bag_features(instances)
+        _assert_existing_gradients(attentions, tuning_flag=tune_pooling)
+        _assert_existing_gradients(bag_features, tuning_flag=tune_pooling)
+        assert module.aggregation_fn.training == tune_pooling
+
+        bag_logit = module.get_bag_logit(bag_features)
+        _assert_existing_gradients(bag_logit, tuning_flag=tune_classifier)
+        assert module.classifier_fn.training == tune_classifier

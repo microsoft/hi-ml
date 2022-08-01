@@ -39,7 +39,7 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
-                 tune_classifer: bool = True,
+                 tune_classifier: bool = True,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -54,7 +54,7 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
-        :param tune_classifer: Whether to tune the classifier (default=True).
+        :param tune_classifier: Whether to tune the classifier (default=True).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -74,7 +74,7 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
-        self.tune_classifier = tune_classifer
+        self.tune_classifier = tune_classifier
 
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
@@ -184,7 +184,7 @@ class BaseDeepMILModule(LightningModule):
                 instance_features = self.encoder(instances)  # N X L x 1 x 1
         return instance_features
 
-    def get_bag_features_and_attentions(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
+    def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
         if not self.pooling_params.tune_pooling:
             self.aggregation_fn.eval()
         should_enable_pooling_grad = torch.is_grad_enabled() and self.pooling_params.tune_pooling
@@ -203,7 +203,7 @@ class BaseDeepMILModule(LightningModule):
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         instance_features = self.get_instance_features(instances)
-        attentions, bag_features = self.get_bag_features_and_attentions(instance_features)
+        attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
         bag_logit = self.get_bag_logit(bag_features)
         return bag_logit, attentions
 
