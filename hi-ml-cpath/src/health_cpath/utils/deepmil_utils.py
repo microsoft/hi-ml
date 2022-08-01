@@ -28,6 +28,19 @@ from health_ml.networks.layers.attention_layers import (
 )
 
 
+def enable_disable_gradients(model: nn.Module, tuning_flag: bool) -> None:
+    """Given a model, enable or disable gradients for all parameters if tuning_flag is True. Otherwise, evaluate the model
+
+    :param model: A PyTorch model.
+    :param tuning_flag: A boolean indicating whether to enable or disable gradients.
+    """
+    if tuning_flag:
+        for params in model.parameters():
+            params.requires_grad = tuning_flag
+    else:
+        model.eval()
+
+
 class EncoderParams(param.Parameterized):
     """Parameters class to group all encoder specific attributes for deepmil module. """
 
@@ -88,11 +101,8 @@ class EncoderParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
 
-        if self.tune_encoder:
-            for params in encoder.parameters():
-                params.requires_grad = True
-        else:
-            encoder.eval()
+        enable_disable_gradients(encoder, self.tune_encoder)
+
         return encoder
 
 
@@ -145,9 +155,7 @@ class PoolingParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
         num_features = num_encoding * self.pool_out_dim
-        if self.tune_pooling:
-            for params in pooling_layer.parameters():
-                params.requires_grad = True
-        else:
-            pooling_layer.eval()
+
+        enable_disable_gradients(pooling_layer, self.tune_pooling)
+
         return pooling_layer, num_features

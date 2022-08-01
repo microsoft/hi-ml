@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, enable_disable_gradients
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
@@ -39,6 +39,7 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
+                 tune_classifer: bool = True,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -53,6 +54,7 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
+        :param tune_classifer: Whether to tune the classifier (default=True).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -72,6 +74,7 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
+        self.tune_classifier = tune_classifer
 
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
@@ -100,14 +103,15 @@ class BaseDeepMILModule(LightningModule):
         self.test_metrics = self.get_metrics()
 
     def get_classifier(self) -> Callable:
-        classifier_layer = nn.Linear(in_features=self.num_pooling,
-                                     out_features=self.n_classes)
+        classifier_layer: nn.Module = nn.Linear(in_features=self.num_pooling, out_features=self.n_classes)
         if self.dropout_rate is None:
             return classifier_layer
         elif 0 <= self.dropout_rate < 1:
-            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+            classifier_layer = nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
         else:
             raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
+        enable_disable_gradients(classifier_layer, self.tune_classifier)
+        return classifier_layer
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
