@@ -14,7 +14,13 @@ import torch
 from torch.utils.data import DataLoader
 
 from health_cpath.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
-from health_cpath.datasets.base_dataset import TEST_SPLIT_LABEL, TRAIN_SPLIT_LABEL, VAL_SPLIT_LABEL, TilesDataset
+from health_cpath.datasets.base_dataset import (
+    DEFAULT_LABEL_COLUMN,
+    TEST_SPLIT_LABEL,
+    TRAIN_SPLIT_LABEL,
+    VAL_SPLIT_LABEL,
+    TilesDataset
+)
 from health_cpath.utils.naming import ModelKey
 
 
@@ -45,7 +51,7 @@ def compare_dataloaders(dl1: DataLoader, dl2: DataLoader) -> None:
 
 class MockTilesDataset(TilesDataset):
     TILE_X_COLUMN = TILE_Y_COLUMN = None
-    LABEL_COLUMN: str = "label"
+    LABEL_COLUMN = DEFAULT_LABEL_COLUMN
 
 
 def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.DataFrame:

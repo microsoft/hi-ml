@@ -8,7 +8,7 @@ from typing import Optional, Union
 
 import pandas as pd
 
-from health_cpath.datasets.base_dataset import SlidesDataset
+from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, SlidesDataset
 
 
 class TcgaPradDataset(SlidesDataset):
@@ -27,7 +27,7 @@ class TcgaPradDataset(SlidesDataset):
     def __init__(self, root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
-                 label_column: str = "label") -> None:
+                 label_column: str = DEFAULT_LABEL_COLUMN) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file. If omitted, the CSV will be read from

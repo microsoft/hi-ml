@@ -18,6 +18,7 @@ from health_cpath.utils.naming import SlideKey
 TRAIN_SPLIT_LABEL = "train"  # Value used to indicate the training split in `SPLIT_COLUMN`
 VAL_SPLIT_LABEL = "val"  # Value used to indicate the validation split in `SPLIT_COLUMN`
 TEST_SPLIT_LABEL = "test"  # Value used to indicate the test split in `SPLIT_COLUMN`
+DEFAULT_LABEL_COLUMN = "label"  # Default column name for the label column
 
 
 class TilesDataset(Dataset):
@@ -48,7 +49,7 @@ class TilesDataset(Dataset):
                  dataset_df: Optional[pd.DataFrame] = None,
                  train: Optional[bool] = None,
                  validate_columns: bool = True,
-                 label_column: str = "label",
+                 label_column: str = DEFAULT_LABEL_COLUMN,
                  n_classes: int = 1) -> None:
         """
         :param root: Root directory of the dataset.
@@ -62,7 +63,7 @@ class TilesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
-        :param label_column: CSV column name for tile label. Defaults to `"label"`.
+        :param label_column: CSV column name for tile label. Defaults to `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         """
         if self.SPLIT_COLUMN is None and train is not None:
@@ -156,7 +157,7 @@ class SlidesDataset(Dataset):
                  dataset_df: Optional[pd.DataFrame] = None,
                  train: Optional[bool] = None,
                  validate_columns: bool = True,
-                 label_column: str = "label",
+                 label_column: str = DEFAULT_LABEL_COLUMN,
                  n_classes: int = 1) -> None:
         """
         :param root: Root directory of the dataset.
@@ -170,7 +171,7 @@ class SlidesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
-        :param label_column: CSV column name for tile label. Default is `"label"`.
+        :param label_column: CSV column name for tile label. Default is `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         """
         if self.SPLIT_COLUMN is None and train is not None:

@@ -20,7 +20,7 @@ from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
 from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
-from health_cpath.datasets.base_dataset import TilesDataset
+from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
@@ -54,7 +54,7 @@ def _test_lightningmodule(
     assert n_classes > 0
 
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         dropout_rate=dropout_rate,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -207,9 +207,9 @@ def test_metrics(n_classes: int) -> None:
         self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
     ) -> TileEncoder:
         return IdentityEncoder(input_dim=input_dim)
-    LABEL_COLUMN = "label"
+
     with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
-        module = TilesDeepMILModule(label_column=LABEL_COLUMN,
+        module = TilesDeepMILModule(label_column=DEFAULT_LABEL_COLUMN,
                                     n_classes=n_classes,
                                     pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
 
@@ -231,7 +231,7 @@ def test_metrics(n_classes: int) -> None:
                 TilesDataset.SLIDE_ID_COLUMN: [str(slide_idx)] * bag_size,
                 TilesDataset.TILE_ID_COLUMN: [f"{slide_idx}-{tile_idx}" for tile_idx in range(bag_size)],
                 TilesDataset.IMAGE_COLUMN: rand(bag_size, *input_dim),
-                LABEL_COLUMN: bag_label.expand(bag_size),
+                DEFAULT_LABEL_COLUMN: bag_label.expand(bag_size),
             }
             sample[TilesDataset.PATH_COLUMN] = [tile_id + '.png'
                                                 for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]
@@ -382,7 +382,7 @@ def test_class_weights_binary() -> None:
     n_classes = 1
 
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -407,7 +407,7 @@ def test_class_weights_multiclass() -> None:
     n_classes = 3
 
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
