@@ -62,7 +62,7 @@ class TilesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
-        :param label_column: CSV column name for tile label.
+        :param label_column: CSV column name for tile label. Defaults to `"label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         """
         if self.SPLIT_COLUMN is None and train is not None:
@@ -170,7 +170,7 @@ class SlidesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
-        :param label_column: CSV column name for tile label.
+        :param label_column: CSV column name for tile label. Default is `"label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         """
         if self.SPLIT_COLUMN is None and train is not None:

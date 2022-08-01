@@ -41,7 +41,7 @@ class PandaDataset(SlidesDataset):
                  root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
-                 label_column: str = 'isup_grade',
+                 label_column: str = "isup_grade",
                  n_classes: int = 6) -> None:
         super().__init__(root, dataset_csv, dataset_df, validate_columns=False, label_column=label_column,
                          n_classes=n_classes)
