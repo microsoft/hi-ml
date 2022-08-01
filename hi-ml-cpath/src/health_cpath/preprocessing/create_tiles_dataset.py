@@ -125,8 +125,11 @@ def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey
     :return: The formatted CSV row.
     """
     tile_slide_metadata = tile_info.pop(TileKey.SLIDE_METADATA)
+
     fields = [str(tile_info[key]) for key in keys_to_save]
     fields.extend(str(tile_slide_metadata[key]) for key in metadata_keys)
+    fields = ['"' + value + '"' if ',' in value else value for value in fields]  # if field contains a , add extra " "
+
     dataset_row = ','.join(fields)
     return dataset_row
 
