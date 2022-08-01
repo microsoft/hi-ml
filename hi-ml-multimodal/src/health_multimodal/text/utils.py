@@ -6,13 +6,11 @@
 
 from typing import Tuple
 
+from ..image.model import CXR_BERT_COMMIT_TAG
+from ..image.model import BIOMED_VLP_CXR_BERT_SPECIALIZED
 from .inference_engine import TextInferenceEngine
 from .model import CXRBertModel
 from .model import CXRBertTokenizer
-
-
-BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
-CXR_BERT_COMMIT_TAG = "v1.1"
 
 
 def get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
