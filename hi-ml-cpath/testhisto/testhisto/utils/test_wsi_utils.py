@@ -5,7 +5,7 @@ import numpy as np
 from typing import Any, Dict, List
 from typing import Sequence
 from health_cpath.utils.naming import SlideKey
-from health_cpath.utils.wsi_utils import image_collate
+from health_cpath.utils.wsi_utils import array_collate
 from torch.utils.data import Dataset
 
 
@@ -39,7 +39,7 @@ class MockTiledWSIDataset(Dataset):
 
 
 @pytest.mark.parametrize("random_n_tiles", [False, True])
-def test_image_collate(random_n_tiles: bool) -> None:
+def test_array_collate(random_n_tiles: bool) -> None:
     # random_n_tiles accounts for both train and inference settings where the number of tiles is fixed (during
     # training) and None during inference (validation and test)
     dataset = MockTiledWSIDataset(n_tiles=20,
@@ -51,7 +51,7 @@ def test_image_collate(random_n_tiles: bool) -> None:
     batch_size = 5
     samples_list = [dataset[idx] for idx in range(batch_size)]
 
-    batch: dict = image_collate(samples_list)
+    batch: dict = array_collate(samples_list)
 
     assert isinstance(batch, Dict)
     assert batch.keys() == samples_list[0].keys()  # type: ignore

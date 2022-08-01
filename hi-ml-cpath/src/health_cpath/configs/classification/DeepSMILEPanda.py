@@ -151,10 +151,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
             tile_size=self.tile_size,
-            step=self.step,
             random_offset=self.random_offset,
             seed=self.get_effective_random_seed(),
-            pad_full=self.pad_full,
             background_val=self.background_val,
             filter_mode=self.filter_mode,
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
@@ -165,6 +163,11 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def get_slides_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.local_datasets[0])                             # type: ignore
+
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options = super().get_test_plot_options()
+        plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
+        return plot_options
 
 
 class SlidesPandaImageNetMIL(DeepSMILESlidesPanda):

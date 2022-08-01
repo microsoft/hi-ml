@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from pytorch_lightning.utilities.warnings import rank_zero_warn
 from pathlib import Path
 
@@ -353,20 +353,82 @@ class SlidesDeepMILModule(BaseDeepMILModule):
         # SlidesDataModule attributes a single label to a bag of tiles already no need to do majority voting
         return labels
 
-    def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
-        # WARNING: This is a dummy input until we figure out tiles coordinates retrieval in the next iteration.
-        bag_sizes = [tiles.shape[0] for tiles in batch[SlideKey.IMAGE]]
-        results.update(
-            {
-                ResultsKey.SLIDE_ID: [
-                    [slide_id] * bag_sizes[i] for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
-                ],
-                ResultsKey.TILE_ID: [
-                    [f"{slide_id}_{tile_id}" for tile_id in range(bag_sizes[i])]
-                    for i, slide_id in enumerate(batch[SlideKey.SLIDE_ID])
-                ],
-                ResultsKey.IMAGE_PATH: [
-                    [img_path] * bag_sizes[i] for i, img_path in enumerate(batch[SlideKey.IMAGE_PATH])
-                ],
-            }
+    @staticmethod
+    def get_empty_lists(shape: int, n: int) -> List:
+        ll = []
+        for _ in range(n):
+            ll.append([None] * shape)
+        return ll
+
+    @staticmethod
+    def get_patch_coordinate(slide_offset: List, patch_location: List[int], patch_size: List[int]
+                             ) -> Tuple[int, int, int, int]:
+        """ computing absolute patch coordinate """
+        #  PATCH_LOCATION is expected to have shape [y, x]
+        top = slide_offset[0] + patch_location[0]
+        bottom = slide_offset[0] + patch_location[0] + patch_size[0]
+        left = slide_offset[1] + patch_location[1]
+        right = slide_offset[1] + patch_location[1] + patch_size[1]
+        return top, bottom, left, right
+
+    @staticmethod
+    def expand_slide_constant_metadata(id: str, path: str, n_patches: int, top: List[int],
+                                       bottom: List[int], left: List[int], right: List[int]) -> Tuple[List, List, List]:
+        """Duplicate metadata that is patch invariant to match the shape of other arrays"""
+        slide_id = [id] * n_patches
+        image_paths = [path] * n_patches
+        tile_id = [f"{id}_left_{left[i]}_top_{top[i]}_right_{right[i]}_bottom_{bottom[i]}" for i in range(n_patches)]
+        return slide_id, image_paths, tile_id
+
+    def get_slide_patch_coordinates(self, slide_offset: List, patches_location: List, patch_size: List
+                                    ) -> Tuple[List, List, List, List]:
+        """ computing absolute coordinates for all patches in a slide"""
+        top, bottom, left, right = self.get_empty_lists(len(patches_location), 4)
+        for i, location in enumerate(patches_location):
+            top[i], bottom[i], left[i], right[i] = self.get_patch_coordinate(slide_offset, location, patch_size)
+        return top, bottom, left, right
+
+    def compute_slide_metadata(self, batch: Dict, index: int, metadata_dict: Dict) -> Dict:
+        """compute patch-dependent and patch-invariante metadata for a single slide """
+        offset = batch[SlideKey.OFFSET.value][index]
+        patches_location = batch[SlideKey.TILE_LOCATION.value][index]
+        patch_size = batch[SlideKey.TILE_SIZE.value][index]
+        n_patches = len(patches_location)
+        id = batch[SlideKey.SLIDE_ID][index]
+        path = batch[SlideKey.IMAGE_PATH][index]
+
+        top, bottom, left, right = self.get_slide_patch_coordinates(offset, patches_location, patch_size)
+        slide_id, image_paths, tile_id = self.expand_slide_constant_metadata(
+            id, path, n_patches, top, bottom, left, right
         )
+
+        metadata_dict[ResultsKey.TILE_TOP] = top
+        metadata_dict[ResultsKey.TILE_BOTTOM] = bottom
+        metadata_dict[ResultsKey.TILE_LEFT] = left
+        metadata_dict[ResultsKey.TILE_RIGHT] = right
+        metadata_dict[ResultsKey.SLIDE_ID] = slide_id
+        metadata_dict[ResultsKey.TILE_ID] = tile_id
+        metadata_dict[ResultsKey.IMAGE_PATH] = image_paths
+        return metadata_dict
+
+    def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
+        if all(key.value in batch.keys() for key in [SlideKey.OFFSET, SlideKey.TILE_LOCATION, SlideKey.TILE_SIZE]):
+            n_slides = len(batch[SlideKey.SLIDE_ID])
+            metadata_dict: Dict[str, List[Union[int, str]]] = {
+                ResultsKey.TILE_TOP: [],
+                ResultsKey.TILE_BOTTOM: [],
+                ResultsKey.TILE_LEFT: [],
+                ResultsKey.TILE_RIGHT: [],
+                ResultsKey.SLIDE_ID: [],
+                ResultsKey.TILE_ID: [],
+                ResultsKey.IMAGE_PATH: [],
+            }
+            results.update(metadata_dict)
+            # each slide can have a different number of patches
+            for i in range(n_slides):
+                updated_metadata_dict = self.compute_slide_metadata(batch, i, metadata_dict)
+                for key in metadata_dict.keys():
+                    results[key].append(updated_metadata_dict[key])
+        else:
+            rank_zero_warn(message="Offset, patch location or patch size are not found in the batch"
+                           "make sure to use RandGridPatch.")

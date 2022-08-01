@@ -15,14 +15,14 @@ from torch.utils.data import DataLoader
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
 
-from health_cpath.utils.wsi_utils import image_collate
+from health_cpath.utils.wsi_utils import array_collate
 from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
 from health_cpath.utils.naming import ModelKey
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
-from monai.apps.pathology.transforms import TileOnGridd
+from monai.transforms import RandGridPatchd, GridPatchd
 from monai.data.image_reader import WSIReader
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -245,11 +245,12 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self,
         level: Optional[int] = 1,
         tile_size: Optional[int] = 224,
-        step: Optional[int] = None,
         random_offset: Optional[bool] = True,
-        pad_full: Optional[bool] = False,
         background_val: Optional[int] = 255,
-        filter_mode: Optional[str] = "min",
+        filter_mode: Optional[str] = "max",
+        overlap: Optional[float] = 0,
+        intensity_threshold: Optional[float] = 0,
+        pad_mode: Optional[str] = "constant",
         **kwargs: Any,
     ) -> None:
         """
@@ -257,60 +258,72 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend
         :param tile_size: size of the square tile, defaults to 224
         this param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
-        Use a step < tile_size to create overlapping tiles, analogousely a step > tile_size will skip some chunks in
-        the wsi. This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
         defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
-        This param is passed to TileOnGridd monai transform for tiling on the fly.
         :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
         defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
-        tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
-        monai transform for tiling on the fly.
+        :param filter_mode:  when `num_patches` is provided, it determines if keep patches with highest values
+            (`"max"`), lowest values (`"min"`), or in their default order (`None`). Default to None.
+        :param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        :param intensity_threshold: a value to keep only the patches whose sum of intensities are less than the
+            threshold. Defaults to no filtering.
+        :pad_mode:  refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied.
         """
         super().__init__(**kwargs)
         self.level = level
         self.tile_size = tile_size
-        self.step = step
         self.random_offset = random_offset
-        self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
+        # Tiling transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
         self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size  # type: ignore
         self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
+        self.overlap = overlap
+        self.intensity_threshold = intensity_threshold
+        self.pad_mode = pad_mode
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
-        base_transform = Compose(
-            [
-                LoadImaged(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    reader=WSIReader,
-                    backend="cuCIM",
-                    dtype=np.uint8,
-                    level=self.level,
-                    image_only=True,
-                ),
-                TileOnGridd(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
-                    tile_size=self.tile_size,
-                    step=self.step,
-                    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                    pad_full=self.pad_full,
-                    background_val=self.background_val,
-                    filter_mode=self.filter_mode,
-                    return_list_of_dicts=True,
-                ),
-            ]
+        load_image_transform = LoadImaged(
+            keys=slides_dataset.IMAGE_COLUMN,
+            reader=WSIReader,  # type: ignore
+            backend="cuCIM",
+            dtype=np.uint8,
+            level=self.level,
+            image_only=True,
         )
-        if self.transforms_dict and self.transforms_dict[stage]:
+        max_offset = None if (self.random_offset and stage == ModelKey.TRAIN) else 0
 
-            transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
+        if stage != ModelKey.TRAIN:
+            grid_transform = RandGridPatchd(
+                keys=[slides_dataset.IMAGE_COLUMN],
+                patch_size=[self.tile_size, self.tile_size],  # type: ignore
+                num_patches=self.max_bag_size,
+                sort_fn=self.filter_mode,
+                pad_mode=self.pad_mode,  # type: ignore
+                constant_values=self.background_val,
+                overlap=self.overlap,  # type: ignore
+                threshold=self.intensity_threshold,
+                max_offset=max_offset,
+            )
+        else:
+            grid_transform = GridPatchd(
+                keys=[slides_dataset.IMAGE_COLUMN],
+                patch_size=[self.tile_size, self.tile_size],  # type: ignore
+                num_patches=self.max_bag_size_inf,
+                sort_fn=self.filter_mode,
+                pad_mode=self.pad_mode,  # type: ignore
+                constant_values=self.background_val,
+                overlap=self.overlap,  # type: ignore
+                threshold=self.intensity_threshold,
+                offset=max_offset,
+            )
+
+        base_transform = Compose([load_image_transform, grid_transform])
+
+        if self.transforms_dict and self.transforms_dict[stage]:
+            transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()  # type: ignore
         else:
             transforms = base_transform
         # The tiling transform is randomized. Make them deterministic. This call needs to be
@@ -325,7 +338,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         return DataLoader(
             transformed_slides_dataset,
             batch_size=self.batch_size,
-            collate_fn=image_collate,
+            collate_fn=array_collate,
             shuffle=shuffle,
             generator=generator,
             **dataloader_kwargs,

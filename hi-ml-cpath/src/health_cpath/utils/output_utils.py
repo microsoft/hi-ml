@@ -72,6 +72,8 @@ def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
                 value = value.squeeze(0).cpu().numpy()
                 if value.ndim == 0:
                     value = np.full(bag_size, fill_value=value)
+            if isinstance(value, List) and isinstance(value[0], torch.Tensor):
+                value = [value[i].item() for i in range(len(value))]
             dict_new[key] = value
         elif key == ResultsKey.CLASS_PROBS:
             if isinstance(value, torch.Tensor):
@@ -134,11 +136,17 @@ def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
 
     # Collect the list of dictionaries in a list of pandas dataframe and save
     df_list = []
+    skipped_slides = 0
     for slide_dict in list_slide_dicts:
         slide_dict = normalize_dict_for_df(slide_dict)  # type: ignore
-        df_list.append(pd.DataFrame.from_dict(slide_dict))
+        try:
+            df_list.append(pd.DataFrame.from_dict(slide_dict))
+        except ValueError:
+            skipped_slides += 1
+            logging.warning(f"something wrong in the dimension of slide {slide_dict[ResultsKey.SLIDE_ID][0]}")
     df = pd.concat(df_list, ignore_index=True)
     df.to_csv(csv_filename, mode='w+', header=True)
+    logging.warning(f"{skipped_slides} slides have not been included in the ouputs because of issues with the outputs")
 
 
 def save_features(results: ResultsType, outputs_dir: Path) -> None:
