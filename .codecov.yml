@@ -10,7 +10,7 @@ flags:
     paths:
       - hi-ml-azure
     carryforward: true
-  hi-ml-histopathology:
+  hi-ml-cpath:
     paths:
-      - hi-ml-histopathology
+      - hi-ml-cpath
     carryforward: true

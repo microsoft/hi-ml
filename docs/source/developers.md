@@ -15,14 +15,14 @@ at once or individual projects separately in VSCode.
 * To open all projects at once, use VSCode's "Open Workspace from File", and
   select `himl-projects.code-workspace`.
 * To open individual projects, use VSCode's "Open Folder", and select one of the
-  folders `hi-ml-azure`, `hi-ml`, or `hi-ml-histopathology`
+  folders `hi-ml-azure`, `hi-ml`, or `hi-ml-cpath`
 
 ## Creating a Conda environment
 
 Different projects in this repository use different Conda environments:
 
 * The `himl` Conda environment should be used for work on the `hi-ml` and `hi-ml-azure` projects.
-* The `HimlHisto` Conda environment should be used for work on `hi-ml-histopathology`.
+* The `HimlHisto` Conda environment should be used for work on `hi-ml-cpath`.
 
 Please select the right Python interpreter for your project (or all projects if using the `himl-projects` workspace)
 inside VSCode, by choosing "Python: Select Interpreter" from the command palette (Ctrl-Shift-P on VSCode for Windows)
@@ -138,7 +138,7 @@ When running the tests locally, they can either be run against the source direct
 
 ### Test discovery in VSCode
 
-All tests in the repository should be picked up automatically by VSCode. In particular, this includes the tests in the `hi-ml-histopathology` folder, which
+All tests in the repository should be picked up automatically by VSCode. In particular, this includes the tests in the `hi-ml-cpath` folder, which
 are not always necessary when working on the core `hi-ml` projects.
 
 ## Creating a New Release

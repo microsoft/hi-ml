@@ -5,7 +5,10 @@ Azure Machine Learning (AML) services. This can be helpful because the cloud giv
 resource, you can consume vast datasets, and access multiple machines at the same time for distributed training.
 
 ## Setting up AzureML
-You need to have an AzureML workspace in your Azure subscription.
+
+To run your code in the cloud, you need to have an AzureML workspace in your Azure subscription.
+Please follow the [instructions here](azure_setup.md) to create an AzureML workspace if you don't have one yet.
+
 Download the config file from your AzureML workspace, as described
 [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment). **Put this file (it
 should be called `config.json`) into the folder where your script lives**, or one of its parent folders. You can use
@@ -18,6 +21,7 @@ Consider a simple use case, where you have a Python script that does something -
 or pre-processing some data. The `hi-ml` package can help easily run that on Azure Machine Learning (AML) services.
 
 Here is an example script that reads images from a folder, resizes and saves them to an output folder:
+
 ```python
 from pathlib import Path
 if __name__ == '__main__':
@@ -28,10 +32,12 @@ if __name__ == '__main__':
         resized = contents.resize(0.5)
         write_image(output_folder / file.name)
 ```
+
 Doing that at scale can take a long time. **We'd like to run that script in AzureML, consume the data from a folder in
 blob storage, and write the results back to blob storage**, so that we can later use it as an input for model training.
 
 You can achieve that by adding a call to `submit_to_azure_if_needed` from the `hi-ml` package:
+
 ```python
 from pathlib import Path
 from health_azure import submit_to_azure_if_needed
@@ -67,7 +73,9 @@ on the commandline, like `python myscript.py --azureml`.
 Note that you do not need to modify the argument parser of your script to recognize the `--azureml` flag.
 
 ## Essential arguments to `submit_to_azure_if_needed`
+
 When calling `submit_to_azure_if_needed`, you can to supply the following parameters:
+
 * `compute_cluster_name` (**Mandatory**): The name of the AzureML cluster that should run the job. This can be a
 cluster with CPU or GPU machines. See
 [here for documentation](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-attach-compute-studio#amlcompute)
@@ -83,6 +91,7 @@ parents.
 
 You can also supply an input dataset. For data pre-processing scripts, you can add an output dataset
 (omit this for ML training scripts).
+
 * To use datasets, you need to provision a data store in your AML workspace, that points to your training data in
   blob storage. This is described
   [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-connect-data-ui).
@@ -93,7 +102,6 @@ datastore. Once the script has run, it will also register the data in this folde
 and while the job writes data to that folder, upload it to blob storage, in the data store.
 
 For more examples, please see [examples.md](examples.md). For more details about datasets, see [here](datasets.md).
-
 
 ## Additional arguments you should know about
 
@@ -110,7 +118,6 @@ The particularly helpful ones are listed below.
 * `num_nodes`: The number of nodes on which your script should run. This is essential for distributed training.
 * `tags`: A dictionary mapping from string to string, with additional tags that will be stored on the AzureML run.
   This is helpful to add metadata about the run for later use.
-
 
 ## Conda environments, Alternate pips, Private wheels
 
