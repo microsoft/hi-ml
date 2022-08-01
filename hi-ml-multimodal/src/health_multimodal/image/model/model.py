@@ -3,7 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+from __future__ import annotations
+
 import enum
+import tempfile
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union, Sequence
@@ -11,11 +14,49 @@ from typing import Any, Optional, Tuple, Union, Sequence
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.datasets.utils import download_url
 
 from .resnet import resnet18, resnet50
 from .modules import MLP, MultiTaskModel
 
 TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+MODEL_TYPE = "resnet50"
+JOINT_FEATURE_SIZE = 128
+
+BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
+REPO_URL = f"https://huggingface.co/{BIOMED_VLP_CXR_BERT_SPECIALIZED}"
+CXR_BERT_COMMIT_TAG = "v1.1"
+
+BIOVIL_IMAGE_WEIGHTS_NAME = "biovil_image_resnet50_proj_size_128.pt"
+BIOVIL_IMAGE_WEIGHTS_URL = f"{REPO_URL}/resolve/{CXR_BERT_COMMIT_TAG}/{BIOVIL_IMAGE_WEIGHTS_NAME}"
+BIOVIL_IMAGE_WEIGHTS_MD5 = "02ce6ee460f72efd599295f440dbb453"
+
+
+def _download_biovil_image_model_weights() -> Path:
+    """Download image model weights from Hugging Face.
+
+    More information available at https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized.
+    """
+    root_dir = tempfile.gettempdir()
+    download_url(
+        BIOVIL_IMAGE_WEIGHTS_URL,
+        root=root_dir,
+        filename=BIOVIL_IMAGE_WEIGHTS_NAME,
+        md5=BIOVIL_IMAGE_WEIGHTS_MD5,
+    )
+    return Path(root_dir, BIOVIL_IMAGE_WEIGHTS_NAME)
+
+
+def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
+    """Download weights from Hugging Face and instantiate the image model."""
+    resnet_checkpoint_path = _download_biovil_image_model_weights() if pretrained else None
+
+    image_model = ImageModel(
+        img_model_type=MODEL_TYPE,
+        joint_feature_size=JOINT_FEATURE_SIZE,
+        pretrained_model_path=resnet_checkpoint_path,
+    )
+    return image_model
 
 
 @enum.unique

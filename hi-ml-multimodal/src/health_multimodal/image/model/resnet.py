@@ -6,9 +6,8 @@
 from typing import Any, List, Type, Union
 
 import torch
-
+from torch.hub import load_state_dict_from_url
 from torchvision.models.resnet import model_urls, ResNet, BasicBlock, Bottleneck
-from torchvision.models.utils import load_state_dict_from_url
 
 
 class ResNetHIML(ResNet):
