@@ -15,9 +15,9 @@ from torch.utils.data import Dataset
 from health_cpath.utils.naming import SlideKey
 
 
-TRAIN_SPLIT_LABEL = "train"  # Value used to indicate the training split in `SPLIT_COLUMN`
-VAL_SPLIT_LABEL = "val"  # Value used to indicate the validation split in `SPLIT_COLUMN`
-TEST_SPLIT_LABEL = "test"  # Value used to indicate the test split in `SPLIT_COLUMN`
+DEFAULT_TRAIN_SPLIT_LABEL = "train"  # Value used to indicate the training split in `SPLIT_COLUMN`
+DEFAULT_VAL_SPLIT_LABEL = "val"  # Value used to indicate the validation split in `SPLIT_COLUMN`
+DEFAULT_TEST_SPLIT_LABEL = "test"  # Value used to indicate the test split in `SPLIT_COLUMN`
 DEFAULT_LABEL_COLUMN = "label"  # Default column name for the label column
 
 
@@ -83,7 +83,7 @@ class TilesDataset(Dataset):
         if train is None:
             self.dataset_df = dataset_df
         else:
-            split = TRAIN_SPLIT_LABEL if train else TEST_SPLIT_LABEL
+            split = DEFAULT_TRAIN_SPLIT_LABEL if train else DEFAULT_TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
 
         if validate_columns:
@@ -191,7 +191,7 @@ class SlidesDataset(Dataset):
         if train is None:
             self.dataset_df = dataset_df
         else:
-            split = TRAIN_SPLIT_LABEL if train else TEST_SPLIT_LABEL
+            split = DEFAULT_TRAIN_SPLIT_LABEL if train else DEFAULT_TEST_SPLIT_LABEL
             self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
 
         if validate_columns:

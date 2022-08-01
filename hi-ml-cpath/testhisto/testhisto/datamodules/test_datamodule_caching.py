@@ -16,9 +16,9 @@ from torch.utils.data import DataLoader
 from health_cpath.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from health_cpath.datasets.base_dataset import (
     DEFAULT_LABEL_COLUMN,
-    TEST_SPLIT_LABEL,
-    TRAIN_SPLIT_LABEL,
-    VAL_SPLIT_LABEL,
+    DEFAULT_TEST_SPLIT_LABEL,
+    DEFAULT_TRAIN_SPLIT_LABEL,
+    DEFAULT_VAL_SPLIT_LABEL,
     TilesDataset
 )
 from health_cpath.utils.naming import ModelKey
@@ -59,7 +59,7 @@ def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.
     slide_ids = np.random.randint(n_slides, size=n_tiles)
     slide_labels = np.random.randint(n_classes, size=n_slides)
     tile_labels = slide_labels[slide_ids]
-    split_labels = [TRAIN_SPLIT_LABEL, VAL_SPLIT_LABEL, TEST_SPLIT_LABEL]
+    split_labels = [DEFAULT_TRAIN_SPLIT_LABEL, DEFAULT_VAL_SPLIT_LABEL, DEFAULT_TEST_SPLIT_LABEL]
     slide_splits = np.random.choice(split_labels, size=n_slides)
     tile_splits = slide_splits[slide_ids]
 
@@ -77,9 +77,9 @@ class MockTilesDataModule(TilesDataModule):
     def get_splits(self) -> Tuple[MockTilesDataset, MockTilesDataset, MockTilesDataset]:
         df = MockTilesDataset(self.root_path).dataset_df
         df = df.reset_index()
-        split_dfs = (df[df[MockTilesDataset.SPLIT_COLUMN] == TRAIN_SPLIT_LABEL],
-                     df[df[MockTilesDataset.SPLIT_COLUMN] == VAL_SPLIT_LABEL],
-                     df[df[MockTilesDataset.SPLIT_COLUMN] == TEST_SPLIT_LABEL])
+        split_dfs = (df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_TRAIN_SPLIT_LABEL],
+                     df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_VAL_SPLIT_LABEL],
+                     df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_TEST_SPLIT_LABEL])
         return tuple(MockTilesDataset(self.root_path, dataset_df=split_df)  # type: ignore
                      for split_df in split_dfs)
 
