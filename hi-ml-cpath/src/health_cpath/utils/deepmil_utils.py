@@ -36,7 +36,7 @@ def enable_disable_gradients(model: nn.Module, tuning_flag: bool) -> None:
     """
     if tuning_flag:
         for params in model.parameters():
-            params.requires_grad = tuning_flag
+            params.requires_grad = True
     else:
         model.eval()
 
@@ -100,9 +100,7 @@ class EncoderParams(param.Parameterized):
             )
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
-
         enable_disable_gradients(encoder, self.tune_encoder)
-
         return encoder
 
 
@@ -155,7 +153,5 @@ class PoolingParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
         num_features = num_encoding * self.pool_out_dim
-
         enable_disable_gradients(pooling_layer, self.tune_pooling)
-
         return pooling_layer, num_features
