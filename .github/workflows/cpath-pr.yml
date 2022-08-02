@@ -1,7 +1,7 @@
 name: Pathology PR
 on:
   push:
-    branches: [ main, transfer_main ]
+    branches: [ main ]
     tags:
       - '*'
   pull_request:
