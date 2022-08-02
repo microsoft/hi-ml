@@ -81,8 +81,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
         assert self.tune_encoder or self.tune_pooling or self.tune_classifier, \
-            "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of these " \
-            "tune parameters `tune_encoder`, `tune_pooling`, `tune_classifier`."
+            "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of the " \
+            "tune arguments `tune_encoder`, `tune_pooling`, `tune_classifier`. Otherwise, activate inference only " \
+            "mode via `run_inference_only` flag."
 
     @property
     def cache_dir(self) -> Path:
