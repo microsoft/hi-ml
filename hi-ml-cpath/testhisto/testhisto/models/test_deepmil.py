@@ -164,7 +164,6 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-@pytest.mark.skipif(True, reason="This test is too slow and kills pytest processes on the github agent.")
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("batch_size", [1, 15])
 @pytest.mark.parametrize("max_bag_size", [1, 7])
@@ -429,18 +428,22 @@ def test_class_weights_multiclass() -> None:
     assert allclose(loss_weighted, loss_unweighted)
 
 
-@pytest.mark.parametrize("tune_encoder", [True, False])
-@pytest.mark.parametrize("tune_pooling", [True, False])
-def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
+@pytest.mark.parametrize(
+    "tune_encoder, tune_pooling, tune_classifier",
+    [(False, False, True), (True, True, True), (False, True, False), (True, False, False), (True, True, False)],
+)
+def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=1,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+        tune_classifier=tune_classifier,
     )
 
     assert module.encoder_params.tune_encoder == tune_encoder
     assert module.pooling_params.tune_pooling == tune_pooling
+    assert module.tune_classifier == tune_classifier
 
     for params in module.encoder.parameters():
         assert params.requires_grad == tune_encoder
@@ -449,7 +452,7 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
         assert params.requires_grad == tune_pooling
 
     for params in module.classifier_fn.parameters():
-        assert params.requires_grad  # classifier_fn is always trained to be able to backpropagate the error
+        assert params.requires_grad == tune_classifier
 
     instances = torch.randn(4, 3, 224, 224)
 
@@ -469,7 +472,6 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
         _assert_existing_gradients(bag_features, tuning_flag=tune_pooling)
         assert module.aggregation_fn.training == tune_pooling
 
-        # classifier_fn is always trained to be able to backpropagate the error
-        bag_logit = module.classifier_fn(bag_features)
-        _assert_existing_gradients(bag_logit, tuning_flag=True)
-        assert module.classifier_fn.training
+        bag_logit = module.get_bag_logit(bag_features)
+        _assert_existing_gradients(bag_logit, tuning_flag=tune_classifier)
+        assert module.classifier_fn.training == tune_classifier
