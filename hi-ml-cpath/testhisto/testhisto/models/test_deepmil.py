@@ -164,7 +164,7 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-@pytest.mark.skipif(True, reason="This test is too slow.")
+@pytest.mark.skipif(True, reason="This test is too slow and kills pytest processes on the github agent.")
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("batch_size", [1, 15])
 @pytest.mark.parametrize("max_bag_size", [1, 7])
