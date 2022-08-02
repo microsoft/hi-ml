@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, enable_module_gradients
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
@@ -99,7 +99,7 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_classifier(self) -> Callable:
+    def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
                                      out_features=self.n_classes)
         if self.dropout_rate is None:
