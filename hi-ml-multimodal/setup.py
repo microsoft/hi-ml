@@ -22,7 +22,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/microsoft/hi-ml",
-    author="Microsoft Research Cambridge Medical Imaging Team ",
+    author="Biomedical Imaging Team @ Microsoft Health Futures",
     author_email="innereyedev@microsoft.com",
     classifiers=[
         "Development Status :: 3 - Alpha",
