@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import pathlib
+from pathlib import Path
 from setuptools import find_namespace_packages, setup  # type: ignore
 
 
