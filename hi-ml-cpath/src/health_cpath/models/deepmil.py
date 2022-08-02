@@ -166,27 +166,23 @@ class BaseDeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
-        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.tune_encoder
         if not self.encoder_params.tune_encoder:
             self.encoder.eval()
-        with set_grad_enabled(should_enable_encoder_grad):
-            if self.encoder_params.encoding_chunk_size > 0:
-                embeddings = []
-                chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
-                for chunk in chunks:
-                    chunk_embeddings = self.encoder(chunk)
-                    embeddings.append(chunk_embeddings)
-                instance_features = torch.cat(embeddings)
-            else:
-                instance_features = self.encoder(instances)  # N X L x 1 x 1
+        if self.encoder_params.encoding_chunk_size > 0:
+            embeddings = []
+            chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
+            for chunk in chunks:
+                chunk_embeddings = self.encoder(chunk)
+                embeddings.append(chunk_embeddings)
+            instance_features = torch.cat(embeddings)
+        else:
+            instance_features = self.encoder(instances)  # N X L x 1 x 1
         return instance_features
 
     def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
         if not self.pooling_params.tune_pooling:
             self.aggregation_fn.eval()
-        should_enable_pooling_grad = torch.is_grad_enabled() and self.pooling_params.tune_pooling
-        with set_grad_enabled(should_enable_pooling_grad):
-            attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
+        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         return attentions, bag_features
 
