@@ -459,12 +459,6 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
         else:
             assert tensor.grad_fn is None
 
-    def _assert_existing_gradients(tensor: Tensor, tuning_flag: bool) -> None:
-        if tuning_flag:
-            assert tensor.grad is not None
-        else:
-            assert tensor.grad is None
-
     with torch.enable_grad():
         instance_features = module.get_instance_features(instances)
         _assert_existing_gradients_fn(instance_features, tuning_flag=tune_encoder)
