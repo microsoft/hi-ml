@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main, transfer_main ]
+    branches: [ main ]
 
 jobs:
   CredScan:
