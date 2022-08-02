@@ -430,7 +430,7 @@ def test_class_weights_multiclass() -> None:
 
 @pytest.mark.parametrize(
     "tune_encoder, tune_pooling, tune_classifier",
-    [(False, False, True), (True, True, True), (False, False, False), (False, True, False), (True, False, False)],
+    [(False, False, True), (True, True, True), (False, True, False), (True, False, False), (True, True, False)],
 )
 def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
 
