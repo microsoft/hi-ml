@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, enable_module_gradients
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
@@ -39,6 +39,7 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
+                 tune_classifier: bool = True,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -53,6 +54,7 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
+        :param tune_classifier: Whether to tune the classifier (default=True).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -72,9 +74,11 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
+        self.tune_classifier = tune_classifier
 
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
+        self.pooling_params = pooling_params
         self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
@@ -98,15 +102,15 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_classifier(self) -> Callable:
-        classifier_layer = nn.Linear(in_features=self.num_pooling,
-                                     out_features=self.n_classes)
-        if self.dropout_rate is None:
-            return classifier_layer
-        elif 0 <= self.dropout_rate < 1:
-            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
-        else:
-            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
+    def get_classifier(self) -> nn.Module:
+        classifier_layer: nn.Module = nn.Linear(in_features=self.num_pooling, out_features=self.n_classes)
+        if self.dropout_rate is not None:
+            if 0 <= self.dropout_rate < 1:
+                classifier_layer = nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+            else:
+                raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
+        enable_module_gradients(classifier_layer, self.tune_classifier)
+        return classifier_layer
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
@@ -164,8 +168,10 @@ class BaseDeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
-    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.is_finetune
+    def get_instance_features(self, instances: Tensor) -> Tensor:
+        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.tune_encoder
+        if not self.encoder_params.tune_encoder:
+            self.encoder.eval()
         with set_grad_enabled(should_enable_encoder_grad):
             if self.encoder_params.encoding_chunk_size > 0:
                 embeddings = []
@@ -175,10 +181,30 @@ class BaseDeepMILModule(LightningModule):
                     embeddings.append(chunk_embeddings)
                 instance_features = torch.cat(embeddings)
             else:
-                instance_features = self.encoder(instances)                # N X L x 1 x 1
-        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
+                instance_features = self.encoder(instances)  # N X L x 1 x 1
+        return instance_features
+
+    def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
+        if not self.pooling_params.tune_pooling:
+            self.aggregation_fn.eval()
+        should_enable_pooling_grad = torch.is_grad_enabled() and self.pooling_params.tune_pooling
+        with set_grad_enabled(should_enable_pooling_grad):
+            attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
-        bag_logit = self.classifier_fn(bag_features)
+        return attentions, bag_features
+
+    def get_bag_logit(self, bag_features: Tensor) -> Tensor:
+        if not self.tune_classifier:
+            self.classifier_fn.eval()
+        should_enable_classifier_grad = torch.is_grad_enabled() and self.tune_classifier
+        with set_grad_enabled(should_enable_classifier_grad):
+            bag_logit = self.classifier_fn(bag_features)
+        return bag_logit
+
+    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
+        instance_features = self.get_instance_features(instances)
+        attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
+        bag_logit = self.get_bag_logit(bag_features)
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:

@@ -37,7 +37,7 @@ class DeepSMILECrck(BaseMILTiles):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
-            is_finetune=False,
+            tune_encoder=False,
             is_caching=True,
             num_top_slides=0,
             azure_datasets=[TCGA_CRCK_DATASET_ID],

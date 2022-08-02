@@ -35,12 +35,13 @@ from health_ml.utils.common_utils import is_gpu_available
 no_gpu = not is_gpu_available()
 
 
-def get_supervised_imagenet_encoder_params() -> EncoderParams:
-    return EncoderParams(encoder_type=ImageNetEncoder.__name__)
+def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> EncoderParams:
+    return EncoderParams(encoder_type=ImageNetEncoder.__name__, tune_encoder=tune_encoder)
 
 
-def get_attention_pooling_layer_params(pool_out_dim: int = 1) -> PoolingParams:
-    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5)
+def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
+    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5,
+                         tune_pooling=tune_pooling)
 
 
 def _test_lightningmodule(
@@ -163,6 +164,7 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
+@pytest.mark.skipif(True, reason="This test is too slow.")
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("batch_size", [1, 15])
 @pytest.mark.parametrize("max_bag_size", [1, 7])
@@ -425,3 +427,52 @@ def test_class_weights_multiclass() -> None:
     # TODO: the test should reflect actual weighted loss operation for the class weights after
     # batch_size > 1 is implemented.
     assert allclose(loss_weighted, loss_unweighted)
+
+
+@pytest.mark.parametrize(
+    "tune_encoder, tune_pooling, tune_classifier",
+    [(False, False, True), (True, True, True), (False, True, False), (True, False, False), (True, True, False)],
+)
+def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
+    module = TilesDeepMILModule(
+        label_column=DEFAULT_LABEL_COLUMN,
+        n_classes=1,
+        encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+        tune_classifier=tune_classifier,
+    )
+
+    assert module.encoder_params.tune_encoder == tune_encoder
+    assert module.pooling_params.tune_pooling == tune_pooling
+    assert module.tune_classifier == tune_classifier
+
+    for params in module.encoder.parameters():
+        assert params.requires_grad == tune_encoder
+
+    for params in module.aggregation_fn.parameters():
+        assert params.requires_grad == tune_pooling
+
+    for params in module.classifier_fn.parameters():
+        assert params.requires_grad == tune_classifier
+
+    instances = torch.randn(4, 3, 224, 224)
+
+    def _assert_existing_gradients(tensor: Tensor, tuning_flag: bool) -> None:
+        if tuning_flag:
+            assert tensor.grad_fn is not None
+        else:
+            assert tensor.grad_fn is None
+
+    with torch.enable_grad():
+        instance_features = module.get_instance_features(instances)
+        _assert_existing_gradients(instance_features, tuning_flag=tune_encoder)
+        assert module.encoder.training == tune_encoder
+
+        attentions, bag_features = module.get_attentions_and_bag_features(instances)
+        _assert_existing_gradients(attentions, tuning_flag=tune_pooling)
+        _assert_existing_gradients(bag_features, tuning_flag=tune_pooling)
+        assert module.aggregation_fn.training == tune_pooling
+
+        bag_logit = module.get_bag_logit(bag_features)
+        _assert_existing_gradients(bag_logit, tuning_flag=tune_classifier)
+        assert module.classifier_fn.training == tune_classifier
