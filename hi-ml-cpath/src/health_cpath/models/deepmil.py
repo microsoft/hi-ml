@@ -46,7 +46,9 @@ class BaseDeepMILModule(LightningModule):
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
                  optimizer_params: OptimizerParams = OptimizerParams(),
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
+                 pretrained_checkpoint_path: Optional[Path] = None,
+                 use_pretrained_classifier: bool = False) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -81,17 +83,44 @@ class BaseDeepMILModule(LightningModule):
         self.save_hyperparameters()
         self.verbose = verbose
         self.outputs_handler = outputs_handler
+        self.use_pretrained_classifier = use_pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
         self.run_extra_val_epoch = False
+        pretrained_model = (
+            self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
+            if pretrained_checkpoint_path else None
+        )
+        pretrained_model.encoder_params.use_pretrained_encoder = False
+        pretrained_model.pooling_params.use_pretrained_encoder = False
+        pretrained_model.use_pretrained_classifier = False
 
         # Model components
         self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
-        self.activation_fn = self.get_activation()
 
+        if encoder_params.use_pretrained_encoder:
+            for param, pretrained_param in zip(self.encoder.parameters(), pretrained_model.encoder.parameters()):
+                param.data.copy_(pretrained_param.data)
+
+        if pooling_params.use_pretrained_encoder:
+            for param, pretrained_param in zip(
+                self.aggregation_fn.parameters(), pretrained_model.aggregation_fn.parameters()
+            ):
+                param.data.copy_(pretrained_param.data)
+
+        if (
+            self.use_pretrained_classifier
+            and pretrained_model.classifier_fn.output_dim == self.classifier_fn.output_dim
+        ):
+            for param, pretrained_param in zip(
+                self.classifier_fn.parameters(), pretrained_model.classifier_fn.parameters()
+            ):
+                param.data.copy_(pretrained_param.data)
+
+        self.activation_fn = self.get_activation()
         self.loss_fn = self.get_loss()
 
         # Metrics Objects

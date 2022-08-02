@@ -230,7 +230,8 @@ class BaseMILTiles(BaseMIL):
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                            outputs_handler=outputs_handler)
+                                            outputs_handler=outputs_handler,
+                                            pretrained_checkpoint_path=self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
@@ -270,6 +271,7 @@ class BaseMILSlides(BaseMIL):
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                             outputs_handler=outputs_handler)
+                                             outputs_handler=outputs_handler,
+                                             pretrained_checkpoint_path=self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
