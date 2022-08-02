@@ -7,11 +7,10 @@ import pathlib
 from setuptools import find_namespace_packages, setup  # type: ignore
 
 
-here = pathlib.Path(__file__).parent.resolve()
-long_description = (here / "README.md").read_text(encoding="utf-8")
+long_description = Path("README.md").read_text(encoding="utf-8")
 version = "0.1.0"
 package_name = "hi-ml-multimodal"
-install_requires = (here / "requirements_run.txt").read_text().splitlines()
+install_requires = Path("requirements_run.txt").read_text().splitlines()
 
 description = "Microsoft Health Futures package to work with multi-modal health data"
 
@@ -31,7 +30,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.7"
     ],
-    keywords="HealthIntelligence",
     license="MIT License",
     packages=find_namespace_packages(where="src"),
     package_dir={"": "src"},
