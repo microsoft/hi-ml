@@ -139,7 +139,8 @@ class WorkflowParams(param.Parameterized):
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     src_checkpoint: str = param.String(default="",
                                        doc="This flag can be used in 3 different scenarios:"
-                                           "1- Resume training from a checkpoint to train longer."
+                                           "1- Resume training from a checkpoint to train longer using"
+                                           " `resume_training` flag jointly."
                                            "2- Run inference-only using `run_inference_only` flag jointly."
                                            "3- Transfer learning from a pretrained model checkpoint."
                                            "We currently support three types of checkpoints: "
@@ -173,6 +174,7 @@ class WorkflowParams(param.Parameterized):
     run_inference_only: bool = param.Boolean(False, doc="If True, run only inference and skip training after loading"
                                                         "model weights from the specified checkpoint in "
                                                         "`src_checkpoint` flag. If False, run training and inference.")
+    resume_training: bool = param.Boolean(False, doc="If True, resume training from the src_checkpoint.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
@@ -210,6 +212,11 @@ class WorkflowParams(param.Parameterized):
 
         if self.run_inference_only and not self.src_checkpoint:
             raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
+                             "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
+                             "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
+                             f"{SRC_CHECKPOINT_FORMAT_DOC}")
+        if self.resume_training and not self.src_checkpoint:
+            raise ValueError("Cannot resume a training without a src_checkpoint. Please specify a valid src_checkpoint."
                              "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
                              "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
                              f"{SRC_CHECKPOINT_FORMAT_DOC}")

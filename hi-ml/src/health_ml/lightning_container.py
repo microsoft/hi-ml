@@ -37,6 +37,7 @@ class LightningContainer(WorkflowParams,
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
         self.num_nodes = 1
+        self.trained_weights_path: Optional[Path] = None
 
     def validate(self) -> None:
         WorkflowParams.validate(self)
