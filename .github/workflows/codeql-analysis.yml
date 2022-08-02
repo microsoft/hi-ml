@@ -16,7 +16,7 @@ on:
     branches: [ main, PR, transfer_main ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ main, transfer_main ]
+    branches: [ main ]
   schedule:
     - cron: '20 1 * * 6' # https://crontab.guru/#20_1_*_*_6 this is: At 01:20 on Saturday.
 
