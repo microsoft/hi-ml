@@ -5,7 +5,7 @@ on:
     tags:
       - '*'
   pull_request:
-    branches: [ main, transfer_main ]
+    branches: [ main ]
     paths:
       - "hi-ml-azure/**"
       - "hi-ml/**"
