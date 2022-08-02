@@ -434,6 +434,7 @@ def test_class_weights_multiclass() -> None:
 )
 def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
 
+    print("DEBUG")
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=1,
