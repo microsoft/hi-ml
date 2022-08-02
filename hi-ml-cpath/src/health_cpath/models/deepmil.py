@@ -39,7 +39,6 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
-                 tune_classifier: bool = True,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -54,7 +53,6 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
-        :param tune_classifier: Whether to tune the classifier (default=True).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -74,7 +72,6 @@ class BaseDeepMILModule(LightningModule):
         self.n_classes = n_classes
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
-        self.tune_classifier = tune_classifier
 
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
@@ -102,15 +99,15 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_classifier(self) -> nn.Module:
-        classifier_layer: nn.Module = nn.Linear(in_features=self.num_pooling, out_features=self.n_classes)
-        if self.dropout_rate is not None:
-            if 0 <= self.dropout_rate < 1:
-                classifier_layer = nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
-            else:
-                raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
-        enable_module_gradients(classifier_layer, self.tune_classifier)
-        return classifier_layer
+    def get_classifier(self) -> Callable:
+        classifier_layer = nn.Linear(in_features=self.num_pooling,
+                                     out_features=self.n_classes)
+        if self.dropout_rate is None:
+            return classifier_layer
+        elif 0 <= self.dropout_rate < 1:
+            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+        else:
+            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
@@ -193,18 +190,10 @@ class BaseDeepMILModule(LightningModule):
         bag_features = bag_features.view(1, -1)
         return attentions, bag_features
 
-    def get_bag_logit(self, bag_features: Tensor) -> Tensor:
-        if not self.tune_classifier:
-            self.classifier_fn.eval()
-        should_enable_classifier_grad = torch.is_grad_enabled() and self.tune_classifier
-        with set_grad_enabled(should_enable_classifier_grad):
-            bag_logit = self.classifier_fn(bag_features)
-        return bag_logit
-
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         instance_features = self.get_instance_features(instances)
         attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
-        bag_logit = self.get_bag_logit(bag_features)
+        bag_logit = self.classifier_fn(bag_features)
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
