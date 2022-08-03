@@ -493,13 +493,6 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classif
         else:
             assert tensor.grad_fn is None
 
-    def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
-        for param in module.parameters():
-            if tuning_flag:
-                assert param.grad is not None
-            else:
-                assert param.grad is None
-
     with torch.enable_grad():
         instance_features = module.get_instance_features(instances)
         _assert_existing_gradients_fn(instance_features, tuning_flag=tune_encoder)
@@ -515,17 +508,3 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classif
         # "tuning_flag=tune_classifier or tune_pooling"
         _assert_existing_gradients_fn(bag_logit, tuning_flag=tune_classifier or tune_pooling)
         assert module.classifier_fn.training == tune_classifier
-
-        if bag_logit.requires_grad:
-            bag_logit.retain_grad()
-            bag_logit.backward()
-        elif attentions.requires_grad:
-            attentions.retain_grad()
-            attentions.backward()
-        elif instance_features.requires_grad:
-            instance_features.retain_grad()
-            instance_features.backward()
-
-        _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
-        _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
-        _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_pooling or tune_classifier)
