@@ -40,6 +40,7 @@ class BaseDeepMILModule(LightningModule):
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
                  tune_classifier: bool = True,
+                 use_pretrained_classifier: bool = False,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -47,9 +48,7 @@ class BaseDeepMILModule(LightningModule):
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
                  optimizer_params: OptimizerParams = OptimizerParams(),
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 pretrained_checkpoint_path: Optional[Path] = None,
-                 use_pretrained_classifier: bool = False) -> None:
+                 outputs_handler: Optional[DeepMILOutputsHandler] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -57,6 +56,7 @@ class BaseDeepMILModule(LightningModule):
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
         :param tune_classifier: Whether to tune the classifier (default=True).
+        :param use_pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -96,8 +96,6 @@ class BaseDeepMILModule(LightningModule):
         self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
-
-        self.transfer_weights(pretrained_checkpoint_path)
 
         self.activation_fn = self.get_activation()
         self.loss_fn = self.get_loss()
