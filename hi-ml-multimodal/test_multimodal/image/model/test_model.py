@@ -143,7 +143,7 @@ def test_hubconf() -> None:
     """Test that instantiating the image model using the PyTorch Hub is consistent with older methods."""
     image = torch.rand(1, 3, 480, 480)
 
-    github = 'microsoft/hi-ml:add-hubconf'
+    github = 'microsoft/hi-ml'
     model_hub = torch.hub.load(github, 'biovil_resnet', pretrained=True)
     model_himl = get_biovil_resnet()
 
