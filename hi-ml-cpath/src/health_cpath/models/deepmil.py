@@ -115,7 +115,7 @@ class BaseDeepMILModule(LightningModule):
             pretrained_model.pooling_params.use_pretrained_pooling = False
             pretrained_model.use_pretrained_classifier = False
 
-            if self.encoder_params.use_pretrained_encoder:
+            if self.encoder_params.use_pretrained_encoder and pretrained_model.encoder_params.tune_encoder:
                 for param, pretrained_param in zip(self.encoder.parameters(), pretrained_model.encoder.parameters()):
                     param.data.copy_(pretrained_param.data)
 

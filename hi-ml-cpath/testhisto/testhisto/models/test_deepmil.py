@@ -31,6 +31,7 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPosi
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
+from testhisto.utils.utils_testhisto import full_ml_test_data_path
 
 no_gpu = not is_gpu_available()
 
@@ -510,22 +511,31 @@ def test_init_weights_options(tune_encoder: bool, tune_pooling: bool, tune_class
         assert module.classifier_fn.training == tune_classifier
 
 
-# @pytest.mark.parametrize("use_pretrained_classifier", [False, True])
-# @pytest.mark.parametrize("use_pretrained_pooling", [False, True])
-# @pytest.mark.parametrize("use_pretrained_encoder", [False, True])
-# def test_init_weights_options(
-#     use_pretrained_encoder: bool, use_pretrained_pooling: bool, use_pretrained_classifier: bool
-# ) -> None:
-#     module = SlidesDeepMILModule(
-#         label_column=DEFAULT_LABEL_COLUMN,
-#         n_classes=1,
-#         encoder_params=get_supervised_imagenet_encoder_params(),
-#         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
-#     )
-#     module.encoder_params.use_pretrained_encoder = use_pretrained_encoder
-#     module.pooling_params.use_pretrained_pooling = use_pretrained_pooling
-#     module.use_pretrained_classifier = use_pretrained_classifier
+@pytest.mark.parametrize("use_pretrained_classifier", [False, True])
+@pytest.mark.parametrize("use_pretrained_pooling", [False, True])
+@pytest.mark.parametrize("use_pretrained_encoder", [False, True])
+def test_init_weights_options(
+    use_pretrained_encoder: bool, use_pretrained_pooling: bool, use_pretrained_classifier: bool
+) -> None:
+    module = SlidesDeepMILModule(
+        label_column=DEFAULT_LABEL_COLUMN,
+        n_classes=1,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
+    )
+    module.encoder_params.use_pretrained_encoder = use_pretrained_encoder
+    module.pooling_params.use_pretrained_pooling = use_pretrained_pooling
+    module.use_pretrained_classifier = use_pretrained_classifier
 
-#     random_encoder_weights = module.encoder.parameters()
-#     random_pooling_weights = module.aggregation_fn.parameters()
-#     random_classification_weights = module.classifier_fn.parameters()
+    random_encoder_weights = module.encoder.parameters()
+    random_pooling_weights = module.aggregation_fn.parameters()
+    random_classification_weights = module.classifier_fn.parameters()
+
+    ckpt_path = Path(full_ml_test_data_path()/ "dummy_ckpt.pt")
+    module.transfer_weights(Path(ckpt_path))
+
+    new_encoder_weights = module.encoder.parameters()
+    new_pooling_weights = module.aggregation_fn.parameters()
+    new_classification_weights = module.classifier_fn.parameters()
+
+    assert torch.
