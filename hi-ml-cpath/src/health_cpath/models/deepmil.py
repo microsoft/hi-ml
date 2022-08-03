@@ -111,11 +111,7 @@ class BaseDeepMILModule(LightningModule):
         if pretrained_checkpoint_path:
             pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
 
-            pretrained_model.encoder_params.use_pretrained_encoder = False
-            pretrained_model.pooling_params.use_pretrained_pooling = False
-            pretrained_model.use_pretrained_classifier = False
-
-            if self.encoder_params.use_pretrained_encoder and pretrained_model.encoder_params.tune_encoder:
+            if self.encoder_params.use_pretrained_encoder:
                 for param, pretrained_param in zip(self.encoder.parameters(), pretrained_model.encoder.parameters()):
                     param.data.copy_(pretrained_param.data)
 
