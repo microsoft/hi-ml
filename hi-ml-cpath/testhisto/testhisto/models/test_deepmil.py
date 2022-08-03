@@ -164,7 +164,6 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-# @pytest.mark.skipif(True, reason="This test is too slow and kills pytest processes on the github agent.")
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("batch_size", [1, 5])
 @pytest.mark.parametrize("max_bag_size", [1, 5])
@@ -462,7 +461,7 @@ def test_wrong_tuning_options() -> None:
 @pytest.mark.parametrize("tune_classifier", [False, True])
 @pytest.mark.parametrize("tune_pooling", [False, True])
 @pytest.mark.parametrize("tune_encoder", [False, True])
-def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
+def test_init_weights_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=1,
