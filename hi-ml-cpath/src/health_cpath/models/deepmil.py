@@ -88,37 +88,13 @@ class BaseDeepMILModule(LightningModule):
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
         self.run_extra_val_epoch = False
-        pretrained_model = (
-            self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
-            if pretrained_checkpoint_path else None
-        )
-        pretrained_model.encoder_params.use_pretrained_encoder = False
-        pretrained_model.pooling_params.use_pretrained_encoder = False
-        pretrained_model.use_pretrained_classifier = False
 
         # Model components
         self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
 
-        if encoder_params.use_pretrained_encoder:
-            for param, pretrained_param in zip(self.encoder.parameters(), pretrained_model.encoder.parameters()):
-                param.data.copy_(pretrained_param.data)
-
-        if pooling_params.use_pretrained_encoder:
-            for param, pretrained_param in zip(
-                self.aggregation_fn.parameters(), pretrained_model.aggregation_fn.parameters()
-            ):
-                param.data.copy_(pretrained_param.data)
-
-        if (
-            self.use_pretrained_classifier
-            and pretrained_model.classifier_fn.output_dim == self.classifier_fn.output_dim
-        ):
-            for param, pretrained_param in zip(
-                self.classifier_fn.parameters(), pretrained_model.classifier_fn.parameters()
-            ):
-                param.data.copy_(pretrained_param.data)
+        self.transfer_weights(pretrained_checkpoint_path)
 
         self.activation_fn = self.get_activation()
         self.loss_fn = self.get_loss()
@@ -127,6 +103,35 @@ class BaseDeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
+
+    def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
+        """Transfer weights from pretrained checkpoint if provided."""
+
+        if pretrained_checkpoint_path:
+            pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
+
+            pretrained_model.encoder_params.use_pretrained_encoder = False
+            pretrained_model.pooling_params.use_pretrained_pooling = False
+            pretrained_model.use_pretrained_classifier = False
+
+            if self.encoder_params.use_pretrained_encoder:
+                for param, pretrained_param in zip(self.encoder.parameters(), pretrained_model.encoder.parameters()):
+                    param.data.copy_(pretrained_param.data)
+
+            if self.pooling_params.use_pretrained_pooling:
+                for param, pretrained_param in zip(
+                    self.aggregation_fn.parameters(), pretrained_model.aggregation_fn.parameters()
+                ):
+                    param.data.copy_(pretrained_param.data)
+
+            if (
+                self.use_pretrained_classifier
+                and pretrained_model.classifier_fn.output_dim == self.classifier_fn.output_dim
+            ):
+                for param, pretrained_param in zip(
+                    self.classifier_fn.parameters(), pretrained_model.classifier_fn.parameters()
+                ):
+                    param.data.copy_(pretrained_param.data)
 
     def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
