@@ -278,12 +278,11 @@ def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, u
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
         loss = module.training_step(batch, batch_idx)
-        if loss.requires_grad:
-            loss.retain_grad()
-            loss.backward()
-            assert loss.grad is not None
-            assert loss.shape == (1, 1)
-            assert isinstance(loss, Tensor)
+        loss.retain_grad()
+        loss.backward()
+        assert loss.grad is not None
+        assert loss.shape == (1, 1)
+        assert isinstance(loss, Tensor)
         break
 
 
