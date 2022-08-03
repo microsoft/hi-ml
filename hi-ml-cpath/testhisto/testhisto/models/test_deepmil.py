@@ -24,7 +24,7 @@ from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPand
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
-from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
+from health_cpath.models.deepmil import BaseDeepMILModule, SlidesDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ResultsKey
@@ -33,6 +33,7 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPosi
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
+from testhisto.utils.utils_testhisto import full_ml_test_data_path
 
 no_gpu = not is_gpu_available()
 
@@ -539,31 +540,29 @@ def test_training_for_different_finetuning_options(
             _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
 
 
-# @pytest.mark.parametrize("use_pretrained_classifier", [False, True])
-# @pytest.mark.parametrize("use_pretrained_pooling", [False, True])
-# @pytest.mark.parametrize("use_pretrained_encoder", [False, True])
-# def test_init_weights_options(
-#     use_pretrained_encoder: bool, use_pretrained_pooling: bool, use_pretrained_classifier: bool
-# ) -> None:
-#     module = SlidesDeepMILModule(
-#         label_column=DEFAULT_LABEL_COLUMN,
-#         n_classes=1,
-#         encoder_params=get_supervised_imagenet_encoder_params(),
-#         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
-#     )
-#     module.encoder_params.use_pretrained_encoder = use_pretrained_encoder
-#     module.pooling_params.use_pretrained_pooling = use_pretrained_pooling
-#     module.use_pretrained_classifier = use_pretrained_classifier
+@pytest.mark.parametrize("use_pretrained_classifier", [False, True])
+@pytest.mark.parametrize("use_pretrained_pooling", [False, True])
+@pytest.mark.parametrize("use_pretrained_encoder", [False, True])
+def test_init_weights_options(
+    use_pretrained_encoder: bool, use_pretrained_pooling: bool, use_pretrained_classifier: bool
+) -> None:
+    n_classes = 1
+    module = SlidesDeepMILModule(
+        n_classes=n_classes,
+        label_column=DEFAULT_LABEL_COLUMN,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
+    )
+    module.encoder_params.use_pretrained_encoder = use_pretrained_encoder
+    module.pooling_params.use_pretrained_pooling = use_pretrained_pooling
+    module.use_pretrained_classifier = use_pretrained_classifier
 
-#     random_encoder_weights = module.encoder.parameters()
-#     random_pooling_weights = module.aggregation_fn.parameters()
-#     random_classification_weights = module.classifier_fn.parameters()
-
-#     ckpt_path = Path(full_ml_test_data_path()/ "dummy_ckpt.pt")
-#     module.transfer_weights(Path(ckpt_path))
-
-#     new_encoder_weights = module.encoder.parameters()
-#     new_pooling_weights = module.aggregation_fn.parameters()
-#     new_classification_weights = module.classifier_fn.parameters()
-
-#     assert torch.
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        with patch.object(module, "copy_weights") as mock_copy_weights:
+            module.transfer_weights(Path("foo"))
+            mock_pretrained_model = MagicMock()
+            mock_pretrained_model.n_classes.return_value = n_classes
+            mock_load_from_checkpoint.return_value = mock_pretrained_model
+            assert mock_copy_weights.call_count == sum(
+                [int(use_pretrained_encoder), int(use_pretrained_pooling), int(use_pretrained_classifier)]
+            )

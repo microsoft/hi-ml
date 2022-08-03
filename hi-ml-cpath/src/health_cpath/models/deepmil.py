@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
@@ -105,6 +106,22 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
+    @staticmethod
+    def copy_weights(current_submodule: nn.Module, pretrained_submodule: nn.Module, submodule_name: str) -> None:
+        """Copy weights from pretrained submodule to current submodule.
+
+        :param current_submodule: Submodule to copy weights to.
+        :param pretrained_submodule: Submodule to copy weights from.
+        :param submodule_name: Name of the submodule.
+        """
+
+        for param, pretrained_param in zip(current_submodule.parameters(), pretrained_submodule.parameters()):
+            try:
+                param.data.copy_(pretrained_param.data)
+            except Exception as e:
+                logging.warning(f"Failed to copy weights for {submodule_name} because of the following exception: {e}"
+                                f"We will proceed with random (or ImageNet) initialization of {submodule_name}.")
+
     def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
         """Transfer weights from pretrained checkpoint if provided."""
 
@@ -112,23 +129,13 @@ class BaseDeepMILModule(LightningModule):
             pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
 
             if self.encoder_params.use_pretrained_encoder:
-                for param, pretrained_param in zip(self.encoder.parameters(), pretrained_model.encoder.parameters()):
-                    param.data.copy_(pretrained_param.data)
+                self.copy_weights(self.encoder, pretrained_model.encoder, "encoder")
 
             if self.pooling_params.use_pretrained_pooling:
-                for param, pretrained_param in zip(
-                    self.aggregation_fn.parameters(), pretrained_model.aggregation_fn.parameters()
-                ):
-                    param.data.copy_(pretrained_param.data)
+                self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, "pooling")
 
-            if (
-                self.use_pretrained_classifier
-                and pretrained_model.classifier_fn.output_dim == self.classifier_fn.output_dim
-            ):
-                for param, pretrained_param in zip(
-                    self.classifier_fn.parameters(), pretrained_model.classifier_fn.parameters()
-                ):
-                    param.data.copy_(pretrained_param.data)
+            if self.use_pretrained_classifier and pretrained_model.n_classes == self.n_classes:
+                self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, "classifier")
 
     def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
