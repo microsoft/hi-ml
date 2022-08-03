@@ -66,7 +66,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         )
         last_caplog_msg = caplog.messages[-1]
         assert found_file_path == current_file_path
-        assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
+        assert f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg
 
         # Now try to search for a nonexistent path in the same folder. This should return None
         nonexistent_path = himl_az_root / "idontexist.py"
