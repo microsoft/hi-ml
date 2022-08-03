@@ -477,10 +477,8 @@ def test_finetuning_options(
 
     for params in module.encoder.parameters():
         assert params.requires_grad == tune_encoder
-
     for params in module.aggregation_fn.parameters():
         assert params.requires_grad == tune_pooling
-
     for params in module.classifier_fn.parameters():
         assert params.requires_grad == tune_classifier
 
@@ -492,13 +490,6 @@ def test_finetuning_options(
             assert tensor.grad_fn is not None
         else:
             assert tensor.grad_fn is None
-
-    def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
-        for param in module.parameters():
-            if tuning_flag:
-                assert param.grad is not None
-            else:
-                assert param.grad is None
 
     with torch.enable_grad():
         instance_features = module.get_instance_features(instances)
@@ -516,11 +507,33 @@ def test_finetuning_options(
         _assert_existing_gradients_fn(bag_logit, tuning_flag=tune_classifier or tune_pooling)
         assert module.classifier_fn.training == tune_classifier
 
-        if any([tune_encoder, tune_pooling, tune_classifier]):
-            with patch.object(module, "validation_step"):
-                trainer = Trainer(max_epochs=1)
-                trainer.fit(module, datamodule=_get_datamodule(tmp_path))
 
-                _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
-                _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
-                _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
+@pytest.mark.parametrize("tune_classifier", [False, True])
+@pytest.mark.parametrize("tune_pooling", [False, True])
+@pytest.mark.parametrize("tune_encoder", [False, True])
+def test_training_for_different_finetuning_options(
+    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
+) -> None:
+    module = TilesDeepMILModule(
+        label_column=MockPandaTilesGenerator.ISUP_GRADE,
+        n_classes=6,
+        encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+        tune_classifier=tune_classifier,
+    )
+
+    def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
+        for param in module.parameters():
+            if tuning_flag:
+                assert param.grad is not None
+            else:
+                assert param.grad is None
+
+    if any([tune_encoder, tune_pooling, tune_classifier]):
+        with patch.object(module, "validation_step"):
+            trainer = Trainer(max_epochs=1)
+            trainer.fit(module, datamodule=_get_datamodule(tmp_path))
+
+            _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
+            _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
+            _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
