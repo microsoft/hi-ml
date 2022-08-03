@@ -5,6 +5,7 @@
 import logging
 import os
 import shutil
+from pytorch_lightning import Trainer
 import torch
 import pytest
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Typ
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
+from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
@@ -347,18 +349,8 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     assert_test_step(module, data_module, use_gpu)
 
 
-def _test_mock_panda_container(
-    use_gpu: bool,
-    mock_container: BaseDeepSMILEPanda,
-    tmp_path: Path,
-    tune_encoder: bool = False,
-    tune_pooling: bool = True,
-    tune_classifier: bool = True,
-) -> None:
+def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
     container = mock_container(tmp_path=tmp_path)
-    mock_container.tune_encoder = tune_encoder
-    mock_container.tune_pooling = tune_pooling
-    mock_container.tune_classifier = tune_classifier
     container.setup()
     data_module = container.get_data_module()
     module = container.create_model()
@@ -379,22 +371,15 @@ def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None
                                tmp_path=mock_panda_tiles_root_dir)
 
 
-@pytest.mark.parametrize(
-    "tune_encoder, tune_pooling, tune_classifier",
-    [(False, False, True), (False, True, True), (True, True, True), (True, False, False)]
-)
+
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
 def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tmp_path: str,
-                                  request: pytest.FixtureRequest,
-                                  tune_encoder: bool,
-                                  tune_pooling: bool,
-                                  tune_classifier: bool) -> None:
-    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path),
-                               tune_encoder=tune_encoder, tune_pooling=tune_pooling, tune_classifier=tune_classifier)
+                                  request: pytest.FixtureRequest) -> None:
+    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
 def test_class_weights_binary() -> None:
@@ -458,13 +443,31 @@ def test_wrong_tuning_options() -> None:
     assert "At least one of the encoder, pooling or classifier should be fine tuned." in str(ex)
 
 
+def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
+    tiles_generator = MockPandaTilesGenerator(
+        dest_data_path=tmp_path,
+        mock_type=MockHistoDataType.FAKE,
+        n_tiles=4,
+        n_slides=10,
+        n_channels=3,
+        tile_size=28,
+        img_size=224,
+    )
+    tiles_generator.generate_mock_histo_data()
+
+    datamodule = PandaTilesDataModule(root_path=tmp_path, batch_size=2, max_bag_size=4)
+    return datamodule
+
+
 @pytest.mark.parametrize("tune_classifier", [False, True])
 @pytest.mark.parametrize("tune_pooling", [False, True])
 @pytest.mark.parametrize("tune_encoder", [False, True])
-def test_init_weights_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
+def test_finetuning_options(
+    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
+) -> None:
     module = TilesDeepMILModule(
-        label_column=DEFAULT_LABEL_COLUMN,
-        n_classes=1,
+        label_column=MockPandaTilesGenerator.ISUP_GRADE,
+        n_classes=6,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
         tune_classifier=tune_classifier,
@@ -492,6 +495,13 @@ def test_init_weights_options(tune_encoder: bool, tune_pooling: bool, tune_class
         else:
             assert tensor.grad_fn is None
 
+    def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
+        for param in module.parameters():
+            if tuning_flag:
+                assert param.grad is not None
+            else:
+                assert param.grad is None
+
     with torch.enable_grad():
         instance_features = module.get_instance_features(instances)
         _assert_existing_gradients_fn(instance_features, tuning_flag=tune_encoder)
@@ -507,3 +517,12 @@ def test_init_weights_options(tune_encoder: bool, tune_pooling: bool, tune_class
         # "tuning_flag=tune_classifier or tune_pooling"
         _assert_existing_gradients_fn(bag_logit, tuning_flag=tune_classifier or tune_pooling)
         assert module.classifier_fn.training == tune_classifier
+
+        if any([tune_encoder, tune_pooling, tune_classifier]):
+            with patch.object(module, "validation_step"):
+                trainer = Trainer(max_epochs=1)
+                trainer.fit(module, datamodule=_get_datamodule(tmp_path))
+
+                _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
+                _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
+                _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
