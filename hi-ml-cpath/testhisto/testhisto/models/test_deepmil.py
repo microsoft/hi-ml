@@ -283,7 +283,7 @@ def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, u
             assert loss.grad is not None
             assert loss.shape == (1, 1)
             assert isinstance(loss, Tensor)
-            break
+        break
 
 
 def assert_validation_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
