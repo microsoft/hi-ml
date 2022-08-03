@@ -164,6 +164,7 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
+# @pytest.mark.skipif(True, reason="This test is too slow and kills pytest processes on the github agent.")
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("batch_size", [1, 5])
 @pytest.mark.parametrize("max_bag_size", [1, 5])
@@ -346,8 +347,18 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     assert_test_step(module, data_module, use_gpu)
 
 
-def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda, tmp_path: Path) -> None:
+def _test_mock_panda_container(
+    use_gpu: bool,
+    mock_container: BaseDeepSMILEPanda,
+    tmp_path: Path,
+    tune_encoder: bool = False,
+    tune_pooling: bool = True,
+    tune_classifier: bool = True,
+) -> None:
     container = mock_container(tmp_path=tmp_path)
+    mock_container.tune_encoder = tune_encoder
+    mock_container.tune_pooling = tune_pooling
+    mock_container.tune_classifier = tune_classifier
     container.setup()
     data_module = container.get_data_module()
     module = container.create_model()
@@ -382,10 +393,8 @@ def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tune_encoder: bool,
                                   tune_pooling: bool,
                                   tune_classifier: bool) -> None:
-    mock_container.tune_encoder = tune_encoder
-    mock_container.tune_pooling = tune_pooling
-    mock_container.tune_classifier = tune_classifier
-    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
+    _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path),
+                               tune_encoder=tune_encoder, tune_pooling=tune_pooling, tune_classifier=tune_classifier)
 
 
 def test_class_weights_binary() -> None:
