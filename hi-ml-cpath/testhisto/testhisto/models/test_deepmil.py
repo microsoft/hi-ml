@@ -464,8 +464,8 @@ def test_finetuning_options(
     tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
 ) -> None:
     module = TilesDeepMILModule(
-        label_column=MockPandaTilesGenerator.ISUP_GRADE,
-        n_classes=6,
+        n_classes=1,
+        label_column=DEFAULT_LABEL_COLUMN,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
         tune_classifier=tune_classifier,
@@ -515,8 +515,8 @@ def test_training_for_different_finetuning_options(
     tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
 ) -> None:
     module = TilesDeepMILModule(
-        label_column=MockPandaTilesGenerator.ISUP_GRADE,
         n_classes=6,
+        label_column=MockPandaTilesGenerator.ISUP_GRADE,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
         tune_classifier=tune_classifier,
