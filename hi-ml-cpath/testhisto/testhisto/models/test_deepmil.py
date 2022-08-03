@@ -369,13 +369,23 @@ def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None
                                tmp_path=mock_panda_tiles_root_dir)
 
 
+@pytest.mark.parametrize(
+    "tune_encoder, tune_pooling, tune_classifier",
+    [(False, False, True), (True, True, True), (False, True, False), (True, False, False), (True, True, False)],
+)
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
                                                       (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
 def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
                                   tmp_path: str,
-                                  request: pytest.FixtureRequest) -> None:
+                                  request: pytest.FixtureRequest,
+                                  tune_encoder: bool,
+                                  tune_pooling: bool,
+                                  tune_classifier: bool) -> None:
+    mock_container.tune_encoder = tune_encoder
+    mock_container.tune_pooling = tune_pooling
+    mock_container.tune_classifier = tune_classifier
     _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
@@ -429,18 +439,32 @@ def test_class_weights_multiclass() -> None:
     assert allclose(loss_weighted, loss_unweighted)
 
 
-@pytest.mark.parametrize("tune_encoder", [True, False])
-@pytest.mark.parametrize("tune_pooling", [True, False])
-def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
+def test_wrong_tuning_options() -> None:
+    with pytest.raises(ValueError) as ex:
+        _ = MockDeepSMILETilesPanda(
+            tmp_path=Path("foo"),
+            tune_encoder=False,
+            tune_pooling=False,
+            tune_classifier=False
+        )
+    assert "At least one of the encoder, pooling or classifier should be fine tuned." in str(ex)
+
+
+@pytest.mark.parametrize("tune_classifier", [False, True])
+@pytest.mark.parametrize("tune_pooling", [False, True])
+@pytest.mark.parametrize("tune_encoder", [False, True])
+def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=1,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+        tune_classifier=tune_classifier,
     )
 
     assert module.encoder_params.tune_encoder == tune_encoder
     assert module.pooling_params.tune_pooling == tune_pooling
+    assert module.tune_classifier == tune_classifier
 
     for params in module.encoder.parameters():
         assert params.requires_grad == tune_encoder
@@ -449,11 +473,12 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
         assert params.requires_grad == tune_pooling
 
     for params in module.classifier_fn.parameters():
-        assert params.requires_grad  # classifier_fn is always trained to be able to backpropagate the error
+        assert params.requires_grad == tune_classifier
 
     instances = torch.randn(4, 3, 224, 224)
 
     def _assert_existing_gradients_fn(tensor: Tensor, tuning_flag: bool) -> None:
+        assert tensor.requires_grad == tuning_flag
         if tuning_flag:
             assert tensor.grad_fn is not None
         else:
@@ -469,7 +494,8 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool) -> None:
         _assert_existing_gradients_fn(bag_features, tuning_flag=tune_pooling)
         assert module.aggregation_fn.training == tune_pooling
 
-        # classifier_fn is always trained to be able to backpropagate the error
-        bag_logit = module.classifier_fn(bag_features)
-        _assert_existing_gradients_fn(bag_logit, tuning_flag=True)
-        assert module.classifier_fn.training
+        bag_logit = module.get_bag_logit(bag_features)
+        # bag_logit gradients are required for pooling layer gradients computation, hence
+        # "tuning_flag=tune_classifier or tune_pooling"
+        _assert_existing_gradients_fn(bag_logit, tuning_flag=tune_classifier or tune_pooling)
+        assert module.classifier_fn.training == tune_classifier

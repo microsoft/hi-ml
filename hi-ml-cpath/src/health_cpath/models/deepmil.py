@@ -14,7 +14,7 @@ from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_module_gradients_enabled
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
@@ -39,6 +39,7 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
+                 tune_classifier: bool = True,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -53,6 +54,7 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
+        :param tune_classifier: Whether to tune the classifier (default=True).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -85,6 +87,7 @@ class BaseDeepMILModule(LightningModule):
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
         self.run_extra_val_epoch = False
+        self.tune_classifier = tune_classifier
 
         # Model components
         self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
@@ -102,6 +105,7 @@ class BaseDeepMILModule(LightningModule):
     def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
                                      out_features=self.n_classes)
+        set_module_gradients_enabled(classifier_layer, self.tune_classifier)
         if self.dropout_rate is None:
             return classifier_layer
         elif 0 <= self.dropout_rate < 1:
@@ -186,14 +190,21 @@ class BaseDeepMILModule(LightningModule):
         bag_features = bag_features.view(1, -1)
         return attentions, bag_features
 
+    def get_bag_logit(self, bag_features: Tensor) -> Tensor:
+        if not self.tune_classifier:
+            self.classifier_fn.eval()
+        bag_logit = self.classifier_fn(bag_features)
+        return bag_logit
+
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         instance_features = self.get_instance_features(instances)
         attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
-        bag_logit = self.classifier_fn(bag_features)
+        bag_logit = self.get_bag_logit(bag_features)
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
-        return optim.Adam(self.parameters(), lr=self.optimizer_params.l_rate,
+        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()),
+                          lr=self.optimizer_params.l_rate,
                           weight_decay=self.optimizer_params.weight_decay,
                           betas=self.optimizer_params.adam_betas)
 
