@@ -164,10 +164,9 @@ def mock_panda_slides_root_dir(
     shutil.rmtree(tmp_root_dir)
 
 
-@pytest.mark.skipif(True, reason="This test is too slow and kills pytest processes on the github agent.")
 @pytest.mark.parametrize("n_classes", [1, 3])
-@pytest.mark.parametrize("batch_size", [1, 15])
-@pytest.mark.parametrize("max_bag_size", [1, 7])
+@pytest.mark.parametrize("batch_size", [1, 5])
+@pytest.mark.parametrize("max_bag_size", [1, 5])
 @pytest.mark.parametrize("pool_out_dim", [1, 6])
 @pytest.mark.parametrize("dropout_rate", [None, 0.5])
 def test_lightningmodule_attention(
