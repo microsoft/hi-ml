@@ -28,11 +28,11 @@ from health_ml.networks.layers.attention_layers import (
 )
 
 
-def enable_module_gradients(model: nn.Module, tuning_flag: bool) -> None:
-    """Given a model, enable or disable gradients for all parameters if tuning_flag is True.
+def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
+    """Given a model, enable or disable gradients for all parameters.
 
     :param model: A PyTorch model.
-    :param tuning_flag: A boolean indicating whether to enable or disable gradients.
+    :param tuning_flag: A boolean indicating whether to enable or disable gradients for the model parameters.
     """
     for params in model.parameters():
         params.requires_grad = tuning_flag
@@ -101,7 +101,7 @@ class EncoderParams(param.Parameterized):
             )
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
-        enable_module_gradients(encoder, tuning_flag=self.tune_encoder)
+        set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
         return encoder
 
 
@@ -158,5 +158,5 @@ class PoolingParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported pooling type: {self.pool_type}")
         num_features = num_encoding * self.pool_out_dim
-        enable_module_gradients(pooling_layer, tuning_flag=self.tune_pooling)
+        set_module_gradients_enabled(pooling_layer, tuning_flag=self.tune_pooling)
         return pooling_layer, num_features
