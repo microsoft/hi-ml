@@ -150,8 +150,8 @@ def test_hubconf() -> None:
     output_hub: ImageModelOutput = model_hub(image)
     output_himl: ImageModelOutput = model_himl(image)
 
-    for field_hub, field_himl in zip(fields(output_hub), fields(output_himl)):
-        value_hub = getattr(output_hub, field_hub.name)
+    for field_himl in zip(fields(output_himl)):
+        value_hub = getattr(output_hub, field_himl.name)
         value_himl = getattr(output_himl, field_himl.name)
         if value_hub is None and value_himl is None:  # for example, class_logits
             continue
