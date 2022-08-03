@@ -22,7 +22,7 @@ from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPand
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
-from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
+from health_cpath.models.deepmil import BaseDeepMILModule, SlidesDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ResultsKey
@@ -462,7 +462,7 @@ def test_wrong_tuning_options() -> None:
 @pytest.mark.parametrize("tune_classifier", [False, True])
 @pytest.mark.parametrize("tune_pooling", [False, True])
 @pytest.mark.parametrize("tune_encoder", [False, True])
-def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
+def test_init_weights_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool) -> None:
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=1,
@@ -508,3 +508,24 @@ def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classif
         # "tuning_flag=tune_classifier or tune_pooling"
         _assert_existing_gradients_fn(bag_logit, tuning_flag=tune_classifier or tune_pooling)
         assert module.classifier_fn.training == tune_classifier
+
+
+# @pytest.mark.parametrize("use_pretrained_classifier", [False, True])
+# @pytest.mark.parametrize("use_pretrained_pooling", [False, True])
+# @pytest.mark.parametrize("use_pretrained_encoder", [False, True])
+# def test_init_weights_options(
+#     use_pretrained_encoder: bool, use_pretrained_pooling: bool, use_pretrained_classifier: bool
+# ) -> None:
+#     module = SlidesDeepMILModule(
+#         label_column=DEFAULT_LABEL_COLUMN,
+#         n_classes=1,
+#         encoder_params=get_supervised_imagenet_encoder_params(),
+#         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
+#     )
+#     module.encoder_params.use_pretrained_encoder = use_pretrained_encoder
+#     module.pooling_params.use_pretrained_pooling = use_pretrained_pooling
+#     module.use_pretrained_classifier = use_pretrained_classifier
+
+#     random_encoder_weights = module.encoder.parameters()
+#     random_pooling_weights = module.aggregation_fn.parameters()
+#     random_classification_weights = module.classifier_fn.parameters()
