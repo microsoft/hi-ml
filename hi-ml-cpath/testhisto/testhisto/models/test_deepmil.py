@@ -371,7 +371,6 @@ def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None
                                tmp_path=mock_panda_tiles_root_dir)
 
 
-
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
