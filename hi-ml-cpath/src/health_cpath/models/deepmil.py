@@ -17,7 +17,7 @@ from health_cpath.models.encoders import IdentityEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_module_gradients_enabled
 
 from health_cpath.datasets.base_dataset import TilesDataset
-from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
+from health_cpath.utils.naming import DeepMILSubModules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names)
 
@@ -105,7 +105,9 @@ class BaseDeepMILModule(LightningModule):
         self.test_metrics = self.get_metrics()
 
     @staticmethod
-    def copy_weights(current_submodule: nn.Module, pretrained_submodule: nn.Module, submodule_name: str) -> None:
+    def copy_weights(
+        current_submodule: nn.Module, pretrained_submodule: nn.Module, submodule_name: DeepMILSubModules
+    ) -> None:
         """Copy weights from pretrained submodule to current submodule.
 
         :param current_submodule: Submodule to copy weights to.
@@ -134,13 +136,13 @@ class BaseDeepMILModule(LightningModule):
             pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
 
             if self.encoder_params.pretrained_encoder:
-                self.copy_weights(self.encoder, pretrained_model.encoder, "encoder")
+                self.copy_weights(self.encoder, pretrained_model.encoder, DeepMILSubModules.ENCODER)
 
             if self.pooling_params.pretrained_pooling:
-                self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, "pooling")
+                self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubModules.POOLING)
 
             if self.pretrained_classifier and pretrained_model.n_classes == self.n_classes:
-                self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, "classifier")
+                self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubModules.CLASSIFIER)
 
     def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
