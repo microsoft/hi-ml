@@ -97,7 +97,6 @@ class BaseDeepMILModule(LightningModule):
         self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
-
         self.activation_fn = self.get_activation()
         self.loss_fn = self.get_loss()
 
