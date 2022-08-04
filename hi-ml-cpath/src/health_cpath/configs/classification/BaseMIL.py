@@ -94,6 +94,11 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                 "arguments `tune_encoder`, `tune_pooling`, `tune_classifier`. Otherwise, activate inference only "
                 "mode via `run_inference_only` flag."
             )
+        if any([self.pretrain_encoder, self.pretrain_pooling, self.pretrain_classifier]) and not self.src_checkpoint:
+            raise ValueError(
+                "You need to specify a source checkpoint, to use a pretrained the encoder, pooling or classifier."
+                "Set `src_checkpoint` to the path of the checkpoint to use."
+            )
 
     @property
     def cache_dir(self) -> Path:

@@ -540,12 +540,18 @@ def test_training_for_different_finetuning_options(
             _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
 
 
+def test_missing_src_checkpoint_with_pretraining_flags() -> None:
+    with pytest.raises(ValueError) as ex:
+        _ = MockDeepSMILETilesPanda(tmp_path=Path("foo"), pretrain_classifier=True, pretrain_encoder=True)
+    assert "You need to specify a source checkpoint, to use a pretrained" in str(ex)
+
+
 @pytest.mark.parametrize("pretrain_classifier", [False, True])
 @pytest.mark.parametrize("pretrain_pooling", [False, True])
 @pytest.mark.parametrize("pretrain_encoder", [False, True])
 def test_init_weights_options(pretrain_encoder: bool, pretrain_pooling: bool, pretrain_classifier: bool) -> None:
     n_classes = 1
-    module = SlidesDeepMILModule(
+    module = TilesDeepMILModule(
         n_classes=n_classes,
         label_column=DEFAULT_LABEL_COLUMN,
         encoder_params=get_supervised_imagenet_encoder_params(),
