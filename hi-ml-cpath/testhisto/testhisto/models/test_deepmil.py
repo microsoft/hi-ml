@@ -5,6 +5,7 @@
 import logging
 import os
 import shutil
+from pytorch_lightning import Trainer
 import torch
 import pytest
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Typ
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
+from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
@@ -35,12 +37,13 @@ from health_ml.utils.common_utils import is_gpu_available
 no_gpu = not is_gpu_available()
 
 
-def get_supervised_imagenet_encoder_params() -> EncoderParams:
-    return EncoderParams(encoder_type=ImageNetEncoder.__name__)
+def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> EncoderParams:
+    return EncoderParams(encoder_type=ImageNetEncoder.__name__, tune_encoder=tune_encoder)
 
 
-def get_attention_pooling_layer_params(pool_out_dim: int = 1) -> PoolingParams:
-    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5)
+def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
+    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5,
+                         tune_pooling=tune_pooling)
 
 
 def _test_lightningmodule(
@@ -164,8 +167,8 @@ def mock_panda_slides_root_dir(
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])
-@pytest.mark.parametrize("batch_size", [1, 15])
-@pytest.mark.parametrize("max_bag_size", [1, 7])
+@pytest.mark.parametrize("batch_size", [1, 5])
+@pytest.mark.parametrize("max_bag_size", [1, 5])
 @pytest.mark.parametrize("pool_out_dim", [1, 6])
 @pytest.mark.parametrize("dropout_rate", [None, 0.5])
 def test_lightningmodule_attention(
@@ -425,3 +428,112 @@ def test_class_weights_multiclass() -> None:
     # TODO: the test should reflect actual weighted loss operation for the class weights after
     # batch_size > 1 is implemented.
     assert allclose(loss_weighted, loss_unweighted)
+
+
+def test_wrong_tuning_options() -> None:
+    with pytest.raises(ValueError,
+                       match=r"At least one of the encoder, pooling or classifier should be fine tuned"):
+        _ = MockDeepSMILETilesPanda(
+            tmp_path=Path("foo"),
+            tune_encoder=False,
+            tune_pooling=False,
+            tune_classifier=False
+        )
+
+
+def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
+    tiles_generator = MockPandaTilesGenerator(
+        dest_data_path=tmp_path,
+        mock_type=MockHistoDataType.FAKE,
+        n_tiles=4,
+        n_slides=10,
+        n_channels=3,
+        tile_size=28,
+        img_size=224,
+    )
+    tiles_generator.generate_mock_histo_data()
+
+    datamodule = PandaTilesDataModule(root_path=tmp_path, batch_size=2, max_bag_size=4)
+    return datamodule
+
+
+@pytest.mark.parametrize("tune_classifier", [False, True])
+@pytest.mark.parametrize("tune_pooling", [False, True])
+@pytest.mark.parametrize("tune_encoder", [False, True])
+def test_finetuning_options(
+    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
+) -> None:
+    module = TilesDeepMILModule(
+        n_classes=1,
+        label_column=DEFAULT_LABEL_COLUMN,
+        encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+        tune_classifier=tune_classifier,
+    )
+
+    assert module.encoder_params.tune_encoder == tune_encoder
+    assert module.pooling_params.tune_pooling == tune_pooling
+    assert module.tune_classifier == tune_classifier
+
+    for params in module.encoder.parameters():
+        assert params.requires_grad == tune_encoder
+    for params in module.aggregation_fn.parameters():
+        assert params.requires_grad == tune_pooling
+    for params in module.classifier_fn.parameters():
+        assert params.requires_grad == tune_classifier
+
+    instances = torch.randn(4, 3, 224, 224)
+
+    def _assert_existing_gradients_fn(tensor: Tensor, tuning_flag: bool) -> None:
+        assert tensor.requires_grad == tuning_flag
+        if tuning_flag:
+            assert tensor.grad_fn is not None
+        else:
+            assert tensor.grad_fn is None
+
+    with torch.enable_grad():
+        instance_features = module.get_instance_features(instances)
+        _assert_existing_gradients_fn(instance_features, tuning_flag=tune_encoder)
+        assert module.encoder.training == tune_encoder
+
+        attentions, bag_features = module.get_attentions_and_bag_features(instances)
+        _assert_existing_gradients_fn(attentions, tuning_flag=tune_pooling)
+        _assert_existing_gradients_fn(bag_features, tuning_flag=tune_pooling)
+        assert module.aggregation_fn.training == tune_pooling
+
+        bag_logit = module.get_bag_logit(bag_features)
+        # bag_logit gradients are required for pooling layer gradients computation, hence
+        # "tuning_flag=tune_classifier or tune_pooling"
+        _assert_existing_gradients_fn(bag_logit, tuning_flag=tune_classifier or tune_pooling)
+        assert module.classifier_fn.training == tune_classifier
+
+
+@pytest.mark.parametrize("tune_classifier", [False, True])
+@pytest.mark.parametrize("tune_pooling", [False, True])
+@pytest.mark.parametrize("tune_encoder", [False, True])
+def test_training_with_different_finetuning_options(
+    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
+) -> None:
+    if any([tune_encoder, tune_pooling, tune_classifier]):
+        module = TilesDeepMILModule(
+            n_classes=6,
+            label_column=MockPandaTilesGenerator.ISUP_GRADE,
+            encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
+            pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+            tune_classifier=tune_classifier,
+        )
+
+        def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
+            for param in module.parameters():
+                if tuning_flag:
+                    assert param.grad is not None
+                else:
+                    assert param.grad is None
+
+        with patch.object(module, "validation_step"):
+            trainer = Trainer(max_epochs=1)
+            trainer.fit(module, datamodule=_get_datamodule(tmp_path))
+
+            _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
+            _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
+            _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)

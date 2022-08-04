@@ -33,7 +33,7 @@ class BaseDeepSMILEPanda(BaseMIL):
             pool_type=AttentionLayer.__name__,
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
-            is_finetune=False,
+            tune_encoder=False,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             max_bag_size=56,
@@ -55,7 +55,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeepSMILEPanda to inherit common behaviors from both
     tiles basemil and panda specific configuration.
 
-    `is_finetune` sets the fine-tuning mode. `is_finetune` sets the fine-tuning mode. For fine-tuning, batch_size = 2
+    `tune_encoder` sets the fine-tuning mode of the encoder. For fine-tuning the encoder, batch_size = 2
     runs on multiple GPUs with ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
 

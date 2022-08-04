@@ -84,11 +84,11 @@ python hi-ml/src/health_ml/runner.py --mount_in_azureml --conda_env=hi-ml-cpath/
 endef
 
 define DEEPSMILEPANDASLIDES_ARGS
---model=health_cpath.SlidesPandaImageNetMILBenchmark --is_finetune
+--model=health_cpath.SlidesPandaImageNetMILBenchmark --tune_encoder
 endef
 
 define DEEPSMILEPANDATILES_ARGS
---model=health_cpath.TilesPandaImageNetMIL --is_finetune --batch_size=2
+--model=health_cpath.TilesPandaImageNetMIL --tune_encoder --batch_size=2
 endef
 
 define TCGACRCKSSLMIL_ARGS
