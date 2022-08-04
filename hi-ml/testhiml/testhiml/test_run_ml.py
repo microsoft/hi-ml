@@ -302,4 +302,3 @@ def test_model_weights_when_resume_training() -> None:
             mock_create_trainer.assert_called_once()
             recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
             assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path
-
