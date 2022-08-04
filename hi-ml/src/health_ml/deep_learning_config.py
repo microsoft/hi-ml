@@ -128,8 +128,10 @@ SRC_CHECKPOINT_FORMAT_DOC = ("<AzureML_run_id>:<optional/custom/path/to/checkpoi
                              "the checkpoint will be downloaded from the default checkpoint folder "
                              "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
                              "`src_checkpoint=<AzureML_run_id>`) the latest checkpoint (last.ckpt) "
-                             "will be used to initialize the model."
-                             )
+                             "will be used to initialize the model.")
+SRC_CKPT_INFO_MESSAGE = ("Please specify a valid src_checkpoint. You can either use a URL, a local file or an azureml "
+                         "run id. For custom checkpoint paths within an azureml run, (other than last.ckpt), provide "
+                         f"a src_checkpoint in the format {SRC_CHECKPOINT_FORMAT_DOC}.")
 
 
 class WorkflowParams(param.Parameterized):
@@ -210,14 +212,10 @@ class WorkflowParams(param.Parameterized):
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
-        error_message = "Please specify a valid src_checkpoint. You can either use a URL, a local file or an azureml "\
-                        "run id. For custom checkpoint paths within an azureml run, (other than last.ckpt), provide "\
-                        f"a src_checkpoint in the format {SRC_CHECKPOINT_FORMAT_DOC}."
-
         if self.run_inference_only and not self.src_checkpoint:
-            raise ValueError(f"Cannot run inference without a src_checkpoint. {error_message}")
+            raise ValueError(f"Cannot run inference without a src_checkpoint. {SRC_CKPT_INFO_MESSAGE}")
         if self.resume_training and not self.src_checkpoint:
-            raise ValueError(f"Cannot resume training without a src_checkpoint. {error_message}")
+            raise ValueError(f"Cannot resume training without a src_checkpoint. {SRC_CKPT_INFO_MESSAGE}")
 
     @property
     def is_running_in_aml(self) -> bool:

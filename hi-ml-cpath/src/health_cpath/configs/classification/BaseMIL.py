@@ -18,6 +18,7 @@ from health_azure.utils import create_from_matching_params
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
+from health_ml.deep_learning_config import SRC_CKPT_INFO_MESSAGE
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
@@ -99,8 +100,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
             and not self.src_checkpoint
         ):
             raise ValueError(
-                "You need to specify a source checkpoint, to use a pretrained the encoder, pooling or classifier."
-                "Set `src_checkpoint` to the path of the checkpoint to use."
+                "You need to specify a source checkpoint, to use a pretrained encoder, pooling or classifier."
+                f"{SRC_CKPT_INFO_MESSAGE}"
             )
 
     @property
