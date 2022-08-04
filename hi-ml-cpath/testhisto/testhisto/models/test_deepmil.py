@@ -511,25 +511,25 @@ def test_finetuning_options(
 @pytest.mark.parametrize("tune_classifier", [False, True])
 @pytest.mark.parametrize("tune_pooling", [False, True])
 @pytest.mark.parametrize("tune_encoder", [False, True])
-def test_training_for_different_finetuning_options(
+def test_training_with_different_finetuning_options(
     tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
 ) -> None:
-    module = TilesDeepMILModule(
-        n_classes=6,
-        label_column=MockPandaTilesGenerator.ISUP_GRADE,
-        encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
-        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
-        tune_classifier=tune_classifier,
-    )
-
-    def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
-        for param in module.parameters():
-            if tuning_flag:
-                assert param.grad is not None
-            else:
-                assert param.grad is None
-
     if any([tune_encoder, tune_pooling, tune_classifier]):
+        module = TilesDeepMILModule(
+            n_classes=6,
+            label_column=MockPandaTilesGenerator.ISUP_GRADE,
+            encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
+            pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
+            tune_classifier=tune_classifier,
+        )
+
+        def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
+            for param in module.parameters():
+                if tuning_flag:
+                    assert param.grad is not None
+                else:
+                    assert param.grad is None
+
         with patch.object(module, "validation_step"):
             trainer = Trainer(max_epochs=1)
             trainer.fit(module, datamodule=_get_datamodule(tmp_path))
