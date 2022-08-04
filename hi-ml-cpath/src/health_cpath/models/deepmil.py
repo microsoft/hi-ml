@@ -40,7 +40,7 @@ class BaseDeepMILModule(LightningModule):
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
                  tune_classifier: bool = True,
-                 pretrain_classifier: bool = False,
+                 pretrained_classifier: bool = False,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -56,7 +56,7 @@ class BaseDeepMILModule(LightningModule):
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
         :param tune_classifier: Whether to tune the classifier (default=True).
-        :param pretrain_classifier: Whether to use pretrained classifier (default=False for random init).
+        :param pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -85,7 +85,7 @@ class BaseDeepMILModule(LightningModule):
         self.save_hyperparameters()
         self.verbose = verbose
         self.outputs_handler = outputs_handler
-        self.pretrain_classifier = pretrain_classifier
+        self.pretrained_classifier = pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
@@ -125,13 +125,13 @@ class BaseDeepMILModule(LightningModule):
         if pretrained_checkpoint_path:
             pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
 
-            if self.encoder_params.pretrain_encoder:
+            if self.encoder_params.pretrained_encoder:
                 self.copy_weights(self.encoder, pretrained_model.encoder, "encoder")
 
-            if self.pooling_params.pretrain_pooling:
+            if self.pooling_params.pretrained_pooling:
                 self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, "pooling")
 
-            if self.pretrain_classifier and pretrained_model.n_classes == self.n_classes:
+            if self.pretrained_classifier and pretrained_model.n_classes == self.n_classes:
                 self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, "classifier")
 
     def get_classifier(self) -> nn.Module:

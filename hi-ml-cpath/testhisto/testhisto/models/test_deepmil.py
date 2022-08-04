@@ -541,13 +541,13 @@ def test_training_with_different_finetuning_options(
 
 def test_missing_src_checkpoint_with_pretraining_flags() -> None:
     with pytest.raises(ValueError, match=r"You need to specify a source checkpoint, to use a pretrained"):
-        _ = MockDeepSMILETilesPanda(tmp_path=Path("foo"), pretrain_classifier=True, pretrain_encoder=True)
+        _ = MockDeepSMILETilesPanda(tmp_path=Path("foo"), pretrained_classifier=True, pretrained_encoder=True)
 
 
-@pytest.mark.parametrize("pretrain_classifier", [False, True])
-@pytest.mark.parametrize("pretrain_pooling", [False, True])
-@pytest.mark.parametrize("pretrain_encoder", [False, True])
-def test_init_weights_options(pretrain_encoder: bool, pretrain_pooling: bool, pretrain_classifier: bool) -> None:
+@pytest.mark.parametrize("pretrained_classifier", [False, True])
+@pytest.mark.parametrize("pretrained_pooling", [False, True])
+@pytest.mark.parametrize("pretrained_encoder", [False, True])
+def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool, pretrained_classifier: bool) -> None:
     n_classes = 1
     module = BaseDeepMILModule(
         n_classes=n_classes,
@@ -555,14 +555,14 @@ def test_init_weights_options(pretrain_encoder: bool, pretrain_pooling: bool, pr
         encoder_params=get_supervised_imagenet_encoder_params(),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
     )
-    module.encoder_params.pretrain_encoder = pretrain_encoder
-    module.pooling_params.pretrain_pooling = pretrain_pooling
-    module.pretrain_classifier = pretrain_classifier
+    module.encoder_params.pretrained_encoder = pretrained_encoder
+    module.pooling_params.pretrained_pooling = pretrained_pooling
+    module.pretrained_classifier = pretrained_classifier
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         with patch.object(module, "copy_weights") as mock_copy_weights:
             mock_load_from_checkpoint.return_value = MagicMock(n_classes=n_classes)
             module.transfer_weights(Path("foo"))
             assert mock_copy_weights.call_count == sum(
-                [int(pretrain_encoder), int(pretrain_pooling), int(pretrain_classifier)]
+                [int(pretrained_encoder), int(pretrained_pooling), int(pretrained_classifier)]
             )

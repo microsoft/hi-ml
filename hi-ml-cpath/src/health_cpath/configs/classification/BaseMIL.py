@@ -74,7 +74,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     tune_classifier: bool = param.Boolean(
         default=True,
         doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
-    pretrain_classifier: bool = param.Boolean(
+    pretrained_classifier: bool = param.Boolean(
         default=False,
         doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
             "initiliaze classifier with random weights.")
@@ -94,7 +94,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                 "arguments `tune_encoder`, `tune_pooling`, `tune_classifier`. Otherwise, activate inference only "
                 "mode via `run_inference_only` flag."
             )
-        if any([self.pretrain_encoder, self.pretrain_pooling, self.pretrain_classifier]) and not self.src_checkpoint:
+        if (
+            any([self.pretrained_encoder, self.pretrained_pooling, self.pretrained_classifier])
+            and not self.src_checkpoint
+        ):
             raise ValueError(
                 "You need to specify a source checkpoint, to use a pretrained the encoder, pooling or classifier."
                 "Set `src_checkpoint` to the path of the checkpoint to use."
@@ -247,7 +250,7 @@ class BaseMILTiles(BaseMIL):
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
                                             tune_classifier=self.tune_classifier,
-                                            pretrain_classifier=self.pretrain_classifier,
+                                            pretrained_classifier=self.pretrained_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
@@ -290,7 +293,7 @@ class BaseMILSlides(BaseMIL):
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
                                              tune_classifier=self.tune_classifier,
-                                             pretrain_classifier=self.pretrain_classifier,
+                                             pretrained_classifier=self.pretrained_classifier,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              ssl_ckpt_run_id=self.ssl_ckpt_run_id,
