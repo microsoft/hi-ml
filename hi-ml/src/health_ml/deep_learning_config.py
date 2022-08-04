@@ -210,16 +210,14 @@ class WorkflowParams(param.Parameterized):
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
+        error_message = "Please specify a valid src_checkpoint. You can either use a URL, a local file or an azureml "\
+                        "run id. For custom checkpoint paths within an azureml run, (other than last.ckpt), provide "\
+                        f"a src_checkpoint in the format {SRC_CHECKPOINT_FORMAT_DOC}."
+
         if self.run_inference_only and not self.src_checkpoint:
-            raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
-                             "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
-                             "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
-                             f"{SRC_CHECKPOINT_FORMAT_DOC}")
+            raise ValueError(f"Cannot run inference without a src_checkpoint. {error_message}")
         if self.resume_training and not self.src_checkpoint:
-            raise ValueError("Cannot resume a training without a src_checkpoint. Please specify a valid src_checkpoint."
-                             "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
-                             "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
-                             f"{SRC_CHECKPOINT_FORMAT_DOC}")
+            raise ValueError(f"Cannot resume training without a src_checkpoint. {error_message}")
 
     @property
     def is_running_in_aml(self) -> bool:
