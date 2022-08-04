@@ -20,6 +20,7 @@ def _test_invalid_pre_checkpoint_workflow_params(src_checkpoint: str) -> None:
     with pytest.raises(ValueError, match=r"Invalid src_checkpoint:"):
         WorkflowParams(local_datasets=Path("foo"), src_checkpoint=src_checkpoint).validate()
 
+
 def test_validate_workflow_params_src_checkpoint() -> None:
 
     _test_invalid_pre_checkpoint_workflow_params(src_checkpoint="dummy/local/path/model.ckpt")
