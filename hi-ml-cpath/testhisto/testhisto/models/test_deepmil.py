@@ -24,7 +24,7 @@ from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPand
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
-from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
+from health_cpath.models.deepmil import BaseDeepMILModule, SlidesDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ResultsKey
@@ -33,6 +33,7 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPosi
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
+from testhisto.utils.utils_testhisto import full_ml_test_data_path
 
 no_gpu = not is_gpu_available()
 
@@ -537,3 +538,33 @@ def test_training_with_different_finetuning_options(
             _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
             _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
             _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
+
+
+def test_missing_src_checkpoint_with_pretraining_flags() -> None:
+    with pytest.raises(ValueError) as ex:
+        _ = MockDeepSMILETilesPanda(tmp_path=Path("foo"), pretrain_classifier=True, pretrain_encoder=True)
+    assert "You need to specify a source checkpoint, to use a pretrained" in str(ex)
+
+
+@pytest.mark.parametrize("pretrain_classifier", [False, True])
+@pytest.mark.parametrize("pretrain_pooling", [False, True])
+@pytest.mark.parametrize("pretrain_encoder", [False, True])
+def test_init_weights_options(pretrain_encoder: bool, pretrain_pooling: bool, pretrain_classifier: bool) -> None:
+    n_classes = 1
+    module = TilesDeepMILModule(
+        n_classes=n_classes,
+        label_column=DEFAULT_LABEL_COLUMN,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
+    )
+    module.encoder_params.pretrain_encoder = pretrain_encoder
+    module.pooling_params.pretrain_pooling = pretrain_pooling
+    module.pretrain_classifier = pretrain_classifier
+
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        with patch.object(module, "copy_weights") as mock_copy_weights:
+            mock_load_from_checkpoint.return_value = MagicMock(n_classes=n_classes)
+            module.transfer_weights(Path("foo"))
+            assert mock_copy_weights.call_count == sum(
+                [int(pretrain_encoder), int(pretrain_pooling), int(pretrain_classifier)]
+            )
