@@ -5,6 +5,7 @@
 import logging
 import os
 import shutil
+from tkinter import HIDDEN
 from pytorch_lightning import Trainer
 import torch
 import pytest
@@ -16,7 +17,7 @@ from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclo
 from torch.utils.data._utils.collate import default_collate
 from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
@@ -44,6 +45,13 @@ def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> Encoder
 def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
     return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5,
                          tune_pooling=tune_pooling)
+
+
+def get_transformer_pooling_layer_params(num_layers: int, num_heads: int, hidden_dim: int) -> PoolingParams:
+    return PoolingParams(pool_type=TransformerPoolingBenchmark.__name__,
+                         num_transformer_pool_layers=num_layers,
+                         num_transformer_pool_heads=num_heads,
+                         pool_hidden_dim=hidden_dim)
 
 
 def _test_lightningmodule(
@@ -441,7 +449,9 @@ def test_wrong_tuning_options() -> None:
         )
 
 
-def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
+@pytest.mark.fixture(scope="module")
+def fake_panda_tiles_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    tmp_path = tmp_path_factory.mktemp("mock_tiles")
     tiles_generator = MockPandaTilesGenerator(
         dest_data_path=tmp_path,
         mock_type=MockHistoDataType.FAKE,
@@ -452,8 +462,12 @@ def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
         img_size=224,
     )
     tiles_generator.generate_mock_histo_data()
+    return tmp_path
 
-    datamodule = PandaTilesDataModule(root_path=tmp_path, batch_size=2, max_bag_size=4)
+
+@pytest.mark.fixture
+def tiles_datamodule(fake_panda_tiles_path: Path) -> PandaTilesDataModule:
+    datamodule = PandaTilesDataModule(root_path=fake_panda_tiles_path, batch_size=2, max_bag_size=4)
     return datamodule
 
 
@@ -512,7 +526,7 @@ def test_finetuning_options(
 @pytest.mark.parametrize("tune_pooling", [False, True])
 @pytest.mark.parametrize("tune_encoder", [False, True])
 def test_training_with_different_finetuning_options(
-    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
+    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tiles_datamodule: PandaTilesDataModule
 ) -> None:
     if any([tune_encoder, tune_pooling, tune_classifier]):
         module = TilesDeepMILModule(
@@ -532,7 +546,7 @@ def test_training_with_different_finetuning_options(
 
         with patch.object(module, "validation_step"):
             trainer = Trainer(max_epochs=1)
-            trainer.fit(module, datamodule=_get_datamodule(tmp_path))
+            trainer.fit(module, datamodule=tiles_datamodule)
 
             _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
             _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
@@ -566,3 +580,61 @@ def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool
             assert mock_copy_weights.call_count == sum(
                 [int(pretrained_encoder), int(pretrained_pooling), int(pretrained_classifier)]
             )
+
+ENCODER_WEIGHTS_VAL = 5
+POOLING_WEIGHTS_VAL = 6
+CLASSIFIER_WIEGHTS_VAL = 7
+
+BASE_N_CLASSES = 3
+NUM_LAYERS_POOLING = 2
+NUM_HEADS_POOLING = 1
+HIDDEN_DIM_POOLING = 8
+
+
+def _get_base_deepmil_module(
+    n_classes: int = BASE_N_CLASSES,
+    num_layers: int = NUM_LAYERS_POOLING,
+    num_heads: int = NUM_HEADS_POOLING,
+    hidden_dim: int = HIDDEN_DIM_POOLING,
+) -> BaseDeepMILModule:
+    return BaseDeepMILModule(
+        n_classes=n_classes,
+        label_column=MockPandaTilesGenerator.ISUP_GRADE,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim),
+    )
+
+
+@pytest.fixture(scope="module")
+def checkpoint_path(tmp_path_factory: pytest.TempPathFactory, tiles_datamodule: PandaTilesDataModule) -> Path:
+    tmp_path = tmp_path_factory.mktemp("checkpoints")
+    module = _get_base_deepmil_module()
+
+    # for param in module.encoder.parameters():
+    #     param.data.fill_(ENCODER_WEIGHTS_VAL)
+    # for param in module.aggregation_fn.parameters():
+    #     param.data.fill_(POOLING_WEIGHTS_VAL)
+    # for param in module.classifier_fn.parameters():
+    #     param.data.fill_(CLASSIFIER_WIEGHTS_VAL)
+
+    ckpt_path = tmp_path / "pretrained_deepmil.ckpt"
+    trainer = Trainer(max_epochs=5)
+    trainer.fit(module, datamodule=tiles_datamodule)
+    trainer.save_checkpoint(ckpt_path)
+    return ckpt_path
+
+
+@pytest.mark.parametrize("pretrained_classifier", [False, True])
+@pytest.mark.parametrize("pretrained_pooling", [False, True])
+@pytest.mark.parametrize("pretrained_encoder", [False, True])
+def test_transfer_weights_same_config(
+    pretrained_encoder: bool, pretrained_pooling: bool, pretrained_classifier: bool, checkpoint_path: Path
+) -> None:
+    module = _get_base_deepmil_module()
+    module.encoder_params.pretrained_encoder = pretrained_encoder
+    module.pooling_params.pretrained_pooling = pretrained_pooling
+    module.pretrained_classifier = pretrained_classifier
+
+    encoder_random_weights = module.encoder.state_dict()["weight"]
+
+    module.transfer_weights(checkpoint_path)

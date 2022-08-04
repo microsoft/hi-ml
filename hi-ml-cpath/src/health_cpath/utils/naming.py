@@ -94,7 +94,7 @@ class PlotOption(Enum):
     HISTOGRAM = "histogram"
 
 
-class DeepMILSubModules(str, Enum):
+class DeepMILSubmodules(str, Enum):
     ENCODER = 'encoder'
-    POOLING = 'pooling'
-    CLASSIFIER = 'classifier'
+    POOLING = 'aggregation_fn'
+    CLASSIFIER = 'classifier_fn'
