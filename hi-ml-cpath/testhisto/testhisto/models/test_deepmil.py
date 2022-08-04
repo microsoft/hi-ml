@@ -431,14 +431,14 @@ def test_class_weights_multiclass() -> None:
 
 
 def test_wrong_tuning_options() -> None:
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError,
+                       match=r"At least one of the encoder, pooling or classifier should be fine tuned"):
         _ = MockDeepSMILETilesPanda(
             tmp_path=Path("foo"),
             tune_encoder=False,
             tune_pooling=False,
             tune_classifier=False
         )
-    assert "At least one of the encoder, pooling or classifier should be fine tuned." in str(ex)
 
 
 def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
