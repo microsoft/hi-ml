@@ -113,6 +113,14 @@ class BaseDeepMILModule(LightningModule):
         :param submodule_name: Name of the submodule.
         """
 
+        def _total_params(submodule: nn.Module) -> int:
+            return sum(p.numel() for p in submodule.parameters())
+
+        if _total_params(pretrained_submodule) != _total_params(current_submodule):
+            raise ValueError(f"Submodule {submodule_name} has different number of parameters "
+                             f"({_total_params(current_submodule)} vs {_total_params(pretrained_submodule)})"
+                             "from pretrained model.")
+
         for param, pretrained_param in zip(current_submodule.parameters(), pretrained_submodule.parameters()):
             try:
                 param.data.copy_(pretrained_param.data)
