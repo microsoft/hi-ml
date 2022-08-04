@@ -14,6 +14,7 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
+from torchmetrics import Accuracy
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
@@ -205,7 +206,12 @@ class OutputsPolicy:
         :return: Whether this is the best validation epoch so far.
         """
         # The metric needs to be computed on all ranks to allow synchronisation
-        metric_value = float(metrics_dict[self.primary_val_metric].compute())
+        metric = metrics_dict[self.primary_val_metric]
+        if not metric._update_called:
+            return False
+        metric_value = float(metric.compute())
+        if isinstance(metric, Accuracy):
+            metric.reset()
 
         # Validation outputs and best metric should be saved only by the global rank-0 process
         if not is_global_rank_zero:
