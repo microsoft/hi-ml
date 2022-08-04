@@ -540,12 +540,10 @@ def test_training_for_different_finetuning_options(
             _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
 
 
-@pytest.mark.parametrize("use_pretrained_classifier", [False, True])
-@pytest.mark.parametrize("use_pretrained_pooling", [False, True])
-@pytest.mark.parametrize("use_pretrained_encoder", [False, True])
-def test_init_weights_options(
-    use_pretrained_encoder: bool, use_pretrained_pooling: bool, use_pretrained_classifier: bool
-) -> None:
+@pytest.mark.parametrize("pretrain_classifier", [False, True])
+@pytest.mark.parametrize("pretrain_pooling", [False, True])
+@pytest.mark.parametrize("pretrain_encoder", [False, True])
+def test_init_weights_options(pretrain_encoder: bool, pretrain_pooling: bool, pretrain_classifier: bool) -> None:
     n_classes = 1
     module = SlidesDeepMILModule(
         n_classes=n_classes,
@@ -553,14 +551,14 @@ def test_init_weights_options(
         encoder_params=get_supervised_imagenet_encoder_params(),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
     )
-    module.encoder_params.use_pretrained_encoder = use_pretrained_encoder
-    module.pooling_params.use_pretrained_pooling = use_pretrained_pooling
-    module.use_pretrained_classifier = use_pretrained_classifier
+    module.encoder_params.pretrain_encoder = pretrain_encoder
+    module.pooling_params.pretrain_pooling = pretrain_pooling
+    module.pretrain_classifier = pretrain_classifier
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         with patch.object(module, "copy_weights") as mock_copy_weights:
             mock_load_from_checkpoint.return_value = MagicMock(n_classes=n_classes)
             module.transfer_weights(Path("foo"))
             assert mock_copy_weights.call_count == sum(
-                [int(use_pretrained_encoder), int(use_pretrained_pooling), int(use_pretrained_classifier)]
+                [int(pretrain_encoder), int(pretrain_pooling), int(pretrain_classifier)]
             )

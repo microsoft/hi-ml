@@ -47,7 +47,7 @@ class EncoderParams(param.Parameterized):
     tune_encoder: bool = param.Boolean(
         False, doc="If True, fine-tune the encoder during training. If False (default), keep the encoder frozen."
     )
-    use_pretrained_encoder = param.Boolean(
+    pretrain_encoder = param.Boolean(
         False, doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the encoder."
         "Else (False), keep the encoder weights as defined by the `encoder_type`."
     )
@@ -123,7 +123,7 @@ class PoolingParams(param.Parameterized):
         default=True,
         doc="If True (default), fine-tune the pooling layer during training. If False, keep the pooling layer frozen.",
     )
-    use_pretrained_pooling = param.Boolean(
+    pretrain_pooling = param.Boolean(
         False, doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the pooling"
         "layer. Else (False), initialize the pooling layer randomly."
     )

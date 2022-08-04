@@ -12,7 +12,6 @@ from pathlib import Path
 from monai.transforms import Compose
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from traitlets import default
 
 from health_azure.utils import create_from_matching_params
 
@@ -75,7 +74,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     tune_classifier: bool = param.Boolean(
         default=True,
         doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
-    use_pretrained_classifier: bool = param.Boolean(
+    pretrain_classifier: bool = param.Boolean(
         default=False,
         doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
             "initiliaze classifier with random weights.")
@@ -243,7 +242,7 @@ class BaseMILTiles(BaseMIL):
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
                                             tune_classifier=self.tune_classifier,
-                                            use_pretrained_classifier=self.use_pretrained_classifier,
+                                            pretrain_classifier=self.pretrain_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
@@ -287,7 +286,7 @@ class BaseMILSlides(BaseMIL):
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
                                              tune_classifier=self.tune_classifier,
-                                             use_pretrained_classifier=self.use_pretrained_classifier,
+                                             pretrain_classifier=self.pretrain_classifier,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              ssl_ckpt_run_id=self.ssl_ckpt_run_id,
