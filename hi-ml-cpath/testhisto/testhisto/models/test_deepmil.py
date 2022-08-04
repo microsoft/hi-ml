@@ -559,10 +559,8 @@ def test_init_weights_options(
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         with patch.object(module, "copy_weights") as mock_copy_weights:
+            mock_load_from_checkpoint.return_value = MagicMock(n_classes=n_classes)
             module.transfer_weights(Path("foo"))
-            mock_pretrained_model = MagicMock()
-            mock_pretrained_model.n_classes.return_value = n_classes
-            mock_load_from_checkpoint.return_value = mock_pretrained_model
             assert mock_copy_weights.call_count == sum(
                 [int(use_pretrained_encoder), int(use_pretrained_pooling), int(use_pretrained_classifier)]
             )
