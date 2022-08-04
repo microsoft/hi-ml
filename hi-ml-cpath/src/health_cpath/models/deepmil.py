@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.warnings import rank_zero_warn
@@ -118,8 +117,7 @@ class BaseDeepMILModule(LightningModule):
             try:
                 param.data.copy_(pretrained_param.data)
             except Exception as e:
-                logging.warning(f"Failed to copy weights for {submodule_name} because of the following exception: {e}"
-                                f"We will proceed with random (or ImageNet) initialization of {submodule_name}.")
+                raise ValueError(f"Failed to copy weights for {submodule_name} because of the following exception: {e}")
 
     def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
         """Transfer weights from pretrained checkpoint if provided."""
