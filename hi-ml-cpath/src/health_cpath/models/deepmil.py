@@ -8,8 +8,11 @@ from pytorch_lightning.utilities.warnings import rank_zero_warn
 from pathlib import Path
 
 from pytorch_lightning import LightningModule
+
 from torch import Tensor, argmax, mode, nn, optim, round
-from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
+from torchmetrics import (AUROC, F1, Accuracy, ConfusionMatrix, Precision,
+                          Recall, CohenKappa, AveragePrecision, Specificity)
+
 
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
@@ -154,7 +157,12 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.PRECISION: Precision(threshold=threshold),
                                   MetricsKey.RECALL: Recall(threshold=threshold),
                                   MetricsKey.F1: F1(threshold=threshold),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
+                                  # Average precision is a measure of area under the PR curve
+                                  # https://sanchom.wordpress.com/tag/average-precision/
+                                  MetricsKey.AVERAGE_PRECISION: AveragePrecision(num_classes=self.n_classes),
+                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
+                                  MetricsKey.SPECIFICITY: Specificity(num_classes=self.n_classes)})
 
     def log_metrics(self, stage: str) -> None:
         valid_stages = [stage for stage in ModelKey]
