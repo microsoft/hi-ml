@@ -105,7 +105,7 @@ endef
 
 define PANDA_REGRESSION_METRICS
 --regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
-test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch'
+test/ISUP 2,test/ISUP 3,test/ISUP 4, test/ISUP 5,test/loss_epoch'
 endef
 
 regression_test_tilespandaimagenetmil:

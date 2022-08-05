@@ -205,11 +205,15 @@ class OutputsPolicy:
             Set to `True` (default) if running a single process.
         :return: Whether this is the best validation epoch so far.
         """
-        # The metric needs to be computed on all ranks to allow synchronisation
         metric = metrics_dict[self.primary_val_metric]
+        # If the metric hasn't been updated we don't want to save it
         if not metric._update_called:
+            logging.warning(f"Encountered metric that hasn't been updated. Not saving.")
             return False
+        # The metric needs to be computed on all ranks to allow synchronisation
         metric_value = float(metric.compute())
+
+        # It seems to be necessary to reset the Accuracy metric after computing, else some processes get stuck here
         if isinstance(metric, Accuracy):
             metric.reset()
 
