@@ -575,7 +575,7 @@ def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool
             )
 
 
-def _get_base_deepmil_module(
+def _get_tiles_deepmil_module(
     pretrained_encoder: bool = True,
     pretrained_pooling: bool = True,
     pretrained_classifier: bool = True,
@@ -583,8 +583,8 @@ def _get_base_deepmil_module(
     num_layers: int = 2,
     num_heads: int = 1,
     hidden_dim: int = 8,
-) -> BaseDeepMILModule:
-    module = BaseDeepMILModule(
+) -> TilesDeepMILModule:
+    module = TilesDeepMILModule(
         n_classes=n_classes,
         label_column=MockPandaTilesGenerator.ISUP_GRADE,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -597,7 +597,7 @@ def _get_base_deepmil_module(
 
 
 def get_pretrained_module(encoder_val: int = 5, pooling_val: int = 6, classifier_val: int = 7) -> nn.Module:
-    module = _get_base_deepmil_module()
+    module = _get_tiles_deepmil_module()
 
     def _fix_sub_module_weights(submodule: nn.Module, constant_val: int) -> None:
         for param in submodule.state_dict().values():
@@ -619,7 +619,7 @@ def test_transfer_weights_same_config(
     encoder_val = 5
     pooling_val = 6
     classifier_val = 7
-    module = _get_base_deepmil_module(pretrained_encoder, pretrained_pooling, pretrained_classifier)
+    module = _get_tiles_deepmil_module(pretrained_encoder, pretrained_pooling, pretrained_classifier)
     pretrained_module = get_pretrained_module(encoder_val, pooling_val, classifier_val)
 
     encoder_random_weights = deepcopy(module.encoder.state_dict())
@@ -654,8 +654,8 @@ def test_transfer_weights_same_config(
 
 
 def test_transfer_weights_different_encoder() -> None:
-    module = _get_base_deepmil_module(pretrained_encoder=True)
-    pretrained_module = _get_base_deepmil_module()
+    module = _get_tiles_deepmil_module(pretrained_encoder=True)
+    pretrained_module = _get_tiles_deepmil_module()
     pretrained_module.encoder = IdentityEncoder(tile_size=224)
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
@@ -667,8 +667,8 @@ def test_transfer_weights_different_encoder() -> None:
 
 
 def test_transfer_weights_different_pooling() -> None:
-    module = _get_base_deepmil_module(num_heads=2, hidden_dim=24, pretrained_pooling=True)
-    pretrained_module = _get_base_deepmil_module(num_heads=1, hidden_dim=8)
+    module = _get_tiles_deepmil_module(num_heads=2, hidden_dim=24, pretrained_pooling=True)
+    pretrained_module = _get_tiles_deepmil_module(num_heads=1, hidden_dim=8)
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         mock_load_from_checkpoint.return_value = pretrained_module
@@ -679,8 +679,8 @@ def test_transfer_weights_different_pooling() -> None:
 
 
 def test_transfer_weights_different_classifier() -> None:
-    module = _get_base_deepmil_module(n_classes=4, pretrained_classifier=True)
-    pretrained_module = _get_base_deepmil_module(n_classes=3)
+    module = _get_tiles_deepmil_module(n_classes=4, pretrained_classifier=True)
+    pretrained_module = _get_tiles_deepmil_module(n_classes=3)
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         mock_load_from_checkpoint.return_value = pretrained_module
