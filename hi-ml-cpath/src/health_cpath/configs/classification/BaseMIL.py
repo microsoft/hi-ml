@@ -71,12 +71,25 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
+    tune_classifier: bool = param.Boolean(
+        default=True,
+        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
+        self.validate()
+
+    def validate(self) -> None:
+        super().validate()
+        if not any([self.tune_encoder, self.tune_pooling, self.tune_classifier]) and not self.run_inference_only:
+            raise ValueError(
+                "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of the tune "
+                "arguments `tune_encoder`, `tune_pooling`, `tune_classifier`. Otherwise, activate inference only "
+                "mode via `run_inference_only` flag."
+            )
 
     @property
     def cache_dir(self) -> Path:
@@ -190,8 +203,8 @@ class BaseMILTiles(BaseMIL):
     def setup(self) -> None:
         super().setup()
         # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
-        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
-        if self.is_finetune:
+        # When tune_encoder and is_caching are both set, below lines should disable caching automatically.
+        if self.tune_encoder:
             self.is_caching = False
         if not self.is_caching:
             self.cache_mode = CacheMode.NONE
@@ -224,6 +237,7 @@ class BaseMILTiles(BaseMIL):
                                             n_classes=self.data_module.train_dataset.n_classes,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
+                                            tune_classifier=self.tune_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
@@ -264,6 +278,7 @@ class BaseMILSlides(BaseMIL):
                                              n_classes=self.data_module.train_dataset.n_classes,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
+                                             tune_classifier=self.tune_classifier,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              ssl_ckpt_run_id=self.ssl_ckpt_run_id,

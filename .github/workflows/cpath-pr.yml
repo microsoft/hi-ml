@@ -1,11 +1,11 @@
 name: Pathology PR
 on:
   push:
-    branches: [ main ]
+    branches: [ main, transfer_main ]
     tags:
       - '*'
   pull_request:
-    branches: [ main ]
+    branches: [ main, transfer_main ]
     paths:
       - "hi-ml-cpath/**"
       - ".github/workflows/cpath-pr.yml"
