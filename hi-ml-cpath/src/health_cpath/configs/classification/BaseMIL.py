@@ -18,6 +18,7 @@ from health_azure.utils import create_from_matching_params
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
+from health_ml.deep_learning_config import SRC_CKPT_INFO_MESSAGE
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
@@ -74,6 +75,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     tune_classifier: bool = param.Boolean(
         default=True,
         doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
+    pretrained_classifier: bool = param.Boolean(
+        default=False,
+        doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
+            "initiliaze classifier with random weights.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -89,6 +94,14 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                 "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of the tune "
                 "arguments `tune_encoder`, `tune_pooling`, `tune_classifier`. Otherwise, activate inference only "
                 "mode via `run_inference_only` flag."
+            )
+        if (
+            any([self.pretrained_encoder, self.pretrained_pooling, self.pretrained_classifier])
+            and not self.src_checkpoint
+        ):
+            raise ValueError(
+                "You need to specify a source checkpoint, to use a pretrained encoder, pooling or classifier."
+                f"{SRC_CKPT_INFO_MESSAGE}"
             )
 
     @property
@@ -238,6 +251,7 @@ class BaseMILTiles(BaseMIL):
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
                                             tune_classifier=self.tune_classifier,
+                                            pretrained_classifier=self.pretrained_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
@@ -245,6 +259,7 @@ class BaseMILTiles(BaseMIL):
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
                                             outputs_handler=outputs_handler)
+        deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
@@ -279,6 +294,7 @@ class BaseMILSlides(BaseMIL):
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
                                              tune_classifier=self.tune_classifier,
+                                             pretrained_classifier=self.pretrained_classifier,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              ssl_ckpt_run_id=self.ssl_ckpt_run_id,
@@ -286,5 +302,6 @@ class BaseMILSlides(BaseMIL):
                                              pooling_params=create_from_matching_params(self, PoolingParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler)
+        deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module

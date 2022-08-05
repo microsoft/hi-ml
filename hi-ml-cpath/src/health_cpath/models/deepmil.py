@@ -17,7 +17,7 @@ from health_cpath.models.encoders import IdentityEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_module_gradients_enabled
 
 from health_cpath.datasets.base_dataset import TilesDataset
-from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
+from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names)
 
@@ -40,6 +40,7 @@ class BaseDeepMILModule(LightningModule):
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
                  tune_classifier: bool = True,
+                 pretrained_classifier: bool = False,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -55,6 +56,7 @@ class BaseDeepMILModule(LightningModule):
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
         :param tune_classifier: Whether to tune the classifier (default=True).
+        :param pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -83,6 +85,7 @@ class BaseDeepMILModule(LightningModule):
         self.save_hyperparameters()
         self.verbose = verbose
         self.outputs_handler = outputs_handler
+        self.pretrained_classifier = pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
@@ -94,13 +97,57 @@ class BaseDeepMILModule(LightningModule):
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
-
         self.loss_fn = self.get_loss()
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
+
+    @staticmethod
+    def copy_weights(
+        current_submodule: nn.Module, pretrained_submodule: nn.Module, submodule_name: DeepMILSubmodules
+    ) -> None:
+        """Copy weights from pretrained submodule to current submodule.
+
+        :param current_submodule: Submodule to copy weights to.
+        :param pretrained_submodule: Submodule to copy weights from.
+        :param submodule_name: Name of the submodule.
+        """
+
+        def _total_params(submodule: nn.Module) -> int:
+            return sum(p.numel() for p in submodule.parameters())
+
+        if _total_params(pretrained_submodule) != _total_params(current_submodule):
+            raise ValueError(f"Submodule {submodule_name} has different number of parameters "
+                             f"({_total_params(current_submodule)} vs {_total_params(pretrained_submodule)})"
+                             "from pretrained model.")
+
+        for param, pretrained_param in zip(
+            current_submodule.state_dict().values(), pretrained_submodule.state_dict().values()
+        ):
+            try:
+                param.data.copy_(pretrained_param.data)
+            except Exception as e:
+                raise ValueError(f"Failed to copy weights for {submodule_name} because of the following exception: {e}")
+
+    def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
+        """Transfer weights from pretrained checkpoint if provided."""
+
+        if pretrained_checkpoint_path:
+            pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
+
+            if self.encoder_params.pretrained_encoder:
+                self.copy_weights(self.encoder, pretrained_model.encoder, DeepMILSubmodules.ENCODER)
+
+            if self.pooling_params.pretrained_pooling:
+                self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubmodules.POOLING)
+
+            if self.pretrained_classifier:
+                if pretrained_model.n_classes != self.n_classes:
+                    raise ValueError(f"Number of classes in pretrained model {pretrained_model.n_classes} "
+                                     f"does not match number of classes in current model {self.n_classes}.")
+                self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
 
     def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,

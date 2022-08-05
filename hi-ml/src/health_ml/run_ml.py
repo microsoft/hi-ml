@@ -182,7 +182,7 @@ class MLRunner:
         if not self.container.run_inference_only:
 
             checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            if not checkpoint_path_for_recovery and self.container.src_checkpoint:
+            if not checkpoint_path_for_recovery and self.container.resume_training:
                 # If there is no recovery checkpoint (e.g job hasn't been resubmitted) and a source checkpoint is given,
                 # use it to resume training.
                 checkpoint_path_for_recovery = self.checkpoint_handler.trained_weights_path

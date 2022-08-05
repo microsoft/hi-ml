@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from copy import deepcopy
 import logging
 import os
 import shutil
@@ -16,7 +17,7 @@ from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclo
 from torch.utils.data._utils.collate import default_collate
 from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
@@ -27,7 +28,7 @@ from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
-from health_cpath.utils.naming import MetricsKey, ResultsKey
+from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
@@ -44,6 +45,13 @@ def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> Encoder
 def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
     return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5,
                          tune_pooling=tune_pooling)
+
+
+def get_transformer_pooling_layer_params(num_layers: int, num_heads: int, hidden_dim: int) -> PoolingParams:
+    return PoolingParams(pool_type=TransformerPoolingBenchmark.__name__,
+                         num_transformer_pool_layers=num_layers,
+                         num_transformer_pool_heads=num_heads,
+                         pool_hidden_dim=hidden_dim)
 
 
 def _test_lightningmodule(
@@ -366,7 +374,7 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
 
 
 def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
-    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,
+    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,  # type: ignore
                                tmp_path=mock_panda_tiles_root_dir)
 
 
@@ -452,7 +460,6 @@ def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
         img_size=224,
     )
     tiles_generator.generate_mock_histo_data()
-
     datamodule = PandaTilesDataModule(root_path=tmp_path, batch_size=2, max_bag_size=4)
     return datamodule
 
@@ -537,3 +544,148 @@ def test_training_with_different_finetuning_options(
             _assert_existing_gradients(module.classifier_fn, tuning_flag=tune_classifier)
             _assert_existing_gradients(module.aggregation_fn, tuning_flag=tune_pooling)
             _assert_existing_gradients(module.encoder, tuning_flag=tune_encoder)
+
+
+def test_missing_src_checkpoint_with_pretraining_flags() -> None:
+    with pytest.raises(ValueError, match=r"You need to specify a source checkpoint, to use a pretrained"):
+        _ = MockDeepSMILETilesPanda(tmp_path=Path("foo"), pretrained_classifier=True, pretrained_encoder=True)
+
+
+@pytest.mark.parametrize("pretrained_classifier", [False, True])
+@pytest.mark.parametrize("pretrained_pooling", [False, True])
+@pytest.mark.parametrize("pretrained_encoder", [False, True])
+def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool, pretrained_classifier: bool) -> None:
+    n_classes = 1
+    module = BaseDeepMILModule(
+        n_classes=n_classes,
+        label_column=DEFAULT_LABEL_COLUMN,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
+    )
+    module.encoder_params.pretrained_encoder = pretrained_encoder
+    module.pooling_params.pretrained_pooling = pretrained_pooling
+    module.pretrained_classifier = pretrained_classifier
+
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        with patch.object(module, "copy_weights") as mock_copy_weights:
+            mock_load_from_checkpoint.return_value = MagicMock(n_classes=n_classes)
+            module.transfer_weights(Path("foo"))
+            assert mock_copy_weights.call_count == sum(
+                [int(pretrained_encoder), int(pretrained_pooling), int(pretrained_classifier)]
+            )
+
+
+def _get_tiles_deepmil_module(
+    pretrained_encoder: bool = True,
+    pretrained_pooling: bool = True,
+    pretrained_classifier: bool = True,
+    n_classes: int = 3,
+    num_layers: int = 2,
+    num_heads: int = 1,
+    hidden_dim: int = 8,
+) -> TilesDeepMILModule:
+    module = TilesDeepMILModule(
+        n_classes=n_classes,
+        label_column=MockPandaTilesGenerator.ISUP_GRADE,
+        encoder_params=get_supervised_imagenet_encoder_params(),
+        pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim),
+    )
+    module.encoder_params.pretrained_encoder = pretrained_encoder
+    module.pooling_params.pretrained_pooling = pretrained_pooling
+    module.pretrained_classifier = pretrained_classifier
+    return module
+
+
+def get_pretrained_module(encoder_val: int = 5, pooling_val: int = 6, classifier_val: int = 7) -> nn.Module:
+    module = _get_tiles_deepmil_module()
+
+    def _fix_sub_module_weights(submodule: nn.Module, constant_val: int) -> None:
+        for param in submodule.state_dict().values():
+            param.data.fill_(constant_val)
+
+    _fix_sub_module_weights(module.encoder, encoder_val)
+    _fix_sub_module_weights(module.aggregation_fn, pooling_val)
+    _fix_sub_module_weights(module.classifier_fn, classifier_val)
+
+    return module
+
+
+@pytest.mark.parametrize("pretrained_classifier", [False, True])
+@pytest.mark.parametrize("pretrained_pooling", [False, True])
+@pytest.mark.parametrize("pretrained_encoder", [False, True])
+def test_transfer_weights_same_config(
+    pretrained_encoder: bool, pretrained_pooling: bool, pretrained_classifier: bool,
+) -> None:
+    encoder_val = 5
+    pooling_val = 6
+    classifier_val = 7
+    module = _get_tiles_deepmil_module(pretrained_encoder, pretrained_pooling, pretrained_classifier)
+    pretrained_module = get_pretrained_module(encoder_val, pooling_val, classifier_val)
+
+    encoder_random_weights = deepcopy(module.encoder.state_dict())
+    pooling_random_weights = deepcopy(module.aggregation_fn.state_dict())
+    classification_random_weights = deepcopy(module.classifier_fn.state_dict())
+
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        mock_load_from_checkpoint.return_value = pretrained_module
+        module.transfer_weights(Path("foo"))
+
+    encoder_transfer_weights = module.encoder.state_dict()
+    pooling_transfer_weights = module.aggregation_fn.state_dict()
+    classification_transfer_weights = module.classifier_fn.state_dict()
+
+    def _assert_weights_equal(
+        random_weights: Dict, transfer_weights: Dict, pretrained_flag: bool, expected_val: int
+    ) -> None:
+        for r_param_name, t_param_name in zip(random_weights, transfer_weights):
+            assert r_param_name == t_param_name, "Param names do not match"
+            r_param = random_weights[r_param_name]
+            t_param = transfer_weights[t_param_name]
+            if pretrained_flag:
+                assert torch.equal(t_param.data, torch.full_like(t_param.data, expected_val))
+            else:
+                assert torch.equal(t_param.data, r_param.data)
+
+    _assert_weights_equal(encoder_random_weights, encoder_transfer_weights, pretrained_encoder, encoder_val)
+    _assert_weights_equal(pooling_random_weights, pooling_transfer_weights, pretrained_pooling, pooling_val)
+    _assert_weights_equal(
+        classification_random_weights, classification_transfer_weights, pretrained_classifier, classifier_val
+    )
+
+
+def test_transfer_weights_different_encoder() -> None:
+    module = _get_tiles_deepmil_module(pretrained_encoder=True)
+    pretrained_module = _get_tiles_deepmil_module()
+    pretrained_module.encoder = IdentityEncoder(tile_size=224)
+
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        mock_load_from_checkpoint.return_value = pretrained_module
+        with pytest.raises(
+            ValueError, match=rf"Submodule {DeepMILSubmodules.ENCODER} has different number of parameters "
+        ):
+            module.transfer_weights(Path("foo"))
+
+
+def test_transfer_weights_different_pooling() -> None:
+    module = _get_tiles_deepmil_module(num_heads=2, hidden_dim=24, pretrained_pooling=True)
+    pretrained_module = _get_tiles_deepmil_module(num_heads=1, hidden_dim=8)
+
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        mock_load_from_checkpoint.return_value = pretrained_module
+        with pytest.raises(
+            ValueError, match=rf"Submodule {DeepMILSubmodules.POOLING} has different number of parameters "
+        ):
+            module.transfer_weights(Path("foo"))
+
+
+def test_transfer_weights_different_classifier() -> None:
+    module = _get_tiles_deepmil_module(n_classes=4, pretrained_classifier=True)
+    pretrained_module = _get_tiles_deepmil_module(n_classes=3)
+
+    with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
+        mock_load_from_checkpoint.return_value = pretrained_module
+        with pytest.raises(
+            ValueError,
+            match=r"Number of classes in pretrained model 3 does not match number of classes in current model 4."
+        ):
+            module.transfer_weights(Path("foo"))
