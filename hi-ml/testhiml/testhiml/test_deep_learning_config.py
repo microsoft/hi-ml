@@ -17,10 +17,8 @@ from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_i
 
 
 def _test_invalid_pre_checkpoint_workflow_params(src_checkpoint: str) -> None:
-    error_message = "Invalid src_checkpoint:"
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError, match=r"Invalid src_checkpoint:"):
         WorkflowParams(local_datasets=Path("foo"), src_checkpoint=src_checkpoint).validate()
-    assert error_message in ex.value.args[0]
 
 
 def test_validate_workflow_params_src_checkpoint() -> None:
@@ -37,10 +35,8 @@ def test_validate_workflow_params_src_checkpoint() -> None:
 
 
 def test_validate_workflow_params_for_inference_only() -> None:
-    error_message = "Cannot run inference without a src_checkpoint."
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError, match=r"Cannot run inference without a src_checkpoint."):
         WorkflowParams(local_datasets=Path("foo"), run_inference_only=True).validate()
-    assert error_message in ex.value.args[0]
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
@@ -50,6 +46,21 @@ def test_validate_workflow_params_for_inference_only() -> None:
     WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
                    src_checkpoint=f"{run_id}:custom/path/model.ckpt").validate()
     WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                   src_checkpoint=str(full_file_path)).validate()
+
+
+def test_validate_workflow_params_for_resume_training() -> None:
+    with pytest.raises(ValueError, match=r"Cannot resume training without a src_checkpoint."):
+        WorkflowParams(local_datasets=Path("foo"), resume_training=True).validate()
+
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    run_id = mock_run_id(id=0)
+    WorkflowParams(local_dataset=Path("foo"), resume_training=True, src_checkpoint=run_id).validate()
+    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
+                   src_checkpoint=f"{run_id}:best_val_loss.ckpt").validate()
+    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
+                   src_checkpoint=f"{run_id}:custom/path/model.ckpt").validate()
+    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
                    src_checkpoint=str(full_file_path)).validate()
 
 
