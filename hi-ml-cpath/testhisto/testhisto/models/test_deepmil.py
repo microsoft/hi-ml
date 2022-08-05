@@ -5,7 +5,6 @@
 import logging
 import os
 import shutil
-from tkinter import HIDDEN
 from pytorch_lightning import Trainer
 import torch
 import pytest
@@ -374,7 +373,7 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
 
 
 def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
-    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,
+    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,  # type: ignore
                                tmp_path=mock_panda_tiles_root_dir)
 
 
@@ -449,7 +448,7 @@ def test_wrong_tuning_options() -> None:
         )
 
 
-@pytest.mark.fixture(scope="module")
+@pytest.fixture(scope="module")
 def fake_panda_tiles_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     tmp_path = tmp_path_factory.mktemp("mock_tiles")
     tiles_generator = MockPandaTilesGenerator(
@@ -465,7 +464,7 @@ def fake_panda_tiles_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path
 
 
-@pytest.mark.fixture
+@pytest.fixture
 def tiles_datamodule(fake_panda_tiles_path: Path) -> PandaTilesDataModule:
     datamodule = PandaTilesDataModule(root_path=fake_panda_tiles_path, batch_size=2, max_bag_size=4)
     return datamodule
@@ -581,6 +580,7 @@ def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool
                 [int(pretrained_encoder), int(pretrained_pooling), int(pretrained_classifier)]
             )
 
+
 ENCODER_WEIGHTS_VAL = 5
 POOLING_WEIGHTS_VAL = 6
 CLASSIFIER_WIEGHTS_VAL = 7
@@ -635,6 +635,6 @@ def test_transfer_weights_same_config(
     module.pooling_params.pretrained_pooling = pretrained_pooling
     module.pretrained_classifier = pretrained_classifier
 
-    encoder_random_weights = module.encoder.state_dict()["weight"]
+    # encoder_random_weights = module.encoder.state_dict()["weight"]
 
     module.transfer_weights(checkpoint_path)
