@@ -160,9 +160,10 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
                                   # Average precision is a measure of area under the PR curve
                                   # https://sanchom.wordpress.com/tag/average-precision/
-                                  MetricsKey.AVERAGE_PRECISION: AveragePrecision(num_classes=self.n_classes),
-                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
-                                  MetricsKey.SPECIFICITY: Specificity(num_classes=self.n_classes)})
+                                  MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
+                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic',
+                                                                    threshold=threshold),
+                                  MetricsKey.SPECIFICITY: Specificity(num_classes=self.n_classes, threshold=threshold)})
 
     def log_metrics(self, stage: str) -> None:
         valid_stages = [stage for stage in ModelKey]
