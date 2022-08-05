@@ -14,6 +14,7 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
+from torchmetrics import Accuracy
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
@@ -204,8 +205,17 @@ class OutputsPolicy:
             Set to `True` (default) if running a single process.
         :return: Whether this is the best validation epoch so far.
         """
+        metric = metrics_dict[self.primary_val_metric]
+        # If the metric hasn't been updated we don't want to save it
+        if not metric._update_called:
+            logging.warning("Encountered metric that hasn't been updated. Not saving.")
+            return False
         # The metric needs to be computed on all ranks to allow synchronisation
-        metric_value = float(metrics_dict[self.primary_val_metric].compute())
+        metric_value = float(metric.compute())
+
+        # It seems to be necessary to reset the Accuracy metric after computing, else some processes get stuck here
+        if isinstance(metric, Accuracy):
+            metric.reset()
 
         # Validation outputs and best metric should be saved only by the global rank-0 process
         if not is_global_rank_zero:
@@ -348,7 +358,7 @@ class DeepMILOutputsHandler:
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
-                shutil.rmtree(self.previous_validation_outputs_dir)
+                shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
 
     def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool = True) -> None:
         """Render and save test epoch outputs.

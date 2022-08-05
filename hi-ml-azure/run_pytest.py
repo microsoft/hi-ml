@@ -81,7 +81,9 @@ def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> N
     :param coverage_module: The module for which test code coverage should be collected. When set to empty string '', no
         code coverage is collected.
     """
-    results_file = Path(OUTPUT_FOLDER) / PYTEST_RESULTS_FILE
+    output_dir = Path(OUTPUT_FOLDER)
+    output_dir.mkdir(exist_ok=True)
+    results_file = output_dir / PYTEST_RESULTS_FILE
     pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
 
     if coverage_module:
