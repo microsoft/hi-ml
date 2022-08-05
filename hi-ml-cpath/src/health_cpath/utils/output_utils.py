@@ -208,7 +208,7 @@ class OutputsPolicy:
         metric = metrics_dict[self.primary_val_metric]
         # If the metric hasn't been updated we don't want to save it
         if not metric._update_called:
-            logging.warning(f"Encountered metric that hasn't been updated. Not saving.")
+            logging.warning("Encountered metric that hasn't been updated. Not saving.")
             return False
         # The metric needs to be computed on all ranks to allow synchronisation
         metric_value = float(metric.compute())
