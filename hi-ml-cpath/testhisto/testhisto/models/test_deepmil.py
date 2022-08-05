@@ -598,12 +598,15 @@ def _get_base_deepmil_module(
 
 def get_pretrained_module(encoder_val: int = 5, pooling_val: int = 6, classifier_val: int = 7) -> nn.Module:
     module = _get_base_deepmil_module()
-    for param in module.encoder.state_dict().values():
-        param.data.fill_(encoder_val)
-    for param in module.aggregation_fn.state_dict().values():
-        param.data.fill_(pooling_val)
-    for param in module.classifier_fn.state_dict().values():
-        param.data.fill_(classifier_val)
+
+    def _fix_sub_module_weights(submodule: nn.Module, constant_val: int) -> None:
+        for param in submodule.state_dict().values():
+            param.data.fill_(constant_val)
+
+    _fix_sub_module_weights(module.encoder, encoder_val)
+    _fix_sub_module_weights(module.aggregation_fn, pooling_val)
+    _fix_sub_module_weights(module.classifier_fn, classifier_val)
+
     return module
 
 
