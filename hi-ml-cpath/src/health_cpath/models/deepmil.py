@@ -123,7 +123,9 @@ class BaseDeepMILModule(LightningModule):
                              f"({_total_params(current_submodule)} vs {_total_params(pretrained_submodule)})"
                              "from pretrained model.")
 
-        for param, pretrained_param in zip(current_submodule.parameters(), pretrained_submodule.parameters()):
+        for param, pretrained_param in zip(
+            current_submodule.state_dict().values(), pretrained_submodule.state_dict().values()
+        ):
             try:
                 param.data.copy_(pretrained_param.data)
             except Exception as e:
@@ -141,7 +143,10 @@ class BaseDeepMILModule(LightningModule):
             if self.pooling_params.pretrained_pooling:
                 self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubmodules.POOLING)
 
-            if self.pretrained_classifier and pretrained_model.n_classes == self.n_classes:
+            if self.pretrained_classifier:
+                if pretrained_model.n_classes != self.n_classes:
+                    raise ValueError(f"Number of classes in pretrained model {pretrained_model.n_classes} "
+                                     f"does not match number of classes in current model {self.n_classes}.")
                 self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
 
     def get_classifier(self) -> nn.Module:
