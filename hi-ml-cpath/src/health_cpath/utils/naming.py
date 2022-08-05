@@ -71,6 +71,8 @@ class MetricsKey(str, Enum):
     RECALL = 'recall'
     F1 = 'f1score'
     COHENKAPPA = 'cohenkappa'
+    AVERAGE_PRECISION = 'average_precision'
+    SPECIFICITY = 'specificity'
 
 
 class ModelKey(str, Enum):
