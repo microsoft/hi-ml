@@ -358,7 +358,7 @@ class DeepMILOutputsHandler:
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
-                shutil.rmtree(self.previous_validation_outputs_dir)
+                shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
 
     def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool = True) -> None:
         """Render and save test epoch outputs.
