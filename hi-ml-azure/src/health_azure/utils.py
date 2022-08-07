@@ -89,11 +89,11 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "RSLEX_DIRECT_VOLUME_MOUNT": "true",
     "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
     "DATASET_MOUNT_CACHE_SIZE": "1",
-<<<<<<< HEAD
+    << << << < HEAD
     "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "false",
-=======
+    == == == =
     "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "false"
->>>>>>> main
+    >> >>>> > main
 }
 
 PathOrString = Union[Path, str]
