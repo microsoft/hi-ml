@@ -6,9 +6,8 @@
 
 from typing import Tuple
 
-from .. import BIOMED_VLP_CXR_BERT_SPECIALIZED
-from .. import CXR_BERT_COMMIT_TAG
-
+from ..image.model import CXR_BERT_COMMIT_TAG
+from ..image.model import BIOMED_VLP_CXR_BERT_SPECIALIZED
 from .inference_engine import TextInferenceEngine
 from .model import CXRBertModel
 from .model import CXRBertTokenizer
