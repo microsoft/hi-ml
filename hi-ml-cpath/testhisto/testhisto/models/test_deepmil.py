@@ -125,6 +125,9 @@ def _test_lightningmodule(
             # A NaN value could result due to a division-by-zero error
             assert torch.all(score[~score.isnan()] >= -1)
             assert torch.all(score[~score.isnan()] <= 1)
+        elif metric_name == MetricsKey.AVERAGE_PRECISION:
+            assert torch.all(score[~score.isnan()] >= 0)
+            assert torch.all(score[~score.isnan()] <= 1)
         else:
             assert torch.all(score >= 0)
             assert torch.all(score <= 1)
