@@ -77,6 +77,8 @@ pytest:
 pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
+SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
+
 # Run regression tests and compare performance
 define BASE_CPATH_RUNNER_COMMAND
 cd ../ ; \
@@ -92,7 +94,7 @@ define DEEPSMILEPANDATILES_ARGS
 endef
 
 define TCGACRCKSSLMIL_ARGS
---model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint=CRCK_SimCLR_1655731022_85790606
+--model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint_run_id=${SSL_CKPT_RUN_ID_CRCK}
 endef
 
 define CRCKSIMCLR_ARGS
@@ -193,9 +195,6 @@ smoke_test_tilespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${DEEPSMILEPANDATILES_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS};}
 
-# Note: this test doesn't currently run in hi-ml Workspace since the checkpoint run specified in run_ids
-# innereye_ssl_checkpoint_crck_4ws does not exist there. Once we can specify alternative checkpoints
-# this can be run with any Workspace
 # The following test takes about 30 seconds
 smoke_test_tcgacrcksslmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
