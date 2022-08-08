@@ -193,9 +193,6 @@ smoke_test_tilespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${DEEPSMILEPANDATILES_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS};}
 
-# Note: this test doesn't currently run in hi-ml Workspace since the checkpoint run specified in run_ids
-# innereye_ssl_checkpoint_crck_4ws does not exist there. Once we can specify alternative checkpoints
-# this can be run with any Workspace
 # The following test takes about 30 seconds
 smoke_test_tcgacrcksslmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
