@@ -92,7 +92,7 @@ define DEEPSMILEPANDATILES_ARGS
 endef
 
 define TCGACRCKSSLMIL_ARGS
---model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint=CRCK_SimCLR_1655731022_85790606
+--model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint_run_id=CRCK_SimCLR_1655731022_85790606
 endef
 
 define CRCKSIMCLR_ARGS
