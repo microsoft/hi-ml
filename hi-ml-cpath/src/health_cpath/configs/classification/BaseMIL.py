@@ -72,7 +72,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
     ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
-    "using SSLEncoder")
+                                              "using SSLEncoder")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
