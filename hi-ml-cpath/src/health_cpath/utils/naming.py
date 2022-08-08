@@ -71,6 +71,8 @@ class MetricsKey(str, Enum):
     RECALL = 'recall'
     F1 = 'f1score'
     COHENKAPPA = 'cohenkappa'
+    AVERAGE_PRECISION = 'average_precision'
+    SPECIFICITY = 'specificity'
 
 
 class ModelKey(str, Enum):
@@ -92,3 +94,9 @@ class PlotOption(Enum):
     SLIDE_THUMBNAIL_HEATMAP = "slide_thumbnail_heatmap"
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
+
+
+class DeepMILSubmodules(str, Enum):
+    ENCODER = 'encoder'
+    POOLING = 'aggregation_fn'
+    CLASSIFIER = 'classifier_fn'

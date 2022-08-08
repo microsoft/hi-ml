@@ -8,16 +8,19 @@ from pytorch_lightning.utilities.warnings import rank_zero_warn
 from pathlib import Path
 
 from pytorch_lightning import LightningModule
-from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
-from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
+
+from torch import Tensor, argmax, mode, nn, optim, round
+from torchmetrics import (AUROC, F1, Accuracy, ConfusionMatrix, Precision,
+                          Recall, CohenKappa, AveragePrecision, Specificity)
+
 
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_module_gradients_enabled
 
 from health_cpath.datasets.base_dataset import TilesDataset
-from health_cpath.utils.naming import MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
+from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names)
 
@@ -39,6 +42,8 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
+                 tune_classifier: bool = True,
+                 pretrained_classifier: bool = False,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
                  ssl_ckpt_run_id: Optional[str] = None,
@@ -53,6 +58,8 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
+        :param tune_classifier: Whether to tune the classifier (default=True).
+        :param pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
@@ -75,22 +82,24 @@ class BaseDeepMILModule(LightningModule):
 
         self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
+        self.pooling_params = pooling_params
         self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
         self.verbose = verbose
         self.outputs_handler = outputs_handler
+        self.pretrained_classifier = pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs
         self.run_extra_val_epoch = False
+        self.tune_classifier = tune_classifier
 
         # Model components
         self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
-
         self.loss_fn = self.get_loss()
 
         # Metrics Objects
@@ -98,9 +107,55 @@ class BaseDeepMILModule(LightningModule):
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
 
-    def get_classifier(self) -> Callable:
+    @staticmethod
+    def copy_weights(
+        current_submodule: nn.Module, pretrained_submodule: nn.Module, submodule_name: DeepMILSubmodules
+    ) -> None:
+        """Copy weights from pretrained submodule to current submodule.
+
+        :param current_submodule: Submodule to copy weights to.
+        :param pretrained_submodule: Submodule to copy weights from.
+        :param submodule_name: Name of the submodule.
+        """
+
+        def _total_params(submodule: nn.Module) -> int:
+            return sum(p.numel() for p in submodule.parameters())
+
+        if _total_params(pretrained_submodule) != _total_params(current_submodule):
+            raise ValueError(f"Submodule {submodule_name} has different number of parameters "
+                             f"({_total_params(current_submodule)} vs {_total_params(pretrained_submodule)})"
+                             "from pretrained model.")
+
+        for param, pretrained_param in zip(
+            current_submodule.state_dict().values(), pretrained_submodule.state_dict().values()
+        ):
+            try:
+                param.data.copy_(pretrained_param.data)
+            except Exception as e:
+                raise ValueError(f"Failed to copy weights for {submodule_name} because of the following exception: {e}")
+
+    def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
+        """Transfer weights from pretrained checkpoint if provided."""
+
+        if pretrained_checkpoint_path:
+            pretrained_model = self.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
+
+            if self.encoder_params.pretrained_encoder:
+                self.copy_weights(self.encoder, pretrained_model.encoder, DeepMILSubmodules.ENCODER)
+
+            if self.pooling_params.pretrained_pooling:
+                self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubmodules.POOLING)
+
+            if self.pretrained_classifier:
+                if pretrained_model.n_classes != self.n_classes:
+                    raise ValueError(f"Number of classes in pretrained model {pretrained_model.n_classes} "
+                                     f"does not match number of classes in current model {self.n_classes}.")
+                self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
+
+    def get_classifier(self) -> nn.Module:
         classifier_layer = nn.Linear(in_features=self.num_pooling,
                                      out_features=self.n_classes)
+        set_module_gradients_enabled(classifier_layer, self.tune_classifier)
         if self.dropout_rate is None:
             return classifier_layer
         elif 0 <= self.dropout_rate < 1:
@@ -149,7 +204,13 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.PRECISION: Precision(threshold=threshold),
                                   MetricsKey.RECALL: Recall(threshold=threshold),
                                   MetricsKey.F1: F1(threshold=threshold),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
+                                  # Average precision is a measure of area under the PR curve
+                                  # https://sanchom.wordpress.com/tag/average-precision/
+                                  MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
+                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic',
+                                                                    threshold=threshold),
+                                  MetricsKey.SPECIFICITY: Specificity(num_classes=self.n_classes, threshold=threshold)})
 
     def log_metrics(self, stage: str) -> None:
         valid_stages = [stage for stage in ModelKey]
@@ -164,25 +225,42 @@ class BaseDeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
-    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        should_enable_encoder_grad = torch.is_grad_enabled() and self.encoder_params.is_finetune
-        with set_grad_enabled(should_enable_encoder_grad):
-            if self.encoder_params.encoding_chunk_size > 0:
-                embeddings = []
-                chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
-                for chunk in chunks:
-                    chunk_embeddings = self.encoder(chunk)
-                    embeddings.append(chunk_embeddings)
-                instance_features = torch.cat(embeddings)
-            else:
-                instance_features = self.encoder(instances)                # N X L x 1 x 1
+    def get_instance_features(self, instances: Tensor) -> Tensor:
+        if not self.encoder_params.tune_encoder:
+            self.encoder.eval()
+        if self.encoder_params.encoding_chunk_size > 0:
+            embeddings = []
+            chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
+            for chunk in chunks:
+                chunk_embeddings = self.encoder(chunk)
+                embeddings.append(chunk_embeddings)
+            instance_features = torch.cat(embeddings)
+        else:
+            instance_features = self.encoder(instances)  # N X L x 1 x 1
+        return instance_features
+
+    def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
+        if not self.pooling_params.tune_pooling:
+            self.aggregation_fn.eval()
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
+        return attentions, bag_features
+
+    def get_bag_logit(self, bag_features: Tensor) -> Tensor:
+        if not self.tune_classifier:
+            self.classifier_fn.eval()
         bag_logit = self.classifier_fn(bag_features)
+        return bag_logit
+
+    def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
+        instance_features = self.get_instance_features(instances)
+        attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
+        bag_logit = self.get_bag_logit(bag_features)
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
-        return optim.Adam(self.parameters(), lr=self.optimizer_params.l_rate,
+        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()),
+                          lr=self.optimizer_params.l_rate,
                           weight_decay=self.optimizer_params.weight_decay,
                           betas=self.optimizer_params.adam_betas)
 

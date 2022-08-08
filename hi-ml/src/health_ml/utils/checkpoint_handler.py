@@ -43,6 +43,7 @@ class CheckpointHandler:
 
         if self.container.src_checkpoint:
             self.trained_weights_path = self.get_local_checkpoints_path_or_download()
+            self.container.trained_weights_path = self.trained_weights_path
 
     def additional_training_done(self) -> None:
         """
