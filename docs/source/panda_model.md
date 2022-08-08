@@ -15,8 +15,8 @@ A ResNet50 encoder that was pre-trained on ImageNet is downloaded on-the-fly (fr
 
 ## Preparations
 
-Please follow the instructions in the [Readme file](../README.md#setting-up-python) to create a Conda environment and
-activate it, and the instructions to [set up Azure](../README.md#setting-up-azureml).
+Please follow the instructions in the [Readme file](../hi-ml-cpath/README.md#setting-up-python) to create a Conda environment and
+activate it, and the instructions to [set up Azure](../hi-ml-cpath/README.md/README.md#setting-up-azureml).
 
 You will also need to run the dataset preparations for the PANDA dataset, as described [here](public_datasets.md#panda-dataset).
 

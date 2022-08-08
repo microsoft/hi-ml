@@ -1854,7 +1854,7 @@ def replace_directory(source: Path, target: Path) -> None:
         assert not target.exists()
 
         shutil.copytree(source, target)
-        shutil.rmtree(source)
+        shutil.rmtree(source, ignore_errors=True)
     else:
         # Outside of Azure ML, it should be much faster to rename the directory
         # than to copy all contents then delete, especially for large dirs.
