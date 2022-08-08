@@ -169,7 +169,7 @@ define CRCKSIMCLR_SMOKE_TEST_ARGS
  --is_debug_model=True --num_workers=0
 endef
 
-def CRCK_TUNING_ARGS
+define CRCK_TUNING_ARGS
 --tune_encoder=True --tune_pooling=True --tune_classifier=True --pretrained_encoder=True \
 --pretrained_pooling=True --pretrained_classifier=True --src_checkpoint=TcgaCrckSSLMIL_1659618104_10061e60
 endef
