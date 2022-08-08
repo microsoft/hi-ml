@@ -79,6 +79,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         default=False,
         doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
             "initiliaze classifier with random weights.")
+    ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
+    "using SSLEncoder")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -109,7 +111,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def setup(self) -> None:
-        self.ssl_ckpt_run_id = ""
+        self.ssl_ckpt_run_id = self.ssl_checkpoint_run_id
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
