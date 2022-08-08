@@ -183,7 +183,6 @@ class PandaDataset(SlidesDataset):
             shutil.rmtree(temp_dir)
 
 
-
 # MONAI's convention is that dictionary transforms have a 'd' suffix in the class name
 class ReadImaged(MapTransform):
     """Basic transform to read image files."""
