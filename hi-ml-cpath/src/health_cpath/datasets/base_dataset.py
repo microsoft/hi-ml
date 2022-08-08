@@ -9,10 +9,13 @@ from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import Dataset
+import torchvision
+from sklearn.utils.class_weight import compute_class_weight
+from monai.data.image_reader import WSIReader
 
 from health_cpath.utils.naming import SlideKey
+from histopathology.preprocessing.loading import load_slide_at_level
 
 
 DEFAULT_TRAIN_SPLIT_LABEL = "train"  # Value used to indicate the training split in `SPLIT_COLUMN`
@@ -130,6 +133,14 @@ class TilesDataset(Dataset):
         classes = np.unique(slide_labels)
         class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=slide_labels)
         return torch.as_tensor(class_weights)
+
+    @staticmethod
+    def load_slide_as_pil(reader: WSIReader, sample: dict, key: str, level: int = 0):
+        path = sample[key]
+        obj = reader.read(path)
+        array = load_slide_at_level(reader, obj, level).transpose(1, 2, 0)
+        to_pil = torchvision.transforms.ToPILImage()
+        return to_pil(array)
 
 
 class SlidesDataset(Dataset):

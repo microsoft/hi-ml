@@ -7,23 +7,23 @@ import logging
 import sys
 import math
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.collections as collection
-
 from math import ceil
 from pathlib import Path
 from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.collections as collection
 from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
 from torch.utils.data import DataLoader
+from PIL import Image, ImageDraw, ImageFont
 
+from health_ml.utils.type_annotations import TupleInt3
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode
-from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
 def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any]:
@@ -40,6 +40,7 @@ def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any
     :param margin: margin to be included
     :return: a dict containing the image data and metadata
     """
+    from health_cpath.datasets.panda_dataset import LoadPandaROId
     loader = LoadPandaROId(WSIReader("cuCIM"), level=level, margin=margin)
     img = loader(sample)
     return img
@@ -57,6 +58,7 @@ def plot_panda_data_sample(
     :param margin: margin to be included
     :param title_key: metadata key in image_dict used to label each subplot
     """
+    from health_cpath.datasets.panda_dataset import PandaDataset
     panda_dataset = Dataset(PandaDataset(root=panda_dir))[:nsamples]  # type: ignore
     loader = DataLoader(panda_dataset, batch_size=1)
 
@@ -257,3 +259,21 @@ def save_figure(fig: Optional[plt.figure], figpath: Path) -> None:
         return
     fig.savefig(figpath, bbox_inches="tight")
     plt.close(fig)
+
+
+def add_text(image: Image, text: str, y: float = 0.9, color: TupleInt3 = (27, 77, 40), fontsize_step: int = 2):
+    font_path = Path('/usr/share/fonts/dejavu/DejaVuSans.ttf')  # TODO: stop hard-coding this
+    fontsize = 48  # TODO: stop hard-coding this
+    draw = ImageDraw.Draw(image)
+    image_size_x, image_size_y = image.size
+
+    font = ImageFont.truetype(str(font_path), fontsize)
+    text_size_x, text_size_y = draw.textsize(text, font=font)
+    while text_size_x >= image_size_x:
+        fontsize -= fontsize_step
+        font = ImageFont.truetype(str(font_path), fontsize)
+        text_size_x, text_size_y = draw.textsize(text, font=font)
+    start_x = image_size_x // 2 - text_size_x // 2
+    start_y = image_size_y * y - text_size_y // 2
+    xy = start_x, start_y
+    draw.text(xy, text, fill=color, font=font, align='center')
