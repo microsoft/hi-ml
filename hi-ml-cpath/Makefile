@@ -77,6 +77,8 @@ pytest:
 pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
+SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
+
 # Run regression tests and compare performance
 define BASE_CPATH_RUNNER_COMMAND
 cd ../ ; \
@@ -92,7 +94,7 @@ define DEEPSMILEPANDATILES_ARGS
 endef
 
 define TCGACRCKSSLMIL_ARGS
---model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint_run_id=CRCK_SimCLR_1655731022_85790606
+--model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint_run_id=${SSL_CKPT_RUN_ID_CRCK}
 endef
 
 define CRCKSIMCLR_ARGS
