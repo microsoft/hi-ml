@@ -90,11 +90,11 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self.train_dataset: _SlidesOrTilesDataset
         self.val_dataset: _SlidesOrTilesDataset
         self.test_dataset: _SlidesOrTilesDataset
+        self.dataframe_kwargs = dataframe_kwargs or {}
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
         self.dataloader_kwargs = dataloader_kwargs or {}
-        self.dataframe_kwargs = dataframe_kwargs or {}
 
     def get_splits(self) -> Tuple[_SlidesOrTilesDataset, _SlidesOrTilesDataset, _SlidesOrTilesDataset]:
         """Create the training, validation, and test datasets"""
