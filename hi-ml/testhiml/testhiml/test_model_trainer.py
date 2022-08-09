@@ -153,8 +153,7 @@ def test_create_lightning_trainer_limit_batches() -> None:
     # First create a trainer and check what the default number of train, val and test batches is
     trainer, _ = create_lightning_trainer(container)
     # We have to call the 'fit' method on the trainer before it updates the number of batches
-    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
-        trainer.fit(lightning_model, data_module)
+    trainer.fit(lightning_model, data_module)
     original_num_train_batches = int(trainer.num_training_batches)
     original_num_val_batches = int(trainer.num_val_batches[0])
     original_num_test_batches = len(data_module.test_dataloader())
@@ -171,9 +170,8 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer2.limit_train_batches == limit_train_batches_int
     assert trainer2.limit_val_batches == limit_val_batches_int
     assert trainer2.limit_test_batches == limit_test_batches_int
-    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
-        trainer2.fit(lightning_model, data_module)
-        trainer2.test(model=lightning_model, datamodule=data_module)
+    trainer2.fit(lightning_model, data_module)
+    trainer2.test(model=lightning_model, datamodule=data_module)
     assert trainer2.num_training_batches == limit_train_batches_int
     assert trainer2.num_val_batches[0] == limit_val_batches_int
     assert trainer2.num_test_batches[0] == limit_test_batches_int
@@ -188,9 +186,8 @@ def test_create_lightning_trainer_limit_batches() -> None:
     trainer3, _ = create_lightning_trainer(container)
     assert trainer3.limit_train_batches == limit_train_batches_float
     assert trainer3.limit_val_batches == limit_val_batches_float
-    with patch("health_ml.model_trainer.Trainer.logger", new_callable=PropertyMock):
-        trainer3.fit(lightning_model, data_module)
-        trainer3.test(model=lightning_model, datamodule=data_module)
+    trainer3.fit(lightning_model, data_module)
+    trainer3.test(model=lightning_model, datamodule=data_module)
     # The number of batches should be a proportion of the full available set
     assert trainer3.num_training_batches == int(limit_train_batches_float * original_num_train_batches)
     assert trainer3.num_val_batches[0] == int(limit_val_batches_float * original_num_val_batches)
