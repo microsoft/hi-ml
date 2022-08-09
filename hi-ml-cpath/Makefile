@@ -77,6 +77,8 @@ pytest:
 pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
+SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
+
 # Run regression tests and compare performance
 define BASE_CPATH_RUNNER_COMMAND
 cd ../ ; \
@@ -92,41 +94,48 @@ define DEEPSMILEPANDATILES_ARGS
 endef
 
 define TCGACRCKSSLMIL_ARGS
---model=health_cpath.TcgaCrckSSLMIL
+--model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint_run_id=${SSL_CKPT_RUN_ID_CRCK}
 endef
 
 define CRCKSIMCLR_ARGS
 --model=SSL.CRCK_SimCLR
 endef
 
+define REGRESSION_TEST_ARGS
+--cluster dedicated-nc24s-v2 --regression_test_csv_tolerance=0.5
+endef
+
+define PANDA_REGRESSION_METRICS
+--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
+test/ISUP 2,test/ISUP 3,test/ISUP 4, test/ISUP 5,test/loss_epoch'
+endef
+
 regression_test_tilespandaimagenetmil:
 	{ \
-    ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} --cluster pr-gpu \
+    ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${REGRESSION_TEST_ARGS} \
 	--regression_test_folder=testhisto/RegressionTestResults/TilesPANDAImageNetMIL/\
-	HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0 --regression_test_csv_tolerance=0.5 \
-	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
-	test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
+	HD_4ab0d833-fe55-44e8-aa04-cbaadbcc2733_0\
+	${PANDA_REGRESSION_METRICS};\
 	}
 
 regression_test_slidespandaimagenetmil:
 	{ \
-	${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} --cluster pr-gpu \
+	${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${REGRESSION_TEST_ARGS} \
 	--regression_test_folder=testhisto/RegressionTestResults/SlidesPANDAImageNetMIL/\
-	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 --regression_test_csv_tolerance=0.5 \
-	--regression_metrics='test/accuracy,test/macro_accuracy,test/weighted_accuracy,test/auroc,test/ISUP 0,test/ISUP 1,\
-	test/ISUP 2,test/ISUP 3,test/ISUP4, test/ISUP5,test/loss_epoch';\
+	HD_0e805b91-319d-4fde-8bc3-1cea3a6d08dd_0 \
+	${PANDA_REGRESSION_METRICS};\
 	}
 
 regression_test_tcgacrcksslmil:
-	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} --cluster pr-gpu --max_epochs=50 \
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${REGRESSION_TEST_ARGS} --max_epochs=50 \
 	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/\
-	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 --regression_test_csv_tolerance=0.5 \
+	TcgaCrckSSLMIL/HD_d76ef6cd-0403-4923-b8fa-dfd2827c5d74 \
 	--regression_metrics=test/accuracy,test/auroc,test/f1score,test/precision,test/recall;\
 	}
 
 regression_test_crck_simclr:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${CRCKSIMCLR_ARGS}\
-	--cluster pr-gpu  --max_epochs=200 \
+	${REGRESSION_TEST_ARGS}  --max_epochs=200 \
 	--regression_test_folder=hi-ml-cpath/testhisto/RegressionTestResults/CRCK_SimCLR/\
 	CRCK_SimCLR_1653673515_42d53d78 --regression_test_csv_tolerance=0.5 \
 	 --regression_metrics=ssl_online_evaluator/val/AreaUnderRocCurve,\
@@ -143,6 +152,10 @@ endef
 
 define AML_ONE_DEVICE_ARGS
 --cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1
+endef
+
+define AML_MULTIPLE_DEVICE_ARGS
+--cluster=dedicated-nc24s-v2 --wait_for_completion
 endef
 
 define DEEPSMILEPANDASLIDES_SMOKE_TEST_ARGS
@@ -171,7 +184,7 @@ smoke_test_slidespandaimagenetmil_local:
 # Once running in AML the following test takes around 6 minutes
 smoke_test_slidespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEPANDASLIDES_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
+	${DEEPSMILEPANDASLIDES_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
 
 # The following test takes about 6 minutes
 smoke_test_tilespandaimagenetmil_local:
@@ -180,11 +193,8 @@ smoke_test_tilespandaimagenetmil_local:
 
 smoke_test_tilespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEPANDATILES_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
+	${DEEPSMILEPANDATILES_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS};}
 
-# Note: this test doesn't currently run in hi-ml Workspace since the checkpoint run specified in run_ids
-# innereye_ssl_checkpoint_crck_4ws does not exist there. Once we can specify alternative checkpoints
-# this can be run with any Workspace
 # The following test takes about 30 seconds
 smoke_test_tcgacrcksslmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -192,7 +202,7 @@ smoke_test_tcgacrcksslmil_local:
 
 smoke_test_tcgacrcksslmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
+	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
 
 # The following test takes about 3 minutes
 smoke_test_crck_simclr_local:
@@ -201,7 +211,7 @@ smoke_test_crck_simclr_local:
 
 smoke_test_crck_simclr_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${CRCKSIMCLR_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${CRCKSIMCLR_SMOKE_TEST_ARGS} ${AML_ONE_DEVICE_ARGS};}
+	${CRCKSIMCLR_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
 
 smoke tests local: smoke_test_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local
 

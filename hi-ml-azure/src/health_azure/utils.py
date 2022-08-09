@@ -89,6 +89,7 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "RSLEX_DIRECT_VOLUME_MOUNT": "true",
     "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
     "DATASET_MOUNT_CACHE_SIZE": "1",
+    "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "false"
 }
 
 PathOrString = Union[Path, str]
@@ -1853,7 +1854,7 @@ def replace_directory(source: Path, target: Path) -> None:
         assert not target.exists()
 
         shutil.copytree(source, target)
-        shutil.rmtree(source)
+        shutil.rmtree(source, ignore_errors=True)
     else:
         # Outside of Azure ML, it should be much faster to rename the directory
         # than to copy all contents then delete, especially for large dirs.
