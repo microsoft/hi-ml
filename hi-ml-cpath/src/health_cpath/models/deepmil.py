@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-from pytorch_lightning.utilities.warnings import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
 
 from pytorch_lightning import LightningModule
