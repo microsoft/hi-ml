@@ -37,6 +37,7 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
             # declared in TrainerParams:
             max_epochs=2,
             crossval_count=1,
+            ssl_checkpoint_run_id=""
         )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
