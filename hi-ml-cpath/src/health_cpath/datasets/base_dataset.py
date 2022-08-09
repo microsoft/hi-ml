@@ -50,7 +50,8 @@ class TilesDataset(Dataset):
                  train: Optional[bool] = None,
                  validate_columns: bool = True,
                  label_column: str = DEFAULT_LABEL_COLUMN,
-                 n_classes: int = 1) -> None:
+                 n_classes: int = 1,
+                 dataframe_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -65,6 +66,7 @@ class TilesDataset(Dataset):
         for this class
         :param label_column: CSV column name for tile label. Defaults to `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
+        :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
         if self.SPLIT_COLUMN is None and train is not None:
             raise ValueError("Train/test split was specified but dataset has no split column")
@@ -77,7 +79,7 @@ class TilesDataset(Dataset):
             self.dataset_csv = None
         else:
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
-            dataset_df = pd.read_csv(self.dataset_csv)
+            dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
 
         dataset_df = dataset_df.set_index(self.TILE_ID_COLUMN)
         if train is None:
@@ -158,7 +160,8 @@ class SlidesDataset(Dataset):
                  train: Optional[bool] = None,
                  validate_columns: bool = True,
                  label_column: str = DEFAULT_LABEL_COLUMN,
-                 n_classes: int = 1) -> None:
+                 n_classes: int = 1,
+                 dataframe_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -173,6 +176,7 @@ class SlidesDataset(Dataset):
         for this class
         :param label_column: CSV column name for tile label. Default is `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
+        :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
         if self.SPLIT_COLUMN is None and train is not None:
             raise ValueError("Train/test split was specified but dataset has no split column")
@@ -185,7 +189,7 @@ class SlidesDataset(Dataset):
             self.dataset_csv = None
         else:
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
-            dataset_df = pd.read_csv(self.dataset_csv)
+            dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
 
         dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
         if train is None:
