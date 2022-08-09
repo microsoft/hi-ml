@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock
 
 from numpy import random
 import pytest
