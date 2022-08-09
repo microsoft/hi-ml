@@ -51,7 +51,7 @@ class TilesDataset(Dataset):
                  validate_columns: bool = True,
                  label_column: str = DEFAULT_LABEL_COLUMN,
                  n_classes: int = 1,
-                 dataframe_kwargs: Optional[Dict[str, Any]] = None) -> None:
+                 dataframe_kwargs: Dict[str, Any] = {}) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -79,7 +79,6 @@ class TilesDataset(Dataset):
             self.dataset_csv = None
         else:
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
-            dataframe_kwargs = dataframe_kwargs or {}
             dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
 
         dataset_df = dataset_df.set_index(self.TILE_ID_COLUMN)
@@ -190,7 +189,6 @@ class SlidesDataset(Dataset):
             self.dataset_csv = None
         else:
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
-            dataframe_kwargs = dataframe_kwargs or {}
             dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
 
         dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
