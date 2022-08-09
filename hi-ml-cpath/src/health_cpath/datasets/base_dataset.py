@@ -161,7 +161,7 @@ class SlidesDataset(Dataset):
                  validate_columns: bool = True,
                  label_column: str = DEFAULT_LABEL_COLUMN,
                  n_classes: int = 1,
-                 dataframe_kwargs: Optional[Dict[str, Any]] = None) -> None:
+                 dataframe_kwargs: Dict[str, Any] = {}) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
