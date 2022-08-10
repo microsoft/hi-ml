@@ -54,6 +54,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         crossval_count: int = 0,
         crossval_index: int = 0,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
+        dataframe_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         :param root_path: Root directory of the source dataset.
@@ -74,6 +75,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
+        :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
 
         super().__init__()
@@ -88,6 +90,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self.train_dataset: _SlidesOrTilesDataset
         self.val_dataset: _SlidesOrTilesDataset
         self.test_dataset: _SlidesOrTilesDataset
+        self.dataframe_kwargs = dataframe_kwargs or {}
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
@@ -95,6 +98,11 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
 
     def get_splits(self) -> Tuple[_SlidesOrTilesDataset, _SlidesOrTilesDataset, _SlidesOrTilesDataset]:
         """Create the training, validation, and test datasets"""
+        raise NotImplementedError
+
+    def _get_dataloader(
+        self, dataset: _SlidesOrTilesDataset, stage: ModelKey, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:

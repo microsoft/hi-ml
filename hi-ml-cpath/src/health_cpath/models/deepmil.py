@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-from pytorch_lightning.utilities.warnings import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
 
 from pytorch_lightning import LightningModule
@@ -178,7 +178,7 @@ class BaseDeepMILModule(LightningModule):
 
     def get_activation(self) -> Callable:
         if self.n_classes > 1:
-            return nn.Softmax()
+            return nn.Softmax(dim=-1)
         else:
             return nn.Sigmoid()
 
