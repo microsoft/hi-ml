@@ -173,7 +173,7 @@ define CRCKSIMCLR_SMOKE_TEST_ARGS
 endef
 
 define CRCK_TUNING_ARGS
---tune_encoder=True --tune_pooling=True --tune_classifier=True --pretrained_encoder=True \
+--tune_encoder=False --tune_pooling=True --tune_classifier=True --pretrained_encoder=True \
 --pretrained_pooling=True --pretrained_classifier=True --src_checkpoint=${SRC_CKPT_RUN_ID_CRCK}
 endef
 
