@@ -78,6 +78,7 @@ pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
+SRC_CKPT_RUN_ID_CRCK := TcgaCrckSSLMIL_1659618104_10061e60
 
 # Run regression tests and compare performance
 define BASE_CPATH_RUNNER_COMMAND
@@ -173,7 +174,7 @@ endef
 
 define CRCK_TUNING_ARGS
 --tune_encoder=True --tune_pooling=True --tune_classifier=True --pretrained_encoder=True \
---pretrained_pooling=True --pretrained_classifier=True --src_checkpoint=TcgaCrckSSLMIL_1659618104_10061e60
+--pretrained_pooling=True --pretrained_classifier=True --src_checkpoint=${SRC_CKPT_RUN_ID_CRCK}
 endef
 
 # The following test takes around 5 minutes
