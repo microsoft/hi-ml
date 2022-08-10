@@ -123,7 +123,7 @@ class BaseDeepMILModule(LightningModule):
 
     def get_activation(self) -> Callable:
         if self.n_classes > 1:
-            return nn.Softmax()
+            return nn.Softmax(dim=-1)
         else:
             return nn.Sigmoid()
 
