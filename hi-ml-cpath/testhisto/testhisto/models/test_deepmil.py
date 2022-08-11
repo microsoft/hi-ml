@@ -430,7 +430,7 @@ def test_class_weights_multiclass() -> None:
 @pytest.mark.parametrize("primary_val_metric", [m for m in MetricsKey])
 @pytest.mark.parametrize("maximise_primary_metric", [True, False])
 def test_checkpoint_name(container_type: Type[BaseMILTiles], primary_val_metric: MetricsKey,
-                         maximise_primary_metric:bool) -> None:
+                         maximise_primary_metric: bool) -> None:
 
     if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
         container = container_type(
