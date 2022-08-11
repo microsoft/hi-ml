@@ -81,7 +81,8 @@ class TilesDataset(Dataset):
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
             dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
 
-        dataset_df = dataset_df.set_index(self.TILE_ID_COLUMN)
+        if dataset_df.index.name != self.TILE_ID_COLUMN:
+            dataset_df = dataset_df.set_index(self.TILE_ID_COLUMN)
         if train is None:
             self.dataset_df = dataset_df
         else:
@@ -191,7 +192,8 @@ class SlidesDataset(Dataset):
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
             dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
 
-        dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
+        if dataset_df.index.name != self.SLIDE_ID_COLUMN:
+            dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
         if train is None:
             self.dataset_df = dataset_df
         else:
