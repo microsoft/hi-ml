@@ -253,8 +253,9 @@ class MLRunner:
             assert self.trainer, "Trainer should be initialized before training. Call self.init_training() first."
             self.trainer.fit(self.container.model, datamodule=self.data_module)
 
-        assert self.trainer.logger is not None
-        self.trainer.logger.finalize('success')
+        for logger in self.trainer.loggers:
+            assert logger is not None
+            logger.finalize('success')
 
     def run_validation(self) -> None:
         """
