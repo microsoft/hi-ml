@@ -26,15 +26,28 @@ def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
     return image
 
 
-def load_image_as_tensor(image_path: PathOrString) -> torch.Tensor:
-    """Load an image as a tensor from the given path"""
+def load_image_as_tensor(image_path: PathOrString, scale_intensity: bool = True) -> torch.Tensor:
+    """Load an image as a tensor from the given path
+
+    :param image_path: path to the image
+    :param scale_intensity: if True, scale the intensity to [0, 1]
+    """
     pil_image = load_pil_image(image_path)
-    return to_tensor(pil_image)
+    if scale_intensity:
+        return to_tensor(pil_image)
+    else:
+        return torch.from_numpy(pil_image.transpose((2, 0, 1))).contiguous()
 
 
 def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
-                               progress: bool = False) -> torch.Tensor:
-    """Load a batch of images of the same size as a tensor from the given paths"""
+                               progress: bool = False,
+                               scale_intensity: bool = True) -> torch.Tensor:
+    """Load a batch of images of the same size as a tensor from the given paths
+
+    :param image_paths: paths to the images
+    :param progress: if True, show a progress bar
+    :param scale_intensity: if True, scale the intensity to [0, 1]
+    """
     loading_generator = (load_image_as_tensor(path) for path in image_paths)
     if progress:
         from tqdm import tqdm
@@ -98,20 +111,24 @@ class LoadTilesBatchd(MapTransform):
 
     # Cannot reuse MONAI readers because they support stacking only images with no channels
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False,
-                 progress: bool = False) -> None:
+                 progress: bool = False, scale_intensity: bool = False) -> None:
         """
         :param keys: Key(s) for the image path(s) in the input dictionary.
         :param allow_missing_keys: If `False` (default), raises an exception when an input
         dictionary is missing any of the specified keys.
         :param progress: Whether to display a tqdm progress bar.
+        :param scale_intensity: If True, scale the intensity to [0, 1]
         """
         super().__init__(keys, allow_missing_keys)
         self.progress = progress
+        self.scale_intensity = scale_intensity
 
     def __call__(self, data: Mapping) -> Mapping:
         out_data = dict(data)  # create shallow copy
         for key in self.key_iterator(out_data):
-            out_data[key] = load_image_stack_as_tensor(data[key], progress=self.progress)
+            out_data[key] = load_image_stack_as_tensor(
+                data[key], progress=self.progress, scale_intensity=self.scale_intensity
+            )
         return out_data
 
 
