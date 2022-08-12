@@ -89,6 +89,26 @@ def test_load_tiles_batch() -> None:
     assert_dicts_equal(bagged_loaded_batch, loaded_bagged_batch)
 
 
+@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
+                    reason="TCGA-CRCk tiles dataset is unavailable")
+def test_load_tiles_batch_no_itensity_scaling() -> None:
+    tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
+    image_key = tiles_dataset.IMAGE_COLUMN
+    max_bag_size = 5
+    bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
+                                max_bag_size=max_bag_size)
+    load_batch_transform = LoadTilesBatchd(image_key)
+    index = 0
+
+    # Test that the transform returns images in [0, 255] range
+    bagged_batch = bagged_dataset[index]
+    manually_loaded_batch = load_batch_transform(bagged_batch)
+
+    assert manually_loaded_batch[image_key][0].dtype == torch.uint8
+    assert manually_loaded_batch[image_key][0].min() >= 0
+    assert manually_loaded_batch[image_key][0].max() <= 255
+
+
 def _test_cache_and_persistent_datasets(tmp_path: Path,
                                         base_dataset: TorchDataset,
                                         transform: Union[Sequence[Callable], Callable],
