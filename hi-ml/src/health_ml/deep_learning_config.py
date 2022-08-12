@@ -470,7 +470,7 @@ class TrainerParams(param.Parameterized):
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
                          "Set to either 'simple', 'advanced', or 'pytorch'")
-    pl_sync_batchnorm: bool = param.Boolean(default=False,
+    pl_sync_batchnorm: bool = param.Boolean(default=True,
                                             doc="PyTorch Lightning trainer flag 'sync_batchnorm': If True, "
                                             "synchronize batchnorm across all GPUs when running in ddp mode."
                                             "If False, batchnorm is not synchronized.")
