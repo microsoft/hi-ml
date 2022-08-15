@@ -27,3 +27,9 @@ class ExperimentConfig(param.Parameterized):
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the environment file in the current folder or one of its "
                                 "parents will be used.")
+    debug_ddp: str = param.String(default="OFF",
+                                  doc="Flag to override the environment variable `TORCH_DISTRIBUTED_DEBUG` that can be "
+                                      "used to trigger logging and collective synchronization checks to ensure all "
+                                      "ranks are synchronized appropriately. Default is `OFF`. Can be set to either "
+                                      "`INFO` or `DETAIL` for different levels of logging. `DETAIL` may impact the "
+                                      "application performance and thus should only be used when debugging issues")
