@@ -94,7 +94,7 @@ def test_load_tiles_batch() -> None:
 def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_tiles_root_dir: Path) -> None:
     tiles_dataset = PandaTilesDataset(mock_panda_tiles_root_dir)
     image_key = tiles_dataset.IMAGE_COLUMN
-    max_bag_size = 5
+    max_bag_size = 4
     bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
                                 max_bag_size=max_bag_size)
     load_batch_transform = LoadTilesBatchd(image_key, scale_intensity=scale_intensity)
@@ -104,8 +104,8 @@ def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_til
     bagged_batch = bagged_dataset[index]
     manually_loaded_batch = load_batch_transform(bagged_batch)
 
-    pixels_dtype = torch.uint8 if scale_intensity else torch.float32
-    max_val = 255 if scale_intensity else 1
+    pixels_dtype = torch.uint8 if not scale_intensity else torch.float32
+    max_val = 255 if not scale_intensity else 1.
 
     assert manually_loaded_batch[image_key][0].dtype == pixels_dtype
     assert manually_loaded_batch[image_key][0].min() >= 0

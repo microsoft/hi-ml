@@ -12,8 +12,6 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from testhisto.mocks.base_data_generator import MockHistoDataType
-from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 
 # temporary workaround until these hi-ml package release
 testhisto_root_dir = Path(__file__).parent
@@ -31,6 +29,8 @@ for package, subpackages in packages.items():
         sys.path.insert(0, str(himl_root / package / subpackage))
 
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
+from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
 
 
 def remove_and_create_folder(folder: Path) -> None:

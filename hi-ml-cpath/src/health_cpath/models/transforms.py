@@ -52,7 +52,7 @@ def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
         which scales the image pixel intensities tp [0, 1] by default.
     """
 
-    loading_generator = (load_image_as_tensor(path) for path in image_paths)
+    loading_generator = (load_image_as_tensor(path, scale_intensity) for path in image_paths)
     if progress:
         from tqdm import tqdm
         loading_generator = tqdm(loading_generator, desc="Loading image stack",
