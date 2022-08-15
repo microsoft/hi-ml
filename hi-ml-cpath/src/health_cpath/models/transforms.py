@@ -115,7 +115,7 @@ class LoadTilesBatchd(MapTransform):
 
     # Cannot reuse MONAI readers because they support stacking only images with no channels
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False,
-                 progress: bool = False, scale_intensity: bool = False) -> None:
+                 progress: bool = False, scale_intensity: bool = True) -> None:
         """
         :param keys: Key(s) for the image path(s) in the input dictionary.
         :param allow_missing_keys: If `False` (default), raises an exception when an input
