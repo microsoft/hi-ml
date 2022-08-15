@@ -121,10 +121,12 @@ class BaseDeepMILModule(LightningModule):
         def _total_params(submodule: nn.Module) -> int:
             return sum(p.numel() for p in submodule.parameters())
 
-        if _total_params(pretrained_submodule) != _total_params(current_submodule):
+        pre_total_params = _total_params(pretrained_submodule)
+        cur_total_params = _total_params(current_submodule)
+
+        if pre_total_params != cur_total_params:
             raise ValueError(f"Submodule {submodule_name} has different number of parameters "
-                             f"({_total_params(current_submodule)} vs {_total_params(pretrained_submodule)})"
-                             "from pretrained model.")
+                             f"({cur_total_params} vs {pre_total_params}) from pretrained model.")
 
         for param, pretrained_param in zip(
             current_submodule.state_dict().values(), pretrained_submodule.state_dict().values()

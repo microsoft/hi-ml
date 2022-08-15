@@ -183,6 +183,22 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_crck_simclr_aml
 
+  smoke_test_crck_flexible_finetuning_aml:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up smoke test environment
+        id: setup-finetuning-smoke-test-environment
+        uses: ./.github/actions/prepare_smoke_test_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_crck_flexible_finetuning_aml
+
   publish:
     runs-on: ubuntu-20.04
     needs: [
@@ -191,7 +207,8 @@ jobs:
       pytest,
       smoke_test_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
-      smoke_test_crck_simclr_aml
+      smoke_test_crck_simclr_aml,
+      smoke_test_crck_flexible_finetuning_aml
       ]
     steps:
       - uses: actions/checkout@v3
