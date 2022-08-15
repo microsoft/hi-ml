@@ -30,7 +30,7 @@ from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in
                                 set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
 
-from health_ml.experiment_config import ExperimentConfig  # noqa: E402
+from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
@@ -216,6 +216,7 @@ class Runner:
 
         # TODO: Update environment variables
         environment_variables: Dict[str, Any] = {}
+        environment_variables[DEBUG_DDP_ENV_VAR] = self.experiment_config.debug_ddp.value
 
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
@@ -281,7 +282,8 @@ class Runner:
         else:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
-                submit_to_azureml=False)
+                submit_to_azureml=False,
+                environment_variables=environment_variables)
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info

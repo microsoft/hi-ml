@@ -17,6 +17,7 @@ from health_azure import AzureRunInfo, DatasetConfig
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
+from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, DebugDDPOptions
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 from health_ml.utils.common_utils import change_working_directory
@@ -81,6 +82,19 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
             assert isinstance(mock_runner.lightning_container, LightningContainer)
             assert mock_runner.lightning_container.initialized
             assert mock_runner.lightning_container.model_name == model_name
+
+
+@pytest.mark.parametrize("debug_ddp", ["OFF", "INFO", "DETAIL"])
+def test_ddp_debug_flag(debug_ddp: DebugDDPOptions, mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--debug_ddp={debug_ddp}", f"--model={model_name}"]
+    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
+        with patch("health_ml.runner.get_workspace"):
+            with patch("health_ml.runner.Runner.run_in_situ"):
+                with patch.object(sys, "argv", arguments):
+                    mock_runner.run()
+        mock_submit_to_azure_if_needed.assert_called_once()
+        assert mock_submit_to_azure_if_needed.call_args[1]["environment_variables"][DEBUG_DDP_ENV_VAR] == debug_ddp
 
 
 def test_run(mock_runner: Runner) -> None:
