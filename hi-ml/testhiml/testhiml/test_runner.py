@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import shutil
 import sys
 from pathlib import Path
-from typing import Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -119,8 +119,8 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                                      mock_get_env_files: MagicMock,
                                      mock_runner: Runner
                                      ) -> None:
-    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig], submit_to_azureml: bool  # type: ignore
-                                 ) -> AzureRunInfo:
+    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig], submit_to_azureml: bool,  # type: ignore
+                                 environment_variables: Dict[str, Any]) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
                             output_datasets=[],
