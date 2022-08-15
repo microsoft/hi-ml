@@ -36,7 +36,7 @@ def load_image_as_tensor(image_path: PathOrString, scale_intensity: bool = True)
 
     pil_image = load_pil_image(image_path)
     if scale_intensity:
-        return to_tensor(pil_image)
+        return to_tensor(pil_image)  # to_tensor scales the image pixel intensities tp [0, 1] by default
     else:
         return torch.from_numpy(pil_image.transpose((2, 0, 1))).contiguous()
 
