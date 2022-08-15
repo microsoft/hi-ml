@@ -105,6 +105,19 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                 "You need to specify a source checkpoint, to use a pretrained encoder, pooling or classifier."
                 f"{SRC_CKPT_INFO_MESSAGE}"
             )
+        if (
+            self.tune_encoder and self.encoding_chunk_size < self.max_bag_size
+            and self.pl_sync_batchnorm and self.max_num_gpus > 1
+        ):
+            raise ValueError(
+                "The encoding chunk size should be at least as large as the maximum bag size when fine tuning the "
+                "encoder. You might encounter Batch Norm synchronization issues if the chunk size is smaller than "
+                "the maximum bag size causing the processes to hang silently. This is due to the encoder being called "
+                "different number of times on each device, which cause Batch Norm running statistics to be updated "
+                "inconsistently across processes. In case you can't increase the `encoding_chunk_size` any further, set"
+                " `pl_sync_batchnorm=False` to simply skip Batch Norm synchronization across devices. Note that this "
+                "might come with some performance penalty."
+            )
 
     @property
     def cache_dir(self) -> Path:

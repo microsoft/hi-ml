@@ -18,7 +18,7 @@ from torch.utils.data._utils.collate import default_collate
 from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
 from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
-from health_cpath.configs.classification.BaseMIL import BaseMILTiles
+from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILTiles
 
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
 from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
@@ -692,3 +692,10 @@ def test_transfer_weights_different_classifier() -> None:
             match=r"Number of classes in pretrained model 3 does not match number of classes in current model 4."
         ):
             module.transfer_weights(Path("foo"))
+
+
+def test_wrong_encoding_chunk_size() -> None:
+    with pytest.raises(
+        ValueError, match=r"The encoding chunk size should be at least as large as the maximum bag size"
+    ):
+        _ = BaseMIL(encoding_chunk_size=1, max_bag_size=4, tune_encoder=True, max_num_gpus=2, pl_sync_batchnorm=True)
