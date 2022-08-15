@@ -30,8 +30,10 @@ def load_image_as_tensor(image_path: PathOrString, scale_intensity: bool = True)
     """Load an image as a tensor from the given path
 
     :param image_path: path to the image
-    :param scale_intensity: if True, scale the intensity to [0, 1]
+    :param scale_intensity: if True, scale the intensity to [0, 1]. Otherwise, uses `to_tensor` from torchvision
+        which scales the image pixel intensities tp [0, 1] by default.
     """
+
     pil_image = load_pil_image(image_path)
     if scale_intensity:
         return to_tensor(pil_image)
@@ -46,8 +48,10 @@ def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
 
     :param image_paths: paths to the images
     :param progress: if True, show a progress bar
-    :param scale_intensity: if True, scale the intensity to [0, 1]
+    :param scale_intensity: if True, scale the intensity to [0, 1].  Otherwise, uses `to_tensor` from torchvision
+        which scales the image pixel intensities tp [0, 1] by default.
     """
+
     loading_generator = (load_image_as_tensor(path) for path in image_paths)
     if progress:
         from tqdm import tqdm
@@ -117,8 +121,10 @@ class LoadTilesBatchd(MapTransform):
         :param allow_missing_keys: If `False` (default), raises an exception when an input
         dictionary is missing any of the specified keys.
         :param progress: Whether to display a tqdm progress bar.
-        :param scale_intensity: If True, scale the intensity to [0, 1]
+        :param scale_intensity: If True, scale the intensity to [0, 1]. Otherwise, uses `to_tensor` from torchvision
+        which scales the image pixel intensities tp [0, 1] by default.
         """
+
         super().__init__(keys, allow_missing_keys)
         self.progress = progress
         self.scale_intensity = scale_intensity

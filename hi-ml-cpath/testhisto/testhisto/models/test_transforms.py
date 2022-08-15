@@ -21,6 +21,7 @@ from health_ml.utils.bag_utils import BagDataset
 from health_ml.utils.data_augmentations import HEDJitter
 
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
+from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.encoders import ImageNetEncoder
 from health_cpath.models.transforms import (EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, Subsampled,
@@ -89,24 +90,26 @@ def test_load_tiles_batch() -> None:
     assert_dicts_equal(bagged_loaded_batch, loaded_bagged_batch)
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
-                    reason="TCGA-CRCk tiles dataset is unavailable")
-def test_load_tiles_batch_no_itensity_scaling() -> None:
-    tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
+@pytest.mark.parametrize("scale_intensity", [True, False])
+def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_tiles_root_dir: Path) -> None:
+    tiles_dataset = PandaTilesDataset(mock_panda_tiles_root_dir)
     image_key = tiles_dataset.IMAGE_COLUMN
     max_bag_size = 5
     bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
                                 max_bag_size=max_bag_size)
-    load_batch_transform = LoadTilesBatchd(image_key)
+    load_batch_transform = LoadTilesBatchd(image_key, scale_intensity=scale_intensity)
     index = 0
 
     # Test that the transform returns images in [0, 255] range
     bagged_batch = bagged_dataset[index]
     manually_loaded_batch = load_batch_transform(bagged_batch)
 
-    assert manually_loaded_batch[image_key][0].dtype == torch.uint8
+    pixels_dtype = torch.uint8 if scale_intensity else torch.float32
+    max_val = 255 if scale_intensity else 1
+
+    assert manually_loaded_batch[image_key][0].dtype == pixels_dtype
     assert manually_loaded_batch[image_key][0].min() >= 0
-    assert manually_loaded_batch[image_key][0].max() <= 255
+    assert manually_loaded_batch[image_key][0].max() <= max_val
 
 
 def _test_cache_and_persistent_datasets(tmp_path: Path,

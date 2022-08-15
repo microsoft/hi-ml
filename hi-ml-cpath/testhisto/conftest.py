@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 
 # temporary workaround until these hi-ml package release
 testhisto_root_dir = Path(__file__).parent
@@ -73,3 +75,24 @@ def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> G
     download_azure_dataset(tmp_dir, dataset_id=MockHistoDataType.PATHMNIST.value)
     yield tmp_dir
     shutil.rmtree(tmp_dir)
+
+
+@pytest.fixture(scope="session")
+def mock_panda_tiles_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_tiles")
+    tiles_generator = MockPandaTilesGenerator(
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=4,
+        n_slides=10,
+        n_channels=3,
+        tile_size=28,
+        img_size=224,
+    )
+    logging.info("Generating temporary mock tiles that will be deleted at the end of the session.")
+    tiles_generator.generate_mock_histo_data()
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
