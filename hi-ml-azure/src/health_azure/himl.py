@@ -449,6 +449,7 @@ def submit_to_azure_if_needed(  # type: ignore
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
     if DEBUG_DDP_COMMANDLINE_FLAG in sys.argv[1:]:
+        environment_variables = environment_variables or {}
         environment_variables["TORCH_DISTRIBUTED_DEBUG"] = "DETAIL"
     # The present function will most likely be called from the script once it is running in AzureML.
     # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
