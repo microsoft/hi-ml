@@ -14,7 +14,6 @@ from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from monai.transforms import Compose
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import Subset
-from torchvision.models import resnet18
 from torchvision.transforms import RandomHorizontalFlip
 
 from health_ml.utils.bag_utils import BagDataset
