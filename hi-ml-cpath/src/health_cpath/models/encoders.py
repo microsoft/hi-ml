@@ -68,6 +68,7 @@ class ImageNetEncoder(TileEncoder):
         returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
         :param tile_size: Tile width/height, in pixels.
         :param n_channels: Number of channels in the tile (default=3).
+        :param imagenet_preprocessing: Whether to apply ImageNet preprocessing to the input.
         """
         self.create_feature_extractor_fn = feature_extraction_model
         self.imagenet_preprocessing = imagenet_preprocessing
