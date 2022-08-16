@@ -1,6 +1,16 @@
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 import param
+
+
+class DebugDDPOptions(Enum):
+    OFF = "OFF"
+    INFO = "INFO"
+    DETAIL = "DETAIL"
+
+
+DEBUG_DDP_ENV_VAR = "TORCH_DISTRIBUTED_DEBUG"
 
 
 class ExperimentConfig(param.Parameterized):
@@ -27,3 +37,11 @@ class ExperimentConfig(param.Parameterized):
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the environment file in the current folder or one of its "
                                 "parents will be used.")
+    debug_ddp: DebugDDPOptions = param.ClassSelector(default=DebugDDPOptions.OFF, class_=DebugDDPOptions,
+                                                     doc=f"Flag to override the environment var {DEBUG_DDP_ENV_VAR}"
+                                                         "that can be used to trigger logging and collective "
+                                                         "synchronization checks to ensure all ranks are synchronized "
+                                                         "appropriately. Default is `OFF`. It can be set to either "
+                                                         "`INFO` or `DETAIL` for different levels of logging. "
+                                                         "`DETAIL` may impact the application performance and thus "
+                                                         "should only be used when debugging issues")
