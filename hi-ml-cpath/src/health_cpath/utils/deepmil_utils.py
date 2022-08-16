@@ -121,11 +121,11 @@ class EncoderParams(param.Parameterized):
             )
         elif self.encoder_type == Resnet18.__name__:
             encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
-        elif self.encoder_type == Resnet18.__name__:
+        elif self.encoder_type == Resnet18_NoPreproc.__name__:
             encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
-        elif self.encoder_type == Resnet18.__name__:
+        elif self.encoder_type == Resnet50.__name__:
             encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
-        elif self.encoder_type == Resnet18.__name__:
+        elif self.encoder_type == Resnet50_NoPreproc.__name__:
             encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
