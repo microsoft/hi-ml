@@ -114,7 +114,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
                 raise NotImplementedError
 
             tile_filename = self.dest_data_path / row[PandaTilesDataset.IMAGE_COLUMN]
-            save_image(tile.float(), tile_filename)
+            save_image(tile.div(255.), tile_filename)
             random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
             mask_filename = self.dest_data_path / row[self.MASK_COLUMN]
-            save_image(random_mask.float(), mask_filename)
+            save_image(random_mask.div(255), mask_filename)
