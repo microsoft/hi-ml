@@ -31,14 +31,15 @@ def load_image_as_tensor(image_path: PathOrString, scale_intensity: bool = True)
 
     :param image_path: path to the image
     :param scale_intensity: if True, use `to_tensor` from torchvision which scales the image pixel intensities to
-    [0, 1] by default. Otherwise, transpose the image to [C, H, W] format and return it as a torch tensor.
+    [0, 1] by defaul as [C, H, W] tensors. Otherwise, only transpose the image to [C, H, W] format and return it as a
+    torch tensor.
     """
 
     pil_image = load_pil_image(image_path)  # pil_image is in channels last format [H, W, C]
     if scale_intensity:
-        return to_tensor(pil_image)  # to_tensor scales the image pixel intensities to [0, 1] by default
+        return to_tensor(pil_image)  # to_tensor scales the image pixel intensities to [0, 1] as [C, H, W] tensors
     else:
-        return torch.from_numpy(pil_image.transpose((2, 0, 1))).contiguous()  # transpose to [C, H, W]
+        return torch.from_numpy(pil_image.transpose((2, 0, 1))).contiguous()  # only transpose to [C, H, W]
 
 
 def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
@@ -49,7 +50,8 @@ def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
     :param image_paths: paths to the images
     :param progress: if True, show a progress bar
     :param scale_intensity: if True, use `to_tensor` from torchvision which scales the image pixel intensities to
-    [0, 1] by default. Otherwise, transpose the image to [C, H, W] format and return it as a torch tensor.
+    [0, 1] by defaul as [C, H, W] tensors. Otherwise, only transpose the image to [C, H, W] format and return it as a
+    torch tensor.
     """
 
     loading_generator = (load_image_as_tensor(path, scale_intensity) for path in image_paths)
@@ -122,7 +124,8 @@ class LoadTilesBatchd(MapTransform):
         dictionary is missing any of the specified keys.
         :param progress: Whether to display a tqdm progress bar.
         :param scale_intensity: if True, use `to_tensor` from torchvision which scales the image pixel intensities to
-        [0, 1] by default. Otherwise, transpose the image to [C, H, W] format and return it as a torch tensor.
+        [0, 1] by defaul as [C, H, W] tensors. Otherwise, only transpose the image to [C, H, W] format and return it as
+        a torch tensor.
         """
 
         super().__init__(keys, allow_missing_keys)
