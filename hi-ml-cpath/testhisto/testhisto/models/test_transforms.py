@@ -107,12 +107,13 @@ def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_til
     pixels_dtype = torch.uint8 if not scale_intensity else torch.float32
     max_val = 255 if not scale_intensity else 1.
 
-    bag_size = manually_loaded_batch[image_key][index].shape[0] - 1
-    index = min(np.random.randint(0, max_bag_size), bag_size)
-
-    assert manually_loaded_batch[image_key][index].dtype == pixels_dtype
-    assert manually_loaded_batch[image_key][index].min() >= 0
-    assert manually_loaded_batch[image_key][index].max() <= max_val
+    for tile in manually_loaded_batch[image_key]:
+        assert tile.dtype == pixels_dtype
+        assert tile.max() <= max_val
+        assert tile.min() >= 0
+        if not scale_intensity:
+            assert manually_loaded_batch[image_key][index].max() > 1
+        assert tile.unique().shape[0] > 1
 
 
 def _test_cache_and_persistent_datasets(tmp_path: Path,
