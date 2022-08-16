@@ -62,7 +62,7 @@ class ImageNetEncoder(TileEncoder):
     """Feature extractor pretrained for classification on ImageNet"""
 
     def __init__(self, feature_extraction_model: Callable[..., nn.Module],
-                 tile_size: int, n_channels: int = 3, imagenet_preprocessing: bool = True) -> None:
+                 tile_size: int, n_channels: int = 3, apply_imagenet_preprocessing: bool = True) -> None:
         """
         :param feature_extraction_model: A function accepting a `pretrained` keyword argument that
         returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
