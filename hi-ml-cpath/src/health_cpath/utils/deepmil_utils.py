@@ -38,6 +38,26 @@ def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
         params.requires_grad = tuning_flag
 
 
+class Resnet18(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet18, tile_size, n_channels, imagenet_preprocessing=True)
+
+
+class Resnet18_NoPreproc(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet18, tile_size, n_channels, imagenet_preprocessing=False)
+
+
+class Resnet50(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet50, tile_size, n_channels, imagenet_preprocessing=True)
+
+
+class Resnet50_NoPreproc(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet50, tile_size, n_channels, imagenet_preprocessing=False)
+
+
 class EncoderParams(param.Parameterized):
     """Parameters class to group all encoder specific attributes for deepmil module. """
 
@@ -99,6 +119,14 @@ class EncoderParams(param.Parameterized):
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
             )
+        elif self.encoder_type == Resnet18.__name__:
+            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == Resnet18.__name__:
+            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == Resnet18.__name__:
+            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
+        elif self.encoder_type == Resnet18.__name__:
+            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
