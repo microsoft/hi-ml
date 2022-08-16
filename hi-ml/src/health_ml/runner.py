@@ -216,7 +216,7 @@ class Runner:
 
         # TODO: Update environment variables
         environment_variables: Dict[str, Any] = {}
-        environment_variables[DEBUG_DDP_ENV_VAR] = self.experiment_config.debug_ddp.value  # type: ignore
+        environment_variables[DEBUG_DDP_ENV_VAR] = self.experiment_config.debug_ddp.value
 
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
