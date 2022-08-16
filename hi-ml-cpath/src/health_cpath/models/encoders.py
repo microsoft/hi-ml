@@ -11,7 +11,7 @@ import torch
 from pl_bolts.models.self_supervised import SimCLR
 from torch import Tensor as T, nn
 from torchvision.models import resnet18, resnet50
-from torchvision.transforms import Compose
+from monai.transforms import Compose
 
 from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
                                             load_weights_to_model,
@@ -75,9 +75,10 @@ class ImageNetEncoder(TileEncoder):
         super().__init__(tile_size=tile_size, n_channels=n_channels)
 
     def _get_preprocessing(self) -> Callable:
+        base_preprocessing = super()._get_preprocessing()
         if self.apply_imagenet_preprocessing:
-            return get_imagenet_preprocessing()
-        return super()._get_preprocessing()
+            return Compose([get_imagenet_preprocessing(), base_preprocessing]).flatten()
+        return base_preprocessing
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True)
