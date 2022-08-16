@@ -40,22 +40,22 @@ def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
 
 class Resnet18(ImageNetEncoder):
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
-        super().__init__(resnet18, tile_size, n_channels, imagenet_preprocessing=True)
+        super().__init__(resnet18, tile_size, n_channels, apply_imagenet_preprocessing=True)
 
 
 class Resnet18_NoPreproc(ImageNetEncoder):
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
-        super().__init__(resnet18, tile_size, n_channels, imagenet_preprocessing=False)
+        super().__init__(resnet18, tile_size, n_channels, apply_imagenet_preprocessing=False)
 
 
 class Resnet50(ImageNetEncoder):
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
-        super().__init__(resnet50, tile_size, n_channels, imagenet_preprocessing=True)
+        super().__init__(resnet50, tile_size, n_channels, apply_imagenet_preprocessing=True)
 
 
 class Resnet50_NoPreproc(ImageNetEncoder):
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
-        super().__init__(resnet50, tile_size, n_channels, imagenet_preprocessing=False)
+        super().__init__(resnet50, tile_size, n_channels, apply_imagenet_preprocessing=False)
 
 
 class EncoderParams(param.Parameterized):
