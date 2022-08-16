@@ -37,7 +37,7 @@ class ExperimentConfig(param.Parameterized):
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the environment file in the current folder or one of its "
                                 "parents will be used.")
-    debug_ddp: str = param.ClassSelector(default=DebugDDPOptions.OFF, class_=DebugDDPOptions,
+    debug_ddp: DebugDDPOptions = param.ClassSelector(default=DebugDDPOptions.OFF, class_=DebugDDPOptions,
                                          doc=f"Flag to override the environment variable `{DEBUG_DDP_ENV_VAR}` that "
                                              "can be used to trigger logging and collective synchronization checks to "
                                              "ensure all ranks are synchronized appropriately. Default is `OFF`. It "
