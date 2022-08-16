@@ -13,8 +13,8 @@ from health_cpath.datamodules.panda_module import (
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder,
     ImageNetSimCLREncoder,
+    Resnet18,
     SSLEncoder)
 from health_cpath.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
 from health_cpath.datasets.panda_dataset import PandaDataset
@@ -100,7 +100,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
+        super().__init__(encoder_type=Resnet18.__name__, **kwargs)
 
 
 class TilesPandaImageNetSimCLRMIL(DeepSMILETilesPanda):
@@ -171,7 +171,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
 class SlidesPandaImageNetMIL(DeepSMILESlidesPanda):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
+        super().__init__(encoder_type=Resnet18.__name__, **kwargs)
 
 
 class SlidesPandaImageNetSimCLRMIL(DeepSMILESlidesPanda):

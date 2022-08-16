@@ -20,8 +20,8 @@ from health_cpath.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder,
     ImageNetSimCLREncoder,
+    Resnet18,
     SSLEncoder,
 )
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
@@ -77,7 +77,7 @@ class DeepSMILECrck(BaseMILTiles):
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
+        super().__init__(encoder_type=Resnet18.__name__, **kwargs)
 
 
 class TcgaCrckImageNetSimCLRMIL(DeepSMILECrck):

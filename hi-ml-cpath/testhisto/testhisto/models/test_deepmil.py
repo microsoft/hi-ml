@@ -26,7 +26,7 @@ from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModul
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
-from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
+from health_cpath.models.encoders import IdentityEncoder, Resnet18, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
@@ -39,7 +39,7 @@ no_gpu = not is_gpu_available()
 
 
 def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> EncoderParams:
-    return EncoderParams(encoder_type=ImageNetEncoder.__name__, tune_encoder=tune_encoder)
+    return EncoderParams(encoder_type=Resnet18.__name__, tune_encoder=tune_encoder)
 
 
 def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
@@ -336,9 +336,9 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
             f"is unavailable: {dataset_dir}"
         )
     if container_type is DeepSMILECrck:
-        container = container_type(encoder_type=ImageNetEncoder.__name__)
+        container = container_type(encoder_type=Resnet18.__name__)
     elif container_type is DeepSMILETilesPanda:
-        container = DeepSMILETilesPanda(encoder_type=ImageNetEncoder.__name__)
+        container = DeepSMILETilesPanda(encoder_type=Resnet18.__name__)
     else:
         container = container_type()
 

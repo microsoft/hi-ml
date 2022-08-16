@@ -22,7 +22,7 @@ from health_ml.utils.data_augmentations import HEDJitter
 
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
-from health_cpath.models.encoders import ImageNetEncoder
+from health_cpath.models.encoders import Resnet18
 from health_cpath.models.transforms import (EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, Subsampled,
                                             transform_dict_adaptor)
 
@@ -142,7 +142,7 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
                                 max_bag_size=max_bag_size)
 
-    encoder = ImageNetEncoder(resnet18, tile_size=224, n_channels=3)
+    encoder = Resnet18(tile_size=224, n_channels=3)
     if use_gpu:
         encoder.cuda()
 

@@ -13,7 +13,7 @@ from torchvision.models import resnet18
 
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
-from health_cpath.models.encoders import (TileEncoder, HistoSSLEncoder, ImageNetEncoder,
+from health_cpath.models.encoders import (Resnet18, TileEncoder, HistoSSLEncoder,
                                           ImageNetSimCLREncoder, SSLEncoder)
 from health_cpath.utils.layer_utils import setup_feature_extractor
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
@@ -25,7 +25,7 @@ TEST_SSL_RUN_ID = "CRCK_SimCLR_1654677598_49a66020"
 
 
 def get_supervised_imagenet_encoder() -> TileEncoder:
-    return ImageNetEncoder(feature_extraction_model=resnet18, tile_size=TILE_SIZE)
+    return Resnet18(tile_size=TILE_SIZE)
 
 
 def get_simclr_imagenet_encoder() -> TileEncoder:
