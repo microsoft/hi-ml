@@ -18,8 +18,8 @@ from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datamodules.panda_module_benchmark import PandaSlidesDataModuleBenchmark
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder_Resnet50,
     ImageNetSimCLREncoder,
+    Resnet50_NoPreproc,
     SSLEncoder,
 )
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
@@ -139,7 +139,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
 
 class SlidesPandaImageNetMILBenchmark(DeepSMILESlidesPandaBenchmark):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder_Resnet50.__name__, **kwargs)
+        super().__init__(encoder_type=Resnet50_NoPreproc.__name__, **kwargs)
 
 
 class SlidesPandaImageNetSimCLRMILBenchmark(DeepSMILESlidesPandaBenchmark):

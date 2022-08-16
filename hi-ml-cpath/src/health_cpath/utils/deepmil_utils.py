@@ -7,16 +7,17 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
-from torchvision.models.resnet import resnet18, resnet50
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder,
-    ImageNetEncoder_Resnet50,
     ImageNetSimCLREncoder,
     SSLEncoder,
     TileEncoder,
+    Resnet18,
+    Resnet50,
+    Resnet18_NoPreproc,
+    Resnet50_NoPreproc,
 )
 from health_ml.networks.layers.attention_layers import (
     AttentionLayer,
@@ -70,15 +71,17 @@ class EncoderParams(param.Parameterized):
         :return: A TileEncoder instance for deepmil module.
         """
         encoder: TileEncoder
-        if self.encoder_type == ImageNetEncoder.__name__:
-            encoder = ImageNetEncoder(
-                feature_extraction_model=resnet18, tile_size=self.tile_size, n_channels=self.n_channels,
-            )
-        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
-            # Myronenko et al. 2021 uses Resnet50 CNN encoder
-            encoder = ImageNetEncoder_Resnet50(
-                feature_extraction_model=resnet50, tile_size=self.tile_size, n_channels=self.n_channels,
-            )
+        if self.encoder_type == Resnet18.__name__:
+            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == Resnet18_NoPreproc.__name__:
+            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == Resnet50.__name__:
+            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == Resnet50_NoPreproc.__name__:
+            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)

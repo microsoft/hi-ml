@@ -8,7 +8,7 @@ from typing import Any, Optional, Set
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPanda
 from health_cpath.datasets.panda_dataset import PandaDataset
-from health_cpath.models.encoders import ImageNetEncoder
+from health_cpath.models.encoders import Resnet18
 from health_cpath.datamodules.base_module import CacheMode, CacheLocation
 from health_cpath.utils.naming import PlotOption
 
@@ -23,7 +23,7 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
             num_transformer_pool_heads=1,
             class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
-            encoder_type=ImageNetEncoder.__name__,
+            encoder_type=Resnet18.__name__,
             tile_size=28,
             # Data Module parameters
             batch_size=2,
@@ -64,7 +64,7 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             num_transformer_pool_heads=1,
             class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
-            encoder_type=ImageNetEncoder.__name__,
+            encoder_type=Resnet18.__name__,
             tile_size=28,
             # Data Module parameters
             batch_size=2,
