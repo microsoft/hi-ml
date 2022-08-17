@@ -71,14 +71,14 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/microsoft/hi-ml',
-    author="Microsoft Research Cambridge Medical Imaging Team ",
+    author="Biomedical Imaging Team @ Microsoft Health Futures",
     author_email="innereyedev@microsoft.com",
     classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Intended Audience :: Science/Research',
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.7'
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.7"
     ],
     keywords='Health Futures, Health Intelligence, Computational Pathology, AzureML',
     license='MIT License',
