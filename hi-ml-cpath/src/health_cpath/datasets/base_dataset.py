@@ -160,6 +160,7 @@ class SlidesDataset(Dataset):
                  dataset_df: Optional[pd.DataFrame] = None,
                  train: Optional[bool] = None,
                  validate_columns: bool = True,
+                 validate_metadata: bool = True,
                  label_column: str = DEFAULT_LABEL_COLUMN,
                  n_classes: int = 1,
                  dataframe_kwargs: Dict[str, Any] = {}) -> None:
@@ -175,6 +176,8 @@ class SlidesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
+        :param validate_metadata: Whether to include metadata columns validation in `validate_columns()`. In some cases
+        when only a subset of metadata columns is loaded via custom `dataframe_kwargs`, this can be set to `False` to avoid unnecessary checks.
         :param label_column: CSV column name for tile label. Default is `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
@@ -185,6 +188,7 @@ class SlidesDataset(Dataset):
         self.root_dir = Path(root)
         self.label_column = label_column
         self.n_classes = n_classes
+        self.validate_metadata = validate_metadata
 
         if dataset_df is not None:
             self.dataset_csv = None
@@ -210,6 +214,8 @@ class SlidesDataset(Dataset):
         call `validate_columns()` after creating derived columns, for example.
         """
         columns = [self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN, self.SPLIT_COLUMN]
+        if self.validate_metadata:
+            columns.extend(list(self.METADATA_COLUMNS))
         columns_not_found = []
         for column in columns:
             if column is not None and column not in self.dataset_df.columns:
