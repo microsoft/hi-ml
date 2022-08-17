@@ -209,8 +209,7 @@ class SlidesDataset(Dataset):
         If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
         call `validate_columns()` after creating derived columns, for example.
         """
-        columns = [self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN,
-                   self.SPLIT_COLUMN] + list(self.METADATA_COLUMNS)
+        columns = [self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN, self.SPLIT_COLUMN]
         columns_not_found = []
         for column in columns:
             if column is not None and column not in self.dataset_df.columns:
