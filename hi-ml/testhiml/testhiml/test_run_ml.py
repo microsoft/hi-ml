@@ -15,6 +15,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
 from health_azure.utils import is_global_rank_zero
+from health_ml.utils.logging import AzureMLLogger
 from testazure.utils_testazure import DEFAULT_WORKSPACE
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
@@ -315,3 +316,51 @@ def test_runner_end_to_end() -> None:
         runner.init_training()
         runner.run_training()
         assert True
+
+
+@pytest.mark.parametrize("log_from_vm", [True, False])
+def test_log_on_vm(log_from_vm: bool) -> None:
+    """Test if the AzureML logger is called when the experiment is run outside AzureML."""
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    # Mimic an experiment name given on the command line.
+    experiment_name = "unittest"
+    container.experiment = experiment_name
+    # The tag is used to identify the run, similar to the behaviour when submitting a run to AzureML.
+    tag = "tag"
+    container.tag = tag
+    container.log_from_vm = log_from_vm
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner.setup()
+    # The PL trainer object is created in the init_training method.
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner.init_training()
+    # Check that the AzureML logger is set up correctly.
+    assert runner.trainer is not None
+    assert runner.trainer.loggers is not None
+    assert len(runner.trainer.loggers) > 1
+    logger = runner.trainer.loggers[1]
+    assert isinstance(logger, AzureMLLogger)
+    if log_from_vm:
+        assert logger.run is not None
+        assert logger.run.experiment is not None
+        assert logger.run.experiment.name == experiment_name
+        assert logger.run.name == tag
+        # At this point, the run is not yet submitted to AzureML, and has not left any traces. No need to delete.
+    else:
+        assert logger.run is None
+
+
+def test_experiment_name() -> None:
+    """Test that the experiment name is set correctly, choosing either the experiment name given on the commandline
+    or the model name"""
+    container = HelloWorld()
+    # No experiment name given on the commandline: use the model name
+    model_name = "some_model"
+    container._model_name = model_name
+    assert container.effective_experiment_name == model_name
+    # Experiment name given on the commandline: use the experiment name
+    experiment_name = "unittest"
+    container.experiment = experiment_name
+    assert container.effective_experiment_name == experiment_name

@@ -173,6 +173,12 @@ class WorkflowParams(param.Parameterized):
     run_inference_only: bool = param.Boolean(False, doc="If True, run only inference and skip training after loading"
                                                         "model weights from the specified checkpoint in "
                                                         "`src_checkpoint` flag. If False, run training and inference.")
+    tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
+    experiment: str = param.String(default="", doc="The name of the AzureML experiment to use for this run. If not "
+                                   "provided, the name of the model class will be used.")
+    log_from_vm: bool = param.Boolean(False, doc="If True, a training run outside AzureML will still log its "
+                                      "metrics to AzureML. You need to have an AzureML workspace config.json file "
+                                      "and will be asked for interactive authentication.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"

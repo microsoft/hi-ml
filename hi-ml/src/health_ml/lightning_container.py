@@ -214,6 +214,12 @@ class LightningContainer(WorkflowParams,
         """
         return type(self.model).test_step != LightningModule.test_step
 
+    @property
+    def effective_experiment_name(self) -> str:
+        """Returns the name of the AzureML experiment that should be used. This is taken from the commandline
+        argument `experiment`, falling back to the model class name if not set."""
+        return self.experiment or self.model_name
+
 
 class LightningModuleWithOptimizer(LightningModule):
     """
