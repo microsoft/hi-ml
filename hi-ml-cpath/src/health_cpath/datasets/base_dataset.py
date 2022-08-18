@@ -229,7 +229,8 @@ class SlidesDataset(Dataset):
         )
         columns = mandatory_columns.union(optional_columns)
         # SLIDE_ID_COLUMN is used for indexing and is not in df.columns anymore
-        columns_not_found = columns - set(self.dataset_df.columns) - {None} - {self.SLIDE_ID_COLUMN}
+        # None might be in columns if SPLITS_COLUMN is None
+        columns_not_found = columns - set(self.dataset_df.columns) - {None, self.SLIDE_ID_COLUMN}
         if len(columns_not_found) > 0:
             raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
 
