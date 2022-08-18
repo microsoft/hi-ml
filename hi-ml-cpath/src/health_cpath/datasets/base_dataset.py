@@ -177,7 +177,8 @@ class SlidesDataset(Dataset):
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
         :param validate_metadata: Whether to include metadata columns validation in `validate_columns()`. In some cases
-        when only a subset of metadata columns is loaded via custom `dataframe_kwargs`, this can be set to `False` to avoid unnecessary checks.
+        when only a subset of metadata columns is loaded via custom `dataframe_kwargs`, this can be set to `False` to
+        avoid unnecessary checks.
         :param label_column: CSV column name for tile label. Default is `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.

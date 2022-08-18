@@ -76,9 +76,9 @@ class PandaTilesDataset(TilesDataset):
         # Copy columns "left" --> "tile_x" and "top" --> "tile_y"
         # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
         if TileKey.TILE_LEFT in self.dataset_df.columns:
-            self.dataset_df[TilesDataset.TILE_X_COLUMN] = self.dataset_df[TileKey.TILE_LEFT]
+            self.dataset_df = self.dataset_df.assign(tile_x=self.dataset_df[TileKey.TILE_LEFT])
         if TileKey.TILE_TOP in self.dataset_df.columns:
-            self.dataset_df[TilesDataset.TILE_Y_COLUMN] = self.dataset_df[TileKey.TILE_TOP]
+            self.dataset_df = self.dataset_df.assign(tile_y=self.dataset_df[TileKey.TILE_TOP])
         self.validate_columns()
 
 
