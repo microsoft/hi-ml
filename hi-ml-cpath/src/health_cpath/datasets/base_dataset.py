@@ -12,7 +12,7 @@ import torch
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import Dataset
 
-from health_cpath.utils.naming import SlideKey
+from health_cpath.utils.naming import SlideKey, TileKey
 
 
 DEFAULT_TRAIN_SPLIT_LABEL = "train"  # Value used to indicate the training split in `SPLIT_COLUMN`
@@ -134,6 +134,19 @@ class TilesDataset(Dataset):
         class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=slide_labels)
         return torch.as_tensor(class_weights)
 
+    def copy_coordinates_columns(self) -> None:
+        """Copy columns "left" --> "tile_x" and "top" --> "tile_y" to be consistent with TilesDataset `TILE_X_COLUMN`
+        and `TILE_Y_COLUMN`."""
+
+        if TileKey.TILE_LEFT in self.dataset_df.columns:
+            self.dataset_df = self.dataset_df.assign(
+                **{TilesDataset.TILE_X_COLUMN: self.dataset_df[TileKey.TILE_LEFT]}
+            )
+        if TileKey.TILE_TOP in self.dataset_df.columns:
+            self.dataset_df = self.dataset_df.assign(
+                **{TilesDataset.TILE_Y_COLUMN: self.dataset_df[TileKey.TILE_TOP]}
+            )
+
 
 class SlidesDataset(Dataset):
     """Base class for datasets of WSIs, iterating dictionaries of image paths and metadata.
@@ -160,7 +173,6 @@ class SlidesDataset(Dataset):
                  dataset_df: Optional[pd.DataFrame] = None,
                  train: Optional[bool] = None,
                  validate_columns: bool = True,
-                 validate_metadata: bool = True,
                  label_column: str = DEFAULT_LABEL_COLUMN,
                  n_classes: int = 1,
                  dataframe_kwargs: Dict[str, Any] = {}) -> None:
@@ -176,9 +188,6 @@ class SlidesDataset(Dataset):
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
         `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
         for this class
-        :param validate_metadata: Whether to include metadata columns validation in `validate_columns()`. In some cases
-        when only a subset of metadata columns is loaded via custom `dataframe_kwargs`, this can be set to `False` to
-        avoid unnecessary checks.
         :param label_column: CSV column name for tile label. Default is `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
@@ -189,13 +198,13 @@ class SlidesDataset(Dataset):
         self.root_dir = Path(root)
         self.label_column = label_column
         self.n_classes = n_classes
-        self.validate_metadata = validate_metadata
+        self.dataframe_kwargs = dataframe_kwargs
 
         if dataset_df is not None:
             self.dataset_csv = None
         else:
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
-            dataset_df = pd.read_csv(self.dataset_csv, **dataframe_kwargs)
+            dataset_df = pd.read_csv(self.dataset_csv, **self.dataframe_kwargs)
 
         if dataset_df.index.name != self.SLIDE_ID_COLUMN:
             dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
@@ -214,13 +223,13 @@ class SlidesDataset(Dataset):
         If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
         call `validate_columns()` after creating derived columns, for example.
         """
-        columns = [self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN, self.SPLIT_COLUMN]
-        if self.validate_metadata:
-            columns.extend(list(self.METADATA_COLUMNS))
-        columns_not_found = []
-        for column in columns:
-            if column is not None and column not in self.dataset_df.columns:
-                columns_not_found.append(column)
+        mandatory_columns = {self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN, self.SPLIT_COLUMN}
+        optional_columns = (
+            set(self.dataframe_kwargs["usecols"]) if "usecols" in self.dataframe_kwargs else set(self.METADATA_COLUMNS)
+        )
+        columns = mandatory_columns.union(optional_columns)
+        # SLIDE_ID_COLUMN is used for indexing and is not in df.columns anymore
+        columns_not_found = columns - set(self.dataset_df.columns) - {None} - {self.SLIDE_ID_COLUMN}
         if len(columns_not_found) > 0:
             raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
 

@@ -8,10 +8,15 @@ from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 
 
-@pytest.mark.parametrize("version", [0, 1])
-def test_panda_tiles_dataset(version: int, tmp_path: Path) -> None:
-    """Test the PandaTilesDataset class."""
+@pytest.mark.parametrize("tiling_version", [0, 1])
+def test_panda_tiles_dataset(tiling_version: int, tmp_path: Path) -> None:
+    """Test the PandaTilesDataset class.
 
+    :param tiling_version: The version of the tiles dataset, defaults to 0. This is used to support both the old
+    and new tiling scheme where coordinates are stored as tile_x and tile_y in v0 and as tile_left and tile_top
+    in v1.
+    :param tmp_path: The temporary path where to store the mock dataset.
+    """
     _ = MockPandaTilesGenerator(
         dest_data_path=tmp_path,
         mock_type=MockHistoDataType.FAKE,
@@ -20,7 +25,7 @@ def test_panda_tiles_dataset(version: int, tmp_path: Path) -> None:
         n_channels=3,
         tile_size=28,
         img_size=224,
-        version=version,
+        tiling_version=tiling_version,
     )
     base_df = pd.read_csv(tmp_path / PandaTilesDataset.DEFAULT_CSV_FILENAME).set_index(PandaTilesDataset.TILE_ID_COLUMN)
     dataset = PandaTilesDataset(root=tmp_path)
@@ -32,9 +37,11 @@ def test_panda_tiles_dataset(version: int, tmp_path: Path) -> None:
 
     assert coordinates_columns_v0.issubset(dataset_columns)   # v0 columns are always present
 
-    if version == 0:
-        assert base_df_columns == dataset_columns
+    if tiling_version == 0:
+        assert coordinates_columns_v0.issubset(dataset_columns)
         assert not coordinates_columns_v1.issubset(dataset_columns)
-    elif version == 1:
-        assert dataset_columns == base_df_columns.union(coordinates_columns_v0)
+        assert base_df_columns == dataset_columns
+    elif tiling_version == 1:
+        assert coordinates_columns_v1.issubset(dataset_columns)
         assert not coordinates_columns_v0.issubset(base_df_columns)
+        assert dataset_columns == base_df_columns.union(coordinates_columns_v0)

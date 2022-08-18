@@ -92,7 +92,7 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
     test_data_items_are_equal(["train_dataloader", "val_dataloader", "test_dataloader"])
 
 
-def test_validate_metadata_dataframe(tmp_path: Path) -> None:
+def test_validate_columns(tmp_path: Path) -> None:
     _ = MockPandaSlidesGenerator(
         dest_data_path=tmp_path,
         mock_type=MockHistoDataType.FAKE,
@@ -104,9 +104,7 @@ def test_validate_metadata_dataframe(tmp_path: Path) -> None:
         background_val=255,
         tiles_pos_type=TilesPositioningType.RANDOM,
     )
-    dataframe_kwargs = dict(
-        usecols=[PandaDataset.SLIDE_ID_COLUMN, PandaDataset.METADATA_COLUMNS[1], PandaDataset.MASK_COLUMN]
-    )
+    usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
     with pytest.raises(ValueError, match=r"Expected columns"):
-        _ = PandaDataset(root=tmp_path, dataframe_kwargs=dataframe_kwargs, validate_metadata=True)
-    _ = PandaDataset(root=tmp_path, dataframe_kwargs=dataframe_kwargs, validate_metadata=False)
+        _ = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols})
+    _ = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + [PandaDataset.METADATA_COLUMNS[1]]})

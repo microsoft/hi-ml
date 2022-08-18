@@ -17,15 +17,16 @@ from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHist
 class MockPandaTilesGenerator(MockHistoDataGenerator):
     """Generator class to create mock tiles dataset on the fly. The tiles are positioned randomly in a wsi grid."""
 
-    def __init__(self, img_size: int = 224, version: int = 0, **kwargs: Any) -> None:
+    def __init__(self, img_size: int = 224, tiling_version: int = 0, **kwargs: Any) -> None:
         """
         :param img_size: The whole slide image resolution, defaults to 224.
-        :param version: The version of the tiles dataset, defaults to 0. This is used to support both the old and new
-        tiling scheme where coordinates are stored as tile_x and tile_y in v0 and as tile_left and tile_top in v1.
+        :param tiling_version: The version of the tiles dataset, defaults to 0. This is used to support both the old
+            and new tiling scheme where coordinates are stored as tile_x and tile_y in v0 and as tile_left and tile_top
+            in v1.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
         self.img_size = img_size
-        self.version = version
+        self.tiling_version = tiling_version
         super().__init__(**kwargs)
 
     def validate(self) -> None:
@@ -36,12 +37,12 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             f"The image of size {self.img_size} can't contain more than {(self.img_size // self.tile_size)**2} tiles."
             f"Choose a number of tiles 0 < n_tiles <= {(self.img_size // self.tile_size)**2} "
         )
-        assert self.version in [0, 1], f"Version should be 0 or 1, got {self.version}"
+        assert self.tiling_version in [0, 1], f"Tiling version should be 0 or 1, got {self.tiling_version}"
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
-        x_column = TileKey.TILE_LEFT if self.version == 1 else PandaTilesDataset.TILE_X_COLUMN
-        y_column = TileKey.TILE_TOP if self.version == 1 else PandaTilesDataset.TILE_Y_COLUMN
+        x_column = TileKey.TILE_LEFT if self.tiling_version == 1 else PandaTilesDataset.TILE_X_COLUMN
+        y_column = TileKey.TILE_TOP if self.tiling_version == 1 else PandaTilesDataset.TILE_Y_COLUMN
         csv_columns = [
             PandaTilesDataset.SLIDE_ID_COLUMN,
             PandaTilesDataset.TILE_ID_COLUMN,
