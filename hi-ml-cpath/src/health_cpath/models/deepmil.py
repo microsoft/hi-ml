@@ -190,29 +190,32 @@ class BaseDeepMILModule(LightningModule):
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
-            return nn.ModuleDict({MetricsKey.ACC: Accuracy(num_classes=self.n_classes),
-                                  MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
-                                  MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted'),
-                                  MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
-                                  # Quadratic Weighted Kappa (QWK) used in PANDA challenge
-                                  # is calculated using Cohen's Kappa with quadratic weights
-                                  # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
-                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes)})
+            return nn.ModuleDict({
+                MetricsKey.ACC: Accuracy(num_classes=self.n_classes),
+                MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
+                MetricsKey.AVERAGE_PRECISION: AveragePrecision(num_classes=self.n_classes),
+                # Quadratic Weighted Kappa (QWK) used in PANDA challenge
+                # is calculated using Cohen's Kappa with quadratic weights
+                # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
+                MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
+                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes),
+                # Metrics below are computed for multi-class case only
+                MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
+                MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted')})
         else:
             threshold = 0.5
-            return nn.ModuleDict({MetricsKey.ACC: Accuracy(threshold=threshold),
-                                  MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
-                                  MetricsKey.PRECISION: Precision(threshold=threshold),
-                                  MetricsKey.RECALL: Recall(threshold=threshold),
-                                  MetricsKey.F1: F1(threshold=threshold),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
-                                  # Average precision is a measure of area under the PR curve
-                                  # https://sanchom.wordpress.com/tag/average-precision/
-                                  MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
-                                  MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic',
-                                                                    threshold=threshold),
-                                  MetricsKey.SPECIFICITY: Specificity(num_classes=self.n_classes, threshold=threshold)})
+            return nn.ModuleDict({
+                MetricsKey.ACC: Accuracy(threshold=threshold),
+                MetricsKey.AUROC: AUROC(num_classes=None),
+                # Average precision is a measure of area under the PR curve
+                MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
+                MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic', threshold=threshold),
+                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
+                # Metrics below are computed for binary case only
+                MetricsKey.PRECISION: Precision(threshold=threshold),
+                MetricsKey.RECALL: Recall(threshold=threshold),
+                MetricsKey.F1: F1(threshold=threshold),
+                MetricsKey.SPECIFICITY: Specificity(threshold=threshold)})
 
     def log_metrics(self, stage: str) -> None:
         valid_stages = [stage for stage in ModelKey]
