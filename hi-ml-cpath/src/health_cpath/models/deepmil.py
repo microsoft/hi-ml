@@ -212,9 +212,9 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic', threshold=threshold),
                 MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
                 # Metrics below are computed for binary case only
+                MetricsKey.F1: F1(threshold=threshold),
                 MetricsKey.PRECISION: Precision(threshold=threshold),
                 MetricsKey.RECALL: Recall(threshold=threshold),
-                MetricsKey.F1: F1(threshold=threshold),
                 MetricsKey.SPECIFICITY: Specificity(threshold=threshold)})
 
     def log_metrics(self, stage: str) -> None:
