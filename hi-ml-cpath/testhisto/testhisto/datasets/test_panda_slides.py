@@ -14,6 +14,7 @@ import torch
 from pytorch_lightning import seed_everything
 
 from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
+from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
@@ -89,3 +90,23 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
     # When using a fixed see, all 3 dataloaders should return idential items. Validation and test dataloader
     # are at present not randomized, but checking those as well just in case.
     test_data_items_are_equal(["train_dataloader", "val_dataloader", "test_dataloader"])
+
+
+def test_validate_metadata_dataframe(tmp_path: Path) -> None:
+    _ = MockPandaSlidesGenerator(
+        dest_data_path=tmp_path,
+        mock_type=MockHistoDataType.FAKE,
+        n_tiles=4,
+        n_slides=10,
+        n_channels=3,
+        n_levels=3,
+        tile_size=28,
+        background_val=255,
+        tiles_pos_type=TilesPositioningType.RANDOM,
+    )
+    dataframe_kwargs = dict(
+        usecols=[PandaDataset.SLIDE_ID_COLUMN, PandaDataset.METADATA_COLUMNS[1], PandaDataset.MASK_COLUMN]
+    )
+    with pytest.raises(ValueError, match=r"Expected columns"):
+        _ = PandaDataset(root=tmp_path, dataframe_kwargs=dataframe_kwargs, validate_metadata=True)
+    _ = PandaDataset(root=tmp_path, dataframe_kwargs=dataframe_kwargs, validate_metadata=False)

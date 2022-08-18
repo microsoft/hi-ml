@@ -42,9 +42,10 @@ class PandaDataset(SlidesDataset):
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  label_column: str = "isup_grade",
-                 n_classes: int = 6) -> None:
+                 n_classes: int = 6,
+                 **kwargs: Any) -> None:
         super().__init__(root, dataset_csv, dataset_df, validate_columns=False, label_column=label_column,
-                         n_classes=n_classes)
+                         n_classes=n_classes, **kwargs)
         # PANDA CSV does not come with paths for image and mask files
         slide_ids = self.dataset_df.index
         self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + slide_ids + ".tiff"
