@@ -123,7 +123,7 @@ def slide_node() -> SlideNode:
     set_random_seed(0)
     tile_size = (3, 224, 224)
     num_top_tiles = 12
-    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.5, pred_prob_score=0.5, true_label=1, pred_label=1)
+    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0)
     top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.89, 0.88]
     slide_node.top_tiles = [
         TileNode(attn=top_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(num_top_tiles)
@@ -149,11 +149,11 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
     top_tiles_fig = plot_attention_tiles(
-        case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+        case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
     )
     assert top_tiles_fig is not None
     bottom_tiles_fig = plot_attention_tiles(
-        case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+        case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
     )
     assert bottom_tiles_fig is not None
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
@@ -166,7 +166,7 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
     slide_node.bottom_tiles = []
     with caplog.at_level(logging.WARNING):
         bottom_tiles_fig = plot_attention_tiles(
-            case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+            case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
         )
         assert bottom_tiles_fig is None
         assert expected_warning in caplog.text
@@ -174,7 +174,7 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
     slide_node.top_tiles = []
     with caplog.at_level(logging.WARNING):
         top_tiles_fig = plot_attention_tiles(
-            case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+            case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
         )
         assert top_tiles_fig is None
         assert expected_warning in caplog.text
@@ -184,8 +184,8 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
 def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.5, pred_prob_score=0.5, true_label=1, pred_label=1)
-    fig = plot_slide(case="TP", slide_node=slide_node, slide_image=slide_image, scale=scale)
+    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0)
+    fig = plot_slide(case="FN", slide_node=slide_node, slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_slide.png"
     resize_and_save(5, 5, file)
@@ -201,12 +201,12 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
     slide_node = SlideNode(
-        slide_id=1, gt_prob_score=0.5, pred_prob_score=0.5, true_label=1, pred_label=1  # type: ignore
+        slide_id=1, gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0  # type: ignore
     )
     location_bbox = [100, 100]
     tile_size = 224
     level = 0
-    fig = plot_heatmap_overlay(case="TP",
+    fig = plot_heatmap_overlay(case="FN",
                                slide_node=slide_node,
                                slide_image=slide_image,
                                results=test_dict,  # type: ignore
