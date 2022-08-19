@@ -203,19 +203,18 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
                 MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted')})
         else:
-            threshold = 0.5
             return nn.ModuleDict({
-                MetricsKey.ACC: Accuracy(threshold=threshold),
+                MetricsKey.ACC: Accuracy(),
                 MetricsKey.AUROC: AUROC(num_classes=None),
                 # Average precision is a measure of area under the PR curve
                 MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
-                MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic', threshold=threshold),
-                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold),
+                MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic'),
+                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2),
                 # Metrics below are computed for binary case only
-                MetricsKey.F1: F1(threshold=threshold),
-                MetricsKey.PRECISION: Precision(threshold=threshold),
-                MetricsKey.RECALL: Recall(threshold=threshold),
-                MetricsKey.SPECIFICITY: Specificity(threshold=threshold)})
+                MetricsKey.F1: F1(),
+                MetricsKey.PRECISION: Precision(),
+                MetricsKey.RECALL: Recall(),
+                MetricsKey.SPECIFICITY: Specificity()})
 
     def log_metrics(self, stage: str) -> None:
         valid_stages = [stage for stage in ModelKey]

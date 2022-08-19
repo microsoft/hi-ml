@@ -68,7 +68,7 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
         true_labels,
         pred_labels,
         labels=all_potential_labels,
-        normalize="pred"
+        normalize="true"
     )
 
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
