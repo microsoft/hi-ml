@@ -11,7 +11,6 @@ from torchvision.datasets.vision import VisionDataset
 
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.models.transforms import load_pil_image
-from health_cpath.utils.naming import TileKey
 
 from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex
 
@@ -73,12 +72,7 @@ class PandaTilesDataset(TilesDataset):
             dataset_df_filtered = self.dataset_df.sample(n=df_length_random_subset_fraction)
             self.dataset_df = dataset_df_filtered
 
-        # Copy columns "left" --> "tile_x" and "top" --> "tile_y"
-        # to be consistent with TilesDataset `TILE_X_COLUMN` and `TILE_Y_COLUMN`
-        if TileKey.TILE_LEFT in self.dataset_df.columns:
-            self.dataset_df[TilesDataset.TILE_X_COLUMN] = self.dataset_df[TileKey.TILE_LEFT]
-        if TileKey.TILE_TOP in self.dataset_df.columns:
-            self.dataset_df[TilesDataset.TILE_Y_COLUMN] = self.dataset_df[TileKey.TILE_TOP]
+        self.copy_coordinates_columns()
         self.validate_columns()
 
 
