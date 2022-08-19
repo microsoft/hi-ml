@@ -81,9 +81,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
         isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PANDA_N_CLASSES + 1,)
-        mock_metadata: dict = {col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, *PandaDataset.METADATA_COLUMNS]}
+        mock_metadata: dict = {
+            col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN, *PandaDataset.METADATA_COLUMNS]
+        }
         for slide_id in range(self.n_slides):
             mock_metadata[PandaDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
+            mock_metadata[PandaDataset.MASK_COLUMN].append(f"_{slide_id}_mask")
             mock_metadata[self.DATA_PROVIDER].append(np.random.choice(self.DATA_PROVIDERS_VALUES))
             mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
             mock_metadata[self.GLEASON_SCORE].append(np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]]))
