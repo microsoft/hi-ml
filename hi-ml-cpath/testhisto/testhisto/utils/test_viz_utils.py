@@ -180,19 +180,37 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
         assert expected_warning in caplog.text
 
 
-@pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
-def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
+@pytest.mark.parametrize(
+    "scale, gt_prob, pred_prob, gt_label, pred_label, case",
+    [
+        (0.1, 0.99, 0.99, 1, 1, "TP"),
+        (1.2, 0.95, 0.95, 0, 0, "TN"),
+        (2.4, 0.04, 0.96, 0, 1, "FP"),
+        (3.6, 0.03, 0.97, 1, 0, "FN"),
+    ],
+)
+def test_plot_slide(
+    test_output_dirs: OutputFolderForTests,
+    scale: int,
+    gt_prob: float,
+    pred_prob: float,
+    case: str,
+    gt_label: int,
+    pred_label: int,
+) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0)
-    fig = plot_slide(case="FN", slide_node=slide_node, slide_image=slide_image, scale=scale)
+    slide_node = SlideNode(
+        slide_id="slide_0", gt_prob_score=gt_prob, pred_prob_score=pred_prob, true_label=gt_label, pred_label=pred_label
+    )
+    fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_slide.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}_{case}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
