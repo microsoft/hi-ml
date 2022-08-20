@@ -162,15 +162,6 @@ class MLRunner:
             pass
         return multiple_trainloader_mode
 
-    def create_azureml_run_for_logging(self) -> Optional[Run]:
-        """Create an AzureML run for logging, within the chosen experiment. The display name is set to the tag value,
-        or otherwise the default run display name is used."""
-        run = create_aml_run_object(experiment_name=self.container.effective_experiment_name)
-        # Display name should already be set when creating the run object, but this does not happen.
-        # In unit tests, the run has the expected display name, but not here. Hence, set it again.
-        run.display_name = self.container.tag if self.container.tag else None
-        return run
-
     def init_training(self) -> None:
         """
         Execute some bookkeeping tasks only once if running distributed and initialize the runner's trainer object.
@@ -195,7 +186,11 @@ class MLRunner:
         # class because two of those logger objects will be created, so training and inference metrics would be logged
         # in different runs.
         if self.container.log_from_vm:
-            self.azureml_run_for_logging = self.create_azureml_run_for_logging()
+            run = create_aml_run_object(experiment_name=self.container.effective_experiment_name)
+            # Display name should already be set when creating the run object, but this does not happen.
+            # In unit tests, the run has the expected display name, but not here. Hence, set it again.
+            run.display_name = self.container.tag if self.container.tag else None
+            self.azureml_run_for_logging = run
 
         if not self.container.run_inference_only:
 
