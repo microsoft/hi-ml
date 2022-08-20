@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
+from azureml._restclient.constants import RunStatus
+
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -323,19 +325,20 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     """Test if the AzureML logger is called when the experiment is run outside AzureML."""
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
+    container.max_epochs = 1
     # Mimic an experiment name given on the command line.
     experiment_name = "unittest"
     container.experiment = experiment_name
     # The tag is used to identify the run, similar to the behaviour when submitting a run to AzureML.
-    tag = "tag"
+    tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
     container.log_from_vm = log_from_vm
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
-    # The PL trainer object is created in the init_training method.
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        runner.init_training()
+        runner.run()
+    # The PL trainer object is created in the init_training method.
     # Check that the AzureML logger is set up correctly.
     assert runner.trainer is not None
     assert runner.trainer.loggers is not None
@@ -344,10 +347,17 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     assert isinstance(logger, AzureMLLogger)
     if log_from_vm:
         assert logger.run is not None
+        # Check that all user supplied data (experiment and display name) are respected.
         assert logger.run.experiment is not None
         assert logger.run.experiment.name == experiment_name
-        assert logger.run.name == tag
-        # At this point, the run is not yet submitted to AzureML, and has not left any traces. No need to delete.
+        assert logger.run.display_name == tag
+        # Both trainig and inference metrics must be logged in the same Run object.
+        metrics = logger.run.get_metrics()
+        assert "test_mse" in metrics
+        assert "loss" in metrics
+        # The run must have been correctly marked as completed. However, I did not find a way to check this.
+        # When we get here, the run is still returning "Running" as the status, even though it is completed in the UI.
+        # assert logger.run.status == RunStatus.COMPLETED
     else:
         assert logger.run is None
 
