@@ -74,10 +74,10 @@ class AzureMLLogger(LightningLoggerBase):
             if run is None:
                 try:
                     self.run = create_aml_run_object(experiment_name=experiment_name,
-                                                        run_name=run_name,
-                                                        workspace=workspace,
-                                                        workspace_config_path=workspace_config_path,
-                                                        snapshot_directory=snapshot_directory)
+                                                     run_name=run_name,
+                                                     workspace=workspace,
+                                                     workspace_config_path=workspace_config_path,
+                                                     snapshot_directory=snapshot_directory)
                     # Display name should already be set when creating the run object, but this does not happen.
                     # In unit tests, the run has the expected display name, but not here. Hence, set it again.
                     self.run.display_name = run_name
