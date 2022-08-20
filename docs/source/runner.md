@@ -249,3 +249,34 @@ specified checkpoint. A misconfiguration exception will be raised otherwise:
 ```text
 pytorch_lightning.utilities.exceptions.MisconfigurationException: You restored a checkpoint with current_epoch=19, but you have set Trainer(max_epochs=4).
 ```
+
+## Logging to AzureML when running outside AzureML
+
+The runner offers the ability to log metrics to AzureML, even if the present training is not running
+inside of AzureML. This adds an additional level of traceability for runs on GPU VMs, where there is otherwise
+no record of any past training.
+
+You can trigger this behaviour by specifying the `--log_from_vm` flag. For the `HelloWorld` model, this
+will look like:
+
+```bash
+himl-runner --model=HelloWorld --log_from_vm
+```
+
+For logging to work, you need have a `config.json` file in the current working directory (or one of its
+parent folders) that specifies the AzureML workspace itself. When starting the runner, you will be asked
+to authenticate to AzureML.
+
+There are two additional flags that can be used to control the logging behaviour:
+
+- The `--experiment` flag sets which AzureML experiment to log to. By default, the experiment name will be
+    the name of the model class (`HelloWorld` in the above example).
+- The `--tag` flag sets the display name for the AzureML run. You can use that to give your run a memorable name,
+    and later easily find it in the AzureML UI.
+
+Taken together, the above commandline will log to the experiment `my_experiment`, in a run that is showing
+as `my_first_run`.
+
+```bash
+himl-runner --model=HelloWorld --log_from_vm --experiment=my_experiment --tag=my_first_run
+```
