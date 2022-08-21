@@ -315,7 +315,6 @@ def test_runner_end_to_end() -> None:
         runner.setup()
         runner.init_training()
         runner.run_training()
-        assert True
 
 
 @pytest.mark.parametrize("log_from_vm", [True, False])
@@ -331,10 +330,9 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
     container.log_from_vm = log_from_vm
-    runner = MLRunner(experiment_config=experiment_config, container=container)
-    runner.setup()
-    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+    with patch("health_ml.utils.checkpoint_utils.get_workspace", return_value=DEFAULT_WORKSPACE.workspace):
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
         runner.run()
     # The PL trainer object is created in the init_training method.
     # Check that the AzureML logger is set up correctly.

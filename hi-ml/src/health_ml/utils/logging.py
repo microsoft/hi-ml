@@ -67,11 +67,15 @@ class AzureMLLogger(LightningLoggerBase):
         super().__init__()
         self.is_running_in_azure_ml = is_running_in_azure_ml()
         self.run: Optional[Run] = None
-        self.has_custom_run = False
+        self.has_user_provided_run = False
+        self.enable_logging_outside_azure_ml = enable_logging_outside_azure_ml
         if self.is_running_in_azure_ml:
             self.run = RUN_CONTEXT
         elif enable_logging_outside_azure_ml:
-            if run is None:
+            if run is not None:
+                self.run = run
+                self.has_user_provided_run = True
+            else:
                 try:
                     self.run = create_aml_run_object(experiment_name=experiment_name,
                                                      run_name=run_name,
@@ -81,12 +85,9 @@ class AzureMLLogger(LightningLoggerBase):
                     # Display name should already be set when creating the run object, but this does not happen.
                     # In unit tests, the run has the expected display name, but not here. Hence, set it again.
                     self.run.display_name = run_name
-                    self.has_custom_run = True
                 except Exception:
                     logging.error("Unable to create an AzureML run to store the results.")
                     raise
-            else:
-                self.run = run
             print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
             print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
         else:
@@ -139,12 +140,14 @@ class AzureMLLogger(LightningLoggerBase):
         return 0
 
     def finalize(self, status: str) -> None:
-        if self.run is not None:
-            if self.has_custom_run:
+        if self.enable_logging_outside_azure_ml and not self.is_running_in_azure_ml and self.run is not None:
+            if self.has_user_provided_run:
+                # The logger uses a run that was provided by the user: Flush it, but do not complete it.
+                # The user should complete the run after finishing the experiment.
+                self.run.flush()
+            else:
                 # Run.complete should only be called if we created an AzureML run here in the constructor.
                 self.run.complete()
-            else:
-                self.run.flush()
 
     def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
         """
