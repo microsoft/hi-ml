@@ -330,9 +330,13 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
     container.log_from_vm = log_from_vm
-    with patch("health_ml.utils.checkpoint_utils.get_workspace", return_value=DEFAULT_WORKSPACE.workspace):
-        runner = MLRunner(experiment_config=experiment_config, container=container)
-        runner.setup()
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    # When logging to AzureML, need to provide the unit test AML workspace.
+    # When not logging to AzureML, no workspace (and no authentication) should be needed.
+    if log_from_vm:
+        with patch("health_azure.utils.get_workspace", return_value=DEFAULT_WORKSPACE.workspace):
+            runner.run()
+    else:
         runner.run()
     # The PL trainer object is created in the init_training method.
     # Check that the AzureML logger is set up correctly.
