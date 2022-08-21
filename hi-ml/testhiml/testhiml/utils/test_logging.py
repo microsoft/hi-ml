@@ -143,7 +143,7 @@ def test_azureml_logger() -> None:
     logger = create_mock_logger()
     # On all build agents, this should not be detected as an AzureML run.
     assert not logger.is_running_in_azure_ml
-    assert logger.has_user_provided_run
+    assert not logger.has_user_provided_run
     logger.log_metrics({"foo": 1.0})
     assert logger.run is not None
     logger.run.log.assert_called_once_with("foo", 1.0, step=None)
@@ -301,7 +301,7 @@ def test_azureml_logger_actual_run() -> None:
     assert logger.run != RUN_CONTEXT
     assert isinstance(logger.run, Run)
     assert logger.run.experiment.name == "azureml_logger"
-    assert logger.has_user_provided_run
+    assert not logger.has_user_provided_run
     expected_metrics = {"foo": 1.0, "bar": 2.0}
     logger.log_metrics(expected_metrics)
     logger.run.flush()
