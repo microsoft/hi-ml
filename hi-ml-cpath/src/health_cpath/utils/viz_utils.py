@@ -95,6 +95,18 @@ def plot_scores_hist(
     return fig
 
 
+def _get_histo_plot_title(case: str, slide_node: SlideNode) -> str:
+    """Return the standard title for histopathology plots.
+
+    :param case: case id e.g., TP, FN, FP, TN
+    :param slide_node: SlideNode object that encapsulates the slide information
+    """
+    return (
+        f"{case}: {slide_node.slide_id} P={slide_node.pred_prob_score:.2f} \n Predicted label: {slide_node.pred_label} "
+        f"True label: {slide_node.true_label}"
+    )
+
+
 def plot_attention_tiles(
     case: str, slide_node: SlideNode, top: bool, num_columns: int, figsize: Tuple[int, int]
 ) -> Optional[plt.Figure]:
@@ -116,11 +128,7 @@ def plot_attention_tiles(
         return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
-
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     for ax, tile_node in zip(axs.flat, tile_nodes):
         ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
         ax.set_title("%.6f" % tile_node.attn)
@@ -141,10 +149,7 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
     fig, ax = plt.subplots()
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     ax.set_axis_off()
     original_size = fig.get_size_inches()
     fig.set_size_inches((original_size[0] * scale, original_size[1] * scale))
@@ -173,10 +178,8 @@ def plot_heatmap_overlay(
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
+
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
     ax.set_xlim(0, slide_image.shape[1])

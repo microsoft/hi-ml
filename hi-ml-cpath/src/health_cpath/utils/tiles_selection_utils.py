@@ -42,23 +42,27 @@ class SlideNode:
     """Data structure class for slide nodes used by `TopBottomTilesHandler` to store top and bottom slides by
     probability score. """
 
-    def __init__(self, slide_id: str, prob_score: float, true_label: int, pred_label: int) -> None:
+    def __init__(
+        self, slide_id: str, gt_prob_score: float, pred_prob_score: float, true_label: int, pred_label: int
+    ) -> None:
         """
-        :param prob_score: The probability score assigned to the slide node. This scalar defines the order of the
-            slide_node among the nodes in the max/min heap.
+        :param gt_prob_score: The probability score assigned to ground truth label of slide node. This scalar defines
+            the order of the slide_node among the nodes in the max/min heap.
+        :param pred_prob_score: The probability score assigned to predicted label of slide node.
         :param slide_id: The slide id in the data cohort.
         :param true_label: The ground truth label of the slide node.
         :param pred_label: The label predicted by the model.
         """
         self.slide_id = slide_id
-        self.prob_score = prob_score
+        self.gt_prob_score = gt_prob_score
+        self.pred_prob_score = pred_prob_score
         self.true_label = true_label
         self.pred_label = pred_label
         self.top_tiles: List[TileNode] = []
         self.bottom_tiles: List[TileNode] = []
 
     def __lt__(self, other: "SlideNode") -> bool:
-        return self.prob_score < other.prob_score
+        return self.gt_prob_score < other.gt_prob_score
 
     def update_selected_tiles(self, tiles: Tensor, attn_scores: Tensor, num_top_tiles: int) -> None:
         """Update top and bottom k tiles values from a set of tiles and their assigned attention scores.
@@ -77,7 +81,7 @@ class SlideNode:
 
     def _shallow_copy(self) -> "SlideNode":
         """Returns a shallow copy of the current slide node contaning only the slide_id and its probability score."""
-        return SlideNode(self.slide_id, self.prob_score, self.true_label, self.pred_label)
+        return SlideNode(self.slide_id, self.gt_prob_score, self.pred_prob_score, self.true_label, self.pred_label)
 
 
 SlideOrTileKey = Union[SlideKey, TileKey]
@@ -136,7 +140,7 @@ class TilesSelector:
     ) -> None:
         """Update the selected slides of a given class label on the fly by updating the content of class_slides_heap.
         First, we push a shallow slide_node into the slides_heaps[gt_label]. The order in slides_heaps[gt_label] is
-        defined by the slide_node.prob_score that is positive in top_slides_heaps nodes and negative in
+        defined by the slide_node.gt_prob_score that is positive in top_slides_heaps nodes and negative in
         bottom_slides_heaps nodes.
         Second, we check if we exceeded self.num_top_slides to be selected.
             If so, we update the slides_node top and bottom tiles only if it has been kept in the heap.
@@ -147,7 +151,7 @@ class TilesSelector:
         :param tiles: Tiles of a given whole slide retrieved from the current validation or test batch.
             (n_tiles, channels, height, width)
         :param attn_scores: The tiles attention scores to determine top and bottom tiles. (n_tiles, )
-        :param slide_node: A shallow version of slide_node that contains only slide_id and its assigned prob_score.
+        :param slide_node: A shallow version of slide_node that contains only slide_id and additional metadata.
         """
         heapq.heappush(class_slides_heap, slide_node)
         if len(class_slides_heap) == self.num_slides + 1:
@@ -170,30 +174,33 @@ class TilesSelector:
                 slide_ids = [slide_id[0] for slide_id in slide_ids]  # to account for repetitions in tiles pipeline
             batch_size = len(batch[SlideKey.IMAGE])
             for i in range(batch_size):
-                label = results[ResultsKey.TRUE_LABEL][i].item()
-                probs_gt_label = results[ResultsKey.CLASS_PROBS][:, label][i].item()
+                gt_label = results[ResultsKey.TRUE_LABEL][i].item()
+                pred_label = results[ResultsKey.PRED_LABEL][i].item()
+                gt_prob_score = results[ResultsKey.CLASS_PROBS][:, gt_label][i].item()
+                pred_prob_score = results[ResultsKey.CLASS_PROBS][:, pred_label][i].item()
                 tiles = batch[SlideKey.IMAGE][i]
                 attn_scores = results[ResultsKey.BAG_ATTN][i].squeeze(0)
-                pred_label = results[ResultsKey.PRED_LABEL][i].item()
                 self._update_label_slides(
-                    class_slides_heap=self.top_slides_heaps[label],
+                    class_slides_heap=self.top_slides_heaps[gt_label],
                     tiles=tiles,
                     attn_scores=attn_scores,
                     slide_node=SlideNode(
                         slide_id=slide_ids[i],
-                        prob_score=probs_gt_label,
-                        true_label=label,
+                        gt_prob_score=gt_prob_score,
+                        pred_prob_score=pred_prob_score,
+                        true_label=gt_label,
                         pred_label=pred_label,
                     ),
                 )
                 self._update_label_slides(
-                    class_slides_heap=self.bottom_slides_heaps[label],
+                    class_slides_heap=self.bottom_slides_heaps[gt_label],
                     tiles=tiles,
                     attn_scores=attn_scores,
                     slide_node=SlideNode(
                         slide_id=slide_ids[i],
-                        prob_score=-probs_gt_label,  # negative score for bottom slides to reverse order in max heap
-                        true_label=label,
+                        gt_prob_score=-gt_prob_score,  # negative score for bottom slides to reverse order in max heap
+                        pred_prob_score=pred_prob_score,
+                        true_label=gt_label,
                         pred_label=pred_label,
                     ),
                 )
