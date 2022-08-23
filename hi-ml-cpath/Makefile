@@ -98,6 +98,10 @@ define TCGACRCKSSLMIL_ARGS
 --model=health_cpath.TcgaCrckSSLMIL --ssl_checkpoint_run_id=${SSL_CKPT_RUN_ID_CRCK}
 endef
 
+define TCGACRCKIMANEGETMIL_ARGS
+--model=health_cpath.TcgaCrckImageNetMIL --is_caching=False --batch_size=2 --max_num_gpus=1
+endef
+
 define CRCKSIMCLR_ARGS
 --model=SSL.CRCK_SimCLR
 endef
@@ -159,7 +163,7 @@ define AML_MULTIPLE_DEVICE_ARGS
 --cluster=dedicated-nc24s-v2 --wait_for_completion
 endef
 
-define DEEPSMILEPANDA_SMOKE_TEST_ARGS
+define DEEPSMILEDEFAULT_SMOKE_TEST_ARGS
 --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 \
 --max_bag_size_inf=3
 endef
@@ -180,21 +184,21 @@ endef
 # The following test takes around 5 minutes
 smoke_test_slidespandaimagenetmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEPANDA_SMOKE_TEST_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS};}
 
 # Once running in AML the following test takes around 6 minutes
 smoke_test_slidespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEPANDA_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
 
 # The following test takes about 6 minutes
 smoke_test_tilespandaimagenetmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEPANDA_SMOKE_TEST_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS};}
 
 smoke_test_tilespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEPANDA_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS};}
 
 # The following test takes about 30 seconds
 smoke_test_tcgacrcksslmil_local:
@@ -204,6 +208,14 @@ smoke_test_tcgacrcksslmil_local:
 smoke_test_tcgacrcksslmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+
+smoke_test_tcgacrckimagenetmil_local:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKIMANEGETMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS};}
+
+smoke_test_tcgacrckimagenetmil_aml:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKIMANEGETMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
 
 # The following test takes about 3 minutes
 smoke_test_crck_simclr_local:
@@ -222,6 +234,6 @@ smoke_test_crck_flexible_finetuning_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} ${CRCK_TUNING_ARGS};}
 
-smoke tests local: smoke_test_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local
+smoke tests local: smoke_test_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local smoke_test_tcgacrckimagenetmil_local
 
-smoke tests AML: smoke_test_slidespandaimagenetmil_aml smoke_test_tilespandaimagenetmil_aml smoke_test_tcgacrcksslmil_aml smoke_test_crck_simclr_aml smoke_test_crck_flexible_finetuning_aml
+smoke tests AML: smoke_test_slidespandaimagenetmil_aml smoke_test_tilespandaimagenetmil_aml smoke_test_tcgacrcksslmil_aml smoke_test_crck_simclr_aml smoke_test_crck_flexible_finetuning_aml smoke_test_tcgacrckimagenetmil_aml
