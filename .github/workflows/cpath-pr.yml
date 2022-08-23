@@ -151,7 +151,7 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tilespandaimagenetmil_aml
 
-  smoke_test_tcgacrckimagenetmil_aml:
+  smoke_test_tcgacrckimagenetmil:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
