@@ -151,6 +151,22 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tilespandaimagenetmil_aml
 
+  smoke_test_tcgacrckimagenetmil:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up smoke test environment
+        id: setup-tiles-smoke-test-environment
+        uses: ./.github/actions/prepare_smoke_test_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_tcgacrckimagenetmil_aml
+
   smoke_test_tcgacrcksslmil_aml:
     runs-on: ubuntu-20.04
     steps:
