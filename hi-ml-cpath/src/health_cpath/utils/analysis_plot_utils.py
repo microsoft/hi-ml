@@ -128,11 +128,11 @@ def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> 
 
 
 def plot_pr_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
-    """Plot precision-recall curve for the given labels and scores, with AUROC in the line legend.
+    """Plot precision-recall curve for the given labels and scores, with AUPR in the line legend.
 
     :param labels: The true binary labels.
     :param scores: Scores predicted by the model.
-    :param label: An line identifier to be displayed in the legend.
+    :param label: A line identifier to be displayed in the legend.
     :param ax: `Axes` object onto which to plot.
     """
     precision, recall, _ = precision_recall_curve(labels, scores)

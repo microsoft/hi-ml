@@ -8,6 +8,7 @@ from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
 
 from sklearn.metrics import confusion_matrix
 from torch import Tensor
+import matplotlib.pyplot as plt
 
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.utils.viz_utils import (
@@ -17,6 +18,7 @@ from health_cpath.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
+from health_cpath.utils.analysis_plot_utils import plot_pr_curve
 from health_cpath.utils.naming import PlotOption, ResultsKey, SlideKey
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from health_cpath.utils.viz_utils import load_image_dict, save_figure
@@ -45,6 +47,22 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
     """
     fig = plot_scores_hist(results)
     save_figure(fig=fig, figpath=figures_dir / "hist_scores.png")
+
+
+def save_pr_curve(results: ResultsType, figures_dir: Path) -> None:
+    """Plots and saves PR curve figure in its dedicated directory.
+''
+    :param results: List that contains slide_level dicts
+    :param figures_dir: The path to the directory where to save the histogram scores.
+    """
+    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
+    fig, ax = plt.subplots()
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.legend()
+    plot_pr_curve(true_labels, scores, label='', ax=ax)
+    save_figure(fig=fig, figpath=figures_dir / "pr_curve.png")
 
 
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path) -> None:
@@ -220,6 +238,10 @@ class DeepMILPlotsHandler:
             if PlotOption.CONFUSION_MATRIX in self.plot_options:
                 assert self.class_names
                 save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir)
+
+            if PlotOption.PR_CURVE in self.plot_options:
+                assert self.class_names
+                save_pr_curve(results, figures_dir=figures_dir)
 
             if tiles_selector:
                 for class_id in range(tiles_selector.n_classes):

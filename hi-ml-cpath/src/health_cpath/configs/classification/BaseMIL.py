@@ -124,7 +124,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
 
     def get_test_plot_options(self) -> Set[PlotOption]:
-        options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
+        options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX, PlotOption.PR_CURVE}
         if self.num_top_slides > 0:
             options.add(PlotOption.TOP_BOTTOM_TILES)
         return options
