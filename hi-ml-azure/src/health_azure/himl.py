@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azureml._base_sdk_common import user_agent
+from azureml.contrib.aisc.aiscrunconfig import AISuperComputerConfiguration
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
@@ -251,25 +252,28 @@ def create_crossval_hyperdrive_config(num_splits: int,
     )
 
 
-def create_script_run(snapshot_root_directory: Optional[Path] = None,
-                      entry_script: Optional[PathOrString] = None,
-                      script_params: Optional[List[str]] = None) -> ScriptRunConfig:
+def _validate_snapshot_root_directory(snapshot_root_directory: Optional[Path] = None) -> Path:
     """
-    Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
-    its arguments.
+    Returns either the input snapshot_root_directory if that is not None, otherwise returns the current working directory.
 
-    :param entry_script: The script that should be run in AzureML.
-    :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
-        All Python code that the script uses must be copied over.
-    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv, omitting the --azureml flag.
-    :return:
+    :return: A Path object with either the input snapshot root directory or the current working directory.
     """
     if snapshot_root_directory is None:
         print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
         snapshot_root_directory = Path.cwd()
     else:
         print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
+    return snapshot_root_directory
+
+
+def _validate_entry_script(snapshot_root_directory: Path, entry_script: Optional[PathOrString] = None) -> str:
+    """
+    Return a relative path to the entry script. If entry_script is None, take the current running script.
+
+    :param snapshot_root_directory: The directory to determine the script path relative to.
+    :param entry_script: An optional path to the script to be run.
+    :return: A relative path to the script to be run.
+    """
     if entry_script is None:
         entry_script = Path(sys.argv[0])
         print("No entry script given. The current main Python file will be executed in AzureML.")
@@ -284,8 +288,67 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
                              f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
     else:
         entry_script_relative = str(entry_script)
+    return entry_script_relative
+
+
+def create_aisupercomputer_config(script_run_config: ScriptRunConfig, workspace: Workspace, target_vc: str,
+                                  instance_type: Optional[str], location: Optional[str]) -> ScriptRunConfig:
+    """
+    Update a ScriptRunConfig object to run on an AI Super Computer.
+
+    :param script_run_config: An Azure ML ScriptRunConfig object with properties such as source_directory, script and
+        already set.
+    :param workspace: An Azure ML Workspace object.
+    :param target_vc: The virtual cluster to submit to.
+    :return: The ScriptRunConfig object, adjusted to run on the AI SuperComputer.
+    """
+    if instance_type is None:
+        raise ValueError("Instance type must be specified")
+    location = location or "westUS"
+    armid = (
+        f"/subscriptions/{workspace.subscription_id}/"
+        f"resourceGroups/{workspace.resource_group}/"
+        "providers/Microsoft.MachineLearningServices/"
+        f"virtualclusters/{target_vc}"
+    )
+    logging.info("Updating ScriptRunConfig to submit to AI Super Computer")
+    # script_run_config.node_count = 1
+    # script_run_config.environment.environment_variables["OMPI_COMM_WORLD_SIZE"] = "16"
+
+    script_run_config.aisupercomputer = AISuperComputerConfiguration(
+        instance_type="ND96amrs_A100_v4",
+        location="westus3",
+        sla_tier="Standard",
+        image_version="pytorch",
+    )
+    script_run_config.aisupercomputer.scale_policy.auto_scale_interval_in_sec = 47
+    script_run_config.aisupercomputer.scale_policy.max_instance_type_count = 1
+    script_run_config.aisupercomputer.scale_policy.min_instance_type_count = 1
+
+    script_run_config.aisupercomputer.virtual_cluster_arm_id = armid
+    return script_run_config
+
+
+def create_script_run(snapshot_root_directory: Optional[Path] = None,
+                      entry_script: Optional[PathOrString] = None,
+                      script_params: Optional[List[str]] = None) -> ScriptRunConfig:
+    """
+    Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
+    its arguments.
+
+    :param entry_script: The script that should be run in AzureML.
+    :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
+        All Python code that the script uses must be copied over.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
+        default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :return:
+    """
+    snapshot_root_directory = _validate_snapshot_root_directory(snapshot_root_directory=snapshot_root_directory)
+    entry_script_relative = _validate_entry_script(snapshot_root_directory, entry_script=entry_script)
+
     script_params = _get_script_params(script_params)
     print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
+
     return ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
         script=entry_script_relative,
@@ -383,7 +446,9 @@ def submit_to_azure_if_needed(  # type: ignore
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
-        create_output_folders: bool = True,
+        target_vc: Optional[str] = None,
+        instance_type: Optional[str] = None,
+        compute_location: Optional[str] = None
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -436,7 +501,7 @@ def submit_to_azure_if_needed(  # type: ignore
         for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
-    :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
+    :param target_vc: An optional virtual cluster to submit the job to.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -458,7 +523,7 @@ def submit_to_azure_if_needed(  # type: ignore
     # is necessary. If not, return to the caller for local execution.
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
-    if not submit_to_azureml:
+    if not (submit_to_azureml or target_vc):
         # Set the environment variables for local execution.
         environment_variables = {
             **DEFAULT_ENVIRONMENT_VARIABLES,
@@ -519,6 +584,9 @@ def submit_to_azure_if_needed(  # type: ignore
                                           entry_script=entry_script,
                                           script_params=script_params)
     script_run_config.run_config = run_config
+    if target_vc:
+        script_run_config = create_aisupercomputer_config(script_run_config, workspace, target_vc,
+                                                          instance_type, compute_location)
 
     if hyperdrive_config:
         config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config

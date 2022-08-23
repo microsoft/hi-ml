@@ -22,6 +22,7 @@ dependencies:
       - rpdb==0.1.6
       - setuptools==59.5.0
       # Run requirements for hi-ml-azure
+      - azureml-contrib-aisc==1.43.0
       - azureml-core==1.43.0
       - azureml-dataset-runtime[fuse]
       - azureml-tensorboard==1.43.0

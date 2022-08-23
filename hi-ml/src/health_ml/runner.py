@@ -220,7 +220,7 @@ class Runner:
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
-        if self.experiment_config.cluster:
+        if (self.experiment_config.cluster or self.experiment_config.target_vc):
             try:
                 workspace = get_workspace()
             except ValueError:
@@ -240,13 +240,13 @@ class Runner:
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        if self.experiment_config.cluster and not is_running_in_azure_ml():
+        if (self.experiment_config.cluster or self.experiment_config.target_vc) and not is_running_in_azure_ml():
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
 
-            if not self.experiment_config.cluster:
-                raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
+            if not (self.experiment_config.cluster or self.experiment_config.target_vc):
+                raise ValueError("You need to specify a cluster name via '--cluster NAME' or a virtual cluster via '--target_vc' to submit "
                                  "the script to run in AzureML")
             azure_run_info = submit_to_azure_if_needed(
                 entry_script=entry_script,
@@ -266,9 +266,11 @@ class Runner:
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
-                create_output_folders=False,
                 after_submission=after_submission_hook,
-                tags=self.additional_run_tags(script_params)
+                tags=self.additional_run_tags(script_params),
+                target_vc=self.experiment_config.target_vc,
+                instance_type=self.experiment_config.instance_type,
+                compute_location=self.experiment_config.compute_location,
             )
             if self.experiment_config.tag and azure_run_info.run:
                 if self.lightning_container.is_crossvalidation_enabled:
