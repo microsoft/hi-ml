@@ -278,13 +278,15 @@ class DeepMILOutputsHandler:
             plot_options=val_plot_options,
             level=self.level,
             tile_size=self.tile_size,
-            class_names=self.class_names
+            class_names=self.class_names,
+            stage='val'
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
             level=self.level,
             tile_size=self.tile_size,
-            class_names=self.class_names
+            class_names=self.class_names,
+            stage='test'
         )
 
     @property
