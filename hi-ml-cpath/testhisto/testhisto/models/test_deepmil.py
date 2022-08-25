@@ -677,6 +677,7 @@ def test_wrong_encoding_chunk_size() -> None:
     ):
         _ = BaseMIL(encoding_chunk_size=1, max_bag_size=4, tune_encoder=True, max_num_gpus=2, pl_sync_batchnorm=True)
 
+
 @pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
                                             DeepSMILECrck])
 @pytest.mark.parametrize("primary_val_metric", [m for m in MetricsKey])
