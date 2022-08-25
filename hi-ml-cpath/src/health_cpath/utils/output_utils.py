@@ -279,14 +279,14 @@ class DeepMILOutputsHandler:
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
-            stage='val'
+            stage=ModelKey.VAL
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
-            stage='test'
+            stage=ModelKey.TEST
         )
 
     @property
