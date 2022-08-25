@@ -204,7 +204,7 @@ class MLRunner:
         checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
         self.container.load_model_checkpoint(checkpoint_path_for_inference)
         best_epoch = torch.load(checkpoint_path_for_inference).get("epoch", -1)
-        logging.info(f"Loaded checkpoint {checkpoint_path_for_inference} for inference. Best epoch: {best_epoch}")
+        logging.info(f"Checkpoint saved at epoch: {best_epoch}")
 
     def after_ddp_cleanup(self, old_environ: Dict) -> None:
         """
