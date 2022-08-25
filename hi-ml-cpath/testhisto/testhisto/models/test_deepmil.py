@@ -26,7 +26,7 @@ from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModul
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
-from health_cpath.models.encoders import IdentityEncoder, Resnet18, TileEncoder
+from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resnet18, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
@@ -314,10 +314,8 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
             f"Dataset for container {container_type.__name__} "
             f"is unavailable: {dataset_dir}"
         )
-    if container_type is DeepSMILECrck:
-        container = container_type(encoder_type=Resnet18.__name__)
-    elif container_type is DeepSMILETilesPanda:
-        container = DeepSMILETilesPanda(encoder_type=Resnet18.__name__)
+    if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
+        container = container_type(encoder_type=ImageNetEncoder.__name__)
     else:
         container = container_type()
 
@@ -678,3 +676,24 @@ def test_wrong_encoding_chunk_size() -> None:
         ValueError, match=r"The encoding chunk size should be at least as large as the maximum bag size"
     ):
         _ = BaseMIL(encoding_chunk_size=1, max_bag_size=4, tune_encoder=True, max_num_gpus=2, pl_sync_batchnorm=True)
+
+
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
+                                            DeepSMILECrck])
+@pytest.mark.parametrize("primary_val_metric", [m for m in MetricsKey])
+@pytest.mark.parametrize("maximise_primary_metric", [True, False])
+def test_checkpoint_name(container_type: Type[BaseMILTiles], primary_val_metric: MetricsKey,
+                         maximise_primary_metric: bool) -> None:
+
+    if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
+        container = container_type(
+            encoder_type=ImageNetEncoder.__name__,
+            primary_val_metric=primary_val_metric,
+            maximise_primary_metric=maximise_primary_metric)
+    else:
+        container = container_type(
+            primary_val_metric=primary_val_metric,
+            maximise_primary_metric=maximise_primary_metric)
+
+    metric_optim = "max" if maximise_primary_metric else "min"
+    assert container.best_checkpoint_filename == f"checkpoint_{metric_optim}_val_{primary_val_metric.value}"

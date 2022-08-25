@@ -308,7 +308,7 @@ class BaseDeepMILModule(LightningModule):
             predicted_labels = argmax(predicted_probs, dim=1)
             probs_perclass = predicted_probs
         else:
-            predicted_labels = round(predicted_probs)
+            predicted_labels = round(predicted_probs).int()
             probs_perclass = Tensor([[1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()]
                                      for i in range(len(predicted_probs))])
 

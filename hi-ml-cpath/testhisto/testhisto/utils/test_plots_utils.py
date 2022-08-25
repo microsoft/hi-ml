@@ -64,7 +64,7 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
     plots_handler.slides_dataset = MagicMock()
 
     n_tiles = 4
-    slide_node = SlideNode(slide_id="1", prob_score=0.5, true_label=1, pred_label=0)
+    slide_node = SlideNode(slide_id="1", gt_prob_score=0.2, pred_prob_score=0.8, true_label=1, pred_label=0)
     tiles_selector = TilesSelector(n_classes=2, num_slides=4, num_tiles=2)
     tiles_selector.top_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
     tiles_selector.bottom_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
