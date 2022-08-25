@@ -196,7 +196,7 @@ def create_run_configuration(workspace: Workspace,
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
 
-    validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
+    # validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
 
     run_config.target = compute_cluster_name
 
@@ -254,7 +254,8 @@ def create_crossval_hyperdrive_config(num_splits: int,
 
 def _validate_snapshot_root_directory(snapshot_root_directory: Optional[Path] = None) -> Path:
     """
-    Returns either the input snapshot_root_directory if that is not None, otherwise returns the current working directory.
+    Returns either the input snapshot_root_directory if that is not None, otherwise returns the current working
+    directory.
 
     :return: A Path object with either the input snapshot root directory or the current working directory.
     """
@@ -314,18 +315,31 @@ def create_aisupercomputer_config(script_run_config: ScriptRunConfig, workspace:
     logging.info("Updating ScriptRunConfig to submit to AI Super Computer")
     # script_run_config.node_count = 1
     # script_run_config.environment.environment_variables["OMPI_COMM_WORLD_SIZE"] = "16"
+    rc = script_run_config.run_config
+    rc.target = None
+    rc.framework = "Python"
+    rc.node_count = 1
+    rc.environment_variables['AZUREML_COMPUTE_USE_COMMON_RUNTIME'] = 'true'
+    rc.environment_variables['JOB_EXECUTION_MODE'] = 'basic'
+    rc.environment_variables['SINGULARITY_ENABLE_PROCESS_ACTIVITY_MONITOR'] = 'false'
 
-    script_run_config.aisupercomputer = AISuperComputerConfiguration(
-        instance_type="ND96amrs_A100_v4",
-        location="westus3",
-        sla_tier="Standard",
-        image_version="pytorch",
-    )
+    env = Environment(name="temp_env")
+    env.environment_variables['OMPI_COMM_WORLD_SIZE'] = "1"
+    env.python.user_managed_dependencies = False
+    script_run_config.aisupercomputer = AISuperComputerConfiguration()
+    rc.docker.use_docker = True
+
+    script_run_config.aisupercomputer.instance_type = None
+    script_run_config.aisupercomputer.location = None
+    script_run_config.aisupercomputer.sla_tier = "Standard"
+    script_run_config.aisupercomputer.image_version = "pytorch"
+
     script_run_config.aisupercomputer.scale_policy.auto_scale_interval_in_sec = 47
     script_run_config.aisupercomputer.scale_policy.max_instance_type_count = 1
     script_run_config.aisupercomputer.scale_policy.min_instance_type_count = 1
 
     script_run_config.aisupercomputer.virtual_cluster_arm_id = armid
+    script_run_config.aisupercomputer.image_version = "msrresrchcr.azurecr.io/kaitaosong/test_docker_v1:latest"
     return script_run_config
 
 
