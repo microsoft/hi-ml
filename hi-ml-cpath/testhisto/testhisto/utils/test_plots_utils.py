@@ -3,12 +3,15 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from pathlib import Path
 from typing import Collection
 from unittest.mock import MagicMock, patch
 import pytest
+from torch import Tensor
+
 from health_cpath.utils.naming import PlotOption, ResultsKey
-from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix
+from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 
@@ -48,11 +51,12 @@ def assert_plot_func_called_if_among_plot_options(
     "plot_options",
     [
         {},
-        {PlotOption.HISTOGRAM},
+        {PlotOption.HISTOGRAM, PlotOption.PR_CURVE},
         {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX},
         {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES, PlotOption.SLIDE_THUMBNAIL_HEATMAP},
         {
             PlotOption.HISTOGRAM,
+            PlotOption.PR_CURVE,
             PlotOption.CONFUSION_MATRIX,
             PlotOption.TOP_BOTTOM_TILES,
             PlotOption.SLIDE_THUMBNAIL_HEATMAP,
@@ -60,7 +64,7 @@ def assert_plot_func_called_if_among_plot_options(
     ],
 )
 def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption]) -> None:
-    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo"])
+    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo1", "foo2"])
     plots_handler.slides_dataset = MagicMock()
 
     n_tiles = 4
@@ -73,9 +77,10 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
         with patch("health_cpath.utils.plots_utils.save_top_and_bottom_tiles") as mock_tile:
             with patch("health_cpath.utils.plots_utils.save_scores_histogram") as mock_histogram:
                 with patch("health_cpath.utils.plots_utils.save_confusion_matrix") as mock_conf:
-                    plots_handler.save_plots(
-                        outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock()
-                    )
+                    with patch("health_cpath.utils.plots_utils.save_pr_curve") as mock_pr:
+                        plots_handler.save_plots(
+                            outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock()
+                        )
 
     calls_count = 0
     calls_count += assert_plot_func_called_if_among_plot_options(
@@ -84,6 +89,7 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
     calls_count += assert_plot_func_called_if_among_plot_options(mock_tile, PlotOption.TOP_BOTTOM_TILES, plot_options)
     calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOption.HISTOGRAM, plot_options)
     calls_count += assert_plot_func_called_if_among_plot_options(mock_conf, PlotOption.CONFUSION_MATRIX, plot_options)
+    calls_count += assert_plot_func_called_if_among_plot_options(mock_pr, PlotOption.PR_CURVE, plot_options)
 
     assert calls_count == len(plot_options)
 
@@ -119,7 +125,7 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
         save_confusion_matrix(invalid_results_2, class_names, tmp_path)
     assert "More entries were found in predicted labels than are available in class names" in str(e)
 
-    # check that if confusion matrix still has correct shape even if results don't cover all expected labels
+    # check that confusion matrix still has correct shape even if results don't cover all expected labels
     class_names_extended = ["foo", "bar", "baz"]
     num_classes = len(class_names_extended)
     expected_conf_matrix_shape = (num_classes, num_classes)
@@ -129,3 +135,23 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
             mock_plot_conf_matrix.assert_called_once()
             actual_conf_matrix = mock_plot_conf_matrix.call_args[1].get('cm')
             assert actual_conf_matrix.shape == expected_conf_matrix_shape
+
+
+def test_pr_curve_integration(tmp_path: Path) -> None:
+    results = {
+        ResultsKey.TRUE_LABEL: [Tensor(0), Tensor(1), Tensor(0), Tensor(1), Tensor(0), Tensor(1)],
+        ResultsKey.PROB: [Tensor(0.1), Tensor(0.8), Tensor(0.6), Tensor(0.3), Tensor(0.5), Tensor(0.4)]
+    }
+
+    # check plot is produced and it has right filename
+    save_pr_curve(results, tmp_path, stage='foo')
+    file = Path(tmp_path) / "pr_curve_{stage}.png"
+    assert file.exists()
+    os.remove(file)
+
+    # check warning is raised and plot is not produced if NOT a binary case
+    results[ResultsKey.TRUE_LABEL] = [Tensor(0), Tensor(1), Tensor(2), Tensor(1), Tensor(0), Tensor(1)]
+    with pytest.raises(Warning) as w:
+        save_pr_curve(results, tmp_path, stage='foo')
+    assert "The PR curve plot implementation works only for binary cases, this plot will be skipped." in str(w)
+    assert not file.exists()
