@@ -86,7 +86,7 @@ class AzureMLLogger(LightningLoggerBase):
                     # In unit tests, the run has the expected display name, but not here. Hence, set it again.
                     self.run.display_name = run_name
                 except Exception as ex:
-                    logging.error("Unable to create an AzureML run to store the results.")
+                    logging.error(f"Unable to create an AzureML run to store the results because of {ex}.")
                     raise
             print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
             print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
