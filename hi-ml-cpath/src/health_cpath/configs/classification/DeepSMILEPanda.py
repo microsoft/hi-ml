@@ -93,11 +93,10 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
 
     def get_test_plot_options(self) -> Set[PlotOption]:
-        plot_options = super().get_test_plot_options()
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX, PlotOption.SLIDE_THUMBNAIL_HEATMAP}
         if self.num_top_slides > 0:
             options.add(PlotOption.TOP_BOTTOM_TILES)
-        return plot_options
+        return options
 
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):
