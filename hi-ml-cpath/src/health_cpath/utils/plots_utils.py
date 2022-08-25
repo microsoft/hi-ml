@@ -61,10 +61,10 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
     scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
     fig, ax = plt.subplots()
     format_pr_or_roc_axes(plot_type='pr', ax=ax)
+    plot_pr_curve(true_labels, scores, label=stage, ax=ax)
     ax.set_title(f"PR Curve {stage}")
     ax.legend()
-    plot_pr_curve(true_labels, scores, label=stage, ax=ax)
-    save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png'")
+    save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
 
 
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
