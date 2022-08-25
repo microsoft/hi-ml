@@ -71,19 +71,19 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
+    ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
+                                              "using SSLEncoder")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
-        self.best_checkpoint_filename = "checkpoint_max_val_auroc"
+        metric_optim = "max" if self.maximise_primary_metric else "min"
+        self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
 
     @property
     def cache_dir(self) -> Path:
         return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
-
-    def setup(self) -> None:
-        self.ssl_ckpt_run_id = ""
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
@@ -206,7 +206,7 @@ class BaseMILTiles(BaseMIL):
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
-            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ssl_ckpt_run_id,
+            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ssl_checkpoint_run_id,
                                                                                    self.outputs_folder)
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
@@ -226,7 +226,7 @@ class BaseMILTiles(BaseMIL):
                                             class_weights=self.data_module.class_weights,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
-                                            ssl_ckpt_run_id=self.ssl_ckpt_run_id,
+                                            ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
@@ -266,7 +266,7 @@ class BaseMILSlides(BaseMIL):
                                              class_weights=self.data_module.class_weights,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
-                                             ssl_ckpt_run_id=self.ssl_ckpt_run_id,
+                                             ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),

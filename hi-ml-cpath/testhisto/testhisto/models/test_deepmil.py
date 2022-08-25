@@ -321,10 +321,8 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
             f"Dataset for container {container_type.__name__} "
             f"is unavailable: {dataset_dir}"
         )
-    if container_type is DeepSMILECrck:
+    if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
         container = container_type(encoder_type=ImageNetEncoder.__name__)
-    elif container_type is DeepSMILETilesPanda:
-        container = DeepSMILETilesPanda(encoder_type=ImageNetEncoder.__name__)
     else:
         container = container_type()
 
@@ -425,3 +423,24 @@ def test_class_weights_multiclass() -> None:
     # TODO: the test should reflect actual weighted loss operation for the class weights after
     # batch_size > 1 is implemented.
     assert allclose(loss_weighted, loss_unweighted)
+
+
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
+                                            DeepSMILECrck])
+@pytest.mark.parametrize("primary_val_metric", [m for m in MetricsKey])
+@pytest.mark.parametrize("maximise_primary_metric", [True, False])
+def test_checkpoint_name(container_type: Type[BaseMILTiles], primary_val_metric: MetricsKey,
+                         maximise_primary_metric: bool) -> None:
+
+    if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
+        container = container_type(
+            encoder_type=ImageNetEncoder.__name__,
+            primary_val_metric=primary_val_metric,
+            maximise_primary_metric=maximise_primary_metric)
+    else:
+        container = container_type(
+            primary_val_metric=primary_val_metric,
+            maximise_primary_metric=maximise_primary_metric)
+
+    metric_optim = "max" if maximise_primary_metric else "min"
+    assert container.best_checkpoint_filename == f"checkpoint_{metric_optim}_val_{primary_val_metric.value}"

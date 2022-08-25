@@ -146,12 +146,12 @@ def test_run_training() -> None:
 
             mock_trainer.fit = Mock()
             mock_close_logger = Mock()
-            mock_trainer.logger = MagicMock(close=mock_close_logger)
+            mock_trainer.loggers = [MagicMock(close=mock_close_logger)]
 
             runner.run_training()
 
             mock_trainer.fit.assert_called_once()
-            mock_trainer.logger.finalize.assert_called_once()
+            mock_trainer.loggers[0].finalize.assert_called_once()
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
