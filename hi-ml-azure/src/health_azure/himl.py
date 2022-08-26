@@ -310,7 +310,7 @@ def create_aisupercomputer_config(script_run_config: ScriptRunConfig, workspace:
         f"/subscriptions/{workspace.subscription_id}/"
         f"resourceGroups/{workspace.resource_group}/"
         "providers/Microsoft.MachineLearningServices/"
-        f"virtualclusters/{target_vc}"
+        f"virtualClusters/{target_vc}"
     )
     logging.info("Updating ScriptRunConfig to submit to AI Super Computer")
     # script_run_config.node_count = 1
