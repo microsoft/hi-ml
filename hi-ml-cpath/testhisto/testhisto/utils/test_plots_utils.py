@@ -103,8 +103,8 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     }
     class_names = ["foo", "bar"]
 
-    save_confusion_matrix(results, class_names, tmp_path)
-    file = Path(tmp_path) / "normalized_confusion_matrix.png"
+    save_confusion_matrix(results, class_names, tmp_path, stage='foo')
+    file = Path(tmp_path) / "normalized_confusion_matrix_foo.png"
     assert file.exists()
 
     # check that an error is raised if true labels include indices greater than the expected number of classes
@@ -139,19 +139,19 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
 
 def test_pr_curve_integration(tmp_path: Path) -> None:
     results = {
-        ResultsKey.TRUE_LABEL: [Tensor(0), Tensor(1), Tensor(0), Tensor(1), Tensor(0), Tensor(1)],
-        ResultsKey.PROB: [Tensor(0.1), Tensor(0.8), Tensor(0.6), Tensor(0.3), Tensor(0.5), Tensor(0.4)]
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
     }
 
     # check plot is produced and it has right filename
-    save_pr_curve(results, tmp_path, stage='foo')
+    save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
     file = Path(tmp_path) / "pr_curve_foo.png"
     assert file.exists()
     os.remove(file)
 
     # check warning is raised and plot is not produced if NOT a binary case
-    results[ResultsKey.TRUE_LABEL] = [Tensor(0), Tensor(1), Tensor(2), Tensor(1), Tensor(0), Tensor(1)]
+    results[ResultsKey.TRUE_LABEL] = [0, 1, 0, 2, 0, 1]
     with pytest.raises(Warning) as w:
-        save_pr_curve(results, tmp_path, stage='foo')
+        save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
     assert "The PR curve plot implementation works only for binary cases, this plot will be skipped." in str(w)
     assert not file.exists()

@@ -62,9 +62,9 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
     if len(set(true_labels)) == 2:
         scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
         fig, ax = plt.subplots()
-        format_pr_or_roc_axes(plot_type='pr', ax=ax)
         plot_pr_curve(true_labels, scores, legend_label=stage, ax=ax)
         ax.legend()
+        format_pr_or_roc_axes(plot_type='pr', ax=ax)
         save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
     else:
         raise Warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
