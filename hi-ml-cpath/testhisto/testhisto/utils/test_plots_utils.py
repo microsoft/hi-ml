@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Collection
 from unittest.mock import MagicMock, patch
 import pytest
-from torch import Tensor
 
 from health_cpath.utils.naming import PlotOption, ResultsKey
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve
