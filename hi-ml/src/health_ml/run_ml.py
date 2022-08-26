@@ -187,8 +187,8 @@ class MLRunner:
         # in different runs.
         if self.container.log_from_vm:
             run = create_aml_run_object(experiment_name=self.container.effective_experiment_name)
-            # Display name should already be set when creating the run object, but this does not happen.
-            # In unit tests, the run has the expected display name, but not here. Hence, set it again.
+            # Display name should already be set when creating the Run object, but in some scenarios this
+            # does not happen. Hence, set it again.
             run.display_name = self.container.tag if self.container.tag else None
             self.azureml_run_for_logging = run
 

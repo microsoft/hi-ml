@@ -274,8 +274,8 @@ There are two additional flags that can be used to control the logging behaviour
 - The `--tag` flag sets the display name for the AzureML run. You can use that to give your run a memorable name,
     and later easily find it in the AzureML UI.
 
-Taken together, the above commandline will log to the experiment `my_experiment`, in a run that is showing
-as `my_first_run`.
+Using these command line arguments, the following command will log to the experiment `my_experiment`, in a run that is showing
+as `my_first_run`:
 
 ```bash
 himl-runner --model=HelloWorld --log_from_vm --experiment=my_experiment --tag=my_first_run

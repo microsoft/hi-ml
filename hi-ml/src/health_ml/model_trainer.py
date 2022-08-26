@@ -65,8 +65,8 @@ def create_lightning_trainer(container: LightningContainer,
     :param container: The container with model and data.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
-    :param azureml_run_for_logging: The AzureML Run object to which all metrics should be logged. If None and the
-        present code is running in AzureML, the current run is used.
+    :param azureml_run_for_logging: An optional AzureML Run object to which all metrics should be logged. If None and
+        the present code is running in AzureML, the current run is used.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
