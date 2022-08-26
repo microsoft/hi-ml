@@ -145,7 +145,7 @@ def test_pr_curve_integration(tmp_path: Path) -> None:
 
     # check plot is produced and it has right filename
     save_pr_curve(results, tmp_path, stage='foo')
-    file = Path(tmp_path) / "pr_curve_{stage}.png"
+    file = Path(tmp_path) / "pr_curve_foo.png"
     assert file.exists()
     os.remove(file)
 
