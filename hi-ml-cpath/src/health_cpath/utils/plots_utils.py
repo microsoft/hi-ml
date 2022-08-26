@@ -42,9 +42,9 @@ def validate_class_names_for_plot_options(
 def save_scores_histogram(results: ResultsType, figures_dir: Path, stage: str = '') -> None:
     """Plots and saves histogram scores figure in its dedicated directory.
 
-    :param results: List that contains slide_level dicts
+    :param results: Dict of lists that contains slide_level results
     :param figures_dir: The path to the directory where to save the histogram scores.
-    :param stage: Test or validation, used to name the figure
+    :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     fig = plot_scores_hist(results)
     save_figure(fig=fig, figpath=figures_dir / f"hist_scores_{stage}.png")
@@ -52,18 +52,18 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path, stage: str = 
 
 def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> None:
     """Plots and saves PR curve figure in its dedicated directory. This implementation
-    only works bor binary classification.
+    only works for binary classification.
 ''
-    :param results: List that contains slide_level dicts
+    :param results: Dict of lists that contains slide_level results
     :param figures_dir: The path to the directory where to save the histogram scores
-    :param stage: Test or validation, used to name the figure
+    :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
     if len(set(true_labels)) == 2:
         scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
         fig, ax = plt.subplots()
         format_pr_or_roc_axes(plot_type='pr', ax=ax)
-        plot_pr_curve(true_labels, scores, label=stage, ax=ax)
+        plot_pr_curve(true_labels, scores, legend_label=stage, ax=ax)
         ax.legend()
         save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
     else:
@@ -73,9 +73,10 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
     """Plots and saves confusion matrix figure in its dedicated directory.
 
+    :param results: Dict of lists that contains slide_level results
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
-    :param stage: Test or validation, used to name the figure
+    :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
     pred_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PRED_LABEL]]
