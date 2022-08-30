@@ -8,6 +8,7 @@ from typing import Any, Collection, List, Optional, Sequence, Tuple, Dict
 
 from sklearn.metrics import confusion_matrix
 from torch import Tensor
+import matplotlib.pyplot as plt
 
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.utils.viz_utils import (
@@ -17,6 +18,7 @@ from health_cpath.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
+from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes
 from health_cpath.utils.naming import PlotOption, ResultsKey, SlideKey
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from health_cpath.utils.viz_utils import load_image_dict, save_figure
@@ -37,21 +39,44 @@ def validate_class_names_for_plot_options(
     return class_names
 
 
-def save_scores_histogram(results: ResultsType, figures_dir: Path) -> None:
+def save_scores_histogram(results: ResultsType, figures_dir: Path, stage: str = '') -> None:
     """Plots and saves histogram scores figure in its dedicated directory.
 
-    :param results: List that contains slide_level dicts
+    :param results: Dict of lists that contains slide_level results
     :param figures_dir: The path to the directory where to save the histogram scores.
+    :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     fig = plot_scores_hist(results)
-    save_figure(fig=fig, figpath=figures_dir / "hist_scores.png")
+    save_figure(fig=fig, figpath=figures_dir / f"hist_scores_{stage}.png")
 
 
-def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path) -> None:
+def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> None:
+    """Plots and saves PR curve figure in its dedicated directory. This implementation
+    only works for binary classification.
+''
+    :param results: Dict of lists that contains slide_level results
+    :param figures_dir: The path to the directory where to save the histogram scores
+    :param stage: Test or validation, used to name the figure. Empty string by default.
+    """
+    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    if len(set(true_labels)) == 2:
+        scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
+        fig, ax = plt.subplots()
+        plot_pr_curve(true_labels, scores, legend_label=stage, ax=ax)
+        ax.legend()
+        format_pr_or_roc_axes(plot_type='pr', ax=ax)
+        save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
+    else:
+        raise Warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
+
+
+def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
     """Plots and saves confusion matrix figure in its dedicated directory.
 
+    :param results: Dict of lists that contains slide_level results
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
+    :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
     pred_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PRED_LABEL]]
@@ -72,7 +97,7 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     )
 
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / "normalized_confusion_matrix.png")
+    save_figure(fig=fig, figpath=figures_dir / f"normalized_confusion_matrix_{stage}.png")
 
 
 def save_top_and_bottom_tiles(
@@ -152,6 +177,7 @@ class DeepMILPlotsHandler:
         tile_size: int = 224,
         num_columns: int = 4,
         figsize: Tuple[int, int] = (10, 10),
+        stage: str = '',
         class_names: Optional[Sequence[str]] = None,
     ) -> None:
         """_summary_
@@ -162,6 +188,7 @@ class DeepMILPlotsHandler:
         :param tile_size: _description_, defaults to 224
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
+        :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
         """
@@ -171,6 +198,7 @@ class DeepMILPlotsHandler:
         self.tile_size = tile_size
         self.num_columns = num_columns
         self.figsize = figsize
+        self.stage = stage
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def save_slide_node_figures(
@@ -214,12 +242,15 @@ class DeepMILPlotsHandler:
             )
             figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
+            if PlotOption.PR_CURVE in self.plot_options:
+                save_pr_curve(results=results, figures_dir=figures_dir, stage=self.stage)
+
             if PlotOption.HISTOGRAM in self.plot_options:
-                save_scores_histogram(results=results, figures_dir=figures_dir)
+                save_scores_histogram(results=results, figures_dir=figures_dir, stage=self.stage,)
 
             if PlotOption.CONFUSION_MATRIX in self.plot_options:
                 assert self.class_names
-                save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir)
+                save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir, stage=self.stage)
 
             if tiles_selector:
                 for class_id in range(tiles_selector.n_classes):

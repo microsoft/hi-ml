@@ -94,6 +94,7 @@ class PlotOption(Enum):
     SLIDE_THUMBNAIL_HEATMAP = "slide_thumbnail_heatmap"
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
+    PR_CURVE = "pr_curve"
 
 
 class DeepMILSubmodules(str, Enum):

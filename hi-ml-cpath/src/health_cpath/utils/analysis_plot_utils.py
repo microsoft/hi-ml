@@ -113,32 +113,32 @@ def plot_histogram(data: List[Any], title: str = "") -> None:
     plt.gca().set(title=title, xlabel='Values', ylabel='Frequency')
 
 
-def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
+def plot_roc_curve(labels: Sequence, scores: Sequence, legend_label: str, ax: Axes) -> None:
     """Plot ROC curve for the given labels and scores, with AUROC in the line legend.
 
     :param labels: The true binary labels.
     :param scores: Scores predicted by the model.
-    :param label: An line identifier to be displayed in the legend.
+    :param legend_label: An line identifier to be displayed in the legend.
     :param ax: `Axes` object onto which to plot.
     """
     fpr, tpr, _ = roc_curve(labels, scores)
     auroc = auc(fpr, tpr)
-    label = f"{label} (AUROC: {auroc:.3f})"
-    ax.plot(fpr, tpr, label=label)
+    legend_label = f"{legend_label} (AUROC: {auroc:.3f})"
+    ax.plot(fpr, tpr, label=legend_label)
 
 
-def plot_pr_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
-    """Plot precision-recall curve for the given labels and scores, with AUROC in the line legend.
+def plot_pr_curve(labels: Sequence, scores: Sequence, legend_label: str, ax: Axes) -> None:
+    """Plot precision-recall curve for the given labels and scores, with AUPR in the line legend.
 
     :param labels: The true binary labels.
     :param scores: Scores predicted by the model.
-    :param label: An line identifier to be displayed in the legend.
+    :param legend_label: A line identifier to be displayed in the legend.
     :param ax: `Axes` object onto which to plot.
     """
     precision, recall, _ = precision_recall_curve(labels, scores)
     aupr = auc(recall, precision)
-    label = f"{label} (AUPR: {aupr:.3f})"
-    ax.plot(recall, precision, label=label)
+    legend_label = f"{legend_label} (AUPR: {aupr:.3f})"
+    ax.plot(recall, precision, label=legend_label)
 
 
 def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
@@ -190,8 +190,8 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
         # assert len(non_unique_slides) == 0
         scores = tile_scores.first()
 
-        plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
-        plot_pr_curve(labels, scores, label=f"Fold {k}", ax=pr_ax)
+        plot_roc_curve(labels, scores, legend_label=f"Fold {k}", ax=roc_ax)
+        plot_pr_curve(labels, scores, legend_label=f"Fold {k}", ax=pr_ax)
     legend_kwargs = dict(edgecolor='none', fontsize='small')
     roc_ax.legend(**legend_kwargs)
     pr_ax.legend(**legend_kwargs)

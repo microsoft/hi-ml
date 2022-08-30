@@ -11,7 +11,7 @@ Reference:
 - Schirris (2021). DeepSMILE: Self-supervised heterogeneity-aware multiple instance learning for DNA
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
-from typing import Any
+from typing import Any, Set
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
@@ -26,6 +26,7 @@ from health_cpath.models.encoders import (
 )
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from health_cpath.utils.naming import PlotOption
 
 
 class DeepSMILECrck(BaseMILTiles):
@@ -73,6 +74,11 @@ class DeepSMILECrck(BaseMILTiles):
             dataloader_kwargs=self.get_dataloader_kwargs(),
             seed=self.get_effective_random_seed(),
         )
+
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options = super().get_test_plot_options()
+        plot_options.add(PlotOption.PR_CURVE)
+        return plot_options
 
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):
