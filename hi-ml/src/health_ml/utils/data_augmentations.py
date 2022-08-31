@@ -131,7 +131,14 @@ class StainNormalization(object):
         return nimg
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        return self.stain_normalize(img, self.reference_mean, self.reference_std)
+        # if the input is a bag of images, stain normalization needs to run on each image separately
+        if img.shape[0] > 1:
+            for i in range(img.shape[0]):
+                img_tile = img[i]
+                img[i] = self.stain_normalize(img_tile.unsqueeze(0), self.reference_mean, self.reference_std)
+            return img
+        else:
+            return self.stain_normalize(img, self.reference_mean, self.reference_std)
 
 
 class GaussianBlur(object):
