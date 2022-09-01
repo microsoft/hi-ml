@@ -5,7 +5,7 @@
 import os
 import sys
 import logging
-import torch.multiprocessing
+import torch
 
 from pathlib import Path
 from typing import Dict, List, Optional
