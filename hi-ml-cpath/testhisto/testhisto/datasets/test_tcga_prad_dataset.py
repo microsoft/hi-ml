@@ -21,7 +21,7 @@ def test_dataset() -> None:
     assert len(dataset) == expected_length
 
     expected_num_positives = 10
-    assert dataset.dataset_df[dataset.LABEL_COLUMN].sum() == expected_num_positives
+    assert dataset.dataset_df[dataset.label_column].sum() == expected_num_positives
 
     sample = dataset[0]
     assert isinstance(sample, dict)

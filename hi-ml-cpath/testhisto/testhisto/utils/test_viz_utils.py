@@ -5,8 +5,8 @@
 
 import logging
 import math
-from pathlib import Path
 import random
+from pathlib import Path
 from typing import List, Optional
 
 import matplotlib
@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 import torch
 import matplotlib.pyplot as plt
+from pytest import LogCaptureFixture
 from torch.functional import Tensor
 
 from health_ml.utils.common_utils import is_gpu_available, is_windows
@@ -151,11 +152,33 @@ def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFo
     top_tiles_fig = plot_attention_tiles(
         case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
     )
+    assert top_tiles_fig is not None
     bottom_tiles_fig = plot_attention_tiles(
         case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
     )
+    assert bottom_tiles_fig is not None
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
     assert_plot_tiles_figure(bottom_tiles_fig, "slide_0_bottom.png", test_output_dirs)
+
+
+def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogCaptureFixture) -> None:
+    expected_warning = "The number of selected top and bottom tiles is too low, plotting will be skipped."
+    "Try debugging with a higher num_top_tiles and/or a higher number of batches."
+    slide_node.bottom_tiles = []
+    with caplog.at_level(logging.WARNING):
+        bottom_tiles_fig = plot_attention_tiles(
+            case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+        )
+        assert bottom_tiles_fig is None
+        assert expected_warning in caplog.text
+
+    slide_node.top_tiles = []
+    with caplog.at_level(logging.WARNING):
+        top_tiles_fig = plot_attention_tiles(
+            case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+        )
+        assert top_tiles_fig is None
+        assert expected_warning in caplog.text
 
 
 @pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])

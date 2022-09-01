@@ -13,13 +13,13 @@ import os
 from math import floor
 import pathlib
 from random import random
-from setuptools import setup, find_namespace_packages  # type: ignore
+from setuptools import find_namespace_packages, setup  # type: ignore
 
 
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
-long_description = (here / "package_description.md").read_text(encoding="utf-8")
+long_description = (here / "README.md").read_text(encoding="utf-8")
 
 version = ""
 
@@ -39,31 +39,33 @@ if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
 
 # Otherwise, if running from a GitHub Action, but not a tagged commit then GITHUB_RUN_NUMBER will be populated.
 # Use this as a post release number. For example if GITHUB_RUN_NUMBER = 124 then the version string will be
-# "0.1.2.post124". Although this is discouraged, see:
+# "99.99.post124". Although this is discouraged, see:
 # https://www.python.org/dev/peps/pep-0440/#post-releases
 # it is necessary here to avoid duplicate packages in Test.PyPI.
 if not version:
-    # TODO: Replace this with more principled package version management for the package wheels built during local test
-    # runs, one which circumvents AzureML"s apparent package caching:
     build_number = os.getenv("GITHUB_RUN_NUMBER")
     if build_number:
-        version = "0.1.1.post" + build_number
+        # In github workflows, we may pull in hi-ml-multimodal as a dependency. Usually, we have a condition like
+        # hi-ml-multimodal>=0.1.5. This means that a package version from PyPi would trump the local wheels. For this
+        # reason, use an extremely large version number to give the local wheel priority.
+        version = "99.99.post" + build_number
     else:
         default_random_version_number = floor(random() * 10_000_000_000)
-        version = f"0.1.0.post{str(default_random_version_number)}"
+        version = f"99.99.post{str(default_random_version_number)}"
 
-(here / "package_name.txt").write_text("hi-ml")
+package_name = "hi-ml-cpath"
+(here / "package_name.txt").write_text(package_name)
 (here / "latest_version.txt").write_text(version)
 
 # Read run_requirements.txt to get install_requires
-install_requires = (here / "run_requirements.txt").read_text().split("\n")
+install_requires = (here / "requirements_run.txt").read_text().split("\n")
 # Remove any whitespace and blank lines
 install_requires = [line.strip() for line in install_requires if line.strip()]
 
-description = "Microsoft Health Futures package containing high level ML components"
+description = "Microsoft Health Futures package for deep learning on histopathology images"
 
 setup(
-    name="hi-ml",
+    name=package_name,
     version=version,
     description=description,
     long_description=long_description,
@@ -78,15 +80,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.7"
     ],
-    keywords="Health Futures, Health Intelligence, AzureML",
+    keywords="Health Futures, Health Intelligence, Computational Pathology, AzureML",
     license="MIT License",
-    packages=find_namespace_packages(where="src"),
+    packages=find_namespace_packages(where="src", include=["health_cpath.*"]),
     package_dir={"": "src"},
-    include_package_data=True,
+    include_package_data=False,
     install_requires=install_requires,
-    entry_points={
-        "console_scripts": [
-            "himl-runner = health_ml.runner:main"
-        ]
-    }
 )

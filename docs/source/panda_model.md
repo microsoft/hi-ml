@@ -1,4 +1,4 @@
-# DeepMIL model on PANDA dataset
+# DeepMIL model for tumor grading on PANDA dataset
 
 ## Background
 
@@ -15,8 +15,8 @@ A ResNet50 encoder that was pre-trained on ImageNet is downloaded on-the-fly (fr
 
 ## Preparations
 
-Please follow the instructions in the [Readme file](../README.md#setting-up-python) to create a Conda environment and
-activate it, and the instructions to [set up Azure](../README.md#setting-up-azureml).
+Please follow the instructions in the [Readme file](../hi-ml-cpath/README.md#setting-up-python) to create a Conda environment and
+activate it, and the instructions to [set up Azure](../hi-ml-cpath/README.md/README.md#setting-up-azureml).
 
 You will also need to run the dataset preparations for the PANDA dataset, as described [here](public_datasets.md#panda-dataset).
 
@@ -26,7 +26,7 @@ If you have a GPU available, you can run training on that machine, by executing 
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model health_cpath.idesPandaImageNetMILBenchmark
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.SlidesPandaImageNetMILBenchmark
 ```
 
 Running the model will automatically mount (download on-the-fly) the PANDA dataset from Azure. To enable that, you will
@@ -44,7 +44,7 @@ addition, you can turn on fine-tuning of the encoder, which will improve the res
 
 ```shell
 conda activate HimlHisto
-python ../hi-ml/src/health_ml/runner.py --model health_cpath.idesPandaImageNetMILBenchmark --is_finetune --cluster=<your_cluster_name>
+python ../hi-ml/src/health_ml/runner.py --model health_cpath.SlidesPandaImageNetMILBenchmark --is_finetune --cluster=<your_cluster_name>
 ```
 
 Then the script will output "Successfully queued run number ..." and a line prefixed "Run URL: ...". Open that

@@ -19,7 +19,7 @@ from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
-from health_ml.utils.common_utils import CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
@@ -71,19 +71,19 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
+    ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
+                                              "using SSLEncoder")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
-        self.best_checkpoint_filename = "checkpoint_max_val_auroc"
+        metric_optim = "max" if self.maximise_primary_metric else "min"
+        self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
 
     @property
     def cache_dir(self) -> Path:
         return Path(f"/tmp/himl_cache/{self.__class__.__name__}-{self.encoder_type}/")
-
-    def setup(self) -> None:
-        self.ckpt_run_id = ""
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
@@ -95,7 +95,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return set()
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
-        n_classes = self.data_module.train_dataset.N_CLASSES
+        n_classes = self.data_module.train_dataset.n_classes
         outputs_handler = DeepMILOutputsHandler(
             outputs_root=self.outputs_folder,
             n_classes=n_classes,
@@ -129,13 +129,13 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         """
         # absolute path is required for registering the model.
         absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/",
+                                        DEFAULT_AML_CHECKPOINT_DIR,
                                         self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path.is_file():
             return absolute_checkpoint_path
 
         absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/",
+                                               DEFAULT_AML_CHECKPOINT_DIR,
                                                self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
@@ -206,7 +206,7 @@ class BaseMILTiles(BaseMIL):
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
-            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ckpt_run_id,
+            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ssl_checkpoint_run_id,
                                                                                    self.outputs_folder)
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
@@ -220,13 +220,13 @@ class BaseMILTiles(BaseMIL):
     def create_model(self) -> TilesDeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                                            n_classes=self.data_module.train_dataset.N_CLASSES,
+        deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.label_column,
+                                            n_classes=self.data_module.train_dataset.n_classes,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
-                                            ckpt_run_id=self.ckpt_run_id,
+                                            ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
@@ -261,12 +261,12 @@ class BaseMILSlides(BaseMIL):
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
         deepmil_module = SlidesDeepMILModule(label_column=SlideKey.LABEL,
-                                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                                             n_classes=self.data_module.train_dataset.n_classes,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
-                                             ckpt_run_id=self.ckpt_run_id,
+                                             ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),

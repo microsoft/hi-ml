@@ -20,7 +20,7 @@ To train an image encoder using SSL locally run this in the `hi-ml-cpath` folder
 enviroment activated:
 
 ```bash
-python ../hi-ml/src/health_ml/runner.py --model health_cpath.CRCK_SimCLR
+python ../hi-ml/src/health_ml/runner.py --model SSL.CRCK_SimCLR
 ```
 
 The model class
@@ -76,7 +76,7 @@ the TCGA-CRCk dataset. Assuming you are using a total of 8  GPUs (e.g. 1 node wi
 Azure you can start training with the following command in the repository root folder:
 
 ```bash
-python hi-ml/src/health_ml/runner.py --model health_cpath.CRCK_SimCLR --cluster CLUSTER_NAME --conda_env hi-ml-cpath/environment.yml
+python hi-ml/src/health_ml/runner.py --model SSL.CRCK_SimCLR --cluster CLUSTER_NAME --conda_env hi-ml-cpath/environment.yml
 ```
 
 A SimCLR run with 200 epochs, 8 GPUs, and a batch size of 48 (per GPU) takes about 6 hours. On Azure we use
@@ -128,4 +128,4 @@ Here the data augmentations are applied and the ```__getitem__``` method is defi
 The dataset is then wrapped one last time in
 [```TcgaCrck_TilesDatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/histopathology/datasets/tcga_crck_tiles_dataset.py),
 where we inherit the ability to return the tile index from
-[```DataClassBaseWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).
+[```DatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).

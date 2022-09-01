@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from pytorch_lightning.utilities import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch import Tensor as T
 from torch.nn import SyncBatchNorm, functional as F
 from torch.nn.parallel import DistributedDataParallel

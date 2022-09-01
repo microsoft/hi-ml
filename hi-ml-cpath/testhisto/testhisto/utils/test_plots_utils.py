@@ -25,7 +25,7 @@ def test_plots_handler_slide_thumbnails_without_slide_dataset() -> None:
         container = MockDeepSMILETilesPanda(tmp_path=Path("foo"))
         container.setup()
         container.data_module = MagicMock()
-        container.data_module.train_dataset.N_CLASSES = 6
+        container.data_module.train_dataset.n_classes = 6
         outputs_handler = container.get_outputs_handler()
         outputs_handler.test_plots_handler.plot_options = {PlotOption.SLIDE_THUMBNAIL_HEATMAP}
         outputs_handler.set_slides_dataset_for_plots_handlers(container.get_slides_dataset())

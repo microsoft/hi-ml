@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-from pytorch_lightning.utilities.warnings import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
 
 from pytorch_lightning import LightningModule
@@ -41,7 +41,7 @@ class BaseDeepMILModule(LightningModule):
                  class_names: Optional[Sequence[str]] = None,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
-                 ckpt_run_id: Optional[str] = None,
+                 ssl_ckpt_run_id: Optional[str] = None,
                  outputs_folder: Optional[Path] = None,
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
@@ -55,7 +55,8 @@ class BaseDeepMILModule(LightningModule):
         :param class_names: The names of the classes if available (default=None).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
-        :param ckpt_run_id: AML run id for encoder checkpoint download.
+        :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
+            if using `SSLEncoder`.
         :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
@@ -85,7 +86,7 @@ class BaseDeepMILModule(LightningModule):
         self.run_extra_val_epoch = False
 
         # Model components
-        self.encoder = encoder_params.get_encoder(ckpt_run_id, outputs_folder)
+        self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
@@ -122,7 +123,7 @@ class BaseDeepMILModule(LightningModule):
 
     def get_activation(self) -> Callable:
         if self.n_classes > 1:
-            return nn.Softmax()
+            return nn.Softmax(dim=-1)
         else:
             return nn.Sigmoid()
 
@@ -294,6 +295,10 @@ class BaseDeepMILModule(LightningModule):
                 is_global_rank_zero=self.global_rank == 0,
                 run_extra_val_epoch=self.run_extra_val_epoch
             )
+
+            # Reset the top and bottom slides heaps
+            if self.outputs_handler.tiles_selector is not None:
+                self.outputs_handler.tiles_selector._clear_cached_slides_heaps()
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TEST)

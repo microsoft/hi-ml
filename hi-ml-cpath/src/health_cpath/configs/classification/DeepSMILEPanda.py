@@ -20,7 +20,7 @@ from health_cpath.configs.classification.BaseMIL import BaseMILSlides, BaseMILTi
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datasets.default_paths import (
     PANDA_DATASET_ID,
-    PANDA_TILES_DATASET_ID)
+    PANDA_5X_TILES_DATASET_ID)
 from health_cpath.utils.naming import PlotOption
 
 
@@ -64,13 +64,14 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             batch_size=8,
-            azure_datasets=[PANDA_TILES_DATASET_ID, PANDA_DATASET_ID])
+            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
         BaseMILTiles.setup(self)
-        self.ckpt_run_id = innereye_ssl_checkpoint_binary
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint_run_id = self.ssl_checkpoint_run_id or innereye_ssl_checkpoint_binary
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
@@ -135,7 +136,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         BaseMILSlides.setup(self)
-        self.ckpt_run_id = innereye_ssl_checkpoint_binary
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint_run_id = self.ssl_checkpoint_run_id or innereye_ssl_checkpoint_binary
 
     def get_dataloader_kwargs(self) -> dict:
         return dict(

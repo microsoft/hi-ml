@@ -20,8 +20,8 @@ from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
 from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
-from health_cpath.datasets.base_dataset import TilesDataset
-from health_cpath.datasets.default_paths import PANDA_TILES_DATASET_DIR, TCGA_CRCK_DATASET_DIR
+from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
+from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
@@ -54,7 +54,7 @@ def _test_lightningmodule(
     assert n_classes > 0
 
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         dropout_rate=dropout_rate,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -204,12 +204,12 @@ def test_metrics(n_classes: int) -> None:
     input_dim = (128,)
 
     def _mock_get_encoder(  # type: ignore
-        self, ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
+        self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
     ) -> TileEncoder:
         return IdentityEncoder(input_dim=input_dim)
 
     with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
-        module = TilesDeepMILModule(label_column=TilesDataset.LABEL_COLUMN,
+        module = TilesDeepMILModule(label_column=DEFAULT_LABEL_COLUMN,
                                     n_classes=n_classes,
                                     pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
 
@@ -231,7 +231,7 @@ def test_metrics(n_classes: int) -> None:
                 TilesDataset.SLIDE_ID_COLUMN: [str(slide_idx)] * bag_size,
                 TilesDataset.TILE_ID_COLUMN: [f"{slide_idx}-{tile_idx}" for tile_idx in range(bag_size)],
                 TilesDataset.IMAGE_COLUMN: rand(bag_size, *input_dim),
-                TilesDataset.LABEL_COLUMN: bag_label.expand(bag_size),
+                DEFAULT_LABEL_COLUMN: bag_label.expand(bag_size),
             }
             sample[TilesDataset.PATH_COLUMN] = [tile_id + '.png'
                                                 for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]
@@ -306,7 +306,7 @@ def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, us
 
 
 CONTAINER_DATASET_DIR = {
-    DeepSMILETilesPanda: PANDA_TILES_DATASET_DIR,
+    DeepSMILETilesPanda: PANDA_5X_TILES_DATASET_ID,
     DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
 }
 
@@ -321,10 +321,8 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
             f"Dataset for container {container_type.__name__} "
             f"is unavailable: {dataset_dir}"
         )
-    if container_type is DeepSMILECrck:
+    if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
         container = container_type(encoder_type=ImageNetEncoder.__name__)
-    elif container_type is DeepSMILETilesPanda:
-        container = DeepSMILETilesPanda(encoder_type=ImageNetEncoder.__name__)
     else:
         container = container_type()
 
@@ -382,7 +380,7 @@ def test_class_weights_binary() -> None:
     n_classes = 1
 
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -407,7 +405,7 @@ def test_class_weights_multiclass() -> None:
     n_classes = 3
 
     module = TilesDeepMILModule(
-        label_column="label",
+        label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -425,3 +423,24 @@ def test_class_weights_multiclass() -> None:
     # TODO: the test should reflect actual weighted loss operation for the class weights after
     # batch_size > 1 is implemented.
     assert allclose(loss_weighted, loss_unweighted)
+
+
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
+                                            DeepSMILECrck])
+@pytest.mark.parametrize("primary_val_metric", [m for m in MetricsKey])
+@pytest.mark.parametrize("maximise_primary_metric", [True, False])
+def test_checkpoint_name(container_type: Type[BaseMILTiles], primary_val_metric: MetricsKey,
+                         maximise_primary_metric: bool) -> None:
+
+    if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
+        container = container_type(
+            encoder_type=ImageNetEncoder.__name__,
+            primary_val_metric=primary_val_metric,
+            maximise_primary_metric=maximise_primary_metric)
+    else:
+        container = container_type(
+            primary_val_metric=primary_val_metric,
+            maximise_primary_metric=maximise_primary_metric)
+
+    metric_optim = "max" if maximise_primary_metric else "min"
+    assert container.best_checkpoint_filename == f"checkpoint_{metric_optim}_val_{primary_val_metric.value}"

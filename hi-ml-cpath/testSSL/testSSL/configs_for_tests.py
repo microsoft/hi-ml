@@ -21,7 +21,7 @@ from torchvision.transforms import Lambda
 from health_ml.utils.common_utils import ModelExecutionMode
 from health_ml.lightning_container import LightningContainer, LightningModuleWithOptimizer
 
-from SSL.data.dataset_cls_utils import DataClassBaseWithReturnIndex
+from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex
 from SSL.data.transforms_utils import DualViewTransformWrapper
 from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from SSL.utils import SSLTrainingType
@@ -311,7 +311,7 @@ class DummySimCLRData(VisionDataset):
         return self.data.shape[0]
 
 
-class DummySimCLRHimlData(DataClassBaseWithReturnIndex, DummySimCLRData):
+class DummySimCLRHimlData(DatasetWithReturnIndex, DummySimCLRData):
     """
     Wrapper class around the DummySimCLRData class to optionally return the
     index on top of the image and the label in __getitem__ as well as defining num_classes property.
