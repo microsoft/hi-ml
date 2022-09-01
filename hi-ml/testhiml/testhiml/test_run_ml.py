@@ -246,7 +246,11 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_container.run()
 
-            mocks["load_model_checkpoint"].called == run_extra_val_epoch
+            # Checkpoints will only be loaded explicitly when doing training. Checkpoint loading is guarded
+            # also by checking if the model has a custom test step, this is always True for the HelloWorld model used
+            # here.
+            assert ml_runner_with_container.container.has_custom_test_step()
+            assert mocks["load_model_checkpoint"].called != run_inference_only
             assert ml_runner_with_container._has_setup_run
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 

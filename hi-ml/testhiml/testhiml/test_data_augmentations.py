@@ -16,6 +16,7 @@ dummy_img = torch.Tensor(
        [0.8717, 0.9098]],
       [[0.1592, 0.7216],
        [0.8305, 0.1127]]]])
+dummy_bag = torch.stack([dummy_img.squeeze(0), dummy_img.squeeze(0)])
 
 
 def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
@@ -59,8 +60,10 @@ def test_stain_normalization() -> None:
           [0.8706, 0.4863]],
          [[0.8235, 0.5294],
           [0.8275, 0.7725]]]])
+    expected_output_bag = torch.stack([expected_output_img.squeeze(0), expected_output_img.squeeze(0)])
 
     _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=False)
+    _test_data_augmentation(data_augmentation, dummy_bag, expected_output_bag, stochastic=False)
 
 
 def test_hed_jitter() -> None:
