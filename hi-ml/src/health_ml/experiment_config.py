@@ -27,8 +27,5 @@ class ExperimentConfig(param.Parameterized):
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the environment file in the current folder or one of its "
                                 "parents will be used.")
-    target_vc: Optional[str] = param.String(default=None, allow_None=True,
-                                            doc="An optional virtual cluster to submit the job to")
-    instance_type: Optional[str] = param.String(default=None, allow_None=True,
-                                                doc="An optional compute instance type within the virtual cluster to use")
-    compute_location: Optional[str] = param.String(default=None, allow_None=True, doc="An optional compute location to submit the job to")
+    aml_env_name: Optional[str] = param.String(default=None, allow_None=True,
+                                               doc="Optional name of an existing AML Environemnt")

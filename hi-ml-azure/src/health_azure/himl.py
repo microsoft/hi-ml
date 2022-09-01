@@ -27,8 +27,10 @@ from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
+from azureml.core.conda_dependencies import CondaDependencies
 
-from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
+
+from health_azure.utils import (ENVIRONMENT_VERSION, create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
@@ -127,7 +129,7 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
 
 
 def create_run_configuration(workspace: Workspace,
-                             compute_cluster_name: str,
+                             compute_cluster_name: Optional[str] = None,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -172,7 +174,13 @@ def create_run_configuration(workspace: Workspace,
     run_config = RunConfiguration()
 
     if aml_environment_name:
-        run_config.environment = Environment.get(workspace, aml_environment_name)
+        env_split = aml_environment_name.split(":")
+        if len(env_split) > 1:
+            env_name, version = env_split
+        else:
+            env_name = aml_environment_name
+            version = ENVIRONMENT_VERSION
+        run_config.environment = Environment.get(workspace, env_name, version=version)
     elif conda_environment_file:
         # Create an AzureML environment, then check if it exists already. If it exists, use the registered
         # environment, otherwise register the new environment.
@@ -293,7 +301,12 @@ def _validate_entry_script(snapshot_root_directory: Path, entry_script: Optional
 
 
 def create_aisupercomputer_config(script_run_config: ScriptRunConfig, workspace: Workspace, target_vc: str,
-                                  instance_type: Optional[str], location: Optional[str]) -> ScriptRunConfig:
+                                  instance_type: Optional[str] = None, location: Optional[str] = None,
+                                  sla_tier: Optional[str] = None, image_version: Optional[str] = None,
+                                  entry_script: Optional[PathOrString] = None,
+                                  aml_environment_name: Optional[str] = None,
+                                  conda_environment_file: Optional[PathOrString] = None,
+                                  snapshot_root_directory: Optional[Path] = None,) -> ScriptRunConfig:
     """
     Update a ScriptRunConfig object to run on an AI Super Computer.
 
@@ -303,43 +316,46 @@ def create_aisupercomputer_config(script_run_config: ScriptRunConfig, workspace:
     :param target_vc: The virtual cluster to submit to.
     :return: The ScriptRunConfig object, adjusted to run on the AI SuperComputer.
     """
+    source_directory = str(_validate_snapshot_root_directory(snapshot_root_directory=snapshot_root_directory))
+    entry_script_relative = _validate_entry_script(snapshot_root_directory, entry_script=entry_script)
+
     if instance_type is None:
         raise ValueError("Instance type must be specified")
-    location = location or "westUS"
+
+    logging.info("Updating ScriptRunConfig to submit to AI Supercomputer")
+
+    script_run_config.run_config.docker = DockerConfiguration()
+    script_run_config.run_config.environment.python.user_managed_dependencies = True
+
+    # # script_run_config.run_config.environment.docker.base_image_registry.address = "msrresrchcr.azurecr.io"
+    # script_run_config.run_config.environment.docker.base_image_registry.username = "msrresrchcr"
+    # script_run_config.run_config.environment.docker.base_image_registry.password = "<password from ACR page>
+
+    script_run_config.run_config.target = "aisupercomputer"
+    script_run_config.aisupercomputer = AISuperComputerConfiguration()
+    script_run_config.run_config.aisupercomputer.instance_type = instance_type
+    script_run_config.run_config.aisupercomputer.location = location
+    script_run_config.run_config.aisupercomputer.sla_tier = sla_tier
+    script_run_config.run_config.aisupercomputer.image_version = image_version
+
+    script_run_config.run_config.node_count = 1
+    script_run_config.run_config.aisupercomputer.scale_policy.auto_scale_interval_in_sec = 47
+    script_run_config.run_config.aisupercomputer.scale_policy.max_instance_type_count = 1
+    script_run_config.run_config.aisupercomputer.scale_policy.min_instance_type_count = 1
+
+    # script_run_config.run_config.environment_variables['AZUREML_COMPUTE_USE_COMMON_RUNTIME'] = 'true'
+    # script_run_config.run_config.environment_variables['JOB_EXECUTION_MODE'] = 'basic'
+    # script_run_config.run_config.environment_variables['SINGULARITY_ENABLE_PROCESS_ACTIVITY_MONITOR'] = 'false'
+    # script_run_config.run_config.environment.environment_variables['OMPI_COMM_WORLD_SIZE'] = "16"
+
     armid = (
         f"/subscriptions/{workspace.subscription_id}/"
         f"resourceGroups/{workspace.resource_group}/"
         "providers/Microsoft.MachineLearningServices/"
         f"virtualClusters/{target_vc}"
     )
-    logging.info("Updating ScriptRunConfig to submit to AI Super Computer")
-    # script_run_config.node_count = 1
-    # script_run_config.environment.environment_variables["OMPI_COMM_WORLD_SIZE"] = "16"
-    rc = script_run_config.run_config
-    rc.target = None
-    rc.framework = "Python"
-    rc.node_count = 1
-    rc.environment_variables['AZUREML_COMPUTE_USE_COMMON_RUNTIME'] = 'true'
-    rc.environment_variables['JOB_EXECUTION_MODE'] = 'basic'
-    rc.environment_variables['SINGULARITY_ENABLE_PROCESS_ACTIVITY_MONITOR'] = 'false'
+    script_run_config.run_config.aisupercomputer.virtual_cluster_arm_id = armid
 
-    env = Environment(name="temp_env")
-    env.environment_variables['OMPI_COMM_WORLD_SIZE'] = "1"
-    env.python.user_managed_dependencies = False
-    script_run_config.aisupercomputer = AISuperComputerConfiguration()
-    rc.docker.use_docker = True
-
-    script_run_config.aisupercomputer.instance_type = None
-    script_run_config.aisupercomputer.location = None
-    script_run_config.aisupercomputer.sla_tier = "Standard"
-    script_run_config.aisupercomputer.image_version = "pytorch"
-
-    script_run_config.aisupercomputer.scale_policy.auto_scale_interval_in_sec = 47
-    script_run_config.aisupercomputer.scale_policy.max_instance_type_count = 1
-    script_run_config.aisupercomputer.scale_policy.min_instance_type_count = 1
-
-    script_run_config.aisupercomputer.virtual_cluster_arm_id = armid
-    script_run_config.aisupercomputer.image_version = "msrresrchcr.azurecr.io/kaitaosong/test_docker_v1:latest"
     return script_run_config
 
 
@@ -441,7 +457,7 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
         conda_environment_file: Optional[PathOrString] = None,
-        aml_environment_name: str = "",
+        aml_environment_name: Optional[str] = None,
         experiment_name: Optional[str] = None,
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
@@ -462,7 +478,9 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         target_vc: Optional[str] = None,
         instance_type: Optional[str] = None,
-        compute_location: Optional[str] = None
+        compute_location: Optional[str] = None,
+        sla_tier_type: str = "Premium",
+        image_version: Optional[str] = None
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -582,7 +600,7 @@ def submit_to_azure_if_needed(  # type: ignore
     run_config = create_run_configuration(
         workspace=workspace,
         compute_cluster_name=compute_cluster_name,
-        aml_environment_name=aml_environment_name,
+        aml_environment_name=aml_environment_name or "",
         conda_environment_file=conda_environment_file,
         environment_variables=environment_variables,
         pip_extra_index_url=pip_extra_index_url,
@@ -598,17 +616,22 @@ def submit_to_azure_if_needed(  # type: ignore
                                           entry_script=entry_script,
                                           script_params=script_params)
     script_run_config.run_config = run_config
+
     if target_vc:
-        script_run_config = create_aisupercomputer_config(script_run_config, workspace, target_vc,
-                                                          instance_type, compute_location)
-
-    if hyperdrive_config:
-        config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
-        config_to_submit._run_config = script_run_config
+        config_to_submit = create_aisupercomputer_config(
+            script_run_config, workspace, target_vc, instance_type, compute_location, sla_tier_type,
+            image_version=image_version, entry_script=entry_script,
+            aml_environment_name=aml_environment_name,
+            conda_environment_file=conda_environment_file,
+            snapshot_root_directory=snapshot_root_directory)
     else:
-        config_to_submit = script_run_config
+        if hyperdrive_config:
+            config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
+            config_to_submit._run_config = script_run_config
+        else:
+            config_to_submit = script_run_config
 
-    effective_experiment_name = experiment_name or Path(script_run_config.script).stem
+    effective_experiment_name = "test_aml" # experiment_name or Path(script_run_config.script).stem
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]

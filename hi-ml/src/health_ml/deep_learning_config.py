@@ -57,6 +57,36 @@ class OptimizerType(Enum):
     RMSprop = "RMSprop"
 
 
+@unique
+class SlaTierType(Enum):
+    """
+    SLA Tier types supported by Azure ML
+    """
+    Standard = "Standard"
+    Premium = "Premium"
+
+
+@unique
+class A100ImageType(Enum):
+    """
+    AML Image types compatible with A100s
+    """
+    Pytorch = "pytorch-1.10.0-a100"
+    Deepspeed = "deepspeed-0.4-pytorch-1.10.0-cuda11.4-a100"
+
+
+@unique
+class A100InstanceType(Enum):
+    """
+    A100 compatible AML instance types
+    """
+    ND96amrs_A100_v4 = "ND96amrs_A100_v4"
+    ND96amr_A100_v4 = "ND96amr_A100_v4"
+    ND48am_A100_v4 = "ND48am_A100_v4"
+    ND24am_A100_v4 = "ND24am_A100_v4"
+    ND12am_A100_v4 = "ND12am_A100_v4"
+
+
 class ExperimentFolderHandler(Parameterized):
     """High level config to abstract the file system related settings for experiments"""
     outputs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
@@ -508,3 +538,18 @@ class TrainerParams(param.Parameterized):
             logging.warning(
                 f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus
+
+
+class AiSupercomputerParams(param.Parameterized):
+    target_vc: Optional[str] = param.String(default=None, allow_None=True,
+                                            doc="An optional virtual cluster to submit the job to")
+    instance_type: A100InstanceType = param.ClassSelector(default=A100InstanceType.ND12am_A100_v4,
+                                                          class_=A100InstanceType, instantiate=False,
+                                                          doc="An optional compute instance type within the virtual "
+                                                          "cluster to use")
+    compute_location: Optional[str] = param.String(default="westus3", allow_None=True,
+                                                   doc="An optisonal compute location to submit the job to")
+    sla_tier: SlaTierType = param.ClassSelector(default=SlaTierType.Premium, class_=SlaTierType,
+                                                instantiate=False, doc="The SLA tier type to use")
+    image_version: A100ImageType = param.ClassSelector(default=A100ImageType.Pytorch, class_=A100ImageType,
+                                                       instantiate=False, doc="The A100-compatible AML image to use")

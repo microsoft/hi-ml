@@ -220,7 +220,7 @@ class Runner:
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
-        if (self.experiment_config.cluster or self.experiment_config.target_vc):
+        if (self.experiment_config.cluster or self.lightning_container.target_vc):
             try:
                 workspace = get_workspace()
             except ValueError:
@@ -240,19 +240,25 @@ class Runner:
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        if (self.experiment_config.cluster or self.experiment_config.target_vc) and not is_running_in_azure_ml():
-            env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
-            logging.info(f"Using this Conda environment definition: {env_file}")
-            check_conda_environment(env_file)
+        if (self.experiment_config.cluster or self.lightning_container.target_vc) and not is_running_in_azure_ml():
+            aml_environment = self.experiment_config.aml_env_name
+            if not aml_environment:
+                env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
+                logging.info(f"Using this Conda environment definition: {env_file}")
+                check_conda_environment(env_file)
+            else:
+                env_file = None
 
-            if not (self.experiment_config.cluster or self.experiment_config.target_vc):
+            if not (self.experiment_config.cluster or self.lightning_container.target_vc):
                 raise ValueError("You need to specify a cluster name via '--cluster NAME' or a virtual cluster via '--target_vc' to submit "
                                  "the script to run in AzureML")
+
             azure_run_info = submit_to_azure_if_needed(
                 entry_script=entry_script,
                 snapshot_root_directory=root_folder,
                 script_params=script_params,
                 conda_environment_file=env_file,
+                aml_environment_name=aml_environment,
                 aml_workspace=workspace,
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
@@ -268,9 +274,11 @@ class Runner:
                 hyperdrive_config=hyperdrive_config,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
-                target_vc=self.experiment_config.target_vc,
-                instance_type=self.experiment_config.instance_type,
-                compute_location=self.experiment_config.compute_location,
+                target_vc=self.lightning_container.target_vc,
+                instance_type=self.lightning_container.instance_type.value,
+                compute_location=self.lightning_container.compute_location,
+                sla_tier_type=self.lightning_container.sla_tier.value,
+                image_version=self.lightning_container.image_version.value
             )
             if self.experiment_config.tag and azure_run_info.run:
                 if self.lightning_container.is_crossvalidation_enabled:
