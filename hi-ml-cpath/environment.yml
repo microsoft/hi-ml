@@ -125,7 +125,6 @@ dependencies:
     - dotnetcore2==3.1.23
     - filelock==3.8.0
     - flake8==4.0.1
-    - fonttools==4.37.1
     - frozenlist==1.3.1
     - fsspec==2022.8.2
     - fusepy==3.0.1
@@ -162,7 +161,7 @@ dependencies:
     - markupsafe==2.1.1
     - marshmallow==3.17.1
     - marshmallow-enum==1.5.1
-    - matplotlib==3.5.2
+    - matplotlib==3.4.3
     - mccabe==0.6.1
     - mdit-py-plugins==0.2.8
     - monai==0.8.0
@@ -181,9 +180,9 @@ dependencies:
     - numba==0.56.2
     - numpy==1.22.0
     - oauthlib==3.2.0
-    - opencv-python-headless==4.6.0.66
+    - opencv-python-headless==4.5.1.48
     - packaging==21.3
-    - pandas==1.4.3
+    - pandas==1.3.4
     - param==1.12.0
     - paramiko==2.11.0
     - pathspec==0.10.1
@@ -235,7 +234,7 @@ dependencies:
     - scipy==1.7.3
     - seaborn==0.10.1
     - secretstorage==3.3.3
-    - setuptools==61.2.0
+    - setuptools==59.5.0
     - simpleitk==2.1.1.2
     - snowballstemmer==2.2.0
     - sphinx==4.1.2
