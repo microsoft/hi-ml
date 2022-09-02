@@ -1161,14 +1161,16 @@ def set_environment_variables_for_multi_node() -> None:
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
     if ENV_AZ_BATCH_MASTER_NODE in os.environ:
-        print("Found ENV_AZ_BATCH_MASTER_NODE")
+        logging.debug("Found ENV_AZ_BATCH_MASTER_NODE")
         # For AML BATCHAI
         split_master_node_addr = os.environ[ENV_AZ_BATCH_MASTER_NODE].split(":")
-        if len(split_master_node_addr) > 1:
+        if len(split_master_node_addr) == 2:
             master_addr, port = split_master_node_addr
             os.environ[ENV_MASTER_PORT] = port
-        else:
+        elif len(split_master_node_addr) == 1:
             master_addr = split_master_node_addr[0]
+        else:
+            raise ValueError(f"Format not recognized: {os.environ[ENV_AZ_BATCH_MASTER_NODE]}")
         os.environ[ENV_MASTER_ADDR] = master_addr
     elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
         # For AML BATCHAI
