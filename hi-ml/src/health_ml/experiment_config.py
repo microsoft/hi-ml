@@ -21,7 +21,6 @@ class ExperimentConfig(param.Parameterized):
                                                   "job in AzureML.")
     model: str = param.String(doc="The fully qualified name of the model to train/test -e.g."
                                   "mymodule.configs.MyConfig.")
-    tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
     mount_in_azureml: bool = param.Boolean(False,
                                            doc="If False (default), consume datasets in AzureML by downloading at "
                                                "job start. If True, datasets in AzureML are mounted (read on demand "

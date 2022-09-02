@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
+from azureml.core import Run
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -53,7 +54,8 @@ def get_pl_profiler(pl_profiler: Optional[str], outputs_folder: Path) -> Optiona
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
-                             multiple_trainloader_mode: str = "max_size_cycle") -> \
+                             multiple_trainloader_mode: str = "max_size_cycle",
+                             azureml_run_for_logging: Optional[Run] = None) -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -63,6 +65,9 @@ def create_lightning_trainer(container: LightningContainer,
     :param container: The container with model and data.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
+    :param azureml_run_for_logging: An optional AzureML Run object to which all metrics should be logged. Use this
+        argument to log to AzureML when the training is happening outside of AzureML. If `azureml_run_for_logging` is
+        None and the present code is running in AzureML, the current run is used.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
@@ -86,7 +91,9 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    loggers = [tensorboard_logger, AzureMLLogger(False)]
+    azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=container.log_from_vm,
+                                   run=azureml_run_for_logging)
+    loggers = [tensorboard_logger, azureml_logger]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.

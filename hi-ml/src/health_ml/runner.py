@@ -170,7 +170,7 @@ class Runner:
         """
         return {
             "commandline_args": " ".join(script_params),
-            "tag": self.experiment_config.tag
+            "tag": self.lightning_container.tag
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
@@ -207,8 +207,8 @@ class Runner:
             """
             # Set the default display name to what was provided as the "tag". This will affect single runs
             # and Hyperdrive parent runs
-            if self.experiment_config.tag:
-                azure_run.display_name = self.experiment_config.tag
+            if self.lightning_container.tag:
+                azure_run.display_name = self.lightning_container.tag
 
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
@@ -258,7 +258,7 @@ class Runner:
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
                 default_datastore=default_datastore,
-                experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
+                experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
                 wait_for_completion=self.experiment_config.wait_for_completion,
@@ -271,12 +271,12 @@ class Runner:
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params)
             )
-            if self.experiment_config.tag and azure_run_info.run:
+            if self.lightning_container.tag and azure_run_info.run:
                 if self.lightning_container.is_crossvalidation_enabled:
                     # This code is only reached inside Azure. Set display name again - this will now affect
                     # Hypdrive child runs (for other jobs, this has already been done after submission)
                     cv_index = self.lightning_container.crossval_index
-                    full_display_name = f"{self.experiment_config.tag} {cv_index}"
+                    full_display_name = f"{self.lightning_container.tag} {cv_index}"
                     azure_run_info.run.display_name = full_display_name
 
         else:

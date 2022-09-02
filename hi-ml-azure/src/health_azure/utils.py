@@ -1898,7 +1898,7 @@ def create_aml_run_object(
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
     if snapshot_directory is None or snapshot_directory == "":
         snapshot_directory = tempfile.mkdtemp()
-    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+    return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
 def aml_workspace_for_unittests() -> Workspace:
