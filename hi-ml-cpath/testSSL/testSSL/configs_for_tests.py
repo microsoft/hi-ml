@@ -322,19 +322,18 @@ class DummySimCLRHimlData(DatasetWithReturnIndex, DummySimCLRData):
         return 2
 
 
-class DummySimCLRSSLDatasetName(SSLDatasetName, Enum):  # type: ignore
-    DUMMY = "DUMMY"
+SSL_Dataset_Dummy = "DUMMY"
 
 
 class DummySimCLR(SSLContainer):
     """
     This module trains an SSL encoder using SimCLR on the DummySimCLRData and finetunes a linear head too.
     """
-    SSLContainer._SSLDataClassMappings.update({DummySimCLRSSLDatasetName.DUMMY.value: DummySimCLRHimlData})
+    SSLContainer.DatasetToClassMapping.update({SSL_Dataset_Dummy: DummySimCLRHimlData})
 
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
-                         linear_head_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
+        super().__init__(ssl_training_dataset_name=SSL_Dataset_Dummy,
+                         linear_head_dataset_name=SSL_Dataset_Dummy,
                          # Train with as little data as possible for the test
                          ssl_training_batch_size=2,
                          linear_head_batch_size=2,

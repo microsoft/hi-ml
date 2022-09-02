@@ -120,7 +120,7 @@ def test_get_transforms_in_ssl_container_for_cxr_data() -> None:
                                   ssl_augmentation_config=path_encoder_augmentation_cxr)
     test_container._load_config()
     dual_view_transform, _ = test_container._get_transforms(augmentation_config=test_container.ssl_augmentation_params,
-                                                            dataset_name=SSLDatasetName.NIHCXR.value,
+                                                            dataset_name=SSLDatasetName.NIHCXR,
                                                             is_ssl_encoder_module=True)
 
     test_img = PIL.Image.fromarray(np.ones([312, 312]) * 255.).convert("L")
@@ -134,7 +134,7 @@ def test_get_transforms_in_ssl_container_for_cxr_data() -> None:
 
     single_view_transform, _ = test_container._get_transforms(
         augmentation_config=test_container.ssl_augmentation_params,
-        dataset_name=SSLDatasetName.NIHCXR.value,
+        dataset_name=SSLDatasetName.NIHCXR,
         is_ssl_encoder_module=False)
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
@@ -149,7 +149,7 @@ def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     """
     test_container = SSLContainer()
     dual_view_transform, _ = test_container._get_transforms(augmentation_config=None,
-                                                            dataset_name=SSLDatasetName.CIFAR10.value,
+                                                            dataset_name=SSLDatasetName.CIFAR10,
                                                             is_ssl_encoder_module=True)
     img_array_with_black_square = np.ones([32, 32, 3], dtype=np.uint8)
     img_array_with_black_square[10:20, 10:20, :] = 255
@@ -161,7 +161,7 @@ def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     assert (v1 != v2).any()
 
     single_view_transform, _ = test_container._get_transforms(augmentation_config=None,
-                                                              dataset_name=SSLDatasetName.CIFAR10.value,
+                                                              dataset_name=SSLDatasetName.CIFAR10,
                                                               is_ssl_encoder_module=False)
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
