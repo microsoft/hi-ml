@@ -8,7 +8,6 @@ Tests for the functions in health_azure.azure_util
 import json
 import logging
 import os
-from random import randint
 import sys
 import time
 from argparse import ArgumentParser, Namespace, ArgumentError
