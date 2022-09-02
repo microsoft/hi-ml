@@ -14,7 +14,7 @@ on:
       - "hi-ml/**"
 
 env:
-  pythonVersion: 3.7
+  pythonVersion: 3.9
   folder: hi-ml-cpath
   module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
