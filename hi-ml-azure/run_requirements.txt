@@ -8,3 +8,4 @@ protobuf<=3.20.1
 pysocks>=1.5.8
 ruamel.yaml>=0.16.12
 tensorboard>=2.6.0
+typing-extensions==4.3.0

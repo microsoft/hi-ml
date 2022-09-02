@@ -10,12 +10,12 @@ import cv2
 import imageio
 import matplotlib.image as mpimg
 import numpy as np
-import PIL.PngImagePlugin
 import SimpleITK as sitk
 import torch
 import torchvision.transforms.functional as TF
 from line_profiler import LineProfiler
 from PIL import Image
+from PIL import PngImagePlugin
 from skimage import io
 from torchvision.io.image import read_image
 
@@ -165,7 +165,7 @@ def read_image_pillow3(input_filename: Path) -> np.array:  # type: ignore
     :param input_filename: Source image file path.
     :return: numpy array of shape (H, W), (H, W, 3).
     """
-    with PIL.PngImagePlugin.PngImageFile(input_filename) as pil_png:
+    with PngImagePlugin.PngImageFile(input_filename) as pil_png:
         return np.asarray(pil_png, np.float)  # type: ignore
 
 
