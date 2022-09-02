@@ -38,6 +38,7 @@ dependencies:
       # Build requirements
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
+      - attrs==21.4.0
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
       - markdown==2.6.8

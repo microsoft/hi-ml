@@ -75,26 +75,26 @@ dependencies:
     - argcomplete==2.0.0
     - astroid==2.12.5
     - async-timeout==4.0.2
-    - attrs==22.1.0
+    - attrs==21.4.0
     - azure-common==1.1.28
     - azure-core==1.25.1
     - azure-graphrbac==0.61.1
     - azure-identity==1.7.0
     - azure-mgmt-authorization==2.0.0
     - azure-mgmt-containerregistry==10.0.0
-    - azure-mgmt-core==1.3.2
+    - azure-mgmt-core==1.3.0
     - azure-mgmt-keyvault==10.1.0
     - azure-mgmt-resource==21.1.0
     - azure-mgmt-storage==20.0.0
-    - azureml-core==1.44.0
-    - azureml-dataprep==4.2.2
+    - azureml-core==1.43.0
+    - azureml-dataprep==4.0.4
     - azureml-dataprep-native==38.0.0
-    - azureml-dataprep-rslex==2.8.1
-    - azureml-dataset-runtime==1.44.0
-    - azureml-telemetry==1.44.0
-    - azureml-tensorboard==1.44.0
-    - azureml-train-core==1.44.0
-    - azureml-train-restclients-hyperdrive==1.44.0
+    - azureml-dataprep-rslex==2.6.3
+    - azureml-dataset-runtime==1.43.0
+    - azureml-telemetry==1.43.0
+    - azureml-tensorboard==1.43.0
+    - azureml-train-core==1.43.0
+    - azureml-train-restclients-hyperdrive==1.43.0
     - babel==2.10.3
     - backports-tempfile==1.0
     - backports-weakref==1.0.post1
@@ -169,7 +169,7 @@ dependencies:
     - more-itertools==8.10.0
     - msal==1.18.0
     - msal-extensions==0.3.1
-    - msrest==0.7.1
+    - msrest==0.6.21
     - msrestazure==0.6.4
     - multidict==6.0.2
     - mypy==0.961
@@ -179,7 +179,7 @@ dependencies:
     - networkx==2.8.6
     - nodeenv==1.7.0
     - numba==0.56.0
-    - numpy==1.23.2
+    - numpy==1.22.0
     - oauthlib==3.2.0
     - opencv-python-headless==4.6.0.66
     - packaging==21.3
@@ -195,7 +195,7 @@ dependencies:
     - pre-commit==2.19.0
     - protobuf==3.20.1
     - py==1.11.0
-    - pyarrow==6.0.0
+    - pyarrow==3.0.0
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
     - pycobertura==2.0.1
