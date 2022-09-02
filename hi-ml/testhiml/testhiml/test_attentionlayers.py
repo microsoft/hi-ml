@@ -5,7 +5,7 @@ from torch import nn, rand, sum, allclose, ones_like
 
 from health_ml.networks.layers.attention_layers import (AttentionLayer, GatedAttentionLayer,
                                                         MeanPoolingLayer, TransformerPooling,
-                                                        MaxPoolingLayer)
+                                                        MaxPoolingLayer, TransformerPoolingBenchmark)
 
 
 def _test_attention_layer(attentionlayer: nn.Module, dim_in: int, dim_att: int,
@@ -60,10 +60,17 @@ def test_max_pooling(dim_in: int, batch_size: int,) -> None:
 @pytest.mark.parametrize("dim_in", [4, 8])   # dim_in % num_heads must be 0
 @pytest.mark.parametrize("batch_size", [1, 7])
 @pytest.mark.parametrize("transformer_dropout", [0.0, 0.3])
+@pytest.mark.parametrize("dim_hid", [1, 4])
 def test_transformer_pooling(num_layers: int, num_heads: int, dim_in: int,
-                             batch_size: int, transformer_dropout: float) -> None:
+                             batch_size: int, dim_hid: int, transformer_dropout: float) -> None:
     transformer_pooling = TransformerPooling(num_layers=num_layers,
                                              num_heads=num_heads,
                                              dim_representation=dim_in,
                                              transformer_dropout=transformer_dropout).eval()
     _test_attention_layer(transformer_pooling, dim_in=dim_in, dim_att=1, batch_size=batch_size)
+    transformer_pooling_benchmark = TransformerPoolingBenchmark(num_layers=num_layers,
+                                                                num_heads=num_heads,
+                                                                dim_representation=dim_in,
+                                                                hidden_dim=dim_hid,
+                                                                transformer_dropout=transformer_dropout).eval()
+    _test_attention_layer(transformer_pooling_benchmark, dim_in=dim_in, dim_att=1, batch_size=batch_size)
