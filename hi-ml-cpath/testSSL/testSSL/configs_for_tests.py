@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Callable, Optional
-from enum import Enum
 from yacs.config import CfgNode
 
 import pandas as pd
@@ -23,7 +22,7 @@ from health_ml.lightning_container import LightningContainer, LightningModuleWit
 
 from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex
 from SSL.data.transforms_utils import DualViewTransformWrapper
-from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer
 from SSL.utils import SSLTrainingType
 from SSL.data.transform_pipeline import ImageTransformationPipeline
 

@@ -114,7 +114,7 @@ class SSLContainer(LightningContainer):
         # may contain only one dataset entry
         elif (
             (self.linear_head_dataset_name == self.ssl_training_dataset_name)  # noqa: W504
-            or (not(self.ssl_training_dataset_name) and self.linear_head_dataset_name)
+            or (not (self.ssl_training_dataset_name) and self.linear_head_dataset_name)
         ) and len(self.local_datasets) == 1:
             # self.extra_local_dataset_paths = [self.local_dataset]
             linear_head_dataset_path = self.local_datasets[0]
