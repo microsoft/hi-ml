@@ -187,14 +187,15 @@ class TransformerPooling(Module):
         num_layers: Number of Transformer encoder layers.
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
+        transformer_dropout: The dropout value (default=0.1).
     """
 
-    def __init__(self, num_layers: int, num_heads: int, dim_representation: int) -> None:
+    def __init__(self, num_layers: int, num_heads: int, dim_representation: int, transformer_dropout: float) -> None:
         super(TransformerPooling, self).__init__()
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.dim_representation = dim_representation
-
+        self.transformer_dropout = transformer_dropout
         self.cls_token = nn.Parameter(torch.zeros([1, dim_representation]))
 
         self.transformer_encoder_layers = []
@@ -203,7 +204,7 @@ class TransformerPooling(Module):
                 CustomTransformerEncoderLayer(self.dim_representation,
                                               self.num_heads,
                                               dim_feedforward=self.dim_representation,
-                                              dropout=0.1,
+                                              dropout=self.transformer_dropout,
                                               activation=F.gelu,
                                               batch_first=True))
         self.transformer_encoder_layers = torch.nn.ModuleList(self.transformer_encoder_layers)  # type: ignore
@@ -239,17 +240,21 @@ class TransformerPoolingBenchmark(Module):
         num_layers: Number of Transformer encoder layers.
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
+        transformer_dropout: The dropout value (default=0.1).
     """
 
-    def __init__(self, num_layers: int, num_heads: int, dim_representation: int, hidden_dim: int) -> None:
+    def __init__(self, num_layers: int, num_heads: int,
+                 dim_representation: int, hidden_dim: int,
+                 transformer_dropout: float) -> None:
         super().__init__()
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.dim_representation = dim_representation
         self.hidden_dim = hidden_dim
+        self.transformer_dropout = transformer_dropout
         transformer_layer = nn.TransformerEncoderLayer(d_model=self.dim_representation,
                                                        nhead=self.num_heads,
-                                                       dropout=0.0,
+                                                       dropout=self.transformer_dropout,
                                                        batch_first=True)
         self.transformer = nn.TransformerEncoder(transformer_layer, num_layers=self.num_layers)
         self.attention = nn.Sequential(nn.Linear(self.dim_representation, self.hidden_dim),
