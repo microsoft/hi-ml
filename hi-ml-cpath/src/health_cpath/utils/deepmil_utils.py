@@ -132,7 +132,7 @@ class PoolingParams(param.Parameterized):
         "layer. Else (False), initialize the pooling layer randomly.",
     )
     transformer_dropout: float = param.Number(
-        default=0.0,
+        default=0.1,
         doc="If transformer pooling is chosen, this defines the dropout of the tranformer encoder layers.",
     )
 
