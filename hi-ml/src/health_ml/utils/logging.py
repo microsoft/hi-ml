@@ -143,7 +143,8 @@ class AzureMLLogger(LightningLoggerBase):
         if self.enable_logging_outside_azure_ml and not self.is_running_in_azure_ml and self.run is not None:
             if self.has_user_provided_run:
                 # The logger uses a run that was provided by the user: Flush it, but do not complete it.
-                # The user should complete the run after finishing the experiment.
+                # The user should complete the run after finishing the experiment. This is important when running
+                # training outside of AzureML, so that training and inference metrics can be written to the same run.
                 self.run.flush()
             else:
                 # Run.complete should only be called if we created an AzureML run here in the constructor.

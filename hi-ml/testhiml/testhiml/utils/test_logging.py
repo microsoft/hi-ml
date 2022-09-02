@@ -352,9 +352,10 @@ def test_azureml_logger_finalize() -> None:
     logger = AzureMLLogger(enable_logging_outside_azure_ml=True, run=run_mock)
     assert logger.run is not None
     assert logger.has_user_provided_run
-    logger.finalize("nothing")
     run_mock.flush = MagicMock()
     run_mock.complete = MagicMock()
+    # When providing a run explicitly, the finalize method should not call the run's complete method. Completing
+    # the run is the responsibility of the user.
     logger.finalize(status="nothing")
     run_mock.flush.assert_called_once()
     run_mock.complete.assert_not_called()

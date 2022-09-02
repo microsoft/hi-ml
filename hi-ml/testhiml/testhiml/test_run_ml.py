@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
+from azureml._restclient.constants import RunStatus
+
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -355,9 +357,9 @@ def test_log_on_vm(log_from_vm: bool) -> None:
         metrics = logger.run.get_metrics()
         assert "test_mse" in metrics
         assert "loss" in metrics
-        # The run must have been correctly marked as completed. However, I did not find a way to check this.
-        # When we get here, the run is still returning "Running" as the status, even though it is completed in the UI.
-        # assert logger.run.status == RunStatus.COMPLETED
+        # The run must have been correctly marked as completed.
+        logger.run.wait_for_completion()
+        assert logger.run.status == RunStatus.COMPLETED
     else:
         assert logger.run is None
 
