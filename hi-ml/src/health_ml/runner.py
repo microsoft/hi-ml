@@ -303,7 +303,8 @@ class Runner:
 
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.
-        set_environment_variables_for_multi_node()
+        if self.experiment_config.num_nodes > 1:
+            set_environment_variables_for_multi_node()
         self.ml_runner = MLRunner(
             experiment_config=self.experiment_config,
             container=self.lightning_container,
