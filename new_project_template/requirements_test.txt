@@ -2,7 +2,7 @@ black==22.1.0
 coverage==6.3.2
 flake8==5.0.2
 mypy==0.931
-pylint==2.12.2
+pylint==2.15.0
 pycobertura==2.0.1
 pytest==6.2.2
 pytest-cov==2.11.1
