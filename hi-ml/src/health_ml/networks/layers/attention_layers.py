@@ -187,7 +187,7 @@ class TransformerPooling(Module):
         num_layers: Number of Transformer encoder layers.
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
-        transformer_dropout: The dropout value of transformer encoder layers (default=0.1).
+        transformer_dropout: The dropout value of transformer encoder layers.
     """
 
     def __init__(self, num_layers: int, num_heads: int, dim_representation: int, transformer_dropout: float) -> None:
@@ -240,7 +240,7 @@ class TransformerPoolingBenchmark(Module):
         num_layers: Number of Transformer encoder layers.
         num_heads: Number of attention heads per layer.
         dim_representation: Dimension of input encoding.
-        transformer_dropout: The dropout value of transformer encoder layers (default=0.1).
+        transformer_dropout: The dropout value of transformer encoder layers.
     """
 
     def __init__(self, num_layers: int, num_heads: int,
