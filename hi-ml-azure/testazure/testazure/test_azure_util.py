@@ -8,6 +8,7 @@ Tests for the functions in health_azure.azure_util
 import json
 import logging
 import os
+from random import randint
 import sys
 import time
 from argparse import ArgumentParser, Namespace, ArgumentError
@@ -33,7 +34,7 @@ from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from health_azure.utils import PackageDependency, create_argparser
+from health_azure.utils import MASTER_PORT_DEFAULT, PackageDependency, create_argparser
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        himl_azure_root, repository_root)
@@ -811,35 +812,123 @@ def test_set_environment_variables_for_multi_node(
         caplog: LogCaptureFixture,
         capsys: CaptureFixture,
 ) -> None:
+    # If none of AZ_BATCHAI_MPI_MASTER_NODE, AZ_BATCH_MASTER_NODE or ENV_MASTER_IP are set, should assume
+    # single node training job
     with caplog.at_level(logging.INFO):  # type: ignore
         util.set_environment_variables_for_multi_node()
-        assert "No settings for the MPI central node found" in caplog.text  # type: ignore
+        assert "No settings for the MPI central node found" in caplog.messages[-1]   # type: ignore
         assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
 
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: "here",
-                util.ENV_MASTER_PORT: "there",
-                util.ENV_OMPI_COMM_WORLD_RANK: "everywhere",
-                util.ENV_MASTER_ADDR: "else",
-            },
-            clear=True):
-        util.set_environment_variables_for_multi_node()
-    out = capsys.readouterr().out
-    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = there, NODE_RANK = everywhere" in out
+    # If all of ENV_MASTER_IP, AZ_BATCHAI_MPI_MASTER_NODE and AZ_BATCH_MASTER_NODE are set, the latter should
+    # take precedence. NODE_RANK should get updated to the value of ENV_OMPI_COMM_WORLD_RANK
+    mock_az_batch_master_port = str(randint(1000, MASTER_PORT_DEFAULT - 1))  # Avoid setting to the default value
+    mock_node_rank = str(randint(0, 10))
 
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_MASTER_IP: "here",
-                util.ENV_NODE_RANK: "everywhere",
-                util.ENV_MASTER_ADDR: "else",
-            },
-            clear=True):
-        util.set_environment_variables_for_multi_node()
-    out = capsys.readouterr().out
-    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
+    mock_az_batch_master_addr = "1234.0.0.0"
+    mock_az_batch_master_node = f"{mock_az_batch_master_addr}:{mock_az_batch_master_port}"
+
+    mock_az_batch_mpi_master_addr = "5678.9.9.9"
+    mock_az_batch_mpi_master_node = f"{mock_az_batch_mpi_master_addr}"
+
+    mock_env_master_ip = "9012.3.3.3"
+
+    env_dict_with_master_var = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mock_az_batch_mpi_master_node,
+        util.ENV_MASTER_ADDR: mock_az_batch_mpi_master_addr,
+        # master vars
+        util.ENV_AZ_BATCH_MASTER_NODE: mock_az_batch_master_node,
+        # AKS vars
+        util.ENV_MASTER_IP: mock_env_master_ip,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: mock_node_rank,
+        util.ENV_MASTER_PORT: mock_az_batch_master_port,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
+            util.set_environment_variables_for_multi_node()
+            print(caplog.messages)
+            out = caplog.messages[-1]
+            assert f"Distributed training: MASTER_ADDR = {mock_az_batch_master_addr}, MASTER_PORT = "
+            f"{mock_az_batch_master_port}, NODE_RANK = {mock_node_rank}" in out
+
+    # If AZ_BATCH_MASTER_NODE is not set, but AZ_BATCHAI_MPI_MASTER_NODE is, address should be taken from that
+    # In this case we expect master address to equal the mpi version, but port and rank will be the same as before
+    env_dict_with_mpi_master_var = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mock_az_batch_mpi_master_node,
+        util.ENV_MASTER_ADDR: mock_az_batch_mpi_master_addr,
+        # AKS vars
+        util.ENV_MASTER_IP: mock_env_master_ip,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: mock_node_rank,
+        util.ENV_MASTER_PORT: mock_az_batch_master_port,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_mpi_master_var, clear=True):
+            util.set_environment_variables_for_multi_node()
+            print(caplog.messages)
+            out = caplog.messages[-1]
+            assert f"Distributed training: MASTER_ADDR = {mock_az_batch_mpi_master_addr}, MASTER_PORT = "
+            f"{mock_az_batch_master_port}, NODE_RANK = {mock_node_rank}" in out
+
+    # If neither AZ_BATCH_MASTER_NODE nor AZ_BATCHAI_MPI_MASTER_NODE is set, but ENV_MASTER_IP is, the address
+    # should be updated with its value
+    env_dict_with_env_master_ip_var = {
+        # mpi_master vars
+        util.ENV_MASTER_ADDR: mock_az_batch_mpi_master_addr,
+        # AKS vars
+        util.ENV_MASTER_IP: mock_env_master_ip,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: mock_node_rank,
+        util.ENV_MASTER_PORT: mock_az_batch_master_port,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_env_master_ip_var, clear=True):
+            util.set_environment_variables_for_multi_node()
+            print(caplog.messages)
+            out = caplog.messages[-1]
+            assert f"Distributed training: MASTER_ADDR = {mock_env_master_ip}, MASTER_PORT = "
+            f"{mock_az_batch_master_port}, NODE_RANK = {mock_node_rank}" in out
+
+    # If ENV_MASTER_PORT is not set, the default port value should be used
+    env_dict_with_mpi_master_var_no_master_port = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mock_az_batch_mpi_master_node,
+        util.ENV_MASTER_ADDR: mock_az_batch_mpi_master_addr,
+        # AKS vars
+        util.ENV_MASTER_IP: mock_env_master_ip,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: mock_node_rank,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_master_port, clear=True):
+            util.set_environment_variables_for_multi_node()
+            print(caplog.messages)
+            out = caplog.messages[-1]
+            assert f"Distributed training: MASTER_ADDR = {mock_az_batch_mpi_master_addr}, MASTER_PORT = "
+            f"{MASTER_PORT_DEFAULT}, NODE_RANK = {mock_node_rank}" in out
+
+    # If OMPI_COMM_WORLD_RANK is not set, but one of AZ_BATCHAI_MPI_MASTER_NODE, AZ_BATCH_MASTER_NODE or
+    # ENV_MASTER_IP is set, a KeyError should be raised
+    env_dict_with_mpi_master_var_no_world_rank = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mock_az_batch_mpi_master_node,
+        util.ENV_MASTER_ADDR: mock_az_batch_mpi_master_addr,
+        # AKS vars
+        util.ENV_MASTER_IP: mock_env_master_ip,
+    }
+
+    with pytest.raises(KeyError) as ex:
+        with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_world_rank, clear=True):
+            util.set_environment_variables_for_multi_node()
+            print(caplog.messages)
+            out = caplog.messages[-1]
+            assert "NODE_RANK" in ex.value
 
 
 @pytest.mark.fast
