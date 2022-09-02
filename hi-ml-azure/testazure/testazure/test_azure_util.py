@@ -2112,7 +2112,7 @@ def test_create_run() -> None:
         run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
                                          workspace=DEFAULT_WORKSPACE.workspace)
         assert run is not None
-        assert run.name == run_name
+        assert run.display_name == run_name
         assert run.experiment.name == experiment_name
         metric_name = "mymetric"
         metric_value = 1.234
