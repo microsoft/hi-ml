@@ -818,7 +818,7 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
 
     # If all of ENV_MASTER_IP, AZ_BATCHAI_MPI_MASTER_NODE and AZ_BATCH_MASTER_NODE are set, the latter should
     # take precedence. NODE_RANK should get updated to the value of ENV_OMPI_COMM_WORLD_RANK
-    port_mock = str(MASTER_PORT_DEFAULT)  # Avoid setting to the default value
+    port_mock = str(MASTER_PORT_DEFAULT - 1)  # Avoid setting to the default value
     node_rank_mock = "8"
 
     master_addr_mock = "1234.0.0.0"
