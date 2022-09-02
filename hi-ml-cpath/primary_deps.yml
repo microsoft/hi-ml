@@ -39,7 +39,7 @@ dependencies:
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
       - attrs==21.4.0
-      - azure-mgmt-core==1.3.1
+      - azure-mgmt-core==1.3.0
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
       - markdown==2.6.8
