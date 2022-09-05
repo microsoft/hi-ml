@@ -1,5 +1,5 @@
 azureml-core==1.43.0
-azureml-dataset-runtime[fuse]
+azureml-dataset-runtime[fuse]==1.43.0
 azureml-tensorboard==1.43.0
 azureml-train-core==1.43.0
 conda-merge>=0.1.5

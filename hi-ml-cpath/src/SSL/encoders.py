@@ -91,4 +91,4 @@ def get_encoder_output_dim(
     with torch.no_grad():
         representations = pl_module(x)
 
-    return representations.shape[1]
+    return representations.shape[1]  # type: ignore
