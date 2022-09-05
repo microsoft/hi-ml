@@ -487,7 +487,7 @@ class TrainerParams(param.Parameterized):
                                               "additional time or memory consuming outputs only once after "
                                               "training is finished on the validation set.")
     pl_accumulate_grad_batches: int = param.Integer(default=1,
-                                                    doc="how many batches to accumulate before gradient update")
+                                                    doc="The number of batches over which gradients are accumulated, before a parameter update is done.")
 
     @property
     def use_gpu(self) -> bool:
