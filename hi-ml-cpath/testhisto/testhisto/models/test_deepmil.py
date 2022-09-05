@@ -47,11 +47,13 @@ def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool
                          tune_pooling=tune_pooling)
 
 
-def get_transformer_pooling_layer_params(num_layers: int, num_heads: int, hidden_dim: int) -> PoolingParams:
+def get_transformer_pooling_layer_params(num_layers: int, num_heads: int,
+                                         hidden_dim: int, transformer_dropout: float) -> PoolingParams:
     return PoolingParams(pool_type=TransformerPoolingBenchmark.__name__,
                          num_transformer_pool_layers=num_layers,
                          num_transformer_pool_heads=num_heads,
-                         pool_hidden_dim=hidden_dim)
+                         pool_hidden_dim=hidden_dim,
+                         transformer_dropout=transformer_dropout)
 
 
 def _test_lightningmodule(
@@ -563,12 +565,13 @@ def _get_tiles_deepmil_module(
     num_layers: int = 2,
     num_heads: int = 1,
     hidden_dim: int = 8,
+    transformer_dropout: float = 0.1
 ) -> TilesDeepMILModule:
     module = TilesDeepMILModule(
         n_classes=n_classes,
         label_column=MockPandaTilesGenerator.ISUP_GRADE,
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim),
+        pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim, transformer_dropout),
     )
     module.encoder_params.pretrained_encoder = pretrained_encoder
     module.pooling_params.pretrained_pooling = pretrained_pooling

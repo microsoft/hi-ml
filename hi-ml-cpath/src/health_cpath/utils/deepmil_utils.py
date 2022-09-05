@@ -127,8 +127,13 @@ class PoolingParams(param.Parameterized):
         doc="If True (default), fine-tune the pooling layer during training. If False, keep the pooling layer frozen.",
     )
     pretrained_pooling = param.Boolean(
-        False, doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the pooling"
-        "layer. Else (False), initialize the pooling layer randomly."
+        default=False,
+        doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the pooling"
+        "layer. Else (False), initialize the pooling layer randomly.",
+    )
+    transformer_dropout: float = param.Number(
+        default=0.0,
+        doc="If transformer pooling is chosen, this defines the dropout of the tranformer encoder layers.",
     )
 
     def get_pooling_layer(self, num_encoding: int) -> Tuple[nn.Module, int]:
@@ -141,22 +146,31 @@ class PoolingParams(param.Parameterized):
         """
         pooling_layer: nn.Module
         if self.pool_type == AttentionLayer.__name__:
-            pooling_layer = AttentionLayer(num_encoding, self.pool_hidden_dim, self.pool_out_dim)
+            pooling_layer = AttentionLayer(input_dims=num_encoding,
+                                           hidden_dims=self.pool_hidden_dim,
+                                           attention_dims=self.pool_out_dim)
         elif self.pool_type == GatedAttentionLayer.__name__:
-            pooling_layer = GatedAttentionLayer(num_encoding, self.pool_hidden_dim, self.pool_out_dim)
+            pooling_layer = GatedAttentionLayer(input_dims=num_encoding,
+                                                hidden_dims=self.pool_hidden_dim,
+                                                attention_dims=self.pool_out_dim)
         elif self.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
         elif self.pool_type == MaxPoolingLayer.__name__:
             pooling_layer = MaxPoolingLayer()
         elif self.pool_type == TransformerPooling.__name__:
             pooling_layer = TransformerPooling(
-                self.num_transformer_pool_layers, self.num_transformer_pool_heads, num_encoding
-            )
+                num_layers=self.num_transformer_pool_layers,
+                num_heads=self.num_transformer_pool_heads,
+                dim_representation=num_encoding,
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         elif self.pool_type == TransformerPoolingBenchmark.__name__:
             pooling_layer = TransformerPoolingBenchmark(
-                self.num_transformer_pool_layers, self.num_transformer_pool_heads, num_encoding, self.pool_hidden_dim
-            )
+                num_layers=self.num_transformer_pool_layers,
+                num_heads=self.num_transformer_pool_heads,
+                dim_representation=num_encoding,
+                hidden_dim=self.pool_hidden_dim,
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pool_type}")
