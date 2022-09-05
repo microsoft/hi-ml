@@ -55,9 +55,9 @@ def test_max_pooling(dim_in: int, batch_size: int,) -> None:
 @pytest.mark.parametrize("num_heads", [1, 2])
 @pytest.mark.parametrize("dim_in", [4, 8])   # dim_in % num_heads must be 0
 @pytest.mark.parametrize("batch_size", [1, 7])
-@pytest.mark.parametrize("transformer_dropout", [0.0, 0.3])
 def test_transformer_pooling(num_layers: int, num_heads: int, dim_in: int,
-                             batch_size: int, transformer_dropout: float) -> None:
+                             batch_size: int) -> None:
+    transformer_dropout = 0.5
     transformer_pooling = TransformerPooling(num_layers=num_layers,
                                              num_heads=num_heads,
                                              dim_representation=dim_in,
@@ -69,10 +69,10 @@ def test_transformer_pooling(num_layers: int, num_heads: int, dim_in: int,
 @pytest.mark.parametrize("num_heads", [1, 2])
 @pytest.mark.parametrize("dim_in", [4, 8])   # dim_in % num_heads must be 0
 @pytest.mark.parametrize("batch_size", [1, 7])
-@pytest.mark.parametrize("transformer_dropout", [0.0, 0.3])
 @pytest.mark.parametrize("dim_hid", [1, 4])
 def test_transformer_pooling_benchmark(num_layers: int, num_heads: int, dim_in: int,
-                                       batch_size: int, dim_hid: int, transformer_dropout: float) -> None:
+                                       batch_size: int, dim_hid: int) -> None:
+    transformer_dropout = 0.5
     transformer_pooling_benchmark = TransformerPoolingBenchmark(num_layers=num_layers,
                                                                 num_heads=num_heads,
                                                                 dim_representation=dim_in,
