@@ -146,27 +146,31 @@ class PoolingParams(param.Parameterized):
         """
         pooling_layer: nn.Module
         if self.pool_type == AttentionLayer.__name__:
-            pooling_layer = AttentionLayer(num_encoding, self.pool_hidden_dim, self.pool_out_dim)
+            pooling_layer = AttentionLayer(input_dims=num_encoding,
+                                           hidden_dims=self.pool_hidden_dim,
+                                           attention_dims=self.pool_out_dim)
         elif self.pool_type == GatedAttentionLayer.__name__:
-            pooling_layer = GatedAttentionLayer(num_encoding, self.pool_hidden_dim, self.pool_out_dim)
+            pooling_layer = GatedAttentionLayer(input_dims=num_encoding,
+                                                hidden_dims=self.pool_hidden_dim,
+                                                attention_dims=self.pool_out_dim)
         elif self.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
         elif self.pool_type == MaxPoolingLayer.__name__:
             pooling_layer = MaxPoolingLayer()
         elif self.pool_type == TransformerPooling.__name__:
             pooling_layer = TransformerPooling(
-                self.num_transformer_pool_layers,
-                self.num_transformer_pool_heads,
-                num_encoding,
-                self.transformer_dropout)
+                num_layers=self.num_transformer_pool_layers,
+                num_heads=self.num_transformer_pool_heads,
+                dim_representation=num_encoding,
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         elif self.pool_type == TransformerPoolingBenchmark.__name__:
             pooling_layer = TransformerPoolingBenchmark(
-                self.num_transformer_pool_layers,
-                self.num_transformer_pool_heads,
-                num_encoding,
-                self.pool_hidden_dim,
-                self.transformer_dropout)
+                num_layers=self.num_transformer_pool_layers,
+                num_heads=self.num_transformer_pool_heads,
+                dim_representation=num_encoding,
+                hidden_dim=self.pool_hidden_dim,
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pool_type}")
