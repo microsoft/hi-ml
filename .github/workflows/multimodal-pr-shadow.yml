@@ -1,0 +1,33 @@
+name: Multimodal PR
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - "hi-ml-multimodal/**"
+      - ".github/workflows/multimodal-pr.yml"
+
+jobs:
+
+  flake8:
+    runs-on: ubuntu-20.04
+    steps:
+      - run: 'echo "No build required" '
+
+  mypy:
+    runs-on: ubuntu-20.04
+    steps:
+      - run: 'echo "No build required" '
+
+  pytest:
+    runs-on: ubuntu-20.04
+    steps:
+      - run: 'echo "No build required" '
+
+  notebooks:
+    runs-on: ubuntu-20.04
+    steps:
+      - run: 'echo "No build required" '
