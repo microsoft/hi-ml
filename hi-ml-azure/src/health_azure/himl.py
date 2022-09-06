@@ -324,8 +324,8 @@ def create_aisupercomputer_config(script_run_config: ScriptRunConfig, workspace:
 
     logging.info("Updating ScriptRunConfig to submit to AI Supercomputer")
 
-    script_run_config.run_config.docker = DockerConfiguration()
-    script_run_config.run_config.environment.python.user_managed_dependencies = True
+    # script_run_config.run_config.docker = DockerConfiguration()
+    # script_run_config.run_config.environment.python.user_managed_dependencies = True
 
     # # script_run_config.run_config.environment.docker.base_image_registry.address = "msrresrchcr.azurecr.io"
     # script_run_config.run_config.environment.docker.base_image_registry.username = "msrresrchcr"
