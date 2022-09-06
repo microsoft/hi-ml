@@ -45,7 +45,9 @@ from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 runner_path = Path(sys.argv[0])
 sys.argv[0] = str(runner_path.resolve())
 
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
+DEFAULT_DOCKER_BASE_IMAGE = "singularitybase.azurecr.io/base/job/pytorch/1.10.0-cuda11.4-a100:20220610T170618175"
+# "mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:20220504.v1"
+# "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
 def initialize_rpdb() -> None:
