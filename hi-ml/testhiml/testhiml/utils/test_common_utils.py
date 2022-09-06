@@ -17,7 +17,7 @@ from health_ml.utils.common_utils import change_working_directory, check_conda_e
 def test_set_to_eval_mode() -> None:
     model = Module()
     model.train(True)
-    assert model.training
+    assert not model.training
     with set_model_to_eval_mode(model):
         assert not model.training
     assert model.training
