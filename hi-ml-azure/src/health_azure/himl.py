@@ -212,6 +212,7 @@ def create_run_configuration(workspace: Workspace,
         run_config.node_count = distributed_job_config.node_count
 
     if input_datasets or output_datasets:
+        print(f"Converting these input datasets to himl datasets: {input_datasets}")
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
                                                            workspace=workspace)
@@ -445,6 +446,7 @@ def submit_to_azure_if_needed(  # type: ignore
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
                                                       default_datastore_name=default_datastore)
+    print(f"Cleaned input datasets: {cleaned_input_datasets}")
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
     # The present function will most likely be called from the script once it is running in AzureML.
@@ -607,10 +609,16 @@ def _generate_azure_datasets(
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                               for index in range(len(cleaned_input_datasets))]
-    returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                for index in range(len(cleaned_output_datasets))]
+    print(f"Run context: {RUN_CONTEXT}")
+    print(f"RUN_CONTEXT.input_datasets: {RUN_CONTEXT.input_datasets}")
+    if "data" in RUN_CONTEXT.input_datasets:
+        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets["data"])]
+        returned_output_datasets = [Path(RUN_CONTEXT.input_datasets["output"])]
+    else:
+        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                                for index in range(len(cleaned_input_datasets))]
+        returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                    for index in range(len(cleaned_output_datasets))]
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
