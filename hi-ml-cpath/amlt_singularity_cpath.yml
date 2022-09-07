@@ -11,12 +11,10 @@ code:
 
 storage:
   data:
-    storage_account_name: <storage_account_name>
+    storage_account_name: himlstoragef191c40dff524
     container_name: datasets
+    mount_dir: /mnt/data
 
-# data:
-#   remote_dir: <path_to_pandas_dataset>
-#   storage_id: data
 
 # list of jobs to run
 jobs:

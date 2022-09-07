@@ -609,14 +609,37 @@ def _generate_azure_datasets(
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
+    amlt_data_key = 'AZUREML_DATAREFERENCE_data'
+    first_key = _input_dataset_key(0)
     print(f"Run context: {RUN_CONTEXT}")
     print(f"RUN_CONTEXT.input_datasets: {RUN_CONTEXT.input_datasets}")
-    if "data" in RUN_CONTEXT.input_datasets:
-        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets["data"])]
-        returned_output_datasets = [Path(RUN_CONTEXT.input_datasets["output"])]
+    print(f"looking for first key: {first_key}")
+    # print(f"Environment variables: {os.environ}")
+    if amlt_data_key in os.environ:
+        print(f"Value of env var {amlt_data_key}: {os.environ[amlt_data_key]}")
+    if first_key not in RUN_CONTEXT.input_datasets:
+        print("first_key not found")
+        data_mount_point = Path(RUN_CONTEXT.input_datasets["data"])
+        print(f"Does data mount point exist? {data_mount_point.is_dir()}")
+        if data_mount_point.exists():
+            print(f"Contents of data_mount_point: {os.listdir(data_mount_point)}")
+            returned_input_datasets = []
+            for input_dataset in cleaned_input_datasets:
+                print(f"Input dataset properties: {vars(input_dataset)}")
+                dataset_path = data_mount_point / input_dataset.name
+                print(f"Does dataset path: {dataset_path} exist? {dataset_path.exists()}")
+                returned_input_datasets.append(dataset_path)
+
+        output_mount_point = Path(RUN_CONTEXT.input_datasets["output"])
+        # TODO: get dataset pathr
+        # returned_input_datasets = [data_mount_point / input_dataset.name for input_dataset in cleaned_input_datasets]
+        returned_output_datasets = [output_mount_point / output_dataset.name for output_dataset in
+                                    cleaned_output_datasets]
+        print(f"Stitched retruned input datasets: {returned_input_datasets}")
+        print(f"Stitched retruned output datasets: {returned_output_datasets}")
     else:
         returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                for index in range(len(cleaned_input_datasets))]
+                                   for index in range(len(cleaned_input_datasets))]
         returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                     for index in range(len(cleaned_output_datasets))]
     return AzureRunInfo(
