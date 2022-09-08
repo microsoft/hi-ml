@@ -212,7 +212,6 @@ def create_run_configuration(workspace: Workspace,
         run_config.node_count = distributed_job_config.node_count
 
     if input_datasets or output_datasets:
-        print(f"Converting these input datasets to himl datasets: {input_datasets}")
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
                                                            workspace=workspace)
@@ -446,7 +445,6 @@ def submit_to_azure_if_needed(  # type: ignore
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
                                                       default_datastore_name=default_datastore)
-    print(f"Cleaned input datasets: {cleaned_input_datasets}")
     cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
                                                        default_datastore_name=default_datastore)
     # The present function will most likely be called from the script once it is running in AzureML.
