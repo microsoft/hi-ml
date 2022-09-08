@@ -182,9 +182,12 @@ def test_crossval_argument_names() -> None:
     container = HelloWorld()
     crossval_count = 8
     crossval_index = 5
+    random_seed = 4711
     container.crossval_count = crossval_count
     container.crossval_index = crossval_index
+    container.random_seed = random_seed
     assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+    assert getattr(container, container.RANDOM_SEED_ARG_NAME) == random_seed
 
 
 def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:

@@ -178,6 +178,8 @@ class LightningContainer(WorkflowParams,
             return self.get_crossval_hyperdrive_config()
         if self.hyperdrive:
             return self.get_parameter_tuning_config(ScriptRunConfig(source_directory=""))
+        if self.different_seeds > 0:
+            return self.get_different_seeds_hyperdrive_config()
         return None
 
     def load_model_checkpoint(self, checkpoint_path: Path) -> None:

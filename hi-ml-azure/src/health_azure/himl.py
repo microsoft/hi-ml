@@ -221,6 +221,40 @@ def create_run_configuration(workspace: Workspace,
     return run_config
 
 
+def create_grid_hyperdrive_config(values: List[str],
+                                  argument_name: str,
+                                  metric_name: str) -> HyperDriveConfig:
+    """
+    Creates an Azure ML HyperDriveConfig object that runs a simple grid search. The Hyperdrive job will run one child
+    job for each of the values provided in `values`, and each child job will have a suffix added to the commandline
+    like `--argument_name value`.
+
+    Note: this config expects that a metric is logged in your training script([see here](
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
+    that will be monitored by Hyperdrive. The name of this metric is given by `metric_name`.
+
+    :param values: The list of values for which  number of splits for k-fold cross validation
+    :param argument_name: The name of the commandline argument that each of the child runs gets, to
+        indicate which value they should work on.
+    :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
+        your responsibility to make sure a metric with this name is logged to the Run in your training script
+    :return: an Azure ML HyperDriveConfig object
+    """
+    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
+                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
+                 f"AzureMLLogger with Pytorch Lightning)")
+    parameter_dict = {
+        argument_name: choice(values),
+    }
+    return HyperDriveConfig(
+        run_config=ScriptRunConfig(""),
+        hyperparameter_sampling=GridParameterSampling(parameter_dict),
+        primary_metric_name=metric_name,
+        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+        max_total_runs=len(values)
+    )
+
+
 def create_crossval_hyperdrive_config(num_splits: int,
                                       cross_val_index_arg_name: str = "crossval_index",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
@@ -236,19 +270,9 @@ def create_crossval_hyperdrive_config(num_splits: int,
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
-                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
-                 f"AzureMLLogger with Pytorch Lightning)")
-    parameter_dict = {
-        cross_val_index_arg_name: choice(list(range(num_splits))),
-    }
-    return HyperDriveConfig(
-        run_config=ScriptRunConfig(""),
-        hyperparameter_sampling=GridParameterSampling(parameter_dict),
-        primary_metric_name=metric_name,
-        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-        max_total_runs=num_splits
-    )
+    return create_grid_hyperdrive_config(values=list(map(str, range(num_splits))),
+                                         argument_name=cross_val_index_arg_name,
+                                         metric_name=metric_name)
 
 
 def create_script_run(snapshot_root_directory: Optional[Path] = None,
