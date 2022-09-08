@@ -1,4 +1,4 @@
-description: Simple PyTorch job on MNIST on Singularity
+description: Computational Pathology jobs to run on Singularity
 
 environment:
   image: azureml/openmpi3.1.2-cuda10.2-cudnn7-ubuntu18.04:latest
@@ -11,7 +11,7 @@ code:
 
 storage:
   data:
-    storage_account_name: himlstoragef191c40dff524
+    storage_account_name: <storage_account_name>
     container_name: datasets
     mount_dir: /mnt/data
 
