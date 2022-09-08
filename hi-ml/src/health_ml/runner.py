@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
-from multiprocessing import current_process
 import os
 import param
 import sys
