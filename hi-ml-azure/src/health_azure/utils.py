@@ -2036,6 +2036,7 @@ def get_amulet_keys_not_set() -> Set[str]:
     Check environment variables for a given set associated with Amulet jobs. Returns a set containing any keys
     that are not available
     """
+    print(os.environ)
     amulet_keys = {ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR, ENV_AMLT_SNAPSHOT_DIR}
     return amulet_keys.difference(os.environ)
 
@@ -2045,4 +2046,4 @@ def is_amulet_job() -> bool:
     Checks whether a given set of environment variables associated with Amulet are available. If not, this is not
     an Amulet job so returns False. Otherwise returns True
     """
-    return len(get_amulet_keys_not_set()) > 0
+    return len(get_amulet_keys_not_set()) == 0
