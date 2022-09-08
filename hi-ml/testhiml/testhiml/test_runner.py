@@ -175,6 +175,7 @@ def test_crossval_config() -> None:
         assert isinstance(crossval_config, HyperDriveConfig)
 
 
+@pytest.mark.fast
 def test_crossval_argument_names() -> None:
     """
     Cross validation uses hardcoded argument names, check if they match the field names
