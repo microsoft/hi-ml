@@ -21,7 +21,7 @@ $ amlt workspace add WORKSPACE_NAME --subscription SUBSCRIPTION_ID --resource-gr
 $ amlt workspace set-default VC_NAME WORKSPACE_NAME
 ```
 
-## (Optional) Create a project
+## Create or checkout a project
 As stated in the docs, an [Amulet project](https://amulet-docs.azurewebsites.net/main/basics/00_create_project.html)
 "usually corresponds to a single research endeavor, e.g. a publication". Projects contain experiments which contain
 jobs. To create a project:
@@ -57,6 +57,9 @@ jobs:
 Note that SKU here refers to the number of GPUs/CPUs to reserve, and its memory. In this case we have specified 1 GPU.
 For other options, see [the docs](https://amulet-docs.azurewebsites.net/main/config_file.html#jobs).
 
+You can specify multiple jobs here. There are a variety of arguments for controlling factors such as `sla_tier`, whether
+the job is `preemptible`, the job `priority` and more. For full details see [the docs](https://amulet-docs.azurewebsites.net/main/config_file.html#jobs)
+
 ## Submit the job to Singularity
 ```bash
 $ amlt run <path-to-config> <experiment-name> -t <target-cluster>
@@ -66,4 +69,28 @@ $ amlt run <path-to-config> <experiment-name> -t <target-cluster>
 If you have multiple jobs specified in your config file, it is possible to submit just one of them as follows:
 ```bash
 $ amlt run <path-to-config> <experiment-name> :<job_name> -t <target-cluster>
+```
+
+## View your job
+Once your job is running, you can view it in the Azure ML UI. Alternatively, you can check on the status using the
+`amlt` CLI as follows:
+
+```bash
+$ amlt status <exp-name> :<job-name-1
+```
+Similarly, to get the STDOUT from your job, run
+```bash
+$ amlt logs <exp-name> :<job-name-1>
+```
+
+To view all of your runs in one place, run:
+```bash
+$ amlt browse
+```
+This will launch a Flask app which allows you to view the runs within your project
+
+## Download the /logs outputs of your job
+Amulet provides a simple way to download the logs from your job:
+```bash
+$ amlt results <exp-name> :<job-name-1>
 ```
