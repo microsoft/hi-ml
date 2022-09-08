@@ -623,14 +623,6 @@ def _generate_azure_datasets(
         # print(f"Does data mount point exist? {data_mount_point.is_dir()}")
         returned_input_datasets = [data_mount_point / input_dataset.name for input_dataset in
                                    cleaned_input_datasets]
-        # if data_mount_point.exists():
-        #     print(f"Contents of data_mount_point: {os.listdir(data_mount_point)}")
-        #     returned_input_datasets = []
-        #     for input_dataset in cleaned_input_datasets:
-        #         print(f"Input dataset properties: {vars(input_dataset)}")
-        #         dataset_path = data_mount_point / input_dataset.name
-        #         print(f"Does dataset path: {dataset_path} exist? {dataset_path.exists()}")
-        #         returned_input_datasets.append(dataset_path)
 
         output_mount_point = Path(RUN_CONTEXT.input_datasets["output"])
         # TODO: get dataset pathr
