@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
+from multiprocessing import current_process
 import os
 import param
 import sys
@@ -271,16 +272,17 @@ class Runner:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 submit_to_azureml=False)
-        if self.lightning_container.tag and azure_run_info.run:
+        if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
             # Hypdrive child runs (for other jobs, this has already been done after submission)
             suffix = None
             if self.lightning_container.is_crossvalidation_enabled:
-                suffix = f"CV {self.lightning_container.crossval_index}"
+                suffix = f"crossval {self.lightning_container.crossval_index}"
             elif self.lightning_container.different_seeds > 0:
                 suffix = f"seed {self.lightning_container.random_seed}"
             if suffix:
-                azure_run_info.run.display_name = f"{azure_run_info.run.display_name} {suffix}"
+                current_name = self.lightning_container.tag or azure_run_info.run.display_name
+                azure_run_info.run.display_name = f"{current_name} {suffix}"
 
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
