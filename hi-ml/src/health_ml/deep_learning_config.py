@@ -17,7 +17,8 @@ from urllib.parse import urlparse
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import create_crossval_hyperdrive_config
-from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
+from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml,
+                                get_amulet_keys_not_set)
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
@@ -110,9 +111,8 @@ class ExperimentFolderHandler(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            amulet_keys = {"AZUREML_ARM_PROJECT_NAME", "AZURE_ML_INPUT_OUTPUT", "AMLT_OUTPUT_DIR", "SNAPSHOT_DIR"}
-            amulet_keys_not_set = amulet_keys.difference(os.environ)
-            if len(amulet_keys_not_set):
+            amulet_keys_not_set = get_amulet_keys_not_set()
+            if len(amulet_keys_not_set) > 0:
                 logging.debug("Assumed not to be an Amulet job since the following environment variables are not set:"
                               f" {amulet_keys_not_set}")
                 run_folder = project_root
