@@ -92,7 +92,7 @@ Once your job is running, you can view it in the Azure ML UI. Alternatively, you
 `amlt` CLI as follows:
 
 ```bash
-$ amlt status <exp-name> :<job-name-1
+$ amlt status <exp-name> :<job-name-1>
 ```
 Similarly, to get the STDOUT from your job, run
 ```bash
