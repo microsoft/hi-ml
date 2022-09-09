@@ -197,6 +197,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     """
     model_name = "HelloWorld"
     crossval_count = 2
+    expected_settings = list(map(str, range(crossval_count)))
     arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
@@ -216,7 +217,7 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
             parameter_space = hyperdrive_config._generator_config["parameter_space"]
-            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [expected_settings]]
 
 
 def test_submit_to_azure_docker(mock_runner: Runner) -> None:
