@@ -170,7 +170,8 @@ class LightningContainer(WorkflowParams,
 
     def get_hyperdrive_config(self) -> Optional[HyperDriveConfig]:
         """
-        Returns the HyperDrive config for either hyperparameter tuning or cross validation.
+        Returns the HyperDrive config for either hyperparameter tuning, cross validation, or running with
+        different seeds.
 
         :return: A configuration object for HyperDrive
         """
