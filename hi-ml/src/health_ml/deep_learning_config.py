@@ -16,7 +16,6 @@ from urllib.parse import urlparse
 
 from azureml.train.hyperdrive import HyperDriveConfig
 
-from param import Parameterized
 from health_azure import create_crossval_hyperdrive_config
 from health_azure.himl import create_grid_hyperdrive_config
 from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml,
