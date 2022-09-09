@@ -1,6 +1,7 @@
 import logging
 import sys
 from pathlib import Path
+import time
 
 import pytest
 import param
@@ -180,3 +181,4 @@ if __name__ == "__main__":
                 after_submission=pytest_after_submission_hook,
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, coverage_module=config.coverage_module)
+    time.sleep(10)  # Give the AzureML job time to finish uploading the pytest result file.
