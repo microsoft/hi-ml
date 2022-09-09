@@ -617,8 +617,8 @@ def _generate_azure_datasets(
         print(f"Path to output datasets: {output_data_mount_folder}")
         returned_output_datasets = [output_data_mount_folder / output_dataset.name for output_dataset in
                                     cleaned_output_datasets]
-        print(f"Stitched retruned input datasets: {returned_input_datasets}")
-        print(f"Stitched retruned output datasets: {returned_output_datasets}")
+        print(f"Stitched returned input datasets: {returned_input_datasets}")
+        print(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
         returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
                                    for index in range(len(cleaned_input_datasets))]

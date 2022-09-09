@@ -5,10 +5,7 @@ external user.
 
 ## Install Amulet
 This package is not included in the hi-ml environment definition, since these instructions only apply to users
-associated with the Microsoft tenant
-```bash
-$ pip install -U amlt --extra-index-url https://msrpypi.azurewebsites.net/stable/7e404de797f4e1eeca406c1739b00867
-```
+associated with the Microsoft tenant. See the [instructions for installing](https://amulet-docs.azurewebsites.net/main/setup.html#install-commands).
 
 ## Create an Azure ML Storage Account
 As stated in the [Amulet docs](https://amulet-docs.azurewebsites.net/main/setup.html#azure-storage-account), a Storage
@@ -70,6 +67,25 @@ If you have multiple jobs specified in your config file, it is possible to submi
 ```bash
 $ amlt run <path-to-config> <experiment-name> :<job_name> -t <target-cluster>
 ```
+
+## Running a distributed job
+There are multiple ways to distribute a job with Amulet. The recommended way is to add the following section to your config file
+```yaml
+env_defaults:
+  NODES: 1
+  GPUS: 8
+  MEM: 32
+```
+Then you should update your job definition as follows:
+```yaml
+jobs:
+- name: <job name>
+  sku: ${NODES}x${MEM}G${GPUS}
+  command:
+  - python <script> <args>
+  process_count_per_node: ${GPUS}
+```
+Additional settings and other methods for distributing can be found [here](https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html).
 
 ## View your job
 Once your job is running, you can view it in the Azure ML UI. Alternatively, you can check on the status using the

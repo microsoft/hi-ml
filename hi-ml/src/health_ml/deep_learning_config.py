@@ -18,7 +18,8 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import create_crossval_hyperdrive_config
 from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml,
-                                get_amulet_keys_not_set)
+                                get_amulet_keys_not_set, get_amlt_aml_working_dir, is_amulet_job,
+                                ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR )
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
@@ -112,7 +113,7 @@ class ExperimentFolderHandler(Parameterized):
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
             amulet_keys_not_set = get_amulet_keys_not_set()
-            if len(amulet_keys_not_set) > 0:
+            if is_amulet_job():
                 logging.debug("Assumed not to be an Amulet job since the following environment variables are not set:"
                               f" {amulet_keys_not_set}")
                 run_folder = project_root
@@ -122,10 +123,11 @@ class ExperimentFolderHandler(Parameterized):
                 # Job submitted via Amulet
                 amlt_root_folder = Path(os.environ["AZURE_ML_INPUT_OUTPUT"])
                 project_name = os.environ["AZUREML_ARM_PROJECT_NAME"]
-                snapshot_dir = Path(os.environ["SNAPSHOT_DIR"])
+                snapshot_dir = get_amlt_aml_working_dir()
+                assert snapshot_dir, \
+                    f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"
                 logging.debug(f"Found the following environment variables set by Amulet: "
-                              f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}, "
-                              f"SNAPSHOT_DIR: {snapshot_dir}")
+                              f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}")
                 run_id = RUN_CONTEXT.id
                 run_folder = amlt_root_folder / "projects" / project_name / "amlt-code" / run_id
                 outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR

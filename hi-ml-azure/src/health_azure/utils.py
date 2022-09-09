@@ -70,6 +70,7 @@ ENV_AMLT_PROJECT_NAME = "AZUREML_ARM_PROJECT_NAME"
 ENV_AMLT_INPUT_OUTPUT = "AZURE_ML_INPUT_OUTPUT"
 ENV_AMLT_OUTPUT_DIR = "AMLT_OUTPUT_DIR"
 ENV_AMLT_SNAPSHOT_DIR = "SNAPSHOT_DIR"
+ENV_AMLT_AZ_BATCHAI_DIR = "AZ_BATCHAI_JOB_WORK_DIR"
 ENV_AMLT_DATAREFERENCE_DATA = 'AZUREML_DATAREFERENCE_data'
 ENV_AMLT_DATAREFERENCE_OUTPUT = "AZUREML_DATAREFERENCE_output"
 
@@ -2031,13 +2032,31 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
 
+def get_amlt_aml_working_dir() -> Optional[Path]:
+    """
+    For a job submitted by Amulet, return the path to the Azure ML working directory (i.e. where Azure ML is storing the
+    code for the Run). The environment variable that contains this value differs depending on whether the job is
+    distributed or not.
+
+    :return: A string representing the path to the Azure ML working directory if the job is submited by Amulet,
+        otherwise an empty string
+    """
+    if ENV_AMLT_SNAPSHOT_DIR in os.environ:
+        # A non-distributed job submitted by Amulet
+        return Path(os.environ[ENV_AMLT_SNAPSHOT_DIR])
+    elif ENV_AMLT_AZ_BATCHAI_DIR in os.environ:
+        # A distributed job submitted by Amule
+        return Path(os.environ[ENV_AMLT_AZ_BATCHAI_DIR])
+    return None
+
+
 def get_amulet_keys_not_set() -> Set[str]:
     """
     Check environment variables for a given set associated with Amulet jobs. Returns a set containing any keys
     that are not available
     """
     print(os.environ)
-    amulet_keys = {ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR, ENV_AMLT_SNAPSHOT_DIR}
+    amulet_keys = {ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR}
     return amulet_keys.difference(os.environ)
 
 
@@ -2046,4 +2065,8 @@ def is_amulet_job() -> bool:
     Checks whether a given set of environment variables associated with Amulet are available. If not, this is not
     an Amulet job so returns False. Otherwise returns True
     """
-    return len(get_amulet_keys_not_set()) == 0
+    missing_amlt_env_vars = get_amulet_keys_not_set()
+    amlt_aml_working_dir = get_amlt_aml_working_dir()
+    if len(missing_amlt_env_vars) == 0 and amlt_aml_working_dir is not None:
+        return True
+    return False
