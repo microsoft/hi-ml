@@ -18,7 +18,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import create_crossval_hyperdrive_config
 from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml,
-                                get_amulet_keys_not_set, get_amlt_aml_working_dir, is_amulet_job,
+                                get_amlt_aml_working_dir, is_amulet_job, ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
                                 ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR)
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
@@ -118,8 +118,8 @@ class ExperimentFolderHandler(Parameterized):
                 logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
             else:
                 # Job submitted via Amulet
-                amlt_root_folder = Path(os.environ["AZURE_ML_INPUT_OUTPUT"])
-                project_name = os.environ["AZUREML_ARM_PROJECT_NAME"]
+                amlt_root_folder = Path(os.environ[ENV_AMLT_INPUT_OUTPUT])
+                project_name = os.environ[ENV_AMLT_PROJECT_NAME]
                 snapshot_dir = get_amlt_aml_working_dir()
                 assert snapshot_dir, \
                     f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"

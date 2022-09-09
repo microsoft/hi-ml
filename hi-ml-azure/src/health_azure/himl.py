@@ -27,7 +27,8 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath, is_amulet_job,
+from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, create_python_environment,
+                                create_run_recovery_id, find_file_in_parent_to_pythonpath, is_amulet_job,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
@@ -609,16 +610,16 @@ def _generate_azure_datasets(
     """
     if is_amulet_job():
         input_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_DATA])
-        print(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
+        logging.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
         returned_input_datasets = [input_data_mount_folder / input_dataset.name for input_dataset in
                                    cleaned_input_datasets]
 
         output_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_OUTPUT])
-        print(f"Path to output datasets: {output_data_mount_folder}")
+        logging.info(f"Path to output datasets: {output_data_mount_folder}")
         returned_output_datasets = [output_data_mount_folder / output_dataset.name for output_dataset in
                                     cleaned_output_datasets]
-        print(f"Stitched returned input datasets: {returned_input_datasets}")
-        print(f"Stitched returned output datasets: {returned_output_datasets}")
+        logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
+        logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
         returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
                                    for index in range(len(cleaned_input_datasets))]
