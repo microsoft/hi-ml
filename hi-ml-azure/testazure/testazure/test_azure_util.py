@@ -30,7 +30,6 @@ from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -551,23 +550,30 @@ def assert_pip_length(yaml: Any, expected_length: int) -> None:
 
 
 @pytest.mark.fast
-def test_pip_include_1() -> None:
+def test_pip_include_1(tmp_path: Path) -> None:
     """Test if Conda files that use PIP include are handled correctly. This uses the top-level environment.yml
     file in the repository.
     """
-    if paths.is_himl_used_from_git_repo():
-        env_file_path = paths.shared_himl_conda_env_file()
-        assert env_file_path.is_file()
-        original_yaml = conda_merge.read_file(env_file_path)
-        # At the time of writing, the top-level environment file only had 4 include statements in the pip
-        # section, they should all be filtered out.
-        assert_pip_length(original_yaml, 4)
-        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(env_file_path)
-        assert uses_pip_include
-        pip = util._get_pip_dependencies(modified_yaml)
-        # The pip section of the top-level yaml has nothing but include statements, so after filtering the
-        # pip section is empty. In this case, no pip section shoudld be present at all.
-        assert pip is None
+    yaml_contents = """name: himl
+channels:
+  - defaults
+dependencies:
+  - pip=20.1.1
+  - pip:
+      - -r run_requirements.txt
+      - some_other_pip_package
+"""
+    env_file = tmp_path / "environment.yml"
+    env_file.write_text(yaml_contents)
+    assert env_file.is_file()
+    original_yaml = conda_merge.read_file(env_file)
+    # The pip section has 2 entries, one that is a reference to a file, and one that is a package.
+    assert_pip_length(original_yaml, 2)
+    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(env_file)
+    assert uses_pip_include
+    # After filtering out the pip include, the pip section should have only one entry
+    pip = util._get_pip_dependencies(modified_yaml)
+    assert pip == (1, ["some_other_pip_package"])
 
 
 @pytest.mark.fast
