@@ -2043,9 +2043,11 @@ def get_amlt_aml_working_dir() -> Optional[Path]:
     """
     if ENV_AMLT_SNAPSHOT_DIR in os.environ:
         # A non-distributed job submitted by Amulet
+        print(f"Found {ENV_AMLT_SNAPSHOT_DIR} in env vars: {os.environ[ENV_AMLT_SNAPSHOT_DIR]}")
         return Path(os.environ[ENV_AMLT_SNAPSHOT_DIR])
     elif ENV_AMLT_AZ_BATCHAI_DIR in os.environ:
-        # A distributed job submitted by Amule
+        # A distributed job submitted by Amulet
+        print(f"Found {ENV_AMLT_AZ_BATCHAI_DIR} in env vars: {os.environ[ENV_AMLT_AZ_BATCHAI_DIR]}")
         return Path(os.environ[ENV_AMLT_AZ_BATCHAI_DIR])
     return None
 
@@ -2055,7 +2057,6 @@ def get_amulet_keys_not_set() -> Set[str]:
     Check environment variables for a given set associated with Amulet jobs. Returns a set containing any keys
     that are not available
     """
-    print(os.environ)
     amulet_keys = {ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR}
     return amulet_keys.difference(os.environ)
 

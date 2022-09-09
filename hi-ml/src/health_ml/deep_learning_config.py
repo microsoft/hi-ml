@@ -112,10 +112,7 @@ class ExperimentFolderHandler(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            amulet_keys_not_set = get_amulet_keys_not_set()
-            if is_amulet_job():
-                logging.debug("Assumed not to be an Amulet job since the following environment variables are not set:"
-                              f" {amulet_keys_not_set}")
+            if not is_amulet_job():
                 run_folder = project_root
                 outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
                 logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
@@ -126,16 +123,16 @@ class ExperimentFolderHandler(Parameterized):
                 snapshot_dir = get_amlt_aml_working_dir()
                 assert snapshot_dir, \
                     f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"
-                logging.debug(f"Found the following environment variables set by Amulet: "
-                              f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}")
+                print(f"Found the following environment variables set by Amulet: "
+                      f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}")
                 run_id = RUN_CONTEXT.id
                 run_folder = amlt_root_folder / "projects" / project_name / "amlt-code" / run_id
                 outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR
                 logs_folder = snapshot_dir / DEFAULT_LOGS_DIR_NAME
 
-        logging.info(f"Run outputs folder: {outputs_folder}")
-        logging.info(f"Logs folder: {logs_folder}")
-        logging.info(f"Run root directory: {run_folder}")
+        print(f"Run outputs folder: {outputs_folder}")
+        print(f"Logs folder: {logs_folder}")
+        print(f"Run root directory: {run_folder}")
         return ExperimentFolderHandler(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
