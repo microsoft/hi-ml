@@ -272,7 +272,7 @@ class WorkflowParams(param.Parameterized):
     def get_different_seeds_hyperdrive_config(self) -> HyperDriveConfig:
         """Returns a configuration object for AzureML Hyperdrive that varies the random seed for each run."""
         return create_grid_hyperdrive_config(values=list(map(str, range(self.different_seeds))),
-                                             argument_name="random_seed",
+                                             argument_name=self.RANDOM_SEED_ARG_NAME,
                                              metric_name="val/loss"
                                              )
 

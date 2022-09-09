@@ -280,7 +280,6 @@ The following command will log to the experiment `my_experiment`, in a run that 
 himl-runner --model=HelloWorld --log_from_vm --experiment=my_experiment --tag=my_first_run
 ```
 
-
 ## Starting experiments with different seeds
 
 To assess the variability of metrics, it is often useful to run the same experiment multiple times with different seeds.
