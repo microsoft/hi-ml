@@ -156,9 +156,11 @@ class WorkflowParams(param.Parameterized):
     crossval_index: int = param.Integer(default=0, bounds=(0, None),
                                         doc="When doing cross validation, this is the index of the current "
                                             "split. Valid values: 0 .. (crossval_count -1)")
-    hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
-                                                "LightningContainer to run hyperparameter tuning. If False, just "
-                                                "run a plain single training job.")
+    hyperdrive: bool = param.Boolean(False,
+                                     doc="If True, use the Hyperdrive configuration specified in the "
+                                         "LightningContainer to run hyperparameter tuning. If False, just "
+                                         "run a plain single training job. This cannot be combined with "
+                                         "the flags --different_seeds or --crossval_count.")
     regression_test_folder: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="A path to a folder that contains a set of files. At the end of training and "
@@ -184,7 +186,8 @@ class WorkflowParams(param.Parameterized):
     different_seeds: int = param.Integer(default=0, bounds=(0, None),
                                          doc="If > 0, run the same training job multiple times with different seeds. "
                                          "This uses AzureML hyperdrive to run multiple jobs in parallel, and hence "
-                                         "cannot be used when running outside AzureML.")
+                                         "cannot be used when running outside AzureML. "
+                                         "This cannot be combined with the --hyperdrive or the --crossval_count flags.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"

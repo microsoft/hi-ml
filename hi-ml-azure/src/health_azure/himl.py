@@ -233,7 +233,7 @@ def create_grid_hyperdrive_config(values: List[str],
     https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
     that will be monitored by Hyperdrive. The name of this metric is given by `metric_name`.
 
-    :param values: The list of values for which  number of splits for k-fold cross validation
+    :param values: The list of values to try for the commandline argument given by `argument_name`.
     :param argument_name: The name of the commandline argument that each of the child runs gets, to
         indicate which value they should work on.
     :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is

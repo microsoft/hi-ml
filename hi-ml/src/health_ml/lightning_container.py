@@ -89,7 +89,7 @@ class LightningContainer(WorkflowParams,
         metric should be monitored.
 
         :param run_config: The ScriptRunConfig object that needs to be passed into the constructor of
-        HyperDriveConfig.
+            HyperDriveConfig.
         """
         raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
                                   "in your model container.")
@@ -174,10 +174,10 @@ class LightningContainer(WorkflowParams,
 
         :return: A configuration object for HyperDrive
         """
-        if self.is_crossvalidation_enabled:
-            return self.get_crossval_hyperdrive_config()
         if self.hyperdrive:
             return self.get_parameter_tuning_config(ScriptRunConfig(source_directory=""))
+        if self.is_crossvalidation_enabled:
+            return self.get_crossval_hyperdrive_config()
         if self.different_seeds > 0:
             return self.get_different_seeds_hyperdrive_config()
         return None
