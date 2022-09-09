@@ -15,6 +15,7 @@ import param
 from azureml.train.hyperdrive import HyperDriveConfig
 from param import Parameterized
 from health_azure import create_crossval_hyperdrive_config
+from health_azure.himl import create_grid_hyperdrive_config
 from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
 
 from health_ml.utils import fixed_paths
@@ -155,9 +156,11 @@ class WorkflowParams(param.Parameterized):
     crossval_index: int = param.Integer(default=0, bounds=(0, None),
                                         doc="When doing cross validation, this is the index of the current "
                                             "split. Valid values: 0 .. (crossval_count -1)")
-    hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
-                                                "LightningContainer to run hyperparameter tuning. If False, just "
-                                                "run a plain single training job.")
+    hyperdrive: bool = param.Boolean(False,
+                                     doc="If True, use the Hyperdrive configuration specified in the "
+                                         "LightningContainer to run hyperparameter tuning. If False, just "
+                                         "run a plain single training job. This cannot be combined with "
+                                         "the flags --different_seeds or --crossval_count.")
     regression_test_folder: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="A path to a folder that contains a set of files. At the end of training and "
@@ -180,9 +183,15 @@ class WorkflowParams(param.Parameterized):
                                       "metrics to AzureML. Both intermediate validation metrics and final test results"
                                       "will be recorded. You need to have an AzureML workspace config.json file "
                                       "and will be asked for interactive authentication.")
+    different_seeds: int = param.Integer(default=0, bounds=(0, None),
+                                         doc="If > 0, run the same training job multiple times with different seeds. "
+                                         "This uses AzureML hyperdrive to run multiple jobs in parallel, and hence "
+                                         "cannot be used when running outside AzureML. "
+                                         "This cannot be combined with the --hyperdrive or the --crossval_count flags.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
+    RANDOM_SEED_ARG_NAME = "random_seed"
 
     @property
     def src_checkpoint_is_url(self) -> bool:
@@ -259,6 +268,13 @@ class WorkflowParams(param.Parameterized):
                                                  cross_val_index_arg_name=self.CROSSVAL_INDEX_ARG_NAME,
                                                  metric_name="val/loss"
                                                  )
+
+    def get_different_seeds_hyperdrive_config(self) -> HyperDriveConfig:
+        """Returns a configuration object for AzureML Hyperdrive that varies the random seed for each run."""
+        return create_grid_hyperdrive_config(values=list(map(str, range(self.different_seeds))),
+                                             argument_name=self.RANDOM_SEED_ARG_NAME,
+                                             metric_name="val/loss"
+                                             )
 
 
 class DatasetParams(param.Parameterized):
