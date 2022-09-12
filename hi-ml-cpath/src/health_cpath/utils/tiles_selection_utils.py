@@ -180,30 +180,33 @@ class TilesSelector:
                 pred_prob_score = results[ResultsKey.CLASS_PROBS][:, pred_label][i].item()
                 tiles = batch[SlideKey.IMAGE][i]
                 attn_scores = results[ResultsKey.BAG_ATTN][i].squeeze(0)
-                self._update_label_slides(
-                    class_slides_heap=self.top_slides_heaps[gt_label],
-                    tiles=tiles,
-                    attn_scores=attn_scores,
-                    slide_node=SlideNode(
-                        slide_id=slide_ids[i],
-                        gt_prob_score=gt_prob_score,
-                        pred_prob_score=pred_prob_score,
-                        true_label=gt_label,
-                        pred_label=pred_label,
-                    ),
-                )
-                self._update_label_slides(
-                    class_slides_heap=self.bottom_slides_heaps[gt_label],
-                    tiles=tiles,
-                    attn_scores=attn_scores,
-                    slide_node=SlideNode(
-                        slide_id=slide_ids[i],
-                        gt_prob_score=-gt_prob_score,  # negative score for bottom slides to reverse order in max heap
-                        pred_prob_score=pred_prob_score,
-                        true_label=gt_label,
-                        pred_label=pred_label,
-                    ),
-                )
+                if pred_label == gt_label:
+                    self._update_label_slides(
+                        class_slides_heap=self.top_slides_heaps[gt_label],
+                        tiles=tiles,
+                        attn_scores=attn_scores,
+                        slide_node=SlideNode(
+                            slide_id=slide_ids[i],
+                            gt_prob_score=gt_prob_score,
+                            pred_prob_score=pred_prob_score,
+                            true_label=gt_label,
+                            pred_label=pred_label,
+                        ),
+                    )
+                elif pred_label != gt_label:
+                    self._update_label_slides(
+                        class_slides_heap=self.bottom_slides_heaps[gt_label],
+                        tiles=tiles,
+                        attn_scores=attn_scores,
+                        slide_node=SlideNode(
+                            slide_id=slide_ids[i],
+                            # negative score for bottom slides to reverse order in max heap
+                            gt_prob_score=-gt_prob_score,
+                            pred_prob_score=pred_prob_score,
+                            true_label=gt_label,
+                            pred_label=pred_label,
+                        ),
+                    )
 
     def _shallow_copy_slides_heaps(self, slides_heaps: SlideDict) -> SlideDict:
         """Returns a shallow copy of slides heaps to be synchronised across devices.
