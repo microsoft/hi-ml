@@ -490,6 +490,10 @@ class TrainerParams(param.Parameterized):
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
                          "Set to either 'simple', 'advanced', or 'pytorch'")
+    find_lr: bool = \
+        param.Boolean(default=False,
+                      doc="If True, use the PytorchLightning learning rate finder before training. The results of the "
+                          "learning rate finder will be plotted to a figure and saved, then the trainer exits.")
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")

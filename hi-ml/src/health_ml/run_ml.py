@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 from azureml.core import Run
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.tuner.lr_finder import _LRFinder
 
 from health_azure import AzureRunInfo
 from health_azure.logging import logging_section
@@ -205,7 +206,8 @@ class MLRunner:
                 resume_from_checkpoint=checkpoint_path_for_recovery,
                 num_nodes=self.container.num_nodes,
                 multiple_trainloader_mode=self.get_multiple_trainloader_mode(),
-                azureml_run_for_logging=self.azureml_run_for_logging)
+                azureml_run_for_logging=self.azureml_run_for_logging,
+                auto_lr_find=self.container.find_lr)
 
             rank_info = ", ".join(
                 f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK]
@@ -357,6 +359,31 @@ class MLRunner:
         """
         self.setup()
         try:
+            if self.container.find_lr:
+                # Special handling of learning rate finder runs: These runs will only do the learning rate tuning
+                # and write a figure with the results, but not do any training.
+
+                # LR finder does not support multi GPUs yet
+                self.container.max_num_gpus = 1
+                self.init_training()
+                assert self.trainer is not None
+                # Lightning expects the learning rate to be available in a field "lr" in the model
+                self.container.model.lr = self.container.l_rate  # type: ignore
+                logging.info(f"Initial learning rate: {self.container.model.lr}")
+                tuner_result = self.trainer.tune(self.container.model, datamodule=self.data_module)
+                logging.info(f"Tuned learning rate: {self.container.model.lr}")
+                lr_finder = tuner_result.get("lr_find", None)
+                assert isinstance(lr_finder, _LRFinder)
+                fig = lr_finder.plot(show=True)
+                fig.show()
+                figure_name = "learning_rate_tuning.png"
+                logging.info(f"Saving results of learning rate finder to figure: {figure_name}")
+                fig.savefig(str(self.container.outputs_folder / figure_name))
+                logging.info("Please inspect the learning rate tuning results and set a suitable value for")
+                logging.info("your training run, either in the code or via the commandline option `--l_rate`")
+                logging.info("Exiting now.")
+                sys.exit(0)
+
             self.init_training()
             if not self.container.run_inference_only:
                 # Backup the environment variables in case we need to run a second training in the unit tests.

@@ -55,7 +55,8 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              multiple_trainloader_mode: str = "max_size_cycle",
-                             azureml_run_for_logging: Optional[Run] = None) -> \
+                             azureml_run_for_logging: Optional[Run] = None,
+                             auto_lr_find: bool = False) -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -68,6 +69,8 @@ def create_lightning_trainer(container: LightningContainer,
     :param azureml_run_for_logging: An optional AzureML Run object to which all metrics should be logged. Use this
         argument to log to AzureML when the training is happening outside of AzureML. If `azureml_run_for_logging` is
         None and the present code is running in AzureML, the current run is used.
+    :param auto_lr_find: The value to pass in the Trainer argument `auto_lr_find`. If True, this sets up the automatic
+        learning rate tuning.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
@@ -188,5 +191,6 @@ def create_lightning_trainer(container: LightningContainer,
                       profiler=profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
+                      auto_lr_find=auto_lr_find,
                       **additional_args)
     return trainer, storing_logger
