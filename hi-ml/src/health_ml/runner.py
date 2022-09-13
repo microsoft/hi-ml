@@ -170,7 +170,8 @@ class Runner:
         """
         return {
             "commandline_args": " ".join(script_params),
-            "tag": self.lightning_container.tag
+            "tag": self.lightning_container.tag,
+            **self.lightning_container.get_additional_aml_run_tags()
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:

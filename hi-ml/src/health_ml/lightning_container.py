@@ -224,6 +224,10 @@ class LightningContainer(WorkflowParams,
         argument `experiment`, falling back to the model class name if not set."""
         return self.experiment or self.model_name
 
+    def get_additional_aml_run_tags(self) -> Dict[str, str]:
+        """Returns a dictionary of tags that should be added to the AzureML run."""
+        return {}
+
 
 class LightningModuleWithOptimizer(LightningModule):
     """
