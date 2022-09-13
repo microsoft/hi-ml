@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 from unittest.mock import patch
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Set
 from testhisto.utils.utils_testhisto import run_distributed
 from health_cpath.utils.naming import ResultsKey, SlideKey
 from health_cpath.utils.plots_utils import TilesSelector, SlideNode
@@ -98,14 +98,14 @@ def _create_and_update_top_bottom_tiles_selector(
 
 def _get_expected_slides_by_probability(
     results: Dict[ResultsKey, Any], num_top_slides: int = 2, label: int = 1, top: bool = True
-) -> List[str]:
+) -> Set[str]:
     """Select top or bottom slides according to their probability scores from the entire dataset.
 
     :param results: The results dictionary for the entire dataset.
     :param num_top_slides: The number of slides to use to select top and bottom slides, defaults to 5
     :param label: The current label to process given that top and bottom are grouped by class label, defaults to 1
     :param top: A flag to select top or bottom slides with highest (respetively, lowest) prob scores, defaults to True
-    :return: A list of selected slide ids.
+    :return: A set of selected slide ids.
     """
 
     class_indices = (results[ResultsKey.TRUE_LABEL].squeeze() == label).nonzero().squeeze(1)
@@ -113,7 +113,7 @@ def _get_expected_slides_by_probability(
     assert class_prob.shape == (len(class_indices),)
     num_top_slides = min(num_top_slides, len(class_prob))
 
-    _, sorting_indices = class_prob.topk(num_top_slides, largest=top, sorted=True)
+    _, sorting_indices = class_prob.topk(num_top_slides, largest=top)
     sorted_class_indices = class_indices[sorting_indices]
 
     def _selection_condition(index: int) -> bool:
@@ -122,19 +122,20 @@ def _get_expected_slides_by_probability(
         else:
             return results[ResultsKey.PRED_LABEL][index] != results[ResultsKey.TRUE_LABEL][index]
 
-    # the order is inversed in the heapsort algorithm
-    return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices if _selection_condition(i)][::-1]
+    return {results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices if _selection_condition(i)}
 
 
+@pytest.mark.parametrize("num_top_slides", [2, 10])
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
-def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
+def test_aggregate_shallow_slide_nodes(
+    n_classes: int, num_top_slides: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
     """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
     n_tiles = 3
     batch_size = 2
     n_batches = 10
     total_batches = n_batches * world_size
     num_top_tiles = 2
-    num_top_slides = 2
 
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
@@ -162,19 +163,19 @@ def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size
         for label in range(n_classes):
 
             assert all(slide_node.pred_label == slide_node.true_label for slide_node in shallow_top_slides_heaps[label])
-            selected_top_slides_ids = [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]]
+            selected_top_slides_ids = {slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]}
             expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
             assert expected_top_slides_ids == selected_top_slides_ids
 
             assert all(
                 slide_node.pred_label != slide_node.true_label for slide_node in shallow_bottom_slides_heaps[label]
             )
-            selected_bottom_slides_ids = [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]]
+            selected_bottom_slides_ids = {slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]}
             expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
             assert expected_bottom_slides_ids == selected_bottom_slides_ids
 
             # Make sure that the top and bottom slides are disjoint.
-            assert not set(selected_top_slides_ids).intersection(set(selected_bottom_slides_ids))
+            assert not selected_top_slides_ids.intersection(selected_bottom_slides_ids)
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
@@ -191,18 +192,21 @@ def test_aggregate_shallow_slide_nodes_distributed() -> None:
 
 
 def assert_equal_top_bottom_attention_tiles(
-    slide_ids: List[str], data: Dict, results: Dict, num_top_tiles: int, slide_nodes: List[SlideNode]
+    slide_ids: Set[str], data: Dict, results: Dict, num_top_tiles: int, slide_nodes: List[SlideNode]
 ) -> None:
     """Asserts that top and bottom tiles selected on the fly by the top bottom tiles selector are equal to the expected
     top and bottom tiles in the mock dataset.
 
-    :param slide_ids: A list of expected slide ids0
+    :param slide_ids: A set of expected slide ids0
     :param data: A dictionary containing the entire dataset.
     :param results: A dictionary of data results.
     :param num_top_tiles: The number of tiles to select as top and bottom tiles for each top/bottom slide.
     :param slide_nodes: The top or bottom slide nodes selected on the fly by the selector.
     """
-    for i, slide_id in enumerate(slide_ids):
+
+    slide_nodes_dict = {slide_node.slide_id: slide_node for slide_node in slide_nodes}
+
+    for slide_id in slide_ids:
         slide_batch_idx = int(slide_id.split("_")[1])
         tiles = data[SlideKey.IMAGE][slide_batch_idx]
 
@@ -216,8 +220,8 @@ def assert_equal_top_bottom_attention_tiles(
         expected_top_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in top_tiles_ids]
         expected_bottom_tiles: List[torch.Tensor] = [tiles[tile_id] for tile_id in bottom_tiles_ids]
 
-        top_tiles = slide_nodes[i].top_tiles
-        bottom_tiles = slide_nodes[i].bottom_tiles
+        top_tiles = slide_nodes_dict[slide_id].top_tiles
+        bottom_tiles = slide_nodes_dict[slide_id].bottom_tiles
 
         for j, expected_top_tile in enumerate(expected_top_tiles):
             assert torch.equal(expected_top_tile.cpu(), top_tiles[j].data)
@@ -228,9 +232,10 @@ def assert_equal_top_bottom_attention_tiles(
             assert expected_bottom_attns[j].item() == bottom_tiles[j].attn
 
 
+@pytest.mark.parametrize("num_top_slides", [2, 10])
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_select_k_top_bottom_tiles_on_the_fly(
-    n_classes: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
+    n_classes: int, num_top_slides: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
     """This tests checks that k top and bottom tiles are selected properly `on the fly`:
         1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
@@ -265,21 +270,33 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 
     if rank == 0:
         for label in range(n_classes):
+
+            assert all(
+                slide_node.pred_label == slide_node.true_label for slide_node in tiles_selector.top_slides_heaps[label]
+            )
+            selected_top_slides_ids = {slide_node.slide_id for slide_node in tiles_selector.top_slides_heaps[label]}
             expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
-            assert expected_top_slides_ids == [
-                slide_node.slide_id for slide_node in tiles_selector.top_slides_heaps[label]
-            ]
+            assert expected_top_slides_ids == selected_top_slides_ids
             assert_equal_top_bottom_attention_tiles(
                 expected_top_slides_ids, data, results, num_top_tiles, tiles_selector.top_slides_heaps[label]
             )
 
-            expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
-            assert expected_bottom_slides_ids == [
+            assert all(
+                slide_node.pred_label != slide_node.true_label
+                for slide_node in tiles_selector.bottom_slides_heaps[label]
+            )
+            selected_bottom_slides_ids = {
                 slide_node.slide_id for slide_node in tiles_selector.bottom_slides_heaps[label]
-            ]
+            }
+            expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
+            assert expected_bottom_slides_ids == selected_bottom_slides_ids
+
             assert_equal_top_bottom_attention_tiles(
                 expected_bottom_slides_ids, data, results, num_top_tiles, tiles_selector.bottom_slides_heaps[label]
             )
+
+            # Make sure that the top and bottom slides are disjoint.
+            assert not selected_top_slides_ids.intersection(selected_bottom_slides_ids)
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
