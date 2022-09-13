@@ -99,13 +99,16 @@ def test_ddp_debug_flag(debug_ddp: DebugDDPOptions, mock_runner: Runner) -> None
 
 def test_additional_aml_run_tags(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
-    arguments = ["" f"--model={model_name}"]
+    arguments = ["", f"--model={model_name}", "--cluster=foo"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.get_workspace"):
-            with patch("health_ml.runner.Runner.run_in_situ"):
-                with patch.object(sys, "argv", arguments):
-                    mock_runner.run()
+        with patch("health_ml.runner.check_conda_environment"):
+            with patch("health_ml.runner.get_workspace"):
+                with patch("health_ml.runner.Runner.run_in_situ"):
+                    with patch.object(sys, "argv", arguments):
+                        mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
+        assert "commandline_args" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
+        assert "tag" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
         assert "max_epochs" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
 
 
