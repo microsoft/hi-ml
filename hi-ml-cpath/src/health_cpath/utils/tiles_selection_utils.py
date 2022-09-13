@@ -110,22 +110,9 @@ class TilesSelector:
         self.num_tiles = num_tiles
         self.top_slides_heaps: SlideDict = self._initialise_slide_heaps()
         self.bottom_slides_heaps: SlideDict = self._initialise_slide_heaps()
-        self.report_cases_slide_ids = self.init_report_cases()
 
     def _initialise_slide_heaps(self) -> SlideDict:
         return {class_id: [] for class_id in range(self.n_classes)}
-
-    def init_report_cases(self) -> Dict[str, List[str]]:
-        """ Initializes the report cases dictionary to store slide_ids per case.
-        Possible cases are set such as class 0 is considered to be the negative class.
-
-        :return: A dictionary that maps TN/FP TP_{i}/FN_{i}, i={1,..., self.n_classes+1} cases to an empty list to be
-            filled with corresponding slide ids.
-        """
-        report_cases: Dict[str, List[str]] = {"TN": [], "FP": []}
-        report_cases.update({f"TP_{class_id}": [] for class_id in range(1, self.n_classes)})
-        report_cases.update({f"FN_{class_id}": [] for class_id in range(1, self.n_classes)})
-        return report_cases
 
     def _clear_cached_slides_heaps(self) -> None:
         self.top_slides_heaps = self._initialise_slide_heaps()

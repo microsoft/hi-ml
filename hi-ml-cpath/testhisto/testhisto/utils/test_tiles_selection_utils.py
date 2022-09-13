@@ -42,12 +42,13 @@ def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, d
     :return: A dictioanry containing randomly generated mock results.
     """
     diff_n_tiles = [n_tiles + i for i in range(n_samples)]
+    probs = torch.rand((n_samples, n_classes), device=device)
     mock_results = {
         ResultsKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
         ResultsKey.TRUE_LABEL: torch.randint(2, size=(n_samples,), device=device),
-        ResultsKey.PRED_LABEL: torch.randint(2, size=(n_samples,), device=device),
+        ResultsKey.PRED_LABEL: torch.argmax(probs, dim=1),
         ResultsKey.BAG_ATTN: [torch.rand(size=(1, diff_n_tiles[i]), device=device) for i in range(n_samples)],
-        ResultsKey.CLASS_PROBS: torch.rand((n_samples, n_classes), device=device),
+        ResultsKey.CLASS_PROBS: probs / probs.sum(dim=1, keepdim=True),
     }
     return mock_results
 
