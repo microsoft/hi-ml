@@ -43,12 +43,13 @@ def _create_mock_results(n_samples: int, n_tiles: int = 3, n_classes: int = 2, d
     """
     diff_n_tiles = [n_tiles + i for i in range(n_samples)]
     probs = torch.rand((n_samples, n_classes), device=device)
+    probs = probs / probs.sum(dim=1, keepdim=True)
     mock_results = {
         ResultsKey.SLIDE_ID: np.array([f"slide_{i}" for i in range(n_samples)]),
-        ResultsKey.TRUE_LABEL: torch.randint(2, size=(n_samples,), device=device),
+        ResultsKey.TRUE_LABEL: torch.randint(n_classes, size=(n_samples,), device=device),
         ResultsKey.PRED_LABEL: torch.argmax(probs, dim=1),
         ResultsKey.BAG_ATTN: [torch.rand(size=(1, diff_n_tiles[i]), device=device) for i in range(n_samples)],
-        ResultsKey.CLASS_PROBS: probs / probs.sum(dim=1, keepdim=True),
+        ResultsKey.CLASS_PROBS: probs,
     }
     return mock_results
 
@@ -115,23 +116,14 @@ def _get_expected_slides_by_probability(
     _, sorting_indices = class_prob.topk(num_top_slides, largest=top, sorted=True)
     sorted_class_indices = class_indices[sorting_indices]
 
-    return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices][::-1]  # the order is inversed in the heaps
+    def _selection_condition(index: int) -> bool:
+        if top:
+            return results[ResultsKey.PRED_LABEL][index] == results[ResultsKey.TRUE_LABEL][index]
+        else:
+            return results[ResultsKey.PRED_LABEL][index] != results[ResultsKey.TRUE_LABEL][index]
 
-
-def get_expected_top_slides_by_probability(
-    results: Dict[ResultsKey, Any], num_top_slides: int = 5, label: int = 1
-) -> List[str]:
-    """Calls `_get_expected_slides_by_probability` with `top=True` to select expected top slides for the entire dataset
-    in one go. """
-    return _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
-
-
-def get_expected_bottom_slides_by_probability(
-    results: Dict[ResultsKey, Any], num_top_slides: int = 5, label: int = 1
-) -> List[str]:
-    """Calls `_get_expected_slides_by_probability` with `top=False` to select expected bottom slides for the entire
-    dataset in one go. """
-    return _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
+    # the order is inversed in the heapsort algorithm
+    return [results[ResultsKey.SLIDE_ID][i] for i in sorted_class_indices if _selection_condition(i)][::-1]
 
 
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
@@ -273,7 +265,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 
     if rank == 0:
         for label in range(n_classes):
-            expected_top_slides_ids = get_expected_top_slides_by_probability(results, num_top_slides, label)
+            expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
             assert expected_top_slides_ids == [
                 slide_node.slide_id for slide_node in tiles_selector.top_slides_heaps[label]
             ]
@@ -281,7 +273,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
                 expected_top_slides_ids, data, results, num_top_tiles, tiles_selector.top_slides_heaps[label]
             )
 
-            expected_bottom_slides_ids = get_expected_bottom_slides_by_probability(results, num_top_slides, label)
+            expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
             assert expected_bottom_slides_ids == [
                 slide_node.slide_id for slide_node in tiles_selector.bottom_slides_heaps[label]
             ]
