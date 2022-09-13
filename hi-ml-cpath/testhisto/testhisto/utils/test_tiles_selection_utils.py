@@ -183,12 +183,12 @@ def test_aggregate_shallow_slide_nodes(
 @pytest.mark.gpu
 def test_aggregate_shallow_slide_nodes_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel."""
-    # test with n_classes = 2
-    run_distributed(test_aggregate_shallow_slide_nodes, [2], world_size=1)
-    run_distributed(test_aggregate_shallow_slide_nodes, [2], world_size=2)
-    # test with n_classes = 3
-    run_distributed(test_aggregate_shallow_slide_nodes, [3], world_size=1)
-    run_distributed(test_aggregate_shallow_slide_nodes, [3], world_size=2)
+    # test with n_classes = 2, n_slides = 2
+    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2], world_size=2)
+    # test with n_classes = 3, n_slides = 2
+    run_distributed(test_aggregate_shallow_slide_nodes, [3, 2], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [3, 2], world_size=2)
 
 
 def assert_equal_top_bottom_attention_tiles(
@@ -304,12 +304,12 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 @pytest.mark.gpu
 def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
-    # test with n_classes = 2
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=1)
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2], world_size=2)
-    # test with n_classes = 3
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=1)
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3], world_size=2)
+    # test with n_classes = 2, n_slides = 2
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2], world_size=2)
+    # test with n_classes = 3, n_slides = 2
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3, 2], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3, 2], world_size=2)
 
 
 def test_disable_top_bottom_tiles_selector() -> None:
