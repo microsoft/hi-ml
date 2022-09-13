@@ -181,6 +181,7 @@ def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size
             expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
             assert expected_bottom_slides_ids == selected_bottom_slides_ids
 
+            # Make sure that the top and bottom slides are disjoint.
             assert not set(selected_top_slides_ids).intersection(set(selected_bottom_slides_ids))
 
 
