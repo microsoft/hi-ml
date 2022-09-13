@@ -9,12 +9,15 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
+from azureml._restclient.constants import RunStatus
+
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
 from health_azure.utils import is_global_rank_zero
+from health_ml.utils.logging import AzureMLLogger
 from testazure.utils_testazure import DEFAULT_WORKSPACE
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
@@ -306,3 +309,75 @@ def test_model_weights_when_resume_training() -> None:
             mock_create_trainer.assert_called_once()
             recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
             assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path
+
+
+def test_runner_end_to_end() -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_num_gpus = 0
+    container.src_checkpoint = mock_run_id(id=0)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        runner.init_training()
+        runner.run_training()
+
+
+@pytest.mark.parametrize("log_from_vm", [True, False])
+def test_log_on_vm(log_from_vm: bool) -> None:
+    """Test if the AzureML logger is called when the experiment is run outside AzureML."""
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_epochs = 1
+    # Mimic an experiment name given on the command line.
+    experiment_name = "unittest"
+    container.experiment = experiment_name
+    # The tag is used to identify the run, similar to the behaviour when submitting a run to AzureML.
+    tag = f"test_log_on_vm [{log_from_vm}]"
+    container.tag = tag
+    container.log_from_vm = log_from_vm
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+    # When logging to AzureML, need to provide the unit test AML workspace.
+    # When not logging to AzureML, no workspace (and no authentication) should be needed.
+    if log_from_vm:
+        with patch("health_azure.utils.get_workspace", return_value=DEFAULT_WORKSPACE.workspace):
+            runner.run()
+    else:
+        runner.run()
+    # The PL trainer object is created in the init_training method.
+    # Check that the AzureML logger is set up correctly.
+    assert runner.trainer is not None
+    assert runner.trainer.loggers is not None
+    assert len(runner.trainer.loggers) > 1
+    logger = runner.trainer.loggers[1]
+    assert isinstance(logger, AzureMLLogger)
+    if log_from_vm:
+        assert logger.run is not None
+        # Check that all user supplied data (experiment and display name) are respected.
+        assert logger.run.experiment is not None
+        assert logger.run.experiment.name == experiment_name
+        assert logger.run.display_name == tag
+        # Both trainig and inference metrics must be logged in the same Run object.
+        metrics = logger.run.get_metrics()
+        assert "test_mse" in metrics
+        assert "loss" in metrics
+        # The run must have been correctly marked as completed.
+        logger.run.wait_for_completion()
+        assert logger.run.status == RunStatus.COMPLETED
+    else:
+        assert logger.run is None
+
+
+def test_experiment_name() -> None:
+    """Test that the experiment name is set correctly, choosing either the experiment name given on the commandline
+    or the model name"""
+    container = HelloWorld()
+    # No experiment name given on the commandline: use the model name
+    model_name = "some_model"
+    container._model_name = model_name
+    assert container.effective_experiment_name == model_name
+    # Experiment name given on the commandline: use the experiment name
+    experiment_name = "unittest"
+    container.experiment = experiment_name
+    assert container.effective_experiment_name == experiment_name

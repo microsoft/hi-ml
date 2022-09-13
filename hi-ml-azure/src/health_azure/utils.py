@@ -55,6 +55,7 @@ ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
+ENV_AZ_BATCH_MASTER_NODE = "AZ_BATCH_MASTER_NODE"
 ENV_MASTER_ADDR = "MASTER_ADDR"
 ENV_MASTER_IP = "MASTER_IP"
 ENV_MASTER_PORT = "MASTER_PORT"
@@ -62,7 +63,18 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
+MASTER_PORT_DEFAULT = 6105
 
+# Environment variables used by Amulet
+ENV_AMLT_PROJECT_NAME = "AZUREML_ARM_PROJECT_NAME"
+ENV_AMLT_INPUT_OUTPUT = "AZURE_ML_INPUT_OUTPUT"
+ENV_AMLT_OUTPUT_DIR = "AMLT_OUTPUT_DIR"
+ENV_AMLT_SNAPSHOT_DIR = "SNAPSHOT_DIR"
+ENV_AMLT_AZ_BATCHAI_DIR = "AZ_BATCHAI_JOB_WORK_DIR"
+ENV_AMLT_DATAREFERENCE_DATA = 'AZUREML_DATAREFERENCE_data'
+ENV_AMLT_DATAREFERENCE_OUTPUT = "AZUREML_DATAREFERENCE_output"
+
+# Other Azure ML related variables
 ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
 MODEL_ID_KEY_NAME = "model_id"
@@ -1158,23 +1170,46 @@ def set_environment_variables_for_multi_node() -> None:
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
-    if ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ:
+    if ENV_AZ_BATCH_MASTER_NODE in os.environ:
+        master_node = os.environ[ENV_AZ_BATCH_MASTER_NODE]
+        logging.debug(
+            f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
         # For AML BATCHAI
-        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+        split_master_node_addr = master_node.split(":")
+        if len(split_master_node_addr) == 2:
+            master_addr, port = split_master_node_addr
+            os.environ[ENV_MASTER_PORT] = port
+        elif len(split_master_node_addr) == 1:
+            master_addr = split_master_node_addr[0]
+        else:
+            raise ValueError(f"Format not recognized: {master_node}")
+        os.environ[ENV_MASTER_ADDR] = master_addr
+    elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
+        mpi_master_node = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+        logging.debug(
+            f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
+        # For AML BATCHAI
+        os.environ[ENV_MASTER_ADDR] = mpi_master_node
     elif ENV_MASTER_IP in os.environ:
+        master_ip = os.environ[ENV_MASTER_IP]
+        logging.debug(
+            f"Found MASTER_IP: {master_ip} in environment variables")
         # AKS
-        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_MASTER_IP]
+        os.environ[ENV_MASTER_ADDR] = master_ip
     else:
         logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
     if ENV_MASTER_PORT not in os.environ:
-        os.environ[ENV_MASTER_PORT] = "6105"
+        os.environ[ENV_MASTER_PORT] = str(MASTER_PORT_DEFAULT)
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
+        world_rank = os.environ[ENV_OMPI_COMM_WORLD_RANK]
+        logging.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
+        os.environ[ENV_NODE_RANK] = world_rank  # node rank is the world_rank from mpi run
+
     env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
-    print(f"Distributed training: {env_vars}")
+    logging.info(f"Distributed training: {env_vars}")
 
 
 def is_run_and_child_runs_completed(run: Run) -> bool:
@@ -1898,7 +1933,7 @@ def create_aml_run_object(
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
     if snapshot_directory is None or snapshot_directory == "":
         snapshot_directory = tempfile.mkdtemp()
-    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+    return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
 def aml_workspace_for_unittests() -> Workspace:
@@ -1995,3 +2030,44 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
     if actual not in valid:
         all_valid = ", ".join(["<None>" if v is None else v for v in valid])
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
+
+
+def get_amlt_aml_working_dir() -> Optional[Path]:
+    """
+    For a job submitted by Amulet, return the path to the Azure ML working directory (i.e. where Azure ML is storing the
+    code for the Run). The environment variable that contains this value differs depending on whether the job is
+    distributed or not.
+
+    :return: A string representing the path to the Azure ML working directory if the job is submited by Amulet,
+        otherwise an empty string
+    """
+    if ENV_AMLT_SNAPSHOT_DIR in os.environ:
+        # A non-distributed job submitted by Amulet
+        print(f"Found {ENV_AMLT_SNAPSHOT_DIR} in env vars: {os.environ[ENV_AMLT_SNAPSHOT_DIR]}")
+        return Path(os.environ[ENV_AMLT_SNAPSHOT_DIR])
+    elif ENV_AMLT_AZ_BATCHAI_DIR in os.environ:
+        # A distributed job submitted by Amulet
+        print(f"Found {ENV_AMLT_AZ_BATCHAI_DIR} in env vars: {os.environ[ENV_AMLT_AZ_BATCHAI_DIR]}")
+        return Path(os.environ[ENV_AMLT_AZ_BATCHAI_DIR])
+    return None
+
+
+def get_amulet_keys_not_set() -> Set[str]:
+    """
+    Check environment variables for a given set associated with Amulet jobs. Returns a set containing any keys
+    that are not available
+    """
+    amulet_keys = {ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR}
+    return amulet_keys.difference(os.environ)
+
+
+def is_amulet_job() -> bool:
+    """
+    Checks whether a given set of environment variables associated with Amulet are available. If not, this is not
+    an Amulet job so returns False. Otherwise returns True
+    """
+    missing_amlt_env_vars = get_amulet_keys_not_set()
+    amlt_aml_working_dir = get_amlt_aml_working_dir()
+    if len(missing_amlt_env_vars) == 0 and amlt_aml_working_dir is not None:
+        return True
+    return False
