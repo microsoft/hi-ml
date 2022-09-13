@@ -10,6 +10,7 @@ import torch
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from azureml.core import Run
 from pytorch_lightning import Trainer, seed_everything
 
 from health_azure import AzureRunInfo
@@ -18,7 +19,7 @@ from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK
                                 is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT,
                                 aggregate_hyperdrive_metrics, get_metrics_for_childless_run,
                                 ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
-                                is_local_rank_zero, is_global_rank_zero,)
+                                is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
 
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -78,6 +79,7 @@ class MLRunner:
                                                     project_root=self.project_root,
                                                     run_context=RUN_CONTEXT)
         self.trainer: Optional[Trainer] = None
+        self.azureml_run_for_logging: Optional[Run] = None
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -176,8 +178,19 @@ class MLRunner:
         # Set random seeds just before training. Ensure that dataloader workers are also seeded correctly.
         seed_everything(self.container.get_effective_random_seed(), workers=True)
 
-        # get the container's datamodule
+        # Get the container's datamodule
         self.data_module = self.container.get_data_module()
+
+        # Create an AzureML run for logging if running outside AzureML. This run will be used for metrics logging
+        # during both training and inference. We can't rely on the automatically generated run inside the AzureMLLogger
+        # class because two of those logger objects will be created, so training and inference metrics would be logged
+        # in different runs.
+        if self.container.log_from_vm:
+            run = create_aml_run_object(experiment_name=self.container.effective_experiment_name)
+            # Display name should already be set when creating the Run object, but in some scenarios this
+            # does not happen. Hence, set it again.
+            run.display_name = self.container.tag if self.container.tag else None
+            self.azureml_run_for_logging = run
 
         if not self.container.run_inference_only:
 
@@ -191,7 +204,8 @@ class MLRunner:
                 container=self.container,
                 resume_from_checkpoint=checkpoint_path_for_recovery,
                 num_nodes=self.container.num_nodes,
-                multiple_trainloader_mode=self.get_multiple_trainloader_mode())
+                multiple_trainloader_mode=self.get_multiple_trainloader_mode(),
+                azureml_run_for_logging=self.azureml_run_for_logging)
 
             rank_info = ", ".join(
                 f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK]
@@ -287,7 +301,10 @@ class MLRunner:
                 self.checkpoint_handler.get_checkpoint_to_test() if self.container.src_checkpoint else None
             )
             trainer, _ = create_lightning_trainer(
-                self.container, resume_from_checkpoint=checkpoint_path, num_nodes=1
+                container=self.container,
+                resume_from_checkpoint=checkpoint_path,
+                num_nodes=1,
+                azureml_run_for_logging=self.azureml_run_for_logging
             )
 
             # Change to the outputs folder so that the model can write to current working directory, and still
@@ -341,29 +358,37 @@ class MLRunner:
         Driver function to run a ML experiment
         """
         self.setup()
-        self.init_training()
-        if not self.container.run_inference_only:
-            # Backup the environment variables in case we need to run a second training in the unit tests.
-            old_environ = dict(os.environ)
+        try:
+            self.init_training()
+            if not self.container.run_inference_only:
+                # Backup the environment variables in case we need to run a second training in the unit tests.
+                old_environ = dict(os.environ)
 
-            # do training
-            with logging_section("Model training"):
-                self.run_training()
+                # do training
+                with logging_section("Model training"):
+                    self.run_training()
 
-            # load model checkpoint for custom inference or additional validation step
-            if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-                self.load_model_checkpoint()
+                # load model checkpoint for custom inference or additional validation step
+                if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
+                    self.load_model_checkpoint()
 
-            # Run extra validation epoch if enabled
-            if self.container.run_extra_val_epoch:
-                with logging_section("Model Validation to save plots on validation set"):
-                    self.run_validation()
+                # Run extra validation epoch if enabled
+                if self.container.run_extra_val_epoch:
+                    with logging_section("Model Validation to save plots on validation set"):
+                        self.run_validation()
 
-            # Kill all processes besides rank 0
-            self.after_ddp_cleanup(old_environ)
+                # Kill all processes besides rank 0
+                self.after_ddp_cleanup(old_environ)
 
-        # Run inference on a single device
-        with logging_section("Model inference"):
-            self.run_inference()
+            # Run inference on a single device
+            with logging_section("Model inference"):
+                self.run_inference()
 
-        self.run_regression_test()
+            self.run_regression_test()
+
+        finally:
+            if self.azureml_run_for_logging is not None:
+                try:
+                    self.azureml_run_for_logging.complete()
+                except Exception as ex:
+                    logging.error("Failed to complete AzureML run: %s", ex)
