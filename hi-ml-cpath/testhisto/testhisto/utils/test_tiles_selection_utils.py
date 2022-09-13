@@ -57,7 +57,7 @@ def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Dict:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
     return batch
 
 
@@ -168,13 +168,20 @@ def test_aggregate_shallow_slide_nodes(n_classes: int, rank: int = 0, world_size
 
     if rank == 0:
         for label in range(n_classes):
-            expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
-            assert expected_top_slides_ids == [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]]
 
+            assert all(slide_node.pred_label == slide_node.true_label for slide_node in shallow_top_slides_heaps[label])
+            selected_top_slides_ids = [slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]]
+            expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
+            assert expected_top_slides_ids == selected_top_slides_ids
+
+            assert all(
+                slide_node.pred_label != slide_node.true_label for slide_node in shallow_bottom_slides_heaps[label]
+            )
+            selected_bottom_slides_ids = [slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]]
             expected_bottom_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=False)
-            assert expected_bottom_slides_ids == [
-                slide_node.slide_id for slide_node in shallow_bottom_slides_heaps[label]
-            ]
+            assert expected_bottom_slides_ids == selected_bottom_slides_ids
+
+            assert not set(selected_top_slides_ids).intersection(set(selected_bottom_slides_ids))
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
