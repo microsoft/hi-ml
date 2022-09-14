@@ -272,3 +272,6 @@ class HelloWorld(LightningContainer):
                     *super().get_callbacks()]
         else:
             return super().get_callbacks()
+
+    def get_additional_aml_run_tags(self) -> Dict[str, str]:
+        return {"max_epochs": str(self.max_epochs)}
