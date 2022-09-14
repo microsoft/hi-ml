@@ -25,7 +25,8 @@ from health_cpath.utils.naming import MetricsKey, ModelKey
 
 def generate_html_report(parent_run_id: str, output_dir: Path,
                          workspace_config_path: Optional[Path] = None,
-                         include_test: bool = False, overwrite: bool = False) -> None:
+                         include_test: bool = False, overwrite: bool = False,
+                         hyperdrive_arg_name: str = "crossval_index") -> None:
     """
     Function to generate an HTML report of a cross validation AML run.
 
@@ -48,7 +49,9 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     report.add_heading("Azure ML metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
-    metrics_df = collect_crossval_metrics(parent_run_id, report_dir, aml_workspace, overwrite=overwrite)
+    metrics_df = collect_crossval_metrics(
+        parent_run_id, report_dir, aml_workspace, overwrite=overwrite, crossval_arg_name=hyperdrive_arg_name
+    )
     best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/{MetricsKey.AUROC}', maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
@@ -83,12 +86,14 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
         output_filename_val = AML_VAL_OUTPUTS_CSV
         outputs_dfs_val = collect_crossval_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
                                                    aml_workspace=aml_workspace,
-                                                   output_filename=output_filename_val, overwrite=overwrite)
+                                                   output_filename=output_filename_val, overwrite=overwrite,
+                                                   crossval_arg_name=hyperdrive_arg_name)
         if include_test:
             output_filename_test = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
             outputs_dfs_test = collect_crossval_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
                                                         aml_workspace=aml_workspace,
-                                                        output_filename=output_filename_test, overwrite=overwrite)
+                                                        output_filename=output_filename_test, overwrite=overwrite,
+                                                        crossval_arg_name=hyperdrive_arg_name)
 
     if num_classes == 1:
         # Currently ROC and PR curves rendered only for binary case
@@ -242,6 +247,7 @@ if __name__ == "__main__":
                                                                     "in the generated report.")
     parser.add_argument('--overwrite', action='store_true', help="Forces (re)download of metrics and output files, "
                                                                  "even if they already exist locally.")
+    parser.add_argument("--hyper_arg_name", help="Name of the Hyperdrive argument used for indexing the child runs.")
     args = parser.parse_args()
 
     if args.output_dir is None:
@@ -258,4 +264,5 @@ if __name__ == "__main__":
                          output_dir=Path(args.output_dir),
                          workspace_config_path=workspace_config,
                          include_test=args.include_test,
-                         overwrite=args.overwrite)
+                         overwrite=args.overwrite,
+                         hyperdrive_arg_name=args.hyper_arg_name)
