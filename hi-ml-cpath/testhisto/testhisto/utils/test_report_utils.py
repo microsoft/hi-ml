@@ -11,9 +11,9 @@ import pytest
 from health_azure.utils import download_file_if_necessary
 from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV,
                                              AML_VAL_OUTPUTS_CSV)
-from health_cpath.utils.report_utils import (collect_crossval_metrics, collect_crossval_outputs,
-                                             crossval_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                             get_best_epochs, get_crossval_metrics_table,
+from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
+                                             child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
+                                             get_best_epochs, get_hyperdrive_metrics_table,
                                              run_has_val_and_test_outputs)
 
 
@@ -41,7 +41,7 @@ def test_run_has_val_and_test_outputs() -> None:
             run_has_val_and_test_outputs(run)
 
 
-def test_crossval_runs_have_val_and_test_outputs() -> None:
+def test_hyperdrive_runs_have_val_and_test_outputs() -> None:
     legacy_run = MagicMock(display_name="legacy run", id="child1")
     legacy_run.get_file_names.return_value = [AML_LEGACY_TEST_OUTPUTS_CSV]
 
@@ -55,22 +55,22 @@ def test_crossval_runs_have_val_and_test_outputs() -> None:
     parent_run = MagicMock()
 
     with patch.object(parent_run, 'get_children', return_value=[legacy_run, legacy_run]):
-        assert not crossval_runs_have_val_and_test_outputs(parent_run)
+        assert not child_runs_have_val_and_test_outputs(parent_run)
 
     with patch.object(parent_run, 'get_children', return_value=[run_with_val_and_test, run_with_val_and_test]):
-        assert crossval_runs_have_val_and_test_outputs(parent_run)
+        assert child_runs_have_val_and_test_outputs(parent_run)
 
     with patch.object(parent_run, 'get_children', return_value=[legacy_run, invalid_run]):
         with pytest.raises(ValueError, match="does not have the expected files"):
-            crossval_runs_have_val_and_test_outputs(parent_run)
+            child_runs_have_val_and_test_outputs(parent_run)
 
     with patch.object(parent_run, 'get_children', return_value=[run_with_val_and_test, invalid_run]):
         with pytest.raises(ValueError, match="does not have the expected files"):
-            crossval_runs_have_val_and_test_outputs(parent_run)
+            child_runs_have_val_and_test_outputs(parent_run)
 
     with patch.object(parent_run, 'get_children', return_value=[legacy_run, run_with_val_and_test]):
         with pytest.raises(ValueError, match="has mixed children"):
-            crossval_runs_have_val_and_test_outputs(parent_run)
+            child_runs_have_val_and_test_outputs(parent_run)
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
@@ -102,9 +102,9 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
 
 
 class MockChildRun:
-    def __init__(self, run_id: str, cross_val_index: int):
+    def __init__(self, run_id: str, child_run_index: int):
         self.run_id = run_id
-        self.tags = {"hyperparameters": json.dumps({"child_run_index": cross_val_index})}
+        self.tags = {"hyperparameters": json.dumps({"child_run_index": child_run_index})}
 
     def get_metrics(self) -> Dict[str, Union[float, List[Union[int, float]]]]:
         num_epochs = 5
@@ -127,9 +127,9 @@ class MockHyperDriveRun:
         return [MockChildRun(f"run_abc_{i}456", i) for i in self.child_indices]
 
 
-def test_collect_crossval_outputs(tmp_path: Path) -> None:
+def test_collect_hyperdrive_outputs(tmp_path: Path) -> None:
     download_dir = tmp_path
-    crossval_arg_name = "child_run_index"
+    hyperdrive_arg_name = "child_run_index"
     output_filename = "output.csv"
     child_indices = [0, 3, 1]  # Missing and unsorted children
 
@@ -142,16 +142,16 @@ def test_collect_crossval_outputs(tmp_path: Path) -> None:
 
     with patch('health_cpath.utils.report_utils.get_aml_run_from_run_id',
                return_value=MockHyperDriveRun(child_indices)):
-        crossval_dfs = collect_crossval_outputs(parent_run_id="",
-                                                download_dir=download_dir,
-                                                aml_workspace=None,
-                                                crossval_arg_name=crossval_arg_name,
-                                                output_filename=output_filename)
+        hyperdrive_dfs = collect_hyperdrive_outputs(parent_run_id="",
+                                                    download_dir=download_dir,
+                                                    aml_workspace=None,
+                                                    hyperdrive_arg_name=hyperdrive_arg_name,
+                                                    output_filename=output_filename)
 
-    assert set(crossval_dfs.keys()) == set(child_indices)
-    assert list(crossval_dfs.keys()) == sorted(crossval_dfs.keys())
+    assert set(hyperdrive_dfs.keys()) == set(child_indices)
+    assert list(hyperdrive_dfs.keys()) == sorted(hyperdrive_dfs.keys())
 
-    for child_index, child_df in crossval_dfs.items():
+    for child_index, child_df in hyperdrive_dfs.items():
         assert child_df.columns.tolist() == columns
         assert child_df.loc[0, 'split'] == child_index
 
@@ -192,16 +192,16 @@ def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) ->
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
-def test_collect_crossval_metrics(metrics_df: pd.DataFrame, tmp_path: Path, overwrite: bool) -> None:
+def test_collect_hyperdrive_metrics(metrics_df: pd.DataFrame, tmp_path: Path, overwrite: bool) -> None:
     with patch('health_cpath.utils.report_utils.aggregate_hyperdrive_metrics',
                return_value=metrics_df) as mock_aggregate:
-        returned_df = collect_crossval_metrics(parent_run_id="", download_dir=tmp_path,
-                                               aml_workspace=None, overwrite=overwrite)
+        returned_df = collect_hyperdrive_metrics(parent_run_id="", download_dir=tmp_path,
+                                                 aml_workspace=None, overwrite=overwrite)
         mock_aggregate.assert_called_once()
         mock_aggregate.reset_mock()
 
-        new_returned_df = collect_crossval_metrics(parent_run_id="", download_dir=tmp_path,
-                                                   aml_workspace=None, overwrite=overwrite)
+        new_returned_df = collect_hyperdrive_metrics(parent_run_id="", download_dir=tmp_path,
+                                                     aml_workspace=None, overwrite=overwrite)
         if overwrite:
             mock_aggregate.assert_called_once()
         else:
@@ -233,10 +233,12 @@ def test_get_best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int,
 
 @pytest.mark.parametrize('fixture_name, metrics_list', [('metrics_df', ['test/accuracy', 'test/auroc']),
                                                         ('best_epoch_metrics', ['val/accuracy', 'val/auroc'])])
-def test_get_crossval_metrics_table(fixture_name: str, metrics_list: List[str], request: pytest.FixtureRequest) -> None:
+def test_get_hyperdrive_metrics_table(
+    fixture_name: str, metrics_list: List[str], request: pytest.FixtureRequest
+) -> None:
     df = request.getfixturevalue(fixture_name)
 
-    metrics_table = get_crossval_metrics_table(df, metrics_list)
+    metrics_table = get_hyperdrive_metrics_table(df, metrics_list)
     assert list(metrics_table.index) == metrics_list
     assert len(metrics_table.columns) == len(df.columns) + 1
 

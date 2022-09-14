@@ -39,8 +39,8 @@ def run_has_val_and_test_outputs(run: Run) -> bool:
                          f"{AML_TEST_OUTPUTS_CSV}): {available_files}")
 
 
-def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
-    """Checks whether all child cross-validation runs have both validation and test outputs files.
+def child_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
+    """Checks whether all child hyperdrive runs have both validation and test outputs files.
 
     :param parent_run: The parent Hyperdrive run.
     :raises ValueError: If any of the child runs does not have the expected output files, or if
@@ -58,30 +58,30 @@ def crossval_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
                          "test-only outputs and with both validation and test outputs")
 
 
-def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "crossval_index",
-                             output_filename: str = "test_output.csv",
-                             overwrite: bool = False) -> Dict[int, pd.DataFrame]:
-    """Fetch output CSV files from cross-validation runs as dataframes.
+def collect_hyperdrive_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
+                               hyperdrive_arg_name: str = "crossval_index",
+                               output_filename: str = "test_output.csv",
+                               overwrite: bool = False) -> Dict[int, pd.DataFrame]:
+    """Fetch output CSV files from Hyperdrive child runs as dataframes.
 
     Will only download the CSV files if they do not already exist locally.
 
     :param parent_run_id: Azure ML run ID for the parent Hyperdrive run.
     :param download_dir: Base directory where to download the CSV files. A new sub-directory will
-        be created for each child run (e.g. `<download_dir>/<crossval index>/*.csv`).
+        be created for each child run (e.g. `<download_dir>/<hyperdrive_arg_name>/*.csv`).
     :param aml_workspace: Azure ML workspace in which the runs were executed.
-    :param crossval_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
+    :param hyperdrive_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
     :param output_filename: Filename of the output CSVs to download.
     :param overwrite: Whether to force the download even if each file already exists locally.
-    :return: A dictionary of dataframes with the sorted cross-validation indices as keys.
+    :return: A dictionary of dataframes with the sorted hyperdrive_arg_name indices as keys.
     """
     parent_run = get_aml_run_from_run_id(parent_run_id, aml_workspace)
 
     all_outputs_dfs = {}
     for child_run in parent_run.get_children():
-        child_run_index = get_tags_from_hyperdrive_run(child_run, crossval_arg_name)
+        child_run_index = get_tags_from_hyperdrive_run(child_run, hyperdrive_arg_name)
         if child_run_index is None:
-            raise ValueError(f"Child run expected to have the tag '{crossval_arg_name}'")
+            raise ValueError(f"Child run expected to have the tag '{hyperdrive_arg_name}'")
         child_dir = download_dir / str(child_run_index)
         try:
             child_csv = download_file_if_necessary(child_run, output_filename, child_dir / output_filename,
@@ -92,10 +92,10 @@ def collect_crossval_outputs(parent_run_id: str, download_dir: Path, aml_workspa
     return dict(sorted(all_outputs_dfs.items()))  # type: ignore
 
 
-def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                             crossval_arg_name: str = "crossval_index",
-                             overwrite: bool = False) -> pd.DataFrame:
-    """Fetch metrics logged to Azure ML from cross-validation runs as a dataframe.
+def collect_hyperdrive_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
+                               hyperdrive_arg_name: str = "crossval_index",
+                               overwrite: bool = False) -> pd.DataFrame:
+    """Fetch metrics logged to Azure ML from hyperdrive runs as a dataframe.
 
     Will only download the metrics if they do not already exist locally, as this can take several
     seconds for each child run.
@@ -103,7 +103,7 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspa
     :param parent_run_id: Azure ML run ID for the parent Hyperdrive run.
     :param download_dir: Directory where to save the downloaded metrics as `aml_metrics.json`.
     :param aml_workspace: Azure ML workspace in which the runs were executed.
-    :param crossval_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
+    :param hyperdrive_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
     :param overwrite: Whether to force the download even if metrics are already saved locally.
     :return: A dataframe in the format returned by :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     """
@@ -113,7 +113,7 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspa
         metrics_df = pd.read_json(metrics_json)
     else:
         metrics_df = aggregate_hyperdrive_metrics(run_id=parent_run_id,
-                                                  child_run_arg_name=crossval_arg_name,
+                                                  child_run_arg_name=hyperdrive_arg_name,
                                                   aml_workspace=aml_workspace)
         metrics_json.parent.mkdir(parents=True, exist_ok=True)
         print(f"Writing AML metrics file to {metrics_json}")
@@ -121,13 +121,13 @@ def collect_crossval_metrics(parent_run_id: str, download_dir: Path, aml_workspa
     return metrics_df.sort_index(axis='columns')
 
 
-def get_crossval_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[str]) -> pd.DataFrame:
-    """Format raw cross-validation metrics into a table with a summary "Mean ± Std" column.
+def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[str]) -> pd.DataFrame:
+    """Format raw hyperdrive metrics into a table with a summary "Mean ± Std" column.
 
     Note that this function only supports scalar metrics. To format metrics that are logged
     throughout training, you should call :py:func:`get_best_epoch_metrics()` first.
 
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param metrics_list: The list of metrics to include in the table.
     :return: A dataframe with the values of the selected metrics formatted as strings, including a
@@ -146,16 +146,16 @@ def get_crossval_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[
 
 
 def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: bool = True) -> Dict[int, int]:
-    """Determine the best epoch for each cross-validation run based on a given metric.
+    """Determine the best epoch for each hyperdrive child run based on a given metric.
 
     The returned epoch indices are relative to the logging frequency of the chosen metric, i.e.
     should not be mixed between pipeline stages that log metrics at different epoch intervals.
 
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param primary_metric: Name of the reference metric to optimise.
     :param maximise: Whether the given metric should be maximised (minimised if `False`).
-    :return: Dictionary mapping each cross-validation index to its best epoch.
+    :return: Dictionary mapping each hyperdrive child index to its best epoch.
     """
     best_fn = np.argmax if maximise else np.argmin
     best_epochs = metrics_df.loc[primary_metric].apply(best_fn)
@@ -164,16 +164,16 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: boo
 
 def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
                            best_epochs: Dict[int, int]) -> pd.DataFrame:
-    """Extract the values of the selected cross-validation metrics at the given best epochs.
+    """Extract the values of the selected hyperdrive metrics at the given best epochs.
 
     The `best_epoch` indices are relative to the logging frequency of the chosen primary metric,
     i.e. the metrics in `metrics_list` must have been logged at the same epoch intervals.
 
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param metrics_list: Names of the metrics to index by the best epoch indices provided. Their
         values in `metrics_df` should be lists.
-    :param best_epochs: Dictionary of cross-validation indices to best epochs, as returned by
+    :param best_epochs: Dictionary of hyperdrive child runs indices to best epochs, as returned by
         :py:func:`get_best_epochs()`.
     :return: Dataframe with the same columns as `metrics_df` and rows specified by `metrics_list`,
         containing only scalar values.
@@ -185,7 +185,7 @@ def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str]
 
 
 def get_formatted_run_info(parent_run: Run) -> str:
-    """Format Azure ML cross-validation run information as HTML.
+    """Format Azure ML hyperdrive run information as HTML.
 
     Includes details of the parent and child runs, as well as submission information.
 
@@ -219,7 +219,7 @@ def get_formatted_run_info(parent_run: Run) -> str:
 def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
     """
     Get the class names from metrics dataframe
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :return: Number of classes and list of class names
     """
