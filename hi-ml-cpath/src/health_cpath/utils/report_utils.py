@@ -133,7 +133,7 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
     :return: A dataframe with the values of the selected metrics formatted as strings, including a
         header and a summary column.
     """
-    header = ["Metric"] + [f"Split {k}" for k in metrics_df.columns] + ["Mean ± Std"]
+    header = ["Metric"] + [f"Child {k}" for k in metrics_df.columns] + ["Mean ± Std"]
     metrics_rows = []
     for metric in metrics_list:
         values: pd.Series = metrics_df.loc[metric]
