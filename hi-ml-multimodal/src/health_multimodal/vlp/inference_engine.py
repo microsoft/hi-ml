@@ -27,6 +27,24 @@ class ImageTextInferenceEngine:
         self.image_inference_engine = image_inference_engine
         self.text_inference_engine = text_inference_engine
 
+    def get_similarity_score_from_raw_data(self,
+                                           image_path: Path,
+                                           query_text: str) -> float:
+        """Return the similarity score between the image and the text.
+
+        :param image_path: Path to the input chest X-ray, either a DICOM or JPEG file.
+        :param query_text: Input radiology text phrase.
+        :return: The similarity score between the image and the text.
+        """
+        assert not self.image_inference_engine.model.training
+        assert not self.text_inference_engine.model.training
+
+        image_embedding = self.image_inference_engine.get_projected_global_embedding_from_image(image_path)
+        text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
+        cos_similarity = image_embedding @ text_embedding.t()
+
+        return cos_similarity.item()
+
     def get_similarity_map_from_raw_data(self,
                                          image_path: Path,
                                          query_text: str,

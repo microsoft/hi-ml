@@ -66,3 +66,8 @@ def test_vlp_inference(height: int, query_text: str) -> None:
 
         similarity_map = img_txt_inference._get_similarity_map_from_embeddings(image_embedding, text_embedding)
         assert similarity_map.shape == expected_image_embedding_size
+
+        # Test global similarity score
+        sim_score = img_txt_inference.get_similarity_score_from_raw_data(image_path=image_path, query_text=query_text)
+        assert isinstance(sim_score, float)
+        assert sim_score >= -1 and sim_score <= 1
