@@ -7,7 +7,7 @@
 
 from math import ceil, floor
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 import torch
@@ -27,9 +27,10 @@ class ImageTextInferenceEngine:
         self.image_inference_engine = image_inference_engine
         self.text_inference_engine = text_inference_engine
 
+    @torch.no_grad()
     def get_similarity_score_from_raw_data(self,
                                            image_path: Path,
-                                           query_text: str) -> float:
+                                           query_text: Union[List[str], str]) -> float:
         """Return the similarity score between the image and the text.
 
         :param image_path: Path to the input chest X-ray, either a DICOM or JPEG file.
@@ -39,8 +40,16 @@ class ImageTextInferenceEngine:
         assert not self.image_inference_engine.model.training
         assert not self.text_inference_engine.model.training
 
+        query_text = [query_text] if isinstance(query_text, str) else query_text
+        num_prompts = len(query_text)
+
         image_embedding = self.image_inference_engine.get_projected_global_embedding_from_image(image_path)
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
+
+        assert text_embedding.shape[0] == num_prompts
+        text_embedding = text_embedding.mean(dim=0)
+        text_embedding = F.normalize(text_embedding, dim=0, p=2)
+
         cos_similarity = image_embedding @ text_embedding.t()
 
         return cos_similarity.item()
@@ -60,12 +69,12 @@ class ImageTextInferenceEngine:
         """
         assert not self.image_inference_engine.model.training
         assert not self.text_inference_engine.model.training
+        assert isinstance(query_text, str)
 
         # TODO: Add checks in here regarding the text query, etc.
-
         image_embedding, img_shape = self.image_inference_engine.get_projected_patch_embeddings_from_image(image_path)
-        width, height = img_shape
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
+        width, height = img_shape
 
         sim = self._get_similarity_map_from_embeddings(image_embedding, text_embedding)
 
