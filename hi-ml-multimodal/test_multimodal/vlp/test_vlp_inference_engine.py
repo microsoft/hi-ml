@@ -36,7 +36,7 @@ def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
 @pytest.mark.parametrize("height", (400, 500, 650))
 @pytest.mark.parametrize("query_text", ("", "hello", "this is a test"))
 def test_vlp_inference(height: int, query_text: Union[str, List[str]]) -> None:
-    image_embedding_shapes = {480: (15, 15),}
+    image_embedding_shapes = {480: (15, 15), }
     width = 600
 
     img_txt_inference = _get_vlp_inference_engine()
