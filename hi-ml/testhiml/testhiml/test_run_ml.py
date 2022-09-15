@@ -163,7 +163,6 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
     container.run_extra_val_epoch = run_extra_val_epoch
-    container.model._run_extra_val_epoch = run_extra_val_epoch  # type: ignore
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
@@ -183,8 +182,9 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
                 if run_extra_val_epoch:
                     runner.run_validation()
 
-                assert mock_trainer.validate.called == run_extra_val_epoch
                 assert mock_on_extra_validation_epoch_start.called == run_extra_val_epoch
+                assert hasattr(container.model, "on_extra_validation_epoch_start")
+                assert mock_trainer.validate.called == run_extra_val_epoch
 
 
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
 import param
+import logging
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pytorch_lightning import Callback, LightningDataModule, LightningModule
@@ -229,10 +230,12 @@ class LightningContainer(WorkflowParams,
         return {}
 
     def on_extra_validation_epoch_start(self) -> None:
-        assert hasattr(self.model, "on_extra_validation_epoch_start"), "Hook `on_extra_validation_epoch_start` is not "
-        "implemented by lightning module. This is required for running an additional validation epoch to save plots."
-        assert self._model, "Model is not initialized."
-        self._model.on_extra_validation_epoch_start()
+        if hasattr(self.model, "on_extra_validation_epoch_start"):
+            assert self._model, "Model is not initialized."
+            self._model.on_extra_validation_epoch_start()
+        else:
+            logging.info("Hook `on_extra_validation_epoch_start` is not implemented by lightning module."
+                         "The extra validation epoch won't produce any extra outputs.")
 
 
 class LightningModuleWithOptimizer(LightningModule):
